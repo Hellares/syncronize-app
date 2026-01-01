@@ -1,0 +1,402 @@
+import 'package:injectable/injectable.dart';
+import '../../../../core/network/network_info.dart';
+import '../../../../core/utils/resource.dart';
+import '../../domain/entities/producto.dart';
+import '../../domain/entities/producto_filtros.dart';
+import '../../domain/repositories/producto_repository.dart';
+import '../datasources/producto_remote_datasource.dart';
+import '../models/producto_list_item_model.dart';
+
+@LazySingleton(as: ProductoRepository)
+class ProductoRepositoryImpl implements ProductoRepository {
+  final ProductoRemoteDataSource _remoteDataSource;
+  final NetworkInfo _networkInfo;
+
+  ProductoRepositoryImpl(
+    this._remoteDataSource,
+    this._networkInfo,
+  );
+
+  @override
+  Future<Resource<Producto>> crearProducto({
+    required String empresaId,
+    String? sedeId,
+    String? empresaCategoriaId,
+    String? empresaMarcaId,
+    String? sku,
+    String? codigoBarras,
+    required String nombre,
+    String? descripcion,
+    required double precio,
+    double? precioCosto,
+    int? stock,
+    int? stockMinimo,
+    double? peso,
+    Map<String, dynamic>? dimensiones,
+    String? videoUrl,
+    double? impuestoPorcentaje,
+    double? descuentoMaximo,
+    bool? visibleMarketplace,
+    bool? destacado,
+    bool? enOferta,
+    bool? tieneVariantes,
+    bool? esCombo,
+    String? tipoPrecioCombo,
+    double? precioOferta,
+    DateTime? fechaInicioOferta,
+    DateTime? fechaFinOferta,
+    List<String>? imagenesIds,
+    String? configuracionPrecioId,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error(
+        'No hay conexión a internet',
+        errorCode: 'NETWORK_ERROR',
+      );
+    }
+
+    try {
+      final data = <String, dynamic>{
+        'empresaId': empresaId,
+        if (sedeId != null) 'sedeId': sedeId,
+        if (empresaCategoriaId != null)
+          'empresaCategoriaId': empresaCategoriaId,
+        if (empresaMarcaId != null) 'empresaMarcaId': empresaMarcaId,
+        if (sku != null) 'sku': sku,
+        if (codigoBarras != null) 'codigoBarras': codigoBarras,
+        'nombre': nombre,
+        if (descripcion != null) 'descripcion': descripcion,
+        'precio': precio,
+        if (precioCosto != null) 'precioCosto': precioCosto,
+        if (stock != null) 'stock': stock,
+        if (stockMinimo != null) 'stockMinimo': stockMinimo,
+        if (peso != null) 'peso': peso,
+        if (dimensiones != null) 'dimensiones': dimensiones,
+        if (videoUrl != null) 'videoUrl': videoUrl,
+        if (impuestoPorcentaje != null)
+          'impuestoPorcentaje': impuestoPorcentaje,
+        if (descuentoMaximo != null) 'descuentoMaximo': descuentoMaximo,
+        if (visibleMarketplace != null)
+          'visibleMarketplace': visibleMarketplace,
+        if (destacado != null) 'destacado': destacado,
+        if (enOferta != null) 'enOferta': enOferta,
+        if (tieneVariantes != null) 'tieneVariantes': tieneVariantes,
+        if (esCombo != null) 'esCombo': esCombo,
+        if (tipoPrecioCombo != null) 'tipoPrecioCombo': tipoPrecioCombo,
+        if (precioOferta != null) 'precioOferta': precioOferta,
+        if (fechaInicioOferta != null)
+          'fechaInicioOferta': fechaInicioOferta.toIso8601String(),
+        if (fechaFinOferta != null)
+          'fechaFinOferta': fechaFinOferta.toIso8601String(),
+        if (imagenesIds != null) 'imagenesIds': imagenesIds,
+        if (configuracionPrecioId != null)
+          'configuracionPrecioId': configuracionPrecioId,
+      };
+
+      final producto = await _remoteDataSource.crearProducto(data);
+      return Success(producto.toEntity());
+    } catch (e) {
+      return Error(
+        e.toString().replaceFirst('Exception: ', ''),
+        errorCode: 'SERVER_ERROR',
+      );
+    }
+  }
+
+  @override
+  Future<Resource<ProductosPaginados>> getProductos({
+    required String empresaId,
+    required ProductoFiltros filtros,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error(
+        'No hay conexión a internet',
+        errorCode: 'NETWORK_ERROR',
+      );
+    }
+
+    try {
+      final response = await _remoteDataSource.getProductos(
+        empresaId: empresaId,
+        filtros: filtros,
+      );
+
+      // Parsear los productos del campo 'data'
+      final productos = (response['data'] as List)
+          .map((json) =>
+              ProductoListItemModel.fromJson(json as Map<String, dynamic>))
+          .toList();
+
+      // Parsear la metadata de paginación
+      final meta = response['meta'] as Map<String, dynamic>;
+
+      final paginados = ProductosPaginados(
+        data: productos,
+        total: meta['total'] as int,
+        page: meta['page'] as int,
+        pageSize: meta['pageSize'] as int,
+        totalPages: meta['totalPages'] as int,
+        offset: meta['offset'] as int,
+        hasNext: meta['hasNext'] as bool,
+        hasPrevious: meta['hasPrevious'] as bool,
+      );
+
+      return Success(paginados);
+    } catch (e) {
+      return Error(
+        e.toString().replaceFirst('Exception: ', ''),
+        errorCode: 'SERVER_ERROR',
+      );
+    }
+  }
+
+  @override
+  Future<Resource<Producto>> getProducto({
+    required String productoId,
+    required String empresaId,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error(
+        'No hay conexión a internet',
+        errorCode: 'NETWORK_ERROR',
+      );
+    }
+
+    try {
+      final producto = await _remoteDataSource.getProducto(
+        productoId: productoId,
+        empresaId: empresaId,
+      );
+      return Success(producto.toEntity());
+    } catch (e) {
+      return Error(
+        e.toString().replaceFirst('Exception: ', ''),
+        errorCode: 'SERVER_ERROR',
+      );
+    }
+  }
+
+  @override
+  Future<Resource<Producto>> actualizarProducto({
+    required String productoId,
+    required String empresaId,
+    String? sedeId,
+    String? empresaCategoriaId,
+    String? empresaMarcaId,
+    String? sku,
+    String? codigoBarras,
+    String? nombre,
+    String? descripcion,
+    double? precio,
+    double? precioCosto,
+    int? stock,
+    int? stockMinimo,
+    double? peso,
+    Map<String, dynamic>? dimensiones,
+    String? videoUrl,
+    double? impuestoPorcentaje,
+    double? descuentoMaximo,
+    bool? visibleMarketplace,
+    bool? destacado,
+    int? ordenMarketplace,
+    bool? enOferta,
+    bool? tieneVariantes,
+    bool? esCombo,
+    String? tipoPrecioCombo,
+    double? precioOferta,
+    DateTime? fechaInicioOferta,
+    DateTime? fechaFinOferta,
+    List<String>? imagenesIds,
+    String? configuracionPrecioId,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error(
+        'No hay conexión a internet',
+        errorCode: 'NETWORK_ERROR',
+      );
+    }
+
+    try {
+      final data = <String, dynamic>{
+        if (sedeId != null) 'sedeId': sedeId,
+        if (empresaCategoriaId != null)
+          'empresaCategoriaId': empresaCategoriaId,
+        if (empresaMarcaId != null) 'empresaMarcaId': empresaMarcaId,
+        if (sku != null) 'sku': sku,
+        if (codigoBarras != null) 'codigoBarras': codigoBarras,
+        if (nombre != null) 'nombre': nombre,
+        if (descripcion != null) 'descripcion': descripcion,
+        if (precio != null) 'precio': precio,
+        if (precioCosto != null) 'precioCosto': precioCosto,
+        if (stock != null) 'stock': stock,
+        if (stockMinimo != null) 'stockMinimo': stockMinimo,
+        if (peso != null) 'peso': peso,
+        if (dimensiones != null) 'dimensiones': dimensiones,
+        if (videoUrl != null) 'videoUrl': videoUrl,
+        if (impuestoPorcentaje != null)
+          'impuestoPorcentaje': impuestoPorcentaje,
+        if (descuentoMaximo != null) 'descuentoMaximo': descuentoMaximo,
+        if (visibleMarketplace != null)
+          'visibleMarketplace': visibleMarketplace,
+        if (destacado != null) 'destacado': destacado,
+        if (ordenMarketplace != null) 'ordenMarketplace': ordenMarketplace,
+        if (enOferta != null) 'enOferta': enOferta,
+        if (tieneVariantes != null) 'tieneVariantes': tieneVariantes,
+        if (esCombo != null) 'esCombo': esCombo,
+        if (tipoPrecioCombo != null) 'tipoPrecioCombo': tipoPrecioCombo,
+        if (precioOferta != null) 'precioOferta': precioOferta,
+        if (fechaInicioOferta != null)
+          'fechaInicioOferta': fechaInicioOferta.toIso8601String(),
+        if (fechaFinOferta != null)
+          'fechaFinOferta': fechaFinOferta.toIso8601String(),
+        if (imagenesIds != null) 'imagenesIds': imagenesIds,
+        if (configuracionPrecioId != null)
+          'configuracionPrecioId': configuracionPrecioId,
+      };
+
+      final producto = await _remoteDataSource.actualizarProducto(
+        productoId: productoId,
+        empresaId: empresaId,
+        data: data,
+      );
+      return Success(producto.toEntity());
+    } catch (e) {
+      return Error(
+        e.toString().replaceFirst('Exception: ', ''),
+        errorCode: 'SERVER_ERROR',
+      );
+    }
+  }
+
+  @override
+  Future<Resource<void>> eliminarProducto({
+    required String productoId,
+    required String empresaId,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error(
+        'No hay conexión a internet',
+        errorCode: 'NETWORK_ERROR',
+      );
+    }
+
+    try {
+      await _remoteDataSource.eliminarProducto(
+        productoId: productoId,
+        empresaId: empresaId,
+      );
+      return Success(null);
+    } catch (e) {
+      return Error(
+        e.toString().replaceFirst('Exception: ', ''),
+        errorCode: 'SERVER_ERROR',
+      );
+    }
+  }
+
+  @override
+  Future<Resource<Producto>> actualizarStock({
+    required String productoId,
+    required String empresaId,
+    required int cantidad,
+    required String operacion,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error(
+        'No hay conexión a internet',
+        errorCode: 'NETWORK_ERROR',
+      );
+    }
+
+    try {
+      final producto = await _remoteDataSource.actualizarStock(
+        productoId: productoId,
+        empresaId: empresaId,
+        cantidad: cantidad,
+        operacion: operacion,
+      );
+      return Success(producto.toEntity());
+    } catch (e) {
+      return Error(
+        e.toString().replaceFirst('Exception: ', ''),
+        errorCode: 'SERVER_ERROR',
+      );
+    }
+  }
+
+  @override
+  Future<Resource<int>> getStockTotal({
+    required String productoId,
+    required String empresaId,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error(
+        'No hay conexión a internet',
+        errorCode: 'NETWORK_ERROR',
+      );
+    }
+
+    try {
+      final stockTotal = await _remoteDataSource.getStockTotal(
+        productoId: productoId,
+        empresaId: empresaId,
+      );
+      return Success(stockTotal);
+    } catch (e) {
+      return Error(
+        e.toString().replaceFirst('Exception: ', ''),
+        errorCode: 'SERVER_ERROR',
+      );
+    }
+  }
+
+  @override
+  Future<Resource<List<Producto>>> getProductosDisponiblesParaCombo({
+    required String empresaId,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error(
+        'No hay conexión a internet',
+        errorCode: 'NETWORK_ERROR',
+      );
+    }
+
+    try {
+      final productos = await _remoteDataSource.getProductosDisponiblesParaCombo(
+        empresaId: empresaId,
+      );
+      return Success(productos.map((p) => p.toEntity()).toList());
+    } catch (e) {
+      return Error(
+        e.toString().replaceFirst('Exception: ', ''),
+        errorCode: 'SERVER_ERROR',
+      );
+    }
+  }
+
+  @override
+  Future<Resource<Map<String, dynamic>>> ajusteMasivoPrecios({
+    required String empresaId,
+    required Map<String, dynamic> dto,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error(
+        'No hay conexión a internet',
+        errorCode: 'NETWORK_ERROR',
+      );
+    }
+
+    try {
+      final resultado = await _remoteDataSource.ajusteMasivoPrecios(
+        empresaId: empresaId,
+        dto: dto,
+      );
+      return Success(resultado);
+    } catch (e) {
+      return Error(
+        e.toString().replaceFirst('Exception: ', ''),
+        errorCode: 'SERVER_ERROR',
+      );
+    }
+  }
+}

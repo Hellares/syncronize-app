@@ -1,0 +1,273 @@
+import 'package:equatable/equatable.dart';
+import 'producto_variante.dart';
+import 'atributo_valor.dart';
+
+/// Entity que representa un producto
+class Producto extends Equatable {
+  final String id;
+  final String empresaId;
+  final String? sedeId;
+  final String? empresaCategoriaId;
+  final String? empresaMarcaId;
+  final String codigoEmpresa;
+  final String codigoSistema;
+  final String? sku;
+  final String? codigoBarras;
+  final String nombre;
+  final String? descripcion;
+  final double precio;
+  final double? precioCosto;
+  final int stock;
+  final int? stockMinimo;
+  final double? peso;
+  final Map<String, dynamic>? dimensiones;
+  final String? videoUrl;
+  final double? impuestoPorcentaje;
+  final double? descuentoMaximo;
+  final bool visibleMarketplace;
+  final bool destacado;
+  final int? ordenMarketplace;
+  final bool enOferta;
+  final double? precioOferta;
+  final DateTime? fechaInicioOferta;
+  final DateTime? fechaFinOferta;
+  final bool isActive;
+  final bool tieneVariantes;
+  final bool esCombo;
+  final String? tipoPrecioCombo; // FIJO, CALCULADO, CALCULADO_CON_DESCUENTO
+  final String? configuracionPrecioId; // ID de la configuración de precios aplicada
+  final DateTime? deletedAt;
+  final DateTime creadoEn;
+  final DateTime actualizadoEn;
+
+  // Información relacionada (cargada desde el backend)
+  final ProductoCategoria? categoria;
+  final ProductoMarca? marca;
+  final ProductoSede? sede;
+  final List<String>? imagenes;
+  final List<ProductoArchivo>? archivos;
+  final List<AtributoValor>? atributosValores; // Atributos del producto base (solo si no tiene variantes)
+  final List<ProductoVariante>? variantes;
+
+  const Producto({
+    required this.id,
+    required this.empresaId,
+    this.sedeId,
+    this.empresaCategoriaId,
+    this.empresaMarcaId,
+    required this.codigoEmpresa,
+    required this.codigoSistema,
+    this.sku,
+    this.codigoBarras,
+    required this.nombre,
+    this.descripcion,
+    required this.precio,
+    this.precioCosto,
+    required this.stock,
+    this.stockMinimo,
+    this.peso,
+    this.dimensiones,
+    this.videoUrl,
+    this.impuestoPorcentaje,
+    this.descuentoMaximo,
+    required this.visibleMarketplace,
+    required this.destacado,
+    this.ordenMarketplace,
+    required this.enOferta,
+    this.precioOferta,
+    this.fechaInicioOferta,
+    this.fechaFinOferta,
+    required this.isActive,
+    this.tieneVariantes = false,
+    this.esCombo = false,
+    this.tipoPrecioCombo,
+    this.configuracionPrecioId,
+    this.deletedAt,
+    required this.creadoEn,
+    required this.actualizadoEn,
+    this.categoria,
+    this.marca,
+    this.sede,
+    this.imagenes,
+    this.archivos,
+    this.atributosValores,
+    this.variantes,
+  });
+
+  /// Verifica si el producto tiene stock disponible
+  bool get hasStock => stock > 0;
+
+  /// Verifica si el stock está bajo (menor o igual al mínimo)
+  bool get isStockLow =>
+      stockMinimo != null && stock <= stockMinimo! && stock > 0;
+
+  /// Verifica si el stock está agotado
+  bool get isOutOfStock => stock <= 0;
+
+  /// Verifica si la oferta está activa actualmente
+  bool get isOfertaActiva {
+    if (!enOferta || precioOferta == null) return false;
+
+    final now = DateTime.now();
+
+    // Si hay fecha de inicio, verificar que ya comenzó
+    if (fechaInicioOferta != null && now.isBefore(fechaInicioOferta!)) {
+      return false;
+    }
+
+    // Si hay fecha de fin, verificar que no terminó
+    if (fechaFinOferta != null && now.isAfter(fechaFinOferta!)) {
+      return false;
+    }
+
+    return true;
+  }
+
+  /// Obtiene el precio efectivo a mostrar (con oferta si aplica)
+  double get precioEfectivo {
+    return isOfertaActiva ? precioOferta! : precio;
+  }
+
+  /// Calcula el porcentaje de descuento de la oferta
+  double? get porcentajeDescuento {
+    if (!isOfertaActiva || precioOferta == null || precio == 0) return null;
+    return ((precio - precioOferta!) / precio) * 100;
+  }
+
+  /// Obtiene la imagen principal (primera imagen)
+  String? get imagenPrincipal {
+    if (imagenes != null && imagenes!.isNotEmpty) {
+      return imagenes!.first;
+    }
+    if (archivos != null && archivos!.isNotEmpty) {
+      return archivos!.first.url;
+    }
+    return null;
+  }
+
+  /// Obtiene el thumbnail principal
+  String? get thumbnailPrincipal {
+    if (archivos != null && archivos!.isNotEmpty) {
+      return archivos!.first.urlThumbnail ?? archivos!.first.url;
+    }
+    return imagenPrincipal;
+  }
+
+  @override
+  List<Object?> get props => [
+        id,
+        empresaId,
+        sedeId,
+        empresaCategoriaId,
+        empresaMarcaId,
+        codigoEmpresa,
+        codigoSistema,
+        sku,
+        codigoBarras,
+        nombre,
+        descripcion,
+        precio,
+        precioCosto,
+        stock,
+        stockMinimo,
+        peso,
+        dimensiones,
+        videoUrl,
+        impuestoPorcentaje,
+        descuentoMaximo,
+        visibleMarketplace,
+        destacado,
+        ordenMarketplace,
+        enOferta,
+        precioOferta,
+        fechaInicioOferta,
+        fechaFinOferta,
+        isActive,
+        tieneVariantes,
+        esCombo,
+        tipoPrecioCombo,
+        configuracionPrecioId,
+        deletedAt,
+        creadoEn,
+        actualizadoEn,
+        categoria,
+        marca,
+        sede,
+        imagenes,
+        archivos,
+        atributosValores,
+        variantes,
+      ];
+}
+
+/// Información de categoría del producto (simplificada)
+class ProductoCategoria extends Equatable {
+  final String id;
+  final String nombre;
+  final String? categoriaMaestraId;
+  final String? slug;
+
+  const ProductoCategoria({
+    required this.id,
+    required this.nombre,
+    this.categoriaMaestraId,
+    this.slug,
+  });
+
+  @override
+  List<Object?> get props => [id, nombre, categoriaMaestraId, slug];
+}
+
+/// Información de marca del producto (simplificada)
+class ProductoMarca extends Equatable {
+  final String id;
+  final String nombre;
+  final String? marcaMaestraId;
+  final String? slug;
+  final String? logo;
+
+  const ProductoMarca({
+    required this.id,
+    required this.nombre,
+    this.marcaMaestraId,
+    this.slug,
+    this.logo,
+  });
+
+  @override
+  List<Object?> get props => [id, nombre, marcaMaestraId, slug, logo];
+}
+
+/// Información de sede del producto (simplificada)
+class ProductoSede extends Equatable {
+  final String id;
+  final String nombre;
+
+  const ProductoSede({
+    required this.id,
+    required this.nombre,
+  });
+
+  @override
+  List<Object?> get props => [id, nombre];
+}
+
+/// Información de archivo/imagen del producto
+class ProductoArchivo extends Equatable {
+  final String id;
+  final String url;
+  final String? urlThumbnail;
+  final String? categoria;
+  final int? orden;
+
+  const ProductoArchivo({
+    required this.id,
+    required this.url,
+    this.urlThumbnail,
+    this.categoria,
+    this.orden,
+  });
+
+  @override
+  List<Object?> get props => [id, url, urlThumbnail, categoria, orden];
+}
