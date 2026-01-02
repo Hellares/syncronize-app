@@ -41,6 +41,9 @@ class ApiConstants {
   // Endpoints de clientes
   static const String clientes = '/clientes';
 
+  // Endpoints de usuarios/empleados
+  static const String usuarios = '/usuarios';
+
   // Endpoints de políticas de descuento
   static const String politicasDescuento = '/politicas-descuento';
 

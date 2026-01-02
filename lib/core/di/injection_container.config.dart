@@ -246,6 +246,22 @@ import '../../features/producto/presentation/bloc/producto_variante/producto_var
     as _i693;
 import '../../features/producto/presentation/bloc/variante_atributo/variante_atributo_cubit.dart'
     as _i911;
+import '../../features/usuario/data/datasources/usuario_remote_datasource.dart'
+    as _i32;
+import '../../features/usuario/data/repositories/usuario_repository_impl.dart'
+    as _i941;
+import '../../features/usuario/domain/repositories/usuario_repository.dart'
+    as _i662;
+import '../../features/usuario/domain/usecases/get_usuario_usecase.dart'
+    as _i1039;
+import '../../features/usuario/domain/usecases/get_usuarios_usecase.dart'
+    as _i287;
+import '../../features/usuario/domain/usecases/registrar_usuario_usecase.dart'
+    as _i715;
+import '../../features/usuario/presentation/bloc/usuario_form/usuario_form_cubit.dart'
+    as _i59;
+import '../../features/usuario/presentation/bloc/usuario_list/usuario_list_cubit.dart'
+    as _i71;
 import '../network/dio_client.dart' as _i667;
 import '../network/interceptors/auth_interceptor.dart' as _i745;
 import '../network/interceptors/error_interceptor.dart' as _i511;
@@ -379,6 +395,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i1047.ProductoRemoteDataSource>(
       () => _i1047.ProductoRemoteDataSource(gh<_i667.DioClient>()),
     );
+    gh.lazySingleton<_i32.UsuarioRemoteDataSource>(
+      () => _i32.UsuarioRemoteDataSource(gh<_i667.DioClient>()),
+    );
     gh.lazySingleton<_i37.ClienteRepository>(
       () => _i797.ClienteRepositoryImpl(
         gh<_i189.ClienteRemoteDataSource>(),
@@ -456,6 +475,21 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i411.SwitchEmpresaUseCase>(
       () => _i411.SwitchEmpresaUseCase(gh<_i544.EmpresaRepository>()),
     );
+    gh.lazySingleton<_i662.UsuarioRepository>(
+      () => _i941.UsuarioRepositoryImpl(
+        gh<_i32.UsuarioRemoteDataSource>(),
+        gh<_i932.NetworkInfo>(),
+      ),
+    );
+    gh.factory<_i1039.GetUsuarioUseCase>(
+      () => _i1039.GetUsuarioUseCase(gh<_i662.UsuarioRepository>()),
+    );
+    gh.factory<_i287.GetUsuariosUseCase>(
+      () => _i287.GetUsuariosUseCase(gh<_i662.UsuarioRepository>()),
+    );
+    gh.factory<_i715.RegistrarUsuarioUseCase>(
+      () => _i715.RegistrarUsuarioUseCase(gh<_i662.UsuarioRepository>()),
+    );
     gh.lazySingleton<_i161.AuthRemoteDataSource>(
       () => _i161.AuthRemoteDataSourceImpl(gh<_i667.DioClient>()),
     );
@@ -518,6 +552,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i330.GetComponentesUseCase>(
       () => _i330.GetComponentesUseCase(gh<_i200.ComboRepository>()),
+    );
+    gh.factory<_i59.UsuarioFormCubit>(
+      () => _i59.UsuarioFormCubit(gh<_i715.RegistrarUsuarioUseCase>()),
     );
     gh.factory<_i147.AgregarFamiliar>(
       () => _i147.AgregarFamiliar(gh<_i605.DescuentoRepository>()),
@@ -585,6 +622,9 @@ extension GetItInjectableX on _i174.GetIt {
         networkInfo: gh<_i932.NetworkInfo>(),
         errorHandler: gh<_i490.ErrorHandlerService>(),
       ),
+    );
+    gh.factory<_i71.UsuarioListCubit>(
+      () => _i71.UsuarioListCubit(gh<_i287.GetUsuariosUseCase>()),
     );
     gh.factory<_i658.MarcasEmpresaCubit>(
       () => _i658.MarcasEmpresaCubit(gh<_i1056.GetMarcasEmpresaUseCase>()),

@@ -30,6 +30,8 @@ import '../../features/catalogo/presentation/pages/marcas_page.dart';
 import '../../features/combo/presentation/pages/pages.dart';
 import '../../features/cliente/presentation/pages/clientes_page.dart';
 import '../../features/cliente/presentation/pages/cliente_form_page.dart';
+import '../../features/usuario/presentation/pages/usuarios_page.dart';
+import '../../features/usuario/presentation/pages/usuario_form_page.dart';
 import '../../features/descuento/presentation/pages/pages.dart';
 
 /// Configuración de rutas de la aplicación
@@ -225,6 +227,17 @@ class AppRouter {
           final empresaId = extra?['empresaId'] as String? ?? '';
           return ClienteFormPage(empresaId: empresaId);
         },
+      ),
+      // Rutas de usuarios
+      GoRoute(
+        path: '/empresa/usuarios',
+        name: 'empresa-usuarios',
+        builder: (context, state) => const UsuariosPage(),
+      ),
+      GoRoute(
+        path: '/empresa/usuarios/nuevo',
+        name: 'empresa-usuarios-nuevo',
+        builder: (context, state) => const UsuarioFormPage(),
       ),
       // Rutas de combos
       GoRoute(

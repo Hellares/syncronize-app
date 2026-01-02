@@ -15,6 +15,8 @@ import 'package:syncronize/features/catalogo/presentation/bloc/marcas_empresa/ma
 import 'package:syncronize/features/combo/presentation/bloc/combo_cubit.dart';
 import 'package:syncronize/features/cliente/presentation/bloc/cliente_list/cliente_list_cubit.dart';
 import 'package:syncronize/features/cliente/presentation/bloc/cliente_form/cliente_form_cubit.dart';
+import 'package:syncronize/features/usuario/presentation/bloc/usuario_list/usuario_list_cubit.dart';
+import 'package:syncronize/features/usuario/presentation/bloc/usuario_form/usuario_form_cubit.dart';
 import 'package:syncronize/features/descuento/presentation/bloc/politica_list/politica_list_cubit.dart';
 import 'package:syncronize/features/descuento/presentation/bloc/politica_form/politica_form_cubit.dart';
 import 'package:syncronize/features/descuento/presentation/bloc/asignar_usuarios/asignar_usuarios_cubit.dart';
@@ -134,6 +136,18 @@ List<BlocProvider> blocProviders = [
   // Asignar Usuarios Cubit - Maneja la asignación de usuarios a políticas
   BlocProvider<AsignarUsuariosCubit>(
     create: (context) => locator<AsignarUsuariosCubit>(),
+    lazy: true,
+  ),
+
+  // Usuario List Cubit - Maneja la lista de usuarios/empleados
+  BlocProvider<UsuarioListCubit>(
+    create: (context) => locator<UsuarioListCubit>(),
+    lazy: true,
+  ),
+
+  // Usuario Form Cubit - Maneja el formulario de registro de usuarios/empleados
+  BlocProvider<UsuarioFormCubit>(
+    create: (context) => locator<UsuarioFormCubit>(),
     lazy: true,
   ),
 ];
