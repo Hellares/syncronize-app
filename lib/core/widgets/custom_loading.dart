@@ -15,12 +15,12 @@ class CustomLoading extends StatelessWidget {
   const CustomLoading({
     super.key,
     this.message,
-    this.width = 150,
-    this.height = 150,
-    this.animationSize = 80,
+    this.width = 100,
+    this.height = 100,
+    this.animationSize = 60,
     this.backgroundColor = Colors.white,
     this.textColor,
-    this.borderRadius = 20,
+    this.borderRadius = 10,
     this.animationPath = 'assets/animations/Loading.json',
     this.showOverlay = true,
   });
@@ -37,7 +37,7 @@ class CustomLoading extends StatelessWidget {
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 20,
+              blurRadius: 10,
               spreadRadius: 5,
             ),
           ],
@@ -52,14 +52,14 @@ class CustomLoading extends StatelessWidget {
               fit: BoxFit.contain,
             ),
             if (message != null) ...[
-              const SizedBox(height: 16),
+              const SizedBox(height: 10),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 6),
                 child: Text(
                   message!,
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 9,
                     fontWeight: FontWeight.w600,
                     color: textColor ?? Colors.grey[700],
                   ),
@@ -105,9 +105,9 @@ class CustomLoading extends StatelessWidget {
   factory CustomLoading.small({String? message}) {
     return CustomLoading(
       message: message,
-      width: 150,
-      height: 150,
-      animationSize: 60,
+      width: 90,
+      height: 90,
+      animationSize: 50,
       animationPath: 'assets/animations/Loading.json',
     );
   }

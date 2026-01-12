@@ -20,6 +20,9 @@ import 'package:syncronize/features/usuario/presentation/bloc/usuario_form/usuar
 import 'package:syncronize/features/descuento/presentation/bloc/politica_list/politica_list_cubit.dart';
 import 'package:syncronize/features/descuento/presentation/bloc/politica_form/politica_form_cubit.dart';
 import 'package:syncronize/features/descuento/presentation/bloc/asignar_usuarios/asignar_usuarios_cubit.dart';
+import 'package:syncronize/features/configuracion_codigos/presentation/bloc/configuracion_codigos_cubit.dart';
+import 'package:syncronize/features/sede/presentation/bloc/sede_list/sede_list_cubit.dart';
+import 'package:syncronize/features/sede/presentation/bloc/sede_form/sede_form_cubit.dart';
 
 /// Lista centralizada de todos los BLoCs globales de la aplicación
 List<BlocProvider> blocProviders = [
@@ -148,6 +151,24 @@ List<BlocProvider> blocProviders = [
   // Usuario Form Cubit - Maneja el formulario de registro de usuarios/empleados
   BlocProvider<UsuarioFormCubit>(
     create: (context) => locator<UsuarioFormCubit>(),
+    lazy: true,
+  ),
+
+  // Configuracion Codigos Cubit - Maneja la configuración de nomenclaturas
+  BlocProvider<ConfiguracionCodigosCubit>(
+    create: (context) => locator<ConfiguracionCodigosCubit>(),
+    lazy: true,
+  ),
+
+  // Sede List Cubit - Maneja la lista de sedes
+  BlocProvider<SedeListCubit>(
+    create: (context) => locator<SedeListCubit>(),
+    lazy: true,
+  ),
+
+  // Sede Form Cubit - Maneja el formulario de creación/edición de sedes
+  BlocProvider<SedeFormCubit>(
+    create: (context) => locator<SedeFormCubit>(),
     lazy: true,
   ),
 ];

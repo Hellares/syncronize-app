@@ -17,10 +17,13 @@ class AppColors {
   static const Color blue3 = Color.fromARGB(255, 4, 50, 97);
   static const Color blue2 = Color.fromARGB(255, 7, 93, 179);
   static const Color blue1 = Color(0xFF004A94);
-  static const Color bluechip = Color(0x1A2196F3);
+  static const Color bluechip = Color(0x2F2196F3);
   static const Color blueGrey = Color(0xFF607D8B);
   static const Color green = Color.fromARGB(255, 43, 175, 71);
+  static const Color greendark = Color(0xFF088A24);
   static const Color orange = Color(0xFFDD8A3B);
+  static const Color amberText = Color(0xFFFF6F00);
+  static const Color amberShadow = Color(0x33FFC107);
   static const Color yellow = Color.fromARGB(255, 255, 226, 94);
 
   // Fondos

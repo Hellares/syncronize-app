@@ -89,7 +89,7 @@ class UsuarioRemoteDataSource {
     required Map<String, dynamic> data,
   }) async {
     try {
-      final response = await _dioClient.put(
+      final response = await _dioClient.patch(
         '${ApiConstants.usuarios}/$usuarioId',
         data: data,
       );

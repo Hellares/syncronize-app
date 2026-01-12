@@ -34,6 +34,8 @@ class ProductoListCubit extends Cubit<ProductoListState> {
       filtros: _currentFiltros,
     );
 
+    if (isClosed) return;
+
     if (result is Success<ProductosPaginados>) {
       final data = result.data;
       _allProductos = data.data.cast<ProductoListItem>();
@@ -67,6 +69,8 @@ class ProductoListCubit extends Cubit<ProductoListState> {
       empresaId: _currentEmpresaId!,
       filtros: nextFiltros,
     );
+
+    if (isClosed) return;
 
     if (result is Success<ProductosPaginados>) {
       final data = result.data;

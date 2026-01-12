@@ -31,6 +31,9 @@ class ProductoDetailCubit extends Cubit<ProductoDetailState> {
       empresaId: empresaId,
     );
 
+    // Verificar que el cubit no se haya cerrado antes de emitir
+    if (isClosed) return;
+
     if (result is Success<Producto>) {
       emit(ProductoDetailLoaded(result.data));
     } else if (result is Error<Producto>) {

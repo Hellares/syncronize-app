@@ -81,6 +81,8 @@ class AppCaption extends StatelessWidget {
   final double? fontSize;
   final TextAlign? textAlign;
   final double spacing; // Espacio entre cada item
+  final FontWeight? fontWeight; // Peso de la fuente
+  final String? fontFamily; // Familia de fuente
 
   const AppCaption({
     super.key,
@@ -90,6 +92,8 @@ class AppCaption extends StatelessWidget {
     this.fontSize,
     this.textAlign,
     this.spacing = 10,
+    this.fontWeight,
+    this.fontFamily,
   });
 
   @override
@@ -106,6 +110,8 @@ class AppCaption extends StatelessWidget {
                     style: font.caption.copyWith(
                       color: color ?? AppColors.blueGrey,
                       fontSize: fontSize,
+                      fontWeight: fontWeight,
+                      fontFamily: fontFamily,
                     ),
                   ),
                   SizedBox(width: spacing),

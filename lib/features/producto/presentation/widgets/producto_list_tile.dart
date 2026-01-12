@@ -27,7 +27,7 @@ class ProductoListTile extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 12),
       child: GradientContainer(
         gradient:AppGradients.blueWhiteBlue(), // Gradiente sutil para las cards
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         shadowStyle: ShadowStyle.glow, // Efecto neumórfico elegante
         borderColor: AppColors.blueborder,
         borderWidth: 0.8,
@@ -46,15 +46,15 @@ class ProductoListTile extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: Colors.grey[200],
                     borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(12),
-                      bottomLeft: Radius.circular(12),
+                      topLeft: Radius.circular(8),
+                      bottomLeft: Radius.circular(8),
                     ),
                   ),
                   child: producto.imagenPrincipal != null
                       ? ClipRRect(
                           borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(12),
-                            bottomLeft: Radius.circular(12),
+                            topLeft: Radius.circular(8),
+                            bottomLeft: Radius.circular(8),
                           ),
                           child: Image.network(
                             producto.imagenPrincipal!,
@@ -98,7 +98,7 @@ class ProductoListTile extends StatelessWidget {
                     child: InkWell(
                       onTap: onManageFiles,
                       borderRadius: const BorderRadius.only(
-                        topRight: Radius.circular(12),
+                        topRight: Radius.circular(8),
                         topLeft: Radius.circular(4),
                         bottomLeft: Radius.circular(4),
                         bottomRight: Radius.circular(4),
@@ -108,7 +108,7 @@ class ProductoListTile extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: AppColors.blue1.withValues(alpha: 0.1),
                           borderRadius: const BorderRadius.only(
-                            topRight: Radius.circular(12),
+                            topRight: Radius.circular(8),
                             topLeft: Radius.circular(4),
                             bottomLeft: Radius.circular(4),
                             bottomRight: Radius.circular(4),
@@ -165,7 +165,7 @@ class ProductoListTile extends StatelessWidget {
         ),
 
         // Línea 2: SKU • Categoría • Marca (todo en una línea)
-        const SizedBox(height: 6),
+        const SizedBox(height: 3),
         Row(
           children: [
             // SKU
@@ -175,7 +175,7 @@ class ProductoListTile extends StatelessWidget {
               Text(
                 producto.codigoEmpresa,
                 style: TextStyle(
-                  fontSize: 9,
+                  fontSize: 8,
                   color: Colors.grey[700],
                   fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
                   fontWeight: FontWeight.w500,
@@ -190,7 +190,7 @@ class ProductoListTile extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 5),
                 child: Text(
                   '•',
-                  style: TextStyle(color: Colors.grey[400], fontSize: 9),
+                  style: TextStyle(color: Colors.grey[400], fontSize: 8),
                 ),
               ),
             ],
@@ -202,7 +202,7 @@ class ProductoListTile extends StatelessWidget {
               Flexible(
                 child: Text(
                   producto.categoriaNombre!,
-                  style: TextStyle(fontSize: 9, color: Colors.grey[700], fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular)),
+                  style: TextStyle(fontSize: 8, color: Colors.grey[700], fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular)),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -229,7 +229,7 @@ class ProductoListTile extends StatelessWidget {
                 child: Text(
                   producto.marcaNombre!,
                   style: TextStyle(
-                    fontSize: 9,
+                    fontSize: 8,
                     color: Colors.grey[700],
                     fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular)
                   ),
@@ -252,7 +252,7 @@ class ProductoListTile extends StatelessWidget {
         Container(
           height: 1,
           color: Colors.grey[300],
-          margin: const EdgeInsets.symmetric(vertical: 8),
+          margin: const EdgeInsets.symmetric(vertical: 2),
         ),
 
         // Línea 1: Precio con descuento + badge de descuento inline

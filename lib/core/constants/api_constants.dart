@@ -47,6 +47,9 @@ class ApiConstants {
   // Endpoints de políticas de descuento
   static const String politicasDescuento = '/politicas-descuento';
 
+  // Endpoints de configuración de códigos
+  static const String configuracionCodigos = '/configuracion-codigos';
+
   // Headers
   static const String authorization = 'Authorization';
   static const String contentType = 'Content-Type';

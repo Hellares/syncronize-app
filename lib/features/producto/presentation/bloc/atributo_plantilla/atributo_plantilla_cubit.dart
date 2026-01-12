@@ -22,6 +22,8 @@ class AtributoPlantillaCubit extends Cubit<AtributoPlantillaState> {
         _repository.getLimitsInfo(),
       ]);
 
+      if (isClosed) return;
+
       final plantillasResult = results[0];
       final limitsResult = results[1];
 
@@ -34,6 +36,7 @@ class AtributoPlantillaCubit extends Cubit<AtributoPlantillaState> {
         emit(AtributoPlantillaError(plantillasResult.message));
       }
     } catch (e) {
+      if (isClosed) return;
       emit(AtributoPlantillaError(_getErrorMessage(e)));
     }
   }
@@ -45,12 +48,15 @@ class AtributoPlantillaCubit extends Cubit<AtributoPlantillaState> {
 
       final result = await _repository.getPlantilla(plantillaId: plantillaId);
 
+      if (isClosed) return;
+
       if (result is Success<AtributoPlantilla>) {
         emit(AtributoPlantillaDetail(plantilla: result.data));
       } else if (result is Error<AtributoPlantilla>) {
         emit(AtributoPlantillaError(result.message));
       }
     } catch (e) {
+      if (isClosed) return;
       emit(AtributoPlantillaError(_getErrorMessage(e)));
     }
   }
@@ -77,17 +83,20 @@ class AtributoPlantillaCubit extends Cubit<AtributoPlantillaState> {
         atributos: atributos,
       );
 
+      if (isClosed) return;
+
       if (result is Success<AtributoPlantilla>) {
         emit(AtributoPlantillaSuccess(
           message: 'Plantilla "$nombre" creada exitosamente',
           plantilla: result.data,
         ));
         // Recargar lista
-        await loadPlantillas();
+        if (!isClosed) await loadPlantillas();
       } else if (result is Error<AtributoPlantilla>) {
         emit(AtributoPlantillaError(result.message));
       }
     } catch (e) {
+      if (isClosed) return;
       emit(AtributoPlantillaError(_getErrorMessage(e)));
     }
   }
@@ -115,17 +124,20 @@ class AtributoPlantillaCubit extends Cubit<AtributoPlantillaState> {
         atributos: atributos,
       );
 
+      if (isClosed) return;
+
       if (result is Success<AtributoPlantilla>) {
         emit(AtributoPlantillaSuccess(
           message: 'Plantilla actualizada exitosamente',
           plantilla: result.data,
         ));
         // Recargar lista
-        await loadPlantillas();
+        if (!isClosed) await loadPlantillas();
       } else if (result is Error<AtributoPlantilla>) {
         emit(AtributoPlantillaError(result.message));
       }
     } catch (e) {
+      if (isClosed) return;
       emit(AtributoPlantillaError(_getErrorMessage(e)));
     }
   }
@@ -137,16 +149,19 @@ class AtributoPlantillaCubit extends Cubit<AtributoPlantillaState> {
 
       final result = await _repository.eliminarPlantilla(plantillaId: plantillaId);
 
+      if (isClosed) return;
+
       if (result is Success<void>) {
         emit(AtributoPlantillaSuccess(
           message: 'Plantilla "$nombrePlantilla" eliminada',
         ));
         // Recargar lista
-        await loadPlantillas();
+        if (!isClosed) await loadPlantillas();
       } else if (result is Error<void>) {
         emit(AtributoPlantillaError(result.message));
       }
     } catch (e) {
+      if (isClosed) return;
       emit(AtributoPlantillaError(_getErrorMessage(e)));
     }
   }
@@ -168,6 +183,8 @@ class AtributoPlantillaCubit extends Cubit<AtributoPlantillaState> {
         varianteId: varianteId,
       );
 
+      if (isClosed) return;
+
       if (result is Success<AplicarPlantillaResult>) {
         final data = result.data;
         emit(AtributoPlantillaAplicada(
@@ -179,6 +196,7 @@ class AtributoPlantillaCubit extends Cubit<AtributoPlantillaState> {
         emit(AtributoPlantillaError(result.message));
       }
     } catch (e) {
+      if (isClosed) return;
       emit(AtributoPlantillaError(_getErrorMessage(e)));
     }
   }
@@ -187,6 +205,8 @@ class AtributoPlantillaCubit extends Cubit<AtributoPlantillaState> {
   Future<void> loadLimitsInfo() async {
     try {
       final result = await _repository.getLimitsInfo();
+
+      if (isClosed) return;
 
       if (result is Success<PlanLimitsInfo> && state is AtributoPlantillaLoaded) {
         emit((state as AtributoPlantillaLoaded).copyWith(

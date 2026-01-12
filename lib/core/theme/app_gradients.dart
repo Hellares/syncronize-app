@@ -65,6 +65,41 @@ class AppGradients {
     stops: [0.0, 0.7, 1.0],
   );
 
+  // static const Color amberShadow = Color(0x33FFC107);
+
+  static LinearGradient orangeWhiteBlue() => const LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [
+      Color(0x33FFC107), // Azul claro superior
+      Color(0xFFFFFFFF),                   // Blanco centro (AppColors.white)
+      Color(0x33FFC107), // Azul claro inferior
+    ],
+    stops: [0.0, 0.7, 1.0],
+  );
+
+  static LinearGradient orangeOrange() => const LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [
+      Color(0x33FFC107), // Azul claro superior
+      Color(0x33FFC107),                   // Blanco centro (AppColors.white)
+      Color(0x33FFC107), // Azul claro inferior
+    ],
+    stops: [0.0, 0.7, 1.0],
+  );
+
+  static LinearGradient blueWhitegreen() => LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [
+      Colors.green.withValues(alpha: 0.2), // Azul claro superior
+      Color(0xFFFFFFFF),                   // Blanco centro (AppColors.white)
+      Colors.green.withValues(alpha: 0.2), // Azul claro inferior
+    ],
+    stops: [0.0, 0.7, 1.0],
+  );
+
  
   // GRADIENTE PERSONALIZABLE
   static LinearGradient custom({

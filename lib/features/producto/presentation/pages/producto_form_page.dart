@@ -8,6 +8,7 @@ import 'package:syncronize/core/theme/app_gradients.dart';
 import 'package:syncronize/core/widgets/currency/currency_textfield.dart';
 import 'package:syncronize/core/widgets/currency/currency_formatter.dart';
 import 'package:syncronize/core/widgets/info_chip.dart';
+import 'package:syncronize/core/services/storage_service.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/utils/resource.dart';
@@ -38,6 +39,7 @@ import '../bloc/precio_nivel/precio_nivel_state.dart';
 import '../bloc/configuracion_precio/configuracion_precio_cubit.dart';
 import '../bloc/configuracion_precio/configuracion_precio_state.dart';
 import '../widgets/producto_images_manager.dart';
+import '../widgets/producto_video_manager.dart';
 import '../widgets/atributo_input_widget.dart';
 import '../widgets/precio_niveles_section.dart';
 import '../widgets/configuracion_precio_selector.dart';
@@ -120,6 +122,7 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
 
   String? _selectedCategoriaId;
   String? _selectedMarcaId;
+  String? _selectedSedeId;  // Sede donde se encuentra el producto
   bool _visibleMarketplace = true;
   bool _destacado = false;
   bool _enOferta = false;
@@ -154,6 +157,31 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
       if (!widget.isEditing) {
         context.read<ProductoImagesCubit>().clear();
         context.read<PrecioNivelCubit>().initialize();
+
+        // Inicializar sede principal por defecto
+        final empresaState = context.read<EmpresaContextCubit>().state;
+        if (empresaState is EmpresaContextLoaded) {
+          // Buscar la sede principal
+          final sedesActivas = empresaState.context.sedes.where((s) => s.isActive).toList();
+
+          if (sedesActivas.isNotEmpty) {
+            // Buscar sede principal, si no existe tomar la primera activa
+            String? sedeIdInicial;
+
+            // Buscar sede principal
+            try {
+              final sedePrincipal = sedesActivas.firstWhere((sede) => sede.esPrincipal);
+              sedeIdInicial = sedePrincipal.id;
+            } catch (e) {
+              // Si no hay sede principal, tomar la primera
+              sedeIdInicial = sedesActivas.first.id;
+            }
+
+            setState(() {
+              _selectedSedeId = sedeIdInicial;
+            });
+          }
+        }
       }
     });
 
@@ -308,6 +336,7 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
     setState(() {
       _selectedCategoriaId = producto.empresaCategoriaId;
       _selectedMarcaId = producto.empresaMarcaId;
+      _selectedSedeId = producto.sedeId;  // Cargar sede del producto
       _selectedConfiguracionPrecioId = producto.configuracionPrecioId;
       _visibleMarketplace = producto.visibleMarketplace;
       _destacado = producto.destacado;
@@ -550,6 +579,7 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
           ? await locator<ActualizarProductoUseCase>()(
               productoId: widget.productoId!,
               empresaId: empresaId,
+              sedeId: _selectedSedeId,  // Incluir sede seleccionada
               nombre: nombre,
               descripcion: descripcion.isEmpty ? null : descripcion,
               precio: precio,
@@ -562,7 +592,7 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
               stockMinimo: _stockMinimoController.text.isEmpty ? null : int.tryParse(_stockMinimoController.text),
               peso: _pesoController.text.isEmpty ? null : double.tryParse(_pesoController.text),
               dimensiones: dimensiones,
-              videoUrl: _videoUrlController.text.trim().isEmpty ? null : _videoUrlController.text.trim(),
+              videoUrl: _videoUrlController.text.trim(), // Enviar cadena vacía si está vacío, el backend lo convierte a null
               impuestoPorcentaje: _impuestoPorcentajeController.text.isEmpty
                   ? null
                   : double.tryParse(_impuestoPorcentajeController.text),
@@ -583,6 +613,7 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
             )
           : await locator<CrearProductoUseCase>()(
               empresaId: empresaId,
+              sedeId: _selectedSedeId,  // Incluir sede seleccionada
               nombre: nombre,
               descripcion: descripcion.isEmpty ? null : descripcion,
               precio: precio,
@@ -595,7 +626,7 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
               stockMinimo: _stockMinimoController.text.isEmpty ? null : int.tryParse(_stockMinimoController.text),
               peso: _pesoController.text.isEmpty ? null : double.tryParse(_pesoController.text),
               dimensiones: dimensiones,
-              videoUrl: _videoUrlController.text.trim().isEmpty ? null : _videoUrlController.text.trim(),
+              videoUrl: _videoUrlController.text.trim(), // Enviar cadena vacía si está vacío, el backend lo convierte a null
               impuestoPorcentaje: _impuestoPorcentajeController.text.isEmpty
                   ? null
                   : double.tryParse(_impuestoPorcentajeController.text),
@@ -1411,6 +1442,54 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
                 );
               },
             ),
+            const SizedBox(height: 16),
+            // Dropdown de Sedes
+            BlocBuilder<EmpresaContextCubit, EmpresaContextState>(
+              builder: (context, state) {
+                if (state is EmpresaContextLoaded) {
+                  final sedesActivas = state.context.sedes
+                      .where((sede) => sede.isActive)
+                      .toList();
+
+                  return CustomDropdown<String>(
+                    label: 'Sede *',
+                    hintText: 'Selecciona la sede donde se encuentra el producto',
+                    borderColor: AppColors.blue1,
+                    value: _selectedSedeId,
+                    prefixIcon: const Icon(Icons.business, size: 16, color: AppColors.blue1,),
+                    items: sedesActivas.map((sede) {
+                      return DropdownItem(
+                        value: sede.id,
+                        label: sede.nombre + (sede.esPrincipal ? ' (Principal)' : ''),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedSedeId = value;
+                      });
+                    },
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Debe seleccionar una sede';
+                      }
+                      return null;
+                    },
+                  );
+                }
+                return const SizedBox(
+                  height: 35,
+                  child: Center(
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 1,
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
           ],
         ),
       
@@ -1839,31 +1918,20 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
   }
 
   Widget _buildMultimediaSection() {
-    return GradientContainer(
-      shadowStyle: ShadowStyle.neumorphic,
-      borderColor: AppColors.blueborder,
-      padding: const EdgeInsets.all(16),
-      child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.video_library, color: Colors.blue, size: 16,),
-                const SizedBox(width: 8),
-                AppSubtitle('MULTIMEDIA'),
-              ],
-            ),
-            const SizedBox(height: 12),
-            CustomText(
-              controller: _videoUrlController,
-              borderColor: AppColors.blue1,
-              label: 'URL del Video',
-              hintText: 'https://youtube.com/watch?v=...',
-              keyboardType: TextInputType.url,
-            ),
-          ],
-        ),
-      
+    final empresaState = context.read<EmpresaContextCubit>().state;
+    if (empresaState is! EmpresaContextLoaded) {
+      return const SizedBox.shrink();
+    }
+
+    return ProductoVideoManager(
+      empresaId: empresaState.context.empresa.id,
+      initialVideoUrl: _videoUrlController.text.isEmpty ? null : _videoUrlController.text,
+      storageService: locator<StorageService>(),
+      onVideoUploaded: (String? videoUrl) {
+        // Actualizar el controller cuando el video se suba o elimine
+        _videoUrlController.text = videoUrl ?? '';
+        _markAsChanged();
+      },
     );
   }
 

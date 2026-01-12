@@ -59,6 +59,7 @@ class ProductoImagesCubit extends Cubit<ProductoImagesState> {
         isUploading: true,
         uploadProgress: 0.0,
       );
+      if (isClosed) return uploadedIds;
       emit(ProductoImagesLoaded(images: [...updatedImages]));
 
       try {
@@ -68,12 +69,15 @@ class ProductoImagesCubit extends Cubit<ProductoImagesState> {
           empresaId: empresaId,
           entidadTipo: 'PRODUCTO',
           onProgress: (progress) {
+            if (isClosed) return;
             updatedImages[i] = updatedImages[i].copyWith(
               uploadProgress: progress,
             );
             emit(ProductoImagesLoaded(images: [...updatedImages]));
           },
         );
+
+        if (isClosed) return uploadedIds;
 
         // Reemplazar imagen local con la subida
         updatedImages[i] = ProductoImage(
@@ -91,6 +95,7 @@ class ProductoImagesCubit extends Cubit<ProductoImagesState> {
         // Agregar ID a la lista de subidos
         uploadedIds.add(response.id);
       } catch (e) {
+        if (isClosed) return uploadedIds;
         // Marcar como error pero mantener en la lista
         updatedImages[i] = updatedImages[i].copyWith(
           isUploading: false,
@@ -132,9 +137,11 @@ class ProductoImagesCubit extends Cubit<ProductoImagesState> {
         );
       } catch (e) {
         // Si falla, restaurar la imagen
-        emit(ProductoImagesLoaded(
-          images: [...currentState.images],
-        ));
+        if (!isClosed) {
+          emit(ProductoImagesLoaded(
+            images: [...currentState.images],
+          ));
+        }
         rethrow;
       }
     }
@@ -200,6 +207,7 @@ class ProductoImagesCubit extends Cubit<ProductoImagesState> {
         errorMessage: null,
         uploadProgress: 0.0,
       );
+      if (isClosed) return uploadedIds;
       emit(ProductoImagesLoaded(images: [...updatedImages]));
 
       try {
@@ -208,12 +216,15 @@ class ProductoImagesCubit extends Cubit<ProductoImagesState> {
           empresaId: empresaId,
           entidadTipo: 'PRODUCTO',
           onProgress: (progress) {
+            if (isClosed) return;
             updatedImages[i] = updatedImages[i].copyWith(
               uploadProgress: progress,
             );
             emit(ProductoImagesLoaded(images: [...updatedImages]));
           },
         );
+
+        if (isClosed) return uploadedIds;
 
         updatedImages[i] = ProductoImage(
           id: response.id,
@@ -229,6 +240,7 @@ class ProductoImagesCubit extends Cubit<ProductoImagesState> {
 
         uploadedIds.add(response.id);
       } catch (e) {
+        if (isClosed) return uploadedIds;
         updatedImages[i] = updatedImages[i].copyWith(
           isUploading: false,
           hasError: true,

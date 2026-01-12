@@ -121,4 +121,41 @@ class RegistrarUsuarioUseCase {
       data: data,
     );
   }
+
+  /// Ejecuta el use case con datos en formato Map
+  ///
+  /// Útil para conversiones de cliente a empleado donde ya tenemos
+  /// los datos en formato de mapa
+  Future<Resource<RegistroUsuarioResponse>> callWithData({
+    required String empresaId,
+    required Map<String, dynamic> data,
+  }) async {
+    // Validaciones básicas
+    final dni = data['dni'] as String?;
+    final nombres = data['nombres'] as String?;
+    final apellidos = data['apellidos'] as String?;
+    final rol = data['rol'] as String?;
+
+    if (dni == null || dni.isEmpty) {
+      return Error('El DNI es obligatorio');
+    }
+
+    if (nombres == null || nombres.isEmpty) {
+      return Error('Los nombres son obligatorios');
+    }
+
+    if (apellidos == null || apellidos.isEmpty) {
+      return Error('Los apellidos son obligatorios');
+    }
+
+    if (rol == null || rol.isEmpty) {
+      return Error('El rol es obligatorio');
+    }
+
+    // Usar el repositorio directamente ya que los datos vienen validados
+    return await _repository.registrarUsuario(
+      empresaId: empresaId,
+      data: data,
+    );
+  }
 }

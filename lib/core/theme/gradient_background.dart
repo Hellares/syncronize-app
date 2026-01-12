@@ -201,13 +201,13 @@ class GradientBackground extends StatelessWidget {
           begin: gradientBegin,
           end: gradientEnd,
           colors: const [
-  Color.fromARGB(255, 7, 93, 179), // Azul base intenso
-  Color(0xFF075DB3), // Transición suave
-  // Color(0xFF365FBC), // Azul claro
-  Color.fromARGB(255, 255, 255, 255), // Azul muy claro
-  Color.fromARGB(255, 255, 255, 255), // Casi blanco
-],
-stops: const [0.0, 0.45,  0.95, 1.0],
+            Color.fromARGB(255, 7, 93, 179), // Azul base intenso
+            Color(0xFF075DB3), // Transición suave
+            // Color(0xFF365FBC), // Azul claro
+            Color.fromARGB(255, 255, 255, 255), // Azul muy claro
+            Color.fromARGB(255, 255, 255, 255), // Casi blanco
+          ],
+          stops: const [0.0, 0.45, 0.95, 1.0],
         );
     }
   }

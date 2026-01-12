@@ -42,7 +42,7 @@ class _EmpresaDashboardPageState extends State<EmpresaDashboardPage> {
         child: BlocBuilder<EmpresaContextCubit, EmpresaContextState>(
           builder: (context, state) {
             if (state is EmpresaContextLoading) {
-              return CustomLoading.small(message: 'Cargando dashboard...');
+              return CustomLoading.small(message: 'Cargando...');
             }
         
             if (state is EmpresaContextError) {

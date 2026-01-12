@@ -33,6 +33,9 @@ import '../../features/cliente/presentation/pages/cliente_form_page.dart';
 import '../../features/usuario/presentation/pages/usuarios_page.dart';
 import '../../features/usuario/presentation/pages/usuario_form_page.dart';
 import '../../features/descuento/presentation/pages/pages.dart';
+import '../../features/configuracion_codigos/presentation/pages/configuracion_codigos_page.dart';
+import '../../features/sede/presentation/pages/sedes_page.dart';
+import '../../features/sede/presentation/pages/sede_form_page.dart';
 
 /// Configuración de rutas de la aplicación
 class AppRouter {
@@ -161,6 +164,25 @@ class AppRouter {
         name: 'empresa-personalizacion',
         builder: (context, state) => const PersonalizacionPage(),
       ),
+      // Rutas de sedes
+      GoRoute(
+        path: '/empresa/sedes',
+        name: 'empresa-sedes',
+        builder: (context, state) => const SedesPage(),
+      ),
+      GoRoute(
+        path: '/empresa/sedes/create',
+        name: 'empresa-sedes-create',
+        builder: (context, state) => const SedeFormPage(),
+      ),
+      GoRoute(
+        path: '/empresa/sedes/:id/edit',
+        name: 'empresa-sedes-edit',
+        builder: (context, state) {
+          final sedeId = state.pathParameters['id']!;
+          return SedeFormPage(sedeId: sedeId);
+        },
+      ),
       // Rutas de productos
       GoRoute(
         path: '/empresa/productos',
@@ -282,6 +304,12 @@ class AppRouter {
         path: '/empresa/configuraciones-precio',
         name: 'empresa-configuraciones-precio',
         builder: (context, state) => const ConfiguracionesPrecioPage(),
+      ),
+      // Ruta de configuración de códigos
+      GoRoute(
+        path: '/empresa/configuracion-codigos',
+        name: 'empresa-configuracion-codigos',
+        builder: (context, state) => const ConfiguracionCodigosPage(),
       ),
       // Rutas de catálogos
       GoRoute(

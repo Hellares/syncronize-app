@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:syncronize/core/theme/app_colors.dart';
+import 'package:syncronize/core/theme/gradient_background.dart';
+import 'package:syncronize/core/widgets/floating_button_icon.dart';
+import 'package:syncronize/core/widgets/smart_appbar.dart';
+import 'package:syncronize/core/widgets/custom_search_field.dart';
 
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/storage/local_storage_service.dart';
@@ -9,6 +14,10 @@ import '../../domain/entities/usuario.dart';
 import '../bloc/usuario_list/usuario_list_cubit.dart';
 import '../bloc/usuario_list/usuario_list_state.dart';
 import '../widgets/usuario_list_tile.dart';
+import '../widgets/usuario_empty_state.dart';
+import '../widgets/usuario_error_widget.dart';
+import '../widgets/usuario_filter_sheet.dart';
+import '../widgets/usuario_detail_sheet.dart';
 
 /// Página que muestra la lista de usuarios/empleados
 class UsuariosPage extends StatefulWidget {
@@ -58,8 +67,10 @@ class _UsuariosPageState extends State<UsuariosPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Usuarios'),
+      appBar: SmartAppBar(
+        backgroundColor: AppColors.blue1,
+        foregroundColor: AppColors.white,
+        title: 'Usuarios',
         actions: [
           IconButton(
             icon: const Icon(Icons.filter_list),
@@ -67,70 +78,68 @@ class _UsuariosPageState extends State<UsuariosPage> {
           ),
         ],
       ),
-      body: BlocProvider.value(
-        value: _cubit,
-        child: Column(
-          children: [
-            _buildSearchBar(),
-            Expanded(
-              child: BlocBuilder<UsuarioListCubit, UsuarioListState>(
-                builder: (context, state) {
-                  if (state is UsuarioListLoading) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
+      body: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: GradientBackground(
+          style: GradientStyle.minimal,
+          child: BlocProvider.value(
+            value: _cubit,
+            child: Column(
+              children: [
+                _buildSearchBar(),
+                Expanded(
+                  child: BlocBuilder<UsuarioListCubit, UsuarioListState>(
+                    builder: (context, state) {
+                      if (state is UsuarioListLoading) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
 
-                  if (state is UsuarioListError) {
-                    return _buildError(state.message);
-                  }
+                      if (state is UsuarioListError) {
+                        return _buildError(state.message);
+                      }
 
-                  if (state is UsuarioListLoaded) {
-                    if (state.usuarios.isEmpty) {
-                      return _buildEmptyState();
-                    }
-                    return _buildList(state.usuarios, state.hasMore);
-                  }
+                      if (state is UsuarioListLoaded) {
+                        if (state.usuarios.isEmpty) {
+                          return _buildEmptyState();
+                        }
+                        return _buildList(state.usuarios, state.hasMore);
+                      }
 
-                  if (state is UsuarioListLoadingMore) {
-                    return _buildList(state.currentUsuarios, true);
-                  }
+                      if (state is UsuarioListLoadingMore) {
+                        return _buildList(state.currentUsuarios, true);
+                      }
 
-                  return const SizedBox();
-                },
-              ),
+                      return const SizedBox();
+                    },
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: FloatingButtonIcon(
         onPressed: () => _navigateToForm(context),
-        icon: const Icon(Icons.add),
-        label: const Text('Nuevo Usuario'),
+        icon: Icons.add,
+        // size: 56,
+        // iconSize: 24,
       ),
+     
     );
   }
 
   Widget _buildSearchBar() {
     return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: TextField(
+      padding: const EdgeInsets.all(10.0),
+      child: CustomSearchField(
         controller: _searchController,
-        decoration: InputDecoration(
-          hintText: 'Buscar por nombre, DNI, teléfono...',
-          prefixIcon: const Icon(Icons.search),
-          suffixIcon: _searchController.text.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(Icons.clear),
-                  onPressed: () {
-                    _searchController.clear();
-                    _cubit.search('');
-                  },
-                )
-              : null,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
+        hintText: 'Buscar por nombre, DNI, teléfono...',
+        borderColor: AppColors.blue.withValues(alpha: 0.3),
+        iconColor: AppColors.blue.withValues(alpha: 0.7),
+        borderRadius: 8.0,
+        height: 35.0,
         onChanged: (value) => _cubit.search(value),
+        onClear: () => _cubit.search(''),
       ),
     );
   }
@@ -161,46 +170,14 @@ class _UsuariosPageState extends State<UsuariosPage> {
   }
 
   Widget _buildError(String message) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.error_outline, size: 64, color: Colors.red),
-          const SizedBox(height: 16),
-          Text(
-            message,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 16),
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: () => _cubit.refresh(),
-            child: const Text('Reintentar'),
-          ),
-        ],
-      ),
+    return UsuarioErrorWidget(
+      message: message,
+      onRetry: () => _cubit.refresh(),
     );
   }
 
   Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.people_outline, size: 64, color: Colors.grey[400]),
-          const SizedBox(height: 16),
-          Text(
-            'No hay usuarios registrados',
-            style: TextStyle(fontSize: 18, color: Colors.grey[600]),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Toca el botón + para agregar un usuario',
-            style: TextStyle(fontSize: 14, color: Colors.grey[500]),
-          ),
-        ],
-      ),
-    );
+    return const UsuarioEmptyState();
   }
 
   void _showFilterSheet(BuildContext context) {
@@ -208,7 +185,7 @@ class _UsuariosPageState extends State<UsuariosPage> {
       context: context,
       builder: (context) => BlocProvider.value(
         value: _cubit,
-        child: _FilterSheet(cubit: _cubit),
+        child: UsuarioFilterSheet(cubit: _cubit),
       ),
     );
   }
@@ -228,9 +205,10 @@ class _UsuariosPageState extends State<UsuariosPage> {
         minChildSize: 0.5,
         maxChildSize: 0.95,
         expand: false,
-        builder: (context, scrollController) => _UsuarioDetailSheet(
+        builder: (context, scrollController) => UsuarioDetailSheet(
           usuario: usuario,
           scrollController: scrollController,
+          cubit: _cubit,
         ),
       ),
     );
@@ -240,158 +218,5 @@ class _UsuariosPageState extends State<UsuariosPage> {
     context.push('/empresa/usuarios/nuevo').then((_) {
       _cubit.refresh();
     });
-  }
-}
-
-/// Sheet de filtros
-class _FilterSheet extends StatelessWidget {
-  final UsuarioListCubit cubit;
-
-  const _FilterSheet({required this.cubit});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Filtros',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 24),
-          ListTile(
-            title: const Text('Todos'),
-            onTap: () {
-              cubit.filterByActive(null);
-              Navigator.pop(context);
-            },
-          ),
-          ListTile(
-            title: const Text('Activos'),
-            onTap: () {
-              cubit.filterByActive(true);
-              Navigator.pop(context);
-            },
-          ),
-          ListTile(
-            title: const Text('Inactivos'),
-            onTap: () {
-              cubit.filterByActive(false);
-              Navigator.pop(context);
-            },
-          ),
-          const Divider(),
-          if (cubit.hasActiveFilters)
-            ListTile(
-              leading: const Icon(Icons.clear_all),
-              title: const Text('Limpiar filtros'),
-              onTap: () {
-                cubit.resetFilters();
-                Navigator.pop(context);
-              },
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Sheet de detalle del usuario
-class _UsuarioDetailSheet extends StatelessWidget {
-  final Usuario usuario;
-  final ScrollController scrollController;
-
-  const _UsuarioDetailSheet({
-    required this.usuario,
-    required this.scrollController,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      child: ListView(
-        controller: scrollController,
-        children: [
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 32,
-                child: Text(
-                  usuario.iniciales,
-                  style: const TextStyle(fontSize: 24),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      usuario.nombreCompleto,
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      usuario.rolFormateado,
-                      style: TextStyle(color: Colors.grey[600]),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          _buildInfoRow(Icons.badge, 'DNI', usuario.dni),
-          _buildInfoRow(Icons.phone, 'Teléfono', usuario.telefono ?? '-'),
-          _buildInfoRow(Icons.email, 'Email', usuario.email ?? '-'),
-          const SizedBox(height: 16),
-          if (usuario.sedes.isNotEmpty) ...[
-            const Text(
-              'Sedes Asignadas',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            ...usuario.sedes.map((sede) => Card(
-                  child: ListTile(
-                    title: Text(sede.sedeNombre),
-                    subtitle: Text(sede.rolFormateado),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (sede.puedeAbrirCaja)
-                          const Icon(Icons.lock_open, size: 16),
-                        if (sede.puedeCerrarCaja)
-                          const Icon(Icons.lock, size: 16),
-                      ],
-                    ),
-                  ),
-                )),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoRow(IconData icon, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: [
-          Icon(icon, size: 20, color: Colors.grey[600]),
-          const SizedBox(width: 12),
-          Text(
-            '$label: ',
-            style: const TextStyle(fontWeight: FontWeight.w500),
-          ),
-          Expanded(child: Text(value)),
-        ],
-      ),
-    );
   }
 }

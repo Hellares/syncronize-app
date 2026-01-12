@@ -48,7 +48,7 @@ class _GuestDrawerContent extends StatelessWidget {
             // begin: Alignment.topLeft,
             // end: Alignment.bottomRight,
             child: Container(
-              padding: const EdgeInsets.fromLTRB(20, 50, 20, 20),
+              padding: const EdgeInsets.fromLTRB(10, 40, 10, 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -57,7 +57,7 @@ class _GuestDrawerContent extends StatelessWidget {
                     backgroundColor: Colors.white.withValues(alpha: 0.3),
                     child: Icon(
                       Icons.person_outline,
-                      size: 30,
+                      size: 25,
                       color: Colors.white,
                     ),
                   ),

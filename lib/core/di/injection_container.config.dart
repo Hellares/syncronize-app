@@ -126,6 +126,28 @@ import '../../features/combo/domain/usecases/get_componentes_usecase.dart'
 import '../../features/combo/presentation/bloc/combo_cubit.dart' as _i1039;
 import '../../features/combo/presentation/bloc/producto_selector_cubit.dart'
     as _i466;
+import '../../features/configuracion_codigos/data/datasources/configuracion_codigos_remote_datasource.dart'
+    as _i719;
+import '../../features/configuracion_codigos/data/repositories/configuracion_codigos_repository_impl.dart'
+    as _i960;
+import '../../features/configuracion_codigos/domain/repositories/configuracion_codigos_repository.dart'
+    as _i248;
+import '../../features/configuracion_codigos/domain/usecases/get_configuracion_usecase.dart'
+    as _i309;
+import '../../features/configuracion_codigos/domain/usecases/preview_codigo_usecase.dart'
+    as _i754;
+import '../../features/configuracion_codigos/domain/usecases/sincronizar_contador_usecase.dart'
+    as _i582;
+import '../../features/configuracion_codigos/domain/usecases/update_config_productos_usecase.dart'
+    as _i199;
+import '../../features/configuracion_codigos/domain/usecases/update_config_servicios_usecase.dart'
+    as _i925;
+import '../../features/configuracion_codigos/domain/usecases/update_config_variantes_usecase.dart'
+    as _i84;
+import '../../features/configuracion_codigos/domain/usecases/update_config_ventas_usecase.dart'
+    as _i951;
+import '../../features/configuracion_codigos/presentation/bloc/configuracion_codigos_cubit.dart'
+    as _i1046;
 import '../../features/descuento/data/datasources/descuento_remote_datasource.dart'
     as _i1036;
 import '../../features/descuento/data/repositories/descuento_repository_impl.dart'
@@ -246,18 +268,37 @@ import '../../features/producto/presentation/bloc/producto_variante/producto_var
     as _i693;
 import '../../features/producto/presentation/bloc/variante_atributo/variante_atributo_cubit.dart'
     as _i911;
+import '../../features/sede/data/datasources/sede_remote_datasource.dart'
+    as _i785;
+import '../../features/sede/data/repositories/sede_repository_impl.dart'
+    as _i997;
+import '../../features/sede/domain/repositories/sede_repository.dart' as _i419;
+import '../../features/sede/domain/usecases/create_sede_usecase.dart' as _i1062;
+import '../../features/sede/domain/usecases/delete_sede_usecase.dart' as _i746;
+import '../../features/sede/domain/usecases/get_sede_by_id_usecase.dart'
+    as _i1036;
+import '../../features/sede/domain/usecases/get_sedes_usecase.dart' as _i873;
+import '../../features/sede/domain/usecases/update_sede_usecase.dart' as _i195;
+import '../../features/sede/presentation/bloc/sede_form/sede_form_cubit.dart'
+    as _i126;
+import '../../features/sede/presentation/bloc/sede_list/sede_list_cubit.dart'
+    as _i639;
 import '../../features/usuario/data/datasources/usuario_remote_datasource.dart'
     as _i32;
 import '../../features/usuario/data/repositories/usuario_repository_impl.dart'
     as _i941;
 import '../../features/usuario/domain/repositories/usuario_repository.dart'
     as _i662;
+import '../../features/usuario/domain/usecases/delete_usuario_usecase.dart'
+    as _i353;
 import '../../features/usuario/domain/usecases/get_usuario_usecase.dart'
     as _i1039;
 import '../../features/usuario/domain/usecases/get_usuarios_usecase.dart'
     as _i287;
 import '../../features/usuario/domain/usecases/registrar_usuario_usecase.dart'
     as _i715;
+import '../../features/usuario/domain/usecases/update_usuario_usecase.dart'
+    as _i1054;
 import '../../features/usuario/presentation/bloc/usuario_form/usuario_form_cubit.dart'
     as _i59;
 import '../../features/usuario/presentation/bloc/usuario_list/usuario_list_cubit.dart'
@@ -377,6 +418,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i532.ComboRemoteDataSource>(
       () => _i532.ComboRemoteDataSource(gh<_i667.DioClient>()),
     );
+    gh.lazySingleton<_i719.ConfiguracionCodigosRemoteDataSource>(
+      () => _i719.ConfiguracionCodigosRemoteDataSource(gh<_i667.DioClient>()),
+    );
     gh.lazySingleton<_i1036.DescuentoRemoteDataSource>(
       () => _i1036.DescuentoRemoteDataSource(gh<_i667.DioClient>()),
     );
@@ -395,8 +439,32 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i1047.ProductoRemoteDataSource>(
       () => _i1047.ProductoRemoteDataSource(gh<_i667.DioClient>()),
     );
+    gh.lazySingleton<_i785.SedeRemoteDataSource>(
+      () => _i785.SedeRemoteDataSource(gh<_i667.DioClient>()),
+    );
     gh.lazySingleton<_i32.UsuarioRemoteDataSource>(
       () => _i32.UsuarioRemoteDataSource(gh<_i667.DioClient>()),
+    );
+    gh.lazySingleton<_i419.SedeRepository>(
+      () => _i997.SedeRepositoryImpl(
+        gh<_i785.SedeRemoteDataSource>(),
+        gh<_i932.NetworkInfo>(),
+      ),
+    );
+    gh.factory<_i1062.CreateSedeUseCase>(
+      () => _i1062.CreateSedeUseCase(gh<_i419.SedeRepository>()),
+    );
+    gh.factory<_i746.DeleteSedeUseCase>(
+      () => _i746.DeleteSedeUseCase(gh<_i419.SedeRepository>()),
+    );
+    gh.factory<_i1036.GetSedeByIdUseCase>(
+      () => _i1036.GetSedeByIdUseCase(gh<_i419.SedeRepository>()),
+    );
+    gh.factory<_i873.GetSedesUseCase>(
+      () => _i873.GetSedesUseCase(gh<_i419.SedeRepository>()),
+    );
+    gh.factory<_i195.UpdateSedeUseCase>(
+      () => _i195.UpdateSedeUseCase(gh<_i419.SedeRepository>()),
     );
     gh.lazySingleton<_i37.ClienteRepository>(
       () => _i797.ClienteRepositoryImpl(
@@ -420,6 +488,18 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i213.RegistrarClienteUseCase>(
       () => _i213.RegistrarClienteUseCase(gh<_i37.ClienteRepository>()),
     );
+    gh.lazySingleton<_i248.ConfiguracionCodigosRepository>(
+      () => _i960.ConfiguracionCodigosRepositoryImpl(
+        gh<_i719.ConfiguracionCodigosRemoteDataSource>(),
+        gh<_i932.NetworkInfo>(),
+      ),
+    );
+    gh.factory<_i639.SedeListCubit>(
+      () => _i639.SedeListCubit(
+        gh<_i873.GetSedesUseCase>(),
+        gh<_i746.DeleteSedeUseCase>(),
+      ),
+    );
     gh.factory<_i210.ClienteListCubit>(
       () => _i210.ClienteListCubit(gh<_i646.GetClientesUseCase>()),
     );
@@ -435,6 +515,13 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i911.VarianteAtributoCubit>(
       () => _i911.VarianteAtributoCubit(gh<_i1047.ProductoRemoteDataSource>()),
+    );
+    gh.factory<_i126.SedeFormCubit>(
+      () => _i126.SedeFormCubit(
+        gh<_i1036.GetSedeByIdUseCase>(),
+        gh<_i1062.CreateSedeUseCase>(),
+        gh<_i195.UpdateSedeUseCase>(),
+      ),
     );
     gh.lazySingleton<_i736.CatalogoRepository>(
       () => _i780.CatalogoRepositoryImpl(
@@ -481,6 +568,9 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i932.NetworkInfo>(),
       ),
     );
+    gh.factory<_i353.DeleteUsuarioUseCase>(
+      () => _i353.DeleteUsuarioUseCase(gh<_i662.UsuarioRepository>()),
+    );
     gh.factory<_i1039.GetUsuarioUseCase>(
       () => _i1039.GetUsuarioUseCase(gh<_i662.UsuarioRepository>()),
     );
@@ -489,6 +579,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i715.RegistrarUsuarioUseCase>(
       () => _i715.RegistrarUsuarioUseCase(gh<_i662.UsuarioRepository>()),
+    );
+    gh.factory<_i1054.UpdateUsuarioUseCase>(
+      () => _i1054.UpdateUsuarioUseCase(gh<_i662.UsuarioRepository>()),
     );
     gh.lazySingleton<_i161.AuthRemoteDataSource>(
       () => _i161.AuthRemoteDataSourceImpl(gh<_i667.DioClient>()),
@@ -601,12 +694,54 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i120.UpdatePolitica>(
       () => _i120.UpdatePolitica(gh<_i605.DescuentoRepository>()),
     );
+    gh.factory<_i71.UsuarioListCubit>(
+      () => _i71.UsuarioListCubit(
+        gh<_i287.GetUsuariosUseCase>(),
+        gh<_i1054.UpdateUsuarioUseCase>(),
+        gh<_i353.DeleteUsuarioUseCase>(),
+      ),
+    );
     gh.factory<_i123.AtributoPlantillaCubit>(
       () => _i123.AtributoPlantillaCubit(gh<_i1006.PlantillaRepository>()),
     );
     gh.factory<_i840.ConfiguracionPrecioCubit>(
       () => _i840.ConfiguracionPrecioCubit(
         gh<_i27.ConfiguracionPrecioRepository>(),
+      ),
+    );
+    gh.factory<_i309.GetConfiguracionUseCase>(
+      () => _i309.GetConfiguracionUseCase(
+        gh<_i248.ConfiguracionCodigosRepository>(),
+      ),
+    );
+    gh.factory<_i754.PreviewCodigoUseCase>(
+      () => _i754.PreviewCodigoUseCase(
+        gh<_i248.ConfiguracionCodigosRepository>(),
+      ),
+    );
+    gh.factory<_i582.SincronizarContadorUseCase>(
+      () => _i582.SincronizarContadorUseCase(
+        gh<_i248.ConfiguracionCodigosRepository>(),
+      ),
+    );
+    gh.factory<_i199.UpdateConfigProductosUseCase>(
+      () => _i199.UpdateConfigProductosUseCase(
+        gh<_i248.ConfiguracionCodigosRepository>(),
+      ),
+    );
+    gh.factory<_i925.UpdateConfigServiciosUseCase>(
+      () => _i925.UpdateConfigServiciosUseCase(
+        gh<_i248.ConfiguracionCodigosRepository>(),
+      ),
+    );
+    gh.factory<_i84.UpdateConfigVariantesUseCase>(
+      () => _i84.UpdateConfigVariantesUseCase(
+        gh<_i248.ConfiguracionCodigosRepository>(),
+      ),
+    );
+    gh.factory<_i951.UpdateConfigVentasUseCase>(
+      () => _i951.UpdateConfigVentasUseCase(
+        gh<_i248.ConfiguracionCodigosRepository>(),
       ),
     );
     gh.factory<_i918.AsignarUsuariosCubit>(
@@ -622,9 +757,6 @@ extension GetItInjectableX on _i174.GetIt {
         networkInfo: gh<_i932.NetworkInfo>(),
         errorHandler: gh<_i490.ErrorHandlerService>(),
       ),
-    );
-    gh.factory<_i71.UsuarioListCubit>(
-      () => _i71.UsuarioListCubit(gh<_i287.GetUsuariosUseCase>()),
     );
     gh.factory<_i658.MarcasEmpresaCubit>(
       () => _i658.MarcasEmpresaCubit(gh<_i1056.GetMarcasEmpresaUseCase>()),
@@ -646,6 +778,17 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i457.AsignarProductosCubit(
         gh<_i1012.AsignarProductos>(),
         gh<_i269.AsignarCategorias>(),
+      ),
+    );
+    gh.factory<_i1046.ConfiguracionCodigosCubit>(
+      () => _i1046.ConfiguracionCodigosCubit(
+        gh<_i309.GetConfiguracionUseCase>(),
+        gh<_i199.UpdateConfigProductosUseCase>(),
+        gh<_i84.UpdateConfigVariantesUseCase>(),
+        gh<_i925.UpdateConfigServiciosUseCase>(),
+        gh<_i951.UpdateConfigVentasUseCase>(),
+        gh<_i754.PreviewCodigoUseCase>(),
+        gh<_i582.SincronizarContadorUseCase>(),
       ),
     );
     gh.factory<_i900.PoliticaListCubit>(

@@ -73,6 +73,18 @@ class StorageService {
         mimeType = 'image/gif';
       } else if (extension == 'webp') {
         mimeType = 'image/webp';
+      } else if (extension == 'mp4') {
+        mimeType = 'video/mp4';
+      } else if (extension == 'mov') {
+        mimeType = 'video/quicktime';
+      } else if (extension == 'avi') {
+        mimeType = 'video/x-msvideo';
+      } else if (extension == 'mkv') {
+        mimeType = 'video/x-matroska';
+      } else if (extension == 'webm') {
+        mimeType = 'video/webm';
+      } else if (extension == 'mpeg' || extension == 'mpg') {
+        mimeType = 'video/mpeg';
       }
 
       final formData = FormData.fromMap({

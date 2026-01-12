@@ -261,7 +261,7 @@ class _UsuarioFormPageState extends State<UsuarioFormPage> {
 
   Widget _buildRolDropdown() {
     return DropdownButtonFormField<RolUsuario>(
-      value: _selectedRol,
+      initialValue: _selectedRol,
       decoration: const InputDecoration(
         labelText: 'Rol *',
         prefixIcon: Icon(Icons.work),

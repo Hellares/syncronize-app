@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:syncronize/core/theme/app_colors.dart';
 
 // -------------------- Enums --------------------
 enum FieldType { text, email, number, password }
@@ -843,8 +844,9 @@ class _CustomTextFieldState extends State<CustomText>
   TextStyle _helperStyle() =>
       widget.helperStyle ??
       TextStyle(
-        color: Colors.grey[600],
-        fontSize: 11,
+        // color: Colors.grey[600],
+        color: AppColors.greendark,
+        fontSize: 9,
         fontWeight: FontWeight.w400,
       );
 
@@ -928,7 +930,7 @@ class _CustomTextFieldState extends State<CustomText>
     return Container(
       margin: const EdgeInsets.only(left: 4),
       child: IconTheme(
-        data: IconThemeData(color: color, size: 20),
+        data: IconThemeData(color: color, size: 16),
         child: icon,
       ),
     );
@@ -949,7 +951,7 @@ class _CustomTextFieldState extends State<CustomText>
         icon = null;
     }
     if (icon == null) return null;
-    return _wrapIcon(Icon(icon));
+    return _wrapIcon(Icon(icon, size: 16,));
   }
 
   Widget _passwordToggle() {
@@ -1211,6 +1213,7 @@ class CustomTextFieldHelpers {
     String? externalError,
     String? helperText,
     HelperTextBuilder? helperBuilder,
+    
   }) {
     return CustomText(
       label: label,
@@ -1265,9 +1268,11 @@ class CustomTextFieldHelpers {
     bool required = true,
     AutovalidateModeX autovalidateMode = AutovalidateModeX.onUnfocus,
     String? externalError,
+    Color? borderColor,
   }) {
     return CustomText(
       label: label,
+      borderColor: borderColor,
       hintText: hintText ?? 'correo@ejemplo.com',
       controller: controller,
       fieldType: FieldType.email,

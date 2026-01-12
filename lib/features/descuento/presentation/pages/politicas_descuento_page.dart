@@ -122,6 +122,8 @@ class _PoliticasDescuentoPageState extends State<PoliticasDescuentoPage>
         backgroundColor: Colors.transparent,
         extendBodyBehindAppBar: true,
         appBar: SmartAppBar(
+          backgroundColor: AppColors.blue1,
+          foregroundColor: AppColors.white,
           showLogo: false,
           title: 'Políticas de Descuento',
           actions: [
@@ -142,14 +144,14 @@ class _PoliticasDescuentoPageState extends State<PoliticasDescuentoPage>
                 fontWeight: FontWeight.w400,
               ),
               dividerHeight: 0,
-              labelColor: AppColors.blue1,
+              labelColor: AppColors.white,
               unselectedLabelColor: Colors.grey,
               labelPadding: const EdgeInsets.symmetric(horizontal: 10),
               indicatorPadding: const EdgeInsets.only(bottom: 13),
               indicatorSize: TabBarIndicatorSize.label,
               indicatorWeight: 2,
               indicator: const UnderlineTabIndicator(
-                borderSide: BorderSide(width: 2, color: AppColors.blue1),
+                borderSide: BorderSide(width: 2, color: AppColors.white),
               ),
               tabs: const [
                 Tab(text: 'TODOS'),

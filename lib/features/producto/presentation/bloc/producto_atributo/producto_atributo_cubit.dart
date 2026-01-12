@@ -19,8 +19,10 @@ class ProductoAtributoCubit extends Cubit<ProductoAtributoState> {
         empresaId: empresaId,
       );
 
+      if (isClosed) return;
       emit(ProductoAtributoLoaded(atributos));
     } catch (e) {
+      if (isClosed) return;
       emit(ProductoAtributoError(_getErrorMessage(e)));
     }
   }
@@ -38,9 +40,12 @@ class ProductoAtributoCubit extends Cubit<ProductoAtributoState> {
         data: data,
       );
 
+      if (isClosed) return;
+
       // Recargar la lista
       await loadAtributos(empresaId);
 
+      if (isClosed) return;
       final currentState = state;
       if (currentState is ProductoAtributoLoaded) {
         emit(ProductoAtributoOperationSuccess(
@@ -49,6 +54,7 @@ class ProductoAtributoCubit extends Cubit<ProductoAtributoState> {
         ));
       }
     } catch (e) {
+      if (isClosed) return;
       emit(ProductoAtributoError(_getErrorMessage(e)));
     }
   }
@@ -66,6 +72,7 @@ class ProductoAtributoCubit extends Cubit<ProductoAtributoState> {
       final errores = <String>[];
 
       for (var data in atributos) {
+        if (isClosed) return;
         try {
           await _remoteDataSource.crearAtributo(
             empresaId: empresaId,
@@ -77,9 +84,12 @@ class ProductoAtributoCubit extends Cubit<ProductoAtributoState> {
         }
       }
 
+      if (isClosed) return;
+
       // Recargar la lista
       await loadAtributos(empresaId);
 
+      if (isClosed) return;
       final currentState = state;
       if (currentState is ProductoAtributoLoaded) {
         final message = errores.isEmpty
@@ -92,6 +102,7 @@ class ProductoAtributoCubit extends Cubit<ProductoAtributoState> {
         ));
       }
     } catch (e) {
+      if (isClosed) return;
       emit(ProductoAtributoError(_getErrorMessage(e)));
     }
   }
@@ -132,9 +143,12 @@ class ProductoAtributoCubit extends Cubit<ProductoAtributoState> {
         data: data,
       );
 
+      if (isClosed) return;
+
       // Recargar la lista
       await loadAtributos(empresaId);
 
+      if (isClosed) return;
       final currentState = state;
       if (currentState is ProductoAtributoLoaded) {
         emit(ProductoAtributoOperationSuccess(
@@ -143,6 +157,7 @@ class ProductoAtributoCubit extends Cubit<ProductoAtributoState> {
         ));
       }
     } catch (e) {
+      if (isClosed) return;
       emit(ProductoAtributoError(_getErrorMessage(e)));
     }
   }
@@ -160,9 +175,12 @@ class ProductoAtributoCubit extends Cubit<ProductoAtributoState> {
         empresaId: empresaId,
       );
 
+      if (isClosed) return;
+
       // Recargar la lista
       await loadAtributos(empresaId);
 
+      if (isClosed) return;
       final currentState = state;
       if (currentState is ProductoAtributoLoaded) {
         emit(ProductoAtributoOperationSuccess(
@@ -171,6 +189,7 @@ class ProductoAtributoCubit extends Cubit<ProductoAtributoState> {
         ));
       }
     } catch (e) {
+      if (isClosed) return;
       emit(ProductoAtributoError(_getErrorMessage(e)));
     }
   }

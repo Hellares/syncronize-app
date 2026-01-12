@@ -6,15 +6,22 @@ import '../../../domain/entities/registro_usuario_response.dart';
 import '../../../domain/entities/usuario.dart';
 import '../../../domain/entities/usuario_filtros.dart';
 import '../../../domain/usecases/get_usuarios_usecase.dart';
+import '../../../domain/usecases/update_usuario_usecase.dart';
+import '../../../domain/usecases/delete_usuario_usecase.dart';
 import 'usuario_list_state.dart';
 
 /// Cubit para manejar la lista de usuarios
 @injectable
 class UsuarioListCubit extends Cubit<UsuarioListState> {
   final GetUsuariosUseCase _getUsuariosUseCase;
+  final UpdateUsuarioUseCase _updateUsuarioUseCase;
+  final DeleteUsuarioUseCase _deleteUsuarioUseCase;
 
-  UsuarioListCubit(this._getUsuariosUseCase)
-      : super(const UsuarioListInitial());
+  UsuarioListCubit(
+    this._getUsuariosUseCase,
+    this._updateUsuarioUseCase,
+    this._deleteUsuarioUseCase,
+    ) : super(const UsuarioListInitial());
 
   // Estado interno
   String? _currentEmpresaId;
@@ -190,4 +197,136 @@ class UsuarioListCubit extends Cubit<UsuarioListState> {
 
   /// Verifica si hay filtros activos
   bool get hasActiveFilters => _currentFiltros.hasActiveFilters;
+
+  /// Actualiza un usuario
+  Future<bool> updateUsuario({
+    required String usuarioId,
+    required Map<String, dynamic> data,
+  }) async {
+    if (_currentEmpresaId == null) return false;
+
+    final result = await _updateUsuarioUseCase(
+      empresaId: _currentEmpresaId!,
+      usuarioId: usuarioId,
+      data: data,
+    );
+
+    if (result is Success<Usuario>) {
+      // Actualizar el usuario en la lista local
+      final updatedUsuario = result.data;
+      final index = _allUsuarios.indexWhere((u) => u.id == usuarioId);
+
+      if (index != -1) {
+        _allUsuarios[index] = updatedUsuario;
+
+        // Re-emitir el estado con la lista actualizada
+        final currentState = state;
+        if (currentState is UsuarioListLoaded) {
+          emit(UsuarioListLoaded(
+            usuarios: List.from(_allUsuarios),
+            total: currentState.total,
+            currentPage: currentState.currentPage,
+            totalPages: currentState.totalPages,
+            hasMore: currentState.hasMore,
+          ));
+        }
+      }
+
+      return true;
+    }
+
+    return false;
+  }
+
+  /// Elimina (desactiva) un usuario
+  Future<bool> deleteUsuario({
+    required String usuarioId,
+  }) async {
+    if (_currentEmpresaId == null) return false;
+
+    final result = await _deleteUsuarioUseCase(
+      empresaId: _currentEmpresaId!,
+      usuarioId: usuarioId,
+    );
+
+    if (result is Success<void>) {
+      // Remover el usuario de la lista local o marcarlo como inactivo
+      _allUsuarios.removeWhere((u) => u.id == usuarioId);
+
+      // Re-emitir el estado con la lista actualizada
+      final currentState = state;
+      if (currentState is UsuarioListLoaded) {
+        emit(UsuarioListLoaded(
+          usuarios: List.from(_allUsuarios),
+          total: currentState.total - 1,
+          currentPage: currentState.currentPage,
+          totalPages: currentState.totalPages,
+          hasMore: currentState.hasMore,
+        ));
+      }
+
+      return true;
+    }
+
+    return false;
+  }
+
+  /// Convierte un cliente a empleado
+  ///
+  /// Como el cliente YA tiene cuenta en la empresa, usamos el endpoint
+  /// de actualización para cambiar su rol de CLIENTE a EMPLEADO
+  Future<bool> convertirClienteAEmpleado({
+    required String usuarioId,
+    required Map<String, dynamic> datosEmpleado,
+  }) async {
+    print('📍 convertirClienteAEmpleado INICIADO');
+    print('_currentEmpresaId: $_currentEmpresaId');
+
+    if (_currentEmpresaId == null) {
+      print('❌ ERROR: _currentEmpresaId is null en convertirClienteAEmpleado!');
+      return false;
+    }
+
+    print('🔄 Convirtiendo cliente a empleado...');
+    print('Usuario ID: $usuarioId');
+    print('Datos empleado: $datosEmpleado');
+
+    // Usar el endpoint de actualización ya que el cliente ya existe en la empresa
+    final result = await _updateUsuarioUseCase(
+      empresaId: _currentEmpresaId!,
+      usuarioId: usuarioId,
+      data: datosEmpleado,
+    );
+
+    if (result is Success<Usuario>) {
+      print('✅ Cliente convertido a empleado exitosamente');
+
+      // Actualizar el usuario en la lista local
+      final updatedUsuario = result.data;
+      final index = _allUsuarios.indexWhere((u) => u.id == usuarioId);
+
+      if (index != -1) {
+        _allUsuarios[index] = updatedUsuario;
+
+        // Re-emitir el estado con la lista actualizada
+        final currentState = state;
+        if (currentState is UsuarioListLoaded) {
+          emit(UsuarioListLoaded(
+            usuarios: List.from(_allUsuarios),
+            total: currentState.total,
+            currentPage: currentState.currentPage,
+            totalPages: currentState.totalPages,
+            hasMore: currentState.hasMore,
+          ));
+        }
+      }
+
+      return true;
+    } else if (result is Error<Usuario>) {
+      // Log del error para debugging
+      print('❌ Error al convertir cliente a empleado: ${result.message}');
+    }
+
+    return false;
+  }
 }
