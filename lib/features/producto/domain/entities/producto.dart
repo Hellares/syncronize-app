@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'producto_variante.dart';
 import 'atributo_valor.dart';
+import '../../../catalogo/domain/entities/unidad_medida.dart';
 
 /// Entity que representa un producto
 class Producto extends Equatable {
@@ -9,6 +10,7 @@ class Producto extends Equatable {
   final String? sedeId;
   final String? empresaCategoriaId;
   final String? empresaMarcaId;
+  final String? unidadMedidaId;
   final String codigoEmpresa;
   final String codigoSistema;
   final String? sku;
@@ -44,6 +46,7 @@ class Producto extends Equatable {
   final ProductoCategoria? categoria;
   final ProductoMarca? marca;
   final ProductoSede? sede;
+  final EmpresaUnidadMedida? unidadMedida;
   final List<String>? imagenes;
   final List<ProductoArchivo>? archivos;
   final List<AtributoValor>? atributosValores; // Atributos del producto base (solo si no tiene variantes)
@@ -55,6 +58,7 @@ class Producto extends Equatable {
     this.sedeId,
     this.empresaCategoriaId,
     this.empresaMarcaId,
+    this.unidadMedidaId,
     required this.codigoEmpresa,
     required this.codigoSistema,
     this.sku,
@@ -88,6 +92,7 @@ class Producto extends Equatable {
     this.categoria,
     this.marca,
     this.sede,
+    this.unidadMedida,
     this.imagenes,
     this.archivos,
     this.atributosValores,
@@ -153,6 +158,33 @@ class Producto extends Equatable {
     return imagenPrincipal;
   }
 
+  /// Obtiene el display de la unidad de medida (símbolo o nombre)
+  String get unidadDisplay {
+    if (unidadMedida != null) {
+      return unidadMedida!.displayCorto;
+    }
+    return 'und'; // Por defecto "unidad"
+  }
+
+  /// Obtiene el display completo de la unidad de medida
+  String get unidadDisplayCompleto {
+    if (unidadMedida != null) {
+      return unidadMedida!.displayCompleto;
+    }
+    return 'Unidad';
+  }
+
+  /// Obtiene el código SUNAT de la unidad de medida
+  String get unidadCodigoSunat {
+    if (unidadMedida?.unidadMaestra != null) {
+      return unidadMedida!.unidadMaestra!.codigo;
+    }
+    if (unidadMedida?.codigoEfectivo != null) {
+      return unidadMedida!.codigoEfectivo!;
+    }
+    return 'NIU'; // Por defecto código SUNAT de "Unidad"
+  }
+
   @override
   List<Object?> get props => [
         id,
@@ -160,6 +192,7 @@ class Producto extends Equatable {
         sedeId,
         empresaCategoriaId,
         empresaMarcaId,
+        unidadMedidaId,
         codigoEmpresa,
         codigoSistema,
         sku,
@@ -193,6 +226,7 @@ class Producto extends Equatable {
         categoria,
         marca,
         sede,
+        unidadMedida,
         imagenes,
         archivos,
         atributosValores,

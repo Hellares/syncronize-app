@@ -11,7 +11,9 @@ import 'package:syncronize/features/producto/presentation/bloc/producto_atributo
 import 'package:syncronize/features/producto/presentation/bloc/atributo_plantilla/atributo_plantilla_cubit.dart';
 import 'package:syncronize/features/producto/presentation/bloc/configuracion_precio/configuracion_precio_cubit.dart';
 import 'package:syncronize/features/catalogo/presentation/bloc/categorias_empresa/categorias_empresa_cubit.dart';
+import 'package:syncronize/features/catalogo/presentation/bloc/categorias_maestras/categorias_maestras_cubit.dart';
 import 'package:syncronize/features/catalogo/presentation/bloc/marcas_empresa/marcas_empresa_cubit.dart';
+import 'package:syncronize/features/catalogo/presentation/bloc/marcas_maestras/marcas_maestras_cubit.dart';
 import 'package:syncronize/features/combo/presentation/bloc/combo_cubit.dart';
 import 'package:syncronize/features/cliente/presentation/bloc/cliente_list/cliente_list_cubit.dart';
 import 'package:syncronize/features/cliente/presentation/bloc/cliente_form/cliente_form_cubit.dart';
@@ -23,6 +25,7 @@ import 'package:syncronize/features/descuento/presentation/bloc/asignar_usuarios
 import 'package:syncronize/features/configuracion_codigos/presentation/bloc/configuracion_codigos_cubit.dart';
 import 'package:syncronize/features/sede/presentation/bloc/sede_list/sede_list_cubit.dart';
 import 'package:syncronize/features/sede/presentation/bloc/sede_form/sede_form_cubit.dart';
+import 'package:syncronize/features/catalogo/presentation/bloc/unidades_medida/unidades_medida_cubit.dart';
 
 /// Lista centralizada de todos los BLoCs globales de la aplicación
 List<BlocProvider> blocProviders = [
@@ -76,9 +79,21 @@ List<BlocProvider> blocProviders = [
     lazy: true,
   ),
 
+  // Categorias Maestras Cubit - Maneja las categorías maestras disponibles
+  BlocProvider<CategoriasMaestrasCubit>(
+    create: (context) => locator<CategoriasMaestrasCubit>(),
+    lazy: true,
+  ),
+
   // Marcas Empresa Cubit - Maneja las marcas de la empresa
   BlocProvider<MarcasEmpresaCubit>(
     create: (context) => locator<MarcasEmpresaCubit>(),
+    lazy: true,
+  ),
+
+  // Marcas Maestras Cubit - Maneja las marcas maestras disponibles
+  BlocProvider<MarcasMaestrasCubit>(
+    create: (context) => locator<MarcasMaestrasCubit>(),
     lazy: true,
   ),
 
@@ -169,6 +184,12 @@ List<BlocProvider> blocProviders = [
   // Sede Form Cubit - Maneja el formulario de creación/edición de sedes
   BlocProvider<SedeFormCubit>(
     create: (context) => locator<SedeFormCubit>(),
+    lazy: true,
+  ),
+
+  // Unidad Medida Cubit - Maneja las unidades de medida de la empresa
+  BlocProvider<UnidadMedidaCubit>(
+    create: (context) => locator<UnidadMedidaCubit>(),
     lazy: true,
   ),
 ];

@@ -93,6 +93,13 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
                   onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/marcas')),
                 ),
                 _TileNode(
+                  title: 'Unidades de Medida',
+                  icon: Icons.straighten,
+                  iconColor: AppColors.blue2,
+                  routeMatch: const _RouteMatch.startsWith('/empresa/unidades-medida'),
+                  onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/unidades-medida')),
+                ),
+                _TileNode(
                   title: 'Atributos',
                   icon: Icons.tune,
                   iconColor: AppColors.blue2,

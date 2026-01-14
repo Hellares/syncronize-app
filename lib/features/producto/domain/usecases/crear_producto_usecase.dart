@@ -13,6 +13,7 @@ class CrearProductoUseCase {
   Future<Resource<Producto>> call({
     required String empresaId,
     String? sedeId,
+    String? unidadMedidaId,
     String? empresaCategoriaId,
     String? empresaMarcaId,
     String? sku,
@@ -43,6 +44,7 @@ class CrearProductoUseCase {
     return await _repository.crearProducto(
       empresaId: empresaId,
       sedeId: sedeId,
+      unidadMedidaId: unidadMedidaId,
       empresaCategoriaId: empresaCategoriaId,
       empresaMarcaId: empresaMarcaId,
       sku: sku,

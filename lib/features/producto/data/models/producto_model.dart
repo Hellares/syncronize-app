@@ -1,6 +1,7 @@
 import '../../domain/entities/producto.dart';
 import 'producto_variante_model.dart';
 import 'atributo_valor_model.dart';
+import '../../../catalogo/data/models/unidad_medida_model.dart';
 
 class ProductoModel extends Producto {
   const ProductoModel({
@@ -9,6 +10,7 @@ class ProductoModel extends Producto {
     super.sedeId,
     super.empresaCategoriaId,
     super.empresaMarcaId,
+    super.unidadMedidaId,
     required super.codigoEmpresa,
     required super.codigoSistema,
     super.sku,
@@ -42,6 +44,7 @@ class ProductoModel extends Producto {
     super.categoria,
     super.marca,
     super.sede,
+    super.unidadMedida,
     super.imagenes,
     super.archivos,
     super.atributosValores,
@@ -55,6 +58,7 @@ class ProductoModel extends Producto {
       sedeId: json['sedeId'] as String?,
       empresaCategoriaId: json['empresaCategoriaId'] as String?,
       empresaMarcaId: json['empresaMarcaId'] as String?,
+      unidadMedidaId: json['unidadMedidaId'] as String?,
       codigoEmpresa: json['codigoEmpresa'] as String,
       codigoSistema: json['codigoSistema'] as String,
       sku: json['sku'] as String?,
@@ -113,6 +117,10 @@ class ProductoModel extends Producto {
       sede: json['sede'] != null
           ? ProductoSedeModel.fromJson(json['sede'] as Map<String, dynamic>)
           : null,
+      unidadMedida: json['unidadMedida'] != null
+          ? EmpresaUnidadMedidaModel.fromJson(
+              json['unidadMedida'] as Map<String, dynamic>)
+          : null,
       imagenes: json['imagenes'] != null
           ? (json['imagenes'] as List).map((e) => e as String).toList()
           : null,
@@ -158,6 +166,7 @@ class ProductoModel extends Producto {
       if (sedeId != null) 'sedeId': sedeId,
       if (empresaCategoriaId != null) 'empresaCategoriaId': empresaCategoriaId,
       if (empresaMarcaId != null) 'empresaMarcaId': empresaMarcaId,
+      if (unidadMedidaId != null) 'unidadMedidaId': unidadMedidaId,
       'codigoEmpresa': codigoEmpresa,
       'codigoSistema': codigoSistema,
       if (sku != null) 'sku': sku,
@@ -203,6 +212,7 @@ class ProductoModel extends Producto {
       sedeId: entity.sedeId,
       empresaCategoriaId: entity.empresaCategoriaId,
       empresaMarcaId: entity.empresaMarcaId,
+      unidadMedidaId: entity.unidadMedidaId,
       codigoEmpresa: entity.codigoEmpresa,
       codigoSistema: entity.codigoSistema,
       sku: entity.sku,
@@ -236,6 +246,7 @@ class ProductoModel extends Producto {
       categoria: entity.categoria,
       marca: entity.marca,
       sede: entity.sede,
+      unidadMedida: entity.unidadMedida,
       imagenes: entity.imagenes,
       archivos: entity.archivos,
       atributosValores: entity.atributosValores,

@@ -1,11 +1,13 @@
 import '../../domain/entities/producto_variante.dart';
 import 'atributo_valor_model.dart';
+import '../../../catalogo/data/models/unidad_medida_model.dart';
 
 class ProductoVarianteModel extends ProductoVariante {
   const ProductoVarianteModel({
     required super.id,
     required super.productoId,
     required super.empresaId,
+    super.unidadMedidaId,
     required super.nombre,
     required super.sku,
     super.codigoBarras,
@@ -21,6 +23,7 @@ class ProductoVarianteModel extends ProductoVariante {
     required super.isActive,
     required super.orden,
     super.archivos,
+    super.unidadMedida,
     required super.creadoEn,
     required super.actualizadoEn,
   });
@@ -30,6 +33,7 @@ class ProductoVarianteModel extends ProductoVariante {
       id: json['id'] as String? ?? '',
       productoId: json['productoId'] as String? ?? '',
       empresaId: json['empresaId'] as String? ?? '',
+      unidadMedidaId: json['unidadMedidaId'] as String?,
       nombre: json['nombre'] as String? ?? '',
       sku: json['sku'] as String? ?? '',
       codigoBarras: json['codigoBarras'] as String?,
@@ -59,6 +63,10 @@ class ProductoVarianteModel extends ProductoVariante {
               .map((e) => ProductoVarianteArchivoModel.fromJson(
                   e as Map<String, dynamic>))
               .toList()
+          : null,
+      unidadMedida: json['unidadMedida'] != null
+          ? EmpresaUnidadMedidaModel.fromJson(
+              json['unidadMedida'] as Map<String, dynamic>)
           : null,
       creadoEn: json['creadoEn'] != null
           ? DateTime.parse(json['creadoEn'] as String)
@@ -90,6 +98,7 @@ class ProductoVarianteModel extends ProductoVariante {
       'id': id,
       'productoId': productoId,
       'empresaId': empresaId,
+      if (unidadMedidaId != null) 'unidadMedidaId': unidadMedidaId,
       'nombre': nombre,
       'sku': sku,
       if (codigoBarras != null) 'codigoBarras': codigoBarras,
@@ -118,6 +127,7 @@ class ProductoVarianteModel extends ProductoVariante {
       id: entity.id,
       productoId: entity.productoId,
       empresaId: entity.empresaId,
+      unidadMedidaId: entity.unidadMedidaId,
       nombre: entity.nombre,
       sku: entity.sku,
       codigoBarras: entity.codigoBarras,
@@ -133,6 +143,7 @@ class ProductoVarianteModel extends ProductoVariante {
       isActive: entity.isActive,
       orden: entity.orden,
       archivos: entity.archivos,
+      unidadMedida: entity.unidadMedida,
       creadoEn: entity.creadoEn,
       actualizadoEn: entity.actualizadoEn,
     );

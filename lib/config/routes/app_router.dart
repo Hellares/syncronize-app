@@ -25,8 +25,9 @@ import '../../features/producto/presentation/pages/producto_atributos_page.dart'
 import '../../features/producto/presentation/pages/plantillas_atributos_page.dart';
 import '../../features/producto/presentation/pages/configuraciones_precio_page.dart';
 import '../../features/producto/presentation/pages/ajuste_masivo_precios_page.dart';
-import '../../features/catalogo/presentation/pages/categorias_page.dart';
-import '../../features/catalogo/presentation/pages/marcas_page.dart';
+import '../../features/catalogo/presentation/pages/gestion_categorias_page.dart';
+import '../../features/catalogo/presentation/pages/gestion_marcas_page.dart';
+import '../../features/catalogo/presentation/pages/gestion_unidades_page.dart';
 import '../../features/combo/presentation/pages/pages.dart';
 import '../../features/cliente/presentation/pages/clientes_page.dart';
 import '../../features/cliente/presentation/pages/cliente_form_page.dart';
@@ -325,12 +326,17 @@ class AppRouter {
       GoRoute(
         path: '/empresa/categorias',
         name: 'empresa-categorias',
-        builder: (context, state) => const CategoriasPage(),
+        builder: (context, state) => const GestionCategoriasPage(),
       ),
       GoRoute(
         path: '/empresa/marcas',
         name: 'empresa-marcas',
-        builder: (context, state) => const MarcasPage(),
+        builder: (context, state) => const GestionMarcasPage(),
+      ),
+      GoRoute(
+        path: '/empresa/unidades-medida',
+        name: 'empresa-unidades',
+        builder: (context, state) => const GestionUnidadesPage(),
       ),
       // Rutas de descuentos
       GoRoute(

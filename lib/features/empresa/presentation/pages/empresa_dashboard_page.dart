@@ -79,7 +79,7 @@ class _EmpresaDashboardPageState extends State<EmpresaDashboardPage> {
                 );
               },
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Row(

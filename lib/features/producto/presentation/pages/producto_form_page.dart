@@ -46,6 +46,9 @@ import '../widgets/configuracion_precio_selector.dart';
 import '../../data/datasources/producto_remote_datasource.dart';
 import '../../data/models/producto_atributo_valor_dto.dart';
 import '../../data/models/precio_nivel_model.dart';
+import '../../../catalogo/presentation/bloc/unidades_medida/unidades_medida_cubit.dart';
+import '../../../catalogo/presentation/bloc/unidades_medida/unidades_medida_state.dart';
+import '../../../empresa/presentation/widgets/unidad_medida_dropdown.dart';
 
 class ProductoFormPage extends StatelessWidget {
   final String? productoId;
@@ -123,6 +126,7 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
   String? _selectedCategoriaId;
   String? _selectedMarcaId;
   String? _selectedSedeId;  // Sede donde se encuentra el producto
+  String? _selectedUnidadMedidaId;  // Unidad de medida del producto
   bool _visibleMarketplace = true;
   bool _destacado = false;
   bool _enOferta = false;
@@ -145,6 +149,7 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
 
   // Configuración de precios
   String? _selectedConfiguracionPrecioId;
+
 
   @override
   void initState() {
@@ -337,6 +342,7 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
       _selectedCategoriaId = producto.empresaCategoriaId;
       _selectedMarcaId = producto.empresaMarcaId;
       _selectedSedeId = producto.sedeId;  // Cargar sede del producto
+      _selectedUnidadMedidaId = producto.unidadMedidaId;  // Cargar unidad de medida del producto
       _selectedConfiguracionPrecioId = producto.configuracionPrecioId;
       _visibleMarketplace = producto.visibleMarketplace;
       _destacado = producto.destacado;
@@ -379,6 +385,7 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
       context.read<CategoriasEmpresaCubit>().loadCategorias(empresaId);
       context.read<MarcasEmpresaCubit>().loadMarcas(empresaId);
       context.read<ConfiguracionPrecioCubit>().loadConfiguraciones();
+      context.read<UnidadMedidaCubit>().getUnidadesEmpresa(empresaId);
       _loadPlantillas(empresaId);
     }
   }
@@ -580,6 +587,7 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
               productoId: widget.productoId!,
               empresaId: empresaId,
               sedeId: _selectedSedeId,  // Incluir sede seleccionada
+              unidadMedidaId: _selectedUnidadMedidaId,  // Incluir unidad de medida
               nombre: nombre,
               descripcion: descripcion.isEmpty ? null : descripcion,
               precio: precio,
@@ -614,6 +622,7 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
           : await locator<CrearProductoUseCase>()(
               empresaId: empresaId,
               sedeId: _selectedSedeId,  // Incluir sede seleccionada
+              unidadMedidaId: _selectedUnidadMedidaId,  // Incluir unidad de medida
               nombre: nombre,
               descripcion: descripcion.isEmpty ? null : descripcion,
               precio: precio,
@@ -1490,9 +1499,60 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
                 );
               },
             ),
+            const SizedBox(height: 16),
+            // Dropdown de Unidades de Medida con listener para seleccionar "Unidad" por defecto
+            BlocConsumer<UnidadMedidaCubit, UnidadMedidaState>(
+              listener: (context, state) {
+                // Cuando se carguen las unidades y no haya una seleccionada, seleccionar "Unidad" (NIU)
+                if (state is UnidadesEmpresaLoaded &&
+                    _selectedUnidadMedidaId == null &&
+                    !widget.isEditing &&
+                    state.unidadesEmpresa.isNotEmpty) {
+                  // Buscar la unidad "Unidad" (NIU)
+                  try {
+                    final unidadPorDefecto = state.unidadesEmpresa.firstWhere(
+                      (u) => u.unidadMaestra?.codigo == 'NIU',
+                      orElse: () => state.unidadesEmpresa.first,
+                    );
+
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (mounted) {
+                        setState(() {
+                          _selectedUnidadMedidaId = unidadPorDefecto.id;
+                        });
+                      }
+                    });
+                  } catch (e) {
+                    // Si hay error buscando la unidad, no hacer nada
+                  }
+                }
+              },
+              builder: (context, state) {
+                final empresaState = context.read<EmpresaContextCubit>().state;
+                if (empresaState is EmpresaContextLoaded) {
+                  return UnidadMedidaDropdown(
+                    empresaId: empresaState.context.empresa.id,
+                    selectedUnidadId: _selectedUnidadMedidaId,
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedUnidadMedidaId = value;
+                        _markAsChanged();
+                      });
+                    },
+                    labelText: 'Unidad de medida',
+                    hintText: 'Selecciona la unidad',
+                    required: false,
+                  );
+                }
+                return const SizedBox.shrink();
+              },
+            ),
+
+            
+
           ],
         ),
-      
+
     );
   }
 

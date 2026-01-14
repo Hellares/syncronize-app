@@ -1,11 +1,13 @@
 import 'package:equatable/equatable.dart';
 import 'atributo_valor.dart';
+import '../../../catalogo/domain/entities/unidad_medida.dart';
 
 /// Entity que representa una variante de producto
 class ProductoVariante extends Equatable {
   final String id;
   final String productoId;
   final String empresaId;
+  final String? unidadMedidaId;
   final String nombre;
   final String sku;
   final String? codigoBarras;
@@ -21,6 +23,7 @@ class ProductoVariante extends Equatable {
   final bool isActive;
   final int orden;
   final List<ProductoVarianteArchivo>? archivos;
+  final EmpresaUnidadMedida? unidadMedida;
   final DateTime creadoEn;
   final DateTime actualizadoEn;
 
@@ -28,6 +31,7 @@ class ProductoVariante extends Equatable {
     required this.id,
     required this.productoId,
     required this.empresaId,
+    this.unidadMedidaId,
     required this.nombre,
     required this.sku,
     this.codigoBarras,
@@ -43,6 +47,7 @@ class ProductoVariante extends Equatable {
     required this.isActive,
     required this.orden,
     this.archivos,
+    this.unidadMedida,
     required this.creadoEn,
     required this.actualizadoEn,
   });
@@ -97,11 +102,39 @@ class ProductoVariante extends Equatable {
     }
   }
 
+  /// Obtiene el display de la unidad de medida (símbolo o nombre)
+  String get unidadDisplay {
+    if (unidadMedida != null) {
+      return unidadMedida!.displayCorto;
+    }
+    return 'und'; // Por defecto "unidad"
+  }
+
+  /// Obtiene el display completo de la unidad de medida
+  String get unidadDisplayCompleto {
+    if (unidadMedida != null) {
+      return unidadMedida!.displayCompleto;
+    }
+    return 'Unidad';
+  }
+
+  /// Obtiene el código SUNAT de la unidad de medida
+  String get unidadCodigoSunat {
+    if (unidadMedida?.unidadMaestra != null) {
+      return unidadMedida!.unidadMaestra!.codigo;
+    }
+    if (unidadMedida?.codigoEfectivo != null) {
+      return unidadMedida!.codigoEfectivo!;
+    }
+    return 'NIU'; // Por defecto código SUNAT de "Unidad"
+  }
+
   @override
   List<Object?> get props => [
         id,
         productoId,
         empresaId,
+        unidadMedidaId,
         nombre,
         sku,
         codigoBarras,
@@ -117,6 +150,7 @@ class ProductoVariante extends Equatable {
         isActive,
         orden,
         archivos,
+        unidadMedida,
         creadoEn,
         actualizadoEn,
       ];

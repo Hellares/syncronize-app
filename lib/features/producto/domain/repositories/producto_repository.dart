@@ -9,6 +9,7 @@ abstract class ProductoRepository {
   Future<Resource<Producto>> crearProducto({
     required String empresaId,
     String? sedeId,
+    String? unidadMedidaId,
     String? empresaCategoriaId,
     String? empresaMarcaId,
     String? sku,
@@ -54,6 +55,7 @@ abstract class ProductoRepository {
     required String productoId,
     required String empresaId,
     String? sedeId,
+    String? unidadMedidaId,
     String? empresaCategoriaId,
     String? empresaMarcaId,
     String? sku,

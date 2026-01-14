@@ -21,6 +21,7 @@ class ProductoRepositoryImpl implements ProductoRepository {
   Future<Resource<Producto>> crearProducto({
     required String empresaId,
     String? sedeId,
+    String? unidadMedidaId,
     String? empresaCategoriaId,
     String? empresaMarcaId,
     String? sku,
@@ -59,6 +60,7 @@ class ProductoRepositoryImpl implements ProductoRepository {
       final data = <String, dynamic>{
         'empresaId': empresaId,
         if (sedeId != null) 'sedeId': sedeId,
+        if (unidadMedidaId != null) 'unidadMedidaId': unidadMedidaId,
         if (empresaCategoriaId != null)
           'empresaCategoriaId': empresaCategoriaId,
         if (empresaMarcaId != null) 'empresaMarcaId': empresaMarcaId,
@@ -181,6 +183,7 @@ class ProductoRepositoryImpl implements ProductoRepository {
     required String productoId,
     required String empresaId,
     String? sedeId,
+    String? unidadMedidaId,
     String? empresaCategoriaId,
     String? empresaMarcaId,
     String? sku,
@@ -219,6 +222,7 @@ class ProductoRepositoryImpl implements ProductoRepository {
     try {
       final data = <String, dynamic>{
         if (sedeId != null) 'sedeId': sedeId,
+        if (unidadMedidaId != null) 'unidadMedidaId': unidadMedidaId,
         if (empresaCategoriaId != null)
           'empresaCategoriaId': empresaCategoriaId,
         if (empresaMarcaId != null) 'empresaMarcaId': empresaMarcaId,
