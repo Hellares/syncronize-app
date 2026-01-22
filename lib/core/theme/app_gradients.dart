@@ -65,6 +65,17 @@ class AppGradients {
     stops: [0.0, 0.7, 1.0],
   );
 
+  static LinearGradient blueWhiteDialog() => const LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [
+      Color(0xFFDDF0F8), // Azul claro superior
+      Color(0xFFEFF7FA), // Azul muy claro
+      Colors.white,
+    ],
+    stops: [0.0, 0.35, 1.0],
+  );
+
   // static const Color amberShadow = Color(0x33FFC107);
 
   static LinearGradient orangeWhiteBlue() => const LinearGradient(

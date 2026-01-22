@@ -1,5 +1,6 @@
 import '../../domain/entities/producto_variante.dart';
 import 'atributo_valor_model.dart';
+import 'stock_por_sede_info_model.dart';
 import '../../../catalogo/data/models/unidad_medida_model.dart';
 
 class ProductoVarianteModel extends ProductoVariante {
@@ -18,6 +19,7 @@ class ProductoVarianteModel extends ProductoVariante {
     super.precioOferta,
     required super.stock,
     super.stockMinimo,
+    super.stocksPorSede,
     super.peso,
     super.dimensiones,
     required super.isActive,
@@ -53,6 +55,11 @@ class ProductoVarianteModel extends ProductoVariante {
       stock: _toInt(json['stock']),
       stockMinimo: json['stockMinimo'] != null
           ? _toInt(json['stockMinimo'])
+          : null,
+      stocksPorSede: json['stocksPorSede'] != null
+          ? (json['stocksPorSede'] as List)
+              .map((e) => StockPorSedeInfoModel.fromJson(e as Map<String, dynamic>))
+              .toList()
           : null,
       peso: json['peso'] != null ? _toDouble(json['peso']) : null,
       dimensiones: json['dimensiones'] as Map<String, dynamic>?,
@@ -111,6 +118,10 @@ class ProductoVarianteModel extends ProductoVariante {
       if (precioOferta != null) 'precioOferta': precioOferta,
       'stock': stock,
       if (stockMinimo != null) 'stockMinimo': stockMinimo,
+      if (stocksPorSede != null)
+        'stocksPorSede': stocksPorSede!
+            .map((s) => StockPorSedeInfoModel.fromEntity(s).toJson())
+            .toList(),
       if (peso != null) 'peso': peso,
       if (dimensiones != null) 'dimensiones': dimensiones,
       'isActive': isActive,
@@ -138,6 +149,7 @@ class ProductoVarianteModel extends ProductoVariante {
       precioOferta: entity.precioOferta,
       stock: entity.stock,
       stockMinimo: entity.stockMinimo,
+      stocksPorSede: entity.stocksPorSede,
       peso: entity.peso,
       dimensiones: entity.dimensiones,
       isActive: entity.isActive,

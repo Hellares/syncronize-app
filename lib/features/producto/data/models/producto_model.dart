@@ -1,6 +1,7 @@
 import '../../domain/entities/producto.dart';
 import 'producto_variante_model.dart';
 import 'atributo_valor_model.dart';
+import 'stock_por_sede_info_model.dart';
 import '../../../catalogo/data/models/unidad_medida_model.dart';
 
 class ProductoModel extends Producto {
@@ -49,6 +50,7 @@ class ProductoModel extends Producto {
     super.archivos,
     super.atributosValores,
     super.variantes,
+    super.stocksPorSede,
   });
 
   factory ProductoModel.fromJson(Map<String, dynamic> json) {
@@ -139,6 +141,11 @@ class ProductoModel extends Producto {
               .map((e) => ProductoVarianteModel.fromJson(e as Map<String, dynamic>))
               .toList()
           : null,
+      stocksPorSede: json['stocksPorSede'] != null
+          ? (json['stocksPorSede'] as List)
+              .map((e) => StockPorSedeInfoModel.fromJson(e as Map<String, dynamic>))
+              .toList()
+          : null,
     );
   }
 
@@ -175,8 +182,9 @@ class ProductoModel extends Producto {
       if (descripcion != null) 'descripcion': descripcion,
       'precio': precio,
       if (precioCosto != null) 'precioCosto': precioCosto,
-      'stock': stock,
-      if (stockMinimo != null) 'stockMinimo': stockMinimo,
+      // DEPRECATED: Stock ahora se maneja mediante ProductoStock por sede
+      // 'stock': stock,
+      // if (stockMinimo != null) 'stockMinimo': stockMinimo,
       if (peso != null) 'peso': peso,
       if (dimensiones != null) 'dimensiones': dimensiones,
       if (videoUrl != null) 'videoUrl': videoUrl,

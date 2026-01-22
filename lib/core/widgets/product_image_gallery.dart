@@ -277,9 +277,10 @@ class _ProductImageGalleryState extends State<ProductImageGallery> {
                 }
 
                 // Precarga la siguiente imagen (si no es video)
+                final hasVideo = widget.videoUrl != null && widget.videoUrl!.isNotEmpty;
                 if (!_isVideoIndex(index + 1) && index + 1 < totalCount) {
-                  final imageIndex = widget.videoUrl != null ? index : index + 1;
-                  if (imageIndex < imagenes.length) {
+                  final imageIndex = hasVideo ? index : index + 1;
+                  if (imageIndex >= 0 && imageIndex < imagenes.length) {
                     precacheImage(NetworkImage(imagenes[imageIndex]), context);
                   }
                 }
@@ -291,7 +292,14 @@ class _ProductImageGalleryState extends State<ProductImageGallery> {
                 }
 
                 // Ajusta el índice de la imagen si hay video
-                final imageIndex = widget.videoUrl != null ? index - 1 : index;
+                final hasVideo = widget.videoUrl != null && widget.videoUrl!.isNotEmpty;
+                final imageIndex = hasVideo ? index - 1 : index;
+
+                // Validar que el índice sea válido
+                if (imageIndex < 0 || imageIndex >= imagenes.length) {
+                  return const SizedBox.shrink();
+                }
+
                 final url = imagenes[imageIndex];
                 final tag = widget.heroTag != null ? '${widget.heroTag}_$imageIndex' : null;
 

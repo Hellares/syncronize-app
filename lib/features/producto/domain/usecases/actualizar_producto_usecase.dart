@@ -23,8 +23,9 @@ class ActualizarProductoUseCase {
     String? descripcion,
     double? precio,
     double? precioCosto,
-    int? stock,
-    int? stockMinimo,
+    // DEPRECATED: Stock ahora se maneja mediante ProductoStock por sede
+    // int? stock,
+    // int? stockMinimo,
     double? peso,
     Map<String, dynamic>? dimensiones,
     String? videoUrl,
@@ -56,8 +57,9 @@ class ActualizarProductoUseCase {
       descripcion: descripcion,
       precio: precio,
       precioCosto: precioCosto,
-      stock: stock,
-      stockMinimo: stockMinimo,
+      // DEPRECATED: Stock ahora se maneja mediante ProductoStock por sede
+      // stock: stock,
+      // stockMinimo: stockMinimo,
       peso: peso,
       dimensiones: dimensiones,
       videoUrl: videoUrl,

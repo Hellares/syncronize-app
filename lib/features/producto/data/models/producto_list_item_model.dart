@@ -1,4 +1,5 @@
 import '../../domain/entities/producto_list_item.dart';
+import 'stock_por_sede_info_model.dart';
 
 class ProductoListItemModel extends ProductoListItem {
   const ProductoListItemModel({
@@ -18,6 +19,7 @@ class ProductoListItemModel extends ProductoListItem {
     required super.isActive,
     super.esCombo,
     super.tieneVariantes,
+    super.stocksPorSede,
   });
 
   factory ProductoListItemModel.fromJson(Map<String, dynamic> json) {
@@ -47,6 +49,11 @@ class ProductoListItemModel extends ProductoListItem {
       isActive: json['isActive'] as bool? ?? true,
       esCombo: json['esCombo'] as bool? ?? false,
       tieneVariantes: json['tieneVariantes'] as bool? ?? false,
+      stocksPorSede: json['stocksPorSede'] != null
+          ? (json['stocksPorSede'] as List)
+              .map((e) => StockPorSedeInfoModel.fromJson(e as Map<String, dynamic>))
+              .toList()
+          : null,
     );
   }
 

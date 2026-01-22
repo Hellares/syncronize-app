@@ -20,7 +20,7 @@ class ProductoRepositoryImpl implements ProductoRepository {
   @override
   Future<Resource<Producto>> crearProducto({
     required String empresaId,
-    String? sedeId,
+    List<String>? sedesIds,
     String? unidadMedidaId,
     String? empresaCategoriaId,
     String? empresaMarcaId,
@@ -59,7 +59,7 @@ class ProductoRepositoryImpl implements ProductoRepository {
     try {
       final data = <String, dynamic>{
         'empresaId': empresaId,
-        if (sedeId != null) 'sedeId': sedeId,
+        if (sedesIds != null && sedesIds.isNotEmpty) 'sedesIds': sedesIds,
         if (unidadMedidaId != null) 'unidadMedidaId': unidadMedidaId,
         if (empresaCategoriaId != null)
           'empresaCategoriaId': empresaCategoriaId,
@@ -192,8 +192,9 @@ class ProductoRepositoryImpl implements ProductoRepository {
     String? descripcion,
     double? precio,
     double? precioCosto,
-    int? stock,
-    int? stockMinimo,
+    // DEPRECATED: Stock ahora se maneja mediante ProductoStock por sede
+    // int? stock,
+    // int? stockMinimo,
     double? peso,
     Map<String, dynamic>? dimensiones,
     String? videoUrl,
@@ -221,7 +222,7 @@ class ProductoRepositoryImpl implements ProductoRepository {
 
     try {
       final data = <String, dynamic>{
-        if (sedeId != null) 'sedeId': sedeId,
+        // NO enviar sedeId - la sede no se puede cambiar después de crear el producto
         if (unidadMedidaId != null) 'unidadMedidaId': unidadMedidaId,
         if (empresaCategoriaId != null)
           'empresaCategoriaId': empresaCategoriaId,
@@ -232,8 +233,9 @@ class ProductoRepositoryImpl implements ProductoRepository {
         if (descripcion != null) 'descripcion': descripcion,
         if (precio != null) 'precio': precio,
         if (precioCosto != null) 'precioCosto': precioCosto,
-        if (stock != null) 'stock': stock,
-        if (stockMinimo != null) 'stockMinimo': stockMinimo,
+        // DEPRECATED: Stock ahora se maneja mediante ProductoStock por sede
+        // if (stock != null) 'stock': stock,
+        // if (stockMinimo != null) 'stockMinimo': stockMinimo,
         if (peso != null) 'peso': peso,
         if (dimensiones != null) 'dimensiones': dimensiones,
         if (videoUrl != null) 'videoUrl': videoUrl,
@@ -299,9 +301,10 @@ class ProductoRepositoryImpl implements ProductoRepository {
   }
 
   @override
-  Future<Resource<Producto>> actualizarStock({
+  Future<Resource<Map<String, dynamic>>> actualizarStock({
     required String productoId,
     required String empresaId,
+    required String sedeId,
     required int cantidad,
     required String operacion,
   }) async {
@@ -313,13 +316,14 @@ class ProductoRepositoryImpl implements ProductoRepository {
     }
 
     try {
-      final producto = await _remoteDataSource.actualizarStock(
+      final resultado = await _remoteDataSource.actualizarStock(
         productoId: productoId,
         empresaId: empresaId,
+        sedeId: sedeId,
         cantidad: cantidad,
         operacion: operacion,
       );
-      return Success(producto.toEntity());
+      return Success(resultado);
     } catch (e) {
       return Error(
         e.toString().replaceFirst('Exception: ', ''),

@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'producto_variante.dart';
 import 'atributo_valor.dart';
+import 'stock_por_sede_info.dart';
 import '../../../catalogo/domain/entities/unidad_medida.dart';
 
 /// Entity que representa un producto
@@ -51,6 +52,7 @@ class Producto extends Equatable {
   final List<ProductoArchivo>? archivos;
   final List<AtributoValor>? atributosValores; // Atributos del producto base (solo si no tiene variantes)
   final List<ProductoVariante>? variantes;
+  final List<StockPorSedeInfo>? stocksPorSede; // Desglose de stock por sede (nuevo sistema multi-sede)
 
   const Producto({
     required this.id,
@@ -97,6 +99,7 @@ class Producto extends Equatable {
     this.archivos,
     this.atributosValores,
     this.variantes,
+    this.stocksPorSede,
   });
 
   /// Verifica si el producto tiene stock disponible
@@ -185,6 +188,41 @@ class Producto extends Equatable {
     return 'NIU'; // Por defecto código SUNAT de "Unidad"
   }
 
+  /// Calcula el stock total basado en el desglose por sede
+  /// Si hay stocksPorSede, suma todas las cantidades
+  /// Si no hay stocksPorSede, usa el stock tradicional
+  int get stockTotal {
+    if (stocksPorSede != null && stocksPorSede!.isNotEmpty) {
+      return stocksPorSede!.fold(0, (sum, stockSede) => sum + stockSede.cantidad);
+    }
+    return stock;
+  }
+
+  /// Obtiene el stock para una sede específica
+  int? stockEnSede(String sedeId) {
+    if (stocksPorSede == null) return null;
+    final stockSede = stocksPorSede!.firstWhere(
+      (s) => s.sedeId == sedeId,
+      orElse: () => StockPorSedeInfo(
+        sedeId: '',
+        sedeNombre: '',
+        sedeCodigo: '',
+        cantidad: 0,
+      ),
+    );
+    return stockSede.cantidad;
+  }
+
+  /// Verifica si tiene stock disponible considerando stocksPorSede
+  bool get hasStockTotal => stockTotal > 0;
+
+  /// Verifica si el stock total está bajo (menor o igual al mínimo)
+  bool get isStockLowTotal =>
+      stockMinimo != null && stockTotal <= stockMinimo! && stockTotal > 0;
+
+  /// Verifica si el stock total está agotado
+  bool get isOutOfStockTotal => stockTotal <= 0;
+
   @override
   List<Object?> get props => [
         id,
@@ -231,6 +269,7 @@ class Producto extends Equatable {
         archivos,
         atributosValores,
         variantes,
+        stocksPorSede,
       ];
 }
 

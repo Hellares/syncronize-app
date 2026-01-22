@@ -12,6 +12,7 @@ class ProductoListTile extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback? onManageFiles;
   final VoidCallback? onViewVariants;
+  final VoidCallback? onStockDoubleTap;
 
   const ProductoListTile({
     super.key,
@@ -19,6 +20,7 @@ class ProductoListTile extends StatelessWidget {
     required this.onTap,
     this.onManageFiles,
     this.onViewVariants,
+    this.onStockDoubleTap,
   });
 
   @override
@@ -120,6 +122,46 @@ class ProductoListTile extends StatelessWidget {
                         ),
                         child: const Icon(
                           Icons.attach_file,
+                          size: 14,
+                          color: AppColors.blue1,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+              // Botón de agregar stock en esquina inferior derecha
+              if (onStockDoubleTap != null)
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: onStockDoubleTap,
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(4),
+                        topRight: Radius.circular(4),
+                        bottomRight: Radius.circular(8),
+                        bottomLeft: Radius.circular(4),
+                      ),
+                      child: Container(
+                        padding: const EdgeInsets.all(5),
+                        decoration: BoxDecoration(
+                          color: AppColors.blue1.withValues(alpha: 0.1),
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(4),
+                            topRight: Radius.circular(4),
+                            bottomRight: Radius.circular(8),
+                            bottomLeft: Radius.circular(4),
+                          ),
+                          border: Border.all(
+                            color: AppColors.cardBackground,
+                            width: 1,
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.add,
                           size: 14,
                           color: AppColors.blue1,
                         ),
@@ -447,7 +489,8 @@ class ProductoListTile extends StatelessWidget {
   }
 
   Widget _buildStockBadge() {
-    final hasStock = producto.stock > 0;
+    final hasStock = producto.hasStockTotal;
+    final stockTotal = producto.stockTotal;
     final isLowStock = producto.isStockLow;
 
     Color badgeColor;
@@ -461,12 +504,15 @@ class ProductoListTile extends StatelessWidget {
     } else if (isLowStock) {
       badgeColor = Colors.orange;
       icon = Icons.warning_amber_rounded;
-      badgeText = '${producto.stock}';
+      badgeText = '$stockTotal';
     } else {
       badgeColor = Colors.green;
       icon = Icons.check_circle_outline;
-      badgeText = '${producto.stock}';
+      badgeText = '$stockTotal';
     }
+
+    // Si hay stock por sede, mostrar información adicional
+    final tieneStockPorSede = producto.stocksPorSede != null && producto.stocksPorSede!.isNotEmpty;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -480,13 +526,71 @@ class ProductoListTile extends StatelessWidget {
         children: [
           Icon(icon, size: 12, color: badgeColor),
           const SizedBox(width: 4),
-          AppSubtitle( 
-            'Stock: $badgeText',
-            fontSize: 9,
-            color: badgeColor,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AppSubtitle(
+                'Stock: $badgeText',
+                fontSize: 10,
+                color: badgeColor,
+              ),
+              if (tieneStockPorSede)
+                _buildSedesInfo(),
+            ],
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildSedesInfo() {
+    final stocksPorSede = producto.stocksPorSede!;
+    
+    if (stocksPorSede.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    // Si hay solo una sede, mostrar nombre: cantidad
+    if (stocksPorSede.length == 1) {
+      final sede = stocksPorSede.first;
+      return Text(
+        '${sede.sedeNombre}: ${sede.cantidad}',
+        style: TextStyle(
+          fontSize: 8,
+          color: Colors.grey[600],
+        ),
+      );
+    }
+
+    // Si hay dos sedes, mostrar ambas con formato "Sede1: 20 - Sede2: 30"
+    if (stocksPorSede.length == 2) {
+      final sede1 = stocksPorSede[0];
+      final sede2 = stocksPorSede[1];
+      return Text(
+        '${sede1.sedeNombre}: ${sede1.cantidad} - ${sede2.sedeNombre}: ${sede2.cantidad}',
+        style: TextStyle(
+          fontSize: 8,
+          color: Colors.grey[600],
+        ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      );
+    }
+
+    // Si hay más de dos sedes, mostrar las dos primeras y un contador
+    final sede1 = stocksPorSede[0];
+    final sede2 = stocksPorSede[1];
+    final otrasSedes = stocksPorSede.length - 2;
+    
+    return Text(
+      '${sede1.sedeNombre}: ${sede1.cantidad} - ${sede2.sedeNombre}: ${sede2.cantidad} +$otrasSedes',
+      style: TextStyle(
+        fontSize: 8,
+        color: Colors.grey[600],
+      ),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
     );
   }
 }

@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'stock_por_sede_info.dart';
 
 /// Entity simplificada para listados de productos
 class ProductoListItem extends Equatable {
@@ -18,6 +19,7 @@ class ProductoListItem extends Equatable {
   final bool isActive;
   final bool esCombo;
   final bool tieneVariantes;
+  final List<StockPorSedeInfo>? stocksPorSede; // Desglose de stock por sede
 
   const ProductoListItem({
     required this.id,
@@ -36,6 +38,7 @@ class ProductoListItem extends Equatable {
     required this.isActive,
     this.esCombo = false,
     this.tieneVariantes = false,
+    this.stocksPorSede,
   });
 
   /// Verifica si tiene stock disponible
@@ -57,6 +60,34 @@ class ProductoListItem extends Equatable {
   /// Como ProductoListItem no tiene stockMinimo, siempre retorna false
   bool get isStockLow => false;
 
+  /// Calcula el stock total basado en el desglose por sede
+  /// Si hay stocksPorSede, suma todas las cantidades
+  /// Si no hay stocksPorSede, usa el stock tradicional
+  int get stockTotal {
+    if (stocksPorSede != null && stocksPorSede!.isNotEmpty) {
+      return stocksPorSede!.fold(0, (sum, stockSede) => sum + stockSede.cantidad);
+    }
+    return stock;
+  }
+
+  /// Obtiene el stock para una sede específica
+  int? stockEnSede(String sedeId) {
+    if (stocksPorSede == null) return null;
+    final stockSede = stocksPorSede!.firstWhere(
+      (s) => s.sedeId == sedeId,
+      orElse: () => StockPorSedeInfo(
+        sedeId: '',
+        sedeNombre: '',
+        sedeCodigo: '',
+        cantidad: 0,
+      ),
+    );
+    return stockSede.cantidad;
+  }
+
+  /// Verifica si tiene stock disponible considerando stocksPorSede
+  bool get hasStockTotal => stockTotal > 0;
+
   @override
   List<Object?> get props => [
         id,
@@ -75,5 +106,6 @@ class ProductoListItem extends Equatable {
         isActive,
         esCombo,
         tieneVariantes,
+        stocksPorSede,
       ];
 }

@@ -26,6 +26,14 @@ import 'package:syncronize/features/configuracion_codigos/presentation/bloc/conf
 import 'package:syncronize/features/sede/presentation/bloc/sede_list/sede_list_cubit.dart';
 import 'package:syncronize/features/sede/presentation/bloc/sede_form/sede_form_cubit.dart';
 import 'package:syncronize/features/catalogo/presentation/bloc/unidades_medida/unidades_medida_cubit.dart';
+import 'package:syncronize/features/producto/presentation/bloc/stock_por_sede/stock_por_sede_cubit.dart';
+import 'package:syncronize/features/producto/presentation/bloc/stock_todas_sedes/stock_todas_sedes_cubit.dart';
+import 'package:syncronize/features/producto/presentation/bloc/ajustar_stock/ajustar_stock_cubit.dart';
+import 'package:syncronize/features/producto/presentation/bloc/alertas_stock/alertas_stock_cubit.dart';
+import 'package:syncronize/features/producto/presentation/bloc/transferencias_list/transferencias_list_cubit.dart';
+import 'package:syncronize/features/producto/presentation/bloc/crear_transferencia/crear_transferencia_cubit.dart';
+import 'package:syncronize/features/producto/presentation/bloc/gestionar_transferencia/gestionar_transferencia_cubit.dart';
+import 'package:syncronize/features/producto/presentation/bloc/transferencia_detail/transferencia_detail_cubit.dart';
 
 /// Lista centralizada de todos los BLoCs globales de la aplicación
 List<BlocProvider> blocProviders = [
@@ -190,6 +198,54 @@ List<BlocProvider> blocProviders = [
   // Unidad Medida Cubit - Maneja las unidades de medida de la empresa
   BlocProvider<UnidadMedidaCubit>(
     create: (context) => locator<UnidadMedidaCubit>(),
+    lazy: true,
+  ),
+
+  // Stock Por Sede Cubit - Maneja el listado de stock de una sede
+  BlocProvider<StockPorSedeCubit>(
+    create: (context) => locator<StockPorSedeCubit>(),
+    lazy: true,
+  ),
+
+  // Stock Todas Sedes Cubit - Maneja el stock de un producto en todas las sedes
+  BlocProvider<StockTodasSedesCubit>(
+    create: (context) => locator<StockTodasSedesCubit>(),
+    lazy: true,
+  ),
+
+  // Ajustar Stock Cubit - Maneja el formulario de ajuste de stock
+  BlocProvider<AjustarStockCubit>(
+    create: (context) => locator<AjustarStockCubit>(),
+    lazy: true,
+  ),
+
+  // Alertas Stock Cubit - Maneja las alertas de stock bajo
+  BlocProvider<AlertasStockCubit>(
+    create: (context) => locator<AlertasStockCubit>(),
+    lazy: true,
+  ),
+
+  // Transferencias List Cubit - Maneja la lista de transferencias entre sedes
+  BlocProvider<TransferenciasListCubit>(
+    create: (context) => locator<TransferenciasListCubit>(),
+    lazy: true,
+  ),
+
+  // Crear Transferencia Cubit - Maneja la creación de transferencias
+  BlocProvider<CrearTransferenciaCubit>(
+    create: (context) => locator<CrearTransferenciaCubit>(),
+    lazy: true,
+  ),
+
+  // Gestionar Transferencia Cubit - Maneja las acciones sobre transferencias
+  BlocProvider<GestionarTransferenciaCubit>(
+    create: (context) => locator<GestionarTransferenciaCubit>(),
+    lazy: true,
+  ),
+
+  // Transferencia Detail Cubit - Maneja el detalle de una transferencia
+  BlocProvider<TransferenciaDetailCubit>(
+    create: (context) => locator<TransferenciaDetailCubit>(),
     lazy: true,
   ),
 ];

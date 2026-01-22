@@ -25,6 +25,9 @@ import '../../features/producto/presentation/pages/producto_atributos_page.dart'
 import '../../features/producto/presentation/pages/plantillas_atributos_page.dart';
 import '../../features/producto/presentation/pages/configuraciones_precio_page.dart';
 import '../../features/producto/presentation/pages/ajuste_masivo_precios_page.dart';
+import '../../features/producto/presentation/pages/stock_por_sede_page.dart';
+import '../../features/producto/presentation/pages/alertas_stock_bajo_page.dart';
+import '../../features/producto/presentation/pages/transferencias_stock_page.dart';
 import '../../features/catalogo/presentation/pages/gestion_categorias_page.dart';
 import '../../features/catalogo/presentation/pages/gestion_marcas_page.dart';
 import '../../features/catalogo/presentation/pages/gestion_unidades_page.dart';
@@ -232,6 +235,22 @@ class AppRouter {
             categoriaId: categoriaId,
           );
         },
+      ),
+      // Rutas de inventario
+      GoRoute(
+        path: '/empresa/inventario/stock-por-sede',
+        name: 'empresa-stock-por-sede',
+        builder: (context, state) => const StockPorSedePage(),
+      ),
+      GoRoute(
+        path: '/empresa/inventario/alertas',
+        name: 'empresa-alertas-stock',
+        builder: (context, state) => const AlertasStockBajoPage(),
+      ),
+      GoRoute(
+        path: '/empresa/inventario/transferencias',
+        name: 'empresa-transferencias',
+        builder: (context, state) => const TransferenciasStockPage(),
       ),
       // Rutas de clientes
       GoRoute(

@@ -9,17 +9,33 @@ import 'package:syncronize/core/widgets/custom_loading.dart';
 import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/gradient_background.dart';
+import '../../../../core/utils/resource.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
+import '../../../sede/presentation/bloc/sede_list/sede_list_cubit.dart';
 import '../../domain/entities/producto_filtros.dart';
+import '../../domain/entities/producto_list_item.dart';
+import '../../domain/entities/producto.dart';
+import '../../domain/entities/producto_stock.dart';
+import '../../domain/usecases/get_producto_usecase.dart';
+import '../../domain/usecases/get_stock_producto_en_sede_usecase.dart';
 import '../bloc/producto_list/producto_list_cubit.dart';
 import '../bloc/producto_list/producto_list_state.dart';
+import '../bloc/ajustar_stock/ajustar_stock_cubit.dart';
+import '../bloc/agregar_stock_inicial/agregar_stock_inicial_cubit.dart';
 import '../widgets/producto_list_tile.dart';
 import '../widgets/filtros_productos_widget.dart';
 import '../widgets/archivo_manager_bottom_sheet.dart';
 import '../widgets/producto_variantes_bottom_sheet.dart';
+import '../widgets/seleccionar_sede_stock_bottom_sheet.dart';
+import '../widgets/ajustar_stock_dialog.dart';
 import '../../../../core/services/storage_service.dart';
 import '../../../../core/di/injection_container.dart';
+// Imports para páginas de inventario/stock
+import 'stock_por_sede_page.dart';
+import 'alertas_stock_bajo_page.dart';
+import 'transferencias_stock_page.dart';
+import 'agregar_stock_inicial_page.dart';
 
 class ProductosPage extends StatefulWidget {
   const ProductosPage({super.key});
@@ -242,6 +258,163 @@ class _ProductosPageState extends State<ProductosPage>
     );
   }
 
+  Future<void> _handleStockDoubleTap(ProductoListItem producto) async {
+    final empresaState = context.read<EmpresaContextCubit>().state;
+    if (empresaState is! EmpresaContextLoaded) return;
+
+    final empresaId = empresaState.context.empresa.id;
+
+    // Caso 1: No tiene stock en ninguna sede - Agregar stock inicial
+    if (producto.stockTotal == 0) {
+      try {
+        // Obtener el producto completo
+        final getProductoUseCase = locator<GetProductoUseCase>();
+        final result = await getProductoUseCase(
+          productoId: producto.id,
+          empresaId: empresaId,
+        );
+
+        if (!mounted) return;
+
+        if (result is Success<Producto>) {
+          final productoCompleto = result.data;
+          // Navegar a la página de agregar stock inicial
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => MultiBlocProvider(
+                providers: [
+                  BlocProvider(
+                    create: (_) => locator<AgregarStockInicialCubit>(),
+                  ),
+                  BlocProvider.value(
+                    value: context.read<EmpresaContextCubit>(),
+                  ),
+                  BlocProvider.value(
+                    value: context.read<SedeListCubit>(),
+                  ),
+                ],
+                child: AgregarStockInicialPage(producto: productoCompleto),
+              ),
+            ),
+          ).then((result) {
+            // Si se agregó stock, recargar la lista
+            if (result == true && mounted) {
+              _loadProductos();
+            }
+          });
+        } else if (result is Error<Producto>) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error al cargar producto: ${result.message}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
+    // Caso 2: Tiene stock en una o más sedes
+    final stocksPorSede = producto.stocksPorSede ?? [];
+
+    if (stocksPorSede.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No hay información de stock por sede'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    // Caso 2a: Stock en una sola sede - Abrir dialog directamente
+    if (stocksPorSede.length == 1) {
+      final stockSede = stocksPorSede.first;
+      await _openAjustarStockDialog(
+        productoId: producto.id,
+        sedeId: stockSede.sedeId,
+        empresaId: empresaId,
+      );
+      return;
+    }
+
+    // Caso 2b: Stock en múltiples sedes - Mostrar selector
+    final sedeSeleccionada = await SeleccionarSedeStockBottomSheet.show(
+      context: context,
+      stocksPorSede: stocksPorSede,
+      productoNombre: producto.nombre,
+    );
+
+    if (sedeSeleccionada != null && mounted) {
+      await _openAjustarStockDialog(
+        productoId: producto.id,
+        sedeId: sedeSeleccionada.sedeId,
+        empresaId: empresaId,
+      );
+    }
+  }
+
+  Future<void> _openAjustarStockDialog({
+    required String productoId,
+    required String sedeId,
+    required String empresaId,
+  }) async {
+    try {
+      // Obtener el ProductoStock completo
+      final getStockUseCase = locator<GetStockProductoEnSedeUseCase>();
+      final result = await getStockUseCase(
+        productoId: productoId,
+        sedeId: sedeId,
+      );
+
+      if (!mounted) return;
+
+      if (result is Success<ProductoStock>) {
+        final stock = result.data;
+        // Mostrar el dialog de ajustar stock
+        showDialog(
+          context: context,
+          builder: (dialogContext) => BlocProvider(
+            create: (_) => locator<AjustarStockCubit>(),
+            child: AjustarStockDialog(
+              stock: stock,
+              empresaId: empresaId,
+            ),
+          ),
+        ).then((result) {
+          // Si se ajustó correctamente, recargar la lista
+          if (result == true && mounted) {
+            _loadProductos();
+          }
+        });
+      } else if (result is Error<ProductoStock>) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al cargar stock: ${result.message}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocListener<EmpresaContextCubit, EmpresaContextState>(
@@ -263,6 +436,68 @@ class _ProductosPageState extends State<ProductosPage>
           showLogo: false,
           title: 'Productos',
           actions: [
+            // Menú de inventario
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.inventory_2, size: 18),
+              tooltip: 'Inventario',
+              onSelected: (value) {
+                if (value == 'stock_por_sede') {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const StockPorSedePage(),
+                    ),
+                  );
+                } else if (value == 'alertas') {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const AlertasStockBajoPage(),
+                    ),
+                  );
+                } else if (value == 'transferencias') {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const TransferenciasStockPage(),
+                    ),
+                  );
+                }
+              },
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: 'stock_por_sede',
+                  child: Row(
+                    children: [
+                      Icon(Icons.warehouse, size: 18),
+                      SizedBox(width: 8),
+                      Text('Stock por Sede'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'alertas',
+                  child: Row(
+                    children: [
+                      Icon(Icons.warning, size: 18),
+                      SizedBox(width: 8),
+                      Text('Alertas de Stock'),
+                    ],
+                  ),
+                ),
+                const PopupMenuDivider(),
+                const PopupMenuItem(
+                  value: 'transferencias',
+                  child: Row(
+                    children: [
+                      Icon(Icons.sync_alt, size: 18),
+                      SizedBox(width: 8),
+                      Text('Transferencias entre Sedes'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
             IconButton(
               icon: const Icon(Icons.filter_list, size: 18),
               onPressed: _showFiltros,
@@ -430,6 +665,7 @@ class _ProductosPageState extends State<ProductosPage>
                             producto.nombre,
                           )
                       : null,
+                  onStockDoubleTap: () => _handleStockDoubleTap(producto),
                 );
               },
             ),
@@ -483,6 +719,7 @@ class _ProductosPageState extends State<ProductosPage>
                             producto.nombre,
                           )
                       : null,
+                  onStockDoubleTap: () => _handleStockDoubleTap(producto),
                 );
               },
             ),

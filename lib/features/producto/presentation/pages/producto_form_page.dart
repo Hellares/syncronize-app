@@ -5,26 +5,17 @@ import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/theme/app_gradients.dart';
-import 'package:syncronize/core/widgets/currency/currency_textfield.dart';
 import 'package:syncronize/core/widgets/currency/currency_formatter.dart';
 import 'package:syncronize/core/widgets/info_chip.dart';
 import 'package:syncronize/core/services/storage_service.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/gradient_background.dart';
-import '../../../../core/utils/resource.dart';
 import '../../../../core/widgets/smart_appbar.dart';
-import '../../../../core/widgets/custom_switch_tile.dart';
-import '../../../auth/presentation/widgets/custom_text.dart';
 import '../../../../core/widgets/custom_dropdown.dart';
 import '../../../catalogo/presentation/bloc/categorias_empresa/categorias_empresa_cubit.dart';
-import '../../../catalogo/presentation/bloc/categorias_empresa/categorias_empresa_state.dart';
 import '../../../catalogo/presentation/bloc/marcas_empresa/marcas_empresa_cubit.dart';
-import '../../../catalogo/presentation/bloc/marcas_empresa/marcas_empresa_state.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
-import '../../domain/usecases/crear_producto_usecase.dart';
-import '../../domain/usecases/actualizar_producto_usecase.dart';
-import '../../domain/entities/producto.dart';
 import '../../domain/entities/atributo_plantilla.dart';
 import '../../domain/entities/producto_atributo.dart';
 import '../../../auth/presentation/widgets/custom_button.dart';
@@ -37,18 +28,31 @@ import '../bloc/atributo_plantilla/atributo_plantilla_state.dart';
 import '../bloc/precio_nivel/precio_nivel_cubit.dart';
 import '../bloc/precio_nivel/precio_nivel_state.dart';
 import '../bloc/configuracion_precio/configuracion_precio_cubit.dart';
+import '../bloc/agregar_stock_inicial/agregar_stock_inicial_cubit.dart';
+import '../../../sede/presentation/bloc/sede_list/sede_list_cubit.dart';
+import 'agregar_stock_inicial_page.dart';
+import '../../domain/entities/producto.dart';
 import '../bloc/configuracion_precio/configuracion_precio_state.dart';
+import '../bloc/producto_form/producto_form_cubit.dart';
+import '../bloc/producto_form/producto_form_state.dart';
 import '../widgets/producto_images_manager.dart';
 import '../widgets/producto_video_manager.dart';
 import '../widgets/atributo_input_widget.dart';
 import '../widgets/precio_niveles_section.dart';
 import '../widgets/configuracion_precio_selector.dart';
-import '../../data/datasources/producto_remote_datasource.dart';
-import '../../data/models/producto_atributo_valor_dto.dart';
 import '../../data/models/precio_nivel_model.dart';
-import '../../../catalogo/presentation/bloc/unidades_medida/unidades_medida_cubit.dart';
-import '../../../catalogo/presentation/bloc/unidades_medida/unidades_medida_state.dart';
-import '../../../empresa/presentation/widgets/unidad_medida_dropdown.dart';
+import '../widgets/form_sections/producto_basic_info_section.dart';
+import '../widgets/form_sections/producto_pricing_section.dart';
+import '../widgets/form_sections/producto_oferta_section.dart';
+import '../widgets/form_sections/producto_inventory_section.dart';
+import '../widgets/form_sections/producto_dimensiones_section.dart';
+import '../widgets/form_sections/producto_options_section.dart';
+import '../widgets/form_sections/producto_tipo_section.dart';
+import '../widgets/form_sections/producto_categorizacion_section.dart';
+import '../widgets/form_sections/producto_impuestos_section.dart';
+import '../widgets/form_sections/producto_variantes_banner.dart';
+import '../widgets/form_sections/producto_combo_banner.dart';
+import '../controllers/producto_form_controller.dart';
 
 class ProductoFormPage extends StatelessWidget {
   final String? productoId;
@@ -69,6 +73,7 @@ class ProductoFormPage extends StatelessWidget {
           BlocProvider(create: (_) => locator<ProductoImagesCubit>()),
           BlocProvider(create: (_) => locator<AtributoPlantillaCubit>()),
           BlocProvider(create: (_) => locator<PrecioNivelCubit>()),
+          BlocProvider(create: (_) => ProductoFormCubit()),
         ],
         child: _ProductoFormView(
           productoId: productoId,
@@ -82,6 +87,7 @@ class ProductoFormPage extends StatelessWidget {
         BlocProvider(create: (_) => locator<ProductoImagesCubit>()),
         BlocProvider(create: (_) => locator<AtributoPlantillaCubit>()),
         BlocProvider(create: (_) => locator<PrecioNivelCubit>()),
+        BlocProvider(create: (_) => ProductoFormCubit()),
       ],
       child: _ProductoFormView(
         productoId: productoId,
@@ -105,57 +111,16 @@ class _ProductoFormView extends StatefulWidget {
 }
 
 class _ProductoFormViewState extends State<_ProductoFormView> {
-  final _formKey = GlobalKey<FormState>();
-  final _nombreController = TextEditingController();
-  final _descripcionController = TextEditingController();
-  final _skuController = TextEditingController();
-  final _codigoBarrasController = TextEditingController();
-  final _precioController = TextEditingController();
-  final _precioCostoController = TextEditingController();
-  final _stockController = TextEditingController();
-  final _stockMinimoController = TextEditingController();
-  final _pesoController = TextEditingController();
-  final _precioOfertaController = TextEditingController();
-  final _videoUrlController = TextEditingController();
-  final _impuestoPorcentajeController = TextEditingController();
-  final _descuentoMaximoController = TextEditingController();
-  final _dimensionLargoController = TextEditingController();
-  final _dimensionAnchoController = TextEditingController();
-  final _dimensionAltoController = TextEditingController();
-
-  String? _selectedCategoriaId;
-  String? _selectedMarcaId;
-  String? _selectedSedeId;  // Sede donde se encuentra el producto
-  String? _selectedUnidadMedidaId;  // Unidad de medida del producto
-  bool _visibleMarketplace = true;
-  bool _destacado = false;
-  bool _enOferta = false;
-  bool _tieneVariantes = false;
-  bool _esCombo = false; // Agregado para validación XOR
-  String? _tipoPrecioCombo; // FIJO, CALCULADO, CALCULADO_CON_DESCUENTO
-  bool _productoIsActive = true; // Estado del producto para validación de variantes
-  DateTime? _fechaInicioOferta;
-  DateTime? _fechaFinOferta;
-  bool _isLoading = false;
-
-  // Control de cambios sin guardar
-  bool _hasUnsavedChanges = false;
-  bool _formSubmittedSuccessfully = false;
-
-  // Plantilla de atributos
-  String? _selectedPlantillaId;
-  AtributoPlantilla? _selectedPlantilla;
-  final Map<String, String> _plantillaAtributosValues = {};
-
-  // Configuración de precios
-  String? _selectedConfiguracionPrecioId;
-
+  /// Controller centralizado para el estado del formulario
+  late final ProductoFormController _controller;
 
   @override
   void initState() {
     super.initState();
+    _controller = ProductoFormController();
+    _controller.addListener(_onControllerChanged);
+    _controller.setupChangeListeners();
     _loadCatalogos();
-    _setupChangeListeners();
 
     // Inicializar cubit de imágenes y precio niveles con estado vacío
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -171,19 +136,18 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
 
           if (sedesActivas.isNotEmpty) {
             // Buscar sede principal, si no existe tomar la primera activa
-            String? sedeIdInicial;
-
-            // Buscar sede principal
-            try {
-              final sedePrincipal = sedesActivas.firstWhere((sede) => sede.esPrincipal);
-              sedeIdInicial = sedePrincipal.id;
-            } catch (e) {
-              // Si no hay sede principal, tomar la primera
-              sedeIdInicial = sedesActivas.first.id;
-            }
+            final sedeIdInicial = () {
+              try {
+                final sedePrincipal = sedesActivas.firstWhere((sede) => sede.esPrincipal);
+                return sedePrincipal.id;
+              } catch (e) {
+                // Si no hay sede principal, tomar la primera
+                return sedesActivas.first.id;
+              }
+            }();
 
             setState(() {
-              _selectedSedeId = sedeIdInicial;
+              _controller.selectedSedesIds = [sedeIdInicial];
             });
           }
         }
@@ -195,47 +159,25 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
     }
   }
 
-  /// Configurar listeners para detectar cambios en el formulario
-  void _setupChangeListeners() {
-    final controllers = [
-      _nombreController,
-      _descripcionController,
-      _skuController,
-      _codigoBarrasController,
-      _precioController,
-      _precioCostoController,
-      _stockController,
-      _stockMinimoController,
-      _pesoController,
-      _precioOfertaController,
-      _videoUrlController,
-      _impuestoPorcentajeController,
-      _descuentoMaximoController,
-      _dimensionLargoController,
-      _dimensionAnchoController,
-      _dimensionAltoController,
-    ];
-
-    for (var controller in controllers) {
-      controller.addListener(_markAsChanged);
+  /// Callback cuando el controller notifica cambios
+  void _onControllerChanged() {
+    if (mounted) {
+      setState(() {});
     }
   }
 
   /// Marcar que hay cambios sin guardar
   void _markAsChanged() {
-    if (!_hasUnsavedChanges && !_formSubmittedSuccessfully) {
-      setState(() {
-        _hasUnsavedChanges = true;
-      });
-    }
+    _controller.markAsChanged();
   }
 
   /// Verificar si hay cambios sin guardar (incluyendo imágenes)
   bool _hasChanges() {
-    if (_formSubmittedSuccessfully) return false;
+    // if (_formSubmittedSuccessfully) return false;
+    if (_controller.formSubmittedSuccessfully) return false;
 
     // Verificar cambios en el formulario
-    if (_hasUnsavedChanges) return true;
+    if (_controller.hasUnsavedChanges) return true;
 
     // Verificar si hay imágenes agregadas
     final imageState = context.read<ProductoImagesCubit>().state;
@@ -289,32 +231,34 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
   }
 
   void _fillFormWithProducto(dynamic producto) {
-    _nombreController.text = producto.nombre;
-    _descripcionController.text = producto.descripcion ?? '';
-    _skuController.text = producto.sku ?? '';
-    _codigoBarrasController.text = producto.codigoBarras ?? '';
-    _precioController.currencyValue = producto.precio;
-    _precioCostoController.currencyValue = producto.precioCosto ?? 0.0;
-    _stockController.text = producto.stock.toString();
-    _stockMinimoController.text = producto.stockMinimo?.toString() ?? '';
-    _pesoController.text = producto.peso?.toString() ?? '';
-    _videoUrlController.text = producto.videoUrl ?? '';
-    _impuestoPorcentajeController.text = producto.impuestoPorcentaje?.toString() ?? '';
-    _descuentoMaximoController.text = producto.descuentoMaximo?.toString() ?? '';
+    _controller.nombreController.text = producto.nombre;
+    _controller.descripcionController.text = producto.descripcion ?? '';
+    _controller.skuController.text = producto.sku ?? '';
+    _controller.codigoBarrasController.text = producto.codigoBarras ?? '';
+    _controller.precioController.currencyValue = producto.precio;
+    _controller.precioCostoController.currencyValue = producto.precioCosto ?? 0.0;
+    _controller.stockController.text = producto.stock.toString();
+    _controller.stockMinimoController.text = producto.stockMinimo?.toString() ?? '';
+    _controller.pesoController.text = producto.peso?.toString() ?? '';
+    _controller.videoUrlController.text = producto.videoUrl ?? '';
+    _controller.impuestoPorcentajeController.text = producto.impuestoPorcentaje?.toString() ?? '';
+    _controller.descuentoMaximoController.text = producto.descuentoMaximo?.toString() ?? '';
 
     // Cargar estado de esCombo para validación XOR
-    _esCombo = producto.esCombo ?? false;
+    _controller.esCombo = producto.esCombo ?? false;
     // Cargar tipo de precio combo si existe
-    _tipoPrecioCombo = producto.tipoPrecioCombo;
+    // _tipoPrecioCombo = producto.tipoPrecioCombo;
+    _controller.tipoPrecioCombo = producto.tipoPrecioCombo;
 
     // Cargar estado isActive para validación de variantes
-    _productoIsActive = producto.isActive ?? true;
+    // _productoIsActive = producto.isActive ?? true;
+    _controller.productoIsActive = producto.isActive ?? true;
 
     // Cargar dimensiones si existen
     if (producto.dimensiones != null && producto.dimensiones is Map) {
-      _dimensionLargoController.text = producto.dimensiones['largo']?.toString() ?? '';
-      _dimensionAnchoController.text = producto.dimensiones['ancho']?.toString() ?? '';
-      _dimensionAltoController.text = producto.dimensiones['alto']?.toString() ?? '';
+      _controller.dimensionLargoController.text = producto.dimensiones['largo']?.toString() ?? '';
+      _controller.dimensionAnchoController.text = producto.dimensiones['ancho']?.toString() ?? '';
+      _controller.dimensionAltoController.text = producto.dimensiones['alto']?.toString() ?? '';
     }
 
     // Cargar imágenes existentes
@@ -339,42 +283,32 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
     }
 
     setState(() {
-      _selectedCategoriaId = producto.empresaCategoriaId;
-      _selectedMarcaId = producto.empresaMarcaId;
-      _selectedSedeId = producto.sedeId;  // Cargar sede del producto
-      _selectedUnidadMedidaId = producto.unidadMedidaId;  // Cargar unidad de medida del producto
-      _selectedConfiguracionPrecioId = producto.configuracionPrecioId;
-      _visibleMarketplace = producto.visibleMarketplace;
-      _destacado = producto.destacado;
-      _enOferta = producto.enOferta;
-      _tieneVariantes = producto.tieneVariantes;
+      _controller.selectedCategoriaId = producto.empresaCategoriaId;
+      _controller.selectedMarcaId = producto.empresaMarcaId;
+      _controller.selectedSedesIds = producto.sedeId != null ? [producto.sedeId!] : [];  // Cargar sede del producto
+      _controller.selectedUnidadMedidaId = producto.unidadMedidaId;  // Cargar unidad de medida del producto
+      // _selectedConfiguracionPrecioId = producto.configuracionPrecioId;
+      _controller.selectedConfiguracionPrecioId = producto.configuracionPrecioId;
+      _controller.visibleMarketplace = producto.visibleMarketplace;
+      _controller.destacado = producto.destacado;
+      _controller.enOferta = producto.enOferta;
+      _controller.tieneVariantes = producto.tieneVariantes;
 
       if (producto.enOferta) {
-        _precioOfertaController.currencyValue = producto.precioOferta ?? 0.0;
-        _fechaInicioOferta = producto.fechaInicioOferta;
-        _fechaFinOferta = producto.fechaFinOferta;
+        _controller.precioOfertaController.currencyValue = producto.precioOferta ?? 0.0;
+        // _fechaInicioOferta = producto.fechaInicioOferta;
+        // _fechaFinOferta = producto.fechaFinOferta;
+        _controller.fechaInicioOferta = producto.fechaInicioOferta;
+        _controller.fechaFinOferta = producto.fechaFinOferta;
       }
     });
   }
 
   @override
+  @override
   void dispose() {
-    _nombreController.dispose();
-    _descripcionController.dispose();
-    _skuController.dispose();
-    _codigoBarrasController.dispose();
-    _precioController.dispose();
-    _precioCostoController.dispose();
-    _stockController.dispose();
-    _stockMinimoController.dispose();
-    _pesoController.dispose();
-    _precioOfertaController.dispose();
-    _videoUrlController.dispose();
-    _impuestoPorcentajeController.dispose();
-    _descuentoMaximoController.dispose();
-    _dimensionLargoController.dispose();
-    _dimensionAnchoController.dispose();
-    _dimensionAltoController.dispose();
+    _controller.removeListener(_onControllerChanged);
+    _controller.dispose();
     super.dispose();
   }
 
@@ -385,7 +319,7 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
       context.read<CategoriasEmpresaCubit>().loadCategorias(empresaId);
       context.read<MarcasEmpresaCubit>().loadMarcas(empresaId);
       context.read<ConfiguracionPrecioCubit>().loadConfiguraciones();
-      context.read<UnidadMedidaCubit>().getUnidadesEmpresa(empresaId);
+      // UnidadMedidaDropdown carga las unidades internamente
       _loadPlantillas(empresaId);
     }
   }
@@ -398,9 +332,9 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
   void _onPlantillaSelected(String? plantillaId) {
     if (plantillaId == null) {
       setState(() {
-        _selectedPlantillaId = null;
-        _selectedPlantilla = null;
-        _plantillaAtributosValues.clear();
+        _controller.selectedPlantillaId = null;
+        _controller.selectedPlantilla = null;
+        _controller.plantillaAtributosValues.clear();
       });
       return;
     }
@@ -417,12 +351,12 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
       }
       if (foundPlantilla != null) {
         setState(() {
-          _selectedPlantillaId = plantillaId;
-          _selectedPlantilla = foundPlantilla;
-          _plantillaAtributosValues.clear();
+          _controller.selectedPlantillaId = plantillaId;
+          _controller.selectedPlantilla = foundPlantilla;
+          _controller.plantillaAtributosValues.clear();
           // Inicializar valores vacíos para cada atributo
           for (final atributo in foundPlantilla!.atributos) {
-            _plantillaAtributosValues[atributo.atributo.id] = '';
+            _controller.plantillaAtributosValues[atributo.atributo.id] = '';
           }
         });
       }
@@ -431,293 +365,46 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
 
   void _onPlantillaAtributoChanged(String atributoId, String value) {
     setState(() {
-      _plantillaAtributosValues[atributoId] = value;
+      _controller.plantillaAtributosValues[atributoId] = value;
       _markAsChanged();
     });
   }
 
-  /// Valida que todos los atributos requeridos tengan valor
-  bool _validarAtributosRequeridos() {
-    // Validar atributos de plantilla
-    if (_selectedPlantilla != null) {
-      for (final plantillaAtributo in _selectedPlantilla!.atributos) {
-        if (plantillaAtributo.esRequerido) {
-          final valor = _plantillaAtributosValues[plantillaAtributo.atributo.id];
-          if (valor == null || valor.trim().isEmpty) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('El atributo "${plantillaAtributo.atributo.nombre}" es requerido'),
-                backgroundColor: Colors.red,
-                duration: const Duration(seconds: 4),
-              ),
-            );
-            return false;
-          }
-        }
-      }
-    }
-
-    return true;
-  }
-
-  /// Guarda los atributos de un producto (ya sea de categoría o de plantilla)
-  Future<void> _guardarAtributos({
-    required String productoId,
-    required String empresaId,
-    required Map<String, String> valores,
-    String tipoFuente = '',
-  }) async {
-    if (valores.isEmpty) return;
-
-    try {
-      final atributos = valores.entries
-          .map((e) => VarianteAtributoDto(
-                atributoId: e.key,
-                valor: e.value,
-              ))
-          .toList();
-
-      await locator<ProductoRemoteDataSource>().setProductoAtributos(
-        productoId: productoId,
-        empresaId: empresaId,
-        data: {'atributos': atributos.map((a) => a.toJson()).toList()},
-      );
-    } catch (e) {
-      // Si falla guardando atributos, mostrar advertencia pero no bloquear
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Producto guardado, pero hubo un error al guardar atributos${tipoFuente.isNotEmpty ? " de $tipoFuente" : ""}: $e',
-            ),
-            backgroundColor: Colors.orange,
-            duration: const Duration(seconds: 5),
-          ),
-        );
-      }
-    }
-  }
-
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
-
-    // Validar atributos requeridos antes de continuar
-    if (!_tieneVariantes && !_esCombo) {
-      if (!_validarAtributosRequeridos()) {
-        return;
-      }
-    }
-
     final empresaState = context.read<EmpresaContextCubit>().state;
     if (empresaState is! EmpresaContextLoaded) return;
 
-    setState(() {
-      _isLoading = true;
-    });
+    final empresaId = empresaState.context.empresa.id;
+    final imagesCubit = context.read<ProductoImagesCubit>();
 
-    try {
-      final empresaId = empresaState.context.empresa.id;
-      final nombre = _nombreController.text.trim();
-      final descripcion = _descripcionController.text.trim();
+    // Obtener IDs de imágenes ya subidas
+    final imagenesIds = imagesCubit.getUploadedImageIds();
 
-      // Si es combo con precio calculado, enviar 0 o null
-      final double precio;
-      if (_esCombo && (_tipoPrecioCombo == 'CALCULADO' || _tipoPrecioCombo == 'CALCULADO_CON_DESCUENTO')) {
-        precio = 0.0; // El precio se calculará en el backend cuando se agreguen los componentes
-      } else {
-        precio = _precioController.currencyValue;
-      }
+    // Llamar al cubit para manejar el submit
+    context.read<ProductoFormCubit>().submit(
+      controller: _controller,
+      empresaId: empresaId,
+      isEditing: widget.isEditing,
+      productoId: widget.productoId,
+      imagenesIds: imagenesIds,
+      uploadPendingImages: () async {
+        final imagesState = imagesCubit.state;
+        List<String> uploadedIds = [];
 
-      // Preparar dimensiones si hay valores
-      Map<String, dynamic>? dimensiones;
-      if (_dimensionLargoController.text.isNotEmpty ||
-          _dimensionAnchoController.text.isNotEmpty ||
-          _dimensionAltoController.text.isNotEmpty) {
-        dimensiones = {
-          if (_dimensionLargoController.text.isNotEmpty)
-            'largo': double.tryParse(_dimensionLargoController.text) ?? 0.0,
-          if (_dimensionAnchoController.text.isNotEmpty)
-            'ancho': double.tryParse(_dimensionAnchoController.text) ?? 0.0,
-          if (_dimensionAltoController.text.isNotEmpty)
-            'alto': double.tryParse(_dimensionAltoController.text) ?? 0.0,
-        };
-      }
-
-      // Subir todas las imágenes locales pendientes antes de guardar el producto
-      final imagesCubit = context.read<ProductoImagesCubit>();
-      final imagesState = imagesCubit.state;
-
-      List<String> uploadedIds = [];
-
-      if (imagesState is ProductoImagesLoaded) {
-        // Si hay imágenes locales o con error, intentar subirlas
-        if (imagesState.hasPendingImages || imagesState.hasErrors) {
-          try {
-            // Subir imágenes locales pendientes
+        if (imagesState is ProductoImagesLoaded) {
+          if (imagesState.hasPendingImages) {
             final newIds = await imagesCubit.uploadAllPendingImages(empresaId);
             uploadedIds.addAll(newIds);
-
-            // Reintentar imágenes con error
-            if (imagesState.hasErrors) {
-              final retriedIds = await imagesCubit.retryFailedUploads(empresaId);
-              uploadedIds.addAll(retriedIds);
-            }
-          } catch (e) {
-            if (mounted) {
-              setState(() => _isLoading = false);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Error al subir imágenes: $e'),
-                  backgroundColor: Colors.red,
-                ),
-              );
-            }
-            return; // No continuar si falla la subida de imágenes
+          }
+          if (imagesState.hasErrors) {
+            final retriedIds = await imagesCubit.retryFailedUploads(empresaId);
+            uploadedIds.addAll(retriedIds);
           }
         }
-      }
 
-      // Obtener todos los IDs de imágenes subidas (las que ya estaban + las nuevas)
-      final imagenesIds = imagesCubit.getUploadedImageIds();
-
-      final result = widget.isEditing
-          ? await locator<ActualizarProductoUseCase>()(
-              productoId: widget.productoId!,
-              empresaId: empresaId,
-              sedeId: _selectedSedeId,  // Incluir sede seleccionada
-              unidadMedidaId: _selectedUnidadMedidaId,  // Incluir unidad de medida
-              nombre: nombre,
-              descripcion: descripcion.isEmpty ? null : descripcion,
-              precio: precio,
-              empresaCategoriaId: _selectedCategoriaId,
-              empresaMarcaId: _selectedMarcaId,
-              sku: _skuController.text.trim().isEmpty ? null : _skuController.text.trim(),
-              codigoBarras: _codigoBarrasController.text.trim().isEmpty ? null : _codigoBarrasController.text.trim(),
-              precioCosto: _precioCostoController.currencyValue > 0 ? _precioCostoController.currencyValue : null,
-              stock: _stockController.text.isEmpty ? null : int.tryParse(_stockController.text),
-              stockMinimo: _stockMinimoController.text.isEmpty ? null : int.tryParse(_stockMinimoController.text),
-              peso: _pesoController.text.isEmpty ? null : double.tryParse(_pesoController.text),
-              dimensiones: dimensiones,
-              videoUrl: _videoUrlController.text.trim(), // Enviar cadena vacía si está vacío, el backend lo convierte a null
-              impuestoPorcentaje: _impuestoPorcentajeController.text.isEmpty
-                  ? null
-                  : double.tryParse(_impuestoPorcentajeController.text),
-              descuentoMaximo: _descuentoMaximoController.text.isEmpty
-                  ? null
-                  : double.tryParse(_descuentoMaximoController.text),
-              visibleMarketplace: _visibleMarketplace,
-              destacado: _destacado,
-              enOferta: _enOferta,
-              tieneVariantes: _tieneVariantes,
-              esCombo: _esCombo,
-              tipoPrecioCombo: _esCombo ? _tipoPrecioCombo : null,
-              precioOferta: _enOferta ? _precioOfertaController.currencyValue : null,
-              fechaInicioOferta: _enOferta ? _fechaInicioOferta : null,
-              fechaFinOferta: _enOferta ? _fechaFinOferta : null,
-              imagenesIds: imagenesIds.isNotEmpty ? imagenesIds : null,
-              configuracionPrecioId: _selectedConfiguracionPrecioId,
-            )
-          : await locator<CrearProductoUseCase>()(
-              empresaId: empresaId,
-              sedeId: _selectedSedeId,  // Incluir sede seleccionada
-              unidadMedidaId: _selectedUnidadMedidaId,  // Incluir unidad de medida
-              nombre: nombre,
-              descripcion: descripcion.isEmpty ? null : descripcion,
-              precio: precio,
-              empresaCategoriaId: _selectedCategoriaId,
-              empresaMarcaId: _selectedMarcaId,
-              sku: _skuController.text.trim().isEmpty ? null : _skuController.text.trim(),
-              codigoBarras: _codigoBarrasController.text.trim().isEmpty ? null : _codigoBarrasController.text.trim(),
-              precioCosto: _precioCostoController.currencyValue > 0 ? _precioCostoController.currencyValue : null,
-              stock: _stockController.text.isEmpty ? 0 : int.tryParse(_stockController.text) ?? 0,
-              stockMinimo: _stockMinimoController.text.isEmpty ? null : int.tryParse(_stockMinimoController.text),
-              peso: _pesoController.text.isEmpty ? null : double.tryParse(_pesoController.text),
-              dimensiones: dimensiones,
-              videoUrl: _videoUrlController.text.trim(), // Enviar cadena vacía si está vacío, el backend lo convierte a null
-              impuestoPorcentaje: _impuestoPorcentajeController.text.isEmpty
-                  ? null
-                  : double.tryParse(_impuestoPorcentajeController.text),
-              descuentoMaximo: _descuentoMaximoController.text.isEmpty
-                  ? null
-                  : double.tryParse(_descuentoMaximoController.text),
-              visibleMarketplace: _visibleMarketplace,
-              destacado: _destacado,
-              enOferta: _enOferta,
-              tieneVariantes: _tieneVariantes,
-              esCombo: _esCombo,
-              tipoPrecioCombo: _esCombo ? _tipoPrecioCombo : null,
-              precioOferta: _enOferta ? _precioOfertaController.currencyValue : null,
-              fechaInicioOferta: _enOferta ? _fechaInicioOferta : null,
-              fechaFinOferta: _enOferta ? _fechaFinOferta : null,
-              imagenesIds: imagenesIds.isNotEmpty ? imagenesIds : null,
-              configuracionPrecioId: _selectedConfiguracionPrecioId,
-            );
-
-
-      if (mounted) {
-        if (result is Success<Producto>) {
-          final producto = (result).data;
-
-          // Guardar atributos de plantilla si hay (solo para productos simples)
-          if (!_tieneVariantes && !_esCombo && _selectedPlantillaId != null) {
-            await _guardarAtributos(
-              productoId: producto.id,
-              empresaId: empresaId,
-              valores: _plantillaAtributosValues,
-              tipoFuente: 'plantilla',
-            );
-          }
-
-          // Verificar nuevamente mounted después de la operación asíncrona
-          if (!mounted) return;
-
-          // Marcar como guardado exitosamente para no mostrar confirmación al salir
-          setState(() {
-            _formSubmittedSuccessfully = true;
-          });
-
-          // Mostrar mensaje de éxito
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(widget.isEditing ? 'Producto actualizado' : 'Producto creado'),
-              backgroundColor: Colors.green,
-            ),
-          );
-
-          // Navegar de regreso ANTES de recargar datos
-          // Esto evita el error "Cannot emit new states after calling close"
-          context.pop();
-
-          // NOTA: No recargar niveles aquí porque el BLoC ya fue disposed tras el pop
-          // Los niveles se recargarán automáticamente en la página anterior si es necesario
-        } else if (result is Error) {
-          final error = result as Error;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(error.message),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
+        return uploadedIds;
+      },
+    );
   }
 
   @override
@@ -738,23 +425,90 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
               FocusScope.of(context).unfocus();
             },
             child: Form(
-              key: _formKey,
+              key: _controller.formKey,
               child: ListView(
                 padding: const EdgeInsets.only(left: 16, right: 16),
                 children: [
-                _buildBasicInfoSection(),
+                ProductoBasicInfoSection(
+                  nombreController: _controller.nombreController,
+                  descripcionController: _controller.descripcionController,
+                  skuController: _controller.skuController,
+                  codigoBarrasController: _controller.codigoBarrasController,
+                ),
                 const SizedBox(height: 24),
-                _buildTieneVariantesSection(),
+                ProductoTipoSection(
+                  tieneVariantes: _controller.tieneVariantes,
+                  esCombo: _controller.esCombo,
+                  tipoPrecioCombo: _controller.tipoPrecioCombo, //_tipoPrecioCombo,
+                  isEditing: widget.isEditing,
+                  onTieneVariantesChanged: (value) {
+                    setState(() {
+                      _controller.tieneVariantes = value;
+                      _markAsChanged();
+                      if (value) {
+                        _controller.precioController.text = '0';
+                        // Stock ya no se maneja aquí, se agrega después mediante ProductoStock
+                        _controller.skuController.clear();
+                        _controller.enOferta = false;
+                        _controller.precioOfertaController.clear();
+                      }
+                    });
+                  },
+                  onEsComboChanged: (value) {
+                    setState(() {
+                      _controller.esCombo = value;
+                      _markAsChanged();
+                      if (!value) {
+                        // _tipoPrecioCombo = null;
+                        _controller.tipoPrecioCombo = null;
+                      }
+                    });
+                  },
+                  onTipoPrecioComboChanged: (value) {
+                    setState(() {
+                      // _tipoPrecioCombo = value;
+                      _controller.tipoPrecioCombo = value;
+                      _markAsChanged();
+                    });
+                  },
+                  onShowConversionDialog: _mostrarDialogoConversionVariantes,
+                ),
                 const SizedBox(height: 24),
-                _buildCategoriaSection(),
+                ProductoCategorizacionSection(
+                  selectedCategoriaId: _controller.selectedCategoriaId,
+                  selectedMarcaId: _controller.selectedMarcaId,
+                  selectedSedesIds: _controller.selectedSedesIds,
+                  selectedUnidadMedidaId: _controller.selectedUnidadMedidaId,
+                  isEditing: widget.isEditing,
+                  onCategoriaChanged: (value) {
+                    setState(() => _controller.selectedCategoriaId = value);
+                  },
+                  onMarcaChanged: (value) {
+                    setState(() => _controller.selectedMarcaId = value);
+                  },
+                  onSedesChanged: (value) {
+                    setState(() => _controller.selectedSedesIds = value);
+                  },
+                  onUnidadMedidaChanged: (value) {
+                    setState(() {
+                      _controller.selectedUnidadMedidaId = value;
+                      _markAsChanged();
+                    });
+                  },
+                ),
                 const SizedBox(height: 24),
                 // Plantilla de atributos (solo para productos simples)
-                if (!_tieneVariantes && !_esCombo) ...[
+                if (!_controller.tieneVariantes && !_controller.esCombo) ...[
                   _buildPlantillasSection(),
                   const SizedBox(height: 24),
                 ],
-                if (!_tieneVariantes && !_esCombo) ...[
-                  _buildPricingSection(),
+                if (!_controller.tieneVariantes && !_controller.esCombo) ...[
+                  ProductoPricingSection(
+                    precioController: _controller.precioController,
+                    precioCostoController: _controller.precioCostoController,
+                    esCombo: _controller.esCombo,
+                    tipoPrecioCombo: _controller.tipoPrecioCombo,//_tipoPrecioCombo,
+                  ),
                   const SizedBox(height: 24),
                   // Selector de configuración de precios
                   _buildConfiguracionPrecioSelector(),
@@ -764,26 +518,87 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
                     _buildPrecioNivelesSection(),
                     const SizedBox(height: 24),
                   ],
-                  _buildOfertaSection(),
+                  ProductoOfertaSection(
+                    enOferta: _controller.enOferta,
+                    onEnOfertaChanged: (value) {
+                      setState(() {
+                        _controller.enOferta = value;
+                        if (!value) {
+                          _controller.precioOfertaController.clear();
+                          _controller.fechaInicioOferta = null;
+                          _controller.fechaFinOferta = null;
+                        }
+                      });
+                    },
+                    precioOfertaController: _controller.precioOfertaController,
+                    precioController: _controller.precioController,
+                    // fechaInicioOferta: _fechaInicioOferta,
+                    // fechaFinOferta: _fechaFinOferta,
+                    fechaInicioOferta: _controller.fechaInicioOferta,
+                    fechaFinOferta: _controller.fechaFinOferta,                    
+                    onFechaInicioChanged: (date) {
+                      setState(() {
+                        _controller.fechaInicioOferta = date;
+                      });
+                    },
+                    onFechaFinChanged: (date) {
+                      setState(() {
+                        _controller.fechaFinOferta = date;
+                      });
+                    },
+                  ),
                   const SizedBox(height: 24),
-                  _buildInventorySection(),
+                  ProductoInventorySection(
+                    pesoController: _controller.pesoController,
+                  ),
                   const SizedBox(height: 24),
-                ] else if (_tieneVariantes) ...[
-                  _buildVariantesInfoBanner(),
+                ] else if (_controller.tieneVariantes) ...[
+                  ProductoVariantesBanner(
+                    isEditing: widget.isEditing,
+                    productoId: widget.productoId,
+                    nombreProducto: _controller.nombreController.text,
+                    categoriaId: _controller.selectedCategoriaId,
+                    productoIsActive: _controller.productoIsActive,
+                  ),
                   const SizedBox(height: 24),
-                ] else if (_esCombo) ...[
-                  _buildComboInfoBanner(),
+                ] else if (_controller.esCombo) ...[
+                  ProductoComboBanner(
+                    isEditing: widget.isEditing,
+                    tipoPrecioCombo: _controller.tipoPrecioCombo,
+                  ),
                   const SizedBox(height: 24),
                 ],
                 _buildImagesSection(),
                 const SizedBox(height: 24),
-                _buildDimensionesSection(),
+                ProductoDimensionesSection(
+                  largoController: _controller.dimensionLargoController,
+                  anchoController: _controller.dimensionAnchoController,
+                  altoController: _controller.dimensionAltoController,
+                ),
                 const SizedBox(height: 24),
-                _buildImpuestosDescuentosSection(),
+                ProductoImpuestosSection(
+                  impuestoPorcentajeController: _controller.impuestoPorcentajeController,
+                  descuentoMaximoController: _controller.descuentoMaximoController,
+                ),
                 const SizedBox(height: 24),
                 _buildMultimediaSection(),
                 const SizedBox(height: 24),
-                _buildOptionsSection(),
+                ProductoOptionsSection(
+                  visibleMarketplace: _controller.visibleMarketplace,
+                  destacado: _controller.destacado,
+                  onVisibleMarketplaceChanged: (value) {
+                    setState(() {
+                      _controller.visibleMarketplace = value;
+                      _markAsChanged();
+                    });
+                  },
+                  onDestacadoChanged: (value) {
+                    setState(() {
+                      _controller.destacado = value;
+                      _markAsChanged();
+                    });
+                  },
+                ),
                 const SizedBox(height: 32),
                 _buildSubmitButton(),
                 const SizedBox(height: 32),
@@ -809,6 +624,54 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
       child: content,
     );
 
+    // Envolver con BlocListener para el cubit del formulario
+    content = BlocListener<ProductoFormCubit, ProductoFormState>(
+      listener: (context, state) {
+        if (state is ProductoFormLoading) {
+          setState(() =>  _controller.isLoading = true);
+        } else if (state is ProductoFormSuccess) {
+          setState(() {
+            _controller.isLoading = false;
+            _controller.formSubmittedSuccessfully = true;
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.message),
+              backgroundColor: Colors.green,
+            ),
+          );
+
+          // Si es creación (no edición), preguntar si desea agregar stock
+          if (widget.productoId == null) {
+            _mostrarDialogoAgregarStock(state.producto);
+          } else {
+            context.pop();
+          }
+        } else if (state is ProductoFormError) {
+          setState(() =>  _controller.isLoading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.message),
+              backgroundColor: Colors.red,
+            ),
+          );
+        } else if (state is ProductoFormValidationError) {
+          setState(() =>  _controller.isLoading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.message),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        } else if (state is ProductoFormInitial) {
+          setState(() =>  _controller.isLoading = false);
+        }
+      },
+      child: content,
+    );
+
     if (widget.isEditing) {
       return BlocListener<ProductoDetailCubit, ProductoDetailState>(
         listener: (context, state) {
@@ -821,259 +684,6 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
     }
 
     return content;
-  }
-
-  Widget _buildBasicInfoSection() {
-    return GradientContainer(
-      shadowStyle: ShadowStyle.neumorphic,
-      borderColor: AppColors.blueborder,
-      padding: const EdgeInsets.all(16),
-      child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            AppSubtitle('INFORMACION BÁSICA'),
-            const SizedBox(height: 16),
-            CustomText(
-              controller: _nombreController,
-              borderColor: AppColors.blue1,
-              label: 'Nombre del Producto *',
-              hintText: 'Ej: Laptop HP Pavilion',
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'El nombre es requerido';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 10),
-            CustomText(
-              controller: _descripcionController,
-              borderColor: AppColors.blue1,
-              label: 'Descripción',
-              hintText: 'Descripción del producto',
-              maxLines: null,
-              minLines: 3,
-            ),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                Expanded(
-                  child: CustomText(
-                    controller: _skuController,
-                    prefixIcon: Icon(Icons.numbers, size: 16,),
-                    borderColor: AppColors.blue1,
-                    label: 'SKU',
-                    hintText: 'Código SKU',
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: CustomText(
-                    controller: _codigoBarrasController,
-                    prefixIcon: Icon(Icons.qr_code_scanner_outlined, size: 16,),
-                    borderColor: AppColors.blue1,
-                    label: 'Código de Barras',
-                    hintText: 'EAN/UPC',
-                    keyboardType: TextInputType.number,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      
-    );
-  }
-
-  Widget _buildTieneVariantesSection() {
-    return GradientContainer(
-      shadowStyle: ShadowStyle.neumorphic,
-      borderColor: _tieneVariantes ? Colors.purple : (_esCombo ? Colors.blue : AppColors.blueborder),
-      gradient: _tieneVariantes
-        ? LinearGradient(colors: [Colors.purple.shade50, Colors.purple.shade50])
-        : (_esCombo
-          ? LinearGradient(colors: [Colors.blue.shade50, Colors.blue.shade50])
-          : AppGradients.fondo),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.tune,
-                  color: _tieneVariantes ? Colors.purple : (_esCombo ? Colors.blue : AppColors.blueGrey),
-                  size: 20,
-                ),
-                const SizedBox(width: 8),
-                AppSubtitle('TIPO DE PRODUCTO')
-              ],
-            ),
-            const SizedBox(height: 8),
-            // Switch para Producto Combo
-            CustomSwitchTile(
-              activeColor: AppColors.green,
-              activeTrackColor: AppColors.blue,
-              trackOutlineColor: AppColors.blueGrey,
-              title: 'Producto Combo',
-              trackOutlineWidth: 1,
-              subtitle: _esCombo
-                  ? 'Este producto es un combo de otros productos'
-                  : 'Producto simple o con variantes',
-              value: _esCombo,
-              onChanged: _tieneVariantes ? null : (value) {
-                // Validación XOR: No permitir combo si tiene variantes
-                if (value && _tieneVariantes) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('No se puede activar combo en un producto con variantes'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                  return;
-                }
-                setState(() {
-                  _esCombo = value;
-                  _markAsChanged();
-                  // Si se desactiva combo, limpiar tipoPrecioCombo
-                  if (!value) {
-                    _tipoPrecioCombo = null;
-                  }
-                });
-              },
-            ),
-            // Switch para Producto con Variantes (existente)
-            CustomSwitchTile(
-              activeColor: AppColors.green,
-              activeTrackColor: AppColors.blue,
-              trackOutlineColor: AppColors.blueGrey,
-              title: 'Producto con Variantes',
-              trackOutlineWidth: 1,
-              subtitle: _esCombo
-                  ? 'No se puede activar variantes en un producto combo'
-                  : (_tieneVariantes
-                      ? 'El producto tiene variantes (capacidad, color, etc.)'
-                      : 'Producto simple sin variantes'),
-              value: _tieneVariantes,
-              onChanged: _esCombo ? null : (value) async {
-                // Validación XOR: No permitir variantes si es combo
-                if (value && _esCombo) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('No se puede activar variantes en un producto que es combo'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                  return;
-                }
-
-                // Si está editando y va a activar variantes, mostrar confirmación
-                if (widget.isEditing && value && !_tieneVariantes) {
-                  final confirmar = await _mostrarDialogoConversionVariantes();
-                  if (confirmar != true) return;
-                }
-
-                setState(() {
-                  _tieneVariantes = value;
-                  _markAsChanged();
-
-                  // Si activa variantes, limpiar campos que no se usarán
-                  if (value) {
-                    _precioController.text = '0';
-                    _stockController.text = '0';
-                    _skuController.clear();
-                    _enOferta = false;
-                    _precioOfertaController.clear();
-                  }
-                });
-              },
-            ),
-            // Selector de Tipo de Precio Combo (solo si es combo)
-            if (_esCombo) ...[
-              const SizedBox(height: 16),
-              CustomDropdown<String>(
-                label: 'Tipo de Precio del Combo',
-                hintText: 'Selecciona cómo se calculará el precio',
-                borderColor: AppColors.blue1,
-                value: _tipoPrecioCombo,
-                items: const [
-                  DropdownItem(
-                    value: 'FIJO',
-                    label: 'Precio Fijo',
-                  ),
-                  DropdownItem(
-                    value: 'CALCULADO',
-                    label: 'Calculado (suma de productos)',
-                  ),
-                  DropdownItem(
-                    value: 'CALCULADO_CON_DESCUENTO',
-                    label: 'Calculado con Descuento',
-                  ),
-                ],
-                onChanged: (value) {
-                  setState(() {
-                    _tipoPrecioCombo = value;
-                    _markAsChanged();
-                  });
-                },
-                validator: (value) {
-                  if (_esCombo && (value == null || value.isEmpty)) {
-                    return 'Selecciona un tipo de precio para el combo';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.blue.shade200),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: AppSubtitle(
-                        'Un producto combo no puede tener variantes. Los combos se gestionan en la sección de "Combos" después de crear el producto.',
-                        fontSize: 10,
-                        color: AppColors.blue,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-            if (_tieneVariantes && !widget.isEditing) ...[
-              const Divider(height: 24),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.purple.shade100,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.purple.shade300),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.info_outline, color: Colors.purple.shade700, size: 20),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: AppSubtitle(
-                        'Después de crear el producto, podrás agregar las variantes (colores, tallas, etc.) con sus precios y stock individuales.',
-                        fontSize: 10,
-                        color: Colors.purple.shade600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ],
-        ),
-      
-    );
   }
 
   Future<bool?> _mostrarDialogoConversionVariantes() {
@@ -1127,7 +737,7 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Precio actual: \$${_precioController.text}\nStock actual: ${_stockController.text}',
+                      'Precio actual: \$${_controller.precioController.text}\nEl stock se agregará después por sede',
                       style: TextStyle(
                         fontSize: 13,
                         color: Colors.blue.shade900,
@@ -1178,685 +788,6 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
     );
   }
 
-  Widget _buildVariantesInfoBanner() {
-    return GradientContainer(
-      shadowStyle: ShadowStyle.colorful,
-      borderColor: Colors.amber,
-      gradient: LinearGradient(colors: [Colors.amber.shade50, Colors.amber.shade50]),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-          children: [
-            Row(
-              children: [
-                Icon(Icons.info, color: Colors.amber.shade700, size: 28),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Producto con Variantes',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.amber.shade900,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        widget.isEditing
-                            ? 'Los precios y stock se gestionan en cada variante individual.'
-                            : 'Una vez creado el producto, podrás agregar variantes con sus precios y stock individuales.',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey[800],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            if (widget.isEditing) ...[
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    final nombre = _nombreController.text.isNotEmpty
-                        ? _nombreController.text
-                        : 'Producto';
-                    final categoriaIdParam = _selectedCategoriaId != null ? '&categoriaId=${Uri.encodeComponent(_selectedCategoriaId!)}' : '';
-                    context.push(
-                      '/empresa/productos/${widget.productoId}/variantes?nombre=${Uri.encodeComponent(nombre)}&isActive=$_productoIsActive$categoriaIdParam',
-                    );
-                  },
-                  icon: const Icon(Icons.settings, size: 20),
-                  label: const Text('Gestionar Variantes'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.amber.shade700,
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
-      
-    );
-  }
-
-  Widget _buildComboInfoBanner() {
-    return GradientContainer(
-      shadowStyle: ShadowStyle.colorful,
-      borderColor: Colors.blue,
-      gradient: LinearGradient(colors: [Colors.blue.shade50, Colors.blue.shade50]),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-          children: [
-            Row(
-              children: [
-                Icon(Icons.category, color: Colors.blue.shade700, size: 28),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Producto Combo',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blue.shade900,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        widget.isEditing
-                            ? 'El precio y stock se calculan automáticamente según los productos componentes del combo.'
-                            : 'Una vez creado el combo, podrás agregar los productos que lo componen. El precio y stock se calcularán automáticamente.',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey[800],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.blue.shade200),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.info_outline, color: Colors.blue.shade700, size: 18),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Tipo de precio: ${_tipoPrecioCombo ?? "No definido"}',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.blue.shade900,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _tipoPrecioCombo == 'FIJO'
-                        ? '• El precio es fijo y definido manualmente'
-                        : _tipoPrecioCombo == 'CALCULADO'
-                            ? '• El precio es la suma de todos los productos componentes'
-                            : _tipoPrecioCombo == 'CALCULADO_CON_DESCUENTO'
-                                ? '• El precio es la suma de componentes con descuento aplicado'
-                                : '• Selecciona un tipo de precio arriba',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[700],
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '• El stock disponible depende del stock de cada componente',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[700],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (widget.isEditing) ...[
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    // TODO: Navegar a página de gestión de componentes del combo
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Función de gestión de combos próximamente'),
-                        backgroundColor: Colors.blue,
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.category, size: 20),
-                  label: const Text('Gestionar Componentes del Combo'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue.shade700,
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
-      
-    );
-  }
-
-  Widget _buildCategoriaSection() {
-    return GradientContainer(
-      shadowStyle: ShadowStyle.neumorphic,
-      borderColor: AppColors.blueborder,
-      padding: const EdgeInsets.all(16),
-      child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // const Text(
-            //   'Categorización',
-            //   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            // ),
-            AppSubtitle('CATEGORIZACIÓN'),
-            const SizedBox(height: 12),
-            BlocBuilder<CategoriasEmpresaCubit, CategoriasEmpresaState>(
-              builder: (context, state) {
-                if (state is CategoriasEmpresaLoaded) {
-                  return CustomDropdown<String>(
-                    label: 'Categoría',
-                    hintText: 'Selecciona una categoría',
-                    borderColor: AppColors.blue1,
-                    value: _selectedCategoriaId,
-                    prefixIcon: const Icon(Icons.category_outlined, size: 16, color: AppColors.blue1,),
-                    items: state.categorias.map((cat) {
-                      return DropdownItem(
-                        value: cat.id,
-                        label: cat.nombreDisplay,
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedCategoriaId = value;
-                      });
-                    },
-                  );
-                }
-                return const SizedBox(
-                  height: 35,
-                  child: Center(
-                    child: SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 1,
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 16),
-            BlocBuilder<MarcasEmpresaCubit, MarcasEmpresaState>(
-              builder: (context, state) {
-                if (state is MarcasEmpresaLoaded) {
-                  return CustomDropdown<String>(
-                    label: 'Marca',
-                    hintText: 'Selecciona una marca',
-                    borderColor: AppColors.blue1,
-                    value: _selectedMarcaId,
-                    prefixIcon: const Icon(Icons.local_offer_outlined, size: 16, color: AppColors.blue1,),
-                    items: state.marcas.map((marca) {
-                      return DropdownItem(
-                        value: marca.id,
-                        label: marca.nombreDisplay,
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedMarcaId = value;
-                      });
-                    },
-                  );
-                }
-                return const SizedBox(
-                  height: 35,
-                  child: Center(
-                    child: SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 1,
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 16),
-            // Dropdown de Sedes
-            BlocBuilder<EmpresaContextCubit, EmpresaContextState>(
-              builder: (context, state) {
-                if (state is EmpresaContextLoaded) {
-                  final sedesActivas = state.context.sedes
-                      .where((sede) => sede.isActive)
-                      .toList();
-
-                  return CustomDropdown<String>(
-                    label: 'Sede *',
-                    hintText: 'Selecciona la sede donde se encuentra el producto',
-                    borderColor: AppColors.blue1,
-                    value: _selectedSedeId,
-                    prefixIcon: const Icon(Icons.business, size: 16, color: AppColors.blue1,),
-                    items: sedesActivas.map((sede) {
-                      return DropdownItem(
-                        value: sede.id,
-                        label: sede.nombre + (sede.esPrincipal ? ' (Principal)' : ''),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedSedeId = value;
-                      });
-                    },
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Debe seleccionar una sede';
-                      }
-                      return null;
-                    },
-                  );
-                }
-                return const SizedBox(
-                  height: 35,
-                  child: Center(
-                    child: SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 1,
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 16),
-            // Dropdown de Unidades de Medida con listener para seleccionar "Unidad" por defecto
-            BlocConsumer<UnidadMedidaCubit, UnidadMedidaState>(
-              listener: (context, state) {
-                // Cuando se carguen las unidades y no haya una seleccionada, seleccionar "Unidad" (NIU)
-                if (state is UnidadesEmpresaLoaded &&
-                    _selectedUnidadMedidaId == null &&
-                    !widget.isEditing &&
-                    state.unidadesEmpresa.isNotEmpty) {
-                  // Buscar la unidad "Unidad" (NIU)
-                  try {
-                    final unidadPorDefecto = state.unidadesEmpresa.firstWhere(
-                      (u) => u.unidadMaestra?.codigo == 'NIU',
-                      orElse: () => state.unidadesEmpresa.first,
-                    );
-
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (mounted) {
-                        setState(() {
-                          _selectedUnidadMedidaId = unidadPorDefecto.id;
-                        });
-                      }
-                    });
-                  } catch (e) {
-                    // Si hay error buscando la unidad, no hacer nada
-                  }
-                }
-              },
-              builder: (context, state) {
-                final empresaState = context.read<EmpresaContextCubit>().state;
-                if (empresaState is EmpresaContextLoaded) {
-                  return UnidadMedidaDropdown(
-                    empresaId: empresaState.context.empresa.id,
-                    selectedUnidadId: _selectedUnidadMedidaId,
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedUnidadMedidaId = value;
-                        _markAsChanged();
-                      });
-                    },
-                    labelText: 'Unidad de medida',
-                    hintText: 'Selecciona la unidad',
-                    required: false,
-                  );
-                }
-                return const SizedBox.shrink();
-              },
-            ),
-
-            
-
-          ],
-        ),
-
-    );
-  }
-
-  Widget _buildPricingSection() {
-    return GradientContainer(
-      shadowStyle: ShadowStyle.neumorphic,
-      borderColor: AppColors.blue1,
-      padding: const EdgeInsets.all(16),
-      child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // const Text(
-            //   'Precios',
-            //   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            // ),
-            AppSubtitle('PRECIOS'),
-            const SizedBox(height: 12),
-            // Mensaje informativo para combos con precio calculado
-            if (_esCombo && (_tipoPrecioCombo == 'CALCULADO' || _tipoPrecioCombo == 'CALCULADO_CON_DESCUENTO')) ...[
-              Container(
-                padding: const EdgeInsets.all(12),
-                margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.blue.shade200),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'El precio de este combo se calculará automáticamente cuando agregues los productos componentes.',
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: Colors.grey[800],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-            Row(
-              children: [
-                Expanded(
-                  child: CurrencyTextField(
-                    controller: _precioController,
-                    label: _esCombo && (_tipoPrecioCombo == 'CALCULADO' || _tipoPrecioCombo == 'CALCULADO_CON_DESCUENTO')
-                        ? 'Precio de Venta (calculado)'
-                        : 'Precio de Venta *',
-                    hintText: '0.00',
-                    borderColor: AppColors.blue1,
-                    enabled: !_esCombo || _tipoPrecioCombo == 'FIJO' || _tipoPrecioCombo == null,
-                    enableRealTimeValidation: true,
-                    validator: (value) {
-                      // Si es combo con precio calculado, el precio NO es requerido
-                      if (_esCombo && (_tipoPrecioCombo == 'CALCULADO' || _tipoPrecioCombo == 'CALCULADO_CON_DESCUENTO')) {
-                        return null; // Válido sin importar el valor
-                      }
-
-                      // Para otros casos, el precio es requerido
-                      if (value == null || value.trim().isEmpty) {
-                        return 'El precio es requerido';
-                      }
-
-                      final precio = CurrencyUtilsImproved.parseToDouble(value);
-                      if (precio <= 0) {
-                        return 'El precio debe ser mayor a 0';
-                      }
-
-                      // Validar precio >= costo
-                      final costo = _precioCostoController.currencyValue;
-                      if (costo > 0 && precio < costo) {
-                        return 'El precio debe ser ≥ al costo';
-                      }
-
-                      return null;
-                    },
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: CurrencyTextField(
-                    allowZero: false,
-                    requiredField: true,
-                    controller: _precioCostoController,
-                    label: 'Precio de Costo',
-                    hintText: '0.00',
-                    borderColor: AppColors.blue1,
-                    enableRealTimeValidation: true,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      
-    );
-  }
-
-  Widget _buildOfertaSection() {
-    return GradientContainer(
-      shadowStyle: ShadowStyle.colorful,
-      borderColor: Colors.orange,
-      padding: const EdgeInsets.all(16),
-      child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.local_offer, color: Colors.orange,size: 16,),
-                const SizedBox(width: 8),
-                AppSubtitle('OFERTAS'),
-              ],
-            ),
-            // const SizedBox(height: 8),
-            CustomSwitchTile(
-              title: 'Producto en Oferta',
-              activeColor: Colors.orange,
-              activeTrackColor: Colors.orange.shade200,
-              subtitle: 'Activar precio especial para este producto',
-              value: _enOferta,
-              onChanged: (value) {
-                setState(() {
-                  _enOferta = value;
-                  if (!value) {
-                    // Limpiar valores cuando se desactiva
-                    _precioOfertaController.clear();
-                    _fechaInicioOferta = null;
-                    _fechaFinOferta = null;
-                  }
-                });
-              },
-            ),
-            if (_enOferta) ...[
-              const SizedBox(height: 5),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.orange.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.orange.shade200),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    CurrencyTextField(
-                      controller: _precioOfertaController,
-                      label: 'Precio de Oferta *',
-                      hintText: '0.00',
-                      borderColor: Colors.orange,
-                      enableRealTimeValidation: true,
-                      validator: _enOferta
-                          ? (value) {
-                              if (value == null || value.trim().isEmpty) {
-                                return 'El precio de oferta es requerido';
-                              }
-
-                              final precioOferta = CurrencyUtilsImproved.parseToDouble(value);
-                              if (precioOferta <= 0) {
-                                return 'El precio debe ser mayor a 0';
-                              }
-
-                              final precioNormal = _precioController.currencyValue;
-                              if (precioNormal > 0 && precioOferta >= precioNormal) {
-                                return 'Debe ser menor al precio normal';
-                              }
-                              return null;
-                            }
-                          : null,
-                    ),
-                    const SizedBox(height: 12),
-                    AppSubtitle('PERÍODO DE OFERTA (OPCIONAL)', fontSize: 10,),
-                    const SizedBox(height: 4),
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      dense: true,
-                      visualDensity: const VisualDensity(vertical: -4),
-                      minVerticalPadding: 0,
-                      leading: const Icon(Icons.calendar_today, color: Colors.orange,size: 17,),
-                      title: AppSubtitle(
-                        _fechaInicioOferta == null
-                            ? 'Fecha de Inicio'
-                            : 'Desde: ${_fechaInicioOferta!.day}/${_fechaInicioOferta!.month}/${_fechaInicioOferta!.year}',
-                        fontSize: 10,
-                      ),
-                      trailing: _fechaInicioOferta != null
-                          ? IconButton(
-                              icon: const Icon(Icons.clear,size: 16,),
-                              onPressed: () {
-                                setState(() {
-                                  _fechaInicioOferta = null;
-                                });
-                              },
-                            )
-                          : null,
-                      onTap: () async {
-                        final date = await showDatePicker(
-                          context: context,
-                          initialDate: _fechaInicioOferta ?? DateTime.now(),
-                          firstDate: DateTime.now(),
-                          lastDate: DateTime.now().add(const Duration(days: 365)),
-                        );
-                        if (date != null) {
-                          setState(() {
-                            _fechaInicioOferta = date;
-                          });
-                        }
-                      },
-                    ),
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      visualDensity: const VisualDensity(vertical: -4),
-                      minVerticalPadding: 0,
-                      leading: const Icon(Icons.event, color: Colors.orange,size: 17,),
-                      title: AppSubtitle(
-                        _fechaFinOferta == null
-                            ? 'Fecha de Fin'
-                            : 'Hasta: ${_fechaFinOferta!.day}/${_fechaFinOferta!.month}/${_fechaFinOferta!.year}',
-                        fontSize: 10,
-                      ),
-                      trailing: _fechaFinOferta != null
-                          ? IconButton(
-                              icon: const Icon(Icons.clear,size: 16,),
-                              onPressed: () {
-                                setState(() {
-                                  _fechaFinOferta = null;
-                                });
-                              },
-                            )
-                          : null,
-                      onTap: () async {
-                        final date = await showDatePicker(
-                          context: context,
-                          initialDate: _fechaFinOferta ?? _fechaInicioOferta ?? DateTime.now(),
-                          firstDate: _fechaInicioOferta ?? DateTime.now(),
-                          lastDate: DateTime.now().add(const Duration(days: 365)),
-                        );
-                        if (date != null) {
-                          setState(() {
-                            _fechaFinOferta = date;
-                          });
-                        }
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ],
-        ),
-      
-    );
-  }
-
-  Widget _buildInventorySection() {
-    return GradientContainer(
-      shadowStyle: ShadowStyle.neumorphic,
-      borderColor: AppColors.blueborder,
-      padding: const EdgeInsets.all(16),
-      child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            AppSubtitle('INVENTARIO'),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: CustomText(
-                    controller: _stockController,
-                    borderColor: AppColors.blue1,
-                    label: 'Stock Inicial',
-                    hintText: '0',
-                    keyboardType: TextInputType.number,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: CustomText(
-                    controller: _stockMinimoController,
-                    borderColor: AppColors.blue1,
-                    label: 'Stock Mínimo',
-                    hintText: '0',
-                    keyboardType: TextInputType.number,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            CustomText(
-              controller: _pesoController,
-              borderColor: AppColors.blue1,
-              label: 'Peso (kg)',
-              hintText: '0.00',
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            ),
-          ],
-        ),
-      
-    );
-  }
-
   Widget _buildImagesSection() {
     final empresaState = context.read<EmpresaContextCubit>().state;
     if (empresaState is! EmpresaContextLoaded) {
@@ -1869,114 +800,6 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
     );
   }
 
-  Widget _buildDimensionesSection() {
-    return GradientContainer(
-      shadowStyle: ShadowStyle.neumorphic,
-      borderColor: AppColors.blueborder,
-      padding: const EdgeInsets.all(16),
-      child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 
-            AppSubtitle('DIMENSIONES (cm)'),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: CustomText(
-                    controller: _dimensionLargoController,
-                    borderColor: AppColors.blue1,
-                    label: 'Largo',
-                    hintText: '0.0',
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: CustomText(
-                    controller: _dimensionAnchoController,
-                    borderColor: AppColors.blue1,
-                    label: 'Ancho',
-                    hintText: '0.0',
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: CustomText(
-                    controller: _dimensionAltoController,
-                    borderColor: AppColors.blue1,
-                    label: 'Alto',
-                    hintText: '0.0',
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      
-    );
-  }
-
-  Widget _buildImpuestosDescuentosSection() {
-    return GradientContainer(
-      shadowStyle: ShadowStyle.neumorphic,
-      borderColor: AppColors.blueborder,
-      padding: const EdgeInsets.all(16),
-      child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-
-            AppSubtitle('IMPUESTOS Y DESCUENTOS'),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: CustomText(
-                    controller: _impuestoPorcentajeController,
-                    borderColor: AppColors.blue1,
-                    label: 'Impuesto (%)',
-                    hintText: '0.00',
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    validator: (value) {
-                      if (value != null && value.isNotEmpty) {
-                        final val = double.tryParse(value);
-                        if (val == null || val < 0 || val > 100) {
-                          return 'Ingrese un valor entre 0 y 100';
-                        }
-                      }
-                      return null;
-                    },
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: CustomText(
-                    controller: _descuentoMaximoController,
-                    borderColor: AppColors.blue1,
-                    label: 'Descuento Máx. (%)',
-                    hintText: '0.00',
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    validator: (value) {
-                      if (value != null && value.isNotEmpty) {
-                        final val = double.tryParse(value);
-                        if (val == null || val < 0 || val > 100) {
-                          return 'Ingrese un valor entre 0 y 100';
-                        }
-                      }
-                      return null;
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      
-    );
-  }
-
   Widget _buildMultimediaSection() {
     final empresaState = context.read<EmpresaContextCubit>().state;
     if (empresaState is! EmpresaContextLoaded) {
@@ -1985,54 +808,13 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
 
     return ProductoVideoManager(
       empresaId: empresaState.context.empresa.id,
-      initialVideoUrl: _videoUrlController.text.isEmpty ? null : _videoUrlController.text,
+      initialVideoUrl: _controller.videoUrlController.text.isEmpty ? null : _controller.videoUrlController.text,
       storageService: locator<StorageService>(),
       onVideoUploaded: (String? videoUrl) {
         // Actualizar el controller cuando el video se suba o elimine
-        _videoUrlController.text = videoUrl ?? '';
+        _controller.videoUrlController.text = videoUrl ?? '';
         _markAsChanged();
       },
-    );
-  }
-
-  Widget _buildOptionsSection() {
-    return GradientContainer(
-      shadowStyle: ShadowStyle.neumorphic,
-      borderColor: AppColors.blueborder,
-      padding: const EdgeInsets.all(16),
-      child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            AppSubtitle('OPCIONES'),
-            const SizedBox(height: 8),
-            CustomSwitchTile(
-              activeColor: Colors.green,
-              activeTrackColor: Colors.green.shade200,
-              title: 'Visible en Marketplace',
-              subtitle: 'El producto aparecerá en el marketplace público',
-              value: _visibleMarketplace,
-              onChanged: (value) {
-                setState(() {
-                  _visibleMarketplace = value;
-                  _markAsChanged();
-                });
-              },
-            ),
-            const SizedBox(height: 4),
-            CustomSwitchTile(
-              title: 'Producto Destacado',
-              subtitle: 'Se mostrará con prioridad en listados',
-              value: _destacado,
-              onChanged: (value) {
-                setState(() {
-                  _destacado = value;
-                  _markAsChanged();
-                });
-              },
-            ),
-          ],
-        ),
-      
     );
   }
 
@@ -2078,10 +860,10 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
 
                   // Verificar que el valor seleccionado esté en la lista
                   // Usar 'none' en lugar de null para evitar problemas con el dropdown
-                  String selectedValue = _selectedPlantillaId ?? 'none';
+                  String selectedValue = _controller.selectedPlantillaId ?? 'none';
                   final plantillaIds = plantillas.map((p) => p.id).toSet();
-                  if (_selectedPlantillaId != null && !plantillaIds.contains(_selectedPlantillaId)) {
                     // Si el valor seleccionado no está en la lista, resetear
+                  if (_controller.selectedPlantillaId != null && !plantillaIds.contains(_controller.selectedPlantillaId)) {
                     selectedValue = 'none';
                     // También limpiar la plantilla seleccionada
                     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -2140,7 +922,7 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
                 return const SizedBox.shrink();
               },
             ),
-            if (_selectedPlantilla != null) ...[
+            if (_controller.selectedPlantilla != null) ...[
               const SizedBox(height: 16),
               const Divider(),
               const SizedBox(height: 16),
@@ -2148,8 +930,8 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
                 children: [
                   AppSubtitle('ATRIBUTOS DE LA PLANTILLA'),
                   const Spacer(),
-                  InfoChip(icon: Icons.info_outline, text: '${_selectedPlantilla!.atributos.length} atributo(s)'),
-                  if (_selectedPlantilla!.atributos.any((a) => a.esRequerido)) ...[
+                  InfoChip(icon: Icons.info_outline, text: '${_controller.selectedPlantilla!.atributos.length} atributo(s)'),
+                  if (_controller.selectedPlantilla!.atributos.any((a) => a.esRequerido)) ...[
                     const SizedBox(width: 5),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -2159,7 +941,7 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
                         border: Border.all(color: Colors.red.shade200),
                       ),
                       child: Text(
-                        '${_selectedPlantilla!.atributos.where((a) => a.esRequerido).length} requerido(s)',
+                        '${_controller.selectedPlantilla!.atributos.where((a) => a.esRequerido).length} requerido(s)',
                         style: TextStyle(
                           fontSize: 9,
                           color: Colors.red.shade700,
@@ -2193,7 +975,7 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
                 ),
               ),
               const SizedBox(height: 16),
-              ..._selectedPlantilla!.atributos.map((plantillaAtributo) {
+              ..._controller.selectedPlantilla!.atributos.map((plantillaAtributo) {
                 final atributoInfo = plantillaAtributo.atributo;
                 // Convertir AtributoInfo a ProductoAtributo
                 // Usar valoresActuales que retorna valoresOverride si existe, sino valores base
@@ -2220,7 +1002,7 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
                   padding: const EdgeInsets.only(bottom: 16),
                   child: AtributoInputWidget(
                     atributo: productoAtributo,
-                    valorActual: _plantillaAtributosValues[atributoInfo.id] ?? '',
+                    valorActual: _controller.plantillaAtributosValues[atributoInfo.id] ?? '',
                     onChanged: (value) => _onPlantillaAtributoChanged(atributoInfo.id, value),
                   ),
                 );
@@ -2238,10 +1020,10 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
         if (state is ConfiguracionPrecioLoaded) {
           return ConfiguracionPrecioSelector(
             configuraciones: state.configuraciones,
-            configuracionSeleccionadaId: _selectedConfiguracionPrecioId,
+            configuracionSeleccionadaId: _controller.selectedConfiguracionPrecioId,
             onChanged: (value) {
               setState(() {
-                _selectedConfiguracionPrecioId = value;
+                _controller.selectedConfiguracionPrecioId = value;
                 _markAsChanged();
               });
             },
@@ -2281,7 +1063,7 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
 
         if (state is PrecioNivelLoaded) {
           // Obtener precio base del producto
-          final precioBase = double.tryParse(_precioController.text);
+          final precioBase = double.tryParse(_controller.precioController.text);
 
           return PrecioNivelesSection(
             niveles: state.niveles,
@@ -2317,11 +1099,128 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
     context.read<PrecioNivelCubit>().eliminarNivel(nivelId);
   }
 
+  Future<void> _mostrarDialogoAgregarStock(Producto producto) async {
+    final agregarStock = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.check_circle, color: AppColors.green, size: 28),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Producto creado',
+                style: TextStyle(fontSize: 18),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'El producto "${producto.nombre}" fue creado exitosamente.',
+              style: const TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.blue1.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: AppColors.blue1.withOpacity(0.3),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    color: AppColors.blue1,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '¿Desea agregar stock inicial ahora?',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppColors.blue1,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Podrá agregarlo más tarde desde la gestión de inventario.',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[600],
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Más tarde'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(context, true),
+            icon: const Icon(Icons.inventory_2),
+            label: const Text('Agregar stock'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.blue1,
+              foregroundColor: AppColors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (agregarStock == true && mounted) {
+      // Navegar a la página de agregar stock
+      await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+          builder: (context) => MultiBlocProvider(
+            providers: [
+              BlocProvider(
+                create: (context) => locator<AgregarStockInicialCubit>(),
+              ),
+              BlocProvider(
+                create: (context) => locator<SedeListCubit>(),
+              ),
+            ],
+            child: AgregarStockInicialPage(producto: producto),
+          ),
+        ),
+      );
+
+      // Volver a la pantalla anterior
+      if (mounted) {
+        context.pop();
+      }
+    } else {
+      // Si no quiere agregar stock, simplemente volver
+      if (mounted) {
+        context.pop();
+      }
+    }
+  }
+
   Widget _buildSubmitButton() {
     return CustomButton(
       backgroundColor: AppColors.blue1,
       text: widget.isEditing ? 'Actualizar Producto' : 'Crear Producto',
-      isLoading: _isLoading,
+      // isLoading: _isLoading,
+      isLoading: _controller.isLoading,
       onPressed: _submit,
     );
   }

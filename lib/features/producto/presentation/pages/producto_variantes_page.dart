@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:syncronize/core/theme/app_colors.dart';
+import 'package:syncronize/core/theme/app_gradients.dart';
+import 'package:syncronize/core/theme/gradient_container.dart';
+import 'package:syncronize/core/widgets/info_chip.dart';
+import 'package:syncronize/core/widgets/popup_item.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../domain/entities/producto_atributo.dart';
 import '../../domain/entities/producto_variante.dart';
@@ -89,23 +94,26 @@ class _ProductoVariantesViewState extends State<_ProductoVariantesView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: AppColors.blue1 ,
+        foregroundColor: Colors.white,
         title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            const Text('Gestión de Variantes'),
+            const Text('Gestión de Variantes', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.white),),
             Text(
               widget.productoNombre,
-              style: Theme.of(context).textTheme.bodySmall,
+              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w400, color: AppColors.white),
             ),
           ],
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh, size: 18,),
             onPressed: _loadData,
           ),
         ],
       ),
+      
       body: MultiBlocListener(
         listeners: [
           BlocListener<ProductoVarianteCubit, ProductoVarianteState>(
@@ -377,10 +385,13 @@ class _VarianteCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return GradientContainer(
+      shadowStyle: ShadowStyle.colorful,
+      borderColor: AppColors.blueborder,
+      gradient: AppGradients.blueWhiteBlue(),
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.only( left: 16, right: 16, bottom: 8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -404,72 +415,119 @@ class _VarianteCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                PopupMenuButton(
-                  itemBuilder: (context) => [
-                    const PopupMenuItem(
-                      value: 'edit',
-                      child: Row(
-                        children: [
-                          Icon(Icons.edit, size: 20),
-                          SizedBox(width: 8),
-                          Text('Editar'),
-                        ],
-                      ),
+                // PopupMenuButton(
+                //   itemBuilder: (context) => [
+                //     const PopupMenuItem(
+                //       value: 'edit',
+                //       child: Row(
+                //         children: [
+                //           Icon(Icons.edit, size: 20),
+                //           SizedBox(width: 8),
+                //           Text('Editar'),
+                //         ],
+                //       ),
+                //     ),
+                //     const PopupMenuItem(
+                //       value: 'stock',
+                //       child: Row(
+                //         children: [
+                //           Icon(Icons.inventory, size: 20),
+                //           SizedBox(width: 8),
+                //           Text('Actualizar Stock'),
+                //         ],
+                //       ),
+                //     ),
+                //     const PopupMenuItem(
+                //       value: 'delete',
+                //       child: Row(
+                //         children: [
+                //           Icon(Icons.delete, size: 20, color: Colors.red),
+                //           SizedBox(width: 8),
+                //           Text('Eliminar', style: TextStyle(color: Colors.red)),
+                //         ],
+                //       ),
+                //     ),
+                //   ],
+                //   onSelected: (value) {
+                //     switch (value) {
+                //       case 'edit':
+                //         onEdit();
+                //         break;
+                //       case 'stock':
+                //         onUpdateStock();
+                //         break;
+                //       case 'delete':
+                //         onDelete();
+                //         break;
+                //     }
+                //   },
+                // ),
+                CustomActionMenu(
+                  yNudge: 33,
+                  menuWidth: 100,
+                  borderRadius: 8,
+                  itemHeight: 30,
+                  items: [
+                    ActionMenuItem(
+                      type: ActionMenuType.edit,
+                      label: 'Editar',
+                      icon: Icons.edit_outlined,
+                      color: AppColors.blue1,
                     ),
-                    const PopupMenuItem(
-                      value: 'stock',
-                      child: Row(
-                        children: [
-                          Icon(Icons.inventory, size: 20),
-                          SizedBox(width: 8),
-                          Text('Actualizar Stock'),
-                        ],
-                      ),
+                    ActionMenuItem(
+                      type: ActionMenuType.stock,
+                      label: 'Stock',
+                      icon: Icons.inventory,
+                      color: AppColors.green,
                     ),
-                    const PopupMenuItem(
-                      value: 'delete',
-                      child: Row(
-                        children: [
-                          Icon(Icons.delete, size: 20, color: Colors.red),
-                          SizedBox(width: 8),
-                          Text('Eliminar', style: TextStyle(color: Colors.red)),
-                        ],
-                      ),
+                    ActionMenuItem(
+                      type: ActionMenuType.delete,
+                      label: 'Eliminar',
+                      icon: Icons.delete_outlined,
+                      color: AppColors.red,
                     ),
                   ],
-                  onSelected: (value) {
+                    onSelected: (ActionMenuType value) {
                     switch (value) {
-                      case 'edit':
+                      case ActionMenuType.edit:
                         onEdit();
                         break;
-                      case 'stock':
+                      case ActionMenuType.stock:
                         onUpdateStock();
                         break;
-                      case 'delete':
+                      case ActionMenuType.delete:
                         onDelete();
                         break;
+                      case ActionMenuType.share:
+                        // Handle this case.
+                        throw UnimplementedError();
+                      case ActionMenuType.disable:
+                        // Handle this case.
+                        throw UnimplementedError();
                     }
                   },
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             if (variante.atributosValores.isNotEmpty) ...[
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: variante.atributosValores.map((atributoValor) {
-                  return Chip(
-                    avatar: _getAtributoIcon(atributoValor.atributo.clave),
-                    label: Text('${atributoValor.atributo.nombre}: ${atributoValor.valor}'),
-                    visualDensity: VisualDensity.compact,
+                  return InfoChip(
+                    icon: Icons.label, 
+                    text: '${atributoValor.atributo.nombre}: ${atributoValor.valor}',
+                    backgroundColor: AppColors.white,
+                    borderColor: AppColors.blue1,
+                    borderRadius: 4,
                   );
                 }).toList(),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
             ],
             const Divider(),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -481,7 +539,7 @@ class _VarianteCard extends StatelessWidget {
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     Text(
-                      '\$${variante.precioEfectivo.toStringAsFixed(2)}',
+                      'S/${variante.precioEfectivo.toStringAsFixed(2)}',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                             color: Colors.green,
@@ -523,26 +581,26 @@ class _VarianteCard extends StatelessWidget {
     );
   }
 
-  Widget _getAtributoIcon(String key) {
-    IconData icon;
-    switch (key.toUpperCase()) {
-      case 'COLOR':
-        icon = Icons.palette;
-        break;
-      case 'TALLA':
-        icon = Icons.straighten;
-        break;
-      case 'MATERIAL':
-        icon = Icons.category;
-        break;
-      case 'CAPACIDAD':
-        icon = Icons.storage;
-        break;
-      default:
-        icon = Icons.label;
-    }
-    return Icon(icon, size: 18);
-  }
+  // Widget _getAtributoIcon(String key) {
+  //   IconData icon;
+  //   switch (key.toUpperCase()) {
+  //     case 'COLOR':
+  //       icon = Icons.palette;
+  //       break;
+  //     case 'TALLA':
+  //       icon = Icons.straighten;
+  //       break;
+  //     case 'MATERIAL':
+  //       icon = Icons.category;
+  //       break;
+  //     case 'CAPACIDAD':
+  //       icon = Icons.storage;
+  //       break;
+  //     default:
+  //       icon = Icons.label;
+  //   }
+  //   return Icon(icon, size: 18);
+  // }
 
   IconData _getStockIcon() {
     if (variante.stock == 0) return Icons.remove_circle;

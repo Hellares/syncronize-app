@@ -8,7 +8,7 @@ abstract class ProductoRepository {
   /// Crea un nuevo producto
   Future<Resource<Producto>> crearProducto({
     required String empresaId,
-    String? sedeId,
+    List<String>? sedesIds,
     String? unidadMedidaId,
     String? empresaCategoriaId,
     String? empresaMarcaId,
@@ -64,8 +64,9 @@ abstract class ProductoRepository {
     String? descripcion,
     double? precio,
     double? precioCosto,
-    int? stock,
-    int? stockMinimo,
+    // DEPRECATED: Stock ahora se maneja mediante ProductoStock por sede
+    // int? stock,
+    // int? stockMinimo,
     double? peso,
     Map<String, dynamic>? dimensiones,
     String? videoUrl,
@@ -92,9 +93,11 @@ abstract class ProductoRepository {
   });
 
   /// Actualiza el stock de un producto
-  Future<Resource<Producto>> actualizarStock({
+  /// @deprecated Usa ProductoStockRepository en su lugar para operaciones de stock por sede
+  Future<Resource<Map<String, dynamic>>> actualizarStock({
     required String productoId,
     required String empresaId,
+    required String sedeId,
     required int cantidad,
     required String operacion, // 'agregar' o 'quitar'
   });

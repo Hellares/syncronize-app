@@ -142,19 +142,19 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
                                 },
                                 onAtributosChanged: _loadProducto,
                               ),
-                              const SizedBox(height: 24),
+                              const SizedBox(height: 16),
                             ],
 
                             _buildInfoSection(producto),
-                            const SizedBox(height: 24),
+                            const SizedBox(height: 18),
 
                             if (producto.descripcion != null) ...[
                               _buildDescripcionSection(producto.descripcion!),
-                              const SizedBox(height: 24),
+                              const SizedBox(height: 18),
                             ],
                             if (producto.videoUrl != null) ...[
                               _buildVideoSection(producto.videoUrl!),
-                              const SizedBox(height: 24),
+                              const SizedBox(height: 18),
                             ],
 
                             _buildMetadataSection(producto),
@@ -394,11 +394,11 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
             runSpacing: 8,
             children: [
               InfoChip(
-                text: 'Stock: ${producto.stock}',
-                icon: producto.hasStock ? Icons.check_circle : Icons.cancel,
-                textColor: producto.hasStock ? AppColors.blue1 : AppColors.red,
+                text: 'Stock: ${producto.stockTotal}',
+                icon: producto.hasStockTotal ? Icons.check_circle : Icons.cancel,
+                textColor: producto.hasStockTotal ? AppColors.blue1 : AppColors.red,
               ),
-              if (producto.isStockLow)
+              if (producto.isStockLowTotal)
                 InfoChip(
                   text: 'Stock Bajo',
                   icon: Icons.warning,
@@ -418,18 +418,21 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
   }
 
   Widget _buildInfoSection(dynamic producto) {
-    return Card(
-      elevation: 2,
+    return GradientContainer(
+      shadowStyle: ShadowStyle.colorful,
+      borderColor: AppColors.blueborder,
+      gradient: AppGradients.blueWhiteBlue(),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Información General',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
+            // const Text(
+            //   'Información General',
+            //   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            // ),
+            const AppSubtitle('INFORMACIÓN GENERAL'),
+            const SizedBox(height: 10),
 
             // Categoría
             _buildInfoRow(
@@ -446,7 +449,7 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
                   children: [
                     Text(
                       'Marca',
-                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                     ),
                     Row(
                       children: [
@@ -468,7 +471,7 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
                         Text(
                           producto.marca.nombre,
                           style: const TextStyle(
-                            fontSize: 14,
+                            fontSize: 12,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -490,7 +493,7 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
             if (producto.precioCosto != null)
               _buildInfoRow(
                 'Precio de costo',
-                '\$${producto.precioCosto!.toStringAsFixed(2)}',
+                'S/${producto.precioCosto!.toStringAsFixed(2)}',
               ),
             if (producto.impuestoPorcentaje != null)
               _buildInfoRow('Impuesto', '${producto.impuestoPorcentaje}%'),
@@ -543,14 +546,14 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
 
   Widget _buildInfoRow(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 10),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(fontSize: 14, color: Colors.grey[600])),
+          Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
           Text(
             value,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
           ),
         ],
       ),
@@ -558,19 +561,19 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
   }
 
   Widget _buildDescripcionSection(String descripcion) {
-    return Card(
-      elevation: 2,
+    return GradientContainer(
+      shadowStyle: ShadowStyle.colorful,
+      borderColor: AppColors.blueborder,
+      gradient: AppGradients.blueWhiteBlue(),
+      width: double.infinity,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Descripción',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            Text(descripcion, style: const TextStyle(fontSize: 14)),
+            const AppSubtitle('DESCRIPCIÓN'),
+            const SizedBox(height: 5),
+            Text(descripcion, style: const TextStyle(fontSize: 10)),
           ],
         ),
       ),
@@ -578,8 +581,10 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
   }
 
   Widget _buildVideoSection(String videoUrl) {
-    return Card(
-      elevation: 2,
+      return GradientContainer(
+      shadowStyle: ShadowStyle.colorful,
+      borderColor: AppColors.blueborder,
+      gradient: AppGradients.blueWhiteBlue(),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -587,17 +592,18 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
           children: [
             Row(
               children: [
-                const Icon(Icons.play_circle_outline, size: 20),
+                const Icon(Icons.play_circle_outline, size: 16),
                 const SizedBox(width: 8),
-                const Text(
-                  'Video del Producto',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
+                // const Text(
+                //   'Video del Producto',
+                //   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                // ),
+                const AppSubtitle('VIDEO DEL PRODUCTO'),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.only(left: 10, right: 10),
               decoration: BoxDecoration(
                 color: Colors.grey.shade100,
                 borderRadius: BorderRadius.circular(8),
@@ -611,7 +617,7 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
                     child: Text(
                       videoUrl,
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: 10,
                         color: Colors.blue.shade700,
                         decoration: TextDecoration.underline,
                       ),
@@ -620,7 +626,7 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.open_in_new),
+                    icon: const Icon(Icons.open_in_new, size: 16,),
                     onPressed: () {
                       // Aquí podrías agregar lógica para abrir el video
                       // Por ejemplo: launch(videoUrl);
@@ -746,18 +752,17 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
   }
 
   Widget _buildMetadataSection(dynamic producto) {
-    return Card(
-      elevation: 2,
+    return GradientContainer(
+      shadowStyle: ShadowStyle.colorful,
+      borderColor: AppColors.blueborder,
+      gradient: AppGradients.blueWhiteBlue(),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Información del Sistema',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
+            const AppSubtitle('INFORMACIÓN DEL SISTEMA'),
+            const SizedBox(height: 10),
             _buildInfoRow('ID', producto.id),
             _buildInfoRow('Empresa ID', producto.empresaId),
             if (producto.sedeId != null)

@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:syncronize/core/fonts/app_text_widgets.dart';
+import 'package:syncronize/core/theme/app_colors.dart';
+import 'package:syncronize/core/theme/app_gradients.dart';
+import 'package:syncronize/core/theme/gradient_container.dart';
+import 'package:syncronize/core/widgets/info_chip.dart';
 import '../../domain/entities/producto_variante.dart';
 import 'variante_plantilla_atributos_dialog.dart';
 
@@ -38,39 +43,42 @@ class _ProductoVariantesSectionState extends State<ProductoVariantesSection> {
       return const SizedBox.shrink();
     }
 
-    return Card(
-      elevation: 2,
+    return GradientContainer(
+      gradient: AppGradients.blueWhiteBlue(),
+      shadowStyle: ShadowStyle.colorful,
+      borderColor: AppColors.blueborder,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.only(left: 16, right: 16, top: 10, bottom: 8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                const Icon(Icons.tune, size: 20),
+                const Icon(Icons.tune, size: 16),
                 const SizedBox(width: 8),
-                const Text(
-                  'Variantes Disponibles',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
+                // const Text(
+                //   'Variantes Disponibles',
+                //   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                // ),
+                const AppSubtitle('VARIANTES DISPONIBLES'),
                 const Spacer(),
                 Text(
                   '${widget.variantes.length} opciones',
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 10,
                     color: Colors.grey[600],
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
 
             // Atributos de la variante seleccionada
             if (_selectedVariante != null) ...[
               _buildAtributosChips(_selectedVariante!),
-              const SizedBox(height: 12),
+              // const SizedBox(height: 6),
               const Divider(),
-              const SizedBox(height: 12),
+              // const SizedBox(height: 6),
             ],
 
             // Lista de variantes
@@ -101,37 +109,37 @@ class _ProductoVariantesSectionState extends State<ProductoVariantesSection> {
       spacing: 8,
       runSpacing: 8,
       children: variante.atributosValores.map((atributoValor) {
-        return Chip(
-          avatar: _getAtributoIcon(atributoValor.atributo.clave),
-          label: Text(
-            '${atributoValor.atributo.nombre}: ${atributoValor.valor}',
-            style: const TextStyle(fontSize: 13),
-          ),
-          backgroundColor: Colors.blue.shade50,
-          side: BorderSide(color: Colors.blue.shade200),
+        return InfoChip(
+          icon: Icons.label,
+          text: '${atributoValor.atributo.nombre}: ${atributoValor.valor}',
+          backgroundColor: AppColors.white,
+          borderColor: AppColors.blue2,
+          borderRadius: 4,
+          fontSize: 10,
         );
+        
       }).toList(),
     );
   }
 
-  Widget _getAtributoIcon(String key) {
-    final keyLower = key.toLowerCase();
-    IconData icon = Icons.label;
+  // Widget _getAtributoIcon(String key) {
+  //   final keyLower = key.toLowerCase();
+  //   IconData icon = Icons.label;
 
-    if (keyLower.contains('color')) {
-      icon = Icons.palette;
-    } else if (keyLower.contains('talla') || keyLower.contains('tamaño')) {
-      icon = Icons.straighten;
-    } else if (keyLower.contains('material')) {
-      icon = Icons.category;
-    } else if (keyLower.contains('capacidad')) {
-      icon = Icons.storage;
-    } else if (keyLower.contains('conexi') || keyLower.contains('conex')) {
-      icon = Icons.cable;
-    }
+  //   if (keyLower.contains('color')) {
+  //     icon = Icons.palette;
+  //   } else if (keyLower.contains('talla') || keyLower.contains('tamaño')) {
+  //     icon = Icons.straighten;
+  //   } else if (keyLower.contains('material')) {
+  //     icon = Icons.category;
+  //   } else if (keyLower.contains('capacidad')) {
+  //     icon = Icons.storage;
+  //   } else if (keyLower.contains('conexi') || keyLower.contains('conex')) {
+  //     icon = Icons.cable;
+  //   }
 
-    return Icon(icon, size: 16);
-  }
+  //   return Icon(icon, size: 16);
+  // }
 
   Widget _buildVarianteCard(ProductoVariante variante, bool isSelected) {
     return InkWell(
@@ -143,13 +151,13 @@ class _ProductoVariantesSectionState extends State<ProductoVariantesSection> {
       },
       borderRadius: BorderRadius.circular(8),
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.only(left: 8, right: 8, bottom: 10),
         decoration: BoxDecoration(
           color: isSelected ? Colors.blue.shade50 : Colors.grey.shade50,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: isSelected ? Colors.blue.shade400 : Colors.grey.shade300,
-            width: isSelected ? 2 : 1,
+            width: isSelected ? 1 : 0.5,
           ),
         ),
         child: Column(
@@ -163,13 +171,13 @@ class _ProductoVariantesSectionState extends State<ProductoVariantesSection> {
                     borderRadius: BorderRadius.circular(6),
                     child: Image.network(
                       variante.thumbnailPrincipal!,
-                      width: 50,
-                      height: 50,
+                      width: 40,
+                      height: 40,
                       fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) {
                         return Container(
-                          width: 50,
-                          height: 50,
+                          width: 40,
+                          height: 40,
                           color: Colors.grey[300],
                           child: Icon(Icons.image, color: Colors.grey[500]),
                         );
@@ -190,7 +198,7 @@ class _ProductoVariantesSectionState extends State<ProductoVariantesSection> {
                             child: Text(
                               variante.nombre,
                               style: TextStyle(
-                                fontSize: 15,
+                                fontSize: 12,
                                 fontWeight: FontWeight.w600,
                                 color: isSelected
                                     ? Colors.blue.shade900
@@ -212,16 +220,16 @@ class _ProductoVariantesSectionState extends State<ProductoVariantesSection> {
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(),
                           ),
-                          const SizedBox(width: 4),
+                          // const SizedBox(width: 4),
                           if (isSelected)
                             Icon(
                               Icons.check_circle,
                               color: Colors.blue.shade600,
-                              size: 20,
+                              size: 18,
                             ),
                         ],
                       ),
-                      const SizedBox(height: 4),
+                      // const SizedBox(height: 4),
                       Text(
                         'SKU: ${variante.sku}',
                         style: TextStyle(
@@ -235,7 +243,7 @@ class _ProductoVariantesSectionState extends State<ProductoVariantesSection> {
               ],
             ),
 
-            const SizedBox(height: 12),
+            const SizedBox(height: 6),
 
             // Precio y stock
             Row(
@@ -243,7 +251,7 @@ class _ProductoVariantesSectionState extends State<ProductoVariantesSection> {
               children: [
                 // Precio
                 Text(
-                  '\$${variante.precioEfectivo.toStringAsFixed(2)}',
+                  'S/${variante.precioEfectivo.toStringAsFixed(2)}',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,

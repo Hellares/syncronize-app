@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import 'atributo_valor.dart';
+import 'stock_por_sede_info.dart';
 import '../../../catalogo/domain/entities/unidad_medida.dart';
 
 /// Entity que representa una variante de producto
@@ -16,8 +17,9 @@ class ProductoVariante extends Equatable {
   final double precio;
   final double? precioCosto;
   final double? precioOferta;
-  final int stock;
-  final int? stockMinimo;
+  final int stock; // Stock total calculado desde ProductoStock
+  final int? stockMinimo; // Deprecated
+  final List<StockPorSedeInfo>? stocksPorSede; // Desglose de stock por sede
   final double? peso;
   final Map<String, dynamic>? dimensiones;
   final bool isActive;
@@ -42,6 +44,7 @@ class ProductoVariante extends Equatable {
     this.precioOferta,
     required this.stock,
     this.stockMinimo,
+    this.stocksPorSede,
     this.peso,
     this.dimensiones,
     required this.isActive,
@@ -145,6 +148,7 @@ class ProductoVariante extends Equatable {
         precioOferta,
         stock,
         stockMinimo,
+        stocksPorSede,
         peso,
         dimensiones,
         isActive,

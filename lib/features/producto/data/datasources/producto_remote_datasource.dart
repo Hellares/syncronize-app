@@ -121,26 +121,32 @@ class ProductoRemoteDataSource {
     }
   }
 
-  /// Actualiza el stock de un producto
+  /// Actualiza el stock de un producto en una sede específica
   ///
   /// PATCH /api/productos/:id/stock
+  /// MIGRADO: Ahora requiere sedeId y retorna stock por sede
+  ///
+  /// @deprecated Use ProductoStockRemoteDataSource.ajustarStock() para mejor control
   /// Nota: empresaId se valida automáticamente en headers X-Tenant-ID
-  Future<ProductoModel> actualizarStock({
+  Future<Map<String, dynamic>> actualizarStock({
     required String productoId,
     required String empresaId,
+    required String sedeId, // 🆕 AHORA REQUERIDO
     required int cantidad,
-    required String operacion,
+    required String operacion, // 'agregar' o 'quitar'
   }) async {
     try {
       final response = await _dioClient.patch(
         '${ApiConstants.productos}/$productoId/stock',
         data: {
+          'sedeId': sedeId, // 🆕 NUEVO
           'cantidad': cantidad,
           'operacion': operacion,
         },
       );
 
-      return ProductoModel.fromJson(response.data as Map<String, dynamic>);
+      // Ahora retorna { stock: int, stockTotal: int }
+      return response.data as Map<String, dynamic>;
     } on DioException catch (e) {
       throw _handleDioError(e);
     } catch (e) {
