@@ -305,7 +305,7 @@ class _AgregarComponenteDialogContentState
                             style: const TextStyle(fontWeight: FontWeight.w500),
                           ),
                           Text(
-                            '\$${producto.precio.toStringAsFixed(2)} - Stock: ${producto.stock}',
+                            '\$${producto.precio.toStringAsFixed(2)} - Stock: ${producto.stockTotal}',
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.grey.shade600,
@@ -679,7 +679,7 @@ class _AgregarComponenteDialogContentState
       // Producto sin variantes
       nombre = _productoSeleccionado!.nombre;
       precio = _productoSeleccionado!.precio;
-      stock = _productoSeleccionado!.stock;
+      stock = _productoSeleccionado!.stockTotal;
       productoId = _productoSeleccionado!.id;
       varianteId = null;
     }
@@ -744,7 +744,7 @@ class _AgregarComponenteDialogContentState
       return variante.stock;
     }
 
-    // Si es producto simple, retornar su stock
-    return _productoSeleccionado!.stock;
+    // Si es producto simple, retornar su stock total
+    return _productoSeleccionado!.stockTotal;
   }
 }

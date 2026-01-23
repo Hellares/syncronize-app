@@ -604,13 +604,11 @@ class _VarianteCard extends StatelessWidget {
 
   IconData _getStockIcon() {
     if (variante.stock == 0) return Icons.remove_circle;
-    if (variante.isStockLow) return Icons.warning;
     return Icons.check_circle;
   }
 
   Color _getStockColor() {
     if (variante.stock == 0) return Colors.red;
-    if (variante.isStockLow) return Colors.orange;
     return Colors.green;
   }
 }

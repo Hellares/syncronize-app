@@ -20,8 +20,6 @@ class ProductoModel extends Producto {
     super.descripcion,
     required super.precio,
     super.precioCosto,
-    required super.stock,
-    super.stockMinimo,
     super.peso,
     super.dimensiones,
     super.videoUrl,
@@ -70,10 +68,6 @@ class ProductoModel extends Producto {
       precio: _toDouble(json['precio']),
       precioCosto: json['precioCosto'] != null
           ? _toDouble(json['precioCosto'])
-          : null,
-      stock: _toInt(json['stock']),
-      stockMinimo: json['stockMinimo'] != null
-          ? _toInt(json['stockMinimo'])
           : null,
       peso: json['peso'] != null ? _toDouble(json['peso']) : null,
       dimensiones: json['dimensiones'] as Map<String, dynamic>?,
@@ -182,9 +176,6 @@ class ProductoModel extends Producto {
       if (descripcion != null) 'descripcion': descripcion,
       'precio': precio,
       if (precioCosto != null) 'precioCosto': precioCosto,
-      // DEPRECATED: Stock ahora se maneja mediante ProductoStock por sede
-      // 'stock': stock,
-      // if (stockMinimo != null) 'stockMinimo': stockMinimo,
       if (peso != null) 'peso': peso,
       if (dimensiones != null) 'dimensiones': dimensiones,
       if (videoUrl != null) 'videoUrl': videoUrl,
@@ -229,8 +220,6 @@ class ProductoModel extends Producto {
       descripcion: entity.descripcion,
       precio: entity.precio,
       precioCosto: entity.precioCosto,
-      stock: entity.stock,
-      stockMinimo: entity.stockMinimo,
       peso: entity.peso,
       dimensiones: entity.dimensiones,
       videoUrl: entity.videoUrl,

@@ -502,8 +502,8 @@ class _ProductoVariantesBottomSheetState extends State<ProductoVariantesBottomSh
   }
 
   Widget _buildStockBadge(ProductoVariante variante) {
-    final hasStock = variante.stock > 0;
-    final isLowStock = variante.isStockLow;
+    final hasStock = variante.stockTotal > 0;
+    final isStockLow = variante.isStockLowTotal;
 
     Color badgeColor;
     IconData icon;
@@ -513,14 +513,14 @@ class _ProductoVariantesBottomSheetState extends State<ProductoVariantesBottomSh
       badgeColor = Colors.red;
       icon = Icons.remove_circle_outline;
       badgeText = '0';
-    } else if (isLowStock) {
+    } else if (isStockLow) {
       badgeColor = Colors.orange;
-      icon = Icons.warning_amber_rounded;
-      badgeText = '${variante.stock}';
+      icon = Icons.warning;
+      badgeText = '${variante.stockTotal}';
     } else {
       badgeColor = Colors.green;
       icon = Icons.check_circle_outline;
-      badgeText = '${variante.stock}';
+      badgeText = '${variante.stockTotal}';
     }
 
     return Container(

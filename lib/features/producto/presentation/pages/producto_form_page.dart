@@ -237,8 +237,10 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
     _controller.codigoBarrasController.text = producto.codigoBarras ?? '';
     _controller.precioController.currencyValue = producto.precio;
     _controller.precioCostoController.currencyValue = producto.precioCosto ?? 0.0;
-    _controller.stockController.text = producto.stock.toString();
-    _controller.stockMinimoController.text = producto.stockMinimo?.toString() ?? '';
+    // NOTA: El stock ya no se edita desde el formulario de producto.
+    // Ahora se maneja por sede mediante ProductoStock
+    // _controller.stockController.text = producto.stockTotal.toString();
+    // _controller.stockMinimoController.text = '';
     _controller.pesoController.text = producto.peso?.toString() ?? '';
     _controller.videoUrlController.text = producto.videoUrl ?? '';
     _controller.impuestoPorcentajeController.text = producto.impuestoPorcentaje?.toString() ?? '';

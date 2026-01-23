@@ -18,7 +18,6 @@ class ProductoVarianteModel extends ProductoVariante {
     super.precioCosto,
     super.precioOferta,
     required super.stock,
-    super.stockMinimo,
     super.stocksPorSede,
     super.peso,
     super.dimensiones,
@@ -53,9 +52,6 @@ class ProductoVarianteModel extends ProductoVariante {
           ? _toDouble(json['precioOferta'])
           : null,
       stock: _toInt(json['stock']),
-      stockMinimo: json['stockMinimo'] != null
-          ? _toInt(json['stockMinimo'])
-          : null,
       stocksPorSede: json['stocksPorSede'] != null
           ? (json['stocksPorSede'] as List)
               .map((e) => StockPorSedeInfoModel.fromJson(e as Map<String, dynamic>))
@@ -117,7 +113,6 @@ class ProductoVarianteModel extends ProductoVariante {
       if (precioCosto != null) 'precioCosto': precioCosto,
       if (precioOferta != null) 'precioOferta': precioOferta,
       'stock': stock,
-      if (stockMinimo != null) 'stockMinimo': stockMinimo,
       if (stocksPorSede != null)
         'stocksPorSede': stocksPorSede!
             .map((s) => StockPorSedeInfoModel.fromEntity(s).toJson())
@@ -148,7 +143,6 @@ class ProductoVarianteModel extends ProductoVariante {
       precioCosto: entity.precioCosto,
       precioOferta: entity.precioOferta,
       stock: entity.stock,
-      stockMinimo: entity.stockMinimo,
       stocksPorSede: entity.stocksPorSede,
       peso: entity.peso,
       dimensiones: entity.dimensiones,

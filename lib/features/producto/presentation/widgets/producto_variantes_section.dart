@@ -278,7 +278,7 @@ class _ProductoVariantesSectionState extends State<ProductoVariantesSection> {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        'Stock: ${variante.stock}',
+                        'Stock: ${variante.stockTotal}',
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
@@ -326,14 +326,14 @@ class _ProductoVariantesSectionState extends State<ProductoVariantesSection> {
   }
 
   Color _getStockColor(ProductoVariante variante) {
-    if (variante.isOutOfStock) return Colors.red;
-    if (variante.isStockLow) return Colors.orange;
+    if (variante.isOutOfStockTotal) return Colors.red;
+    if (variante.isStockLowTotal) return Colors.orange;
     return Colors.green;
   }
 
   IconData _getStockIcon(ProductoVariante variante) {
-    if (variante.isOutOfStock) return Icons.cancel;
-    if (variante.isStockLow) return Icons.warning;
+    if (variante.isOutOfStockTotal) return Icons.cancel;
+    if (variante.isStockLowTotal) return Icons.warning;
     return Icons.check_circle;
   }
 

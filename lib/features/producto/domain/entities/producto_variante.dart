@@ -18,7 +18,6 @@ class ProductoVariante extends Equatable {
   final double? precioCosto;
   final double? precioOferta;
   final int stock; // Stock total calculado desde ProductoStock
-  final int? stockMinimo; // Deprecated
   final List<StockPorSedeInfo>? stocksPorSede; // Desglose de stock por sede
   final double? peso;
   final Map<String, dynamic>? dimensiones;
@@ -43,7 +42,6 @@ class ProductoVariante extends Equatable {
     this.precioCosto,
     this.precioOferta,
     required this.stock,
-    this.stockMinimo,
     this.stocksPorSede,
     this.peso,
     this.dimensiones,
@@ -57,10 +55,6 @@ class ProductoVariante extends Equatable {
 
   /// Verifica si la variante tiene stock disponible
   bool get hasStock => stock > 0;
-
-  /// Verifica si el stock está bajo (menor o igual al mínimo)
-  bool get isStockLow =>
-      stockMinimo != null && stock <= stockMinimo! && stock > 0;
 
   /// Verifica si el stock está agotado
   bool get isOutOfStock => stock <= 0;
@@ -132,6 +126,55 @@ class ProductoVariante extends Equatable {
     return 'NIU'; // Por defecto código SUNAT de "Unidad"
   }
 
+  /// Calcula el stock total basado en el desglose por sede
+  /// Suma todas las cantidades de stocksPorSede
+  /// Si no hay stocksPorSede, usa el campo legacy stock
+  int get stockTotal {
+    if (stocksPorSede != null && stocksPorSede!.isNotEmpty) {
+      return stocksPorSede!.fold(0, (sum, stockSede) => sum + stockSede.cantidad);
+    }
+    return stock; // Fallback al campo legacy
+  }
+
+  /// Obtiene el stock para una sede específica
+  int? stockEnSede(String sedeId) {
+    if (stocksPorSede == null) return null;
+    final stockSede = stocksPorSede!.firstWhere(
+      (s) => s.sedeId == sedeId,
+      orElse: () => StockPorSedeInfo(
+        sedeId: '',
+        sedeNombre: '',
+        sedeCodigo: '',
+        cantidad: 0,
+      ),
+    );
+    return stockSede.cantidad;
+  }
+
+  /// Verifica si tiene stock disponible considerando stocksPorSede
+  bool get hasStockTotal => stockTotal > 0;
+
+  /// Verifica si el stock total está agotado
+  bool get isOutOfStockTotal => stockTotal <= 0;
+
+  /// Verifica si alguna sede tiene stock bajo (por debajo del mínimo)
+  bool get isStockLowTotal {
+    if (stocksPorSede == null || stocksPorSede!.isEmpty) return false;
+    return stocksPorSede!.any((stock) => stock.esBajoMinimo);
+  }
+
+  /// Obtiene la cantidad de sedes con stock crítico (cero)
+  int get sedesConStockCritico {
+    if (stocksPorSede == null || stocksPorSede!.isEmpty) return 0;
+    return stocksPorSede!.where((stock) => stock.esCritico).length;
+  }
+
+  /// Obtiene la cantidad de sedes con stock bajo mínimo
+  int get sedesConStockBajo {
+    if (stocksPorSede == null || stocksPorSede!.isEmpty) return 0;
+    return stocksPorSede!.where((stock) => stock.esBajoMinimo).length;
+  }
+
   @override
   List<Object?> get props => [
         id,
@@ -147,7 +190,6 @@ class ProductoVariante extends Equatable {
         precioCosto,
         precioOferta,
         stock,
-        stockMinimo,
         stocksPorSede,
         peso,
         dimensiones,

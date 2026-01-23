@@ -88,6 +88,12 @@ class ProductoListItem extends Equatable {
   /// Verifica si tiene stock disponible considerando stocksPorSede
   bool get hasStockTotal => stockTotal > 0;
 
+  /// Verifica si alguna sede tiene stock bajo (por debajo del mínimo)
+  bool get isStockLowTotal {
+    if (stocksPorSede == null || stocksPorSede!.isEmpty) return false;
+    return stocksPorSede!.any((stock) => stock.esBajoMinimo);
+  }
+
   @override
   List<Object?> get props => [
         id,

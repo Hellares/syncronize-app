@@ -262,8 +262,10 @@ class ProductoFormController extends ChangeNotifier {
     codigoBarrasController.text = producto.codigoBarras ?? '';
     precioController.currencyValue = producto.precio;
     precioCostoController.currencyValue = producto.precioCosto ?? 0.0;
-    stockController.text = producto.stock.toString();
-    stockMinimoController.text = producto.stockMinimo?.toString() ?? '';
+    // NOTA: Los campos stock y stockMinimo fueron removidos.
+    // El stock se gestiona por sede usando ProductoStock después de crear el producto.
+    stockController.text = '0'; // Default para compatibilidad del formulario
+    stockMinimoController.text = ''; // Default vacío
     pesoController.text = producto.peso?.toString() ?? '';
     precioOfertaController.currencyValue = producto.precioOferta ?? 0.0;
     videoUrlController.text = producto.videoUrl ?? '';

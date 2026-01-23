@@ -42,7 +42,6 @@ class _ProductoVarianteFormDialogState
   late TextEditingController _precioCostoController;
   late TextEditingController _precioOfertaController;
   late TextEditingController _stockController;
-  late TextEditingController _stockMinimoController;
   late TextEditingController _pesoController;
 
   bool _isActive = true;
@@ -64,11 +63,10 @@ class _ProductoVarianteFormDialogState
     _precioOfertaController = TextEditingController(
       text: widget.variante?.precioOferta?.toStringAsFixed(2),
     );
+    // NOTA: El stock ahora se maneja por sede mediante ProductoStock
+    // Por compatibilidad temporal, se inicializa en 0
     _stockController = TextEditingController(
-      text: widget.variante?.stock.toString(),
-    );
-    _stockMinimoController = TextEditingController(
-      text: widget.variante?.stockMinimo?.toString(),
+      text: widget.variante?.stockTotal.toString() ?? '0',
     );
     _pesoController = TextEditingController(
       text: widget.variante?.peso?.toString(),
@@ -108,7 +106,6 @@ class _ProductoVarianteFormDialogState
     _precioCostoController.dispose();
     _precioOfertaController.dispose();
     _stockController.dispose();
-    _stockMinimoController.dispose();
     _pesoController.dispose();
     super.dispose();
   }
@@ -402,42 +399,30 @@ class _ProductoVarianteFormDialogState
                     ),
                     const SizedBox(height: 12),
 
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: _stockController,
-                            decoration: const InputDecoration(
-                              labelText: 'Stock actual *',
-                              prefixIcon: Icon(Icons.inventory_2),
+                    // NOTA: El campo de stock ha sido removido porque ahora se gestiona por sede
+                    // mediante ProductoStock. El stock se debe agregar/editar desde el módulo de inventario.
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.blue.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'El stock se gestiona por sede desde el módulo de inventario',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.blue.shade700,
+                              ),
                             ),
-                            keyboardType: TextInputType.number,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                            ],
-                            validator: (value) {
-                              if (value == null || value.trim().isEmpty) {
-                                return 'El stock es requerido';
-                              }
-                              return null;
-                            },
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: TextFormField(
-                            controller: _stockMinimoController,
-                            decoration: const InputDecoration(
-                              labelText: 'Stock mínimo',
-                              prefixIcon: Icon(Icons.warning_amber),
-                            ),
-                            keyboardType: TextInputType.number,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                            ],
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 24),
 
@@ -628,10 +613,9 @@ class _ProductoVarianteFormDialogState
       'precioOferta': _precioOfertaController.text.isEmpty
           ? null
           : double.parse(_precioOfertaController.text),
-      'stock': int.parse(_stockController.text),
-      'stockMinimo': _stockMinimoController.text.isEmpty
-          ? null
-          : int.parse(_stockMinimoController.text),
+      // NOTA: El campo 'stock' ha sido removido del backend.
+      // Use ProductoStock para gestionar stock por sede después de crear la variante.
+      // 'stock': int.parse(_stockController.text),
       'peso': _pesoController.text.isEmpty
           ? null
           : double.parse(_pesoController.text),

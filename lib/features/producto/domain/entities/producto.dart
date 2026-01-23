@@ -20,8 +20,6 @@ class Producto extends Equatable {
   final String? descripcion;
   final double precio;
   final double? precioCosto;
-  final int stock;
-  final int? stockMinimo;
   final double? peso;
   final Map<String, dynamic>? dimensiones;
   final String? videoUrl;
@@ -69,8 +67,6 @@ class Producto extends Equatable {
     this.descripcion,
     required this.precio,
     this.precioCosto,
-    required this.stock,
-    this.stockMinimo,
     this.peso,
     this.dimensiones,
     this.videoUrl,
@@ -103,14 +99,10 @@ class Producto extends Equatable {
   });
 
   /// Verifica si el producto tiene stock disponible
-  bool get hasStock => stock > 0;
-
-  /// Verifica si el stock está bajo (menor o igual al mínimo)
-  bool get isStockLow =>
-      stockMinimo != null && stock <= stockMinimo! && stock > 0;
+  bool get hasStock => stockTotal > 0;
 
   /// Verifica si el stock está agotado
-  bool get isOutOfStock => stock <= 0;
+  bool get isOutOfStock => stockTotal <= 0;
 
   /// Verifica si la oferta está activa actualmente
   bool get isOfertaActiva {
@@ -189,13 +181,12 @@ class Producto extends Equatable {
   }
 
   /// Calcula el stock total basado en el desglose por sede
-  /// Si hay stocksPorSede, suma todas las cantidades
-  /// Si no hay stocksPorSede, usa el stock tradicional
+  /// Suma todas las cantidades de stocksPorSede
   int get stockTotal {
     if (stocksPorSede != null && stocksPorSede!.isNotEmpty) {
       return stocksPorSede!.fold(0, (sum, stockSede) => sum + stockSede.cantidad);
     }
-    return stock;
+    return 0; // Si no hay stock por sede, retorna 0
   }
 
   /// Obtiene el stock para una sede específica
@@ -216,12 +207,26 @@ class Producto extends Equatable {
   /// Verifica si tiene stock disponible considerando stocksPorSede
   bool get hasStockTotal => stockTotal > 0;
 
-  /// Verifica si el stock total está bajo (menor o igual al mínimo)
-  bool get isStockLowTotal =>
-      stockMinimo != null && stockTotal <= stockMinimo! && stockTotal > 0;
-
   /// Verifica si el stock total está agotado
   bool get isOutOfStockTotal => stockTotal <= 0;
+
+  /// Verifica si alguna sede tiene stock bajo (por debajo del mínimo)
+  bool get isStockLowTotal {
+    if (stocksPorSede == null || stocksPorSede!.isEmpty) return false;
+    return stocksPorSede!.any((stock) => stock.esBajoMinimo);
+  }
+
+  /// Obtiene la cantidad de sedes con stock crítico (cero)
+  int get sedesConStockCritico {
+    if (stocksPorSede == null || stocksPorSede!.isEmpty) return 0;
+    return stocksPorSede!.where((stock) => stock.esCritico).length;
+  }
+
+  /// Obtiene la cantidad de sedes con stock bajo mínimo
+  int get sedesConStockBajo {
+    if (stocksPorSede == null || stocksPorSede!.isEmpty) return 0;
+    return stocksPorSede!.where((stock) => stock.esBajoMinimo).length;
+  }
 
   @override
   List<Object?> get props => [
@@ -239,8 +244,6 @@ class Producto extends Equatable {
         descripcion,
         precio,
         precioCosto,
-        stock,
-        stockMinimo,
         peso,
         dimensiones,
         videoUrl,

@@ -491,7 +491,7 @@ class ProductoListTile extends StatelessWidget {
   Widget _buildStockBadge() {
     final hasStock = producto.hasStockTotal;
     final stockTotal = producto.stockTotal;
-    final isLowStock = producto.isStockLow;
+    final isLowStock = producto.isStockLowTotal;
 
     Color badgeColor;
     IconData icon;

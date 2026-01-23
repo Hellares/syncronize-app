@@ -502,9 +502,79 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
 
             const Divider(height: 24),
 
-            // Stock
-            if (producto.stockMinimo != null)
-              _buildInfoRow('Stock mínimo', producto.stockMinimo.toString()),
+            // Stock por sedes (nuevo sistema multi-sede)
+            if (producto.stocksPorSede != null && producto.stocksPorSede!.isNotEmpty) ...[
+              const Padding(
+                padding: EdgeInsets.only(bottom: 12),
+                child: Text(
+                  'Stock por Sede',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              ...producto.stocksPorSede!.map((stockSede) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '${stockSede.sedeNombre} (${stockSede.sedeCodigo})',
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        Text(
+                          '${stockSede.cantidad}',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: stockSede.esCritico
+                              ? AppColors.red
+                              : stockSede.esBajoMinimo
+                                ? AppColors.amberText
+                                : AppColors.blue1,
+                          ),
+                        ),
+                        if (stockSede.stockMinimo != null) ...[
+                          Text(
+                            ' / ${stockSede.stockMinimo}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.grey,
+                            ),
+                          ),
+                          if (stockSede.esBajoMinimo)
+                            const Padding(
+                              padding: EdgeInsets.only(left: 4),
+                              child: Icon(
+                                Icons.warning,
+                                size: 16,
+                                color: AppColors.amberText,
+                              ),
+                            ),
+                        ],
+                        if (stockSede.ubicacion != null)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 8),
+                            child: Tooltip(
+                              message: 'Ubicación: ${stockSede.ubicacion}',
+                              child: const Icon(
+                                Icons.location_on,
+                                size: 14,
+                                color: AppColors.grey,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              )),
+            ],
 
             const Divider(height: 24),
 
