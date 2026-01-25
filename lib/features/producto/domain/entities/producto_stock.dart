@@ -1,16 +1,42 @@
 import 'package:equatable/equatable.dart';
 
-/// Entity para ProductoStock - Inventario por sede
+/// Entity para ProductoStock - Inventario y precios por sede
 class ProductoStock extends Equatable {
   final String id;
   final String sedeId;
   final String? productoId;
   final String? varianteId;
   final String empresaId;
-  final int stockActual;
+
+  // ========== STOCK FÍSICO ==========
+  final int stockActual; // Stock físico total en almacén
+
+  // ========== RESERVAS ==========
+  final int stockReservado; // Reservado para transferencias aprobadas
+  final int stockReservadoVenta; // Apartado por clientes (pre-ventas, pedidos)
+
+  // ========== MERMA Y ESTADO ==========
+  final int stockDanado; // Productos defectuosos/dañados (no vendibles)
+  final int stockEnGarantia; // Productos en proceso de garantía/reparación
+
+  // ========== CONFIGURACIÓN ==========
   final int? stockMinimo;
   final int? stockMaximo;
   final String? ubicacion;
+
+  // Precios por sede
+  final double? precio; // Precio de venta en esta sede
+  final double? precioCosto; // Precio de costo en esta sede
+  final double? precioOferta; // Precio de oferta específico de la sede
+
+  // Control de ofertas por sede
+  final bool enOferta;
+  final DateTime? fechaInicioOferta;
+  final DateTime? fechaFinOferta;
+
+  // Estado de configuración de precio
+  final bool precioConfigurado; // true cuando se ha establecido al menos el precio de venta
+
   final DateTime creadoEn;
   final DateTime actualizadoEn;
 
@@ -26,9 +52,20 @@ class ProductoStock extends Equatable {
     this.varianteId,
     required this.empresaId,
     required this.stockActual,
+    this.stockReservado = 0,
+    this.stockReservadoVenta = 0,
+    this.stockDanado = 0,
+    this.stockEnGarantia = 0,
     this.stockMinimo,
     this.stockMaximo,
     this.ubicacion,
+    this.precio,
+    this.precioCosto,
+    this.precioOferta,
+    this.enOferta = false,
+    this.fechaInicioOferta,
+    this.fechaFinOferta,
+    this.precioConfigurado = false,
     required this.creadoEn,
     required this.actualizadoEn,
     this.sede,
@@ -44,9 +81,20 @@ class ProductoStock extends Equatable {
         varianteId,
         empresaId,
         stockActual,
+        stockReservado,
+        stockReservadoVenta,
+        stockDanado,
+        stockEnGarantia,
         stockMinimo,
         stockMaximo,
         ubicacion,
+        precio,
+        precioCosto,
+        precioOferta,
+        enOferta,
+        fechaInicioOferta,
+        fechaFinOferta,
+        precioConfigurado,
         creadoEn,
         actualizadoEn,
       ];
@@ -58,19 +106,83 @@ class ProductoStock extends Equatable {
     return 'Producto desconocido';
   }
 
-  /// Verifica si el stock está bajo el mínimo
+  // ========== CÁLCULOS DE STOCK ==========
+
+  /// Stock disponible para TRANSFERIR (ignora dañados y en garantía)
+  int get stockDisponible => stockActual - stockReservado;
+
+  /// Stock disponible para VENTA (lo más importante para POS/eCommerce)
+  int get stockDisponibleVenta =>
+      stockActual - stockReservado - stockReservadoVenta - stockDanado - stockEnGarantia;
+
+  /// Stock total comprometido (no disponible)
+  int get stockComprometido => stockReservado + stockReservadoVenta;
+
+  /// Stock no vendible (dañado o en garantía)
+  int get stockNoVendible => stockDanado + stockEnGarantia;
+
+  // ========== VALIDACIONES ==========
+
+  /// Verifica si el stock disponible para venta está bajo el mínimo
   bool get esBajoMinimo {
     if (stockMinimo == null) return false;
-    return stockActual <= stockMinimo!;
+    return stockDisponibleVenta <= stockMinimo!;
   }
 
-  /// Verifica si el stock es crítico (cero)
-  bool get esCritico => stockActual == 0;
+  /// Verifica si el stock disponible para venta es crítico (cero o negativo)
+  bool get esCritico => stockDisponibleVenta <= 0;
+
+  /// Verifica si hay stock reservado para transferencias
+  bool get tieneStockReservado => stockReservado > 0;
+
+  /// Verifica si hay stock apartado para ventas
+  bool get tieneStockReservadoVenta => stockReservadoVenta > 0;
+
+  /// Verifica si hay productos dañados
+  bool get tieneStockDanado => stockDanado > 0;
+
+  /// Verifica si hay productos en garantía
+  bool get tieneStockEnGarantia => stockEnGarantia > 0;
+
+  /// Verifica si hay algún tipo de reserva o merma
+  bool get tieneIncidencias => tieneStockReservado || tieneStockReservadoVenta ||
+                                tieneStockDanado || tieneStockEnGarantia;
 
   /// Porcentaje de stock respecto al máximo
   double? get porcentajeStock {
     if (stockMaximo == null || stockMaximo! == 0) return null;
     return (stockActual / stockMaximo!) * 100;
+  }
+
+  /// Verifica si la oferta está activa actualmente
+  bool get isOfertaActiva {
+    if (!enOferta || precioOferta == null) return false;
+
+    final now = DateTime.now();
+
+    // Si hay fecha de inicio, verificar que ya comenzó
+    if (fechaInicioOferta != null && now.isBefore(fechaInicioOferta!)) {
+      return false;
+    }
+
+    // Si hay fecha de fin, verificar que no terminó
+    if (fechaFinOferta != null && now.isAfter(fechaFinOferta!)) {
+      return false;
+    }
+
+    return true;
+  }
+
+  /// Obtiene el precio efectivo a mostrar (con oferta si aplica)
+  double? get precioEfectivo {
+    if (!precioConfigurado || precio == null) return null;
+    return isOfertaActiva && precioOferta != null ? precioOferta : precio;
+  }
+
+  /// Calcula el porcentaje de descuento de la oferta
+  double? get porcentajeDescuento {
+    if (!isOfertaActiva || precioOferta == null || precio == null || precio! == 0) return null;
+    return ((precio! - precioOferta!) / precio!) * 100;
   }
 }
 

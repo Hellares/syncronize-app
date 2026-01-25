@@ -24,6 +24,12 @@ class ProductoStockRemoteDataSource {
     int? stockMinimo,
     int? stockMaximo,
     String? ubicacion,
+    double? precio,
+    double? precioCosto,
+    double? precioOferta,
+    bool? enOferta,
+    DateTime? fechaInicioOferta,
+    DateTime? fechaFinOferta,
   }) async {
     try {
       final response = await _dioClient.post(
@@ -36,6 +42,12 @@ class ProductoStockRemoteDataSource {
           if (stockMinimo != null) 'stockMinimo': stockMinimo,
           if (stockMaximo != null) 'stockMaximo': stockMaximo,
           if (ubicacion != null) 'ubicacion': ubicacion,
+          if (precio != null) 'precio': precio,
+          if (precioCosto != null) 'precioCosto': precioCosto,
+          if (precioOferta != null) 'precioOferta': precioOferta,
+          if (enOferta != null) 'enOferta': enOferta,
+          if (fechaInicioOferta != null) 'fechaInicioOferta': fechaInicioOferta.toIso8601String(),
+          if (fechaFinOferta != null) 'fechaFinOferta': fechaFinOferta.toIso8601String(),
         },
       );
 
@@ -149,6 +161,42 @@ class ProductoStockRemoteDataSource {
       throw _handleDioError(e);
     } catch (e) {
       throw Exception('Error inesperado al ajustar stock: $e');
+    }
+  }
+
+  /// Actualiza los precios de un ProductoStock
+  ///
+  /// PATCH /api/producto-stock/:id/precios
+  Future<ProductoStockModel> actualizarPrecios({
+    required String productoStockId,
+    required String empresaId,
+    double? precio,
+    double? precioCosto,
+    double? precioOferta,
+    required bool enOferta,
+    DateTime? fechaInicioOferta,
+    DateTime? fechaFinOferta,
+  }) async {
+    try {
+      final response = await _dioClient.patch(
+        '/producto-stock/$productoStockId/precios',
+        data: {
+          if (precio != null) 'precio': precio,
+          if (precioCosto != null) 'precioCosto': precioCosto,
+          if (precioOferta != null) 'precioOferta': precioOferta,
+          'enOferta': enOferta,
+          if (fechaInicioOferta != null)
+            'fechaInicioOferta': fechaInicioOferta.toIso8601String(),
+          if (fechaFinOferta != null)
+            'fechaFinOferta': fechaFinOferta.toIso8601String(),
+        },
+      );
+
+      return ProductoStockModel.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    } catch (e) {
+      throw Exception('Error inesperado al actualizar precios: $e');
     }
   }
 

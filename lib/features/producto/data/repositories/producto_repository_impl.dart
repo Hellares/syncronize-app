@@ -28,7 +28,8 @@ class ProductoRepositoryImpl implements ProductoRepository {
     String? codigoBarras,
     required String nombre,
     String? descripcion,
-    required double precio,
+    // ❌ DEPRECADO: precio, precioCosto, stock, stockMinimo ahora se manejan en ProductoStock
+    double? precio,
     double? precioCosto,
     int? stock,
     int? stockMinimo,
@@ -68,10 +69,13 @@ class ProductoRepositoryImpl implements ProductoRepository {
         if (codigoBarras != null) 'codigoBarras': codigoBarras,
         'nombre': nombre,
         if (descripcion != null) 'descripcion': descripcion,
-        'precio': precio,
-        if (precioCosto != null) 'precioCosto': precioCosto,
-        if (stock != null) 'stock': stock,
-        if (stockMinimo != null) 'stockMinimo': stockMinimo,
+        // ❌ DEPRECADO: precio, precioCosto, stock, stockMinimo, enOferta, precioOferta
+        // Ahora se gestionan en ProductoStock por sede
+        // Usar POST /producto-stock después de crear el producto
+        // 'precio': precio,
+        // if (precioCosto != null) 'precioCosto': precioCosto,
+        // if (stock != null) 'stock': stock,
+        // if (stockMinimo != null) 'stockMinimo': stockMinimo,
         if (peso != null) 'peso': peso,
         if (dimensiones != null) 'dimensiones': dimensiones,
         if (videoUrl != null) 'videoUrl': videoUrl,
@@ -81,15 +85,17 @@ class ProductoRepositoryImpl implements ProductoRepository {
         if (visibleMarketplace != null)
           'visibleMarketplace': visibleMarketplace,
         if (destacado != null) 'destacado': destacado,
-        if (enOferta != null) 'enOferta': enOferta,
+        // ❌ DEPRECADO: enOferta, precioOferta, fechas
+        // Ahora se gestionan en ProductoStock por sede
+        // if (enOferta != null) 'enOferta': enOferta,
+        // if (precioOferta != null) 'precioOferta': precioOferta,
+        // if (fechaInicioOferta != null)
+        //   'fechaInicioOferta': fechaInicioOferta.toIso8601String(),
+        // if (fechaFinOferta != null)
+        //   'fechaFinOferta': fechaFinOferta.toIso8601String(),
         if (tieneVariantes != null) 'tieneVariantes': tieneVariantes,
         if (esCombo != null) 'esCombo': esCombo,
         if (tipoPrecioCombo != null) 'tipoPrecioCombo': tipoPrecioCombo,
-        if (precioOferta != null) 'precioOferta': precioOferta,
-        if (fechaInicioOferta != null)
-          'fechaInicioOferta': fechaInicioOferta.toIso8601String(),
-        if (fechaFinOferta != null)
-          'fechaFinOferta': fechaFinOferta.toIso8601String(),
         if (imagenesIds != null) 'imagenesIds': imagenesIds,
         if (configuracionPrecioId != null)
           'configuracionPrecioId': configuracionPrecioId,
@@ -108,6 +114,7 @@ class ProductoRepositoryImpl implements ProductoRepository {
   @override
   Future<Resource<ProductosPaginados>> getProductos({
     required String empresaId,
+    String? sedeId,
     required ProductoFiltros filtros,
   }) async {
     if (!await _networkInfo.isConnected) {
@@ -120,6 +127,7 @@ class ProductoRepositoryImpl implements ProductoRepository {
     try {
       final response = await _remoteDataSource.getProductos(
         empresaId: empresaId,
+        sedeId: sedeId,
         filtros: filtros,
       );
 
@@ -231,8 +239,14 @@ class ProductoRepositoryImpl implements ProductoRepository {
         if (codigoBarras != null) 'codigoBarras': codigoBarras,
         if (nombre != null) 'nombre': nombre,
         if (descripcion != null) 'descripcion': descripcion,
-        if (precio != null) 'precio': precio,
-        if (precioCosto != null) 'precioCosto': precioCosto,
+        // ❌ DEPRECADO: Precio, precioCosto y ofertas ahora se manejan en ProductoStock por sede
+        // NO se deben enviar al actualizar el producto base
+        // if (precio != null) 'precio': precio,
+        // if (precioCosto != null) 'precioCosto': precioCosto,
+        // if (enOferta != null) 'enOferta': enOferta,
+        // if (precioOferta != null) 'precioOferta': precioOferta,
+        // if (fechaInicioOferta != null) 'fechaInicioOferta': fechaInicioOferta.toIso8601String(),
+        // if (fechaFinOferta != null) 'fechaFinOferta': fechaFinOferta.toIso8601String(),
         // DEPRECATED: Stock ahora se maneja mediante ProductoStock por sede
         // if (stock != null) 'stock': stock,
         // if (stockMinimo != null) 'stockMinimo': stockMinimo,
@@ -246,15 +260,9 @@ class ProductoRepositoryImpl implements ProductoRepository {
           'visibleMarketplace': visibleMarketplace,
         if (destacado != null) 'destacado': destacado,
         if (ordenMarketplace != null) 'ordenMarketplace': ordenMarketplace,
-        if (enOferta != null) 'enOferta': enOferta,
         if (tieneVariantes != null) 'tieneVariantes': tieneVariantes,
         if (esCombo != null) 'esCombo': esCombo,
         if (tipoPrecioCombo != null) 'tipoPrecioCombo': tipoPrecioCombo,
-        if (precioOferta != null) 'precioOferta': precioOferta,
-        if (fechaInicioOferta != null)
-          'fechaInicioOferta': fechaInicioOferta.toIso8601String(),
-        if (fechaFinOferta != null)
-          'fechaFinOferta': fechaFinOferta.toIso8601String(),
         if (imagenesIds != null) 'imagenesIds': imagenesIds,
         if (configuracionPrecioId != null)
           'configuracionPrecioId': configuracionPrecioId,

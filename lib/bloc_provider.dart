@@ -7,6 +7,7 @@ import 'package:syncronize/features/empresa/presentation/bloc/empresa_context/em
 import 'package:syncronize/features/producto/presentation/bloc/producto_list/producto_list_cubit.dart';
 import 'package:syncronize/features/producto/presentation/bloc/producto_detail/producto_detail_cubit.dart';
 import 'package:syncronize/features/producto/presentation/bloc/producto_variante/producto_variante_cubit.dart';
+import 'package:syncronize/features/producto/presentation/bloc/sede_selection/sede_selection_cubit.dart';
 import 'package:syncronize/features/producto/presentation/bloc/producto_atributo/producto_atributo_cubit.dart';
 import 'package:syncronize/features/producto/presentation/bloc/atributo_plantilla/atributo_plantilla_cubit.dart';
 import 'package:syncronize/features/producto/presentation/bloc/configuracion_precio/configuracion_precio_cubit.dart';
@@ -79,6 +80,12 @@ List<BlocProvider> blocProviders = [
   BlocProvider<ProductoDetailCubit>(
     create: (context) => locator<ProductoDetailCubit>(),
     lazy: true,
+  ),
+
+  // Sede Selection Cubit - Maneja la selección de sede para productos
+  BlocProvider<SedeSelectionCubit>(
+    create: (context) => locator<SedeSelectionCubit>(),
+    lazy: false, // No lazy para cargar la sede guardada al inicio
   ),
 
   // Categorias Empresa Cubit - Maneja las categorías de la empresa

@@ -14,6 +14,12 @@ abstract class ProductoStockRepository {
     int? stockMinimo,
     int? stockMaximo,
     String? ubicacion,
+    double? precio,
+    double? precioCosto,
+    double? precioOferta,
+    bool? enOferta,
+    DateTime? fechaInicioOferta,
+    DateTime? fechaFinOferta,
   });
 
   /// Lista el stock de una sede específica
@@ -47,6 +53,18 @@ abstract class ProductoStockRepository {
     String? observaciones,
     String? tipoDocumento,
     String? numeroDocumento,
+  });
+
+  /// Actualiza los precios de un ProductoStock
+  Future<Resource<ProductoStock>> actualizarPrecios({
+    required String productoStockId,
+    required String empresaId,
+    double? precio,
+    double? precioCosto,
+    double? precioOferta,
+    required bool enOferta,
+    DateTime? fechaInicioOferta,
+    DateTime? fechaFinOferta,
   });
 
   /// Obtiene el historial de movimientos de un stock

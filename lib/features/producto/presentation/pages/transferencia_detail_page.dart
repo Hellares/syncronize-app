@@ -126,6 +126,13 @@ class _TransferenciaDetailPageState extends State<TransferenciaDetailPage> {
         _buildProductoInfo(transferencia),
         const SizedBox(height: 16),
 
+        // Lista de items (si hay múltiples productos)
+        if (transferencia.items != null && transferencia.items!.isNotEmpty)
+          _buildItemsList(transferencia),
+
+        if (transferencia.items != null && transferencia.items!.isNotEmpty)
+          const SizedBox(height: 16),
+
         // Motivo y observaciones
         if (transferencia.motivo != null || transferencia.observaciones != null)
           _buildMotivosCard(transferencia),
@@ -334,7 +341,7 @@ class _TransferenciaDetailPageState extends State<TransferenciaDetailPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Producto',
+              'Resumen de Productos',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
@@ -361,7 +368,7 @@ class _TransferenciaDetailPageState extends State<TransferenciaDetailPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        transferencia.nombreProducto,
+                        transferencia.nombresProductos,
                         style: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.bold,
@@ -369,18 +376,266 @@ class _TransferenciaDetailPageState extends State<TransferenciaDetailPage> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${transferencia.cantidad} unidades',
+                        '${transferencia.cantidadTotal} unidades totales',
                         style: TextStyle(
                           fontSize: 13,
                           color: Colors.grey[600],
                         ),
                       ),
+                      if (transferencia.totalItems > 0) ...[
+                        const SizedBox(height: 4),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 4,
+                          children: [
+                            if (transferencia.itemsAprobados > 0)
+                              _buildSmallChip(
+                                '${transferencia.itemsAprobados} aprobados',
+                                Colors.green,
+                              ),
+                            if (transferencia.itemsRechazados > 0)
+                              _buildSmallChip(
+                                '${transferencia.itemsRechazados} rechazados',
+                                Colors.red,
+                              ),
+                            if (transferencia.itemsRecibidos > 0)
+                              _buildSmallChip(
+                                '${transferencia.itemsRecibidos} recibidos',
+                                Colors.blue,
+                              ),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
                 ),
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSmallChip(String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          color: color,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildItemsList(TransferenciaStock transferencia) {
+    return GradientContainer(
+      gradient: AppGradients.sinfondo,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Detalle de Productos',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 12),
+            ...transferencia.items!.map((item) => _buildItemCard(item)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildItemCard(TransferenciaStockItem item) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(8),
+        color: Colors.white,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.nombreProducto,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    if (item.codigoProducto != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        'SKU: ${item.codigoProducto}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              _buildItemEstadoBadge(item.estado),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Divider(height: 1),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: _buildItemQuantity(
+                  'Solicitada',
+                  item.cantidadSolicitada,
+                  Icons.request_quote,
+                  Colors.blue,
+                ),
+              ),
+              if (item.cantidadAprobada != null)
+                Expanded(
+                  child: _buildItemQuantity(
+                    'Aprobada',
+                    item.cantidadAprobada!,
+                    Icons.check_circle,
+                    Colors.green,
+                  ),
+                ),
+              if (item.cantidadEnviada != null)
+                Expanded(
+                  child: _buildItemQuantity(
+                    'Enviada',
+                    item.cantidadEnviada!,
+                    Icons.local_shipping,
+                    Colors.purple,
+                  ),
+                ),
+              if (item.cantidadRecibida != null)
+                Expanded(
+                  child: _buildItemQuantity(
+                    'Recibida',
+                    item.cantidadRecibida!,
+                    Icons.done_all,
+                    Colors.teal,
+                  ),
+                ),
+            ],
+          ),
+          if (item.motivo != null) ...[
+            const SizedBox(height: 8),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.info_outline, size: 14, color: Colors.grey[600]),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    item.motivo!,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey[700],
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildItemQuantity(
+      String label, int cantidad, IconData icon, Color color) {
+    return Column(
+      children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(height: 4),
+        Text(
+          cantidad.toString(),
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 10,
+            color: Colors.grey[600],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildItemEstadoBadge(EstadoItemTransferencia estado) {
+    Color backgroundColor;
+    Color textColor;
+
+    switch (estado) {
+      case EstadoItemTransferencia.pendiente:
+        backgroundColor = Colors.orange.shade100;
+        textColor = Colors.orange.shade800;
+        break;
+      case EstadoItemTransferencia.aprobado:
+        backgroundColor = Colors.green.shade100;
+        textColor = Colors.green.shade800;
+        break;
+      case EstadoItemTransferencia.rechazado:
+        backgroundColor = Colors.red.shade100;
+        textColor = Colors.red.shade800;
+        break;
+      case EstadoItemTransferencia.enviado:
+        backgroundColor = Colors.purple.shade100;
+        textColor = Colors.purple.shade800;
+        break;
+      case EstadoItemTransferencia.recibido:
+        backgroundColor = Colors.teal.shade100;
+        textColor = Colors.teal.shade800;
+        break;
+      case EstadoItemTransferencia.recibidoParcial:
+        backgroundColor = Colors.amber.shade100;
+        textColor = Colors.amber.shade800;
+        break;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        estado.descripcion,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          color: textColor,
         ),
       ),
     );
@@ -486,6 +741,39 @@ class _TransferenciaDetailPageState extends State<TransferenciaDetailPage> {
                   ),
                 ),
                 const SizedBox(height: 16),
+
+                // Procesar Completo (solo si está pendiente)
+                if (transferencia.puedeAprobar) ...[
+                  _ActionButton(
+                    label: 'Procesar Completamente',
+                    icon: Icons.flash_on,
+                    color: Colors.teal,
+                    onPressed: isProcessing
+                        ? null
+                        : () => _showProcesarCompletoDialog(transferencia),
+                    isProcessing:
+                        isProcessing && gestionState.action == 'procesarCompleto',
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(child: Divider(color: Colors.grey.shade300)),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Text(
+                          'O gestionar paso a paso',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ),
+                      Expanded(child: Divider(color: Colors.grey.shade300)),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                ],
 
                 // Aprobar
                 if (transferencia.puedeAprobar)
@@ -746,7 +1034,7 @@ class _TransferenciaDetailPageState extends State<TransferenciaDetailPage> {
 
   void _showRecibirDialog(TransferenciaStock transferencia) {
     final cantidadController =
-        TextEditingController(text: transferencia.cantidad.toString());
+        TextEditingController(text: transferencia.cantidadTotal.toString());
     final ubicacionController = TextEditingController();
     final observacionesController = TextEditingController();
 
@@ -767,7 +1055,7 @@ class _TransferenciaDetailPageState extends State<TransferenciaDetailPage> {
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 decoration: InputDecoration(
                   labelText: 'Cantidad Recibida',
-                  hintText: 'Enviados: ${transferencia.cantidad}',
+                  hintText: 'Enviados: ${transferencia.cantidadTotal}',
                   border: const OutlineInputBorder(),
                 ),
               ),
@@ -917,6 +1205,113 @@ class _TransferenciaDetailPageState extends State<TransferenciaDetailPage> {
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.grey),
             child: const Text('Cancelar Transferencia'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showProcesarCompletoDialog(TransferenciaStock transferencia) {
+    final ubicacionController = TextEditingController();
+    final observacionesController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Procesar Completamente'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '¿Está seguro que desea procesar completamente la transferencia ${transferencia.codigo}?',
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Esta acción ejecutará:',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue.shade900,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    _buildStepInfo(Icons.check_circle, 'Aprobar la transferencia'),
+                    _buildStepInfo(Icons.local_shipping, 'Enviar (descontar stock origen)'),
+                    _buildStepInfo(Icons.done_all, 'Recibir (agregar stock destino)'),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: ubicacionController,
+                decoration: const InputDecoration(
+                  labelText: 'Ubicación en destino (opcional)',
+                  hintText: 'Ej: Estante A2',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: observacionesController,
+                maxLines: 2,
+                decoration: const InputDecoration(
+                  labelText: 'Observaciones (opcional)',
+                  hintText: 'Observaciones adicionales',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              context.read<GestionarTransferenciaCubit>().procesarCompleto(
+                    transferenciaId: transferencia.id,
+                    empresaId: _empresaId!,
+                    ubicacion: ubicacionController.text.trim().isEmpty
+                        ? null
+                        : ubicacionController.text.trim(),
+                    observaciones: observacionesController.text.trim().isEmpty
+                        ? null
+                        : observacionesController.text.trim(),
+                  );
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
+            child: const Text('Procesar Completamente'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStepInfo(IconData icon, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: Colors.blue.shade700),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(fontSize: 12, color: Colors.blue.shade900),
+            ),
           ),
         ],
       ),

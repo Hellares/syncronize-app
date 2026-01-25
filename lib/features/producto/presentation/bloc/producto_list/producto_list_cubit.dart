@@ -15,15 +15,18 @@ class ProductoListCubit extends Cubit<ProductoListState> {
   ) : super(const ProductoListInitial());
 
   String? _currentEmpresaId;
+  String? _currentSedeId;
   ProductoFiltros _currentFiltros = const ProductoFiltros();
   List<ProductoListItem> _allProductos = [];
 
   /// Carga la lista de productos
   Future<void> loadProductos({
     required String empresaId,
+    String? sedeId,
     ProductoFiltros? filtros,
   }) async {
     _currentEmpresaId = empresaId;
+    _currentSedeId = sedeId;
     _currentFiltros = filtros ?? const ProductoFiltros();
     _allProductos = [];
 
@@ -31,6 +34,7 @@ class ProductoListCubit extends Cubit<ProductoListState> {
 
     final result = await _getProductosUseCase(
       empresaId: empresaId,
+      sedeId: sedeId,
       filtros: _currentFiltros,
     );
 
@@ -67,6 +71,7 @@ class ProductoListCubit extends Cubit<ProductoListState> {
 
     final result = await _getProductosUseCase(
       empresaId: _currentEmpresaId!,
+      sedeId: _currentSedeId,
       filtros: nextFiltros,
     );
 
@@ -91,25 +96,31 @@ class ProductoListCubit extends Cubit<ProductoListState> {
   }
 
   /// Aplica filtros y recarga la lista
-  Future<void> applyFiltros(ProductoFiltros filtros) async {
-    if (_currentEmpresaId == null) return;
-    await loadProductos(empresaId: _currentEmpresaId!, filtros: filtros);
-  }
-
-  /// Resetea los filtros
-  Future<void> resetFiltros() async {
+  Future<void> applyFiltros(ProductoFiltros filtros, {String? sedeId}) async {
     if (_currentEmpresaId == null) return;
     await loadProductos(
       empresaId: _currentEmpresaId!,
+      sedeId: sedeId ?? _currentSedeId,
+      filtros: filtros,
+    );
+  }
+
+  /// Resetea los filtros
+  Future<void> resetFiltros({String? sedeId}) async {
+    if (_currentEmpresaId == null) return;
+    await loadProductos(
+      empresaId: _currentEmpresaId!,
+      sedeId: sedeId ?? _currentSedeId,
       filtros: const ProductoFiltros(),
     );
   }
 
   /// Recarga la lista actual
-  Future<void> reload() async {
+  Future<void> reload({String? sedeId}) async {
     if (_currentEmpresaId == null) return;
     await loadProductos(
       empresaId: _currentEmpresaId!,
+      sedeId: sedeId ?? _currentSedeId,
       filtros: _currentFiltros.copyWith(page: 1),
     );
   }
@@ -117,6 +128,7 @@ class ProductoListCubit extends Cubit<ProductoListState> {
   /// Limpia el estado
   void clear() {
     _currentEmpresaId = null;
+    _currentSedeId = null;
     _currentFiltros = const ProductoFiltros();
     _allProductos = [];
     emit(const ProductoListInitial());

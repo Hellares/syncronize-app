@@ -28,6 +28,8 @@ import '../../features/producto/presentation/pages/ajuste_masivo_precios_page.da
 import '../../features/producto/presentation/pages/stock_por_sede_page.dart';
 import '../../features/producto/presentation/pages/alertas_stock_bajo_page.dart';
 import '../../features/producto/presentation/pages/transferencias_stock_page.dart';
+import '../../features/producto/presentation/pages/crear_transferencia_page.dart';
+// import '../../features/producto/presentation/pages/crear_transferencia_multiple_page.dart';
 import '../../features/catalogo/presentation/pages/gestion_categorias_page.dart';
 import '../../features/catalogo/presentation/pages/gestion_marcas_page.dart';
 import '../../features/catalogo/presentation/pages/gestion_unidades_page.dart';
@@ -208,7 +210,11 @@ class AppRouter {
         name: 'empresa-productos-detail',
         builder: (context, state) {
           final productoId = state.pathParameters['id']!;
-          return ProductoDetailPage(productoId: productoId);
+          final sedeId = state.uri.queryParameters['sedeId']; // Obtener sedeId del query parameter
+          return ProductoDetailPage(
+            productoId: productoId,
+            sedeId: sedeId,
+          );
         },
       ),
       GoRoute(
@@ -252,6 +258,16 @@ class AppRouter {
         name: 'empresa-transferencias',
         builder: (context, state) => const TransferenciasStockPage(),
       ),
+      GoRoute(
+        path: '/empresa/inventario/transferencias/crear',
+        name: 'empresa-transferencias-crear',
+        builder: (context, state) => const CrearTransferenciaPage(),
+      ),
+      // GoRoute(
+      //   path: '/empresa/inventario/transferencias/multiple',
+      //   name: 'empresa-transferencias-multiple',
+      //   builder: (context, state) => const CrearTransferenciaMultiplePage(),
+      // ),
       // Rutas de clientes
       GoRoute(
         path: '/empresa/clientes',

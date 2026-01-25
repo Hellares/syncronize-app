@@ -47,6 +47,37 @@ class TransferenciaStockRemoteDataSource {
     }
   }
 
+  /// Crear múltiples transferencias de stock
+  ///
+  /// POST /api/transferencias-stock/multiples
+  Future<Map<String, dynamic>> crearTransferenciasMultiples({
+    required String empresaId,
+    required String sedeOrigenId,
+    required String sedeDestinoId,
+    required List<Map<String, dynamic>> productos,
+    String? motivoGeneral,
+    String? observaciones,
+  }) async {
+    try {
+      final response = await _dioClient.post(
+        '/transferencias-stock/multiples',
+        data: {
+          'sedeOrigenId': sedeOrigenId,
+          'sedeDestinoId': sedeDestinoId,
+          'productos': productos,
+          if (motivoGeneral != null) 'motivoGeneral': motivoGeneral,
+          if (observaciones != null) 'observaciones': observaciones,
+        },
+      );
+
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    } catch (e) {
+      throw Exception('Error inesperado al crear transferencias múltiples: $e');
+    }
+  }
+
   /// Lista transferencias con filtros opcionales
   ///
   /// GET /api/transferencias-stock
@@ -215,6 +246,34 @@ class TransferenciaStockRemoteDataSource {
       throw _handleDioError(e);
     } catch (e) {
       throw Exception('Error inesperado al cancelar transferencia: $e');
+    }
+  }
+
+  /// Procesar completamente transferencia (aprobar + enviar + recibir)
+  ///
+  /// PUT /api/transferencias-stock/:id/procesar-completo
+  Future<TransferenciaStockModel> procesarCompletoTransferencia({
+    required String transferenciaId,
+    required String empresaId,
+    String? ubicacion,
+    String? observaciones,
+  }) async {
+    try {
+      final response = await _dioClient.put(
+        '/transferencias-stock/$transferenciaId/procesar-completo',
+        data: {
+          if (ubicacion != null) 'ubicacion': ubicacion,
+          if (observaciones != null) 'observaciones': observaciones,
+        },
+      );
+
+      return TransferenciaStockModel.fromJson(
+          response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    } catch (e) {
+      throw Exception(
+          'Error inesperado al procesar completamente la transferencia: $e');
     }
   }
 

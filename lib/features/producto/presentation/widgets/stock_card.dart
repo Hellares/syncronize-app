@@ -53,39 +53,98 @@ class StockCard extends StatelessWidget {
 
                 const SizedBox(height: 8),
 
-                // Información de stock
+                // FILA 1: Stock físico y disponible para venta (principales)
                 Row(
                   children: [
                     Expanded(
                       child: _buildInfoChip(
                         icon: Icons.inventory_2,
-                        label: 'Actual',
+                        label: 'Físico Total',
                         value: stock.stockActual.toString(),
-                        color: _getStockColor(),
+                        color: Colors.blue,
                       ),
                     ),
                     const SizedBox(width: 8),
-                    if (stock.stockMinimo != null)
-                      Expanded(
-                        child: _buildInfoChip(
-                          icon: Icons.warning_amber,
-                          label: 'Mínimo',
-                          value: stock.stockMinimo.toString(),
-                          color: Colors.orange,
-                        ),
+                    Expanded(
+                      child: _buildInfoChip(
+                        icon: Icons.shopping_cart,
+                        label: 'Disponible',
+                        value: stock.stockDisponibleVenta.toString(),
+                        color: _getStockColor(),
                       ),
-                    const SizedBox(width: 8),
-                    if (stock.stockMaximo != null)
-                      Expanded(
-                        child: _buildInfoChip(
-                          icon: Icons.trending_up,
-                          label: 'Máximo',
-                          value: stock.stockMaximo.toString(),
-                          color: Colors.blue,
-                        ),
-                      ),
+                    ),
                   ],
                 ),
+
+                // FILA 2: Reservas y mermas (solo si hay incidencias)
+                if (stock.tieneIncidencias) ...[
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      if (stock.tieneStockReservado)
+                        _buildInfoChipCompact(
+                          icon: Icons.sync_alt,
+                          label: 'Transfer.',
+                          value: stock.stockReservado.toString(),
+                          color: Colors.orange,
+                        ),
+                      if (stock.tieneStockReservadoVenta)
+                        _buildInfoChipCompact(
+                          icon: Icons.bookmark,
+                          label: 'Apartado',
+                          value: stock.stockReservadoVenta.toString(),
+                          color: Colors.purple,
+                        ),
+                      if (stock.tieneStockDanado)
+                        _buildInfoChipCompact(
+                          icon: Icons.broken_image,
+                          label: 'Dañado',
+                          value: stock.stockDanado.toString(),
+                          color: Colors.red,
+                        ),
+                      if (stock.tieneStockEnGarantia)
+                        _buildInfoChipCompact(
+                          icon: Icons.build_circle,
+                          label: 'Garantía',
+                          value: stock.stockEnGarantia.toString(),
+                          color: Colors.amber,
+                        ),
+                    ],
+                  ),
+                ],
+
+                // FILA 3: Mínimo y Máximo (configuración)
+                if (stock.stockMinimo != null || stock.stockMaximo != null) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      if (stock.stockMinimo != null)
+                        Expanded(
+                          child: _buildInfoChip(
+                            icon: Icons.warning_amber,
+                            label: 'Mínimo',
+                            value: stock.stockMinimo.toString(),
+                            color: Colors.orange.shade700,
+                          ),
+                        ),
+                      if (stock.stockMinimo != null && stock.stockMaximo != null)
+                        const SizedBox(width: 8),
+                      if (stock.stockMaximo != null)
+                        Expanded(
+                          child: _buildInfoChip(
+                            icon: Icons.trending_up,
+                            label: 'Máximo',
+                            value: stock.stockMaximo.toString(),
+                            color: Colors.blue.shade700,
+                          ),
+                        ),
+                      if ((stock.stockMinimo == null) != (stock.stockMaximo == null))
+                        const Expanded(child: SizedBox()),
+                    ],
+                  ),
+                ],
 
                 // Ubicación
                 if (stock.ubicacion != null) ...[
@@ -233,6 +292,43 @@ class StockCard extends StatelessWidget {
           const SizedBox(height: 2),
           Text(label, style: TextStyle(color: color, fontSize: 12)),
           Text(value, style: TextStyle(color: color)),
+        ],
+      ),
+    );
+  }
+
+  /// Chip compacto para mostrar reservas y mermas (formato horizontal)
+  Widget _buildInfoChipCompact({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(color: color, fontSize: 11),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            value,
+            style: TextStyle(
+              color: color,
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
         ],
       ),
     );

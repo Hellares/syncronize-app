@@ -15,6 +15,16 @@ abstract class TransferenciaStockRepository {
     String? observaciones,
   });
 
+  /// Crear múltiples transferencias de stock
+  Future<Resource<Map<String, dynamic>>> crearTransferenciasMultiples({
+    required String empresaId,
+    required String sedeOrigenId,
+    required String sedeDestinoId,
+    required List<Map<String, dynamic>> productos,
+    String? motivoGeneral,
+    String? observaciones,
+  });
+
   /// Listar transferencias con filtros opcionales
   Future<Resource<Map<String, dynamic>>> listarTransferencias({
     required String empresaId,
@@ -64,5 +74,13 @@ abstract class TransferenciaStockRepository {
     required String transferenciaId,
     required String empresaId,
     required String motivo,
+  });
+
+  /// Procesar completamente transferencia (aprobar + enviar + recibir)
+  Future<Resource<TransferenciaStock>> procesarCompletoTransferencia({
+    required String transferenciaId,
+    required String empresaId,
+    String? ubicacion,
+    String? observaciones,
   });
 }

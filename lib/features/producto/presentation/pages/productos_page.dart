@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:syncronize/core/widgets/custom_sede_selector.dart';
 import 'package:syncronize/core/widgets/floating_button_icon.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import 'package:syncronize/core/widgets/custom_loading.dart';
@@ -23,12 +24,16 @@ import '../bloc/producto_list/producto_list_cubit.dart';
 import '../bloc/producto_list/producto_list_state.dart';
 import '../bloc/ajustar_stock/ajustar_stock_cubit.dart';
 import '../bloc/agregar_stock_inicial/agregar_stock_inicial_cubit.dart';
+import '../bloc/sede_selection/sede_selection_cubit.dart';
+import '../bloc/sede_selection/sede_selection_state.dart';
+import '../bloc/configurar_precios/configurar_precios_cubit.dart';
 import '../widgets/producto_list_tile.dart';
 import '../widgets/filtros_productos_widget.dart';
 import '../widgets/archivo_manager_bottom_sheet.dart';
 import '../widgets/producto_variantes_bottom_sheet.dart';
 import '../widgets/seleccionar_sede_stock_bottom_sheet.dart';
 import '../widgets/ajustar_stock_dialog.dart';
+import '../widgets/configurar_precios_dialog.dart';
 import '../../../../core/services/storage_service.dart';
 import '../../../../core/di/injection_container.dart';
 // Imports para páginas de inventario/stock
@@ -97,6 +102,9 @@ class _ProductosPageState extends State<ProductosPage>
     if (empresaState is EmpresaContextLoaded) {
       _currentEmpresaId = empresaState.context.empresa.id;
 
+      // Obtener sede seleccionada o usar la principal
+      final sedeId = _getSedeIdActual(empresaState.context.sedes);
+
       // Aplicar filtro según el tab actual
       ProductoFiltros filtrosConTab = _filtros;
 
@@ -123,8 +131,36 @@ class _ProductosPageState extends State<ProductosPage>
 
       context.read<ProductoListCubit>().loadProductos(
         empresaId: empresaState.context.empresa.id,
+        sedeId: sedeId,
         filtros: filtrosConTab,
       );
+    }
+  }
+
+  /// Obtiene el sedeId actual (seleccionado o por defecto)
+  String? _getSedeIdActual(List<dynamic> sedes) {
+    if (sedes.isEmpty) return null;
+
+    // Obtener sede seleccionada del cubit
+    final selectedSedeId = context.read<SedeSelectionCubit>().selectedSedeId;
+
+    // Si hay una sede seleccionada y es válida, usarla
+    if (selectedSedeId != null && sedes.any((s) => s.id == selectedSedeId)) {
+      return selectedSedeId;
+    }
+
+    // Si solo hay una sede, usarla automáticamente
+    if (sedes.length == 1) {
+      return sedes.first.id;
+    }
+
+    // Si hay múltiples sedes, usar la principal
+    try {
+      final sedePrincipal = sedes.firstWhere((s) => s.esPrincipal);
+      return sedePrincipal.id;
+    } catch (e) {
+      // Si no hay sede principal, usar la primera
+      return sedes.first.id;
     }
   }
 
@@ -145,6 +181,15 @@ class _ProductosPageState extends State<ProductosPage>
     setState(() {
       _filtros = filtros;
     });
+    _loadProductos();
+  }
+
+  /// Maneja el cambio de sede
+  Future<void> _onSedeChanged(String sedeId) async {
+    // Esperar a que se actualice la sede seleccionada
+    await context.read<SedeSelectionCubit>().selectSede(sedeId);
+    // Limpiar el estado actual antes de cargar productos de la nueva sede
+    context.read<ProductoListCubit>().clear();
     _loadProductos();
   }
 
@@ -180,7 +225,10 @@ class _ProductosPageState extends State<ProductosPage>
     );
   }
 
-  Future<void> _showArchivoManager(String productoId, String productoNombre) async {
+  Future<void> _showArchivoManager(
+    String productoId,
+    String productoNombre,
+  ) async {
     final empresaState = context.read<EmpresaContextCubit>().state;
     if (empresaState is! EmpresaContextLoaded) return;
 
@@ -290,9 +338,7 @@ class _ProductosPageState extends State<ProductosPage>
                   BlocProvider.value(
                     value: context.read<EmpresaContextCubit>(),
                   ),
-                  BlocProvider.value(
-                    value: context.read<SedeListCubit>(),
-                  ),
+                  BlocProvider.value(value: context.read<SedeListCubit>()),
                 ],
                 child: AgregarStockInicialPage(producto: productoCompleto),
               ),
@@ -314,10 +360,7 @@ class _ProductosPageState extends State<ProductosPage>
       } catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
         );
       }
       return;
@@ -385,13 +428,77 @@ class _ProductosPageState extends State<ProductosPage>
           context: context,
           builder: (dialogContext) => BlocProvider(
             create: (_) => locator<AjustarStockCubit>(),
-            child: AjustarStockDialog(
+            child: AjustarStockDialog(stock: stock, empresaId: empresaId),
+          ),
+        ).then((result) {
+          // Si se ajustó correctamente, recargar la lista
+          if (result == true && mounted) {
+            _loadProductos();
+          }
+        });
+      } else if (result is Error<ProductoStock>) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al cargar stock: ${result.message}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  /// Maneja el tap en el botón de configurar precios
+  Future<void> _handlePrecioTap(ProductoListItem producto) async {
+    final empresaState = context.read<EmpresaContextCubit>().state;
+    if (empresaState is! EmpresaContextLoaded) return;
+
+    final empresaId = empresaState.context.empresa.id;
+    final sedeId = _getSedeIdActual(empresaState.context.sedes);
+
+    if (sedeId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No hay sede seleccionada'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    try {
+      // Obtener el ProductoStock completo para esta sede
+      final getStockUseCase = locator<GetStockProductoEnSedeUseCase>();
+      final result = await getStockUseCase(
+        productoId: producto.id,
+        sedeId: sedeId,
+      );
+
+      if (!mounted) return;
+
+      if (result is Success<ProductoStock>) {
+        final stock = result.data;
+        
+        // Mostrar el diálogo de configuración de precios
+        showDialog(
+          context: context,
+          builder: (dialogContext) => MultiBlocProvider(
+            providers: [
+              BlocProvider(
+                create: (_) => locator<ConfigurarPreciosCubit>(),
+              ),
+            ],
+            child: ConfigurarPreciosDialog(
               stock: stock,
               empresaId: empresaId,
             ),
           ),
         ).then((result) {
-          // Si se ajustó correctamente, recargar la lista
+          // Si se guardaron los precios correctamente, recargar la lista
           if (result == true && mounted) {
             _loadProductos();
           }
@@ -433,20 +540,24 @@ class _ProductosPageState extends State<ProductosPage>
         backgroundColor: Colors.transparent, // Hacer el scaffold transparente
         extendBodyBehindAppBar: true, // Extender el body detrás del AppBar
         appBar: SmartAppBar(
+          backgroundColor: AppColors.blue1,
+          foregroundColor: AppColors.white,
           showLogo: false,
           title: 'Productos',
+          centerTitle: false,
           actions: [
+            // Selector de sede (solo si hay más de una)
+            _buildSedeSelector(),
             // Menú de inventario
             PopupMenuButton<String>(
-              icon: const Icon(Icons.inventory_2, size: 18),
+              padding: const EdgeInsets.all(0),
+              icon: const Icon(Icons.inventory_2_outlined, size: 16),
               tooltip: 'Inventario',
               onSelected: (value) {
                 if (value == 'stock_por_sede') {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (_) => const StockPorSedePage(),
-                    ),
+                    MaterialPageRoute(builder: (_) => const StockPorSedePage()),
                   );
                 } else if (value == 'alertas') {
                   Navigator.push(
@@ -509,38 +620,45 @@ class _ProductosPageState extends State<ProductosPage>
               tooltip: 'Actualizar',
             ),
           ],
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(37),
-            child: TabBar(
-              controller: _tabController,
-              labelStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-              unselectedLabelStyle: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w400,
-              ),
-              dividerHeight: 0,
-              labelColor: AppColors.blue1,
-              unselectedLabelColor: Colors.grey,
-              labelPadding: const EdgeInsets.symmetric(horizontal: 10),
-              indicatorPadding: const EdgeInsets.only(bottom: 13),
-              indicatorSize: TabBarIndicatorSize.label,
-              indicatorWeight: 2,
-              indicator: const UnderlineTabIndicator(
-                borderSide: BorderSide(width: 2, color: AppColors.blue1),
-              ),
-              tabs: [
-                Tab(text: 'TODOS'),
-                Tab(text: 'PRODUCTOS'),
-                Tab(text: 'COMBOS'),
-              ],
-            ),
-          ),
         ),
         body: GradientBackground(
           style: GradientStyle.professional,
           child: SafeArea(
             child: Column(
               children: [
+                Container(
+                  height: 40, // Mismo height que antes
+                  color: AppColors
+                      .blue1, // O el color de tu gradient si quieres seamless
+                  child: TabBar(
+                    controller: _tabController,
+                    labelStyle: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    unselectedLabelStyle: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w400,
+                    ),
+                    dividerHeight: 0,
+                    labelColor: AppColors.white,
+                    unselectedLabelColor: Colors.grey,
+                    labelPadding: const EdgeInsets.symmetric(horizontal: 10),
+                    indicatorPadding: const EdgeInsets.only(bottom: 10),
+                    indicatorSize: TabBarIndicatorSize.label,
+                    indicatorWeight: 2,
+                    indicator: const UnderlineTabIndicator(
+                      borderSide: BorderSide(width: 2, color: AppColors.white),
+                    ),
+                    tabs: const [
+                      Tab(text: 'TODOS'),
+                      Tab(text: 'PRODUCTOS'),
+                      Tab(text: 'COMBOS'),
+                    ],
+                  ),
+                ),
+
+                SizedBox(height: 15),
                 _buildSearchBar(),
                 const SizedBox(height: 8),
                 Expanded(child: _buildProductList()),
@@ -569,7 +687,7 @@ class _ProductosPageState extends State<ProductosPage>
 
   Widget _buildSearchBar() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 10),
       child: CustomText(
         borderColor: AppColors.cardBackground,
         borderWidth: 1,
@@ -627,7 +745,7 @@ class _ProductosPageState extends State<ProductosPage>
             },
             child: ListView.builder(
               controller: _scrollController,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 10),
               itemCount: productos.length + (state.hasMore ? 1 : 0),
               itemBuilder: (context, index) {
                 if (index >= productos.length) {
@@ -638,8 +756,16 @@ class _ProductosPageState extends State<ProductosPage>
                 }
 
                 final producto = productos[index];
+                final empresaContext = context
+                    .read<EmpresaContextCubit>()
+                    .state;
+                final sedeId = empresaContext is EmpresaContextLoaded
+                    ? _getSedeIdActual(empresaContext.context.sedes)
+                    : null;
+
                 return ProductoListTile(
                   producto: producto,
+                  sedeId: sedeId,
                   onTap: () {
                     // Navegar a la página correcta según el tipo
                     if (producto.esCombo) {
@@ -652,20 +778,18 @@ class _ProductosPageState extends State<ProductosPage>
                         );
                       }
                     } else {
-                      context.push('/empresa/productos/${producto.id}');
+                      // Pasar sedeId al detalle del producto
+                      final sedeParam = sedeId != null ? '?sedeId=$sedeId' : '';
+                      context.push('/empresa/productos/${producto.id}$sedeParam');
                     }
                   },
-                  onManageFiles: () => _showArchivoManager(
-                    producto.id,
-                    producto.nombre,
-                  ),
+                  onManageFiles: () =>
+                      _showArchivoManager(producto.id, producto.nombre),
                   onViewVariants: producto.tieneVariantes
-                      ? () => _showVariantes(
-                            producto.id,
-                            producto.nombre,
-                          )
+                      ? () => _showVariantes(producto.id, producto.nombre)
                       : null,
                   onStockDoubleTap: () => _handleStockDoubleTap(producto),
+                  onPrecioTap: () => _handlePrecioTap(producto),
                 );
               },
             ),
@@ -692,8 +816,16 @@ class _ProductosPageState extends State<ProductosPage>
                 }
 
                 final producto = productos[index];
+                final empresaContext = context
+                    .read<EmpresaContextCubit>()
+                    .state;
+                final sedeId = empresaContext is EmpresaContextLoaded
+                    ? _getSedeIdActual(empresaContext.context.sedes)
+                    : null;
+
                 return ProductoListTile(
                   producto: producto,
+                  sedeId: sedeId,
                   onTap: () {
                     // Navegar a la página correcta según el tipo
                     if (producto.esCombo) {
@@ -706,20 +838,18 @@ class _ProductosPageState extends State<ProductosPage>
                         );
                       }
                     } else {
-                      context.push('/empresa/productos/${producto.id}');
+                      // Pasar sedeId al detalle del producto
+                      final sedeParam = sedeId != null ? '?sedeId=$sedeId' : '';
+                      context.push('/empresa/productos/${producto.id}$sedeParam');
                     }
                   },
-                  onManageFiles: () => _showArchivoManager(
-                    producto.id,
-                    producto.nombre,
-                  ),
+                  onManageFiles: () =>
+                      _showArchivoManager(producto.id, producto.nombre),
                   onViewVariants: producto.tieneVariantes
-                      ? () => _showVariantes(
-                            producto.id,
-                            producto.nombre,
-                          )
+                      ? () => _showVariantes(producto.id, producto.nombre)
                       : null,
                   onStockDoubleTap: () => _handleStockDoubleTap(producto),
+                  onPrecioTap: () => _handlePrecioTap(producto),
                 );
               },
             ),
@@ -775,6 +905,153 @@ class _ProductosPageState extends State<ProductosPage>
           ],
         ),
       ),
+    );
+  }
+
+  /// Construye el selector de sede
+  /// Solo se muestra si hay más de una sede disponible
+  Widget _buildSedeSelector() {
+    return BlocBuilder<EmpresaContextCubit, EmpresaContextState>(
+      builder: (context, empresaState) {
+        // Si no hay empresa cargada, no mostrar selector
+        if (empresaState is! EmpresaContextLoaded) {
+          return const SizedBox.shrink();
+        }
+
+        final sedes = empresaState.context.sedes;
+
+        // Si solo hay una sede o ninguna, no mostrar selector
+        if (sedes.length <= 1) return const SizedBox.shrink();
+
+        return BlocBuilder<SedeSelectionCubit, SedeSelectionState>(
+          builder: (context, sedeState) {
+            // Obtener el sedeId actual
+            final sedeIdActual = _getSedeIdActual(sedes);
+            if (sedeIdActual == null) return const SizedBox.shrink();
+
+            // Buscar la sede actual
+            dynamic sedeActual;
+            try {
+              sedeActual = sedes.firstWhere((s) => s.id == sedeIdActual);
+            } catch (e) {
+              sedeActual = sedes.first;
+            }
+
+            // return PopupMenuButton<String>(
+            //   tooltip: 'Cambiar sede',
+            //   onSelected: _onSedeChanged,
+            //   itemBuilder: (context) => sedes.map((sede) {
+            //     final isSelected = sede.id == sedeIdActual;
+            //     return PopupMenuItem(
+            //       value: sede.id,
+            //       child: Row(
+            //         children: [
+            //           Icon(
+            //             isSelected
+            //                 ? Icons.check_circle
+            //                 : IconData(
+            //                     sede.tipoSedeIconCode,
+            //                     fontFamily: 'MaterialIcons',
+            //                   ),
+            //             size: 18,
+            //             color: isSelected
+            //                 ? Theme.of(context).primaryColor
+            //                 : Color(sede.tipoSedeColor),
+            //           ),
+            //           const SizedBox(width: 12),
+            //           Expanded(
+            //             child: Column(
+            //               crossAxisAlignment: CrossAxisAlignment.start,
+            //               children: [
+            //                 Text(
+            //                   sede.nombre,
+            //                   style: TextStyle(
+            //                     fontWeight: isSelected
+            //                         ? FontWeight.w600
+            //                         : FontWeight.w400,
+            //                   ),
+            //                 ),
+            //                 Text(
+            //                   sede.tipoSede.displayName,
+            //                   style: TextStyle(
+            //                     fontSize: 12,
+            //                     color: Colors.grey[600],
+            //                   ),
+            //                 ),
+            //               ],
+            //             ),
+            //           ),
+            //           if (sede.esPrincipal)
+            //             Container(
+            //               padding: const EdgeInsets.symmetric(horizontal: 6),
+            //               decoration: BoxDecoration(
+            //                 color: Colors.amber.withValues(alpha: 0.2),
+            //                 borderRadius: BorderRadius.circular(4),
+            //               ),
+            //               child: Text(
+            //                 'Principal',
+            //                 style: TextStyle(
+            //                   fontSize: 12,
+            //                   color: Colors.amber[900],
+            //                   fontWeight: FontWeight.w600,
+            //                 ),
+            //               ),
+            //             ),
+            //         ],
+            //       ),
+            //     );
+            //   }).toList(),
+            //   child: Padding(
+            //     padding: const EdgeInsets.only(
+            //       left: 8,
+            //       right: 8,
+            //     ), // Padding mínimo, igual que IconButton en AppBar compacta
+            //     child: Row(
+            //       mainAxisSize: MainAxisSize.min,
+            //       crossAxisAlignment:
+            //           CrossAxisAlignment.center, // Centrado vertical perfecto
+            //       children: [
+            //         Icon(
+            //           IconData(
+            //             sedeActual.tipoSedeIconCode,
+            //             fontFamily: 'MaterialIcons',
+            //           ),
+            //           size: 18, // Tamaño ideal para 35 px de altura
+            //           color: Color(sedeActual.tipoSedeColor),
+            //         ),
+            //         const SizedBox(width: 6), // Espacio muy reducido
+            //         Flexible(
+            //           child: Text(
+            //             sedeActual.nombre,
+            //             style: const TextStyle(
+            //               fontWeight: FontWeight.w500,
+            //               fontSize:
+            //                   12, // Compacto y legible, mantiene tu estilo original
+            //             ),
+            //             overflow: TextOverflow.ellipsis,
+            //             maxLines: 1,
+            //           ),
+            //         ),
+            //         const SizedBox(width: 6),
+            //         const Icon(Icons.arrow_drop_down, size: 18),
+            //       ],
+            //     ),
+            //   ),
+            // );
+            return Tooltip(
+  message: 'Cambiar sede',
+  child: CustomSedeSelector(
+    sedes: sedes,
+    currentSede: sedeActual,
+    onSelected: _onSedeChanged,
+    // Opcional: personaliza si quieres
+    // menuWidth: 280,
+    // borderRadius: 16,
+  ),
+);
+          },
+        );
+      },
     );
   }
 }

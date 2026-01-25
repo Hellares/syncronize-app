@@ -109,6 +109,15 @@ class _AgregarStockInicialPageState extends State<AgregarStockInicialPage> {
           ubicacion: controllers.ubicacionController.text.trim().isEmpty
               ? null
               : controllers.ubicacionController.text.trim(),
+          precio: controllers.precioController.text.isEmpty
+              ? null
+              : double.tryParse(controllers.precioController.text),
+          precioCosto: controllers.precioCostoController.text.isEmpty
+              ? null
+              : double.tryParse(controllers.precioCostoController.text),
+          precioOferta: controllers.precioOfertaController.text.isEmpty
+              ? null
+              : double.tryParse(controllers.precioOfertaController.text),
         );
       }
     }
@@ -375,6 +384,49 @@ class _AgregarStockInicialPageState extends State<AgregarStockInicialPage> {
                         label: 'Ubicación física (opcional)',
                         hintText: 'Ej: Pasillo 3, Estante B',
                       ),
+                      const SizedBox(height: 16),
+                      AppSubtitle('PRECIOS (OPCIONALES)'),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Los precios pueden configurarse ahora o más tarde',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: CustomText(
+                              controller: controllers.precioController,
+                              borderColor: AppColors.blue1,
+                              label: 'Precio Venta',
+                              hintText: '0.00',
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: CustomText(
+                              controller: controllers.precioCostoController,
+                              borderColor: AppColors.blue1,
+                              label: 'Precio Costo',
+                              hintText: '0.00',
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      CustomText(
+                        controller: controllers.precioOfertaController,
+                        borderColor: AppColors.blue1,
+                        label: 'Precio Oferta (opcional)',
+                        hintText: '0.00',
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      ),
                     ],
                   ],
                 ),
@@ -451,11 +503,17 @@ class SedeStockControllers {
   final stockMinimoController = TextEditingController();
   final stockMaximoController = TextEditingController();
   final ubicacionController = TextEditingController();
+  final precioController = TextEditingController();
+  final precioCostoController = TextEditingController();
+  final precioOfertaController = TextEditingController();
 
   void dispose() {
     cantidadController.dispose();
     stockMinimoController.dispose();
     stockMaximoController.dispose();
     ubicacionController.dispose();
+    precioController.dispose();
+    precioCostoController.dispose();
+    precioOfertaController.dispose();
   }
 }

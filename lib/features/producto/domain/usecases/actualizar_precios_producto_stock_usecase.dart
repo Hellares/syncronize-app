@@ -3,38 +3,26 @@ import '../../../../core/utils/resource.dart';
 import '../entities/producto_stock.dart';
 import '../repositories/producto_stock_repository.dart';
 
-/// Use case para crear stock inicial en una sede
+/// Use case para actualizar los precios de un ProductoStock
 @injectable
-class CrearStockInicialUseCase {
+class ActualizarPreciosProductoStockUseCase {
   final ProductoStockRepository _repository;
 
-  CrearStockInicialUseCase(this._repository);
+  ActualizarPreciosProductoStockUseCase(this._repository);
 
   Future<Resource<ProductoStock>> call({
+    required String productoStockId,
     required String empresaId,
-    required String sedeId,
-    String? productoId,
-    String? varianteId,
-    required int stockActual,
-    int? stockMinimo,
-    int? stockMaximo,
-    String? ubicacion,
     double? precio,
     double? precioCosto,
     double? precioOferta,
-    bool? enOferta,
+    required bool enOferta,
     DateTime? fechaInicioOferta,
     DateTime? fechaFinOferta,
   }) async {
-    return await _repository.crearStock(
+    return await _repository.actualizarPrecios(
+      productoStockId: productoStockId,
       empresaId: empresaId,
-      sedeId: sedeId,
-      productoId: productoId,
-      varianteId: varianteId,
-      stockActual: stockActual,
-      stockMinimo: stockMinimo,
-      stockMaximo: stockMaximo,
-      ubicacion: ubicacion,
       precio: precio,
       precioCosto: precioCosto,
       precioOferta: precioOferta,

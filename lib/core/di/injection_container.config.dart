@@ -276,6 +276,8 @@ import '../../features/producto/domain/repositories/producto_stock_repository.da
     as _i262;
 import '../../features/producto/domain/repositories/transferencia_stock_repository.dart'
     as _i812;
+import '../../features/producto/domain/usecases/actualizar_precios_producto_stock_usecase.dart'
+    as _i395;
 import '../../features/producto/domain/usecases/actualizar_producto_usecase.dart'
     as _i604;
 import '../../features/producto/domain/usecases/ajustar_stock_usecase.dart'
@@ -288,6 +290,8 @@ import '../../features/producto/domain/usecases/crear_stock_inicial_usecase.dart
     as _i494;
 import '../../features/producto/domain/usecases/crear_transferencia_usecase.dart'
     as _i629;
+import '../../features/producto/domain/usecases/crear_transferencias_multiples_usecase.dart'
+    as _i831;
 import '../../features/producto/domain/usecases/eliminar_producto_usecase.dart'
     as _i419;
 import '../../features/producto/domain/usecases/gestionar_transferencia_usecase.dart'
@@ -310,6 +314,8 @@ import '../../features/producto/domain/usecases/get_stock_todas_sedes_usecase.da
     as _i858;
 import '../../features/producto/domain/usecases/listar_transferencias_usecase.dart'
     as _i875;
+import '../../features/producto/domain/usecases/procesar_completo_transferencia_usecase.dart'
+    as _i1062;
 import '../../features/producto/presentation/bloc/agregar_stock_inicial/agregar_stock_inicial_cubit.dart'
     as _i873;
 import '../../features/producto/presentation/bloc/ajustar_stock/ajustar_stock_cubit.dart'
@@ -322,6 +328,8 @@ import '../../features/producto/presentation/bloc/atributo_plantilla/atributo_pl
     as _i123;
 import '../../features/producto/presentation/bloc/configuracion_precio/configuracion_precio_cubit.dart'
     as _i840;
+import '../../features/producto/presentation/bloc/configurar_precios/configurar_precios_cubit.dart'
+    as _i303;
 import '../../features/producto/presentation/bloc/crear_transferencia/crear_transferencia_cubit.dart'
     as _i238;
 import '../../features/producto/presentation/bloc/gestionar_transferencia/gestionar_transferencia_cubit.dart'
@@ -338,6 +346,8 @@ import '../../features/producto/presentation/bloc/producto_list/producto_list_cu
     as _i227;
 import '../../features/producto/presentation/bloc/producto_variante/producto_variante_cubit.dart'
     as _i693;
+import '../../features/producto/presentation/bloc/sede_selection/sede_selection_cubit.dart'
+    as _i528;
 import '../../features/producto/presentation/bloc/stock_por_sede/stock_por_sede_cubit.dart'
     as _i656;
 import '../../features/producto/presentation/bloc/stock_todas_sedes/stock_todas_sedes_cubit.dart'
@@ -416,6 +426,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i895.Connectivity>(() => registerModule.connectivity);
     gh.lazySingleton<_i361.Dio>(() => registerModule.dio);
     gh.lazySingleton<_i141.LoggerService>(() => _i141.LoggerService());
+    gh.factory<_i528.SedeSelectionCubit>(
+      () => _i528.SedeSelectionCubit(gh<_i460.SharedPreferences>()),
+    );
     gh.lazySingleton<_i361.Dio>(
       () => registerModule.authDio,
       instanceName: 'authDio',
@@ -744,6 +757,11 @@ extension GetItInjectableX on _i174.GetIt {
         getCatalogoPreviewUseCase: gh<_i75.GetCatalogoPreviewUseCase>(),
       ),
     );
+    gh.factory<_i395.ActualizarPreciosProductoStockUseCase>(
+      () => _i395.ActualizarPreciosProductoStockUseCase(
+        gh<_i262.ProductoStockRepository>(),
+      ),
+    );
     gh.factory<_i132.AjustarStockUseCase>(
       () => _i132.AjustarStockUseCase(gh<_i262.ProductoStockRepository>()),
     );
@@ -927,6 +945,11 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i812.TransferenciaStockRepository>(),
       ),
     );
+    gh.factory<_i831.CrearTransferenciasMultiplesUseCase>(
+      () => _i831.CrearTransferenciasMultiplesUseCase(
+        gh<_i812.TransferenciaStockRepository>(),
+      ),
+    );
     gh.factory<_i917.ObtenerTransferenciaUseCase>(
       () => _i917.ObtenerTransferenciaUseCase(
         gh<_i812.TransferenciaStockRepository>(),
@@ -962,6 +985,11 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i812.TransferenciaStockRepository>(),
       ),
     );
+    gh.factory<_i1062.ProcesarCompletoTransferenciaUseCase>(
+      () => _i1062.ProcesarCompletoTransferenciaUseCase(
+        gh<_i812.TransferenciaStockRepository>(),
+      ),
+    );
     gh.factory<_i863.CategoriasMaestrasCubit>(
       () => _i863.CategoriasMaestrasCubit(
         gh<_i736.GetCategoriasMaestrasUseCase>(),
@@ -981,13 +1009,15 @@ extension GetItInjectableX on _i174.GetIt {
         errorHandler: gh<_i490.ErrorHandlerService>(),
       ),
     );
-    gh.factory<_i773.GestionarTransferenciaCubit>(
-      () => _i773.GestionarTransferenciaCubit(
-        gh<_i917.AprobarTransferenciaUseCase>(),
-        gh<_i917.EnviarTransferenciaUseCase>(),
-        gh<_i917.RecibirTransferenciaUseCase>(),
-        gh<_i917.RechazarTransferenciaUseCase>(),
-        gh<_i917.CancelarTransferenciaUseCase>(),
+    gh.factory<_i303.ConfigurarPreciosCubit>(
+      () => _i303.ConfigurarPreciosCubit(
+        gh<_i395.ActualizarPreciosProductoStockUseCase>(),
+      ),
+    );
+    gh.factory<_i238.CrearTransferenciaCubit>(
+      () => _i238.CrearTransferenciaCubit(
+        gh<_i629.CrearTransferenciaUseCase>(),
+        gh<_i831.CrearTransferenciasMultiplesUseCase>(),
       ),
     );
     gh.factory<_i121.UnidadMedidaCubit>(
@@ -1037,15 +1067,19 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i291.MarcasMaestrasCubit>(
       () => _i291.MarcasMaestrasCubit(gh<_i608.GetMarcasMaestrasUseCase>()),
     );
+    gh.factory<_i873.AgregarStockInicialCubit>(
+      () => _i873.AgregarStockInicialCubit(
+        gh<_i494.CrearStockInicialUseCase>(),
+        gh<_i265.GetStockProductoEnSedeUseCase>(),
+        gh<_i395.ActualizarPreciosProductoStockUseCase>(),
+        gh<_i132.AjustarStockUseCase>(),
+      ),
+    );
     gh.factory<_i900.PoliticaListCubit>(
       () => _i900.PoliticaListCubit(
         gh<_i849.GetPoliticasDescuento>(),
         gh<_i26.DeletePolitica>(),
       ),
-    );
-    gh.factory<_i873.AgregarStockInicialCubit>(
-      () =>
-          _i873.AgregarStockInicialCubit(gh<_i494.CrearStockInicialUseCase>()),
     );
     gh.factory<_i68.PrecioNivelCubit>(
       () => _i68.PrecioNivelCubit(gh<_i640.PrecioNivelRepository>()),
@@ -1092,10 +1126,6 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i914.AlertasStockCubit>(
       () => _i914.AlertasStockCubit(gh<_i752.GetAlertasStockBajoUseCase>()),
-    );
-    gh.factory<_i238.CrearTransferenciaCubit>(
-      () =>
-          _i238.CrearTransferenciaCubit(gh<_i629.CrearTransferenciaUseCase>()),
     );
     gh.factory<_i788.ChangePasswordUseCase>(
       () => _i788.ChangePasswordUseCase(gh<_i787.AuthRepository>()),
@@ -1161,6 +1191,16 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i410.TransferenciasListCubit>(
       () => _i410.TransferenciasListCubit(
         gh<_i875.ListarTransferenciasUseCase>(),
+      ),
+    );
+    gh.factory<_i773.GestionarTransferenciaCubit>(
+      () => _i773.GestionarTransferenciaCubit(
+        gh<_i917.AprobarTransferenciaUseCase>(),
+        gh<_i917.EnviarTransferenciaUseCase>(),
+        gh<_i917.RecibirTransferenciaUseCase>(),
+        gh<_i917.RechazarTransferenciaUseCase>(),
+        gh<_i917.CancelarTransferenciaUseCase>(),
+        gh<_i1062.ProcesarCompletoTransferenciaUseCase>(),
       ),
     );
     gh.factory<_i147.RegisterCubit>(

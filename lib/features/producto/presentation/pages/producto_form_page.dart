@@ -18,6 +18,7 @@ import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../domain/entities/atributo_plantilla.dart';
 import '../../domain/entities/producto_atributo.dart';
+import '../../domain/entities/atributo_valor.dart';
 import '../../../auth/presentation/widgets/custom_button.dart';
 import '../bloc/producto_detail/producto_detail_cubit.dart';
 import '../bloc/producto_detail/producto_detail_state.dart';
@@ -284,10 +285,29 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
       context.read<ProductoImagesCubit>().loadExistingImages(existingImages);
     }
 
+    // Cargar atributos del producto (si tiene y no es variante ni combo)
+    if (!producto.tieneVariantes && !producto.esCombo &&
+        producto.atributosValores != null &&
+        producto.atributosValores!.isNotEmpty) {
+      _cargarAtributosProducto(producto.atributosValores!);
+    }
+
     setState(() {
       _controller.selectedCategoriaId = producto.empresaCategoriaId;
       _controller.selectedMarcaId = producto.empresaMarcaId;
-      _controller.selectedSedesIds = producto.sedeId != null ? [producto.sedeId!] : [];  // Cargar sede del producto
+
+      // Cargar todas las sedes donde está el producto (basado en stocksPorSede)
+      if (producto.stocksPorSede != null && producto.stocksPorSede!.isNotEmpty) {
+        _controller.selectedSedesIds = (producto.stocksPorSede as List)
+            .map<String>((stock) => stock.sedeId as String)
+            .toList();
+      } else if (producto.sedeId != null) {
+        // Fallback para productos antiguos sin stocksPorSede
+        _controller.selectedSedesIds = [producto.sedeId!];
+      } else {
+        _controller.selectedSedesIds = [];
+      }
+
       _controller.selectedUnidadMedidaId = producto.unidadMedidaId;  // Cargar unidad de medida del producto
       // _selectedConfiguracionPrecioId = producto.configuracionPrecioId;
       _controller.selectedConfiguracionPrecioId = producto.configuracionPrecioId;
@@ -304,6 +324,57 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
         _controller.fechaFinOferta = producto.fechaFinOferta;
       }
     });
+  }
+
+  /// Cargar atributos del producto y detectar la plantilla correspondiente
+  void _cargarAtributosProducto(List<AtributoValor> atributosValores) {
+    if (atributosValores.isEmpty) return;
+
+    // Obtener los IDs de los atributos del producto
+    final atributosIds = atributosValores.map((av) => av.atributoId).toSet();
+
+    // Buscar plantilla que coincida con estos atributos
+    final plantillaState = context.read<AtributoPlantillaCubit>().state;
+    if (plantillaState is AtributoPlantillaLoaded) {
+      // Buscar plantilla que contenga exactamente los mismos atributos
+      AtributoPlantilla? plantillaCoincidente;
+
+      for (final plantilla in plantillaState.plantillas) {
+        final plantillaAtributosIds = plantilla.atributos.map((pa) => pa.atributo.id).toSet();
+
+        // Verificar si los atributos del producto están contenidos en esta plantilla
+        // (puede que la plantilla tenga más atributos, pero debe tener al menos los del producto)
+        if (atributosIds.every((id) => plantillaAtributosIds.contains(id))) {
+          plantillaCoincidente = plantilla;
+          break;
+        }
+      }
+
+      if (plantillaCoincidente != null) {
+        // Cargar la plantilla encontrada
+        setState(() {
+          _controller.selectedPlantillaId = plantillaCoincidente!.id;
+          _controller.selectedPlantilla = plantillaCoincidente;
+          _controller.plantillaAtributosValues.clear();
+
+          // Cargar los valores de los atributos
+          for (final atributoValor in atributosValores) {
+            _controller.plantillaAtributosValues[atributoValor.atributoId] = atributoValor.valor;
+          }
+
+          // Inicializar valores vacíos para atributos que no tienen valor
+          for (final atributo in plantillaCoincidente.atributos) {
+            if (!_controller.plantillaAtributosValues.containsKey(atributo.atributo.id)) {
+              _controller.plantillaAtributosValues[atributo.atributo.id] = '';
+            }
+          }
+        });
+      } else {
+        // Si no se encuentra plantilla coincidente, cargar los valores sin plantilla
+        // En este caso, los atributos se asignaron manualmente (sin plantilla)
+        // No hacer nada, ya que la UI solo muestra plantillas
+      }
+    }
   }
 
   @override
@@ -675,10 +746,30 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
     );
 
     if (widget.isEditing) {
-      return BlocListener<ProductoDetailCubit, ProductoDetailState>(
+      // Listener para cuando se carga el producto
+      content = BlocListener<ProductoDetailCubit, ProductoDetailState>(
         listener: (context, state) {
           if (state is ProductoDetailLoaded) {
             _fillFormWithProducto(state.producto);
+          }
+        },
+        child: content,
+      );
+
+      // Listener para cuando se cargan las plantillas (para productos con atributos)
+      content = BlocListener<AtributoPlantillaCubit, AtributoPlantillaState>(
+        listener: (context, state) {
+          if (state is AtributoPlantillaLoaded) {
+            // Si ya se cargó el producto y tiene atributos, intentar cargarlos
+            final productoState = context.read<ProductoDetailCubit>().state;
+            if (productoState is ProductoDetailLoaded) {
+              final producto = productoState.producto;
+              if (!producto.tieneVariantes && !producto.esCombo &&
+                  producto.atributosValores != null &&
+                  producto.atributosValores!.isNotEmpty) {
+                _cargarAtributosProducto(producto.atributosValores!);
+              }
+            }
           }
         },
         child: content,

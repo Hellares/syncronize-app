@@ -13,6 +13,8 @@ class ProductoListTile extends StatelessWidget {
   final VoidCallback? onManageFiles;
   final VoidCallback? onViewVariants;
   final VoidCallback? onStockDoubleTap;
+  final VoidCallback? onPrecioTap; // Callback para configurar precios
+  final String? sedeId; // Para obtener precios específicos de la sede
 
   const ProductoListTile({
     super.key,
@@ -21,7 +23,57 @@ class ProductoListTile extends StatelessWidget {
     this.onManageFiles,
     this.onViewVariants,
     this.onStockDoubleTap,
+    this.onPrecioTap,
+    this.sedeId,
   });
+
+  // Getters para obtener precios por sede si está disponible
+  double get _precioEfectivo {
+    if (sedeId != null) {
+      final precioSede = producto.precioEfectivoEnSede(sedeId!);
+      if (precioSede != null) return precioSede;
+    }
+    return producto.precioEfectivo;
+  }
+
+  double get _precio {
+    if (sedeId != null) {
+      final precioSede = producto.precioEnSede(sedeId!);
+      if (precioSede != null) return precioSede;
+    }
+    return producto.precio;
+  }
+
+  // Helper para formatear precios de manera segura
+  String _formatPrecio(double precio) {
+    return precio.toStringAsFixed(2);
+  }
+
+  bool get _isOfertaActiva {
+    if (sedeId != null) {
+      return producto.enOfertaEnSede(sedeId!);
+    }
+    return producto.isOfertaActiva;
+  }
+
+  double? get _porcentajeDescuento {
+    if (sedeId != null) {
+      return producto.porcentajeDescuentoEnSede(sedeId!);
+    }
+    return producto.porcentajeDescuento;
+  }
+
+  // Verifica si el producto tiene precio configurado
+  bool _tienePrecioConfigurado() {
+    if (sedeId != null && producto.stocksPorSede != null) {
+      final stockSede = producto.stocksPorSede!.where((s) => s.sedeId == sedeId).firstOrNull;
+      if (stockSede != null) {
+        return stockSede.precioConfigurado && stockSede.precio != null && stockSede.precio! > 0;
+      }
+    }
+    // Fallback: verificar precio base del producto
+    return producto.precio > 0;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -124,6 +176,46 @@ class ProductoListTile extends StatelessWidget {
                           Icons.attach_file,
                           size: 14,
                           color: AppColors.blue1,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+              // Botón de configurar precio en esquina inferior derecha (izquierda del stock)
+              if (onPrecioTap != null)
+                Positioned(
+                  bottom: 0,
+                  right: 35, // A la izquierda del botón de stock
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: onPrecioTap,
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(4),
+                        topRight: Radius.circular(4),
+                        bottomRight: Radius.circular(4),
+                        bottomLeft: Radius.circular(4),
+                      ),
+                      child: Container(
+                        padding: const EdgeInsets.all(5),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withValues(alpha: 0.1),
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(4),
+                            topRight: Radius.circular(4),
+                            bottomRight: Radius.circular(4),
+                            bottomLeft: Radius.circular(4),
+                          ),
+                          border: Border.all(
+                            color: AppColors.cardBackground,
+                            width: 1,
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.attach_money,
+                          size: 14,
+                          color: Colors.green,
                         ),
                       ),
                     ),
@@ -298,30 +390,40 @@ class ProductoListTile extends StatelessWidget {
         ),
 
         // Línea 1: Precio con descuento + badge de descuento inline
-        if (producto.isOfertaActiva) ...[
+        if (!_tienePrecioConfigurado()) ...[
+          const Text(
+            'Sin precio',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: Colors.orange,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ] else if (_isOfertaActiva) ...[
           Wrap(
             spacing: 8,
             runSpacing: 4,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Text(
-                'S/ ${producto.precioEfectivo.toStringAsFixed(2)}',
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.green,
-                ),
-              ),
-              Text(
-                'S/ ${producto.precio.toStringAsFixed(2)}',
-                style: TextStyle(
-                  fontSize: 11,
-                  decoration: TextDecoration.lineThrough,
-                  color: Colors.grey[500],
-                ),
-              ),
+               'S/ ${_formatPrecio(_precioEfectivo)}',
+               style: const TextStyle(
+                 fontSize: 11,
+                 fontWeight: FontWeight.bold,
+                 color: Colors.green,
+               ),
+             ),
+             Text(
+               'S/ ${_formatPrecio(_precio)}',
+               style: TextStyle(
+                 fontSize: 11,
+                 decoration: TextDecoration.lineThrough,
+                 color: Colors.grey[500],
+               ),
+             ),
               // Badge de descuento inline con fecha
-              if (producto.porcentajeDescuento != null)
+              if (_porcentajeDescuento != null)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
@@ -344,7 +446,7 @@ class ProductoListTile extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        '-${producto.porcentajeDescuento!.toStringAsFixed(0)}%',
+                        '-${_porcentajeDescuento?.toStringAsFixed(0) ?? '0'}%',
                         style: const TextStyle(
                           fontSize: 9,
                           fontWeight: FontWeight.bold,
@@ -383,13 +485,13 @@ class ProductoListTile extends StatelessWidget {
           ),
         ] else ...[
           Text(
-            'S/ ${producto.precioEfectivo.toStringAsFixed(2)}',
-            style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
-            ),
-          ),
+           'S/ ${_formatPrecio(_precioEfectivo)}',
+           style: const TextStyle(
+             fontSize: 11,
+             fontWeight: FontWeight.bold,
+             color: AppColors.textPrimary,
+           ),
+         ),
         ],
 
         // Línea 2: Stock badge + COMBO badge (horizontal)
@@ -398,6 +500,27 @@ class ProductoListTile extends StatelessWidget {
           children: [
             // Stock badge
             _buildStockBadge(),
+
+            // SIN PRECIO badge (solo si no tiene precio configurado)
+            if (!_tienePrecioConfigurado()) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4.5),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(
+                    color: Colors.orange.withValues(alpha: 0.4),
+                    width: 0.6
+                  ),
+                ),
+                child: AppSubtitle(
+                  'SIN PRECIO',
+                  fontSize: 8,
+                  color: Colors.orange.shade700,
+                ),
+              ),
+            ],
 
             // COMBO badge
             if (producto.esCombo) ...[

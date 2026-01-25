@@ -22,8 +22,13 @@ import '../../domain/entities/producto_variante.dart';
 
 class ProductoDetailPage extends StatefulWidget {
   final String productoId;
+  final String? sedeId; // Sede seleccionada para mostrar precios y stock específicos
 
-  const ProductoDetailPage({super.key, required this.productoId});
+  const ProductoDetailPage({
+    super.key,
+    required this.productoId,
+    this.sedeId,
+  });
 
   @override
   State<ProductoDetailPage> createState() => _ProductoDetailPageState();
@@ -262,11 +267,59 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
   }
 
   Widget _buildPriceSection(dynamic producto) {
+    // Obtener precio y stock según la sede seleccionada
+    double precioMostrar = producto.precio ?? 0.0;
+    double precioEfectivoMostrar = producto.precioEfectivo ?? 0.0;
+    int stockMostrar = producto.stockTotal ?? 0;
+    bool isOfertaActivaSede = producto.isOfertaActiva ?? false;
+    double? porcentajeDescuentoSede = producto.porcentajeDescuento;
+    DateTime? fechaInicioOfertaSede = producto.fechaInicioOferta;
+    DateTime? fechaFinOfertaSede = producto.fechaFinOferta;
+    bool tienePrecioConfigurado = precioMostrar > 0;
+
+    // Si hay sede seleccionada, buscar los datos específicos de esa sede
+    if (widget.sedeId != null && producto.stocksPorSede != null) {
+      try {
+        final stockSede = producto.stocksPorSede!.firstWhere(
+          (s) => s.sedeId == widget.sedeId,
+        );
+
+        // Stock de la sede
+        stockMostrar = stockSede.cantidad ?? 0;
+
+        // Precios de la sede (si están configurados)
+        if (stockSede.precioConfigurado && stockSede.precio != null) {
+          tienePrecioConfigurado = true;
+          precioMostrar = stockSede.precio!;
+
+          // Verificar si hay oferta activa en esta sede
+          if (stockSede.enOferta == true &&
+              stockSede.precioOferta != null &&
+              stockSede.precioOferta! < stockSede.precio!) {
+            isOfertaActivaSede = true;
+            precioEfectivoMostrar = stockSede.precioOferta!;
+            porcentajeDescuentoSede = ((precioMostrar - precioEfectivoMostrar) / precioMostrar) * 100;
+            fechaInicioOfertaSede = stockSede.fechaInicioOferta;
+            fechaFinOfertaSede = stockSede.fechaFinOferta;
+          } else {
+            isOfertaActivaSede = false;
+            precioEfectivoMostrar = precioMostrar;
+          }
+        } else {
+          tienePrecioConfigurado = false;
+        }
+      } catch (e) {
+        // Si no se encuentra stock en la sede seleccionada, usar valores por defecto
+      }
+    }
+
+    final hasStock = stockMostrar > 0;
+
     return GradientContainer(
-      gradient: producto.isOfertaActiva
+      gradient: isOfertaActivaSede
           ? AppGradients.orangeWhiteBlue()
           : AppGradients.blueWhiteBlue(),
-      borderColor: producto.isOfertaActiva
+      borderColor: isOfertaActivaSede
           ? AppColors.amberText
           : AppColors.blueborder,
       shadowStyle: ShadowStyle.colorful,
@@ -278,27 +331,30 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
             children: [
               Icon(
                 Icons.monetization_on_outlined,
-                color: producto.isOfertaActiva
+                color: isOfertaActivaSede
                     ? AppColors.amberText
                     : AppColors.blueborder,
                 size: 16,
               ),
               const SizedBox(width: 8),
-              // AppSubtitle(
-              //   'Precio y Stock',
-              //   fontSize: 12,
-              //   color: producto.isOfertaActiva
-              //       ? AppColors.amberText
-              //       : AppColors.blue1,
-              // ),
-              Text('Precio y Stock',style: TextStyle(fontSize: 12, color: producto.isOfertaActiva ? AppColors.amberText : AppColors.blue1, fontWeight: FontWeight.bold),)
+              Text('Precio y Stock',style: TextStyle(fontSize: 12, color: isOfertaActivaSede ? AppColors.amberText : AppColors.blue1, fontWeight: FontWeight.bold),)
             ],
           ),
           const SizedBox(height: 8),
 
-          if (producto.isOfertaActiva) ...[
+          if (!tienePrecioConfigurado) ...[
+            const Text(
+              'Sin precio configurado',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: Colors.orange,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ] else if (isOfertaActivaSede) ...[
             AppSubtitle(
-              'S/${producto.precio.toStringAsFixed(2)}',
+              'S/${precioMostrar.toStringAsFixed(2)}',
               fontSize: 12,
               color: Colors.grey[600],
             ),
@@ -307,7 +363,7 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Text(
-                  'S/${producto.precioEfectivo.toStringAsFixed(2)}',
+                  'S/${precioEfectivoMostrar.toStringAsFixed(2)}',
                   style: TextStyle(
                     fontSize: 23,
                     fontWeight: FontWeight.bold,
@@ -318,7 +374,7 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
                 const SizedBox(width: 12),
                 InfoChip(
                   text:
-                      '${producto.porcentajeDescuento.toStringAsFixed(0)}% OFF',
+                      '${porcentajeDescuentoSede?.toStringAsFixed(0) ?? '0'}% OFF',
                   backgroundColor: AppColors.red,
                   textColor: Colors.white,
                   icon: Icons.local_offer,
@@ -327,7 +383,7 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
             ),
           ] else
             Text(
-              'S/${producto.precioEfectivo.toStringAsFixed(2)}',
+              'S/${precioEfectivoMostrar.toStringAsFixed(2)}',
               style: TextStyle(
                 fontSize: 23,
                 fontWeight: FontWeight.bold,
@@ -338,7 +394,7 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
           const SizedBox(height: 16),
 
           // Fechas de oferta si aplica
-          if (producto.isOfertaActiva) ...[
+          if (isOfertaActivaSede) ...[
             GradientContainer(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               gradient: AppGradients.blueWhiteBlue(),
@@ -359,15 +415,15 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
                         ],
                       ),
                       const SizedBox(height: 4),
-                      if (producto.fechaInicioOferta != null)
+                      if (fechaInicioOfertaSede != null)
                         AppSubtitle(
-                          'Desde: ${_formatDate(producto.fechaInicioOferta)}',
+                          'Desde: ${_formatDate(fechaInicioOfertaSede)}',
                           fontSize: 10,
                           color: Colors.grey[700],
                         ),
-                      if (producto.fechaFinOferta != null)
+                      if (fechaFinOfertaSede != null)
                         AppSubtitle(
-                          'Hasta: ${_formatDate(producto.fechaFinOferta)}',
+                          'Hasta: ${_formatDate(fechaFinOfertaSede)}',
                           fontSize: 10,
                           color: Colors.grey[700],
                         ),
@@ -375,11 +431,11 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
                   ),
                   // Countdown posicionado donde quieras
                   Positioned(
-                    right: 15,  
+                    right: 15,
                     top: -13,  // top, bottom, left, right
                     child: OfertaCountdownTimer(
-                      fechaInicio: producto.fechaInicioOferta,
-                      fechaFin: producto.fechaFinOferta,
+                      fechaInicio: fechaInicioOfertaSede,
+                      fechaFin: fechaFinOfertaSede,
                     ),
                   ),
                 ],
@@ -394,15 +450,16 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
             runSpacing: 8,
             children: [
               InfoChip(
-                text: 'Stock: ${producto.stockTotal}',
-                icon: producto.hasStockTotal ? Icons.check_circle : Icons.cancel,
-                textColor: producto.hasStockTotal ? AppColors.blue1 : AppColors.red,
+                text: 'Stock: $stockMostrar',
+                icon: hasStock ? Icons.check_circle : Icons.cancel,
+                textColor: hasStock ? AppColors.blue1 : AppColors.red,
               ),
-              if (producto.isStockLowTotal)
+              if (widget.sedeId != null)
                 InfoChip(
-                  text: 'Stock Bajo',
-                  icon: Icons.warning,
-                  textColor: AppColors.amberText,
+                  text: 'Stock en Sede ${producto.stocksPorSede!.firstWhere((s) => s.sedeId == widget.sedeId).sedeNombre}',
+                  icon: Icons.warehouse,
+                  textColor: AppColors.blue1,
+                  backgroundColor: AppColors.blueborder.withValues(alpha: 0.1),
                 ),
               if (producto.visibleMarketplace)
                 InfoChip(

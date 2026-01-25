@@ -12,17 +12,14 @@ import '../bloc/transferencias_list/transferencias_list_cubit.dart';
 import '../bloc/transferencias_list/transferencias_list_state.dart';
 import '../widgets/transferencia_card.dart';
 import 'crear_transferencia_page.dart';
+import 'crear_transferencia_multiple_page.dart';
 import 'transferencia_detail_page.dart';
 
 class TransferenciasStockPage extends StatefulWidget {
   final String? sedeId; // Si es null, muestra todas las transferencias
   final EstadoTransferencia? estadoInicial; // Filtro inicial
 
-  const TransferenciasStockPage({
-    super.key,
-    this.sedeId,
-    this.estadoInicial,
-  });
+  const TransferenciasStockPage({super.key, this.sedeId, this.estadoInicial});
 
   @override
   State<TransferenciasStockPage> createState() =>
@@ -80,10 +77,10 @@ class _TransferenciasStockPageState extends State<TransferenciasStockPage>
   void _loadTransferencias() {
     if (_empresaId != null) {
       context.read<TransferenciasListCubit>().loadTransferencias(
-            empresaId: _empresaId!,
-            sedeId: widget.sedeId,
-            estado: _filtroEstado,
-          );
+        empresaId: _empresaId!,
+        sedeId: widget.sedeId,
+        estado: _filtroEstado,
+      );
     }
   }
 
@@ -115,54 +112,80 @@ class _TransferenciasStockPageState extends State<TransferenciasStockPage>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: SmartAppBar(
+        backgroundColor: AppColors.blue1,
+        foregroundColor: AppColors.white,
         title: 'Transferencias de Stock',
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: () =>
-                context.read<TransferenciasListCubit>().reload(),
+            onPressed: () => context.read<TransferenciasListCubit>().reload(),
           ),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          isScrollable: true,
-          labelColor: AppColors.blue1,
-          unselectedLabelColor: Colors.grey,
-          indicatorColor: AppColors.blue1,
-          tabs: const [
-            Tab(text: 'Todas'),
-            Tab(text: 'Pendientes'),
-            Tab(text: 'Aprobadas'),
-            Tab(text: 'En Tránsito'),
-            Tab(text: 'Recibidas'),
+        // ← Quitamos el bottom completamente
+      ),
+      body: GradientBackground(
+        child: Column(
+          children: [
+            // TabBar separado, con fondo azul para que se vea continuo con el AppBar
+            Container(
+              height: 35,
+              color: AppColors.blue1,
+              child: TabBar(
+                controller: _tabController,
+                isScrollable: true,
+                labelStyle: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+                unselectedLabelStyle: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w400,
+                ),
+                dividerHeight: 0,
+                labelColor: AppColors.white,
+                unselectedLabelColor: Colors.grey,
+                labelPadding: const EdgeInsets.symmetric(horizontal: 10),
+                indicatorPadding: const EdgeInsets.only(bottom: 8),
+                indicatorSize: TabBarIndicatorSize.label,
+                indicatorWeight: 2,
+                indicator: const UnderlineTabIndicator(
+                  borderSide: BorderSide(width: 2, color: AppColors.white),
+                ),
+                tabs: const [
+                  Tab(text: 'Todas'),
+                  Tab(text: 'Pendientes'),
+                  Tab(text: 'Aprobadas'),
+                  Tab(text: 'En Tránsito'),
+                  Tab(text: 'Recibidas'),
+                ],
+              ),
+            ),
+            // El resto del contenido ocupa todo el espacio restante
+            Expanded(
+              child:
+                  BlocBuilder<TransferenciasListCubit, TransferenciasListState>(
+                    builder: (context, state) {
+                      if (state is TransferenciasListLoading) {
+                        return const CustomLoading();
+                      }
+                      if (state is TransferenciasListError) {
+                        return _buildError(state.message);
+                      }
+                      if (state is TransferenciasListEmpty) {
+                        return _buildEmpty();
+                      }
+                      if (state is TransferenciasListLoaded) {
+                        return _buildList(state);
+                      }
+                      return const SizedBox.shrink();
+                    },
+                  ),
+            ),
           ],
         ),
       ),
-      body: GradientBackground(
-        child: BlocBuilder<TransferenciasListCubit, TransferenciasListState>(
-          builder: (context, state) {
-            if (state is TransferenciasListLoading) {
-              return const CustomLoading();
-            }
-
-            if (state is TransferenciasListError) {
-              return _buildError(state.message);
-            }
-
-            if (state is TransferenciasListEmpty) {
-              return _buildEmpty();
-            }
-
-            if (state is TransferenciasListLoaded) {
-              return _buildList(state);
-            }
-
-            return const SizedBox.shrink();
-          },
-        ),
-      ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _navigateToCrear(),
+        onPressed: () => _mostrarMenuCrear(),
         backgroundColor: AppColors.blue1,
         icon: const Icon(Icons.add, color: Colors.white),
         label: const Text(
@@ -176,12 +199,12 @@ class _TransferenciasStockPageState extends State<TransferenciasStockPage>
   Widget _buildList(TransferenciasListLoaded state) {
     return ListView.builder(
       controller: _scrollController,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(10),
       itemCount: state.transferencias.length + (state.hasMore ? 1 : 0),
       itemBuilder: (context, index) {
         if (index >= state.transferencias.length) {
           return const Padding(
-            padding: EdgeInsets.all(16),
+            padding: EdgeInsets.all(10),
             child: Center(child: CircularProgressIndicator()),
           );
         }
@@ -200,11 +223,7 @@ class _TransferenciasStockPageState extends State<TransferenciasStockPage>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.sync_alt,
-            size: 80,
-            color: Colors.grey[400],
-          ),
+          Icon(Icons.sync_alt, size: 80, color: Colors.grey[400]),
           const SizedBox(height: 16),
           Text(
             'No hay transferencias',
@@ -217,10 +236,7 @@ class _TransferenciasStockPageState extends State<TransferenciasStockPage>
           const SizedBox(height: 8),
           Text(
             'Crea una nueva transferencia entre sedes',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[500],
-            ),
+            style: TextStyle(fontSize: 14, color: Colors.grey[500]),
           ),
         ],
       ),
@@ -232,11 +248,7 @@ class _TransferenciasStockPageState extends State<TransferenciasStockPage>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(
-            Icons.error_outline,
-            size: 80,
-            color: Colors.red,
-          ),
+          const Icon(Icons.error_outline, size: 80, color: Colors.red),
           const SizedBox(height: 16),
           Text(
             'Error al cargar transferencias',
@@ -251,17 +263,13 @@ class _TransferenciasStockPageState extends State<TransferenciasStockPage>
             padding: const EdgeInsets.symmetric(horizontal: 32),
             child: Text(
               message,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
-              ),
+              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
               textAlign: TextAlign.center,
             ),
           ),
           const SizedBox(height: 24),
           ElevatedButton.icon(
-            onPressed: () =>
-                context.read<TransferenciasListCubit>().reload(),
+            onPressed: () => context.read<TransferenciasListCubit>().reload(),
             icon: const Icon(Icons.refresh),
             label: const Text('Reintentar'),
             style: ElevatedButton.styleFrom(
@@ -270,6 +278,71 @@ class _TransferenciasStockPageState extends State<TransferenciasStockPage>
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _mostrarMenuCrear() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.only(left: 8, bottom: 16),
+              child: Text(
+                'Tipo de Transferencia',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.blue1.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.send, color: AppColors.blue1),
+              ),
+              title: const Text(
+                'Transferencia Individual',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              subtitle: const Text('Transfiere un solo producto'),
+              onTap: () {
+                Navigator.pop(context);
+                _navigateToCrear();
+              },
+            ),
+            const SizedBox(height: 8),
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.shopping_cart, color: Colors.green),
+              ),
+              title: const Text(
+                'Transferencia Múltiple',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              subtitle: const Text('Transfiere varios productos a la vez'),
+              onTap: () {
+                Navigator.pop(context);
+                _navigateToCrearMultiple();
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
       ),
     );
   }
@@ -290,13 +363,23 @@ class _TransferenciasStockPageState extends State<TransferenciasStockPage>
     }
   }
 
+  void _navigateToCrearMultiple() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const CrearTransferenciaMultiplePage()),
+    );
+
+    if (result == true && mounted) {
+      context.read<TransferenciasListCubit>().reload();
+    }
+  }
+
   void _navigateToDetail(TransferenciaStock transferencia) async {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => TransferenciaDetailPage(
-          transferenciaId: transferencia.id,
-        ),
+        builder: (_) =>
+            TransferenciaDetailPage(transferenciaId: transferencia.id),
       ),
     );
 

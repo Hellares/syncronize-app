@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:syncronize/core/fonts/app_text_widgets.dart';
+import 'package:syncronize/core/theme/app_colors.dart';
+import 'package:syncronize/core/theme/gradient_background.dart';
+import 'package:syncronize/core/widgets/custom_search_field.dart';
+import 'package:syncronize/core/widgets/smart_appbar.dart';
 import '../widgets/dialogs/confirm_dialog.dart';
 import '../../domain/entities/unidad_medida.dart';
 import '../bloc/unidades_medida/unidades_medida_cubit.dart';
@@ -62,12 +67,12 @@ class _GestionUnidadesPageState extends State<GestionUnidadesPage>
     if (empresaState is EmpresaContextLoaded) {
       _currentEmpresaId = empresaState.context.empresa.id;
       context.read<UnidadMedidaCubit>().getUnidadesEmpresa(
-            empresaState.context.empresa.id,
-          );
+        empresaState.context.empresa.id,
+      );
       context.read<UnidadMedidaCubit>().getUnidadesMaestras(
-            categoria: _categoriaFiltro?.value,
-            soloPopulares: _soloPopulares,
-          );
+        categoria: _categoriaFiltro?.value,
+        soloPopulares: _soloPopulares,
+      );
     }
   }
 
@@ -111,7 +116,9 @@ class _GestionUnidadesPageState extends State<GestionUnidadesPage>
             _loadData();
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Unidad "${state.unidad.nombreEfectivo}" activada'),
+                content: Text(
+                  'Unidad "${state.unidad.nombreEfectivo}" activada',
+                ),
                 backgroundColor: Colors.green,
               ),
             );
@@ -127,36 +134,77 @@ class _GestionUnidadesPageState extends State<GestionUnidadesPage>
             _loadData();
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('${state.unidades.length} unidades populares activadas'),
+                content: Text(
+                  '${state.unidades.length} unidades populares activadas',
+                ),
                 backgroundColor: Colors.green,
               ),
             );
           }
         },
         child: Scaffold(
-          appBar: AppBar(
-            title: const Text('Gestión de Unidades de Medida'),
-            bottom: TabBar(
-              controller: _tabController,
-              tabs: const [
-                Tab(text: 'Activas', icon: Icon(Icons.check_circle)),
-                Tab(text: 'Disponibles', icon: Icon(Icons.library_add)),
-              ],
-            ),
+          appBar: SmartAppBar(
+            backgroundColor: AppColors.blue1,
+            foregroundColor: AppColors.white,
+            title: 'Gestión de Unidades de Medida',
             actions: [
               IconButton(
                 icon: const Icon(Icons.refresh),
                 onPressed: _loadData,
                 tooltip: 'Actualizar',
+                iconSize: 18,
               ),
             ],
           ),
-          body: TabBarView(
-            controller: _tabController,
-            children: [
-              _buildActivasTab(),
-              _buildDisponiblesTab(),
-            ],
+          body: GradientBackground(
+            style: GradientStyle.professional,
+            child: Column(
+              children: [
+                Container(
+                  height: 40,
+                  color: AppColors.blue1,
+                  child: TabBar(
+                    labelStyle: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    unselectedLabelStyle: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w400,
+                    ),
+                    labelColor: AppColors.white,
+                    unselectedLabelColor: Colors.grey,
+                    labelPadding: const EdgeInsets.symmetric(horizontal: 10),
+                    indicatorSize: TabBarIndicatorSize.label,
+                    indicatorWeight: 2,
+                    indicator: const UnderlineTabIndicator(
+                      borderSide: BorderSide(
+                        width: 2,
+                        color: AppColors.white,
+                      ),
+                    ),
+                    tabs: [
+                      Tab(
+                        text: 'Activas',
+                        icon: Icon(Icons.check_circle, size: 18),
+                      ),
+                      Tab(
+                        text: 'Disponibles',
+                        icon: Icon(Icons.library_add, size: 18),
+                      ),
+                    ],
+                    controller: _tabController,
+                  ),
+                ),
+                
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [_buildActivasTab(), _buildDisponiblesTab()],
+                  ),
+                ),
+              ],
+            ),
           ),
           floatingActionButton: Column(
             mainAxisSize: MainAxisSize.min,
@@ -165,8 +213,8 @@ class _GestionUnidadesPageState extends State<GestionUnidadesPage>
                 FloatingActionButton(
                   heroTag: 'activar_populares',
                   onPressed: _activarUnidadesPopulares,
-                  child: const Icon(Icons.star),
                   tooltip: 'Activar Populares',
+                  child: Icon(Icons.star),
                 ),
                 const SizedBox(height: 16),
               ],
@@ -246,10 +294,12 @@ class _GestionUnidadesPageState extends State<GestionUnidadesPage>
           _buildCategoriaFilter(),
           Expanded(
             child: ListView.builder(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(10),
               itemCount: _filterUnidadesMaestras(_unidadesMaestras).length,
               itemBuilder: (context, index) {
-                final maestra = _filterUnidadesMaestras(_unidadesMaestras)[index];
+                final maestra = _filterUnidadesMaestras(
+                  _unidadesMaestras,
+                )[index];
                 return UnidadMaestraCard(
                   maestra: maestra,
                   onActivar: () => _mostrarDialogActivar(maestra),
@@ -269,50 +319,53 @@ class _GestionUnidadesPageState extends State<GestionUnidadesPage>
 
   Widget _buildSearchBar() {
     return Padding(
-      padding: const EdgeInsets.all(16),
-      child: TextField(
+      padding: const EdgeInsets.all(10),
+      child: CustomSearchField(
+        borderColor: AppColors.blue1,
         controller: _searchController,
-        decoration: InputDecoration(
-          hintText: 'Buscar unidades...',
-          prefixIcon: const Icon(Icons.search),
-          suffixIcon: _searchQuery.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(Icons.clear),
-                  onPressed: () {
-                    _searchController.clear();
-                    setState(() => _searchQuery = '');
-                  },
-                )
-              : null,
-          border: const OutlineInputBorder(),
-        ),
+        searchIcon: Icons.search,        
         onChanged: (value) {
           setState(() => _searchQuery = value.toLowerCase());
         },
-      ),
+      )
     );
   }
 
   Widget _buildFiltrosBar() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 10),
       child: Row(
         children: [
           FilterChip(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(6),
+            ),
+            backgroundColor: AppColors.white,
+            visualDensity: VisualDensity.compact,
+            side: BorderSide(
+              color: _soloPopulares ? AppColors.blue1 : AppColors.blue1,
+              width: 0.5,
+            ),
             label: const Text('Solo populares'),
+            labelStyle: TextStyle(
+              color: _soloPopulares ? AppColors.blue1 : AppColors.blue1,
+              fontSize: 12
+            ),
             selected: _soloPopulares,
             onSelected: (selected) {
               setState(() => _soloPopulares = selected);
               context.read<UnidadMedidaCubit>().getUnidadesMaestras(
-                    categoria: _categoriaFiltro?.value,
-                    soloPopulares: _soloPopulares,
-                  );
+                categoria: _categoriaFiltro?.value,
+                soloPopulares: _soloPopulares,
+              );
             },
           ),
           const SizedBox(width: 8),
-          Text(
+
+          AppSubtitle(
             '${_unidadesMaestras.length} disponibles',
-            style: Theme.of(context).textTheme.bodySmall,
+            fontSize: 12,
+            color: Colors.grey[700],
           ),
         ],
       ),
@@ -332,9 +385,9 @@ class _GestionUnidadesPageState extends State<GestionUnidadesPage>
               onSelected: (selected) {
                 setState(() => _categoriaFiltro = null);
                 context.read<UnidadMedidaCubit>().getUnidadesMaestras(
-                      categoria: null,
-                      soloPopulares: _soloPopulares,
-                    );
+                  categoria: null,
+                  soloPopulares: _soloPopulares,
+                );
               },
             ),
             const SizedBox(width: 8),
@@ -345,15 +398,17 @@ class _GestionUnidadesPageState extends State<GestionUnidadesPage>
                   label: Text(categoria.label),
                   selected: _categoriaFiltro == categoria,
                   onSelected: (selected) {
-                    setState(() => _categoriaFiltro = selected ? categoria : null);
+                    setState(
+                      () => _categoriaFiltro = selected ? categoria : null,
+                    );
                     context.read<UnidadMedidaCubit>().getUnidadesMaestras(
-                          categoria: _categoriaFiltro?.value,
-                          soloPopulares: _soloPopulares,
-                        );
+                      categoria: _categoriaFiltro?.value,
+                      soloPopulares: _soloPopulares,
+                    );
                   },
                 ),
               );
-            }).toList(),
+            }),
           ],
         ),
       ),
@@ -421,12 +476,16 @@ class _GestionUnidadesPageState extends State<GestionUnidadesPage>
   // FILTROS Y LÓGICA
   // ============================================
 
-  List<EmpresaUnidadMedida> _filterUnidadesEmpresa(List<EmpresaUnidadMedida> unidades) {
+  List<EmpresaUnidadMedida> _filterUnidadesEmpresa(
+    List<EmpresaUnidadMedida> unidades,
+  ) {
     var filtered = unidades;
 
     // Filtro por categoría
     if (_categoriaFiltro != null) {
-      filtered = filtered.where((u) => u.categoria == _categoriaFiltro).toList();
+      filtered = filtered
+          .where((u) => u.categoria == _categoriaFiltro)
+          .toList();
     }
 
     // Filtro por búsqueda
@@ -442,7 +501,9 @@ class _GestionUnidadesPageState extends State<GestionUnidadesPage>
     }).toList();
   }
 
-  List<UnidadMedidaMaestra> _filterUnidadesMaestras(List<UnidadMedidaMaestra> maestras) {
+  List<UnidadMedidaMaestra> _filterUnidadesMaestras(
+    List<UnidadMedidaMaestra> maestras,
+  ) {
     if (_searchQuery.isEmpty) return maestras;
 
     return maestras.where((maestra) {
@@ -468,10 +529,8 @@ class _GestionUnidadesPageState extends State<GestionUnidadesPage>
 
     await showDialog(
       context: context,
-      builder: (context) => ActivarUnidadDialog(
-        maestra: maestra,
-        empresaId: _currentEmpresaId!,
-      ),
+      builder: (context) =>
+          ActivarUnidadDialog(maestra: maestra, empresaId: _currentEmpresaId!),
     );
   }
 
@@ -480,9 +539,8 @@ class _GestionUnidadesPageState extends State<GestionUnidadesPage>
 
     await showDialog(
       context: context,
-      builder: (context) => CrearUnidadPersonalizadaDialog(
-        empresaId: _currentEmpresaId!,
-      ),
+      builder: (context) =>
+          CrearUnidadPersonalizadaDialog(empresaId: _currentEmpresaId!),
     );
   }
 
@@ -500,9 +558,9 @@ class _GestionUnidadesPageState extends State<GestionUnidadesPage>
 
     if (confirm == true && _currentEmpresaId != null && mounted) {
       context.read<UnidadMedidaCubit>().desactivarUnidad(
-            empresaId: _currentEmpresaId!,
-            unidadId: unidad.id,
-          );
+        empresaId: _currentEmpresaId!,
+        unidadId: unidad.id,
+      );
     }
   }
 
@@ -521,7 +579,9 @@ class _GestionUnidadesPageState extends State<GestionUnidadesPage>
     );
 
     if (confirm == true && mounted) {
-      context.read<UnidadMedidaCubit>().activarUnidadesPopulares(_currentEmpresaId!);
+      context.read<UnidadMedidaCubit>().activarUnidadesPopulares(
+        _currentEmpresaId!,
+      );
     }
   }
 }

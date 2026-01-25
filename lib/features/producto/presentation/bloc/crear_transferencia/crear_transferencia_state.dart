@@ -35,3 +35,16 @@ class CrearTransferenciaError extends CrearTransferenciaState {
   @override
   List<Object?> get props => [message, errorCode];
 }
+
+class CrearTransferenciaMultipleSuccess extends CrearTransferenciaState {
+  final TransferenciaStock transferencia;
+  final String mensaje;
+
+  const CrearTransferenciaMultipleSuccess({
+    required this.transferencia,
+    required this.mensaje,
+  });
+
+  @override
+  List<Object?> get props => [transferencia, mensaje];
+}

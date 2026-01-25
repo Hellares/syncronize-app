@@ -265,9 +265,40 @@ class _SmartAppBarState extends State<SmartAppBar> {
       widget.title!,
       style:
           widget.titleStyle ??
-          AppFont.pirulentBold.style(fontSize: 8, color: effectiveForegroundColor),
+          AppFont.pirulentBold.style(fontSize: 10, color: effectiveForegroundColor),
     );
   }
+
+// Widget? _buildTitle() {
+//   if (widget.title == null) return null;
+
+//   final effectiveForegroundColor = widget.foregroundColor ?? widget.iconColor ?? AppColors.blue3;
+
+//   final titleText = Text(
+//     widget.title!,
+//     style: widget.titleStyle ??
+//         AppFont.pirulentBold.style(
+//           fontSize: 10, // Más legible y equilibrado (antes 8→10→ahora 18)
+//           color: effectiveForegroundColor,
+//         ),
+//     overflow: TextOverflow.ellipsis, // Evita desborde si el título es largo
+//   );
+
+//   // Si está centrado → devolver normal
+//   if (widget.centerTitle) {
+//     return titleText;
+//   }
+
+//   // Si NO está centrado → alineado izquierda con padding mínimo
+//   return Padding(
+//     padding: const EdgeInsets.only(left: 1.0), // ← Ajusta este valor: 8 px queda muy pegado pero natural
+//     // Si quieres aún más pegado: left: 4 o left: 0
+//     child: Align(
+//       alignment: Alignment.centerLeft,
+//       child: titleText,
+//     ),
+//   );
+// }
 
   Widget? _buildLeading(BuildContext context) {
     // 1. Usuario manual tiene prioridad

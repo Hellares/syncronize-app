@@ -9,6 +9,13 @@ class StockPorSedeInfoModel extends StockPorSedeInfo {
     super.stockMinimo,
     super.stockMaximo,
     super.ubicacion,
+    super.precio,
+    super.precioCosto,
+    super.precioOferta,
+    super.enOferta = false,
+    super.fechaInicioOferta,
+    super.fechaFinOferta,
+    super.precioConfigurado = false,
   });
 
   factory StockPorSedeInfoModel.fromJson(Map<String, dynamic> json) {
@@ -44,7 +51,26 @@ class StockPorSedeInfoModel extends StockPorSedeInfo {
       stockMinimo: json['stockMinimo'] as int?,
       stockMaximo: json['stockMaximo'] as int?,
       ubicacion: json['ubicacion'] as String?,
+      precio: json['precio'] != null ? _toDouble(json['precio']) : null,
+      precioCosto: json['precioCosto'] != null ? _toDouble(json['precioCosto']) : null,
+      precioOferta: json['precioOferta'] != null ? _toDouble(json['precioOferta']) : null,
+      enOferta: json['enOferta'] as bool? ?? false,
+      fechaInicioOferta: json['fechaInicioOferta'] != null
+          ? DateTime.parse(json['fechaInicioOferta'] as String)
+          : null,
+      fechaFinOferta: json['fechaFinOferta'] != null
+          ? DateTime.parse(json['fechaFinOferta'] as String)
+          : null,
+      precioConfigurado: json['precioConfigurado'] as bool? ?? false,
     );
+  }
+
+  static double _toDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) return double.parse(value);
+    return 0.0;
   }
 
   Map<String, dynamic> toJson() {
@@ -56,6 +82,13 @@ class StockPorSedeInfoModel extends StockPorSedeInfo {
       if (stockMinimo != null) 'stockMinimo': stockMinimo,
       if (stockMaximo != null) 'stockMaximo': stockMaximo,
       if (ubicacion != null) 'ubicacion': ubicacion,
+      if (precio != null) 'precio': precio,
+      if (precioCosto != null) 'precioCosto': precioCosto,
+      if (precioOferta != null) 'precioOferta': precioOferta,
+      'enOferta': enOferta,
+      if (fechaInicioOferta != null) 'fechaInicioOferta': fechaInicioOferta!.toIso8601String(),
+      if (fechaFinOferta != null) 'fechaFinOferta': fechaFinOferta!.toIso8601String(),
+      'precioConfigurado': precioConfigurado,
     };
   }
 
@@ -68,6 +101,13 @@ class StockPorSedeInfoModel extends StockPorSedeInfo {
       stockMinimo: entity.stockMinimo,
       stockMaximo: entity.stockMaximo,
       ubicacion: entity.ubicacion,
+      precio: entity.precio,
+      precioCosto: entity.precioCosto,
+      precioOferta: entity.precioOferta,
+      enOferta: entity.enOferta,
+      fechaInicioOferta: entity.fechaInicioOferta,
+      fechaFinOferta: entity.fechaFinOferta,
+      precioConfigurado: entity.precioConfigurado,
     );
   }
 

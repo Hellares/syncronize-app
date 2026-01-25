@@ -73,16 +73,12 @@ class ProductoListItem extends Equatable {
   /// Obtiene el stock para una sede específica
   int? stockEnSede(String sedeId) {
     if (stocksPorSede == null) return null;
-    final stockSede = stocksPorSede!.firstWhere(
-      (s) => s.sedeId == sedeId,
-      orElse: () => StockPorSedeInfo(
-        sedeId: '',
-        sedeNombre: '',
-        sedeCodigo: '',
-        cantidad: 0,
-      ),
-    );
-    return stockSede.cantidad;
+    try {
+      final stockSede = stocksPorSede!.firstWhere((s) => s.sedeId == sedeId);
+      return stockSede.cantidad;
+    } catch (e) {
+      return 0;
+    }
   }
 
   /// Verifica si tiene stock disponible considerando stocksPorSede
@@ -92,6 +88,60 @@ class ProductoListItem extends Equatable {
   bool get isStockLowTotal {
     if (stocksPorSede == null || stocksPorSede!.isEmpty) return false;
     return stocksPorSede!.any((stock) => stock.esBajoMinimo);
+  }
+
+  /// Obtiene el precio de una sede específica
+  double? precioEnSede(String sedeId) {
+    if (stocksPorSede == null) return null;
+    try {
+      final stock = stocksPorSede!.firstWhere((s) => s.sedeId == sedeId);
+      return stock.precio ?? precio;
+    } catch (e) {
+      return precio;
+    }
+  }
+
+  /// Obtiene el precio efectivo (con oferta si aplica) de una sede específica
+  double? precioEfectivoEnSede(String sedeId) {
+    if (stocksPorSede == null) return precioEfectivo;
+    try {
+      final stock = stocksPorSede!.firstWhere((s) => s.sedeId == sedeId);
+      return stock.precioEfectivo ?? precioEfectivo;
+    } catch (e) {
+      return precioEfectivo;
+    }
+  }
+
+  /// Verifica si está en oferta en una sede específica
+  bool enOfertaEnSede(String sedeId) {
+    if (stocksPorSede == null) return enOferta;
+    try {
+      final stock = stocksPorSede!.firstWhere((s) => s.sedeId == sedeId);
+      return stock.isOfertaActiva;
+    } catch (e) {
+      return enOferta;
+    }
+  }
+
+  /// Obtiene el porcentaje de descuento en una sede específica
+  double? porcentajeDescuentoEnSede(String sedeId) {
+    if (stocksPorSede == null) return porcentajeDescuento;
+    try {
+      final stock = stocksPorSede!.firstWhere((s) => s.sedeId == sedeId);
+      return stock.porcentajeDescuento;
+    } catch (e) {
+      return porcentajeDescuento;
+    }
+  }
+
+  /// Obtiene el stock de ProductoStock para una sede específica (info completa)
+  StockPorSedeInfo? stockSedeInfo(String sedeId) {
+    if (stocksPorSede == null) return null;
+    try {
+      return stocksPorSede!.firstWhere((s) => s.sedeId == sedeId);
+    } catch (e) {
+      return null;
+    }
   }
 
   @override

@@ -3,6 +3,7 @@ import 'package:injectable/injectable.dart';
 import '../../../../../core/utils/resource.dart';
 import '../../../domain/entities/transferencia_stock.dart';
 import '../../../domain/usecases/gestionar_transferencia_usecase.dart';
+import '../../../domain/usecases/procesar_completo_transferencia_usecase.dart';
 import 'gestionar_transferencia_state.dart';
 
 @injectable
@@ -12,6 +13,7 @@ class GestionarTransferenciaCubit extends Cubit<GestionarTransferenciaState> {
   final RecibirTransferenciaUseCase _recibirUseCase;
   final RechazarTransferenciaUseCase _rechazarUseCase;
   final CancelarTransferenciaUseCase _cancelarUseCase;
+  final ProcesarCompletoTransferenciaUseCase _procesarCompletoUseCase;
 
   GestionarTransferenciaCubit(
     this._aprobarUseCase,
@@ -19,6 +21,7 @@ class GestionarTransferenciaCubit extends Cubit<GestionarTransferenciaState> {
     this._recibirUseCase,
     this._rechazarUseCase,
     this._cancelarUseCase,
+    this._procesarCompletoUseCase,
   ) : super(const GestionarTransferenciaInitial());
 
   /// Aprobar transferencia
@@ -159,6 +162,37 @@ class GestionarTransferenciaCubit extends Cubit<GestionarTransferenciaState> {
       emit(GestionarTransferenciaSuccess(
         result.data,
         'Transferencia cancelada',
+      ));
+    } else if (result is Error<TransferenciaStock>) {
+      emit(GestionarTransferenciaError(
+        result.message,
+        errorCode: result.errorCode,
+      ));
+    }
+  }
+
+  /// Procesar completamente la transferencia (aprobar + enviar + recibir)
+  Future<void> procesarCompleto({
+    required String transferenciaId,
+    required String empresaId,
+    String? ubicacion,
+    String? observaciones,
+  }) async {
+    emit(const GestionarTransferenciaProcessing('procesarCompleto'));
+
+    final result = await _procesarCompletoUseCase(
+      transferenciaId: transferenciaId,
+      empresaId: empresaId,
+      ubicacion: ubicacion,
+      observaciones: observaciones,
+    );
+
+    if (isClosed) return;
+
+    if (result is Success<TransferenciaStock>) {
+      emit(GestionarTransferenciaSuccess(
+        result.data,
+        'Transferencia procesada completamente',
       ));
     } else if (result is Error<TransferenciaStock>) {
       emit(GestionarTransferenciaError(

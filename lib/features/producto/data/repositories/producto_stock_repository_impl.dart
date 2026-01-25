@@ -26,6 +26,12 @@ class ProductoStockRepositoryImpl implements ProductoStockRepository {
     int? stockMinimo,
     int? stockMaximo,
     String? ubicacion,
+    double? precio,
+    double? precioCosto,
+    double? precioOferta,
+    bool? enOferta,
+    DateTime? fechaInicioOferta,
+    DateTime? fechaFinOferta,
   }) async {
     if (!await _networkInfo.isConnected) {
       return Error(
@@ -44,6 +50,12 @@ class ProductoStockRepositoryImpl implements ProductoStockRepository {
         stockMinimo: stockMinimo,
         stockMaximo: stockMaximo,
         ubicacion: ubicacion,
+        precio: precio,
+        precioCosto: precioCosto,
+        precioOferta: precioOferta,
+        enOferta: enOferta,
+        fechaInicioOferta: fechaInicioOferta,
+        fechaFinOferta: fechaFinOferta,
       );
       return Success(stock);
     } catch (e) {
@@ -167,6 +179,44 @@ class ProductoStockRepositoryImpl implements ProductoStockRepository {
         observaciones: observaciones,
         tipoDocumento: tipoDocumento,
         numeroDocumento: numeroDocumento,
+      );
+      return Success(stock);
+    } catch (e) {
+      return Error(
+        e.toString().replaceFirst('Exception: ', ''),
+        errorCode: 'SERVER_ERROR',
+      );
+    }
+  }
+
+  @override
+  Future<Resource<ProductoStock>> actualizarPrecios({
+    required String productoStockId,
+    required String empresaId,
+    double? precio,
+    double? precioCosto,
+    double? precioOferta,
+    required bool enOferta,
+    DateTime? fechaInicioOferta,
+    DateTime? fechaFinOferta,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error(
+        'No hay conexión a internet',
+        errorCode: 'NETWORK_ERROR',
+      );
+    }
+
+    try {
+      final stock = await _remoteDataSource.actualizarPrecios(
+        productoStockId: productoStockId,
+        empresaId: empresaId,
+        precio: precio,
+        precioCosto: precioCosto,
+        precioOferta: precioOferta,
+        enOferta: enOferta,
+        fechaInicioOferta: fechaInicioOferta,
+        fechaFinOferta: fechaFinOferta,
       );
       return Success(stock);
     } catch (e) {

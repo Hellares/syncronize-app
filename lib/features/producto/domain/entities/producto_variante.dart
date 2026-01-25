@@ -175,6 +175,61 @@ class ProductoVariante extends Equatable {
     return stocksPorSede!.where((stock) => stock.esBajoMinimo).length;
   }
 
+  /// Obtiene el precio de una sede específica
+  double? precioEnSede(String sedeId) {
+    if (stocksPorSede == null) return null;
+    final stock = stocksPorSede!.firstWhere(
+      (s) => s.sedeId == sedeId,
+      orElse: () => StockPorSedeInfo(
+        sedeId: '',
+        sedeNombre: '',
+        sedeCodigo: '',
+        cantidad: 0,
+      ),
+    );
+    return stock.precio;
+  }
+
+  /// Obtiene el precio efectivo (con oferta si aplica) de una sede específica
+  double? precioEfectivoEnSede(String sedeId) {
+    if (stocksPorSede == null) return null;
+    final stock = stocksPorSede!.firstWhere(
+      (s) => s.sedeId == sedeId,
+      orElse: () => StockPorSedeInfo(
+        sedeId: '',
+        sedeNombre: '',
+        sedeCodigo: '',
+        cantidad: 0,
+      ),
+    );
+    return stock.precioEfectivo;
+  }
+
+  /// Verifica si está en oferta en una sede específica
+  bool enOfertaEnSede(String sedeId) {
+    if (stocksPorSede == null) return false;
+    final stock = stocksPorSede!.firstWhere(
+      (s) => s.sedeId == sedeId,
+      orElse: () => StockPorSedeInfo(
+        sedeId: '',
+        sedeNombre: '',
+        sedeCodigo: '',
+        cantidad: 0,
+      ),
+    );
+    return stock.isOfertaActiva;
+  }
+
+  /// Obtiene el stock de ProductoStock para una sede específica (info completa)
+  StockPorSedeInfo? stockSedeInfo(String sedeId) {
+    if (stocksPorSede == null) return null;
+    try {
+      return stocksPorSede!.firstWhere((s) => s.sedeId == sedeId);
+    } catch (e) {
+      return null;
+    }
+  }
+
   @override
   List<Object?> get props => [
         id,

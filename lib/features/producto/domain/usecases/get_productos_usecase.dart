@@ -12,10 +12,12 @@ class GetProductosUseCase {
 
   Future<Resource<ProductosPaginados>> call({
     required String empresaId,
+    String? sedeId,
     required ProductoFiltros filtros,
   }) async {
     return await _repository.getProductos(
       empresaId: empresaId,
+      sedeId: sedeId,
       filtros: filtros,
     );
   }

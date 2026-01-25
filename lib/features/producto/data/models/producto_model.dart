@@ -52,6 +52,47 @@ class ProductoModel extends Producto {
   });
 
   factory ProductoModel.fromJson(Map<String, dynamic> json) {
+    // Parsear stocks por sede primero para obtener precios si es necesario
+    final stocksPorSede = json['stocksPorSede'] != null
+        ? (json['stocksPorSede'] as List)
+            .map((e) => StockPorSedeInfoModel.fromJson(e as Map<String, dynamic>))
+            .toList()
+        : null;
+
+    // Obtener precio: priorizar JSON directo para compatibilidad, sino del primer stock
+    double precio = 0.0;
+    double? precioCosto;
+    bool enOferta = false;
+    double? precioOferta;
+    DateTime? fechaInicioOferta;
+    DateTime? fechaFinOferta;
+
+    if (json.containsKey('precio') && json['precio'] != null) {
+      // Formato antiguo: precio en la raíz del producto
+      precio = _toDouble(json['precio']);
+      precioCosto = json['precioCosto'] != null ? _toDouble(json['precioCosto']) : null;
+      enOferta = json['enOferta'] as bool? ?? false;
+      precioOferta = json['precioOferta'] != null ? _toDouble(json['precioOferta']) : null;
+      fechaInicioOferta = json['fechaInicioOferta'] != null
+          ? DateTime.parse(json['fechaInicioOferta'] as String)
+          : null;
+      fechaFinOferta = json['fechaFinOferta'] != null
+          ? DateTime.parse(json['fechaFinOferta'] as String)
+          : null;
+    } else if (stocksPorSede != null && stocksPorSede.isNotEmpty) {
+      // Nuevo formato: obtener del primer stock disponible con precio configurado
+      final stockConPrecio = stocksPorSede.firstWhere(
+        (s) => s.precioConfigurado && s.precio != null,
+        orElse: () => stocksPorSede.first,
+      );
+      precio = stockConPrecio.precio ?? 0.0;
+      precioCosto = stockConPrecio.precioCosto;
+      enOferta = stockConPrecio.enOferta;
+      precioOferta = stockConPrecio.precioOferta;
+      fechaInicioOferta = stockConPrecio.fechaInicioOferta;
+      fechaFinOferta = stockConPrecio.fechaFinOferta;
+    }
+
     return ProductoModel(
       id: json['id'] as String,
       empresaId: json['empresaId'] as String,
@@ -65,10 +106,8 @@ class ProductoModel extends Producto {
       codigoBarras: json['codigoBarras'] as String?,
       nombre: json['nombre'] as String,
       descripcion: json['descripcion'] as String?,
-      precio: _toDouble(json['precio']),
-      precioCosto: json['precioCosto'] != null
-          ? _toDouble(json['precioCosto'])
-          : null,
+      precio: precio,
+      precioCosto: precioCosto,
       peso: json['peso'] != null ? _toDouble(json['peso']) : null,
       dimensiones: json['dimensiones'] as Map<String, dynamic>?,
       videoUrl: json['videoUrl'] as String?,
@@ -83,16 +122,10 @@ class ProductoModel extends Producto {
       ordenMarketplace: json['ordenMarketplace'] != null
           ? _toInt(json['ordenMarketplace'])
           : null,
-      enOferta: json['enOferta'] as bool? ?? false,
-      precioOferta: json['precioOferta'] != null
-          ? _toDouble(json['precioOferta'])
-          : null,
-      fechaInicioOferta: json['fechaInicioOferta'] != null
-          ? DateTime.parse(json['fechaInicioOferta'] as String)
-          : null,
-      fechaFinOferta: json['fechaFinOferta'] != null
-          ? DateTime.parse(json['fechaFinOferta'] as String)
-          : null,
+      enOferta: enOferta,
+      precioOferta: precioOferta,
+      fechaInicioOferta: fechaInicioOferta,
+      fechaFinOferta: fechaFinOferta,
       isActive: json['isActive'] as bool? ?? true,
       tieneVariantes: json['tieneVariantes'] as bool? ?? false,
       esCombo: json['esCombo'] as bool? ?? false,
@@ -135,11 +168,7 @@ class ProductoModel extends Producto {
               .map((e) => ProductoVarianteModel.fromJson(e as Map<String, dynamic>))
               .toList()
           : null,
-      stocksPorSede: json['stocksPorSede'] != null
-          ? (json['stocksPorSede'] as List)
-              .map((e) => StockPorSedeInfoModel.fromJson(e as Map<String, dynamic>))
-              .toList()
-          : null,
+      stocksPorSede: stocksPorSede,
     );
   }
 

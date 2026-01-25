@@ -38,11 +38,13 @@ class ProductoRemoteDataSource {
   /// Nota: empresaId se valida automáticamente en headers X-Tenant-ID
   Future<Map<String, dynamic>> getProductos({
     required String empresaId,
+    String? sedeId,
     required ProductoFiltros filtros,
   }) async {
     try {
       final queryParams = {
         ...filtros.toQueryParams(),
+        if (sedeId != null) 'sedeId': sedeId,
       };
 
       final response = await _dioClient.get(

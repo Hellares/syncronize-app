@@ -39,6 +39,30 @@ class TransferenciaStockRepositoryImpl implements TransferenciaStockRepository {
   }
 
   @override
+  Future<Resource<Map<String, dynamic>>> crearTransferenciasMultiples({
+    required String empresaId,
+    required String sedeOrigenId,
+    required String sedeDestinoId,
+    required List<Map<String, dynamic>> productos,
+    String? motivoGeneral,
+    String? observaciones,
+  }) async {
+    try {
+      final result = await _remoteDataSource.crearTransferenciasMultiples(
+        empresaId: empresaId,
+        sedeOrigenId: sedeOrigenId,
+        sedeDestinoId: sedeDestinoId,
+        productos: productos,
+        motivoGeneral: motivoGeneral,
+        observaciones: observaciones,
+      );
+      return Success(result);
+    } catch (e) {
+      return Error(e.toString());
+    }
+  }
+
+  @override
   Future<Resource<Map<String, dynamic>>> listarTransferencias({
     required String empresaId,
     String? sedeId,
@@ -161,6 +185,27 @@ class TransferenciaStockRepositoryImpl implements TransferenciaStockRepository {
         transferenciaId: transferenciaId,
         empresaId: empresaId,
         motivo: motivo,
+      );
+      return Success(transferencia);
+    } catch (e) {
+      return Error(e.toString());
+    }
+  }
+
+  @override
+  Future<Resource<TransferenciaStock>> procesarCompletoTransferencia({
+    required String transferenciaId,
+    required String empresaId,
+    String? ubicacion,
+    String? observaciones,
+  }) async {
+    try {
+      final transferencia =
+          await _remoteDataSource.procesarCompletoTransferencia(
+        transferenciaId: transferenciaId,
+        empresaId: empresaId,
+        ubicacion: ubicacion,
+        observaciones: observaciones,
       );
       return Success(transferencia);
     } catch (e) {

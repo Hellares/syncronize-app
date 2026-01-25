@@ -27,8 +27,8 @@ class ProductoListItemModel extends ProductoListItem {
       id: json['id'] as String,
       nombre: json['nombre'] as String,
       codigoEmpresa: json['codigoEmpresa'] as String,
-      precio: (json['precio'] as num).toDouble(),
-      stock: json['stock'] as int,
+      precio: json['precio'] != null ? (json['precio'] as num).toDouble() : 0.0,
+      stock: json['stock'] as int? ?? 0,
       enOferta: json['enOferta'] as bool? ?? false,
       precioOferta: json['precioOferta'] != null
           ? (json['precioOferta'] as num).toDouble()

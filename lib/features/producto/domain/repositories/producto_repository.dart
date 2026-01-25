@@ -16,7 +16,8 @@ abstract class ProductoRepository {
     String? codigoBarras,
     required String nombre,
     String? descripcion,
-    required double precio,
+    // ❌ DEPRECADO: precio, precioCosto, stock, stockMinimo ahora se manejan en ProductoStock
+    double? precio,
     double? precioCosto,
     int? stock,
     int? stockMinimo,
@@ -41,6 +42,7 @@ abstract class ProductoRepository {
   /// Obtiene una lista paginada de productos con filtros
   Future<Resource<ProductosPaginados>> getProductos({
     required String empresaId,
+    String? sedeId,
     required ProductoFiltros filtros,
   });
 

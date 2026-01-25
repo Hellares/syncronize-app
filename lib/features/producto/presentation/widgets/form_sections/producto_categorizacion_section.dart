@@ -126,30 +126,62 @@ class ProductoCategorizacionSection extends StatelessWidget {
               .where((sede) => sede.isActive)
               .toList();
 
-          return CustomDropdown<String>(
-            label: 'Sede(s) *',
-            hintText: 'Selecciona una o más sedes donde se creará el producto',
-            borderColor: AppColors.blue1,
-            dropdownStyle: DropdownStyle.multiSelect,
-            selectedValues: selectedSedesIds,
-            prefixIcon: const Icon(
-              Icons.business,
-              size: 16,
-              color: AppColors.blue1,
-            ),
-            items: sedesActivas.map((sede) {
-              return DropdownItem(
-                value: sede.id,
-                label: sede.nombre + (sede.esPrincipal ? ' (Principal)' : ''),
-              );
-            }).toList(),
-            onMultiChanged: onSedesChanged,
-            validator: (value) {
-              if (value == null || (value is List && value.isEmpty)) {
-                return 'Debe seleccionar al menos una sede';
-              }
-              return null;
-            },
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CustomDropdown<String>(
+                label: 'Sede(s) *',
+                hintText: isEditing
+                    ? 'Sedes donde existe el producto'
+                    : 'Selecciona una o más sedes donde se creará el producto',
+                borderColor: AppColors.blue1,
+                dropdownStyle: DropdownStyle.multiSelect,
+                selectedValues: selectedSedesIds,
+                enabled: !isEditing, // Deshabilitar en modo edición
+                prefixIcon: Icon(
+                  isEditing ? Icons.info_outline : Icons.business,
+                  size: 16,
+                  color: AppColors.blue1,
+                ),
+                items: sedesActivas.map((sede) {
+                  return DropdownItem(
+                    value: sede.id,
+                    label: sede.nombre + (sede.esPrincipal ? ' (Principal)' : ''),
+                  );
+                }).toList(),
+                onMultiChanged: onSedesChanged,
+                validator: (value) {
+                  if (value == null || (value is List && value.isEmpty)) {
+                    return 'Debe seleccionar al menos una sede';
+                  }
+                  return null;
+                },
+              ),
+              if (isEditing && selectedSedesIds.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline, color: Colors.blue.shade700, size: 16),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: AppSubtitle(
+                          'Este producto existe en ${selectedSedesIds.length} sede(s). Los cambios en datos generales se aplicarán a todas. Para cambiar precios o stock, usa la gestión de inventario.',
+                          fontSize: 10,
+                          color: Colors.blue.shade900,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
           );
         }
         return _buildLoadingIndicator();

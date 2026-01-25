@@ -7,10 +7,11 @@ class TransferenciaStockModel extends TransferenciaStock {
     required super.sedeOrigenId,
     required super.sedeDestinoId,
     required super.codigo,
-    super.productoId,
-    super.varianteId,
-    required super.cantidad,
     required super.estado,
+    super.totalItems,
+    super.itemsAprobados,
+    super.itemsRechazados,
+    super.itemsRecibidos,
     super.motivo,
     super.observaciones,
     required super.solicitadoPor,
@@ -23,8 +24,7 @@ class TransferenciaStockModel extends TransferenciaStock {
     required super.actualizadoEn,
     super.sedeOrigen,
     super.sedeDestino,
-    super.producto,
-    super.variante,
+    super.items,
   });
 
   factory TransferenciaStockModel.fromJson(Map<String, dynamic> json) {
@@ -34,10 +34,11 @@ class TransferenciaStockModel extends TransferenciaStock {
       sedeOrigenId: json['sedeOrigenId'] as String,
       sedeDestinoId: json['sedeDestinoId'] as String,
       codigo: json['codigo'] as String,
-      productoId: json['productoId'] as String?,
-      varianteId: json['varianteId'] as String?,
-      cantidad: _toInt(json['cantidad']),
       estado: EstadoTransferencia.fromString(json['estado'] as String),
+      totalItems: _toInt(json['totalItems']),
+      itemsAprobados: _toInt(json['itemsAprobados']),
+      itemsRechazados: _toInt(json['itemsRechazados']),
+      itemsRecibidos: _toInt(json['itemsRecibidos']),
       motivo: json['motivo'] as String?,
       observaciones: json['observaciones'] as String?,
       solicitadoPor: json['solicitadoPor'] as String,
@@ -62,13 +63,11 @@ class TransferenciaStockModel extends TransferenciaStock {
           ? SedeTransferenciaModel.fromJson(
               json['sedeDestino'] as Map<String, dynamic>)
           : null,
-      producto: json['producto'] != null
-          ? ProductoTransferenciaInfoModel.fromJson(
-              json['producto'] as Map<String, dynamic>)
-          : null,
-      variante: json['variante'] != null
-          ? VarianteTransferenciaInfoModel.fromJson(
-              json['variante'] as Map<String, dynamic>)
+      items: json['items'] != null
+          ? (json['items'] as List)
+              .map((item) => TransferenciaStockItemModel.fromJson(
+                  item as Map<String, dynamic>))
+              .toList()
           : null,
     );
   }
@@ -88,10 +87,11 @@ class TransferenciaStockModel extends TransferenciaStock {
       'sedeOrigenId': sedeOrigenId,
       'sedeDestinoId': sedeDestinoId,
       'codigo': codigo,
-      if (productoId != null) 'productoId': productoId,
-      if (varianteId != null) 'varianteId': varianteId,
-      'cantidad': cantidad,
       'estado': estado.value,
+      'totalItems': totalItems,
+      'itemsAprobados': itemsAprobados,
+      'itemsRechazados': itemsRechazados,
+      'itemsRecibidos': itemsRecibidos,
       if (motivo != null) 'motivo': motivo,
       if (observaciones != null) 'observaciones': observaciones,
       'solicitadoPor': solicitadoPor,
@@ -182,6 +182,87 @@ class VarianteTransferenciaInfoModel extends VarianteTransferenciaInfo {
       'id': id,
       'nombre': nombre,
       if (sku != null) 'sku': sku,
+    };
+  }
+}
+
+class TransferenciaStockItemModel extends TransferenciaStockItem {
+  const TransferenciaStockItemModel({
+    required super.id,
+    required super.transferenciaId,
+    required super.empresaId,
+    super.productoId,
+    super.varianteId,
+    required super.cantidadSolicitada,
+    super.cantidadAprobada,
+    super.cantidadEnviada,
+    super.cantidadRecibida,
+    required super.estado,
+    super.motivo,
+    super.observaciones,
+    required super.creadoEn,
+    required super.actualizadoEn,
+    super.producto,
+    super.variante,
+  });
+
+  factory TransferenciaStockItemModel.fromJson(Map<String, dynamic> json) {
+    return TransferenciaStockItemModel(
+      id: json['id'] as String,
+      transferenciaId: json['transferenciaId'] as String,
+      empresaId: json['empresaId'] as String,
+      productoId: json['productoId'] as String?,
+      varianteId: json['varianteId'] as String?,
+      cantidadSolicitada: _toInt(json['cantidadSolicitada']),
+      cantidadAprobada: json['cantidadAprobada'] != null
+          ? _toInt(json['cantidadAprobada'])
+          : null,
+      cantidadEnviada: json['cantidadEnviada'] != null
+          ? _toInt(json['cantidadEnviada'])
+          : null,
+      cantidadRecibida: json['cantidadRecibida'] != null
+          ? _toInt(json['cantidadRecibida'])
+          : null,
+      estado: EstadoItemTransferencia.fromString(json['estado'] as String),
+      motivo: json['motivo'] as String?,
+      observaciones: json['observaciones'] as String?,
+      creadoEn: DateTime.parse(json['creadoEn'] as String),
+      actualizadoEn: DateTime.parse(json['actualizadoEn'] as String),
+      producto: json['producto'] != null
+          ? ProductoTransferenciaInfoModel.fromJson(
+              json['producto'] as Map<String, dynamic>)
+          : null,
+      variante: json['variante'] != null
+          ? VarianteTransferenciaInfoModel.fromJson(
+              json['variante'] as Map<String, dynamic>)
+          : null,
+    );
+  }
+
+  static int _toInt(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is double) return value.toInt();
+    if (value is String) return int.parse(value);
+    return 0;
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'transferenciaId': transferenciaId,
+      'empresaId': empresaId,
+      if (productoId != null) 'productoId': productoId,
+      if (varianteId != null) 'varianteId': varianteId,
+      'cantidadSolicitada': cantidadSolicitada,
+      if (cantidadAprobada != null) 'cantidadAprobada': cantidadAprobada,
+      if (cantidadEnviada != null) 'cantidadEnviada': cantidadEnviada,
+      if (cantidadRecibida != null) 'cantidadRecibida': cantidadRecibida,
+      'estado': estado.value,
+      if (motivo != null) 'motivo': motivo,
+      if (observaciones != null) 'observaciones': observaciones,
+      'creadoEn': creadoEn.toIso8601String(),
+      'actualizadoEn': actualizadoEn.toIso8601String(),
     };
   }
 }

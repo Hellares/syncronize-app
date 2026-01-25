@@ -1,7 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../core/di/injection_container.dart';
 import '../../../../../core/utils/resource.dart';
-import '../../../../../core/widgets/currency/currency_formatter.dart';
 import '../../../domain/entities/producto.dart';
 import '../../../domain/usecases/crear_producto_usecase.dart';
 import '../../../domain/usecases/actualizar_producto_usecase.dart';
@@ -101,14 +100,14 @@ class ProductoFormCubit extends Cubit<ProductoFormState> {
       final nombre = controller.nombreController.text.trim();
       final descripcion = controller.descripcionController.text.trim();
 
-      // Calcular precio
-      final double precio;
-      if (controller.esCombo &&
-          (controller.tipoPrecioCombo == 'CALCULADO' || controller.tipoPrecioCombo == 'CALCULADO_CON_DESCUENTO')) {
-        precio = 0.0;
-      } else {
-        precio = controller.precioController.currencyValue;
-      }
+      // ❌ DEPRECADO: Precio ahora se maneja en ProductoStock por sede
+      // final double precio;
+      // if (controller.esCombo &&
+      //     (controller.tipoPrecioCombo == 'CALCULADO' || controller.tipoPrecioCombo == 'CALCULADO_CON_DESCUENTO')) {
+      //   precio = 0.0;
+      // } else {
+      //   precio = controller.precioController.currencyValue;
+      // }
 
       // Preparar dimensiones
       Map<String, dynamic>? dimensiones;
@@ -134,12 +133,18 @@ class ProductoFormCubit extends Cubit<ProductoFormState> {
           unidadMedidaId: controller.selectedUnidadMedidaId,
           nombre: nombre,
           descripcion: descripcion.isEmpty ? null : descripcion,
-          precio: precio,
+          // ❌ DEPRECADO: Precio, precioCosto y ofertas ahora se manejan en ProductoStock por sede
+          // NO se deben enviar al actualizar el producto base
+          // precio: precio,
+          // precioCosto: controller.precioCostoController.currencyValue > 0 ? controller.precioCostoController.currencyValue : null,
+          // enOferta: controller.enOferta,
+          // precioOferta: controller.enOferta ? controller.precioOfertaController.currencyValue : null,
+          // fechaInicioOferta: controller.enOferta ? controller.fechaInicioOferta : null,
+          // fechaFinOferta: controller.enOferta ? controller.fechaFinOferta : null,
           empresaCategoriaId: controller.selectedCategoriaId,
           empresaMarcaId: controller.selectedMarcaId,
           sku: controller.skuController.text.trim().isEmpty ? null : controller.skuController.text.trim(),
           codigoBarras: controller.codigoBarrasController.text.trim().isEmpty ? null : controller.codigoBarrasController.text.trim(),
-          precioCosto: controller.precioCostoController.currencyValue > 0 ? controller.precioCostoController.currencyValue : null,
           // DEPRECATED: Stock ahora se maneja mediante ProductoStock por sede
           // stock: controller.stockController.text.isEmpty ? null : int.tryParse(controller.stockController.text),
           // stockMinimo: controller.stockMinimoController.text.isEmpty ? null : int.tryParse(controller.stockMinimoController.text),
@@ -154,13 +159,9 @@ class ProductoFormCubit extends Cubit<ProductoFormState> {
               : double.tryParse(controller.descuentoMaximoController.text),
           visibleMarketplace: controller.visibleMarketplace,
           destacado: controller.destacado,
-          enOferta: controller.enOferta,
           tieneVariantes: controller.tieneVariantes,
           esCombo: controller.esCombo,
           tipoPrecioCombo: controller.esCombo ? controller.tipoPrecioCombo : null,
-          precioOferta: controller.enOferta ? controller.precioOfertaController.currencyValue : null,
-          fechaInicioOferta: controller.enOferta ? controller.fechaInicioOferta : null,
-          fechaFinOferta: controller.enOferta ? controller.fechaFinOferta : null,
           imagenesIds: finalImagenesIds.isNotEmpty ? finalImagenesIds : null,
           configuracionPrecioId: controller.selectedConfiguracionPrecioId,
         );
@@ -171,15 +172,20 @@ class ProductoFormCubit extends Cubit<ProductoFormState> {
           unidadMedidaId: controller.selectedUnidadMedidaId,
           nombre: nombre,
           descripcion: descripcion.isEmpty ? null : descripcion,
-          precio: precio,
+          // ❌ DEPRECADO: Precio, stock y ofertas ahora se manejan en ProductoStock por sede
+          // TODO: Después de crear el producto, crear ProductoStock para cada sede
+          // precio: precio,
+          // precioCosto: controller.precioCostoController.currencyValue > 0 ? controller.precioCostoController.currencyValue : null,
+          // stock: 0,
+          // stockMinimo: null,
+          // enOferta: controller.enOferta,
+          // precioOferta: controller.enOferta ? controller.precioOfertaController.currencyValue : null,
+          // fechaInicioOferta: controller.enOferta ? controller.fechaInicioOferta : null,
+          // fechaFinOferta: controller.enOferta ? controller.fechaFinOferta : null,
           empresaCategoriaId: controller.selectedCategoriaId,
           empresaMarcaId: controller.selectedMarcaId,
           sku: controller.skuController.text.trim().isEmpty ? null : controller.skuController.text.trim(),
           codigoBarras: controller.codigoBarrasController.text.trim().isEmpty ? null : controller.codigoBarrasController.text.trim(),
-          precioCosto: controller.precioCostoController.currencyValue > 0 ? controller.precioCostoController.currencyValue : null,
-          // Stock ya no se envía en creación, se agrega después mediante ProductoStock
-          // stock: 0,
-          // stockMinimo: null,
           peso: controller.pesoController.text.isEmpty ? null : double.tryParse(controller.pesoController.text),
           dimensiones: dimensiones,
           videoUrl: controller.videoUrlController.text.trim(),
@@ -191,13 +197,9 @@ class ProductoFormCubit extends Cubit<ProductoFormState> {
               : double.tryParse(controller.descuentoMaximoController.text),
           visibleMarketplace: controller.visibleMarketplace,
           destacado: controller.destacado,
-          enOferta: controller.enOferta,
           tieneVariantes: controller.tieneVariantes,
           esCombo: controller.esCombo,
           tipoPrecioCombo: controller.esCombo ? controller.tipoPrecioCombo : null,
-          precioOferta: controller.enOferta ? controller.precioOfertaController.currencyValue : null,
-          fechaInicioOferta: controller.enOferta ? controller.fechaInicioOferta : null,
-          fechaFinOferta: controller.enOferta ? controller.fechaFinOferta : null,
           imagenesIds: finalImagenesIds.isNotEmpty ? finalImagenesIds : null,
           configuracionPrecioId: controller.selectedConfiguracionPrecioId,
         );

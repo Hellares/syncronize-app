@@ -8,9 +8,20 @@ class ProductoStockModel extends ProductoStock {
     super.varianteId,
     required super.empresaId,
     required super.stockActual,
+    super.stockReservado = 0,
+    super.stockReservadoVenta = 0,
+    super.stockDanado = 0,
+    super.stockEnGarantia = 0,
     super.stockMinimo,
     super.stockMaximo,
     super.ubicacion,
+    super.precio,
+    super.precioCosto,
+    super.precioOferta,
+    super.enOferta = false,
+    super.fechaInicioOferta,
+    super.fechaFinOferta,
+    super.precioConfigurado = false,
     required super.creadoEn,
     required super.actualizadoEn,
     super.sede,
@@ -26,6 +37,18 @@ class ProductoStockModel extends ProductoStock {
       varianteId: json['varianteId'] as String?,
       empresaId: json['empresaId'] as String,
       stockActual: _toInt(json['stockActual']),
+      stockReservado: json['stockReservado'] != null
+          ? _toInt(json['stockReservado'])
+          : 0,
+      stockReservadoVenta: json['stockReservadoVenta'] != null
+          ? _toInt(json['stockReservadoVenta'])
+          : 0,
+      stockDanado: json['stockDanado'] != null
+          ? _toInt(json['stockDanado'])
+          : 0,
+      stockEnGarantia: json['stockEnGarantia'] != null
+          ? _toInt(json['stockEnGarantia'])
+          : 0,
       stockMinimo: json['stockMinimo'] != null
           ? _toInt(json['stockMinimo'])
           : null,
@@ -33,6 +56,17 @@ class ProductoStockModel extends ProductoStock {
           ? _toInt(json['stockMaximo'])
           : null,
       ubicacion: json['ubicacion'] as String?,
+      precio: json['precio'] != null ? _toDouble(json['precio']) : null,
+      precioCosto: json['precioCosto'] != null ? _toDouble(json['precioCosto']) : null,
+      precioOferta: json['precioOferta'] != null ? _toDouble(json['precioOferta']) : null,
+      enOferta: json['enOferta'] as bool? ?? false,
+      fechaInicioOferta: json['fechaInicioOferta'] != null
+          ? DateTime.parse(json['fechaInicioOferta'] as String)
+          : null,
+      fechaFinOferta: json['fechaFinOferta'] != null
+          ? DateTime.parse(json['fechaFinOferta'] as String)
+          : null,
+      precioConfigurado: json['precioConfigurado'] as bool? ?? false,
       creadoEn: DateTime.parse(json['creadoEn'] as String),
       actualizadoEn: DateTime.parse(json['actualizadoEn'] as String),
       sede: json['sede'] != null
@@ -57,6 +91,14 @@ class ProductoStockModel extends ProductoStock {
     return 0;
   }
 
+  static double _toDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) return double.parse(value);
+    return 0.0;
+  }
+
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -65,9 +107,20 @@ class ProductoStockModel extends ProductoStock {
       if (varianteId != null) 'varianteId': varianteId,
       'empresaId': empresaId,
       'stockActual': stockActual,
+      'stockReservado': stockReservado,
+      'stockReservadoVenta': stockReservadoVenta,
+      'stockDanado': stockDanado,
+      'stockEnGarantia': stockEnGarantia,
       if (stockMinimo != null) 'stockMinimo': stockMinimo,
       if (stockMaximo != null) 'stockMaximo': stockMaximo,
       if (ubicacion != null) 'ubicacion': ubicacion,
+      if (precio != null) 'precio': precio,
+      if (precioCosto != null) 'precioCosto': precioCosto,
+      if (precioOferta != null) 'precioOferta': precioOferta,
+      'enOferta': enOferta,
+      if (fechaInicioOferta != null) 'fechaInicioOferta': fechaInicioOferta!.toIso8601String(),
+      if (fechaFinOferta != null) 'fechaFinOferta': fechaFinOferta!.toIso8601String(),
+      'precioConfigurado': precioConfigurado,
       'creadoEn': creadoEn.toIso8601String(),
       'actualizadoEn': actualizadoEn.toIso8601String(),
     };

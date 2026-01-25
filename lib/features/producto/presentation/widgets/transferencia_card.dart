@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:syncronize/core/theme/app_gradients.dart';
+import 'package:syncronize/core/theme/gradient_container.dart';
+import 'package:syncronize/core/widgets/info_chip.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/transferencia_stock.dart';
 
@@ -15,12 +18,11 @@ class TransferenciaCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return GradientContainer(
       margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      gradient: AppGradients.blueWhiteBlue(),
+      borderColor: AppColors.blueborder,
+      shadowStyle: ShadowStyle.glow,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
@@ -40,16 +42,16 @@ class TransferenciaCard extends StatelessWidget {
                         Text(
                           transferencia.codigo,
                           style: const TextStyle(
-                            fontSize: 16,
+                            fontSize: 12,
                             fontWeight: FontWeight.bold,
                             color: AppColors.blue1,
                           ),
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          transferencia.nombreProducto,
+                          transferencia.nombresProductos,
                           style: TextStyle(
-                            fontSize: 14,
+                            fontSize: 12,
                             color: Colors.grey[800],
                           ),
                         ),
@@ -60,9 +62,9 @@ class TransferenciaCard extends StatelessWidget {
                 ],
               ),
 
-              const SizedBox(height: 12),
+              // const SizedBox(height: 2),
               const Divider(),
-              const SizedBox(height: 12),
+              // const SizedBox(height: 8),
 
               // Información de sedes
               Row(
@@ -103,9 +105,9 @@ class TransferenciaCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        '${transferencia.cantidad} unidades',
+                        '${transferencia.cantidadTotal} unidades',
                         style: TextStyle(
-                          fontSize: 13,
+                          fontSize: 11,
                           fontWeight: FontWeight.w500,
                           color: Colors.grey[800],
                         ),
@@ -115,7 +117,7 @@ class TransferenciaCard extends StatelessWidget {
                   Text(
                     DateFormat('dd/MM/yyyy').format(transferencia.creadoEn),
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: 11,
                       color: Colors.grey[600],
                     ),
                   ),
@@ -181,7 +183,7 @@ class TransferenciaCard extends StatelessWidget {
         Text(
           sede,
           style: TextStyle(
-            fontSize: 12,
+            fontSize: 11,
             fontWeight: FontWeight.w500,
             color: Colors.grey[800],
           ),
@@ -233,28 +235,6 @@ class TransferenciaCard extends StatelessWidget {
         textColor = Colors.grey.shade800;
         icon = Icons.help_outline;
     }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: textColor),
-          const SizedBox(width: 4),
-          Text(
-            estado.descripcion,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: textColor,
-            ),
-          ),
-        ],
-      ),
-    );
+    return InfoChip(icon: icon, text: estado.descripcion, backgroundColor: backgroundColor, textColor: textColor, fontWeight: FontWeight.bold,);
   }
 }

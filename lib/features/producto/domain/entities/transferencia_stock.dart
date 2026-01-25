@@ -31,6 +31,35 @@ enum EstadoTransferencia {
   bool get isFinalizado => isRecibida || isRechazada || isCancelada;
 }
 
+/// Estados de un item de transferencia
+enum EstadoItemTransferencia {
+  pendiente('PENDIENTE', 'Pendiente'),
+  aprobado('APROBADO', 'Aprobado'),
+  rechazado('RECHAZADO', 'Rechazado'),
+  enviado('ENVIADO', 'Enviado'),
+  recibido('RECIBIDO', 'Recibido'),
+  recibidoParcial('RECIBIDO_PARCIAL', 'Recibido Parcial');
+
+  final String value;
+  final String descripcion;
+
+  const EstadoItemTransferencia(this.value, this.descripcion);
+
+  static EstadoItemTransferencia fromString(String value) {
+    return EstadoItemTransferencia.values.firstWhere(
+      (e) => e.value == value,
+      orElse: () => EstadoItemTransferencia.pendiente,
+    );
+  }
+
+  bool get isPendiente => this == EstadoItemTransferencia.pendiente;
+  bool get isAprobado => this == EstadoItemTransferencia.aprobado;
+  bool get isRechazado => this == EstadoItemTransferencia.rechazado;
+  bool get isEnviado => this == EstadoItemTransferencia.enviado;
+  bool get isRecibido => this == EstadoItemTransferencia.recibido;
+  bool get isRecibidoParcial => this == EstadoItemTransferencia.recibidoParcial;
+}
+
 /// Entity para TransferenciaStock - Transferencias entre sedes
 class TransferenciaStock extends Equatable {
   final String id;
@@ -38,10 +67,14 @@ class TransferenciaStock extends Equatable {
   final String sedeOrigenId;
   final String sedeDestinoId;
   final String codigo;
-  final String? productoId;
-  final String? varianteId;
-  final int cantidad;
   final EstadoTransferencia estado;
+
+  // Resumen de items
+  final int totalItems;
+  final int itemsAprobados;
+  final int itemsRechazados;
+  final int itemsRecibidos;
+
   final String? motivo;
   final String? observaciones;
   final String solicitadoPor;
@@ -56,8 +89,7 @@ class TransferenciaStock extends Equatable {
   // Relaciones
   final SedeTransferencia? sedeOrigen;
   final SedeTransferencia? sedeDestino;
-  final ProductoTransferenciaInfo? producto;
-  final VarianteTransferenciaInfo? variante;
+  final List<TransferenciaStockItem>? items; // Items de la transferencia
 
   const TransferenciaStock({
     required this.id,
@@ -65,10 +97,11 @@ class TransferenciaStock extends Equatable {
     required this.sedeOrigenId,
     required this.sedeDestinoId,
     required this.codigo,
-    this.productoId,
-    this.varianteId,
-    required this.cantidad,
     required this.estado,
+    this.totalItems = 0,
+    this.itemsAprobados = 0,
+    this.itemsRechazados = 0,
+    this.itemsRecibidos = 0,
     this.motivo,
     this.observaciones,
     required this.solicitadoPor,
@@ -81,8 +114,7 @@ class TransferenciaStock extends Equatable {
     required this.actualizadoEn,
     this.sedeOrigen,
     this.sedeDestino,
-    this.producto,
-    this.variante,
+    this.items,
   });
 
   @override
@@ -92,10 +124,11 @@ class TransferenciaStock extends Equatable {
         sedeOrigenId,
         sedeDestinoId,
         codigo,
-        productoId,
-        varianteId,
-        cantidad,
         estado,
+        totalItems,
+        itemsAprobados,
+        itemsRechazados,
+        itemsRecibidos,
         motivo,
         observaciones,
         solicitadoPor,
@@ -108,11 +141,17 @@ class TransferenciaStock extends Equatable {
         actualizadoEn,
       ];
 
-  /// Retorna el nombre del producto/variante
-  String get nombreProducto {
-    if (producto != null) return producto!.nombre;
-    if (variante != null) return variante!.nombre;
-    return 'Producto desconocido';
+  /// Retorna los nombres de productos en la transferencia
+  String get nombresProductos {
+    if (items == null || items!.isEmpty) return 'Sin productos';
+    if (items!.length == 1) return items!.first.nombreProducto;
+    return '${items!.length} productos';
+  }
+
+  /// Retorna la cantidad total de items solicitados
+  int get cantidadTotal {
+    if (items == null || items!.isEmpty) return 0;
+    return items!.fold(0, (sum, item) => sum + item.cantidadSolicitada);
   }
 
   /// Retorna true si la transferencia puede ser aprobada
@@ -181,4 +220,86 @@ class VarianteTransferenciaInfo extends Equatable {
 
   @override
   List<Object?> get props => [id, nombre, sku];
+}
+
+/// Item individual de una transferencia (producto o variante con cantidad)
+class TransferenciaStockItem extends Equatable {
+  final String id;
+  final String transferenciaId;
+  final String empresaId;
+  final String? productoId;
+  final String? varianteId;
+
+  // Cantidades
+  final int cantidadSolicitada;
+  final int? cantidadAprobada;
+  final int? cantidadEnviada;
+  final int? cantidadRecibida;
+
+  final EstadoItemTransferencia estado;
+  final String? motivo;
+  final String? observaciones;
+  final DateTime creadoEn;
+  final DateTime actualizadoEn;
+
+  // Relaciones
+  final ProductoTransferenciaInfo? producto;
+  final VarianteTransferenciaInfo? variante;
+
+  const TransferenciaStockItem({
+    required this.id,
+    required this.transferenciaId,
+    required this.empresaId,
+    this.productoId,
+    this.varianteId,
+    required this.cantidadSolicitada,
+    this.cantidadAprobada,
+    this.cantidadEnviada,
+    this.cantidadRecibida,
+    required this.estado,
+    this.motivo,
+    this.observaciones,
+    required this.creadoEn,
+    required this.actualizadoEn,
+    this.producto,
+    this.variante,
+  });
+
+  @override
+  List<Object?> get props => [
+        id,
+        transferenciaId,
+        empresaId,
+        productoId,
+        varianteId,
+        cantidadSolicitada,
+        cantidadAprobada,
+        cantidadEnviada,
+        cantidadRecibida,
+        estado,
+        motivo,
+        observaciones,
+        creadoEn,
+        actualizadoEn,
+      ];
+
+  /// Retorna el nombre del producto/variante
+  String get nombreProducto {
+    if (producto != null) return producto!.nombre;
+    if (variante != null) return variante!.nombre;
+    return 'Producto desconocido';
+  }
+
+  /// Retorna el código del producto
+  String? get codigoProducto {
+    if (producto != null) return producto!.codigoEmpresa;
+    if (variante != null) return variante!.sku;
+    return null;
+  }
+
+  /// Retorna true si el item puede ser aprobado
+  bool get puedeAprobar => estado.isPendiente;
+
+  /// Retorna true si el item puede ser rechazado
+  bool get puedeRechazar => estado.isPendiente;
 }

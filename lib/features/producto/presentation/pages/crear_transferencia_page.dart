@@ -343,7 +343,7 @@ class _CrearTransferenciaPageState extends State<CrearTransferenciaPage> {
                     .map((stock) => DropdownItem<String>(
                           value: stock.id,
                           label:
-                              '${stock.producto?.nombre ?? stock.variante?.nombre ?? 'Sin nombre'} (Stock: ${stock.stockActual})',
+                              '${stock.producto?.nombre ?? stock.variante?.nombre ?? 'Sin nombre'} (Disponible: ${stock.stockDisponible})',
                         ))
                     .toList(),
                 onChanged: (value) {
@@ -365,6 +365,9 @@ class _CrearTransferenciaPageState extends State<CrearTransferenciaPage> {
   }
 
   Widget _buildStockInfo() {
+    final stock = _productoStockSeleccionado!;
+    final tieneReservas = stock.tieneStockReservado;
+
     return Card(
       color: Colors.green.shade50,
       child: Padding(
@@ -377,7 +380,7 @@ class _CrearTransferenciaPageState extends State<CrearTransferenciaPage> {
                 Icon(Icons.inventory_2, color: Colors.green.shade700, size: 20),
                 const SizedBox(width: 8),
                 Text(
-                  'Stock Disponible',
+                  'Stock en ${stock.sede?.nombre ?? 'la sede origen'}',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Colors.green.shade900,
@@ -386,9 +389,64 @@ class _CrearTransferenciaPageState extends State<CrearTransferenciaPage> {
               ],
             ),
             const SizedBox(height: 8),
-            Text(
-              '${_productoStockSeleccionado!.stockActual} unidades disponibles en ${_productoStockSeleccionado!.sede?.nombre ?? 'la sede origen'}',
-              style: TextStyle(fontSize: 12, color: Colors.green.shade900),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Stock físico:',
+                  style: TextStyle(fontSize: 12, color: Colors.green.shade900),
+                ),
+                Text(
+                  '${stock.stockActual} unidades',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green.shade900,
+                  ),
+                ),
+              ],
+            ),
+            if (tieneReservas) ...[
+              const SizedBox(height: 4),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Stock reservado:',
+                    style: TextStyle(fontSize: 12, color: Colors.orange.shade900),
+                  ),
+                  Text(
+                    '${stock.stockReservado} unidades',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange.shade900,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            const Divider(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Disponible para transferir:',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green.shade900,
+                  ),
+                ),
+                Text(
+                  '${stock.stockDisponible} unidades',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: stock.stockDisponible > 0 ? Colors.green.shade700 : Colors.red,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -428,8 +486,8 @@ class _CrearTransferenciaPageState extends State<CrearTransferenciaPage> {
               return 'Cantidad inválida';
             }
             if (_productoStockSeleccionado != null &&
-                cantidad > _productoStockSeleccionado!.stockActual) {
-              return 'Stock insuficiente (disponible: ${_productoStockSeleccionado!.stockActual})';
+                cantidad > _productoStockSeleccionado!.stockDisponible) {
+              return 'Stock disponible insuficiente (disponible: ${_productoStockSeleccionado!.stockDisponible})';
             }
             return null;
           },
