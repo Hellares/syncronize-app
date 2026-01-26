@@ -36,6 +36,9 @@ import '../../features/catalogo/presentation/pages/gestion_unidades_page.dart';
 import '../../features/combo/presentation/pages/pages.dart';
 import '../../features/cliente/presentation/pages/clientes_page.dart';
 import '../../features/cliente/presentation/pages/cliente_form_page.dart';
+import '../../features/proveedor/presentation/pages/proveedores_page.dart';
+import '../../features/proveedor/presentation/pages/proveedor_form_page.dart';
+import '../../features/proveedor/presentation/pages/proveedor_detail_page.dart';
 import '../../features/usuario/presentation/pages/usuarios_page.dart';
 import '../../features/usuario/presentation/pages/usuario_form_page.dart';
 import '../../features/descuento/presentation/pages/pages.dart';
@@ -284,6 +287,47 @@ class AppRouter {
           final extra = state.extra as Map<String, dynamic>?;
           final empresaId = extra?['empresaId'] as String? ?? '';
           return ClienteFormPage(empresaId: empresaId);
+        },
+      ),
+      // Rutas de proveedores
+      GoRoute(
+        path: '/empresa/:empresaId/proveedores',
+        name: 'empresa-proveedores',
+        builder: (context, state) {
+          final empresaId = state.pathParameters['empresaId']!;
+          return ProveedoresPage(empresaId: empresaId);
+        },
+      ),
+      GoRoute(
+        path: '/empresa/:empresaId/proveedores/nuevo',
+        name: 'empresa-proveedores-nuevo',
+        builder: (context, state) {
+          final empresaId = state.pathParameters['empresaId']!;
+          return ProveedorFormPage(empresaId: empresaId);
+        },
+      ),
+      GoRoute(
+        path: '/empresa/:empresaId/proveedores/:id',
+        name: 'empresa-proveedores-detail',
+        builder: (context, state) {
+          final empresaId = state.pathParameters['empresaId']!;
+          final proveedor = state.extra;
+          return ProveedorDetailPage(
+            empresaId: empresaId,
+            proveedor: proveedor as dynamic,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/empresa/:empresaId/proveedores/:id/editar',
+        name: 'empresa-proveedores-editar',
+        builder: (context, state) {
+          final empresaId = state.pathParameters['empresaId']!;
+          final proveedor = state.extra;
+          return ProveedorFormPage(
+            empresaId: empresaId,
+            proveedor: proveedor as dynamic,
+          );
         },
       ),
       // Rutas de usuarios

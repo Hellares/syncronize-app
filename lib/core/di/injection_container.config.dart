@@ -358,6 +358,26 @@ import '../../features/producto/presentation/bloc/transferencias_list/transferen
     as _i410;
 import '../../features/producto/presentation/bloc/variante_atributo/variante_atributo_cubit.dart'
     as _i911;
+import '../../features/proveedor/data/datasources/proveedor_remote_datasource.dart'
+    as _i478;
+import '../../features/proveedor/data/repositories/proveedor_repository_impl.dart'
+    as _i919;
+import '../../features/proveedor/domain/repositories/proveedor_repository.dart'
+    as _i871;
+import '../../features/proveedor/domain/usecases/actualizar_proveedor_usecase.dart'
+    as _i57;
+import '../../features/proveedor/domain/usecases/crear_proveedor_usecase.dart'
+    as _i580;
+import '../../features/proveedor/domain/usecases/evaluar_proveedor_usecase.dart'
+    as _i40;
+import '../../features/proveedor/domain/usecases/get_proveedor_usecase.dart'
+    as _i676;
+import '../../features/proveedor/domain/usecases/get_proveedores_usecase.dart'
+    as _i825;
+import '../../features/proveedor/presentation/bloc/proveedor_form/proveedor_form_cubit.dart'
+    as _i878;
+import '../../features/proveedor/presentation/bloc/proveedor_list/proveedor_list_cubit.dart'
+    as _i94;
 import '../../features/sede/data/datasources/sede_remote_datasource.dart'
     as _i785;
 import '../../features/sede/data/repositories/sede_repository_impl.dart'
@@ -541,6 +561,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i815.TransferenciaStockRemoteDataSource>(
       () => _i815.TransferenciaStockRemoteDataSource(gh<_i667.DioClient>()),
     );
+    gh.lazySingleton<_i478.ProveedorRemoteDataSource>(
+      () => _i478.ProveedorRemoteDataSource(gh<_i667.DioClient>()),
+    );
     gh.lazySingleton<_i785.SedeRemoteDataSource>(
       () => _i785.SedeRemoteDataSource(gh<_i667.DioClient>()),
     );
@@ -717,6 +740,12 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i161.AuthRemoteDataSource>(
       () => _i161.AuthRemoteDataSourceImpl(gh<_i667.DioClient>()),
     );
+    gh.lazySingleton<_i871.ProveedorRepository>(
+      () => _i919.ProveedorRepositoryImpl(
+        gh<_i478.ProveedorRemoteDataSource>(),
+        gh<_i932.NetworkInfo>(),
+      ),
+    );
     gh.factory<_i78.ActivarCategoriaUseCase>(
       () => _i78.ActivarCategoriaUseCase(gh<_i736.CatalogoRepository>()),
     );
@@ -807,6 +836,21 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i656.StockPorSedeCubit>(
       () => _i656.StockPorSedeCubit(gh<_i394.GetStockPorSedeUseCase>()),
+    );
+    gh.factory<_i57.ActualizarProveedorUseCase>(
+      () => _i57.ActualizarProveedorUseCase(gh<_i871.ProveedorRepository>()),
+    );
+    gh.factory<_i580.CrearProveedorUseCase>(
+      () => _i580.CrearProveedorUseCase(gh<_i871.ProveedorRepository>()),
+    );
+    gh.factory<_i40.EvaluarProveedorUseCase>(
+      () => _i40.EvaluarProveedorUseCase(gh<_i871.ProveedorRepository>()),
+    );
+    gh.factory<_i676.GetProveedorUseCase>(
+      () => _i676.GetProveedorUseCase(gh<_i871.ProveedorRepository>()),
+    );
+    gh.factory<_i825.GetProveedoresUseCase>(
+      () => _i825.GetProveedoresUseCase(gh<_i871.ProveedorRepository>()),
     );
     gh.factory<_i658.MarcasEmpresaCubit>(
       () => _i658.MarcasEmpresaCubit(
@@ -1014,6 +1058,12 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i395.ActualizarPreciosProductoStockUseCase>(),
       ),
     );
+    gh.factory<_i878.ProveedorFormCubit>(
+      () => _i878.ProveedorFormCubit(
+        gh<_i580.CrearProveedorUseCase>(),
+        gh<_i57.ActualizarProveedorUseCase>(),
+      ),
+    );
     gh.factory<_i238.CrearTransferenciaCubit>(
       () => _i238.CrearTransferenciaCubit(
         gh<_i629.CrearTransferenciaUseCase>(),
@@ -1126,6 +1176,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i914.AlertasStockCubit>(
       () => _i914.AlertasStockCubit(gh<_i752.GetAlertasStockBajoUseCase>()),
+    );
+    gh.factory<_i94.ProveedorListCubit>(
+      () => _i94.ProveedorListCubit(gh<_i825.GetProveedoresUseCase>()),
     );
     gh.factory<_i788.ChangePasswordUseCase>(
       () => _i788.ChangePasswordUseCase(gh<_i787.AuthRepository>()),

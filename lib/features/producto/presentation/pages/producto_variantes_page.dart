@@ -498,12 +498,9 @@ class _VarianteCard extends StatelessWidget {
                       case ActionMenuType.delete:
                         onDelete();
                         break;
-                      case ActionMenuType.share:
-                        // Handle this case.
-                        throw UnimplementedError();
-                      case ActionMenuType.disable:
-                        // Handle this case.
-                        throw UnimplementedError();
+                      default:
+                        // Otros casos no aplican para variantes
+                        break;
                     }
                   },
                 ),

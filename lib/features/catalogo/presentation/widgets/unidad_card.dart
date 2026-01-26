@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:syncronize/core/theme/app_colors.dart';
+import 'package:syncronize/core/theme/gradient_container.dart';
+import 'package:syncronize/core/widgets/chip_simple.dart';
 import '../../domain/entities/unidad_medida.dart';
 
 /// Card para mostrar una unidad de medida activa de la empresa
@@ -16,15 +19,15 @@ class UnidadCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isPersonalizada = unidad.esPersonalizada;
 
-    return Card(
+    return GradientContainer(
+      borderColor: AppColors.blueborder,
       margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
       child: ListTile(
         leading: _buildIcon(),
         title: Text(
           unidad.displayConCodigo,
           style: const TextStyle(
-            fontSize: 16,
+            fontSize: 12,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -32,7 +35,7 @@ class UnidadCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (unidad.descripcion != null) Text(unidad.descripcion!),
-            const SizedBox(height: 4),
+            const SizedBox(height: 8),
             Wrap(
               spacing: 8,
               runSpacing: 4,
@@ -76,7 +79,7 @@ class UnidadCard extends StatelessWidget {
   Widget _buildIcon() {
     final color = unidad.esPersonalizada
         ? Colors.purple // Personalizada
-        : Colors.blue; // Maestra
+        : AppColors.blue1; // Maestra
 
     IconData icon = Icons.straighten;
     if (unidad.categoria != null) {
@@ -105,18 +108,10 @@ class UnidadCard extends StatelessWidget {
       }
     }
 
-    return Icon(icon, color: color, size: 32);
+    return Icon(icon, color: color, size: 20);
   }
 
   Widget _buildChip(String label, Color color) {
-    return Chip(
-      label: Text(
-        label,
-        style: const TextStyle(fontSize: 11),
-      ),
-      backgroundColor: color.withOpacity(0.2),
-      labelStyle: TextStyle(color: color),
-      visualDensity: VisualDensity.compact,
-    );
+    return ChipSimple(label: label, color: color, fontSize: 10,borderRadius: 4,);
   }
 }

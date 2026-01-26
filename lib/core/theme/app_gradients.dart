@@ -111,6 +111,17 @@ class AppGradients {
     stops: [0.0, 0.7, 1.0],
   );
 
+  static LinearGradient gray() => LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [
+      Color(0xFFEEEEEE), 
+      Color(0xFFFFFFFF),                   // Blanco centro (AppColors.white)
+      Color(0xFFEEEEEE), 
+    ],
+    stops: [0.0, 0.7, 1.0],
+  );
+
  
   // GRADIENTE PERSONALIZABLE
   static LinearGradient custom({

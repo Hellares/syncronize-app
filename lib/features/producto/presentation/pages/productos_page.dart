@@ -7,6 +7,7 @@ import 'package:syncronize/core/widgets/custom_sede_selector.dart';
 import 'package:syncronize/core/widgets/floating_button_icon.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import 'package:syncronize/core/widgets/custom_loading.dart';
+import 'package:syncronize/core/widgets/custom_navigation_menu.dart';
 import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/gradient_background.dart';
@@ -549,63 +550,52 @@ class _ProductosPageState extends State<ProductosPage>
             // Selector de sede (solo si hay más de una)
             _buildSedeSelector(),
             // Menú de inventario
-            PopupMenuButton<String>(
-              padding: const EdgeInsets.all(0),
-              icon: const Icon(Icons.inventory_2_outlined, size: 16),
+            CustomNavigationMenu(
+              triggerIcon: Icons.inventory_2_outlined,
+              triggerIconSize: 14,
+              triggerIconColor: AppColors.white,
               tooltip: 'Inventario',
-              onSelected: (value) {
-                if (value == 'stock_por_sede') {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const StockPorSedePage()),
-                  );
-                } else if (value == 'alertas') {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const AlertasStockBajoPage(),
-                    ),
-                  );
-                } else if (value == 'transferencias') {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const TransferenciasStockPage(),
-                    ),
-                  );
-                }
-              },
-              itemBuilder: (context) => [
-                const PopupMenuItem(
-                  value: 'stock_por_sede',
-                  child: Row(
-                    children: [
-                      Icon(Icons.warehouse, size: 18),
-                      SizedBox(width: 8),
-                      Text('Stock por Sede'),
-                    ],
-                  ),
+              menuWidth: 220,
+              items: [
+                NavigationMenuItem(
+                  id: 'stock_por_sede',
+                  label: 'Stock por Sede',
+                  icon: Icons.warehouse,
+                  iconColor: AppColors.blue1,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const StockPorSedePage()),
+                    );
+                  },
                 ),
-                const PopupMenuItem(
-                  value: 'alertas',
-                  child: Row(
-                    children: [
-                      Icon(Icons.warning, size: 18),
-                      SizedBox(width: 8),
-                      Text('Alertas de Stock'),
-                    ],
-                  ),
+                NavigationMenuItem(
+                  id: 'alertas',
+                  label: 'Alertas de Stock',
+                  icon: Icons.warning,
+                  iconColor: Colors.orange,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const AlertasStockBajoPage(),
+                      ),
+                    );
+                  },
                 ),
-                const PopupMenuDivider(),
-                const PopupMenuItem(
-                  value: 'transferencias',
-                  child: Row(
-                    children: [
-                      Icon(Icons.sync_alt, size: 18),
-                      SizedBox(width: 8),
-                      Text('Transferencias entre Sedes'),
-                    ],
-                  ),
+                NavigationMenuItem(
+                  id: 'transferencias',
+                  label: 'Transferencias entre Sedes',
+                  icon: Icons.sync_alt,
+                  iconColor: AppColors.blue1,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const TransferenciasStockPage(),
+                      ),
+                    );
+                  },
                 ),
               ],
             ),
@@ -689,8 +679,8 @@ class _ProductosPageState extends State<ProductosPage>
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 10),
       child: CustomText(
-        borderColor: AppColors.cardBackground,
-        borderWidth: 1,
+        borderColor: AppColors.blue1,
+        // borderWidth: 1,
         controller: _searchController,
         hintText: 'Buscar productos...',
         prefixIcon: const Icon(Icons.search, size: 18, color: Colors.grey),

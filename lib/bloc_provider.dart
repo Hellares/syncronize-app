@@ -18,6 +18,8 @@ import 'package:syncronize/features/catalogo/presentation/bloc/marcas_maestras/m
 import 'package:syncronize/features/combo/presentation/bloc/combo_cubit.dart';
 import 'package:syncronize/features/cliente/presentation/bloc/cliente_list/cliente_list_cubit.dart';
 import 'package:syncronize/features/cliente/presentation/bloc/cliente_form/cliente_form_cubit.dart';
+import 'package:syncronize/features/proveedor/presentation/bloc/proveedor_list/proveedor_list_cubit.dart';
+import 'package:syncronize/features/proveedor/presentation/bloc/proveedor_form/proveedor_form_cubit.dart';
 import 'package:syncronize/features/usuario/presentation/bloc/usuario_list/usuario_list_cubit.dart';
 import 'package:syncronize/features/usuario/presentation/bloc/usuario_form/usuario_form_cubit.dart';
 import 'package:syncronize/features/descuento/presentation/bloc/politica_list/politica_list_cubit.dart';
@@ -151,6 +153,18 @@ List<BlocProvider> blocProviders = [
   // Cliente Form Cubit - Maneja el formulario de registro de clientes
   BlocProvider<ClienteFormCubit>(
     create: (context) => locator<ClienteFormCubit>(),
+    lazy: true,
+  ),
+
+  // Proveedor List Cubit - Maneja la lista de proveedores
+  BlocProvider<ProveedorListCubit>(
+    create: (context) => locator<ProveedorListCubit>(),
+    lazy: true,
+  ),
+
+  // Proveedor Form Cubit - Maneja el formulario de registro de proveedores
+  BlocProvider<ProveedorFormCubit>(
+    create: (context) => locator<ProveedorFormCubit>(),
     lazy: true,
   ),
 

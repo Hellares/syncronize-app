@@ -4,6 +4,7 @@ import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/gradient_background.dart';
 import 'package:syncronize/core/widgets/custom_search_field.dart';
+import 'package:syncronize/core/widgets/info_chip.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import '../widgets/dialogs/confirm_dialog.dart';
 import '../../domain/entities/unidad_medida.dart';
@@ -178,10 +179,7 @@ class _GestionUnidadesPageState extends State<GestionUnidadesPage>
                     indicatorSize: TabBarIndicatorSize.label,
                     indicatorWeight: 2,
                     indicator: const UnderlineTabIndicator(
-                      borderSide: BorderSide(
-                        width: 2,
-                        color: AppColors.white,
-                      ),
+                      borderSide: BorderSide(width: 2, color: AppColors.white),
                     ),
                     tabs: [
                       Tab(
@@ -196,7 +194,7 @@ class _GestionUnidadesPageState extends State<GestionUnidadesPage>
                     controller: _tabController,
                   ),
                 ),
-                
+
                 Expanded(
                   child: TabBarView(
                     controller: _tabController,
@@ -323,11 +321,11 @@ class _GestionUnidadesPageState extends State<GestionUnidadesPage>
       child: CustomSearchField(
         borderColor: AppColors.blue1,
         controller: _searchController,
-        searchIcon: Icons.search,        
+        searchIcon: Icons.search,
         onChanged: (value) {
           setState(() => _searchQuery = value.toLowerCase());
         },
-      )
+      ),
     );
   }
 
@@ -336,29 +334,30 @@ class _GestionUnidadesPageState extends State<GestionUnidadesPage>
       padding: const EdgeInsets.symmetric(horizontal: 10),
       child: Row(
         children: [
-          FilterChip(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(6),
-            ),
+          InfoChip(
+            icon: null, // Sin ícono leading
+            text: 'Solo populares',
             backgroundColor: AppColors.white,
-            visualDensity: VisualDensity.compact,
-            side: BorderSide(
-              color: _soloPopulares ? AppColors.blue1 : AppColors.blue1,
-              width: 0.5,
-            ),
-            label: const Text('Solo populares'),
-            labelStyle: TextStyle(
-              color: _soloPopulares ? AppColors.blue1 : AppColors.blue1,
-              fontSize: 12
-            ),
+            borderColor: AppColors.blue1,
+            borderWidth: 0.5,
+            borderRadius: 4,
+            textColor: AppColors.blue1,
+            fontSize: 10,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 4,
+            ), // Más compacto
             selected: _soloPopulares,
-            onSelected: (selected) {
+            onSelected: (bool selected) {
               setState(() => _soloPopulares = selected);
               context.read<UnidadMedidaCubit>().getUnidadesMaestras(
                 categoria: _categoriaFiltro?.value,
-                soloPopulares: _soloPopulares,
+                soloPopulares: selected,
               );
             },
+            selectedBackgroundColor: AppColors.bluechip,
+            selectedTextColor: AppColors.blue1, // Ejemplo fondo claro
+            showCheckmark: true, // Muestra ✓ cuando está seleccionado
           ),
           const SizedBox(width: 8),
 
@@ -379,8 +378,18 @@ class _GestionUnidadesPageState extends State<GestionUnidadesPage>
         scrollDirection: Axis.horizontal,
         child: Row(
           children: [
-            FilterChip(
-              label: const Text('Todas'),
+            InfoChip(
+              icon: null,
+              iconSize: 12,
+              fontSize: 10,
+              borderColor: AppColors.blue1,
+              borderWidth: 0.6,
+              borderRadius: 4,
+              text: 'Todas',
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 4,
+              ),
               selected: _categoriaFiltro == null,
               onSelected: (selected) {
                 setState(() => _categoriaFiltro = null);
@@ -389,13 +398,27 @@ class _GestionUnidadesPageState extends State<GestionUnidadesPage>
                   soloPopulares: _soloPopulares,
                 );
               },
+              selectedTextColor: AppColors.blue1,
+              backgroundColor: AppColors.white,
+              selectedBackgroundColor: AppColors.bluechip,
+              showCheckmark: true,
             ),
             const SizedBox(width: 8),
             ...CategoriaUnidad.values.map((categoria) {
               return Padding(
                 padding: const EdgeInsets.only(right: 8),
-                child: FilterChip(
-                  label: Text(categoria.label),
+                child: InfoChip(
+                  icon: null,
+                  fontSize: 10,
+                  borderColor: AppColors.blue1,
+                  iconSize: 12,
+                  text: categoria.label,
+                  borderWidth: 0.6,
+                  borderRadius: 4,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 4,
+                  ),
                   selected: _categoriaFiltro == categoria,
                   onSelected: (selected) {
                     setState(
@@ -406,6 +429,10 @@ class _GestionUnidadesPageState extends State<GestionUnidadesPage>
                       soloPopulares: _soloPopulares,
                     );
                   },
+                  backgroundColor: AppColors.white,
+                  selectedTextColor: AppColors.blue1,
+                  selectedBackgroundColor: AppColors.bluechip,
+                  showCheckmark: true,
                 ),
               );
             }),

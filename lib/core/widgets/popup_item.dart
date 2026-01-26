@@ -3,7 +3,7 @@ import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/app_gradients.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
 
-enum ActionMenuType { edit, delete, share, disable, stock}
+enum ActionMenuType { edit, delete, share, disable, stock, stockPorSede, alertasStock, transferencias }
 
 class ActionMenuItem {
   final ActionMenuType type;

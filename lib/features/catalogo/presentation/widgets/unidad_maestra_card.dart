@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:syncronize/core/theme/app_colors.dart';
+import 'package:syncronize/core/theme/app_gradients.dart';
+import 'package:syncronize/core/theme/gradient_container.dart';
+import 'package:syncronize/core/widgets/chip_simple.dart';
 import '../../domain/entities/unidad_medida.dart';
 
 /// Card para mostrar una unidad de medida maestra disponible
@@ -15,66 +19,69 @@ class UnidadMaestraCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: isActivada ? 0 : 2,
-      color: isActivada ? Colors.grey.shade100 : null,
-      child: ListTile(
-        enabled: !isActivada,
-        leading: _buildIcon(),
-        title: Row(
-          children: [
-            Expanded(
-              child: Text(
-                maestra.displayConCodigo,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: isActivada ? Colors.grey : null,
-                ),
-              ),
-            ),
-            if (isActivada)
-              const Icon(Icons.check_circle, color: Colors.green, size: 20),
-          ],
+Widget build(BuildContext context) {
+  return GradientContainer(
+    borderColor: AppColors.blueborder,
+    margin: const EdgeInsets.only(bottom: 12),
+    gradient: isActivada ? AppGradients.gray() : null,
+    child: ListTile(
+      enabled: !isActivada,
+      visualDensity: VisualDensity.compact, // ← hace todo más apretado y moderno
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16,),
+      leading: _buildIcon(),
+      title: Text( // ← quitamos el Row y el icono check_circle
+        maestra.displayConCodigo,
+        style: TextStyle(
+          fontSize: 12, // ← subí un poco el tamaño para mejor jerarquía
+          fontWeight: FontWeight.bold,
+          color: isActivada ? Colors.grey : null,
         ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (maestra.descripcion != null)
-              Text(
-                maestra.descripcion!,
-                style: TextStyle(
-                  color: isActivada ? Colors.grey : null,
-                ),
-              ),
-            const SizedBox(height: 4),
-            Wrap(
-              spacing: 8,
-              runSpacing: 4,
-              children: [
-                _buildChip(maestra.categoria.label, Colors.blue),
-                if (maestra.esPopular)
-                  _buildChip('Popular', Colors.amber),
-              ],
-            ),
-          ],
-        ),
-        trailing: isActivada
-            ? const Icon(Icons.check, color: Colors.green)
-            : ElevatedButton.icon(
-                onPressed: onActivar,
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text('Activar'),
-                style: ElevatedButton.styleFrom(
-                  visualDensity: VisualDensity.compact,
-                ),
-              ),
-        isThreeLine: maestra.descripcion != null,
       ),
-    );
-  }
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (maestra.descripcion != null)
+            Text(
+              maestra.descripcion!,
+              style: TextStyle(
+                color: isActivada ? Colors.grey : null,
+                fontSize: 10,
+              ),
+            ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: [
+              _buildChip(maestra.categoria.label, Colors.blue),
+              if (maestra.esPopular) _buildChip('Popular', Colors.amber),
+            ],
+          ),
+        ],
+      ),
+      trailing: SizedBox( // ← tamaño fijo = alineación perfecta siempre
+        width: 56,
+        height: 56,
+        child: isActivada
+            ? const Icon(
+                Icons.check_circle_outlined,
+                color: Colors.green,
+                size: 20,
+              )
+            : IconButton(
+                onPressed: onActivar,
+                icon: const Icon(
+                  Icons.add_circle_outline,
+                  size: 20,
+                ),
+                color: AppColors.blue1,
+                tooltip: 'Activar',
+              ),
+      ),
+      isThreeLine: maestra.descripcion != null,
+    ),
+  );
+}
 
   Widget _buildIcon() {
     final color = isActivada ? Colors.grey : Colors.blue;
@@ -104,18 +111,10 @@ class UnidadMaestraCard extends StatelessWidget {
         break;
     }
 
-    return Icon(icon, color: color, size: 32);
+    return Icon(icon, color: color, size: 20);
   }
 
   Widget _buildChip(String label, Color color) {
-    return Chip(
-      label: Text(
-        label,
-        style: const TextStyle(fontSize: 11),
-      ),
-      backgroundColor: color.withOpacity(0.2),
-      labelStyle: TextStyle(color: color),
-      visualDensity: VisualDensity.compact,
-    );
+    return ChipSimple(label: label, color: color, fontSize: 10,borderRadius: 4,);
   }
 }

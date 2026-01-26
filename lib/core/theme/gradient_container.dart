@@ -47,7 +47,7 @@ class GradientContainer extends StatelessWidget {
       margin: margin,
       padding: padding,
       decoration: BoxDecoration(
-        gradient: gradient ?? AppGradients.fondo,
+        gradient: gradient ?? AppGradients.blueWhiteBlue(),
         borderRadius: borderRadius,
         border: (borderColor != null && borderWidth != null)
           ? Border.all(color: borderColor!, width: borderWidth!)

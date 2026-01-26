@@ -60,7 +60,7 @@ class _CustomSedeSelectorState extends State<CustomSedeSelector> {
 
   double _estimatedMenuHeight() {
     // Aprox: 64px por ítem + padding + divisores
-    return (widget.sedes.length * 64) + widget.menuPadding.vertical + (widget.sedes.length - 1) * 1;
+    return (widget.sedes.length * 60) + widget.menuPadding.vertical + (widget.sedes.length - 1) * 1;
   }
 
   void _showMenu() {
@@ -209,7 +209,7 @@ class _SedeMenuRow extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
         child: Row(
           children: [
             Icon(
