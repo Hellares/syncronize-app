@@ -415,4 +415,96 @@ class ProductoRepositoryImpl implements ProductoRepository {
       );
     }
   }
+
+  // ========================================
+  // INCIDENCIAS DE TRANSFERENCIAS
+  // ========================================
+
+  @override
+  Future<Resource<dynamic>> recibirTransferenciaConIncidencias({
+    required String transferenciaId,
+    required String empresaId,
+    required Map<String, dynamic> request,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error(
+        'No hay conexión a internet',
+        errorCode: 'NETWORK_ERROR',
+      );
+    }
+
+    try {
+      final resultado = await _remoteDataSource.recibirTransferenciaConIncidencias(
+        transferenciaId: transferenciaId,
+        empresaId: empresaId,
+        request: request,
+      );
+      return Success(resultado);
+    } catch (e) {
+      return Error(
+        e.toString().replaceFirst('Exception: ', ''),
+        errorCode: 'SERVER_ERROR',
+      );
+    }
+  }
+
+  @override
+  Future<Resource<List<dynamic>>> listarIncidencias({
+    required String empresaId,
+    bool? resuelto,
+    String? tipo,
+    String? sedeId,
+    String? transferenciaId,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error(
+        'No hay conexión a internet',
+        errorCode: 'NETWORK_ERROR',
+      );
+    }
+
+    try {
+      final resultado = await _remoteDataSource.listarIncidencias(
+        empresaId: empresaId,
+        resuelto: resuelto,
+        tipo: tipo,
+        sedeId: sedeId,
+        transferenciaId: transferenciaId,
+      );
+      return Success(resultado);
+    } catch (e) {
+      return Error(
+        e.toString().replaceFirst('Exception: ', ''),
+        errorCode: 'SERVER_ERROR',
+      );
+    }
+  }
+
+  @override
+  Future<Resource<dynamic>> resolverIncidencia({
+    required String incidenciaId,
+    required String empresaId,
+    required Map<String, dynamic> request,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error(
+        'No hay conexión a internet',
+        errorCode: 'NETWORK_ERROR',
+      );
+    }
+
+    try {
+      final resultado = await _remoteDataSource.resolverIncidencia(
+        incidenciaId: incidenciaId,
+        empresaId: empresaId,
+        request: request,
+      );
+      return Success(resultado);
+    } catch (e) {
+      return Error(
+        e.toString().replaceFirst('Exception: ', ''),
+        errorCode: 'SERVER_ERROR',
+      );
+    }
+  }
 }

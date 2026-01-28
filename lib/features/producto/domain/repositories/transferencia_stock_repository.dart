@@ -83,4 +83,16 @@ abstract class TransferenciaStockRepository {
     String? ubicacion,
     String? observaciones,
   });
+
+  /// Crear incidencia posterior a la recepción
+  Future<Resource<Map<String, dynamic>>> crearIncidenciaPosterior({
+    required String transferenciaId,
+    required String empresaId,
+    required String itemId,
+    required String tipo,
+    required int cantidadAfectada,
+    String? descripcion,
+    List<String>? evidenciasUrls,
+    String? observaciones,
+  });
 }

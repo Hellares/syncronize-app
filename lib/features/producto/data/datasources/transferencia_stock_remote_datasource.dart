@@ -277,6 +277,41 @@ class TransferenciaStockRemoteDataSource {
     }
   }
 
+  /// Crear incidencia posterior a la recepción
+  ///
+  /// POST /api/transferencias-stock/:id/crear-incidencia
+  Future<Map<String, dynamic>> crearIncidenciaPosterior({
+    required String transferenciaId,
+    required String empresaId,
+    required String itemId,
+    required String tipo,
+    required int cantidadAfectada,
+    String? descripcion,
+    List<String>? evidenciasUrls,
+    String? observaciones,
+  }) async {
+    try {
+      final response = await _dioClient.post(
+        '/transferencias-stock/$transferenciaId/crear-incidencia',
+        data: {
+          'itemId': itemId,
+          'tipo': tipo,
+          'cantidadAfectada': cantidadAfectada,
+          if (descripcion != null) 'descripcion': descripcion,
+          if (evidenciasUrls != null && evidenciasUrls.isNotEmpty)
+            'evidenciasUrls': evidenciasUrls,
+          if (observaciones != null) 'observaciones': observaciones,
+        },
+      );
+
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    } catch (e) {
+      throw Exception('Error inesperado al crear incidencia posterior: $e');
+    }
+  }
+
   /// Manejo de errores de Dio
   Exception _handleDioError(DioException error) {
     String message = 'Error en la operación de transferencia';

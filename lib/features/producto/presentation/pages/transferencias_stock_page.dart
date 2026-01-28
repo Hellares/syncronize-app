@@ -128,6 +128,7 @@ class _TransferenciasStockPageState extends State<TransferenciasStockPage>
           children: [
             // TabBar separado, con fondo azul para que se vea continuo con el AppBar
             Container(
+              width: double.infinity,
               height: 35,
               color: AppColors.blue1,
               child: TabBar(

@@ -37,6 +37,19 @@ import 'package:syncronize/features/producto/presentation/bloc/transferencias_li
 import 'package:syncronize/features/producto/presentation/bloc/crear_transferencia/crear_transferencia_cubit.dart';
 import 'package:syncronize/features/producto/presentation/bloc/gestionar_transferencia/gestionar_transferencia_cubit.dart';
 import 'package:syncronize/features/producto/presentation/bloc/transferencia_detail/transferencia_detail_cubit.dart';
+import 'package:syncronize/features/producto/presentation/bloc/listar_incidencias/listar_incidencias_cubit.dart';
+import 'package:syncronize/features/producto/presentation/bloc/recibir_transferencia_incidencias/recibir_transferencia_incidencias_cubit.dart';
+import 'package:syncronize/features/producto/presentation/bloc/resolver_incidencia/resolver_incidencia_cubit.dart';
+import 'package:syncronize/features/producto/presentation/bloc/crear_incidencia_posterior/crear_incidencia_posterior_cubit.dart';
+import 'package:syncronize/features/reporte_incidencia/presentation/bloc/reportes_incidencia_list/reportes_incidencia_list_cubit.dart';
+import 'package:syncronize/features/reporte_incidencia/presentation/bloc/reporte_incidencia_detail/reporte_incidencia_detail_cubit.dart';
+import 'package:syncronize/features/reporte_incidencia/presentation/bloc/crear_reporte_incidencia/crear_reporte_incidencia_cubit.dart';
+import 'package:syncronize/features/reporte_incidencia/presentation/bloc/agregar_item/agregar_item_cubit.dart';
+import 'package:syncronize/features/reporte_incidencia/presentation/bloc/resolver_item/resolver_item_cubit.dart';
+import 'package:syncronize/features/reporte_incidencia/presentation/bloc/eliminar_item/eliminar_item_cubit.dart';
+import 'package:syncronize/features/reporte_incidencia/presentation/bloc/gestionar_reporte/gestionar_reporte_cubit.dart';
+import 'package:syncronize/features/reporte_incidencia/presentation/bloc/productos_stock_selector/productos_stock_selector_cubit.dart';
+import 'package:syncronize/features/reporte_incidencia/presentation/bloc/sedes_selector/sedes_selector_cubit.dart';
 
 /// Lista centralizada de todos los BLoCs globales de la aplicación
 List<BlocProvider> blocProviders = [
@@ -267,6 +280,84 @@ List<BlocProvider> blocProviders = [
   // Transferencia Detail Cubit - Maneja el detalle de una transferencia
   BlocProvider<TransferenciaDetailCubit>(
     create: (context) => locator<TransferenciaDetailCubit>(),
+    lazy: true,
+  ),
+
+  // Listar Incidencias Cubit - Maneja el listado de incidencias de transferencias
+  BlocProvider<ListarIncidenciasCubit>(
+    create: (context) => locator<ListarIncidenciasCubit>(),
+    lazy: true,
+  ),
+
+  // Recibir Transferencia Incidencias Cubit - Maneja la recepción con incidencias
+  BlocProvider<RecibirTransferenciaIncidenciasCubit>(
+    create: (context) => locator<RecibirTransferenciaIncidenciasCubit>(),
+    lazy: true,
+  ),
+
+  // Resolver Incidencia Cubit - Maneja la resolución de incidencias
+  BlocProvider<ResolverIncidenciaCubit>(
+    create: (context) => locator<ResolverIncidenciaCubit>(),
+    lazy: true,
+  ),
+
+  // Crear Incidencia Posterior Cubit - Maneja la creación de incidencias posteriores
+  BlocProvider<CrearIncidenciaPosteriorCubit>(
+    create: (context) => locator<CrearIncidenciaPosteriorCubit>(),
+    lazy: true,
+  ),
+
+  // Reportes Incidencia List Cubit - Maneja la lista de reportes de incidencia
+  BlocProvider<ReportesIncidenciaListCubit>(
+    create: (context) => locator<ReportesIncidenciaListCubit>(),
+    lazy: true,
+  ),
+
+  // Reporte Incidencia Detail Cubit - Maneja el detalle de un reporte de incidencia
+  BlocProvider<ReporteIncidenciaDetailCubit>(
+    create: (context) => locator<ReporteIncidenciaDetailCubit>(),
+    lazy: true,
+  ),
+
+  // Crear Reporte Incidencia Cubit - Maneja la creación de reportes de incidencia
+  BlocProvider<CrearReporteIncidenciaCubit>(
+    create: (context) => locator<CrearReporteIncidenciaCubit>(),
+    lazy: true,
+  ),
+
+  // Agregar Item Cubit - Maneja la adición de items a reportes de incidencia
+  BlocProvider<AgregarItemCubit>(
+    create: (context) => locator<AgregarItemCubit>(),
+    lazy: true,
+  ),
+
+  // Resolver Item Cubit - Maneja la resolución de items de reportes de incidencia
+  BlocProvider<ResolverItemCubit>(
+    create: (context) => locator<ResolverItemCubit>(),
+    lazy: true,
+  ),
+
+  // Eliminar Item Cubit - Maneja la eliminación de items de reportes de incidencia
+  BlocProvider<EliminarItemCubit>(
+    create: (context) => locator<EliminarItemCubit>(),
+    lazy: true,
+  ),
+
+  // Gestionar Reporte Cubit - Maneja las acciones de reportes (enviar, aprobar, rechazar)
+  BlocProvider<GestionarReporteCubit>(
+    create: (context) => locator<GestionarReporteCubit>(),
+    lazy: true,
+  ),
+
+  // Productos Stock Selector Cubit - Maneja la selección de productos stock
+  BlocProvider<ProductosStockSelectorCubit>(
+    create: (context) => locator<ProductosStockSelectorCubit>(),
+    lazy: true,
+  ),
+
+  // Sedes Selector Cubit - Maneja la selección de sedes
+  BlocProvider<SedesSelectorCubit>(
+    create: (context) => locator<SedesSelectorCubit>(),
     lazy: true,
   ),
 ];

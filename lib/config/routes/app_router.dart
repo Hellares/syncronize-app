@@ -29,6 +29,7 @@ import '../../features/producto/presentation/pages/stock_por_sede_page.dart';
 import '../../features/producto/presentation/pages/alertas_stock_bajo_page.dart';
 import '../../features/producto/presentation/pages/transferencias_stock_page.dart';
 import '../../features/producto/presentation/pages/crear_transferencia_page.dart';
+import '../../features/producto/presentation/pages/incidencias_transferencias_page.dart';
 // import '../../features/producto/presentation/pages/crear_transferencia_multiple_page.dart';
 import '../../features/catalogo/presentation/pages/gestion_categorias_page.dart';
 import '../../features/catalogo/presentation/pages/gestion_marcas_page.dart';
@@ -45,6 +46,10 @@ import '../../features/descuento/presentation/pages/pages.dart';
 import '../../features/configuracion_codigos/presentation/pages/configuracion_codigos_page.dart';
 import '../../features/sede/presentation/pages/sedes_page.dart';
 import '../../features/sede/presentation/pages/sede_form_page.dart';
+import '../../features/reporte_incidencia/presentation/pages/reportes_incidencia_page.dart';
+import '../../features/reporte_incidencia/presentation/pages/crear_reporte_incidencia_page.dart';
+import '../../features/reporte_incidencia/presentation/pages/reporte_incidencia_detail_page.dart';
+import '../../features/reporte_incidencia/presentation/pages/agregar_item_reporte_page.dart';
 
 /// Configuración de rutas de la aplicación
 class AppRouter {
@@ -266,11 +271,47 @@ class AppRouter {
         name: 'empresa-transferencias-crear',
         builder: (context, state) => const CrearTransferenciaPage(),
       ),
+      GoRoute(
+        path: '/empresa/inventario/incidencias',
+        name: 'empresa-incidencias',
+        builder: (context, state) => const IncidenciasTransferenciasPage(),
+      ),
       // GoRoute(
       //   path: '/empresa/inventario/transferencias/multiple',
       //   name: 'empresa-transferencias-multiple',
       //   builder: (context, state) => const CrearTransferenciaMultiplePage(),
       // ),
+      // Rutas de reportes de incidencia
+      GoRoute(
+        path: '/empresa/reportes-incidencia',
+        name: 'empresa-reportes-incidencia',
+        builder: (context, state) => const ReportesIncidenciaPage(),
+      ),
+      GoRoute(
+        path: '/empresa/reportes-incidencia/crear',
+        name: 'empresa-reportes-incidencia-crear',
+        builder: (context, state) => const CrearReporteIncidenciaPage(),
+      ),
+      GoRoute(
+        path: '/empresa/reportes-incidencia/:id',
+        name: 'empresa-reportes-incidencia-detail',
+        builder: (context, state) {
+          final reporteId = state.pathParameters['id']!;
+          return ReporteIncidenciaDetailPage(reporteId: reporteId);
+        },
+      ),
+      GoRoute(
+        path: '/empresa/reportes-incidencia/:id/agregar-item',
+        name: 'empresa-reportes-incidencia-agregar-item',
+        builder: (context, state) {
+          final reporteId = state.pathParameters['id']!;
+          final sedeId = state.uri.queryParameters['sedeId'] ?? '';
+          return AgregarItemReportePage(
+            reporteId: reporteId,
+            sedeId: sedeId,
+          );
+        },
+      ),
       // Rutas de clientes
       GoRoute(
         path: '/empresa/clientes',

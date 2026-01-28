@@ -212,4 +212,32 @@ class TransferenciaStockRepositoryImpl implements TransferenciaStockRepository {
       return Error(e.toString());
     }
   }
+
+  @override
+  Future<Resource<Map<String, dynamic>>> crearIncidenciaPosterior({
+    required String transferenciaId,
+    required String empresaId,
+    required String itemId,
+    required String tipo,
+    required int cantidadAfectada,
+    String? descripcion,
+    List<String>? evidenciasUrls,
+    String? observaciones,
+  }) async {
+    try {
+      final result = await _remoteDataSource.crearIncidenciaPosterior(
+        transferenciaId: transferenciaId,
+        empresaId: empresaId,
+        itemId: itemId,
+        tipo: tipo,
+        cantidadAfectada: cantidadAfectada,
+        descripcion: descripcion,
+        evidenciasUrls: evidenciasUrls,
+        observaciones: observaciones,
+      );
+      return Success(result);
+    } catch (e) {
+      return Error(e.toString());
+    }
+  }
 }

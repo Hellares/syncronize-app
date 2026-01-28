@@ -15,6 +15,12 @@ import '../bloc/transferencia_detail/transferencia_detail_cubit.dart';
 import '../bloc/transferencia_detail/transferencia_detail_state.dart';
 import '../bloc/gestionar_transferencia/gestionar_transferencia_cubit.dart';
 import '../bloc/gestionar_transferencia/gestionar_transferencia_state.dart';
+import 'recibir_transferencia_con_incidencias_page.dart';
+import '../widgets/crear_incidencia_posterior_dialog.dart';
+import '../bloc/crear_incidencia_posterior/crear_incidencia_posterior_cubit.dart';
+import '../bloc/crear_incidencia_posterior/crear_incidencia_posterior_state.dart';
+import 'documento_transferencia_preview_page.dart';
+
 
 class TransferenciaDetailPage extends StatefulWidget {
   final String transferenciaId;
@@ -58,6 +64,20 @@ class _TransferenciaDetailPageState extends State<TransferenciaDetailPage> {
     }
   }
 
+  void _navigateToRecibirConIncidencias(TransferenciaStock transferencia) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => RecibirTransferenciaConIncidenciasPage(
+          transferencia: transferencia,
+          empresaId: _empresaId!,
+        ),
+      ),
+    ).then((_) {
+      // Recargar cuando regrese de la página
+      _reload();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -73,18 +93,44 @@ class _TransferenciaDetailPageState extends State<TransferenciaDetailPage> {
         ],
       ),
       body: GradientBackground(
-        child:
+        child: MultiBlocListener(
+          listeners: [
             BlocListener<GestionarTransferenciaCubit, GestionarTransferenciaState>(
-          listener: (context, state) {
-            if (state is GestionarTransferenciaSuccess) {
-              _showSuccess(state.message);
-              _reload();
-            } else if (state is GestionarTransferenciaError) {
-              _showError(state.message);
-            }
-          },
-          child:
-              BlocBuilder<TransferenciaDetailCubit, TransferenciaDetailState>(
+              listener: (context, state) {
+                if (state is GestionarTransferenciaSuccess) {
+                  _showSuccess(state.message);
+                  _reload();
+                } else if (state is GestionarTransferenciaError) {
+                  _showError(state.message);
+                }
+              },
+            ),
+            BlocListener<CrearIncidenciaPosteriorCubit, CrearIncidenciaPosteriorState>(
+              listener: (context, state) {
+                if (state is CrearIncidenciaPosteriorProcessing) {
+                  // Mostrar diálogo de progreso
+                  _showProgressDialog(state.progress, state.message);
+                } else if (state is CrearIncidenciaPosteriorSuccess) {
+                  // Cerrar diálogo de progreso si está abierto
+                  if (Navigator.canPop(context)) {
+                    Navigator.pop(context);
+                  }
+                  _showSuccess(
+                    '${state.message}. '
+                    '${state.evidenciasSubidas} evidencia${state.evidenciasSubidas != 1 ? 's' : ''} adjunta${state.evidenciasSubidas != 1 ? 's' : ''}.',
+                  );
+                  _reload();
+                } else if (state is CrearIncidenciaPosteriorError) {
+                  // Cerrar diálogo de progreso si está abierto
+                  if (Navigator.canPop(context)) {
+                    Navigator.pop(context);
+                  }
+                  _showError(state.message);
+                }
+              },
+            ),
+          ],
+          child: BlocBuilder<TransferenciaDetailCubit, TransferenciaDetailState>(
             builder: (context, state) {
               if (state is TransferenciaDetailLoading) {
                 return const CustomLoading();
@@ -733,12 +779,34 @@ class _TransferenciaDetailPageState extends State<TransferenciaDetailPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Acciones',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Acciones',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    // Botón para generar documento PDF
+                    OutlinedButton.icon(
+                      onPressed: () => _generarDocumentoPDF(transferencia),
+                      icon: const Icon(Icons.picture_as_pdf, size: 16),
+                      label: const Text(
+                        'Generar Documento',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.red,
+                        side: const BorderSide(color: Colors.red),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 16),
 
@@ -807,15 +875,40 @@ class _TransferenciaDetailPageState extends State<TransferenciaDetailPage> {
                 if (transferencia.puedeRecibir) ...[
                   if (transferencia.puedeAprobar || transferencia.puedeEnviar)
                     const SizedBox(height: 8),
+
+                  // Título de sección
+                  Text(
+                    'Recepción',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[700],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Recepción simple (todo OK)
                   _ActionButton(
-                    label: 'Registrar Recepción',
-                    icon: Icons.done_all,
-                    color: Colors.blue,
+                    label: 'Recepción Simple (Todo OK)',
+                    icon: Icons.check_circle,
+                    color: Colors.green,
                     onPressed: isProcessing
                         ? null
                         : () => _showRecibirDialog(transferencia),
                     isProcessing:
                         isProcessing && gestionState.action == 'recibir',
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Recepción con incidencias
+                  _ActionButton(
+                    label: 'Reportar Problemas',
+                    icon: Icons.warning_amber,
+                    color: Colors.orange,
+                    onPressed: isProcessing
+                        ? null
+                        : () => _navigateToRecibirConIncidencias(transferencia),
+                    isProcessing: false,
                   ),
                 ],
 
@@ -853,12 +946,36 @@ class _TransferenciaDetailPageState extends State<TransferenciaDetailPage> {
                   ),
                 ],
 
+                // Reportar problema posterior (solo para transferencias RECIBIDAS)
+                if (transferencia.estado == EstadoTransferencia.recibida) ...[
+                  const SizedBox(height: 16),
+                  const Divider(),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Problemas Posteriores',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[700],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  _ActionButton(
+                    label: 'Reportar Problema Encontrado',
+                    icon: Icons.report_problem,
+                    color: Colors.deepOrange,
+                    onPressed: () => _showReportarProblemaDialog(transferencia),
+                    isProcessing: false,
+                  ),
+                ],
+
                 // Sin acciones disponibles
                 if (!transferencia.puedeAprobar &&
                     !transferencia.puedeEnviar &&
                     !transferencia.puedeRecibir &&
                     !transferencia.puedeRechazar &&
-                    !transferencia.puedeCancelar)
+                    !transferencia.puedeCancelar &&
+                    transferencia.estado != EstadoTransferencia.recibida)
                   Text(
                     'No hay acciones disponibles para esta transferencia',
                     style: TextStyle(
@@ -1327,6 +1444,102 @@ class _TransferenciaDetailPageState extends State<TransferenciaDetailPage> {
   void _showSuccess(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: Colors.green),
+    );
+  }
+
+  void _showProgressDialog(double progress, String? message) {
+    // Solo mostrar el diálogo la primera vez
+    if (progress <= 0.1) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => PopScope(
+          canPop: false,
+          child: BlocBuilder<CrearIncidenciaPosteriorCubit, CrearIncidenciaPosteriorState>(
+            builder: (context, state) {
+              if (state is CrearIncidenciaPosteriorProcessing) {
+                return AlertDialog(
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      LinearProgressIndicator(
+                        value: state.progress,
+                        backgroundColor: Colors.grey[200],
+                        color: AppColors.blue1,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        state.message ?? 'Procesando...',
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '${(state.progress * 100).toInt()}%',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          ),
+        ),
+      );
+    }
+  }
+
+  /// Muestra el diálogo para reportar un problema posterior a la recepción
+  Future<void> _showReportarProblemaDialog(
+      TransferenciaStock transferencia) async {
+    final resultado = await showDialog<IncidenciaPosteriorResult>(
+      context: context,
+      builder: (context) => CrearIncidenciaPosteriorDialog(
+        transferencia: transferencia,
+        empresaId: _empresaId!,
+      ),
+    );
+
+    if (!mounted || resultado == null) return;
+
+    // Crear la incidencia usando el cubit
+    context.read<CrearIncidenciaPosteriorCubit>().crearIncidencia(
+          transferenciaId: transferencia.id,
+          empresaId: _empresaId!,
+          itemId: resultado.itemId,
+          tipo: resultado.tipo.value,
+          cantidadAfectada: resultado.cantidadAfectada,
+          descripcion: resultado.descripcion,
+          observaciones: resultado.observaciones,
+          evidencias: resultado.evidencias.map((e) => e.file).toList(),
+        );
+  }
+
+  /// Generar documento PDF de la transferencia
+  void _generarDocumentoPDF(TransferenciaStock transferencia) {
+    // Obtener información de la empresa
+    final empresaState = context.read<EmpresaContextCubit>().state;
+
+    if (empresaState is! EmpresaContextLoaded) {
+      _showError('No se pudo obtener información de la empresa');
+      return;
+    }
+
+    final empresa = empresaState.context.empresa;
+
+    // Navegar a la página de vista previa
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => DocumentoTransferenciaPreviewPage(
+          transferencia: transferencia,
+          empresaNombre: empresa.nombre,
+          empresaRuc: empresa.ruc,
+          // logoEmpresa: empresa.logoBytes, // Si tienes el logo como bytes
+        ),
+      ),
     );
   }
 }

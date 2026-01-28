@@ -124,4 +124,32 @@ abstract class ProductoRepository {
     required String empresaId,
     required Map<String, dynamic> dto,
   });
+
+  // ========================================
+  // INCIDENCIAS DE TRANSFERENCIAS
+  // ========================================
+
+  /// Recibe una transferencia con manejo detallado de incidencias
+  /// Permite reportar productos dañados, faltantes, etc.
+  Future<Resource<dynamic>> recibirTransferenciaConIncidencias({
+    required String transferenciaId,
+    required String empresaId,
+    required Map<String, dynamic> request,
+  });
+
+  /// Lista incidencias de transferencias con filtros
+  Future<Resource<List<dynamic>>> listarIncidencias({
+    required String empresaId,
+    bool? resuelto,
+    String? tipo,
+    String? sedeId,
+    String? transferenciaId,
+  });
+
+  /// Resuelve una incidencia tomando una acción específica
+  Future<Resource<dynamic>> resolverIncidencia({
+    required String incidenciaId,
+    required String empresaId,
+    required Map<String, dynamic> request,
+  });
 }

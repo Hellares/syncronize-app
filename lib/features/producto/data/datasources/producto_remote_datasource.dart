@@ -623,4 +623,87 @@ class ProductoRemoteDataSource {
       throw Exception('Error inesperado al aplicar ajuste masivo de precios: $e');
     }
   }
+
+  // ========================================
+  // INCIDENCIAS DE TRANSFERENCIAS
+  // ========================================
+
+  /// Recibe una transferencia con manejo detallado de incidencias
+  ///
+  /// POST /transferencias-stock/:transferenciaId/recibir-con-incidencias
+  Future<Map<String, dynamic>> recibirTransferenciaConIncidencias({
+    required String transferenciaId,
+    required String empresaId,
+    required Map<String, dynamic> request,
+  }) async {
+    try {
+      final response = await _dioClient.post(
+        '/transferencias-stock/$transferenciaId/recibir-con-incidencias',
+        data: request,
+      );
+
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    } catch (e) {
+      throw Exception(
+          'Error inesperado al recibir transferencia con incidencias: $e');
+    }
+  }
+
+  /// Lista incidencias de transferencias con filtros
+  ///
+  /// GET /transferencias-stock/incidencias
+  Future<List<Map<String, dynamic>>> listarIncidencias({
+    required String empresaId,
+    bool? resuelto,
+    String? tipo,
+    String? sedeId,
+    String? transferenciaId,
+  }) async {
+    try {
+      final queryParameters = <String, dynamic>{};
+      if (resuelto != null) queryParameters['resuelto'] = resuelto.toString();
+      if (tipo != null) queryParameters['tipo'] = tipo;
+      if (sedeId != null) queryParameters['sedeId'] = sedeId;
+      if (transferenciaId != null) {
+        queryParameters['transferenciaId'] = transferenciaId;
+      }
+
+      final response = await _dioClient.get(
+        '/transferencias-stock/incidencias',
+        queryParameters: queryParameters,
+      );
+
+      return (response.data as List)
+          .map((item) => item as Map<String, dynamic>)
+          .toList();
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    } catch (e) {
+      throw Exception('Error inesperado al listar incidencias: $e');
+    }
+  }
+
+  /// Resuelve una incidencia tomando una acción específica
+  ///
+  /// POST /transferencias-stock/incidencias/:incidenciaId/resolver
+  Future<Map<String, dynamic>> resolverIncidencia({
+    required String incidenciaId,
+    required String empresaId,
+    required Map<String, dynamic> request,
+  }) async {
+    try {
+      final response = await _dioClient.post(
+        '/transferencias-stock/incidencias/$incidenciaId/resolver',
+        data: request,
+      );
+
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    } catch (e) {
+      throw Exception('Error inesperado al resolver incidencia: $e');
+    }
+  }
 }

@@ -139,6 +139,45 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
 
             const _DividerNode(),
 
+            const _SectionTitleNode('Inventario'),
+            _TileNode(
+              title: 'Transferencias',
+              icon: Icons.swap_horiz,
+              iconColor: AppColors.blue2,
+              routeMatch: const _RouteMatch.startsWith('/empresa/inventario/transferencias'),
+              onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/inventario/transferencias')),
+            ),
+            _TileNode(
+              title: 'Incidencias de Transferencia',
+              icon: Icons.warning_amber,
+              iconColor: Colors.orange,
+              routeMatch: const _RouteMatch.startsWith('/empresa/inventario/incidencias'),
+              onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/inventario/incidencias')),
+            ),
+            _TileNode(
+              title: 'Reportes de Incidencia',
+              icon: Icons.assignment,
+              iconColor: Colors.purple,
+              routeMatch: const _RouteMatch.startsWith('/empresa/reportes-incidencia'),
+              onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/reportes-incidencia')),
+            ),
+            _TileNode(
+              title: 'Stock por Sede',
+              icon: Icons.inventory,
+              iconColor: AppColors.blue2,
+              routeMatch: const _RouteMatch.startsWith('/empresa/inventario/stock-por-sede'),
+              onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/inventario/stock-por-sede')),
+            ),
+            _TileNode(
+              title: 'Alertas de Stock',
+              icon: Icons.notifications_active,
+              iconColor: Colors.red,
+              routeMatch: const _RouteMatch.startsWith('/empresa/inventario/alertas'),
+              onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/inventario/alertas')),
+            ),
+
+            const _DividerNode(),
+
             const _SectionTitleNode('Operaciones'),
             _TileNode(
               visible: permissions?.canViewDiscounts ?? false,
