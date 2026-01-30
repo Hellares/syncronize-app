@@ -63,15 +63,9 @@ class UsuarioRepositoryImpl implements UsuarioRepository {
 
       // Parsear lista de usuarios
       final List<dynamic> usuariosJson = responseData['data'] as List? ?? [];
-      final usuarios = usuariosJson.map((e) {
-        try {
-          return UsuarioModel.fromJson(e as Map<String, dynamic>);
-        } catch (error) {
-          print('Error parsing usuario: $error');
-          print('Usuario data: $e');
-          rethrow;
-        }
-      }).toList();
+      final usuarios = usuariosJson
+          .map((e) => UsuarioModel.fromJson(e as Map<String, dynamic>))
+          .toList();
 
       // Parsear metadata de paginación
       final meta = responseData['meta'] as Map<String, dynamic>? ??

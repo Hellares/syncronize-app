@@ -141,7 +141,7 @@ class _HorizontalNumericSelectorState
           fontWeight: FontWeight.bold,
         );
     final defaultUnselectedStyle = theme.textTheme.titleMedium?.copyWith(
-          color: theme.colorScheme.onPrimaryContainer.withOpacity(0.6),
+          color: theme.colorScheme.onPrimaryContainer.withValues(alpha:0.6),
         );
     final defaultDisplayStyle = theme.textTheme.headlineMedium;
     final defaultLabelStyle = theme.textTheme.bodyMedium;

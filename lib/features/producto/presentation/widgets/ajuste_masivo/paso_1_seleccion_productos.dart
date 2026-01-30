@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:syncronize/core/fonts/app_fonts.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
+import 'package:syncronize/core/widgets/custom_radio_group.dart';
 import '../../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../bloc/producto_list/producto_list_cubit.dart';
@@ -100,52 +101,39 @@ class _Paso1SeleccionProductosState extends State<Paso1SeleccionProductos> {
               ),
             ],
           ),
-          child: Column(
-            children: [
-              RadioListTile<String>(
-                value: 'TODOS',
-                groupValue: widget.alcance,
-                onChanged: (value) => widget.onAlcanceChanged(value!),
-                title: Text(
-                  'Todos los productos',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
-                    fontSize: 12
-                  ),
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: CustomRadioGroup<String>(
+              value: widget.alcance,
+              options: [
+                RadioOption(
+                  value: 'TODOS',
+                  label: 'Todos los productos',
+                  description: 'Aplicar ajuste a $totalProductos productos',
                 ),
-                subtitle: Text(
-                  'Aplicar ajuste a $totalProductos productos',
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: Colors.grey[600],
-                  ),
+                RadioOption(
+                  value: 'SELECCIONADOS',
+                  label: 'Seleccionar manualmente',
+                  description: '${widget.productosSeleccionadosIds.length} productos seleccionados',
                 ),
-                activeColor: AppColors.blue1,
+              ],
+              onChanged: (value) {
+                if (value != null) {
+                  widget.onAlcanceChanged(value);
+                }
+              },
+              activeColor: AppColors.blue1,
+              showDividers: true,
+              optionLabelStyle: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
+                fontSize: 12,
               ),
-              const Divider(height: 1),
-              RadioListTile<String>(
-                value: 'SELECCIONADOS',
-                groupValue: widget.alcance,
-                onChanged: (value) => widget.onAlcanceChanged(value!),
-                title: Text(
-                  'Seleccionar manualmente',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
-                    fontSize: 12
-                  ),
-                ),
-                subtitle: Text(
-                  '${widget.productosSeleccionadosIds.length} productos seleccionados',
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: Colors.grey[600],
-                  ),
-                ),
-                activeColor: AppColors.blue1,
+              optionDescriptionStyle: TextStyle(
+                fontSize: 10,
+                color: Colors.grey[600],
               ),
-            ],
+            ),
           ),
         );
       },

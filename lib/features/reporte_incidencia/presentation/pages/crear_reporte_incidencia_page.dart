@@ -1,6 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:syncronize/core/fonts/app_text_widgets.dart';
+import 'package:syncronize/core/theme/app_colors.dart';
+import 'package:syncronize/core/theme/app_gradients.dart';
+import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/widgets/custom_dropdown.dart';
+import 'package:syncronize/core/widgets/date/custom_date.dart';
+import 'package:syncronize/core/widgets/smart_appbar.dart';
+import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
+import 'package:syncronize/features/auth/presentation/widgets/widgets.dart';
 import 'package:syncronize/features/reporte_incidencia/domain/entities/reporte_incidencia.dart';
 import 'package:syncronize/features/reporte_incidencia/presentation/bloc/crear_reporte_incidencia/crear_reporte_incidencia_cubit.dart';
 import 'package:syncronize/features/reporte_incidencia/presentation/bloc/sedes_selector/sedes_selector_cubit.dart';
@@ -53,8 +61,10 @@ class _CrearReporteIncidenciaPageState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Crear Reporte de Incidencia'),
+      appBar: SmartAppBar(
+        backgroundColor: AppColors.blue1,
+        foregroundColor: AppColors.white,
+        title: 'Crear Reporte de Incidencia',
       ),
       body: BlocConsumer<CrearReporteIncidenciaCubit,
           CrearReporteIncidenciaState>(
@@ -90,25 +100,36 @@ class _CrearReporteIncidenciaPageState
                     const SizedBox(height: 16),
                     _buildFormFields(),
                     const SizedBox(height: 24),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: isLoading ? null : _submitForm,
-                        icon: isLoading
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : const Icon(Icons.save),
-                        label: Text(isLoading ? 'Creando...' : 'Crear Reporte'),
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                        ),
-                      ),
+                    // SizedBox(
+                    //   width: double.infinity,
+                    //   child: ElevatedButton.icon(
+                    //     onPressed: isLoading ? null : _submitForm,
+                    //     icon: isLoading
+                    //         ? const SizedBox(
+                    //             width: 20,
+                    //             height: 20,
+                    //             child: CircularProgressIndicator(
+                    //               strokeWidth: 2,
+                    //               color: Colors.white,
+                    //             ),
+                    //           )
+                    //         : const Icon(Icons.save),
+                    //     label: Text(isLoading ? 'Creando...' : 'Crear Reporte'),
+                    //     style: ElevatedButton.styleFrom(
+                    //       padding: const EdgeInsets.symmetric(vertical: 16),
+                    //     ),
+                    //   ),
+                    // ),
+                    CustomButton(
+                      backgroundColor: AppColors.blue1,
+                      textColor: AppColors.white,
+                      text:  isLoading ? 'Creando...' : 'Crear Reporte',
+                      onPressed: isLoading ? null : _submitForm,
+                      icon: Icon(Icons.save),
+                      isLoading: isLoading,
+                      
+                      
+                      
                     ),
                   ],
                 ),
@@ -121,18 +142,19 @@ class _CrearReporteIncidenciaPageState
   }
 
   Widget _buildInfoCard() {
-    return Card(
-      color: Colors.blue.shade50,
+    return GradientContainer(
+      gradient: AppGradients.blue(),
+      borderColor: AppColors.blueborder,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         child: Row(
           children: [
             Icon(Icons.info_outline, color: Colors.blue.shade700),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(
+              child: AppSubtitle(
                 'Complete la información del reporte. Después podrá agregar los productos afectados.',
-                style: TextStyle(color: Colors.blue.shade900),
+                color: AppColors.blue2
               ),
             ),
           ],
@@ -145,14 +167,12 @@ class _CrearReporteIncidenciaPageState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        TextFormField(
+        CustomText(
+          borderColor: AppColors.blue1,
+          label: 'Título *',
           controller: _tituloController,
-          decoration: const InputDecoration(
-            labelText: 'Título *',
-            hintText: 'Ej: Productos dañados en almacén',
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.title),
-          ),
+          hintText: 'Ej: Productos dañados en almacén',
+          prefixIcon: Icon(Icons.title),
           validator: (value) {
             if (value == null || value.trim().isEmpty) {
               return 'El título es requerido';
@@ -164,12 +184,12 @@ class _CrearReporteIncidenciaPageState
         BlocBuilder<SedesSelectorCubit, SedesSelectorState>(
           builder: (context, state) {
             if (state is SedesSelectorLoading) {
-              return const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: CircularProgressIndicator(),
-                ),
-              );
+              // return const Center(
+              //   child: Padding(
+              //     padding: EdgeInsets.all(16.0),
+              //     child: CircularProgressIndicator(),
+              //   ),
+              // );
             }
 
             if (state is SedesSelectorError) {
@@ -189,6 +209,7 @@ class _CrearReporteIncidenciaPageState
               }).toList();
 
               return CustomDropdownHelpers.searchable<String>(
+                borderColor: AppColors.blue1,
                 label: 'Sede *',
                 items: items,
                 value: _sedeId,
@@ -211,19 +232,18 @@ class _CrearReporteIncidenciaPageState
           },
         ),
         const SizedBox(height: 16),
-        DropdownButtonFormField<TipoReporteIncidencia>(
-          initialValue: _tipoReporte,
-          decoration: const InputDecoration(
-            labelText: 'Tipo de Reporte *',
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.category),
-          ),
+        CustomDropdownHelpers.standard<TipoReporteIncidencia>(
+          borderColor: AppColors.blue1,
+          label: 'Tipo de Reporte *',
           items: TipoReporteIncidencia.values.map((tipo) {
-            return DropdownMenuItem(
+            return DropdownItem<TipoReporteIncidencia>(
               value: tipo,
-              child: Text(_getTipoReporteLabel(tipo)),
+              label: _getTipoReporteLabel(tipo),
+              leading: const Icon(Icons.category, size: 20),
             );
           }).toList(),
+          value: _tipoReporte,
+          hintText: 'Seleccione el tipo de reporte...',
           onChanged: (value) {
             if (value != null) {
               setState(() {
@@ -233,50 +253,57 @@ class _CrearReporteIncidenciaPageState
           },
         ),
         const SizedBox(height: 16),
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: const Icon(Icons.calendar_today),
-          title: const Text('Fecha del Incidente *'),
-          subtitle: Text(_formatDate(_fechaIncidente)),
-          trailing: const Icon(Icons.edit),
-          onTap: () async {
-            final picked = await showDatePicker(
-              context: context,
-              initialDate: _fechaIncidente,
-              firstDate: DateTime(2020),
-              lastDate: DateTime.now(),
-            );
-            if (picked != null) {
+        CustomDate(
+          borderColor: AppColors.blue1,
+          label: 'Fecha del Incidente *',
+          hintText: 'Seleccione la fecha del incidente',
+          initialDate: _fechaIncidente,
+          firstDate: DateTime(2020),
+          lastDate: DateTime.now(),
+          onDateSelected: (date) {
+            if (date != null) {
               setState(() {
-                _fechaIncidente = picked;
+                _fechaIncidente = date;
               });
             }
           },
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(4),
-            side: BorderSide(color: Colors.grey.shade400),
-          ),
         ),
         const SizedBox(height: 16),
-        TextFormField(
+        // TextFormField(
+        //   controller: _descripcionController,
+        //   decoration: const InputDecoration(
+        //     labelText: 'Descripción General',
+        //     hintText: 'Describa el contexto del incidente...',
+        //     border: OutlineInputBorder(),
+        //     prefixIcon: Icon(Icons.description),
+        //   ),
+        //   maxLines: 4,
+        // ),
+        CustomText(
+          borderColor: AppColors.blue1,
+          label: 'Descripción General',
           controller: _descripcionController,
-          decoration: const InputDecoration(
-            labelText: 'Descripción General',
-            hintText: 'Describa el contexto del incidente...',
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.description),
-          ),
-          maxLines: 4,
+          hintText: 'Describa el contexto del incidente...',
+          prefixIcon: Icon(Icons.description),
+          maxLines: 3,
         ),
         const SizedBox(height: 16),
-        TextFormField(
+        // TextFormField(
+        //   controller: _observacionesController,
+        //   decoration: const InputDecoration(
+        //     labelText: 'Observaciones Finales',
+        //     hintText: 'Observaciones adicionales...',
+        //     border: OutlineInputBorder(),
+        //     prefixIcon: Icon(Icons.notes),
+        //   ),
+        //   maxLines: 3,
+        // ),
+        CustomText(
+          borderColor: AppColors.blue1,
+          label: 'Observaciones Finales',
           controller: _observacionesController,
-          decoration: const InputDecoration(
-            labelText: 'Observaciones Finales',
-            hintText: 'Observaciones adicionales...',
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.notes),
-          ),
+          hintText: 'Observaciones adicionales...',
+          prefixIcon: Icon(Icons.notes),
           maxLines: 3,
         ),
         const SizedBox(height: 16),
@@ -335,9 +362,5 @@ class _CrearReporteIncidenciaPageState
       case TipoReporteIncidencia.otro:
         return 'Otro';
     }
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
   }
 }

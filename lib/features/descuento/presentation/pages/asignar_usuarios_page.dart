@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/services/logger_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/widgets/smart_appbar.dart';
@@ -35,12 +36,16 @@ class _AsignarUsuariosPageState extends State<AsignarUsuariosPage> {
   List<Map<String, dynamic>> _filteredUsuarios = [];
   bool _isLoadingUsuarios = false;
   late final AsignarUsuariosCubit _cubit;
+  late final LoggerService _logger;
 
   @override
   void initState() {
     super.initState();
-    // Crear e inicializar el cubit una sola vez
+    // Crear e inicializar el cubit y logger
     _cubit = locator<AsignarUsuariosCubit>();
+    _logger = locator<LoggerService>();
+
+    _logger.logLifecycle('initState', screen: 'AsignarUsuariosPage');
     _cubit.loadData(widget.politicaId, []);
     _loadUsuarios();
   }
@@ -133,11 +138,20 @@ class _AsignarUsuariosPageState extends State<AsignarUsuariosPage> {
   }
 
   void _asignarSeleccionados() {
-    print('🔵 _asignarSeleccionados llamado');
-    print('🔵 Usuarios seleccionados: ${_selectedUsuarios.toList()}');
+    _logger.debug(
+      '_asignarSeleccionados llamado',
+      tag: 'AsignarUsuariosPage',
+    );
+    _logger.debug(
+      'Usuarios seleccionados: ${_selectedUsuarios.toList()}',
+      tag: 'AsignarUsuariosPage',
+    );
 
     if (_selectedUsuarios.isEmpty) {
-      print('⚠️ No hay usuarios seleccionados');
+      _logger.warning(
+        'No hay usuarios seleccionados',
+        tag: 'AsignarUsuariosPage',
+      );
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Selecciona al menos un usuario'),
@@ -147,7 +161,18 @@ class _AsignarUsuariosPageState extends State<AsignarUsuariosPage> {
       return;
     }
 
-    print('🔵 Llamando a cubit.asignarSeleccionados...');
+    _logger.info(
+      'Asignando ${_selectedUsuarios.length} usuarios a política ${widget.politicaId}',
+      tag: 'AsignarUsuariosPage',
+    );
+    _logger.logAction(
+      'asignar_usuarios',
+      data: {
+        'politicaId': widget.politicaId,
+        'cantidadUsuarios': _selectedUsuarios.length,
+      },
+    );
+
     _cubit.asignarSeleccionados(
           _selectedUsuarios.toList(),
         );
@@ -171,10 +196,16 @@ class _AsignarUsuariosPageState extends State<AsignarUsuariosPage> {
           child: SafeArea(
             child: BlocConsumer<AsignarUsuariosCubit, AsignarUsuariosState>(
               listener: (context, state) {
-                print('🔴 [LISTENER] Estado recibido: ${state.runtimeType}');
+                _logger.logStateChange(
+                  'AsignarUsuariosCubit',
+                  current: state.runtimeType.toString(),
+                );
 
                 if (state is AsignarUsuariosSuccess) {
-                  print('✅ [LISTENER] Success detectado!');
+                  _logger.info(
+                    'Usuarios asignados exitosamente: ${state.message}',
+                    tag: 'AsignarUsuariosPage',
+                  );
                   // Agregar usuarios asignados al set local y limpiar seleccionados
                   setState(() {
                     _usuariosAsignados.addAll(_selectedUsuarios);
@@ -191,6 +222,10 @@ class _AsignarUsuariosPageState extends State<AsignarUsuariosPage> {
                 } else if (state is AsignarUsuariosLoaded) {
                   // Cuando se carga el estado, sincronizar usuarios asignados
                   if (state.usuariosAsignados.isNotEmpty) {
+                    _logger.debug(
+                      'Sincronizando ${state.usuariosAsignados.length} usuarios asignados',
+                      tag: 'AsignarUsuariosPage',
+                    );
                     setState(() {
                       // Extraer los IDs de los usuarios asignados
                       for (var usuario in state.usuariosAsignados) {
@@ -201,7 +236,10 @@ class _AsignarUsuariosPageState extends State<AsignarUsuariosPage> {
                     });
                   }
                 } else if (state is AsignarUsuariosError) {
-                  print('❌ [LISTENER] Error detectado: ${state.message}');
+                  _logger.error(
+                    'Error al asignar usuarios: ${state.message}',
+                    tag: 'AsignarUsuariosPage',
+                  );
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(state.message),

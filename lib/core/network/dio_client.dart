@@ -31,15 +31,15 @@ class DioClient {
     );
 
     // Agregar interceptores en orden específico:
-    // 1. SanitizedLoggingInterceptor - Logging seguro de HTTP (PRIMERO para capturar todo)
-    // 2. RefreshTokenInterceptor - Maneja expiración de tokens
-    // 3. AuthInterceptor - Agrega el token a los headers
-    // 4. ErrorInterceptor - Maneja otros errores
+    // 1. RefreshTokenInterceptor - Refresca token si ha expirado
+    // 2. AuthInterceptor - Agrega Authorization y X-Tenant-ID headers
+    // 3. SanitizedLoggingInterceptor - Loguea todo (después de agregar headers)
+    // 4. ErrorInterceptor - Maneja errores HTTP
     _dio.interceptors.addAll([
-      // Logging sanitizado - remueve tokens y datos sensibles de los logs
-      if (EnvConfig.enablePrettyLogger) sanitizedLoggingInterceptor,
       refreshTokenInterceptor,
       authInterceptor,
+      // Logging sanitizado - loguea DESPUÉS de que authInterceptor agregue headers
+      if (EnvConfig.enablePrettyLogger) sanitizedLoggingInterceptor,
       errorInterceptor,
     ]);
   }

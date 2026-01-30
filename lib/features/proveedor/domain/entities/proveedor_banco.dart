@@ -1,6 +1,8 @@
 import 'package:equatable/equatable.dart';
 
 /// Enum para tipo de cuenta bancaria
+/// Valores en MAYÚSCULAS para mantener consistencia con esquema Prisma
+// ignore_for_file: constant_identifier_names
 enum TipoCuenta {
   AHORROS,
   CORRIENTE,

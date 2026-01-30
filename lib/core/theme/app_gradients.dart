@@ -76,6 +76,17 @@ class AppGradients {
     stops: [0.0, 0.35, 1.0],
   );
 
+  static LinearGradient blue() => const LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [
+      Color(0xFFDDF0F8), // Azul claro superior
+      Color(0xFFDDF0F8), // Azul muy claro
+      Color(0xFFDDF0F8),
+    ],
+    stops: [0.0, 0.35, 1.0],
+  );
+
   // static const Color amberShadow = Color(0x33FFC107);
 
   static LinearGradient orangeWhiteBlue() => const LinearGradient(
@@ -107,6 +118,17 @@ class AppGradients {
       Colors.green.withValues(alpha: 0.2), // Azul claro superior
       Color(0xFFFFFFFF),                   // Blanco centro (AppColors.white)
       Colors.green.withValues(alpha: 0.2), // Azul claro inferior
+    ],
+    stops: [0.0, 0.7, 1.0],
+  );
+
+  static LinearGradient green() => LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [
+      Color(0x1A4CAF50), // Azul claro superior
+      Color(0x1A4CAF50),                // Blanco centro (AppColors.white)
+      Color(0x1A4CAF50), // Azul claro inferior
     ],
     stops: [0.0, 0.7, 1.0],
   );

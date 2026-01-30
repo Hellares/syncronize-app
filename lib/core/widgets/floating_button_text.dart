@@ -25,7 +25,7 @@ class FloatingButtonText extends StatelessWidget {
     required this.icon,
     this.height = 35,
     this.width = 140,
-    this.borderRadius = 8,
+    this.borderRadius = 6,
     this.backgroundColor = AppColors.blue1,
     this.foregroundColor = Colors.white,
     this.fontSize = 10,

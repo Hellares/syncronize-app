@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:syncronize/core/theme/app_gradients.dart';
+import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import 'package:syncronize/core/widgets/custom_dropdown.dart';
 import 'package:syncronize/core/theme/gradient_background.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
+import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
+import 'package:syncronize/features/auth/presentation/widgets/widgets.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../../sede/presentation/bloc/sede_list/sede_list_cubit.dart';
@@ -189,8 +193,7 @@ class _CrearTransferenciaPageState extends State<CrearTransferenciaPage> {
   }
 
   Widget _buildInfoCard() {
-    return Card(
-      color: Colors.blue.shade50,
+    return GradientContainer(
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Row(
@@ -198,12 +201,10 @@ class _CrearTransferenciaPageState extends State<CrearTransferenciaPage> {
             Icon(Icons.info_outline, color: Colors.blue.shade700),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(
+              child: AppSubtitle(
                 'Complete los datos para crear una solicitud de transferencia de stock entre sedes.',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.blue.shade900,
-                ),
+                fontSize: 11,
+                color: Colors.green.shade700,
               ),
             ),
           ],
@@ -296,21 +297,15 @@ class _CrearTransferenciaPageState extends State<CrearTransferenciaPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        AppSubtitle(
-          'Producto',
-          fontSize: 9,
-          color: AppColors.blue1,
-        ),
-        const SizedBox(height: 4),
         BlocBuilder<StockPorSedeCubit, StockPorSedeState>(
           builder: (context, state) {
             if (state is StockPorSedeLoading) {
-              return const Card(
-                child: Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Center(child: CircularProgressIndicator()),
-                ),
-              );
+              // return const Card(
+              //   child: Padding(
+              //     padding: EdgeInsets.all(16),
+              //     child: Center(child: CircularProgressIndicator()),
+              //   ),
+              // );
             }
 
             if (state is StockPorSedeError) {
@@ -336,6 +331,7 @@ class _CrearTransferenciaPageState extends State<CrearTransferenciaPage> {
               }
 
               return CustomDropdown<String>(
+                label: 'Producto',
                 hintText: 'Seleccione un producto',
                 value: _productoStockSeleccionado?.id,
                 dropdownStyle: DropdownStyle.searchable,
@@ -368,8 +364,8 @@ class _CrearTransferenciaPageState extends State<CrearTransferenciaPage> {
     final stock = _productoStockSeleccionado!;
     final tieneReservas = stock.tieneStockReservado;
 
-    return Card(
-      color: Colors.green.shade50,
+    return GradientContainer(
+      gradient: AppGradients.green(),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -377,13 +373,13 @@ class _CrearTransferenciaPageState extends State<CrearTransferenciaPage> {
           children: [
             Row(
               children: [
-                Icon(Icons.inventory_2, color: Colors.green.shade700, size: 20),
+                Icon(Icons.inventory_2, color: Colors.green.shade700, size: 18),
                 const SizedBox(width: 8),
                 Text(
                   'Stock en ${stock.sede?.nombre ?? 'la sede origen'}',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: Colors.green.shade900,
+                    color: Colors.green.shade700,
                   ),
                 ),
               ],
@@ -433,7 +429,7 @@ class _CrearTransferenciaPageState extends State<CrearTransferenciaPage> {
                 Text(
                   'Disponible para transferir:',
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 12,
                     fontWeight: FontWeight.bold,
                     color: Colors.green.shade900,
                   ),
@@ -441,7 +437,7 @@ class _CrearTransferenciaPageState extends State<CrearTransferenciaPage> {
                 Text(
                   '${stock.stockDisponible} unidades',
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: 13,
                     fontWeight: FontWeight.bold,
                     color: stock.stockDisponible > 0 ? Colors.green.shade700 : Colors.red,
                   ),
@@ -455,121 +451,58 @@ class _CrearTransferenciaPageState extends State<CrearTransferenciaPage> {
   }
 
   Widget _buildCantidadField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        AppSubtitle(
-          'Cantidad a Transferir',
-          fontSize: 9,
-          color: AppColors.blue1,
-        ),
-        const SizedBox(height: 4),
-        TextFormField(
-          controller: _cantidadController,
-          keyboardType: TextInputType.number,
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          decoration: InputDecoration(
-            hintText: 'Ej: 10',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-            suffixIcon: const Icon(Icons.numbers),
-          ),
-          validator: (value) {
-            if (value == null || value.isEmpty) {
-              return 'Ingrese la cantidad';
-            }
-            final cantidad = int.tryParse(value);
-            if (cantidad == null || cantidad <= 0) {
-              return 'Cantidad inválida';
-            }
-            if (_productoStockSeleccionado != null &&
-                cantidad > _productoStockSeleccionado!.stockDisponible) {
-              return 'Stock disponible insuficiente (disponible: ${_productoStockSeleccionado!.stockDisponible})';
-            }
-            return null;
-          },
-        ),
-      ],
+    return CustomText(
+      label: 'Cantidad a Transferir',
+      borderColor: AppColors.blue1,
+      controller: _cantidadController,
+      hintText: 'Ej: 10',
+      keyboardType: TextInputType.number,
+      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+      suffixIcon: const Icon(Icons.numbers),
+      validator: (value) {
+        if (value == null || value.isEmpty) {
+          return 'Ingrese la cantidad';
+        }
+        final cantidad = int.tryParse(value);
+        if (cantidad == null || cantidad <= 0) {
+          return 'Cantidad inválida';
+        }
+        if (_productoStockSeleccionado != null &&
+            cantidad > _productoStockSeleccionado!.stockDisponible) {
+          return 'Stock disponible insuficiente (disponible: ${_productoStockSeleccionado!.stockDisponible})';
+        }
+        return null;
+      },
     );
   }
 
   Widget _buildMotivoField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        AppSubtitle(
-          'Motivo (Opcional)',
-          fontSize: 9,
-          color: AppColors.blue1,
-        ),
-        const SizedBox(height: 4),
-        TextFormField(
-          controller: _motivoController,
-          maxLines: 2,
-          decoration: InputDecoration(
-            hintText: 'Ej: Reposición de stock en sucursal',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-          ),
-        ),
-      ],
+    return CustomText(
+      label: 'Motivo (Opcional)',
+      borderColor: AppColors.blue1,
+      controller: _motivoController,
+      hintText: 'Ej: Reposición de stock en sucursal',
+      maxLines: 3,
     );
   }
 
   Widget _buildObservacionesField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        AppSubtitle(
-          'Observaciones (Opcional)',
-          fontSize: 9,
-          color: AppColors.blue1,
-        ),
-        const SizedBox(height: 4),
-        TextFormField(
-          controller: _observacionesController,
-          maxLines: 3,
-          decoration: InputDecoration(
-            hintText: 'Observaciones adicionales...',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-          ),
-        ),
-      ],
+    return CustomText(
+      label: 'Observaciones (Opcional)',
+      borderColor: AppColors.blue1,
+      controller: _observacionesController,
+      hintText: 'Observaciones adicionales...',
+      maxLines: 3,
     );
   }
 
   Widget _buildSubmitButton(bool isProcessing) {
-    return ElevatedButton.icon(
+    return CustomButton(
+      text: isProcessing ? 'Creando...' : 'Crear Transferencia',
       onPressed: isProcessing ? null : _onSubmit,
-      icon: isProcessing
-          ? const SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: Colors.white,
-              ),
-            )
-          : const Icon(Icons.send),
-      label: Text(isProcessing ? 'Creando...' : 'Crear Transferencia'),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.blue1,
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
-      ),
+      backgroundColor: AppColors.blue1,
+      textColor: Colors.white,
+      isLoading: isProcessing,
     );
   }
 }

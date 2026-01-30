@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import 'package:syncronize/core/widgets/custom_loading.dart';
+import 'package:syncronize/core/widgets/custom_radio_group.dart';
 import 'package:syncronize/core/theme/gradient_background.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
@@ -200,12 +201,12 @@ class _IncidenciasTransferenciasPageState
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            Icon(icon, size: 32, color: color),
+            Icon(icon, size: 25, color: color),
             const SizedBox(height: 8),
             Text(
               value,
               style: TextStyle(
-                fontSize: 24,
+                fontSize: 16,
                 fontWeight: FontWeight.bold,
                 color: color,
               ),
@@ -224,13 +225,15 @@ class _IncidenciasTransferenciasPageState
   }
 
   Widget _buildIncidenciaCard(TransferenciaIncidencia incidencia) {
-    return GradientContainer(
-      gradient: AppGradients.sinfondo,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: GradientContainer(
+        gradient: AppGradients.sinfondo,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -241,7 +244,7 @@ class _IncidenciasTransferenciasPageState
                       Text(
                         incidencia.tipo.descripcion,
                         style: const TextStyle(
-                          fontSize: 16,
+                          fontSize: 12,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -249,7 +252,7 @@ class _IncidenciasTransferenciasPageState
                       Text(
                         incidencia.nombreProducto ?? 'Producto desconocido',
                         style: TextStyle(
-                          fontSize: 13,
+                          fontSize: 10,
                           color: Colors.grey[600],
                         ),
                       ),
@@ -323,6 +326,7 @@ class _IncidenciasTransferenciasPageState
           ],
         ),
       ),
+    ),
     );
   }
 
@@ -460,26 +464,19 @@ class _IncidenciasTransferenciasPageState
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 16),
-                const Text(
-                  'Seleccione la acción a tomar:',
-                  style: TextStyle(fontSize: 14),
+                CustomRadioGroup<AccionResolucionIncidencia>(
+                  label: 'Seleccione la acción a tomar:',
+                  value: accionSeleccionada,
+                  options: AccionResolucionIncidencia.values
+                      .map((accion) => RadioOption(
+                            value: accion,
+                            label: accion.descripcion,
+                          ))
+                      .toList(),
+                  onChanged: (value) {
+                    setState(() => accionSeleccionada = value);
+                  },
                 ),
-                const SizedBox(height: 12),
-                ...AccionResolucionIncidencia.values.map((accion) {
-                  return RadioListTile<AccionResolucionIncidencia>(
-                    title: Text(
-                      accion.descripcion,
-                      style: const TextStyle(fontSize: 13),
-                    ),
-                    value: accion,
-                    groupValue: accionSeleccionada,
-                    onChanged: (value) {
-                      setState(() => accionSeleccionada = value);
-                    },
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                  );
-                }),
                 const SizedBox(height: 16),
                 TextField(
                   controller: observacionesController,

@@ -111,7 +111,7 @@ class _CompactNumericSelectorState extends State<CompactNumericSelector> {
             style: theme.textTheme.bodyMedium?.copyWith(
               color: widget.enabled
                   ? colorScheme.onSurface
-                  : colorScheme.onSurface.withOpacity(0.38),
+                  : colorScheme.onSurface.withValues(alpha: 0.38),
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -124,13 +124,13 @@ class _CompactNumericSelectorState extends State<CompactNumericSelector> {
             border: Border.all(
               color: widget.enabled
                   ? colorScheme.outline
-                  : colorScheme.outline.withOpacity(0.38),
+                  : colorScheme.outline.withValues(alpha:0.38),
               width: 1,
             ),
             borderRadius: BorderRadius.circular(8),
             color: widget.enabled
                 ? colorScheme.surface
-                : colorScheme.surface.withOpacity(0.5),
+                : colorScheme.surface.withValues(alpha:0.5),
           ),
           child: Row(
             children: [
@@ -149,7 +149,7 @@ class _CompactNumericSelectorState extends State<CompactNumericSelector> {
                     decoration: BoxDecoration(
                       border: Border(
                         right: BorderSide(
-                          color: colorScheme.outline.withOpacity(0.38),
+                          color: colorScheme.outline.withValues(alpha:0.38),
                           width: 1,
                         ),
                       ),
@@ -159,7 +159,7 @@ class _CompactNumericSelectorState extends State<CompactNumericSelector> {
                       size: 20,
                       color: canDecrement
                           ? colorScheme.primary
-                          : colorScheme.onSurface.withOpacity(0.38),
+                          : colorScheme.onSurface.withValues(alpha: 0.38),
                     ),
                   ),
                 ),
@@ -177,7 +177,7 @@ class _CompactNumericSelectorState extends State<CompactNumericSelector> {
                         Text(
                           widget.prefix!,
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurface.withOpacity(0.6),
+                            color: colorScheme.onSurface.withValues(alpha: 0.6),
                           ),
                         ),
                         const SizedBox(width: 4),
@@ -188,7 +188,7 @@ class _CompactNumericSelectorState extends State<CompactNumericSelector> {
                           fontWeight: FontWeight.bold,
                           color: widget.enabled
                               ? colorScheme.onSurface
-                              : colorScheme.onSurface.withOpacity(0.38),
+                              : colorScheme.onSurface.withValues(alpha: 0.38),
                           fontFamily: 'monospace',
                         ),
                       ),
@@ -197,7 +197,7 @@ class _CompactNumericSelectorState extends State<CompactNumericSelector> {
                         Text(
                           widget.suffix!,
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurface.withOpacity(0.6),
+                            color: colorScheme.onSurface.withValues(alpha: 0.6),
                           ),
                         ),
                       ],
@@ -221,7 +221,7 @@ class _CompactNumericSelectorState extends State<CompactNumericSelector> {
                     decoration: BoxDecoration(
                       border: Border(
                         left: BorderSide(
-                          color: colorScheme.outline.withOpacity(0.38),
+                          color: colorScheme.outline.withValues(alpha:0.38),
                           width: 1,
                         ),
                       ),
@@ -231,7 +231,7 @@ class _CompactNumericSelectorState extends State<CompactNumericSelector> {
                       size: 20,
                       color: canIncrement
                           ? colorScheme.primary
-                          : colorScheme.onSurface.withOpacity(0.38),
+                          : colorScheme.onSurface.withValues(alpha: 0.38),
                     ),
                   ),
                 ),
@@ -248,7 +248,7 @@ class _CompactNumericSelectorState extends State<CompactNumericSelector> {
             child: Text(
               widget.helperText!,
               style: theme.textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurface.withOpacity(0.6),
+                color: colorScheme.onSurface.withValues(alpha: 0.6),
               ),
             ),
           ),

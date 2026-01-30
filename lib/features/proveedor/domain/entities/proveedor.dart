@@ -4,6 +4,7 @@ import 'proveedor_banco.dart';
 import 'proveedor_evaluacion.dart';
 
 /// Enums
+// ignore_for_file: constant_identifier_names
 enum TipoDocumentoIdentidad {
   RUC,
   DNI,

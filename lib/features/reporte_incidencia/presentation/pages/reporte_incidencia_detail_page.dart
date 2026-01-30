@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:syncronize/core/theme/app_colors.dart';
+import 'package:syncronize/core/theme/gradient_container.dart';
+import 'package:syncronize/core/widgets/smart_appbar.dart';
 import 'package:syncronize/features/reporte_incidencia/domain/entities/reporte_incidencia.dart';
 import 'package:syncronize/features/reporte_incidencia/presentation/bloc/reporte_incidencia_detail/reporte_incidencia_detail_cubit.dart';
 import 'package:syncronize/features/reporte_incidencia/presentation/bloc/resolver_item/resolver_item_cubit.dart';
@@ -108,8 +111,10 @@ class _ReporteIncidenciaDetailView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Detalle de Reporte'),
+      appBar: SmartAppBar(
+        backgroundColor: AppColors.blue1,
+        foregroundColor: AppColors.white,
+        title: 'Detalle de Reporte',
         actions: [
           BlocBuilder<ReporteIncidenciaDetailCubit,
               ReporteIncidenciaDetailState>(
@@ -204,7 +209,7 @@ class _ReporteIncidenciaDetailView extends StatelessWidget {
   }
 
   Widget _buildInfoSection(ReporteIncidencia reporte) {
-    return Card(
+    return GradientContainer(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -269,7 +274,7 @@ class _ReporteIncidenciaDetailView extends StatelessWidget {
   }
 
   Widget _buildItemsSection(BuildContext context, ReporteIncidencia reporte) {
-    return Card(
+    return GradientContainer(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(

@@ -1184,12 +1184,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i736.GetCategoriasMaestrasUseCase>(),
       ),
     );
-    gh.factory<_i918.AsignarUsuariosCubit>(
-      () => _i918.AsignarUsuariosCubit(
-        gh<_i549.AsignarUsuarios>(),
-        gh<_i873.ObtenerUsuariosAsignados>(),
-      ),
-    );
     gh.lazySingleton<_i787.AuthRepository>(
       () => _i153.AuthRepositoryImpl(
         remoteDataSource: gh<_i161.AuthRemoteDataSource>(),
@@ -1361,6 +1355,13 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i346.CrearReporteIncidenciaCubit>(
       () => _i346.CrearReporteIncidenciaCubit(gh<_i338.CrearReporteUsecase>()),
+    );
+    gh.factory<_i918.AsignarUsuariosCubit>(
+      () => _i918.AsignarUsuariosCubit(
+        gh<_i549.AsignarUsuarios>(),
+        gh<_i873.ObtenerUsuariosAsignados>(),
+        gh<_i141.LoggerService>(),
+      ),
     );
     gh.factory<_i94.ProveedorListCubit>(
       () => _i94.ProveedorListCubit(gh<_i825.GetProveedoresUseCase>()),

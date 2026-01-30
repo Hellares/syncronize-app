@@ -429,12 +429,14 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>>
     final dropdownHeight = available.clamp(0.0, maxDropdownHeight).toDouble();
 
     if (dropdownHeight < minUsableHeight) {
-      final otherSideIsBetter =
-          showAbove ? (spaceBelow > spaceAbove) : (spaceAbove > spaceBelow);
+      final otherSideIsBetter = showAbove
+          ? (spaceBelow > spaceAbove)
+          : (spaceAbove > spaceBelow);
       if (otherSideIsBetter) {
         final otherAvailable = showAbove ? spaceBelow : spaceAbove;
-        final otherHeight =
-            otherAvailable.clamp(0.0, maxDropdownHeight).toDouble();
+        final otherHeight = otherAvailable
+            .clamp(0.0, maxDropdownHeight)
+            .toDouble();
         if (otherHeight > dropdownHeight) {
           return _createOverlayEntryWithConfig(
             showAbove: !showAbove,
@@ -455,9 +457,11 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>>
     required double dropdownHeight,
   }) {
     final hasSearch =
-        widget.showSearchBox || widget.dropdownStyle == DropdownStyle.searchable;
+        widget.showSearchBox ||
+        widget.dropdownStyle == DropdownStyle.searchable;
 
-    final hasFooter = widget.dropdownStyle == DropdownStyle.multiSelect &&
+    final hasFooter =
+        widget.dropdownStyle == DropdownStyle.multiSelect &&
         widget.showDoneButton &&
         !widget.closeOnSelect;
 
@@ -481,18 +485,20 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>>
               child: CompositedTransformFollower(
                 link: _layerLink,
                 showWhenUnlinked: false,
-                targetAnchor:
-                    showAbove ? Alignment.topCenter : Alignment.bottomCenter,
-                followerAnchor:
-                    showAbove ? Alignment.bottomCenter : Alignment.topCenter,
-                offset: showAbove ? const Offset(0, -gap) : const Offset(0, gap),
+                targetAnchor: showAbove
+                    ? Alignment.topCenter
+                    : Alignment.bottomCenter,
+                followerAnchor: showAbove
+                    ? Alignment.bottomCenter
+                    : Alignment.topCenter,
+                offset: showAbove
+                    ? const Offset(0, -gap)
+                    : const Offset(0, gap),
                 child: Material(
                   elevation: 2,
                   borderRadius: BorderRadius.circular(widget.borderRadius),
                   child: Container(
-                    constraints: BoxConstraints(
-                      maxHeight: dropdownHeight,
-                    ),
+                    constraints: BoxConstraints(maxHeight: dropdownHeight),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(widget.borderRadius),
@@ -507,33 +513,49 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>>
                         if (hasSearch) ...[
                           Padding(
                             padding: const EdgeInsets.all(8.0),
-                            child: TextField(
-                              controller: _searchController,
-                              autofocus: true,
-                              decoration: InputDecoration(
-                                hintText: 'Buscar...',
-                                hintStyle: TextStyle(
-                                  fontSize: 9,
-                                  fontFamily: AppFonts.getFontFamily(
-                                    AppFont.oxygenRegular,
+                            child: SizedBox(
+                              height: 35,
+                              child: TextField(
+                                controller: _searchController,
+                                autofocus: true,
+                                decoration: InputDecoration(
+                                  isDense: true,
+                                  hintText: 'Buscar...',
+                                  hintStyle: TextStyle(
+                                    fontSize: 9,
+                                    fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
+                                    fontWeight: FontWeight.w400,
+                                  ),
+                                  prefixIcon: const Icon(
+                                    Icons.search,
+                                    size: 16,
+                                    color: AppColors.blue1,
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(6),
+                                    borderSide: BorderSide(
+                                      color: Colors.grey[300]!, // color sin foco (el que ya tenías)
+                                      width: 0.6, // grosor sin foco
+                                    ),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(6),
+                                    borderSide: const BorderSide(
+                                      color: Colors.blue, // ← cambia este color
+                                      width:0.6, // ← cambia este grosor (ej: 2.0, 2.5, etc)
+                                    ),
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
                                   ),
                                 ),
-                                prefixIcon: const Icon(Icons.search, size: 20),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(6),
-                                  borderSide: BorderSide(
-                                    color: Colors.grey[300]!,
-                                  ),
-                                ),
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 8,
-                                ),
-                              ),
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontFamily: AppFonts.getFontFamily(
-                                  AppFont.oxygenRegular,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
+                                  fontWeight: FontWeight.w600,
+
+                                  color: AppColors.blue1
                                 ),
                               ),
                             ),
@@ -553,10 +575,11 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>>
                                     final item = _filteredItems[index];
                                     final isSelected =
                                         widget.dropdownStyle ==
-                                                DropdownStyle.multiSelect
-                                            ? _selectedMultiValues
-                                                .contains(item.value)
-                                            : _selectedValue == item.value;
+                                            DropdownStyle.multiSelect
+                                        ? _selectedMultiValues.contains(
+                                            item.value,
+                                          )
+                                        : _selectedValue == item.value;
 
                                     return InkWell(
                                       onTap: item.enabled
@@ -570,8 +593,8 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>>
                                         decoration: BoxDecoration(
                                           color: isSelected
                                               ? (widget.borderColor ??
-                                                      AppColors.blue)
-                                                  .withValues(alpha: 0.1)
+                                                        AppColors.blue)
+                                                    .withValues(alpha: 0.1)
                                               : null,
                                         ),
                                         child: Row(
@@ -586,11 +609,11 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>>
                                                   isSelected
                                                       ? Icons.check_box
                                                       : Icons
-                                                          .check_box_outline_blank,
+                                                            .check_box_outline_blank,
                                                   size: 16,
                                                   color: isSelected
                                                       ? widget.borderColor ??
-                                                          AppColors.blue
+                                                            AppColors.blue
                                                       : Colors.grey,
                                                 ),
                                               ),
@@ -608,9 +631,9 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>>
                                                       : FontWeight.w400,
                                                   color: item.enabled
                                                       ? (isSelected
-                                                          ? widget.borderColor ??
-                                                              AppColors.blue
-                                                          : Colors.black87)
+                                                            ? widget.borderColor ??
+                                                                  AppColors.blue
+                                                            : Colors.black87)
                                                       : Colors.grey,
                                                 ),
                                               ),
@@ -623,7 +646,8 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>>
                                               Icon(
                                                 Icons.check,
                                                 size: 16,
-                                                color: widget.borderColor ??
+                                                color:
+                                                    widget.borderColor ??
                                                     AppColors.blue,
                                               ),
                                           ],
@@ -640,8 +664,9 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>>
                             child: Align(
                               alignment: Alignment.centerRight,
                               child: Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 8),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                ),
                                 child: TextButton(
                                   onPressed: _closeDropdown,
                                   child: Text(
@@ -686,8 +711,9 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>>
       // Notificaciones + FormField update post-frame
       _postFrame(() {
         widget.onMultiChanged?.call(List<T>.from(_selectedMultiValues));
-        _formFieldKey.currentState
-            ?.didChange(List<T>.from(_selectedMultiValues));
+        _formFieldKey.currentState?.didChange(
+          List<T>.from(_selectedMultiValues),
+        );
         _formFieldKey.currentState?.validate();
       });
 
@@ -745,8 +771,8 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>>
 
     final dynamic initialFormValue =
         widget.dropdownStyle == DropdownStyle.multiSelect
-            ? List<T>.from(_selectedMultiValues)
-            : _selectedValue;
+        ? List<T>.from(_selectedMultiValues)
+        : _selectedValue;
 
     return FormField<dynamic>(
       key: _formFieldKey,
@@ -762,7 +788,8 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>>
             if (widget.label != null) ...[
               Text(
                 widget.label!,
-                style: widget.labelStyle ??
+                style:
+                    widget.labelStyle ??
                     TextStyle(
                       fontSize: 9,
                       fontWeight: FontWeight.w500,
@@ -785,8 +812,9 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>>
                         color: widget.filled
                             ? widget.backgroundColor
                             : Colors.transparent,
-                        borderRadius:
-                            BorderRadius.circular(widget.borderRadius),
+                        borderRadius: BorderRadius.circular(
+                          widget.borderRadius,
+                        ),
                         boxShadow: widget.filled ? _buildShadows() : null,
                         border: Border.all(
                           color: hasError ? Colors.red : _getBorderColor(),
@@ -795,10 +823,12 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>>
                       ),
                       child: InkWell(
                         onTap: _toggleDropdown,
-                        borderRadius:
-                            BorderRadius.circular(widget.borderRadius),
+                        borderRadius: BorderRadius.circular(
+                          widget.borderRadius,
+                        ),
                         child: Padding(
-                          padding: widget.contentPadding ??
+                          padding:
+                              widget.contentPadding ??
                               const EdgeInsets.symmetric(
                                 horizontal: 12,
                                 vertical: 8,
@@ -814,27 +844,30 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>>
                                   _getDisplayText(),
                                   style: isHint
                                       ? (widget.hintStyle ??
-                                          TextStyle(
-                                            color: Colors.grey[500],
-                                            fontSize: 10,
-                                            fontFamily:
-                                                AppFonts.getFontFamily(
-                                                    AppFont.oxygenRegular),
-                                          ))
+                                            TextStyle(
+                                              color: Colors.grey[500],
+                                              fontSize: 10,
+                                              fontFamily:
+                                                  AppFonts.getFontFamily(
+                                                    AppFont.oxygenRegular,
+                                                  ),
+                                            ))
                                       : (widget.textStyle ??
-                                          TextStyle(
-                                            color: AppColors.blue2,
-                                            fontSize: 10,
-                                            fontFamily:
-                                                AppFonts.getFontFamily(
-                                                    AppFont.oxygenBold),
-                                          )),
+                                            TextStyle(
+                                              color: AppColors.blue2,
+                                              fontSize: 10,
+                                              fontFamily:
+                                                  AppFonts.getFontFamily(
+                                                    AppFont.oxygenBold,
+                                                  ),
+                                            )),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                               RotationTransition(
                                 turns: _rotationAnimation,
-                                child: widget.suffixIcon ??
+                                child:
+                                    widget.suffixIcon ??
                                     Icon(
                                       Icons.keyboard_arrow_down,
                                       color: _isFocused || _isExpanded
@@ -884,8 +917,7 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>>
     if (_isFocused || _isExpanded) {
       return [
         BoxShadow(
-          color:
-              currentBorderColor.withValues(alpha: 0.25 + (intensity * 0.2)),
+          color: currentBorderColor.withValues(alpha: 0.25 + (intensity * 0.2)),
           offset: const Offset(0, 1),
           blurRadius: 3,
           spreadRadius: 0,
@@ -1046,8 +1078,9 @@ class CustomDropdownHelpers {
       closeOnSelect: closeOnSelect,
       showDoneButton: showDoneButton,
       doneText: doneText,
-      validator:
-          validator == null ? null : (v) => validator((v as List).cast<T>()),
+      validator: validator == null
+          ? null
+          : (v) => validator((v as List).cast<T>()),
     );
   }
 }

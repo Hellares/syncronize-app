@@ -169,11 +169,13 @@ class ProveedoresPage extends StatelessWidget {
         ),
         floatingActionButton: FloatingActionButton.extended(
           onPressed: () async {
+            // Guardar referencia al cubit antes del async gap
+            final cubit = context.read<ProveedorListCubit>();
             final result = await context.push(
               '/empresa/$empresaId/proveedores/nuevo',
             );
             if (result == true) {
-              context.read<ProveedorListCubit>().reload();
+              cubit.reload();
             }
           },
           icon: const Icon(Icons.add),

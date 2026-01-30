@@ -282,7 +282,7 @@ class _SedeFormViewState extends State<_SedeFormView> {
   Widget build(BuildContext context) {
     return PopScope(
       canPop: !_hasUnsavedChanges || _formSubmittedSuccessfully,
-      onPopInvoked: (didPop) async {
+      onPopInvokedWithResult: (didPop, result) async {
         if (!didPop && _hasUnsavedChanges && !_formSubmittedSuccessfully) {
           final shouldPop = await _onWillPop();
           if (shouldPop && context.mounted) {

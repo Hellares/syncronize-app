@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:syncronize/core/di/injection_container.dart';
+import 'package:syncronize/core/widgets/floating_button_text.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import 'package:syncronize/core/widgets/custom_loading.dart';
 import 'package:syncronize/core/theme/gradient_background.dart';
@@ -185,15 +186,7 @@ class _TransferenciasStockPageState extends State<TransferenciasStockPage>
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _mostrarMenuCrear(),
-        backgroundColor: AppColors.blue1,
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text(
-          'Nueva Transferencia',
-          style: TextStyle(color: Colors.white),
-        ),
-      ),
+      floatingActionButton: FloatingButtonText(label: 'Nueva Transferencia', onPressed: () => _mostrarMenuCrear(), icon: Icons.add,),
     );
   }
 
@@ -326,7 +319,7 @@ class _TransferenciasStockPageState extends State<TransferenciasStockPage>
               leading: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.1),
+                  color: Colors.green.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(Icons.shopping_cart, color: Colors.green),

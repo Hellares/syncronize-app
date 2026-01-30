@@ -52,36 +52,26 @@ class SanitizedLoggingInterceptor extends Interceptor {
     // Sanitizar body
     final sanitizedData = LogSanitizer.sanitizeBody(options.data);
 
-    // Log de la petición
-    _loggerService.debug(
-      '┌─────────────────────────────────────────────────────────────',
-      tag: 'HTTP',
-    );
-    _loggerService.debug('│ 🌐 REQUEST', tag: 'HTTP');
-    _loggerService.debug('│ $method $sanitizedUrl', tag: 'HTTP');
+    // Log compacto de la petición
+    _loggerService.debug('🌐 $method $sanitizedUrl', tag: 'HTTP');
 
     if (sanitizedHeaders != null && sanitizedHeaders.isNotEmpty) {
-      _loggerService.debug('│ Headers:', tag: 'HTTP');
-      sanitizedHeaders.forEach((key, value) {
-        _loggerService.debug('│   $key: $value', tag: 'HTTP');
-      });
+      final headersStr = sanitizedHeaders.entries
+          .map((e) => '${e.key}=${e.value}')
+          .join(', ');
+      _loggerService.debug('  Headers: $headersStr', tag: 'HTTP');
     }
 
     if (sanitizedQueryParams != null && sanitizedQueryParams.isNotEmpty) {
-      _loggerService.debug('│ Query Parameters:', tag: 'HTTP');
-      sanitizedQueryParams.forEach((key, value) {
-        _loggerService.debug('│   $key: $value', tag: 'HTTP');
-      });
+      final paramsStr = sanitizedQueryParams.entries
+          .map((e) => '${e.key}=${e.value}')
+          .join(', ');
+      _loggerService.debug('  Params: $paramsStr', tag: 'HTTP');
     }
 
     if (sanitizedData != null) {
-      _loggerService.debug('│ Body: $sanitizedData', tag: 'HTTP');
+      _loggerService.debug('  Body: $sanitizedData', tag: 'HTTP');
     }
-
-    _loggerService.debug(
-      '└─────────────────────────────────────────────────────────────',
-      tag: 'HTTP',
-    );
   }
 
   /// Loguea una respuesta HTTP sanitizada
@@ -93,49 +83,30 @@ class SanitizedLoggingInterceptor extends Interceptor {
     // Sanitizar URL
     final sanitizedUrl = LogSanitizer.sanitizeUrl(uri);
 
-    // Sanitizar headers de respuesta
-    final sanitizedHeaders = LogSanitizer.sanitizeHeaders(
-      response.headers.map.map((key, value) => MapEntry(key, value.join(', '))),
-    );
-
     // Sanitizar body de respuesta
     final sanitizedData = LogSanitizer.sanitizeBody(response.data);
 
     // Determinar el emoji según el código de estado
     final emoji = _getStatusEmoji(statusCode);
 
+    // Log compacto de la respuesta
     _loggerService.debug(
-      '┌─────────────────────────────────────────────────────────────',
+      '$emoji $statusCode $method $sanitizedUrl',
       tag: 'HTTP',
     );
-    _loggerService.debug('│ $emoji RESPONSE', tag: 'HTTP');
-    _loggerService.debug('│ $method $sanitizedUrl', tag: 'HTTP');
-    _loggerService.debug('│ Status: $statusCode', tag: 'HTTP');
-
-    if (sanitizedHeaders != null && sanitizedHeaders.isNotEmpty) {
-      _loggerService.debug('│ Headers:', tag: 'HTTP');
-      sanitizedHeaders.forEach((key, value) {
-        _loggerService.debug('│   $key: $value', tag: 'HTTP');
-      });
-    }
 
     if (sanitizedData != null) {
       // Limitar el tamaño del body en logs
       final dataString = sanitizedData.toString();
-      if (dataString.length > 1000) {
+      if (dataString.length > 500) {
         _loggerService.debug(
-          '│ Body: ${dataString.substring(0, 1000)}... (truncado)',
+          '  Body: ${dataString.substring(0, 500)}... (${dataString.length} chars)',
           tag: 'HTTP',
         );
       } else {
-        _loggerService.debug('│ Body: $sanitizedData', tag: 'HTTP');
+        _loggerService.debug('  Body: $sanitizedData', tag: 'HTTP');
       }
     }
-
-    _loggerService.debug(
-      '└─────────────────────────────────────────────────────────────',
-      tag: 'HTTP',
-    );
   }
 
   /// Loguea un error HTTP sanitizado
@@ -157,47 +128,28 @@ class SanitizedLoggingInterceptor extends Interceptor {
         ? LogSanitizer.sanitizeBody(err.response!.data)
         : null;
 
-    // Sanitizar headers de error
-    final sanitizedHeaders = err.response?.headers != null
-        ? LogSanitizer.sanitizeHeaders(
-            err.response!.headers.map.map(
-              (key, value) => MapEntry(key, value.join(', ')),
-            ),
-          )
-        : null;
-
+    // Log compacto de error
     _loggerService.error(
-      '┌─────────────────────────────────────────────────────────────',
+      '❌ ${statusCode ?? err.type.name} $method $sanitizedUrl',
       tag: 'HTTP',
     );
-    _loggerService.error('│ ❌ ERROR', tag: 'HTTP');
-    _loggerService.error('│ $method $sanitizedUrl', tag: 'HTTP');
 
-    if (statusCode != null) {
-      _loggerService.error('│ Status: $statusCode', tag: 'HTTP');
-    }
-
-    _loggerService.error('│ Type: ${err.type}', tag: 'HTTP');
-    _loggerService.error('│ Message: $sanitizedMessage', tag: 'HTTP');
-
-    if (sanitizedHeaders != null && sanitizedHeaders.isNotEmpty) {
-      _loggerService.error('│ Response Headers:', tag: 'HTTP');
-      sanitizedHeaders.forEach((key, value) {
-        _loggerService.error('│   $key: $value', tag: 'HTTP');
-      });
-    }
+    _loggerService.error(
+      '  Error: $sanitizedMessage',
+      tag: 'HTTP',
+    );
 
     if (sanitizedResponseData != null) {
-      _loggerService.error(
-        '│ Response: $sanitizedResponseData',
-        tag: 'HTTP',
-      );
+      final dataString = sanitizedResponseData.toString();
+      if (dataString.length > 500) {
+        _loggerService.error(
+          '  Response: ${dataString.substring(0, 500)}... (${dataString.length} chars)',
+          tag: 'HTTP',
+        );
+      } else {
+        _loggerService.error('  Response: $sanitizedResponseData', tag: 'HTTP');
+      }
     }
-
-    _loggerService.error(
-      '└─────────────────────────────────────────────────────────────',
-      tag: 'HTTP',
-    );
   }
 
   /// Obtiene el emoji apropiado según el código de estado HTTP

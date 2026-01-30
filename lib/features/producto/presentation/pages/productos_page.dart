@@ -189,6 +189,9 @@ class _ProductosPageState extends State<ProductosPage>
   Future<void> _onSedeChanged(String sedeId) async {
     // Esperar a que se actualice la sede seleccionada
     await context.read<SedeSelectionCubit>().selectSede(sedeId);
+
+    if (!mounted) return;
+
     // Limpiar el estado actual antes de cargar productos de la nueva sede
     context.read<ProductoListCubit>().clear();
     _loadProductos();
@@ -351,6 +354,7 @@ class _ProductosPageState extends State<ProductosPage>
             }
           });
         } else if (result is Error<Producto>) {
+          if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Error al cargar producto: ${result.message}'),
@@ -438,6 +442,7 @@ class _ProductosPageState extends State<ProductosPage>
           }
         });
       } else if (result is Error<ProductoStock>) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error al cargar stock: ${result.message}'),
@@ -505,6 +510,7 @@ class _ProductosPageState extends State<ProductosPage>
           }
         });
       } else if (result is Error<ProductoStock>) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error al cargar stock: ${result.message}'),

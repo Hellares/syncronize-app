@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
+import 'package:syncronize/core/theme/app_gradients.dart';
+import 'package:syncronize/core/theme/gradient_container.dart';
+import 'package:syncronize/core/widgets/floating_button_text.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import '../../domain/entities/reporte_incidencia.dart';
 import '../bloc/reportes_incidencia_list/reportes_incidencia_list_cubit.dart';
@@ -39,7 +42,7 @@ class _ReportesIncidenciaPageState extends State<ReportesIncidenciaPage> {
         foregroundColor: Colors.white,
         actions: [
           PopupMenuButton<EstadoReporteIncidencia?>(
-            icon: const Icon(Icons.filter_list),
+            icon: const Icon(Icons.filter_list, size: 18,),
             tooltip: 'Filtrar por estado',
             onSelected: (estado) {
               setState(() {
@@ -74,7 +77,7 @@ class _ReportesIncidenciaPageState extends State<ReportesIncidenciaPage> {
             ],
           ),
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh, size: 18),
             tooltip: 'Recargar',
             onPressed: _cargarReportes,
           ),
@@ -175,17 +178,17 @@ class _ReportesIncidenciaPageState extends State<ReportesIncidenciaPage> {
           return const SizedBox.shrink();
         },
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: FloatingButtonText(
+        label: 'Nuevo Reporte',
+        width: 120,
         onPressed: () async {
           await context.push('/empresa/reportes-incidencia/crear');
           if (context.mounted) {
             _cargarReportes();
           }
-        },
-        backgroundColor: AppColors.blue1,
-        label: const Text('Nuevo Reporte'),
-        icon: const Icon(Icons.add),
-      ),
+        }, 
+        icon: Icons.add
+        ),
     );
   }
 
@@ -222,17 +225,15 @@ class _ReporteCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return GradientContainer(
+      shadowStyle: ShadowStyle.glow,
+      borderColor: AppColors.blueborder,
       margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -245,7 +246,7 @@ class _ReporteCard extends StatelessWidget {
                         Text(
                           reporte.titulo,
                           style: const TextStyle(
-                            fontSize: 16,
+                            fontSize: 13,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -253,7 +254,7 @@ class _ReporteCard extends StatelessWidget {
                         Text(
                           reporte.codigo,
                           style: TextStyle(
-                            fontSize: 13,
+                            fontSize: 10,
                             color: Colors.grey[600],
                             fontFamily: 'Cascadia',
                           ),
@@ -273,7 +274,7 @@ class _ReporteCard extends StatelessWidget {
                     child: Text(
                       reporte.sede?.nombre ?? 'Sin sede',
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: 10,
                         color: Colors.grey[700],
                       ),
                     ),
@@ -283,12 +284,12 @@ class _ReporteCard extends StatelessWidget {
               const SizedBox(height: 8),
               Row(
                 children: [
-                  Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
+                  Icon(Icons.calendar_today, size: 14, color: Colors.grey[600]),
                   const SizedBox(width: 4),
                   Text(
                     'Incidente: ${DateFormat('dd/MM/yyyy').format(reporte.fechaIncidente)}',
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: 10,
                       color: Colors.grey[700],
                     ),
                   ),
@@ -298,7 +299,7 @@ class _ReporteCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
+                  color: AppColors.white,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
@@ -378,7 +379,7 @@ class _EstadoBadge extends StatelessWidget {
         estado.descripcion,
         style: const TextStyle(
           color: Colors.white,
-          fontSize: 12,
+          fontSize: 10,
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -403,12 +404,12 @@ class _StatChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Icon(icon, size: 20, color: color),
+        Icon(icon, size: 16, color: color),
         const SizedBox(height: 4),
         Text(
           value,
           style: TextStyle(
-            fontSize: 16,
+            fontSize: 12,
             fontWeight: FontWeight.bold,
             color: color,
           ),
@@ -416,7 +417,7 @@ class _StatChip extends StatelessWidget {
         Text(
           label,
           style: TextStyle(
-            fontSize: 11,
+            fontSize: 10,
             color: Colors.grey[600],
           ),
         ),

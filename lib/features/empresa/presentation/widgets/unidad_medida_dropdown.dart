@@ -235,25 +235,35 @@ class _UnidadMedidaDropdownState extends State<UnidadMedidaDropdown> {
     );
   }
 
-  void _activarUnidadesPopulares() {
-    context
-        .read<UnidadMedidaCubit>()
-        .activarUnidadesPopulares(widget.empresaId)
-        .then((_) {
+  Future<void> _activarUnidadesPopulares() async {
+    // Guardar referencia al ScaffoldMessenger antes del async gap
+    final messenger = ScaffoldMessenger.of(context);
+
+    try {
+      await context
+          .read<UnidadMedidaCubit>()
+          .activarUnidadesPopulares(widget.empresaId);
+
+      // Verificar que el widget aún esté montado antes de continuar
+      if (!mounted) return;
+
       _forceLoadUnidades();
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         const SnackBar(
           content: Text('Unidades populares activadas exitosamente'),
           backgroundColor: Colors.green,
         ),
       );
-    }).catchError((error) {
-      ScaffoldMessenger.of(context).showSnackBar(
+    } catch (error) {
+      // Verificar que el widget aún esté montado
+      if (!mounted) return;
+
+      messenger.showSnackBar(
         SnackBar(
           content: Text('Error al activar unidades: $error'),
           backgroundColor: Colors.red,
         ),
       );
-    });
+    }
   }
 }

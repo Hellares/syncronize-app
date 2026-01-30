@@ -197,9 +197,9 @@ class _AgregarStockInicialPageState extends State<AgregarStockInicialPage> {
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.blue1.withOpacity(0.1),
+        color: AppColors.blue1.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.blue1.withOpacity(0.3)),
+        border: Border.all(color: AppColors.blue1.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
@@ -451,7 +451,7 @@ class _AgregarStockInicialPageState extends State<AgregarStockInicialPage> {
             color: Colors.white,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 10,
                 offset: const Offset(0, -2),
               ),

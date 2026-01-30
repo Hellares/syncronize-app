@@ -203,7 +203,7 @@ class ReporteItemsList extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: color),
       ),
@@ -286,7 +286,7 @@ class ReporteItemsList extends StatelessWidget {
           fontWeight: FontWeight.bold,
         ),
       ),
-      backgroundColor: color.withOpacity(0.1),
+      backgroundColor: color.withValues(alpha: 0.1),
       side: BorderSide(color: color),
     );
   }
@@ -301,7 +301,7 @@ class ReporteItemsList extends StatelessWidget {
           fontWeight: FontWeight.bold,
         ),
       ),
-      backgroundColor: color.withOpacity(0.1),
+      backgroundColor: color.withValues(alpha: 0.1),
       side: BorderSide(color: color),
     );
   }

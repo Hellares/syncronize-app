@@ -32,6 +32,7 @@ class UnidadMedidaMaestraModel extends UnidadMedidaMaestra {
     );
   }
 
+  @override
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -113,6 +114,7 @@ class EmpresaUnidadMedidaModel extends EmpresaUnidadMedida {
     );
   }
 
+  @override
   Map<String, dynamic> toJson() {
     return {
       'id': id,

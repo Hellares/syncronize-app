@@ -118,7 +118,7 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
                         children: [
                           AppTitle(
                             'Configurar Precios',
-                            fontSize: 16,
+                            fontSize: 14,
                             color: AppColors.blue1,
                           ),
                           AppSubtitle(
@@ -323,9 +323,9 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.bluechip.withOpacity(0.3),
+        color: AppColors.bluechip.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.blue1.withOpacity(0.3)),
+        border: Border.all(color: AppColors.blue1.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -377,7 +377,7 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              border: Border.all(color: AppColors.blue1.withOpacity(0.3)),
+              border: Border.all(color: AppColors.blue1.withValues(alpha: 0.3)),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(

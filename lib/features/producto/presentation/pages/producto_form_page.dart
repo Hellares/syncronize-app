@@ -1221,10 +1221,10 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppColors.blue1.withOpacity(0.1),
+                color: AppColors.blue1.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                  color: AppColors.blue1.withOpacity(0.3),
+                  color: AppColors.blue1.withValues(alpha: 0.3),
                 ),
               ),
               child: Row(
