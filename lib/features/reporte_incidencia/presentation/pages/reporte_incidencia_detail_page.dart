@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
+import 'package:syncronize/core/utils/date_formatter.dart';
 import 'package:syncronize/features/reporte_incidencia/domain/entities/reporte_incidencia.dart';
 import 'package:syncronize/features/reporte_incidencia/presentation/bloc/reporte_incidencia_detail/reporte_incidencia_detail_cubit.dart';
 import 'package:syncronize/features/reporte_incidencia/presentation/bloc/resolver_item/resolver_item_cubit.dart';
@@ -123,7 +125,7 @@ class _ReporteIncidenciaDetailView extends StatelessWidget {
                 final reporte = state.reporte;
                 if (reporte.estado == EstadoReporteIncidencia.borrador) {
                   return IconButton(
-                    icon: const Icon(Icons.edit),
+                    icon: Icon(Icons.edit, size: 18,),
                     onPressed: () {
                       // TODO: Navigate to edit page
                     },
@@ -185,7 +187,7 @@ class _ReporteIncidenciaDetailView extends StatelessWidget {
               },
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -211,43 +213,34 @@ class _ReporteIncidenciaDetailView extends StatelessWidget {
   Widget _buildInfoSection(ReporteIncidencia reporte) {
     return GradientContainer(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Información General',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            const AppSubtitle('INFORMACION GENERAL',),
             const Divider(),
             _buildInfoRow('Tipo:', _getTipoReporteLabel(reporte.tipoReporte)),
             _buildInfoRow(
               'Fecha Incidente:',
-              _formatDate(reporte.fechaIncidente),
+              DateFormatter.formatDate(reporte.fechaIncidente),
             ),
             _buildInfoRow('Sede:', reporte.sede?.nombre ?? 'No especificado'),
+            const Divider(),
             if (reporte.supervisor != null)
               _buildInfoRow('Supervisor:', reporte.supervisor!.nombre),
             if (reporte.descripcionGeneral != null) ...[
-              const SizedBox(height: 8),
-              const Text(
-                'Descripción General:',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
               const SizedBox(height: 4),
-              Text(reporte.descripcionGeneral!),
+              AppSubtitle('Descripción General:'),
+              const SizedBox(height: 4),
+              AppText(reporte.descripcionGeneral!),
+              const Divider(),
             ],
             if (reporte.observacionesFinales != null) ...[
-              const SizedBox(height: 8),
-              const Text(
-                'Observaciones Finales:',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
               const SizedBox(height: 4),
-              Text(reporte.observacionesFinales!),
+              AppSubtitle('Observaciones Finales:'),
+              
+              const SizedBox(height: 4),
+              AppText(reporte.observacionesFinales!),
             ],
           ],
         ),
@@ -262,12 +255,12 @@ class _ReporteIncidenciaDetailView extends StatelessWidget {
         children: [
           SizedBox(
             width: 140,
-            child: Text(
+            child: AppText( 
               label,
-              style: const TextStyle(fontWeight: FontWeight.bold),
+              size: 11,
             ),
           ),
-          Expanded(child: Text(value)),
+          Expanded(child: Text(value, style: TextStyle(fontSize: 11),)),
         ],
       ),
     );
@@ -276,23 +269,17 @@ class _ReporteIncidenciaDetailView extends StatelessWidget {
   Widget _buildItemsSection(BuildContext context, ReporteIncidencia reporte) {
     return GradientContainer(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.only(left: 10, right: 10, top: 10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'Productos Afectados',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                AppSubtitle('PRODUCTOS AFECTADOS'),
                 if (reporte.estado == EstadoReporteIncidencia.borrador)
                   IconButton(
-                    icon: const Icon(Icons.add_circle),
+                    icon: const Icon(Icons.add_circle, color: AppColors.blue1, size: 20,),
                     onPressed: () async {
                       final result = await context.push(
                         '/empresa/reportes-incidencia/${reporte.id}/agregar-item?sedeId=${reporte.sedeId}',
@@ -349,10 +336,6 @@ class _ReporteIncidenciaDetailView extends StatelessWidget {
       case TipoReporteIncidencia.otro:
         return 'Otro';
     }
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
   }
 
   void _showDeleteItemDialog(BuildContext context, String reporteId, String itemId) {

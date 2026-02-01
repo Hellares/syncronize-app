@@ -96,4 +96,11 @@ abstract class ProductoStockRepository {
     String? tipoDocumento,
     String? numeroDocumento,
   });
+
+  /// Ajuste masivo de precios por sede
+  Future<Resource<Map<String, dynamic>>> ajusteMasivoPreciosPorSede({
+    required String sedeId,
+    required String empresaId,
+    required Map<String, dynamic> dto,
+  });
 }

@@ -66,6 +66,45 @@ class AppSubtitle extends StatelessWidget {
   }
 }
 
+class AppText extends StatelessWidget {
+  final String text;
+  final double? size;
+  final FontWeight? fontWeight;
+  final Color? color;
+  final TextAlign? textAlign;
+  final TextOverflow? overflow;
+  final int? maxLines;
+
+  const AppText(
+    this.text, {
+    super.key,
+    this.size,
+    this.fontWeight,
+    this.color,
+    this.textAlign,
+    this.overflow,
+    this.maxLines,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final defaultTextStyle = theme.textTheme.bodyMedium ?? const TextStyle();
+
+    return Text(
+      text,
+      style: defaultTextStyle.copyWith(
+        fontSize: size ?? 12,
+        fontWeight: fontWeight,
+        color: color ?? AppColors.black87,
+      ),
+      textAlign: textAlign,
+      overflow: overflow,
+      maxLines: maxLines,
+    );
+  }
+}
+
 /// Texto pequeño tipo caption
 class CaptionItem {
   final IconData? icon;

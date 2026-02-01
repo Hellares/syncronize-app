@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
+import 'package:syncronize/core/utils/date_formatter.dart';
 import 'package:syncronize/core/widgets/info_chip.dart';
 import 'package:syncronize/features/auth/presentation/widgets/widgets.dart';
 import '../../../../core/widgets/animated_container.dart';
@@ -158,7 +159,8 @@ class PlanSuscripcionCard extends StatelessWidget {
 
   String _formatFechaVencimiento(DateTime fecha) {
     final now = DateTime.now();
-    final difference = fecha.difference(now).inDays;
+    final localFecha = DateFormatter.toLocal(fecha);
+    final difference = localFecha.difference(now).inDays;
 
     if (difference < 0) {
       return 'Vencida';
@@ -169,7 +171,7 @@ class PlanSuscripcionCard extends StatelessWidget {
     } else if (difference <= 7) {
       return '$difference días';
     } else {
-      return '${fecha.day}/${fecha.month}/${fecha.year}';
+      return DateFormatter.formatDate(localFecha);
     }
   }
 }

@@ -81,12 +81,11 @@ class Paso3PreviewCambios extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: cambios.isEmpty ? null : onAplicarCambios,
+              onPressed: onAplicarCambios, // Siempre habilitado
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 backgroundColor: Colors.green,
                 foregroundColor: Colors.white,
-                disabledBackgroundColor: Colors.grey[300],
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -94,7 +93,7 @@ class Paso3PreviewCambios extends StatelessWidget {
                   const Icon(Icons.check_circle_outline, size: 18),
                   const SizedBox(width: 8),
                   Text(
-                    'Aplicar Cambios',
+                    'Confirmar y Aplicar Cambios',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.bold,

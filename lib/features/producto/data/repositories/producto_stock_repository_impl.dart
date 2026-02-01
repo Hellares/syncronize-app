@@ -342,4 +342,32 @@ class ProductoStockRepositoryImpl implements ProductoStockRepository {
       );
     }
   }
+
+  @override
+  Future<Resource<Map<String, dynamic>>> ajusteMasivoPreciosPorSede({
+    required String sedeId,
+    required String empresaId,
+    required Map<String, dynamic> dto,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error(
+        'No hay conexión a internet',
+        errorCode: 'NETWORK_ERROR',
+      );
+    }
+
+    try {
+      final resultado = await _remoteDataSource.ajusteMasivoPreciosPorSede(
+        sedeId: sedeId,
+        empresaId: empresaId,
+        dto: dto,
+      );
+      return Success(resultado);
+    } catch (e) {
+      return Error(
+        e.toString().replaceFirst('Exception: ', ''),
+        errorCode: 'SERVER_ERROR',
+      );
+    }
+  }
 }

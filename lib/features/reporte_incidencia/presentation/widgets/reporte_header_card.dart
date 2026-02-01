@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:syncronize/core/theme/app_colors.dart';
+import 'package:syncronize/core/theme/app_gradients.dart';
+import 'package:syncronize/core/utils/date_formatter.dart';
 import 'package:syncronize/features/reporte_incidencia/domain/entities/reporte_incidencia.dart';
+
+import '../../../../core/theme/gradient_container.dart';
 
 class ReporteHeaderCard extends StatelessWidget {
   final ReporteIncidencia reporte;
@@ -11,10 +16,11 @@ class ReporteHeaderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 4,
+    return GradientContainer(
+      shadowStyle: ShadowStyle.glow,
+      borderColor: AppColors.blueborder,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -27,7 +33,7 @@ class ReporteHeaderCard extends StatelessWidget {
                       Text(
                         reporte.titulo,
                         style: const TextStyle(
-                          fontSize: 20,
+                          fontSize: 14,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -36,7 +42,7 @@ class ReporteHeaderCard extends StatelessWidget {
                         'ID: ${reporte.id}',
                         style: TextStyle(
                           color: Colors.grey[600],
-                          fontSize: 12,
+                          fontSize: 10,
                         ),
                       ),
                     ],
@@ -77,16 +83,16 @@ class ReporteHeaderCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Creado: ${_formatDate(reporte.creadoEn)}',
+                  'Creado: ${DateFormatter.formatDate(reporte.creadoEn)}',
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 10,
                     color: Colors.grey[600],
                   ),
                 ),
                 Text(
-                  'Actualizado: ${_formatDate(reporte.actualizadoEn)}',
+                  'Actualizado: ${DateFormatter.formatDate(reporte.actualizadoEn)}',
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 10,
                     color: Colors.grey[600],
                   ),
                 ),
@@ -147,7 +153,7 @@ class ReporteHeaderCard extends StatelessWidget {
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
@@ -156,14 +162,14 @@ class ReporteHeaderCard extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 16, color: color),
+          Icon(icon, size: 14, color: color),
           const SizedBox(width: 4),
           Text(
             label,
             style: TextStyle(
               color: color,
               fontWeight: FontWeight.bold,
-              fontSize: 12,
+              fontSize: 10,
             ),
           ),
         ],
@@ -186,12 +192,12 @@ class ReporteHeaderCard extends StatelessWidget {
         ),
         child: Column(
           children: [
-            Icon(icon, color: color, size: 20),
+            Icon(icon, color: color, size: 16),
             const SizedBox(height: 4),
             Text(
               value,
               style: TextStyle(
-                fontSize: 16,
+                fontSize: 14,
                 fontWeight: FontWeight.bold,
                 color: color,
               ),
@@ -208,9 +214,5 @@ class ReporteHeaderCard extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
   }
 }

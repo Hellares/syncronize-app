@@ -310,6 +310,28 @@ class ProductoStockRemoteDataSource {
     }
   }
 
+  /// Ajuste masivo de precios por sede
+  ///
+  /// POST /api/producto-stock/sedes/:sedeId/precios/ajuste-masivo
+  Future<Map<String, dynamic>> ajusteMasivoPreciosPorSede({
+    required String sedeId,
+    required String empresaId,
+    required Map<String, dynamic> dto,
+  }) async {
+    try {
+      final response = await _dioClient.post(
+        '/producto-stock/sedes/$sedeId/precios/ajuste-masivo',
+        data: dto,
+      );
+
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    } catch (e) {
+      throw Exception('Error inesperado al aplicar ajuste masivo de precios: $e');
+    }
+  }
+
   /// Manejo de errores de Dio
   Exception _handleDioError(DioException error) {
     String message = 'Error en la operación de stock';

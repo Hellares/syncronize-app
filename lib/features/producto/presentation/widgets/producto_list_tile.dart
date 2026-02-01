@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:syncronize/core/fonts/app_fonts.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/app_gradients.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
+import 'package:syncronize/core/utils/date_formatter.dart';
 import '../../domain/entities/producto_list_item.dart';
 
 class ProductoListTile extends StatelessWidget {
@@ -14,34 +14,28 @@ class ProductoListTile extends StatelessWidget {
   final VoidCallback? onViewVariants;
   final VoidCallback? onStockDoubleTap;
   final VoidCallback? onPrecioTap; // Callback para configurar precios
-  final String? sedeId; // Para obtener precios específicos de la sede
+  final String sedeId; // Sede requerida para obtener precios y stock
 
   const ProductoListTile({
     super.key,
     required this.producto,
     required this.onTap,
+    required this.sedeId,
     this.onManageFiles,
     this.onViewVariants,
     this.onStockDoubleTap,
     this.onPrecioTap,
-    this.sedeId,
   });
 
-  // Getters para obtener precios por sede si está disponible
+  // Getters para obtener precios por sede (siempre desde ProductoStock)
   double get _precioEfectivo {
-    if (sedeId != null) {
-      final precioSede = producto.precioEfectivoEnSede(sedeId!);
-      if (precioSede != null) return precioSede;
-    }
-    return producto.precioEfectivo;
+    final precioSede = producto.precioEfectivoEnSede(sedeId);
+    return precioSede ?? 0.0;
   }
 
   double get _precio {
-    if (sedeId != null) {
-      final precioSede = producto.precioEnSede(sedeId!);
-      if (precioSede != null) return precioSede;
-    }
-    return producto.precio;
+    final precioSede = producto.precioEnSede(sedeId);
+    return precioSede ?? 0.0;
   }
 
   // Helper para formatear precios de manera segura
@@ -50,29 +44,23 @@ class ProductoListTile extends StatelessWidget {
   }
 
   bool get _isOfertaActiva {
-    if (sedeId != null) {
-      return producto.enOfertaEnSede(sedeId!);
-    }
-    return producto.isOfertaActiva;
+    return producto.enOfertaEnSede(sedeId);
   }
 
   double? get _porcentajeDescuento {
-    if (sedeId != null) {
-      return producto.porcentajeDescuentoEnSede(sedeId!);
-    }
-    return producto.porcentajeDescuento;
+    return producto.porcentajeDescuentoEnSede(sedeId);
   }
 
-  // Verifica si el producto tiene precio configurado
+  DateTime? get _fechaFinOferta {
+    final stockSede = producto.stockSedeInfo(sedeId);
+    return stockSede?.fechaFinOferta;
+  }
+
+  // Verifica si el producto tiene precio configurado en la sede
   bool _tienePrecioConfigurado() {
-    if (sedeId != null && producto.stocksPorSede != null) {
-      final stockSede = producto.stocksPorSede!.where((s) => s.sedeId == sedeId).firstOrNull;
-      if (stockSede != null) {
-        return stockSede.precioConfigurado && stockSede.precio != null && stockSede.precio! > 0;
-      }
-    }
-    // Fallback: verificar precio base del producto
-    return producto.precio > 0;
+    final stockSede = producto.stockSedeInfo(sedeId);
+    if (stockSede == null) return false;
+    return stockSede.precioConfigurado && stockSede.precio != null && stockSede.precio! > 0;
   }
 
   @override
@@ -453,7 +441,7 @@ class ProductoListTile extends StatelessWidget {
                           color: Colors.white,
                         ),
                       ),
-                      if (producto.ofertaFechaFin != null) ...[
+                      if (_fechaFinOferta != null) ...[
                         const SizedBox(width: 6),
                         Text(
                           '•',
@@ -470,7 +458,7 @@ class ProductoListTile extends StatelessWidget {
                         ),
                         const SizedBox(width: 3),
                         Text(
-                          DateFormat('dd/MM/yy').format(producto.ofertaFechaFin!),
+                          DateFormatter.formatDateShort(_fechaFinOferta!),
                           style: const TextStyle(
                             fontSize: 8,
                             fontWeight: FontWeight.w600,

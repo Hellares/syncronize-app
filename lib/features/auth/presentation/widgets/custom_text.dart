@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 
+import '../../../../core/fonts/app_fonts.dart';
+
 // -------------------- Enums --------------------
 enum FieldType { text, email, number, password }
 
@@ -51,12 +53,7 @@ class CustomTextFieldConstants {
   static const double defaultBorderRadius = 6.0;
   static const double defaultBorderWidth = 0.5;
 
-  static const Color defaultBackgroundColor = Color.fromARGB(
-    255,
-    255,
-    255,
-    255,
-  );
+  static const Color defaultBackgroundColor = Color(0xFFFFFFFF);
   static const Color defaultFocusedBorderColor = Color(0xFFE0E0E0);
   static const Color defaultBorderColor = Color(0xFFF0F0F0);
 
@@ -824,10 +821,9 @@ class _CustomTextFieldState extends State<CustomText>
   TextStyle _textStyle() => _textStyleCache ??=
       (widget.textStyle ??
       TextStyle(
-        color: widget.enabled ? Colors.black : Colors.grey,
+        color: widget.enabled ? AppColors.blue2 : Colors.grey,
         fontSize: 10,
-        fontWeight: FontWeight.w600,
-        fontFamily: 'Oxygen-Regular',
+        fontFamily: AppFonts.getFontFamily(AppFont.oxygenBold),
       ));
 
   TextStyle _hintStyle() => _hintStyleCache ??=
@@ -836,10 +832,16 @@ class _CustomTextFieldState extends State<CustomText>
         color: Colors.grey[500],
         fontSize: 10,
         fontWeight: FontWeight.w400,
+        fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
       ));
 
-  TextStyle _labelStyle() =>
-      _labelStyleCache ??= (widget.labelStyle ?? TextStyle(fontSize: 9, color: widget.borderColor ?? Colors.black54));
+  TextStyle _labelStyle() => _labelStyleCache ??=
+      (widget.labelStyle ??
+      TextStyle(
+        fontFamily: 'Oxygen-Regular',
+        fontSize: 9,
+        color: widget.borderColor ?? Colors.black54,
+      ));
 
   TextStyle _helperStyle() =>
       widget.helperStyle ??
@@ -889,16 +891,18 @@ class _CustomTextFieldState extends State<CustomText>
   List<BoxShadow> _buildShadows() {
     final intensity = _shadowAnimation.value;
     final border = _borderColor();
+    final shadowColor = _getShadowColorFromBorder(border);
 
     if (_isFocused) {
       return [
         BoxShadow(
-          color: border.withValues(alpha:0.30 + (intensity * 0.20)),
-          offset: const Offset(0, 3),
-          blurRadius: 4 + (intensity * 2),
+          color: border.withValues(alpha: 0.25 + (intensity * 0.2)),
+          offset: const Offset(0, 1),
+          blurRadius: 3,
+          spreadRadius: 0,
         ),
         BoxShadow(
-          color: Colors.white.withValues(alpha:0.6),
+          color: Colors.white.withValues(alpha: 0.6),
           offset: const Offset(-1, -1),
           blurRadius: 2,
           spreadRadius: -1,
@@ -908,17 +912,48 @@ class _CustomTextFieldState extends State<CustomText>
 
     return [
       BoxShadow(
-        color: border.withValues(alpha:0.12),
+        color: shadowColor.withValues(alpha: 0.18),
         offset: const Offset(4, 4),
         blurRadius: 8,
+        spreadRadius: 0,
       ),
       BoxShadow(
-        color: Colors.white.withValues(alpha:0.80),
+        color: border.withValues(alpha: 0.15),
+        offset: const Offset(1, 1),
+        blurRadius: 4,
+        spreadRadius: -1,
+      ),
+      BoxShadow(
+        color: Colors.white.withValues(alpha: 0.8),
         offset: const Offset(-2, -2),
         blurRadius: 4,
         spreadRadius: -1,
       ),
     ];
+  }
+
+  Color _getShadowColorFromBorder(Color borderColor) {
+    if (borderColor == AppColors.blue ||
+        borderColor == const Color(0xFF1976D2)) {
+      return const Color(0xFF0D47A1);
+    } else if (borderColor == Colors.red ||
+        borderColor == const Color(0xFFD32F2F)) {
+      return const Color(0xFF8D1E1E);
+    } else if (borderColor == Colors.green ||
+        borderColor == const Color(0xFF4CAF50)) {
+      return const Color(0xFF1B5E20);
+    } else if (borderColor == Colors.purple ||
+        borderColor == const Color(0xFF9C27B0)) {
+      return const Color(0xFF4A148C);
+    } else {
+      final hsl = HSLColor.fromColor(borderColor);
+      return HSLColor.fromAHSL(
+        1.0,
+        hsl.hue,
+        (hsl.saturation * 0.9).clamp(0.0, 1.0),
+        (hsl.lightness * 0.25).clamp(0.0, 0.4),
+      ).toColor();
+    }
   }
 
   Widget _wrapIcon(Widget icon) {
@@ -951,7 +986,7 @@ class _CustomTextFieldState extends State<CustomText>
         icon = null;
     }
     if (icon == null) return null;
-    return _wrapIcon(Icon(icon, size: 16,));
+    return _wrapIcon(Icon(icon, size: 16));
   }
 
   Widget _passwordToggle() {
@@ -1140,6 +1175,7 @@ class _CustomTextFieldState extends State<CustomText>
               style: _textStyle(),
               decoration: InputDecoration(
                 isDense: true,
+                filled: false,
                 hintText: widget.hintText,
                 prefixIcon: _buildPrefixIcon(),
                 prefixIconConstraints: const BoxConstraints(
@@ -1148,7 +1184,7 @@ class _CustomTextFieldState extends State<CustomText>
                 ),
                 suffixIcon: _suffixIcon(),
                 suffixIconConstraints: const BoxConstraints(
-                  minWidth: 40,
+                  minWidth: 30,
                   minHeight: 35,
                 ),
                 prefixText: widget.prefixText,
@@ -1160,6 +1196,7 @@ class _CustomTextFieldState extends State<CustomText>
                 errorBorder: InputBorder.none,
                 focusedErrorBorder: InputBorder.none,
                 contentPadding: _padding(),
+                // contentPadding: EdgeInsets.fromLTRB(8, 8, 4, 8),
                 hintStyle: _hintStyle(),
                 counterText: '',
               ),
@@ -1213,7 +1250,6 @@ class CustomTextFieldHelpers {
     String? externalError,
     String? helperText,
     HelperTextBuilder? helperBuilder,
-    
   }) {
     return CustomText(
       label: label,

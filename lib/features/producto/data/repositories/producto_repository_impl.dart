@@ -6,6 +6,7 @@ import '../../domain/entities/producto_filtros.dart';
 import '../../domain/repositories/producto_repository.dart';
 import '../datasources/producto_remote_datasource.dart';
 import '../models/producto_list_item_model.dart';
+import '../models/producto_model.dart';
 
 @LazySingleton(as: ProductoRepository)
 class ProductoRepositoryImpl implements ProductoRepository {
@@ -131,11 +132,20 @@ class ProductoRepositoryImpl implements ProductoRepository {
         filtros: filtros,
       );
 
-      // Parsear los productos del campo 'data'
-      final productos = (response['data'] as List)
+      final dataList = response['data'] as List;
+
+      // Parsear los productos del campo 'data' como ProductoListItem para la lista
+      final productos = dataList
           .map((json) =>
               ProductoListItemModel.fromJson(json as Map<String, dynamic>))
           .toList();
+
+      // También parsear como Producto completo para el cache (evita peticiones duplicadas)
+      final fullProductosCache = <String, dynamic>{};
+      for (final json in dataList) {
+        final productoCompleto = ProductoModel.fromJson(json as Map<String, dynamic>);
+        fullProductosCache[productoCompleto.id] = productoCompleto.toEntity();
+      }
 
       // Parsear la metadata de paginación
       final meta = response['meta'] as Map<String, dynamic>;
@@ -149,6 +159,7 @@ class ProductoRepositoryImpl implements ProductoRepository {
         offset: meta['offset'] as int,
         hasNext: meta['hasNext'] as bool,
         hasPrevious: meta['hasPrevious'] as bool,
+        fullProductosCache: fullProductosCache, // ✅ Cache de productos completos
       );
 
       return Success(paginados);

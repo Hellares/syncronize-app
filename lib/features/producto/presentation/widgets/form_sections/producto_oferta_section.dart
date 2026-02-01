@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:syncronize/core/theme/app_gradients.dart';
+import 'package:syncronize/core/utils/date_formatter.dart';
 import '../../../../../core/fonts/app_text_widgets.dart';
 import '../../../../../core/theme/gradient_container.dart';
 import '../../../../../core/widgets/currency/currency_textfield.dart';
@@ -115,7 +116,7 @@ class ProductoOfertaSection extends StatelessWidget {
       title: AppSubtitle(
         fechaInicioOferta == null
             ? 'Fecha de Inicio'
-            : 'Desde: ${fechaInicioOferta!.day}/${fechaInicioOferta!.month}/${fechaInicioOferta!.year}',
+            : 'Desde: ${DateFormatter.formatDate(fechaInicioOferta!)}',
         fontSize: 10,
       ),
       trailing: fechaInicioOferta != null
@@ -147,7 +148,7 @@ class ProductoOfertaSection extends StatelessWidget {
       title: AppSubtitle(
         fechaFinOferta == null
             ? 'Fecha de Fin'
-            : 'Hasta: ${fechaFinOferta!.day}/${fechaFinOferta!.month}/${fechaFinOferta!.year}',
+            : 'Hasta: ${DateFormatter.formatDate(fechaFinOferta!)}',
         fontSize: 10,
       ),
       trailing: fechaFinOferta != null

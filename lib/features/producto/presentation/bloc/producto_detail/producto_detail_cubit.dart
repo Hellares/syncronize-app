@@ -51,6 +51,13 @@ class ProductoDetailCubit extends Cubit<ProductoDetailState> {
     );
   }
 
+  /// Carga un producto ya existente sin hacer petición (desde cache)
+  void loadProductoFromCache(Producto producto, String empresaId) {
+    _currentProductoId = producto.id;
+    _currentEmpresaId = empresaId;
+    emit(ProductoDetailLoaded(producto));
+  }
+
   /// Limpia el estado
   void clear() {
     _currentProductoId = null;

@@ -10,7 +10,9 @@ import 'package:syncronize/core/widgets/info_chip.dart';
 import 'package:syncronize/core/widgets/product_image_gallery.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import 'package:syncronize/features/auth/presentation/widgets/widgets.dart';
+import 'package:syncronize/features/producto/domain/entities/producto.dart';
 import '../../../../core/theme/gradient_background.dart';
+import '../../../../core/utils/date_formatter.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../bloc/producto_detail/producto_detail_cubit.dart';
@@ -23,11 +25,13 @@ import '../../domain/entities/producto_variante.dart';
 class ProductoDetailPage extends StatefulWidget {
   final String productoId;
   final String? sedeId; // Sede seleccionada para mostrar precios y stock específicos
+  final Producto? productoData; // Producto ya cargado (opcional, evita petición duplicada)
 
   const ProductoDetailPage({
     super.key,
     required this.productoId,
     this.sedeId,
+    this.productoData,
   });
 
   @override
@@ -36,11 +40,27 @@ class ProductoDetailPage extends StatefulWidget {
 
 class _ProductoDetailPageState extends State<ProductoDetailPage> {
   ProductoVariante? _selectedVariante;
+  bool _productoWasEdited = false; // Flag para saber si se editó el producto
 
   @override
   void initState() {
     super.initState();
-    _loadProducto();
+
+    // Si ya tenemos los datos del producto, cargarlos directamente (evita petición duplicada)
+    if (widget.productoData != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final empresaState = context.read<EmpresaContextCubit>().state;
+        if (empresaState is EmpresaContextLoaded) {
+          context.read<ProductoDetailCubit>().loadProductoFromCache(
+            widget.productoData!,
+            empresaState.context.empresa.id,
+          );
+        }
+      });
+    } else {
+      // Solo hacer petición si no tenemos datos previos
+      _loadProducto();
+    }
   }
 
   @override
@@ -60,24 +80,56 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: SmartAppBar(
-        backgroundColor: AppColors.blue1,
-        foregroundColor: AppColors.white,
-        title: 'Detalle del Producto',
-        actions: [
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, dynamic result) async {
+        if (didPop) return;
+        // ✅ Retornar true si el producto fue editado
+        Navigator.of(context).pop(_productoWasEdited);
+      },
+      child: Scaffold(
+        appBar: SmartAppBar(
+          backgroundColor: AppColors.blue1,
+          foregroundColor: AppColors.white,
+          title: 'Detalle del Producto',
+          actions: [
           BlocBuilder<EmpresaContextCubit, EmpresaContextState>(
             builder: (context, empresaState) {
               if (empresaState is EmpresaContextLoaded &&
                   empresaState.context.permissions.canManageProducts) {
-                return IconButton(
-                  icon: const Icon(Icons.edit, size: 18),
-                  onPressed: () {
-                    context.push(
-                      '/empresa/productos/${widget.productoId}/editar',
+                return BlocBuilder<ProductoDetailCubit, ProductoDetailState>(
+                  builder: (context, productoState) {
+                    return IconButton(
+                      icon: const Icon(Icons.edit, size: 18),
+                      onPressed: () async {
+                        // Pasar el producto completo si ya está cargado para evitar petición duplicada
+                        final productoData = productoState is ProductoDetailLoaded
+                          ? productoState.producto
+                          : null;
+
+                        // Guardar referencias antes del await para evitar usar BuildContext desactualizado
+                        final detailCubit = context.read<ProductoDetailCubit>();
+                        final empresaId = empresaState.context.empresa.id;
+
+                        // Esperar el resultado del formulario
+                        final result = await context.push(
+                          '/empresa/productos/${widget.productoId}/editar',
+                          extra: productoData,
+                        );
+
+                        // ✅ Si retorna un producto actualizado, recargarlo
+                        if (!mounted) return;
+                        if (result != null && result is Producto) {
+                          detailCubit.loadProductoFromCache(result, empresaId);
+                          // Marcar que el producto fue editado
+                          setState(() {
+                            _productoWasEdited = true;
+                          });
+                        }
+                      },
+                      tooltip: 'Editar',
                     );
                   },
-                  tooltip: 'Editar',
                 );
               }
               return const SizedBox.shrink();
@@ -176,6 +228,7 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
           },
         ),
       ),
+    )
     );
   }
 
@@ -417,13 +470,13 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
                       const SizedBox(height: 4),
                       if (fechaInicioOfertaSede != null)
                         AppSubtitle(
-                          'Desde: ${_formatDate(fechaInicioOfertaSede)}',
+                          'Desde: ${DateFormatter.formatDateTime(fechaInicioOfertaSede)}',
                           fontSize: 10,
                           color: Colors.grey[700],
                         ),
                       if (fechaFinOfertaSede != null)
                         AppSubtitle(
-                          'Hasta: ${_formatDate(fechaFinOfertaSede)}',
+                          'Hasta: ${DateFormatter.formatDateTime(fechaFinOfertaSede)}',
                           fontSize: 10,
                           color: Colors.grey[700],
                         ),
@@ -910,18 +963,14 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
 
             const Divider(height: 24),
 
-            _buildInfoRow('Creado', _formatDate(producto.creadoEn)),
-            _buildInfoRow('Actualizado', _formatDate(producto.actualizadoEn)),
+            _buildInfoRow('Creado', DateFormatter.formatDateTime(producto.creadoEn)),
+            _buildInfoRow('Actualizado', DateFormatter.formatDateTime(producto.actualizadoEn)),
             if (producto.deletedAt != null)
-              _buildInfoRow('Eliminado', _formatDate(producto.deletedAt!)),
+              _buildInfoRow('Eliminado', DateFormatter.formatDateTime(producto.deletedAt!)),
           ],
         ),
       ),
     );
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
   }
 
   Widget _buildErrorView(String message) {
@@ -952,5 +1001,6 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
         ),
       ),
     );
+    // Cierre del PopScope
   }
 }

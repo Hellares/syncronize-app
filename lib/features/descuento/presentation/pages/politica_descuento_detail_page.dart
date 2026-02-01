@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/gradient_background.dart';
+import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../../../core/widgets/custom_loading.dart';
 import '../../../../core/utils/resource.dart';
@@ -318,14 +319,14 @@ class _PoliticaDetailViewState extends State<_PoliticaDetailView> {
             if (_politica!.fechaInicio != null) ...[
               _buildInfoRow(
                 'Fecha de Inicio',
-                _formatDate(_politica!.fechaInicio!),
+                DateFormatter.formatDate(_politica!.fechaInicio!),
               ),
               const Divider(),
             ],
             if (_politica!.fechaFin != null) ...[
               _buildInfoRow(
                 'Fecha de Fin',
-                _formatDate(_politica!.fechaFin!),
+                DateFormatter.formatDate(_politica!.fechaFin!),
               ),
             ],
           ],
@@ -444,9 +445,5 @@ class _PoliticaDetailViewState extends State<_PoliticaDetailView> {
     } else {
       return 'S/. ${_politica!.valorDescuento.toStringAsFixed(2)}';
     }
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
   }
 }

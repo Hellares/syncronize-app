@@ -14,6 +14,7 @@ class Paso1SeleccionProductos extends StatefulWidget {
   final List<String> productosSeleccionadosIds;
   final ValueChanged<String> onAlcanceChanged;
   final ValueChanged<List<String>> onProductosSeleccionadosChanged;
+  final String sedeId; // Sede requerida para mostrar precios
 
   const Paso1SeleccionProductos({
     super.key,
@@ -21,6 +22,7 @@ class Paso1SeleccionProductos extends StatefulWidget {
     required this.productosSeleccionadosIds,
     required this.onAlcanceChanged,
     required this.onProductosSeleccionadosChanged,
+    required this.sedeId,
   });
 
   @override
@@ -40,6 +42,7 @@ class _Paso1SeleccionProductosState extends State<Paso1SeleccionProductos> {
     if (empresaState is EmpresaContextLoaded) {
       context.read<ProductoListCubit>().loadProductos(
         empresaId: empresaState.context.empresa.id,
+        sedeId: widget.sedeId,
       );
     }
   }
@@ -225,6 +228,7 @@ class _Paso1SeleccionProductosState extends State<Paso1SeleccionProductos> {
                         Expanded(
                           child: ProductoListTile(
                             producto: producto,
+                            sedeId: widget.sedeId,
                             onTap: () {
                               // Toggle selection on tile tap
                               final List<String> nuevaLista = List.from(widget.productosSeleccionadosIds);

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:syncronize/core/di/injection_container.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/utils/resource.dart';
+import 'package:syncronize/core/utils/date_formatter.dart';
 import '../../domain/entities/movimiento_stock.dart';
 import '../../domain/entities/producto_stock.dart';
 import '../../domain/usecases/get_historial_movimientos_usecase.dart';
@@ -230,8 +230,7 @@ class _MovimientoTile extends StatelessWidget {
                 Row(
                   children: [
                     Text(
-                      DateFormat('dd/MM/yyyy HH:mm')
-                          .format(movimiento.creadoEn),
+                      DateFormatter.formatDateTime(movimiento.creadoEn),
                       style: const TextStyle(
                         color: AppColors.textSecondary,
                         fontSize: 11,

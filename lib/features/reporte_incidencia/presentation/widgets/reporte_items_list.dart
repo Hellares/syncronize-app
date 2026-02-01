@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:syncronize/core/theme/app_colors.dart';
+import 'package:syncronize/core/theme/gradient_container.dart';
+import 'package:syncronize/core/widgets/info_chip.dart';
 import 'package:syncronize/features/reporte_incidencia/domain/entities/reporte_incidencia.dart';
+
+import '../../../../core/fonts/app_text_widgets.dart';
 
 class ReporteItemsList extends StatelessWidget {
   final List<ReporteIncidenciaItem> items;
@@ -30,10 +35,11 @@ class ReporteItemsList extends StatelessWidget {
   }
 
   Widget _buildItemCard(BuildContext context, ReporteIncidenciaItem item) {
-    return Card(
+    return GradientContainer(
+      borderColor: AppColors.blueborder,
       margin: const EdgeInsets.symmetric(vertical: 8),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.only(left: 12, right: 12, top: 8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -43,18 +49,12 @@ class ReporteItemsList extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        item.nombreProducto,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      AppSubtitle(item.nombreProducto,),
                       if (item.codigoProducto != null)
                         Text(
                           'SKU: ${item.codigoProducto}',
                           style: TextStyle(
-                            fontSize: 12,
+                            fontSize: 10,
                             color: Colors.grey[600],
                           ),
                         ),
@@ -67,34 +67,28 @@ class ReporteItemsList extends StatelessWidget {
             const SizedBox(height: 8),
             Row(
               children: [
-                _buildInfoChip(
-                  Icons.inventory,
-                  'Cantidad: ${item.cantidadAfectada}',
-                  Colors.blue,
-                ),
+                InfoChip(text: 'Cantidad: ${item.cantidadAfectada}', icon: Icons.inventory,borderRadius: 4,borderColor: AppColors.blueborder,),
                 const SizedBox(width: 8),
                 if (item.accionTomada != null)
                   _buildAccionChip(item.accionTomada!),
               ],
             ),
             const SizedBox(height: 8),
-            Text(
+            AppSubtitle(
               'Descripción:',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
             ),
             Text(
               item.descripcion,
-              style: const TextStyle(fontSize: 12),
+              style: const TextStyle(fontSize: 10),
             ),
             if (item.observaciones != null) ...[
               const SizedBox(height: 4),
-              Text(
+              AppSubtitle(
                 'Observaciones:',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
               ),
               Text(
                 item.observaciones!,
-                style: const TextStyle(fontSize: 12),
+                style: const TextStyle(fontSize: 10),
               ),
             ],
             if (item.sedeDestinoNombre != null) ...[
@@ -121,19 +115,20 @@ class ReporteItemsList extends StatelessWidget {
                       onDeleteItem != null)
                     TextButton.icon(
                       onPressed: () => onDeleteItem!(item.id),
-                      icon: const Icon(Icons.delete, size: 18),
-                      label: const Text('Eliminar'),
+                      icon: const Icon(Icons.delete_outline_outlined, size: 18),
+                      label: const Text('Eliminar',style: TextStyle(fontSize: 12),),
                       style: TextButton.styleFrom(
                         foregroundColor: Colors.red,
                       ),
                     ),
+                    
                   if (reporteEstado == EstadoReporteIncidencia.aprobado &&
                       item.accionTomada == null &&
                       onResolveItem != null)
                     TextButton.icon(
                       onPressed: () => onResolveItem!(item.id),
                       icon: const Icon(Icons.check_circle, size: 18),
-                      label: const Text('Resolver'),
+                      label: const Text('Resolver',style: TextStyle(fontSize: 12)),
                       style: TextButton.styleFrom(
                         foregroundColor: Colors.green,
                       ),
@@ -217,7 +212,7 @@ class ReporteItemsList extends StatelessWidget {
             style: TextStyle(
               color: color,
               fontWeight: FontWeight.bold,
-              fontSize: 11,
+              fontSize: 10,
             ),
           ),
         ],
@@ -282,21 +277,6 @@ class ReporteItemsList extends StatelessWidget {
         label,
         style: TextStyle(
           color: color,
-          fontSize: 11,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-      backgroundColor: color.withValues(alpha: 0.1),
-      side: BorderSide(color: color),
-    );
-  }
-
-  Widget _buildInfoChip(IconData icon, String label, Color color) {
-    return Chip(
-      avatar: Icon(icon, size: 16, color: color),
-      label: Text(
-        label,
-        style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.bold,
         ),

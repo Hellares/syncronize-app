@@ -190,6 +190,9 @@ class ProductosPaginados extends Equatable {
   final bool hasNext;
   final bool hasPrevious;
 
+  /// Cache de productos completos (para evitar peticiones duplicadas al ver detalle)
+  final Map<String, dynamic>? fullProductosCache;
+
   const ProductosPaginados({
     required this.data,
     required this.total,
@@ -199,6 +202,7 @@ class ProductosPaginados extends Equatable {
     required this.offset,
     required this.hasNext,
     required this.hasPrevious,
+    this.fullProductosCache,
   });
 
   /// Verifica si hay más páginas (alias para hasNext)
@@ -219,5 +223,5 @@ class ProductosPaginados extends Equatable {
   int get limit => pageSize;
 
   @override
-  List<Object?> get props => [data, total, page, pageSize, totalPages, offset, hasNext, hasPrevious];
+  List<Object?> get props => [data, total, page, pageSize, totalPages, offset, hasNext, hasPrevious, fullProductosCache];
 }

@@ -65,7 +65,7 @@ class CustomDropdown<T> extends StatefulWidget {
 
   /// Validator real (para FormField)
   /// - standard/searchable: recibe T?
-  /// - multiSelect: recibe List<T>
+  // /// - multiSelect: recibe List<T>
   final String? Function(dynamic)? validator;
 
   final bool enabled;
@@ -554,7 +554,6 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>>
                                   fontSize: 10,
                                   fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
                                   fontWeight: FontWeight.w600,
-
                                   color: AppColors.blue1
                                 ),
                               ),

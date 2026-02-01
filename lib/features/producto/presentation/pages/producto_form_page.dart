@@ -8,6 +8,7 @@ import 'package:syncronize/core/theme/app_gradients.dart';
 import 'package:syncronize/core/widgets/currency/currency_formatter.dart';
 import 'package:syncronize/core/widgets/info_chip.dart';
 import 'package:syncronize/core/services/storage_service.dart';
+import 'package:syncronize/features/producto/presentation/bloc/producto_list/producto_list_cubit.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/widgets/smart_appbar.dart';
@@ -57,10 +58,12 @@ import '../controllers/producto_form_controller.dart';
 
 class ProductoFormPage extends StatelessWidget {
   final String? productoId;
+  final Producto? productoData; // Producto ya cargado (opcional, evita petición duplicada)
 
   const ProductoFormPage({
     super.key,
     this.productoId,
+    this.productoData,
   });
 
   bool get isEditing => productoId != null;
@@ -78,6 +81,7 @@ class ProductoFormPage extends StatelessWidget {
         ],
         child: _ProductoFormView(
           productoId: productoId,
+          productoData: productoData,
           isEditing: isEditing,
         ),
       );
@@ -92,6 +96,7 @@ class ProductoFormPage extends StatelessWidget {
       ],
       child: _ProductoFormView(
         productoId: productoId,
+        productoData: productoData,
         isEditing: isEditing,
       ),
     );
@@ -100,10 +105,12 @@ class ProductoFormPage extends StatelessWidget {
 
 class _ProductoFormView extends StatefulWidget {
   final String? productoId;
+  final Producto? productoData; // Producto ya cargado (opcional)
   final bool isEditing;
 
   const _ProductoFormView({
     this.productoId,
+    this.productoData,
     required this.isEditing,
   });
 
@@ -156,7 +163,17 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
     });
 
     if (widget.isEditing) {
-      _loadProducto();
+      // Si ya tenemos los datos del producto, usarlos directamente (evita petición duplicada)
+      if (widget.productoData != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _fillFormWithProducto(widget.productoData!);
+          // Cargar niveles de precio del producto
+          context.read<PrecioNivelCubit>().loadNivelesProducto(widget.productoId!);
+        });
+      } else {
+        // Solo hacer petición si no tenemos datos previos
+        _loadProducto();
+      }
     }
   }
 
@@ -708,6 +725,9 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
             _controller.formSubmittedSuccessfully = true;
           });
 
+          // ✅ Invalidar cache local (sincronizar con Redis)
+          context.read<ProductoListCubit>().invalidateCache();
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(state.message),
@@ -719,7 +739,8 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
           if (widget.productoId == null) {
             _mostrarDialogoAgregarStock(state.producto);
           } else {
-            context.pop();
+            // ✅ Retornar el producto actualizado para que ProductoDetailPage lo recargue
+            context.pop(state.producto);
           }
         } else if (state is ProductoFormError) {
           setState(() =>  _controller.isLoading = false);

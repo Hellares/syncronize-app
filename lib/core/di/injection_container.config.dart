@@ -356,6 +356,8 @@ import '../../features/producto/presentation/bloc/producto_images/producto_image
     as _i475;
 import '../../features/producto/presentation/bloc/producto_list/producto_list_cubit.dart'
     as _i227;
+import '../../features/producto/presentation/bloc/producto_search/producto_search_cubit.dart'
+    as _i1062;
 import '../../features/producto/presentation/bloc/producto_variante/producto_variante_cubit.dart'
     as _i693;
 import '../../features/producto/presentation/bloc/recibir_transferencia_incidencias/recibir_transferencia_incidencias_cubit.dart'
@@ -489,6 +491,7 @@ import '../network/interceptors/sanitized_logging_interceptor.dart' as _i954;
 import '../network/network_info.dart' as _i932;
 import '../services/error_handler_service.dart' as _i490;
 import '../services/logger_service.dart' as _i141;
+import '../services/search_history_service.dart' as _i283;
 import '../services/storage_service.dart' as _i306;
 import '../storage/local_storage_service.dart' as _i744;
 import '../storage/secure_storage_service.dart' as _i666;
@@ -574,6 +577,9 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i321.SecureStorageService>(),
         gh<_i321.LocalStorageService>(),
       ),
+    );
+    gh.lazySingleton<_i283.SearchHistoryService>(
+      () => _i283.SearchHistoryService(gh<_i744.LocalStorageService>()),
     );
     gh.factory<_i101.ProductosStockSelectorCubit>(
       () => _i101.ProductosStockSelectorCubit(
@@ -891,6 +897,10 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i132.AjustarStockUseCase>(
       () => _i132.AjustarStockUseCase(gh<_i262.ProductoStockRepository>()),
     );
+    gh.factory<_i619.AjusteMasivoPreciosUseCase>(
+      () =>
+          _i619.AjusteMasivoPreciosUseCase(gh<_i262.ProductoStockRepository>()),
+    );
     gh.factory<_i494.CrearStockInicialUseCase>(
       () => _i494.CrearStockInicialUseCase(gh<_i262.ProductoStockRepository>()),
     );
@@ -1079,6 +1089,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i123.AtributoPlantillaCubit>(
       () => _i123.AtributoPlantillaCubit(gh<_i1006.PlantillaRepository>()),
+    );
+    gh.factory<_i102.AjusteMasivoCubit>(
+      () => _i102.AjusteMasivoCubit(gh<_i619.AjusteMasivoPreciosUseCase>()),
     );
     gh.factory<_i840.ConfiguracionPrecioCubit>(
       () => _i840.ConfiguracionPrecioCubit(
@@ -1299,9 +1312,6 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i604.ActualizarProductoUseCase>(
       () => _i604.ActualizarProductoUseCase(gh<_i398.ProductoRepository>()),
     );
-    gh.factory<_i619.AjusteMasivoPreciosUseCase>(
-      () => _i619.AjusteMasivoPreciosUseCase(gh<_i398.ProductoRepository>()),
-    );
     gh.factory<_i244.CrearProductoUseCase>(
       () => _i244.CrearProductoUseCase(gh<_i398.ProductoRepository>()),
     );
@@ -1341,6 +1351,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i227.ProductoListCubit>(
       () => _i227.ProductoListCubit(gh<_i202.GetProductosUseCase>()),
+    );
+    gh.factory<_i1062.ProductoSearchCubit>(
+      () => _i1062.ProductoSearchCubit(gh<_i202.GetProductosUseCase>()),
     );
     gh.factory<_i1021.AjustarStockCubit>(
       () => _i1021.AjustarStockCubit(gh<_i132.AjustarStockUseCase>()),
@@ -1426,9 +1439,6 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i743.ProductoDetailCubit>(
       () => _i743.ProductoDetailCubit(gh<_i460.GetProductoUseCase>()),
-    );
-    gh.factory<_i102.AjusteMasivoCubit>(
-      () => _i102.AjusteMasivoCubit(gh<_i619.AjusteMasivoPreciosUseCase>()),
     );
     gh.factory<_i410.TransferenciasListCubit>(
       () => _i410.TransferenciasListCubit(

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:intl/intl.dart';
+import 'package:syncronize/core/utils/date_formatter.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import 'package:syncronize/core/widgets/custom_loading.dart';
 import 'package:syncronize/core/widgets/custom_radio_group.dart';
@@ -290,14 +290,14 @@ class _IncidenciasTransferenciasPageState
             _buildInfoRow(
               Icons.calendar_today,
               'Registrada',
-              DateFormat('dd/MM/yyyy HH:mm').format(incidencia.creadoEn),
+              DateFormatter.formatDateTime(incidencia.creadoEn),
             ),
             if (incidencia.resuelto && incidencia.fechaResolucion != null) ...[
               const SizedBox(height: 8),
               _buildInfoRow(
                 Icons.check_circle,
                 'Resuelta',
-                DateFormat('dd/MM/yyyy HH:mm').format(incidencia.fechaResolucion!),
+                DateFormatter.formatDateTime(incidencia.fechaResolucion!),
               ),
             ],
             if (incidencia.resuelto && incidencia.accionTomada != null) ...[

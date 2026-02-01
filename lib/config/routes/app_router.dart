@@ -21,6 +21,7 @@ import '../../features/producto/presentation/pages/productos_page.dart';
 import '../../features/producto/presentation/pages/producto_detail_page.dart';
 import '../../features/producto/presentation/pages/producto_form_page.dart';
 import '../../features/producto/presentation/pages/producto_variantes_page.dart';
+import '../../features/producto/domain/entities/producto.dart';
 import '../../features/producto/presentation/pages/producto_atributos_page.dart';
 import '../../features/producto/presentation/pages/plantillas_atributos_page.dart';
 import '../../features/producto/presentation/pages/configuraciones_precio_page.dart';
@@ -219,9 +220,11 @@ class AppRouter {
         builder: (context, state) {
           final productoId = state.pathParameters['id']!;
           final sedeId = state.uri.queryParameters['sedeId']; // Obtener sedeId del query parameter
+          final productoData = state.extra as Producto?; // Producto ya cargado (opcional)
           return ProductoDetailPage(
             productoId: productoId,
             sedeId: sedeId,
+            productoData: productoData, // ✅ Pasar producto completo del cache
           );
         },
       ),
@@ -230,7 +233,11 @@ class AppRouter {
         name: 'empresa-productos-editar',
         builder: (context, state) {
           final productoId = state.pathParameters['id']!;
-          return ProductoFormPage(productoId: productoId);
+          final productoData = state.extra as Producto?; // Producto ya cargado (opcional)
+          return ProductoFormPage(
+            productoId: productoId,
+            productoData: productoData,
+          );
         },
       ),
       GoRoute(

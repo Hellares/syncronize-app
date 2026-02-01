@@ -1,10 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:syncronize/core/fonts/app_text_widgets.dart';
+import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/widgets/custom_dropdown.dart';
+import 'package:syncronize/core/widgets/floating_button_text.dart';
+import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import 'package:syncronize/features/reporte_incidencia/domain/entities/reporte_incidencia.dart';
 import 'package:syncronize/features/reporte_incidencia/presentation/bloc/sedes_selector/sedes_selector_cubit.dart';
 import 'package:syncronize/features/empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import 'package:syncronize/features/empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
+
+import '../../../../core/theme/app_gradients.dart';
+import '../../../../core/theme/gradient_container.dart';
 
 class ResolverItemDialog extends StatefulWidget {
   final String reporteId;
@@ -52,181 +59,141 @@ class _ResolverItemDialogState extends State<ResolverItemDialog> {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 500),
+      child: GradientContainer(
+        gradient: AppGradients.blueWhiteDialog(),
+        padding: const EdgeInsets.only(left: 16, right: 16, bottom: 10),
+        borderRadius: BorderRadius.circular(10.0),
         child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.build_circle, color: Theme.of(context).primaryColor, size: 32),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Resolver Incidencia',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text(
-                            widget.productoNombre,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ],
-                      ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.build_circle, color: AppColors.blue1, size: 20),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        AppSubtitle('RESOLVER INCIDENCIA'),
+                        AppText(widget.productoNombre,overflow: TextOverflow.ellipsis,),
+                      ],
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.of(context).pop(),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 18,),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+              const Divider(height: 18),
+              CustomDropdownHelpers.standard<AccionIncidenciaProducto>(
+                borderColor: AppColors.blue1,
+                label: 'Acción a Tomar',
+                items: AccionIncidenciaProducto.values.map((accion) {
+                  return DropdownItem<AccionIncidenciaProducto>(
+                    value: accion,
+                    label: _getAccionLabel(accion),
+                    leading: Icon(
+                      _getAccionIcon(accion),
+                      size: 16,
+                      color: _getAccionColor(accion),
                     ),
-                  ],
-                ),
-                const Divider(height: 24),
-                const Text(
-                  'Acción a Tomar',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<AccionIncidenciaProducto>(
-                  initialValue: _accion,
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.build),
-                  ),
-                  items: AccionIncidenciaProducto.values.map((accion) {
-                    return DropdownMenuItem(
-                      value: accion,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(_getAccionIcon(accion), size: 20, color: _getAccionColor(accion)),
-                          const SizedBox(width: 8),
-                          Flexible(
-                            fit: FlexFit.loose,
-                            child: Text(
-                              _getAccionLabel(accion),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() {
-                        _accion = value;
-                      });
+                  );
+                }).toList(),
+                value: _accion,
+                hintText: 'Seleccione una acción...',
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() {
+                      _accion = value;
+                    });
+                  }
+                },
+              ),
+              const SizedBox(height: 16),
+              if (_requiresSedeDestino(_accion)) ...[
+                // const SizedBox(height: 16),
+                BlocBuilder<SedesSelectorCubit, SedesSelectorState>(
+                  builder: (context, state) {
+                    if (state is SedesSelectorLoading) {
+                      return const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(16.0),
+                          child: CircularProgressIndicator(),
+                        ),
+                      );
                     }
+          
+                    if (state is SedesSelectorError) {
+                      return Text(
+                        'Error: ${state.message}',
+                        style: const TextStyle(color: Colors.red),
+                      );
+                    }
+          
+                    if (state is SedesSelectorLoaded) {
+                      final items = state.sedes.map((sede) {
+                        return DropdownItem<String>(
+                          value: sede.id,
+                          label: '${sede.nombre} ${sede.codigo != null ? '(${sede.codigo})' : ''}',
+                          leading: const Icon(Icons.location_city, size: 20),
+                        );
+                      }).toList();
+          
+                      return CustomDropdownHelpers.searchable<String>(
+                        borderColor: AppColors.blue1,
+                        label: 'Sede Destino *',
+                        items: items,
+                        value: _sedeDestinoId,
+                        hintText: 'Seleccione una sede...',
+                        onChanged: (value) {
+                          setState(() {
+                            _sedeDestinoId = value;
+                          });
+                        },
+                        validator: (value) {
+                          if (_requiresSedeDestino(_accion) && value == null) {
+                            return 'Debe seleccionar una sede destino';
+                          }
+                          return null;
+                        },
+                      );
+                    }
+          
+                    return const SizedBox.shrink();
                   },
                 ),
-                const SizedBox(height: 16),
-                if (_requiresSedeDestino(_accion)) ...[
-                  const SizedBox(height: 16),
-                  BlocBuilder<SedesSelectorCubit, SedesSelectorState>(
-                    builder: (context, state) {
-                      if (state is SedesSelectorLoading) {
-                        return const Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(16.0),
-                            child: CircularProgressIndicator(),
-                          ),
-                        );
-                      }
-
-                      if (state is SedesSelectorError) {
-                        return Text(
-                          'Error: ${state.message}',
-                          style: const TextStyle(color: Colors.red),
-                        );
-                      }
-
-                      if (state is SedesSelectorLoaded) {
-                        final items = state.sedes.map((sede) {
-                          return DropdownItem<String>(
-                            value: sede.id,
-                            label: '${sede.nombre} ${sede.codigo != null ? '(${sede.codigo})' : ''}',
-                            leading: const Icon(Icons.location_city, size: 20),
-                          );
-                        }).toList();
-
-                        return CustomDropdownHelpers.searchable<String>(
-                          label: 'Sede Destino *',
-                          items: items,
-                          value: _sedeDestinoId,
-                          hintText: 'Seleccione una sede...',
-                          onChanged: (value) {
-                            setState(() {
-                              _sedeDestinoId = value;
-                            });
-                          },
-                          validator: (value) {
-                            if (_requiresSedeDestino(_accion) && value == null) {
-                              return 'Debe seleccionar una sede destino';
-                            }
-                            return null;
-                          },
-                        );
-                      }
-
-                      return const SizedBox.shrink();
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                ],
-                const Text(
-                  'Observaciones',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _observacionesController,
-                  decoration: const InputDecoration(
-                    hintText: 'Agregue detalles sobre la acción tomada...',
-                    border: OutlineInputBorder(),
-                  ),
-                  maxLines: 3,
-                ),
-                const SizedBox(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: const Text('Cancelar'),
-                    ),
-                    const SizedBox(width: 12),
-                    ElevatedButton.icon(
-                      onPressed: _submitForm,
-                      icon: const Icon(Icons.check_circle),
-                      label: const Text('Resolver'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                      ),
-                    ),
-                  ],
-                ),
+                const SizedBox(height: 10),
               ],
-            ),
+              CustomText(
+                label: 'Observaciones',
+                borderColor: AppColors.blue1,
+                controller: _observacionesController,
+                hintText: 'Agregue detalles sobre la acción tomada...',
+                maxLines: 3,                
+              ),
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const AppText('Cancelar'),
+                  ),
+                  const SizedBox(width: 10),
+                  FloatingButtonText(
+                    width: 100,
+                    height: 32,
+                    onPressed: _submitForm,
+                    icon: Icons.check_circle_outline,
+                    label: 'Resolver',
+                  ),
+                  
+                ],
+              ),
+            ],
           ),
         ),
       ),

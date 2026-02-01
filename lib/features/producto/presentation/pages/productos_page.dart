@@ -36,12 +36,16 @@ import '../widgets/seleccionar_sede_stock_bottom_sheet.dart';
 import '../widgets/ajustar_stock_dialog.dart';
 import '../widgets/configurar_precios_dialog.dart';
 import '../../../../core/services/storage_service.dart';
+import '../../../../core/services/search_history_service.dart';
 import '../../../../core/di/injection_container.dart';
 // Imports para páginas de inventario/stock
 import 'stock_por_sede_page.dart';
 import 'alertas_stock_bajo_page.dart';
 import 'transferencias_stock_page.dart';
 import 'agregar_stock_inicial_page.dart';
+// Import para SearchDelegate
+import '../search_delegate/producto_search_delegate.dart';
+import '../bloc/producto_search/producto_search_cubit.dart';
 
 class ProductosPage extends StatefulWidget {
   const ProductosPage({super.key});
@@ -52,18 +56,10 @@ class ProductosPage extends StatefulWidget {
 
 class _ProductosPageState extends State<ProductosPage>
     with SingleTickerProviderStateMixin {
-  final _searchController = TextEditingController();
   final _scrollController = ScrollController();
   late TabController _tabController;
   ProductoFiltros _filtros = const ProductoFiltros();
   String? _currentEmpresaId;
-
-  // Timer para debouncing de búsqueda
-  Timer? _debounceTimer;
-  static const Duration _debounceDuration = Duration(milliseconds: 500);
-
-  // Variable para controlar la visibilidad del botón clear
-  String _searchText = '';
 
   // Enum para los tipos de tab
   int _currentTabIndex = 0;
@@ -74,17 +70,13 @@ class _ProductosPageState extends State<ProductosPage>
     _tabController = TabController(length: 3, vsync: this);
     _tabController.addListener(_onTabChanged);
     _scrollController.addListener(_onScroll);
-    // Sincronizar estado del texto de búsqueda
-    _searchText = _searchController.text;
     _loadProductos();
   }
 
   @override
   void dispose() {
-    _searchController.dispose();
     _scrollController.dispose();
     _tabController.dispose();
-    _debounceTimer?.cancel();
     super.dispose();
   }
 
@@ -139,8 +131,12 @@ class _ProductosPageState extends State<ProductosPage>
   }
 
   /// Obtiene el sedeId actual (seleccionado o por defecto)
-  String? _getSedeIdActual(List<dynamic> sedes) {
-    if (sedes.isEmpty) return null;
+  /// Siempre retorna un sedeId válido, ya que ProductoStock requiere sede
+  String _getSedeIdActual(List<dynamic> sedes) {
+    // Si no hay sedes, esto es un error crítico del sistema
+    if (sedes.isEmpty) {
+      throw Exception('No hay sedes disponibles');
+    }
 
     // Obtener sede seleccionada del cubit
     final selectedSedeId = context.read<SedeSelectionCubit>().selectedSedeId;
@@ -197,26 +193,6 @@ class _ProductosPageState extends State<ProductosPage>
     _loadProductos();
   }
 
-  void _onSearchChanged(String value) {
-    // Cancelar el timer anterior si existe
-    _debounceTimer?.cancel();
-
-    // Actualizar UI inmediatamente (para mostrar/ocultar botón clear)
-    setState(() {
-      _searchText = value;
-    });
-
-    // Si el campo está vacío, aplicar filtros inmediatamente sin debounce
-    if (value.isEmpty) {
-      _applyFiltros(_filtros.copyWith(clearSearch: true));
-      return;
-    }
-
-    // Si tiene contenido, usar debouncing para evitar requests excesivas
-    _debounceTimer = Timer(_debounceDuration, () {
-      _applyFiltros(_filtros.copyWith(search: value));
-    });
-  }
 
   void _showFiltros() {
     showModalBottomSheet(
@@ -225,6 +201,25 @@ class _ProductosPageState extends State<ProductosPage>
       builder: (context) => FiltrosProductosWidget(
         filtrosActuales: _filtros,
         onApply: _applyFiltros,
+      ),
+    );
+  }
+
+  /// Abre el SearchDelegate para buscar productos
+  void _openSearch() {
+    final empresaState = context.read<EmpresaContextCubit>().state;
+    if (empresaState is! EmpresaContextLoaded) return;
+
+    final sedeState = context.read<SedeSelectionCubit>().state;
+    final sedeId = sedeState is SedeSelected ? sedeState.sedeId : null;
+
+    showSearch(
+      context: context,
+      delegate: ProductoSearchDelegate(
+        searchCubit: locator<ProductoSearchCubit>(),
+        searchHistoryService: locator<SearchHistoryService>(),
+        empresaId: empresaState.context.empresa.id,
+        sedeId: sedeId,
       ),
     );
   }
@@ -466,16 +461,6 @@ class _ProductosPageState extends State<ProductosPage>
     final empresaId = empresaState.context.empresa.id;
     final sedeId = _getSedeIdActual(empresaState.context.sedes);
 
-    if (sedeId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No hay sede seleccionada'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-
     try {
       // Obtener el ProductoStock completo para esta sede
       final getStockUseCase = locator<GetStockProductoEnSedeUseCase>();
@@ -682,37 +667,17 @@ class _ProductosPageState extends State<ProductosPage>
   }
 
   Widget _buildSearchBar() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      child: CustomText(
-        borderColor: AppColors.blue1,
-        // borderWidth: 1,
-        controller: _searchController,
-        hintText: 'Buscar productos...',
-        prefixIcon: const Icon(Icons.search, size: 18, color: Colors.grey),
-        suffixIcon: _searchText.isNotEmpty
-            ? IconButton(
-                icon: const Icon(Icons.clear, size: 18, color: Colors.red),
-                onPressed: () {
-                  _searchController.clear();
-                  // El onChanged se encargará de aplicar los filtros inmediatamente
-                },
-              )
-            : null,
-        // Desactivar validación para mostrar el suffixIcon personalizado
-        showValidationIndicator: false,
-        autovalidateMode: AutovalidateModeX.disabled,
-        // Búsqueda automática mientras escribe (con debouncing)
-        onChanged: _onSearchChanged,
-        // Búsqueda inmediata al presionar Enter (cancelar debouncing)
-        onSubmitted: (value) {
-          _debounceTimer?.cancel(); // Cancelar timer pendiente
-          if (value.isEmpty) {
-            _applyFiltros(_filtros.copyWith(clearSearch: true));
-          } else {
-            _applyFiltros(_filtros.copyWith(search: value));
-          }
-        },
+    return GestureDetector(
+      onTap: _openSearch,
+      child: Padding(
+        padding: const EdgeInsets.only(right: 10, left: 10),
+        child: CustomText(
+          hintText: 'Buscar producto...',
+          borderColor: AppColors.blue1,
+          prefixIcon: Icon(Icons.search),
+          suffixIcon: Icon(Icons.arrow_forward_ios_sharp),
+          enabled: false,
+        ),
       ),
     );
   }
@@ -755,28 +720,37 @@ class _ProductosPageState extends State<ProductosPage>
                 final empresaContext = context
                     .read<EmpresaContextCubit>()
                     .state;
-                final sedeId = empresaContext is EmpresaContextLoaded
-                    ? _getSedeIdActual(empresaContext.context.sedes)
-                    : null;
+
+                // Si no hay empresa cargada, no renderizar el tile
+                if (empresaContext is! EmpresaContextLoaded) {
+                  return const SizedBox.shrink();
+                }
+
+                final sedeId = _getSedeIdActual(empresaContext.context.sedes);
 
                 return ProductoListTile(
                   producto: producto,
                   sedeId: sedeId,
-                  onTap: () {
+                  onTap: () async {
                     // Navegar a la página correcta según el tipo
                     if (producto.esCombo) {
-                      final empresaState = context
-                          .read<EmpresaContextCubit>()
-                          .state;
-                      if (empresaState is EmpresaContextLoaded) {
-                        context.push(
-                          '/empresa/combos/${producto.id}?empresaId=${empresaState.context.empresa.id}',
-                        );
-                      }
+                      context.push(
+                        '/empresa/combos/${producto.id}?empresaId=${empresaContext.context.empresa.id}',
+                      );
                     } else {
-                      // Pasar sedeId al detalle del producto
-                      final sedeParam = sedeId != null ? '?sedeId=$sedeId' : '';
-                      context.push('/empresa/productos/${producto.id}$sedeParam');
+                      // Intentar obtener el producto completo del cache (evita petición duplicada)
+                      final productoCompleto = context.read<ProductoListCubit>().getProductoFromCache(producto.id);
+
+                      // Esperar el resultado del detalle
+                      final result = await context.push(
+                        '/empresa/productos/${producto.id}?sedeId=$sedeId',
+                        extra: productoCompleto, // ✅ Pasar producto completo del cache
+                      );
+
+                      // ✅ Si retorna true (producto fue editado), recargar la lista
+                      if (result == true && mounted) {
+                        _loadProductos();
+                      }
                     }
                   },
                   onManageFiles: () =>
@@ -815,28 +789,37 @@ class _ProductosPageState extends State<ProductosPage>
                 final empresaContext = context
                     .read<EmpresaContextCubit>()
                     .state;
-                final sedeId = empresaContext is EmpresaContextLoaded
-                    ? _getSedeIdActual(empresaContext.context.sedes)
-                    : null;
+
+                // Si no hay empresa cargada, no renderizar el tile
+                if (empresaContext is! EmpresaContextLoaded) {
+                  return const SizedBox.shrink();
+                }
+
+                final sedeId = _getSedeIdActual(empresaContext.context.sedes);
 
                 return ProductoListTile(
                   producto: producto,
                   sedeId: sedeId,
-                  onTap: () {
+                  onTap: () async {
                     // Navegar a la página correcta según el tipo
                     if (producto.esCombo) {
-                      final empresaState = context
-                          .read<EmpresaContextCubit>()
-                          .state;
-                      if (empresaState is EmpresaContextLoaded) {
-                        context.push(
-                          '/empresa/combos/${producto.id}?empresaId=${empresaState.context.empresa.id}',
-                        );
-                      }
+                      context.push(
+                        '/empresa/combos/${producto.id}?empresaId=${empresaContext.context.empresa.id}',
+                      );
                     } else {
-                      // Pasar sedeId al detalle del producto
-                      final sedeParam = sedeId != null ? '?sedeId=$sedeId' : '';
-                      context.push('/empresa/productos/${producto.id}$sedeParam');
+                      // Intentar obtener el producto completo del cache (evita petición duplicada)
+                      final productoCompleto = context.read<ProductoListCubit>().getProductoFromCache(producto.id);
+
+                      // Esperar el resultado del detalle
+                      final result = await context.push(
+                        '/empresa/productos/${producto.id}?sedeId=$sedeId',
+                        extra: productoCompleto, // ✅ Pasar producto completo del cache
+                      );
+
+                      // ✅ Si retorna true (producto fue editado), recargar la lista
+                      if (result == true && mounted) {
+                        _loadProductos();
+                      }
                     }
                   },
                   onManageFiles: () =>
@@ -923,7 +906,6 @@ class _ProductosPageState extends State<ProductosPage>
           builder: (context, sedeState) {
             // Obtener el sedeId actual
             final sedeIdActual = _getSedeIdActual(sedes);
-            if (sedeIdActual == null) return const SizedBox.shrink();
 
             // Buscar la sede actual
             dynamic sedeActual;

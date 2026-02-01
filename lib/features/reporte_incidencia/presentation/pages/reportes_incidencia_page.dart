@@ -4,11 +4,11 @@ import 'package:go_router/go_router.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/app_gradients.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
+import 'package:syncronize/core/utils/date_formatter.dart';
 import 'package:syncronize/core/widgets/floating_button_text.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import '../../domain/entities/reporte_incidencia.dart';
 import '../bloc/reportes_incidencia_list/reportes_incidencia_list_cubit.dart';
-import 'package:intl/intl.dart';
 
 class ReportesIncidenciaPage extends StatefulWidget {
   const ReportesIncidenciaPage({super.key});
@@ -287,7 +287,7 @@ class _ReporteCard extends StatelessWidget {
                   Icon(Icons.calendar_today, size: 14, color: Colors.grey[600]),
                   const SizedBox(width: 4),
                   Text(
-                    'Incidente: ${DateFormat('dd/MM/yyyy').format(reporte.fechaIncidente)}',
+                    'Incidente: ${DateFormatter.formatDate(reporte.fechaIncidente)}',
                     style: TextStyle(
                       fontSize: 10,
                       color: Colors.grey[700],

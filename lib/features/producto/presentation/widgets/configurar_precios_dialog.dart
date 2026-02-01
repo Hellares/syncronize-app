@@ -4,6 +4,9 @@ import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/app_gradients.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
+import 'package:syncronize/core/utils/date_formatter.dart';
+import 'package:syncronize/core/widgets/currency/currency_formatter.dart';
+import 'package:syncronize/core/widgets/currency/currency_textfield.dart';
 import '../../domain/entities/producto_stock.dart';
 import '../bloc/configurar_precios/configurar_precios_cubit.dart';
 import '../bloc/configurar_precios/configurar_precios_state.dart';
@@ -20,7 +23,8 @@ class ConfigurarPreciosDialog extends StatefulWidget {
   });
 
   @override
-  State<ConfigurarPreciosDialog> createState() => _ConfigurarPreciosDialogState();
+  State<ConfigurarPreciosDialog> createState() =>
+      _ConfigurarPreciosDialogState();
 }
 
 class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
@@ -42,10 +46,14 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
       _precioController.text = widget.stock.precio!.toStringAsFixed(2);
     }
     if (widget.stock.precioCosto != null && widget.stock.precioCosto! > 0) {
-      _precioCostoController.text = widget.stock.precioCosto!.toStringAsFixed(2);
+      _precioCostoController.text = widget.stock.precioCosto!.toStringAsFixed(
+        2,
+      );
     }
     if (widget.stock.precioOferta != null && widget.stock.precioOferta! > 0) {
-      _precioOfertaController.text = widget.stock.precioOferta!.toStringAsFixed(2);
+      _precioOfertaController.text = widget.stock.precioOferta!.toStringAsFixed(
+        2,
+      );
     }
     _enOferta = widget.stock.enOferta;
     _fechaInicioOferta = widget.stock.fechaInicioOferta;
@@ -79,17 +87,14 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
           Navigator.of(context).pop(true); // Retorna true para indicar éxito
         } else if (state is ConfigurarPreciosError) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(state.message),
-              backgroundColor: Colors.red,
-            ),
+            SnackBar(content: Text(state.message), backgroundColor: Colors.red),
           );
         }
       },
       child: Dialog(
         child: GradientContainer(
           gradient: AppGradients.blueWhiteDialog(),
-          padding: const EdgeInsets.all(20.0),
+          padding: const EdgeInsets.only(left: 15, right: 15, top: 10),
           borderRadius: BorderRadius.circular(10.0),
           child: SingleChildScrollView(
             child: Column(
@@ -116,14 +121,10 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          AppTitle(
-                            'Configurar Precios',
-                            fontSize: 14,
-                            color: AppColors.blue1,
-                          ),
+                          AppTitle('Configurar Precios'),
                           AppSubtitle(
                             widget.stock.sede?.nombre ?? 'Sede',
-                            fontSize: 11,
+                            fontSize: 10,
                             color: AppColors.blue1,
                           ),
                         ],
@@ -131,7 +132,8 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
+                Divider(),
+                const SizedBox(height: 15),
 
                 // Información del producto
                 _buildProductoInfo(),
@@ -143,51 +145,36 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Precio de venta
-                      AppSubtitle(
-                        'Precio de Venta *',
-                        fontSize: 12,
-                        color: AppColors.textPrimary,
-                      ),
-                      const SizedBox(height: 8),
-                      TextFormField(
+                      CurrencyTextField(
+                        label: 'Precio de Venta',
                         controller: _precioController,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        decoration: InputDecoration(
-                          labelText: 'Precio',
-                          hintText: 'Ingrese el precio de venta',
-                          prefixText: 'S/ ',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
+                        // hintText: '0.00',
+                        borderColor: AppColors.blue1,
+                        // enableRealTimeValidation: true,
                         validator: (value) {
-                          if (_getControllerValue(_precioController) <= 0) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'El precio es requerido';
+                          }
+                          final precio = CurrencyUtilsImproved.parseToDouble(value);
+                          if (precio <= 0) {
                             return 'El precio debe ser mayor a 0';
+                          }
+                          // Validar precio >= costo
+                          final costo = _precioCostoController.currencyValue;
+                          if (costo > 0 && precio < costo) {
+                            return 'El precio debe ser ≥ al costo';
                           }
                           return null;
                         },
                       ),
-                      const SizedBox(height: 16),
 
-                      // Precio de costo
-                      AppSubtitle(
-                        'Precio de Costo',
-                        fontSize: 12,
-                        color: AppColors.textPrimary,
-                      ),
-                      const SizedBox(height: 8),
-                      TextFormField(
+                      const SizedBox(height: 16),
+                      CurrencyTextField(
+                        label: 'Precio de Costo',
                         controller: _precioCostoController,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        decoration: InputDecoration(
-                          labelText: 'Precio Costo',
-                          hintText: 'Ingrese el precio de costo',
-                          prefixText: 'S/ ',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
+                        borderColor: AppColors.blue1,
+                        allowZero: false,
+                        enabled: false,
                       ),
                       const SizedBox(height: 16),
 
@@ -221,7 +208,9 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
                         const SizedBox(height: 8),
                         TextFormField(
                           controller: _precioOfertaController,
-                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
                           decoration: InputDecoration(
                             labelText: 'Precio Oferta',
                             hintText: 'Ingrese el precio en oferta',
@@ -231,10 +220,14 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
                             ),
                           ),
                           validator: (value) {
-                            if (_enOferta && _getControllerValue(_precioOfertaController) <= 0) {
+                            if (_enOferta &&
+                                _getControllerValue(_precioOfertaController) <=
+                                    0) {
                               return 'El precio de oferta debe ser mayor a 0';
                             }
-                            if (_enOferta && _getControllerValue(_precioOfertaController) >= _getControllerValue(_precioController)) {
+                            if (_enOferta &&
+                                _getControllerValue(_precioOfertaController) >=
+                                    _getControllerValue(_precioController)) {
                               return 'El precio de oferta debe ser menor al precio normal';
                             }
                             return null;
@@ -249,7 +242,8 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
                               child: _buildDateField(
                                 'Fecha Inicio',
                                 _fechaInicioOferta,
-                                (date) => setState(() => _fechaInicioOferta = date),
+                                (date) =>
+                                    setState(() => _fechaInicioOferta = date),
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -257,7 +251,8 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
                               child: _buildDateField(
                                 'Fecha Fin',
                                 _fechaFinOferta,
-                                (date) => setState(() => _fechaFinOferta = date),
+                                (date) =>
+                                    setState(() => _fechaFinOferta = date),
                               ),
                             ),
                           ],
@@ -277,7 +272,9 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         TextButton(
-                          onPressed: isLoading ? null : () => Navigator.of(context).pop(),
+                          onPressed: isLoading
+                              ? null
+                              : () => Navigator.of(context).pop(),
                           child: AppSubtitle(
                             'Cancelar',
                             fontSize: 12,
@@ -289,7 +286,10 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
                           onPressed: isLoading ? null : _handleSubmit,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.blue1,
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 12,
+                            ),
                           ),
                           child: isLoading
                               ? const SizedBox(
@@ -320,13 +320,10 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
 
   Widget _buildProductoInfo() {
     final producto = widget.stock.producto;
-    return Container(
+    return GradientContainer(
+      gradient: AppGradients.blue(),
+      borderColor: AppColors.blueborder,
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.bluechip.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.blue1.withValues(alpha: 0.3)),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -335,7 +332,7 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
             fontSize: 12,
             color: AppColors.textPrimary,
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           Row(
             children: [
               Icon(Icons.inventory_2, size: 12, color: AppColors.blue1),
@@ -352,15 +349,15 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
     );
   }
 
-  Widget _buildDateField(String label, DateTime? value, Function(DateTime?) onChanged) {
+  Widget _buildDateField(
+    String label,
+    DateTime? value,
+    Function(DateTime?) onChanged,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        AppSubtitle(
-          label,
-          fontSize: 11,
-          color: AppColors.textPrimary,
-        ),
+        AppSubtitle(label, fontSize: 11, color: AppColors.textPrimary),
         const SizedBox(height: 4),
         InkWell(
           onTap: () async {
@@ -385,10 +382,12 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
               children: [
                 AppSubtitle(
                   value != null
-                      ? '${value.day}/${value.month}/${value.year}'
+                      ? DateFormatter.formatDate(value)
                       : 'Seleccionar',
                   fontSize: 11,
-                  color: value != null ? AppColors.textPrimary : AppColors.blue1,
+                  color: value != null
+                      ? AppColors.textPrimary
+                      : AppColors.blue1,
                 ),
                 Icon(Icons.calendar_today, size: 14, color: AppColors.blue1),
               ],
@@ -409,14 +408,14 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
     final precioOferta = _getControllerValue(_precioOfertaController);
 
     context.read<ConfigurarPreciosCubit>().configurarPrecios(
-          productoStockId: widget.stock.id,
-          empresaId: widget.empresaId,
-          precio: precio,
-          precioCosto: precioCosto > 0 ? precioCosto : null,
-          precioOferta: _enOferta && precioOferta > 0 ? precioOferta : null,
-          enOferta: _enOferta,
-          fechaInicioOferta: _enOferta ? _fechaInicioOferta : null,
-          fechaFinOferta: _enOferta ? _fechaFinOferta : null,
-        );
+      productoStockId: widget.stock.id,
+      empresaId: widget.empresaId,
+      precio: precio,
+      precioCosto: precioCosto > 0 ? precioCosto : null,
+      precioOferta: _enOferta && precioOferta > 0 ? precioOferta : null,
+      enOferta: _enOferta,
+      fechaInicioOferta: _enOferta ? _fechaInicioOferta : null,
+      fechaFinOferta: _enOferta ? _fechaFinOferta : null,
+    );
   }
 }

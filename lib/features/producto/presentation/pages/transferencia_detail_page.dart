@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:intl/intl.dart';
 import 'package:syncronize/core/theme/app_gradients.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
+import 'package:syncronize/core/utils/date_formatter.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import 'package:syncronize/core/widgets/custom_loading.dart';
 import 'package:syncronize/core/theme/gradient_background.dart';
@@ -218,7 +218,7 @@ class _TransferenciaDetailPageState extends State<TransferenciaDetailPage> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Creada el ${DateFormat('dd/MM/yyyy HH:mm').format(transferencia.creadoEn)}',
+              'Creada el ${DateFormatter.formatDateTime(transferencia.creadoEn)}',
               style: TextStyle(
                 fontSize: 11,
                 color: Colors.grey[600],
@@ -249,8 +249,7 @@ class _TransferenciaDetailPageState extends State<TransferenciaDetailPage> {
             _TimelineItem(
               icon: Icons.create,
               title: 'Creada',
-              subtitle: DateFormat('dd/MM/yyyy HH:mm')
-                  .format(transferencia.creadoEn),
+              subtitle: DateFormatter.formatDateTime(transferencia.creadoEn),
               isCompleted: true,
               isActive: transferencia.estado == EstadoTransferencia.borrador,
             ),
@@ -265,8 +264,7 @@ class _TransferenciaDetailPageState extends State<TransferenciaDetailPage> {
               icon: Icons.check_circle,
               title: 'Aprobada',
               subtitle: transferencia.fechaAprobacion != null
-                  ? DateFormat('dd/MM/yyyy HH:mm')
-                      .format(transferencia.fechaAprobacion!)
+                  ? DateFormatter.formatDateTime(transferencia.fechaAprobacion!)
                   : null,
               isCompleted: transferencia.fechaAprobacion != null,
               isActive: transferencia.estado == EstadoTransferencia.aprobada,
@@ -275,8 +273,7 @@ class _TransferenciaDetailPageState extends State<TransferenciaDetailPage> {
               icon: Icons.local_shipping,
               title: 'En Tránsito',
               subtitle: transferencia.fechaEnvio != null
-                  ? DateFormat('dd/MM/yyyy HH:mm')
-                      .format(transferencia.fechaEnvio!)
+                  ? DateFormatter.formatDateTime(transferencia.fechaEnvio!)
                   : null,
               isCompleted: transferencia.fechaEnvio != null,
               isActive: transferencia.estado == EstadoTransferencia.enTransito,
@@ -285,8 +282,7 @@ class _TransferenciaDetailPageState extends State<TransferenciaDetailPage> {
               icon: Icons.done_all,
               title: 'Recibida',
               subtitle: transferencia.fechaRecepcion != null
-                  ? DateFormat('dd/MM/yyyy HH:mm')
-                      .format(transferencia.fechaRecepcion!)
+                  ? DateFormatter.formatDateTime(transferencia.fechaRecepcion!)
                   : null,
               isCompleted: transferencia.fechaRecepcion != null,
               isActive: transferencia.estado == EstadoTransferencia.recibida,

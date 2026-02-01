@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:syncronize/core/theme/app_colors.dart';
 
 class CustomButton extends StatefulWidget {
   final String text;
@@ -55,10 +56,10 @@ class CustomButton extends StatefulWidget {
     this.borderColor,
     this.borderWidth = 2,
     this.width,
-    this.height = 40,
+    this.height = 35,
     this.icon,
     this.iconPath,
-    this.iconSize = 20,
+    this.iconSize = 18,
     this.enableHaptics = true,
     this.enableShadow = true,
 
@@ -95,9 +96,8 @@ class _CustomButtonState extends State<CustomButton> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
 
-    final primary = widget.backgroundColor ?? theme.primaryColor;
+    final primary = widget.backgroundColor ?? AppColors.blue1;
     final onPrimary = widget.textColor ?? Colors.white;
 
     final btnWidth = widget.width ?? double.infinity;

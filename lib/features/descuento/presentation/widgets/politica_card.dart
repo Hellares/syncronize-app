@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_gradients.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
+import 'package:syncronize/core/utils/date_formatter.dart';
 import 'package:syncronize/core/widgets/info_chip.dart';
 import 'package:syncronize/core/widgets/popup_item.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -294,16 +295,12 @@ class PoliticaCard extends StatelessWidget {
 
   String _getDateRange() {
     if (politica.fechaInicio != null && politica.fechaFin != null) {
-      return '${_formatDate(politica.fechaInicio!)} - ${_formatDate(politica.fechaFin!)}';
+      return '${DateFormatter.formatDate(politica.fechaInicio!)} - ${DateFormatter.formatDate(politica.fechaFin!)}';
     } else if (politica.fechaInicio != null) {
-      return 'Desde ${_formatDate(politica.fechaInicio!)}';
+      return 'Desde ${DateFormatter.formatDate(politica.fechaInicio!)}';
     } else if (politica.fechaFin != null) {
-      return 'Hasta ${_formatDate(politica.fechaFin!)}';
+      return 'Hasta ${DateFormatter.formatDate(politica.fechaFin!)}';
     }
     return '';
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
   }
 }

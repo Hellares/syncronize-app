@@ -3,6 +3,7 @@ import 'package:injectable/injectable.dart';
 import '../../../../../core/utils/resource.dart';
 import '../../../domain/entities/producto_filtros.dart';
 import '../../../domain/entities/producto_list_item.dart';
+import '../../../domain/entities/producto.dart';
 import '../../../domain/usecases/get_productos_usecase.dart';
 import 'producto_list_state.dart';
 
@@ -18,6 +19,9 @@ class ProductoListCubit extends Cubit<ProductoListState> {
   String? _currentSedeId;
   ProductoFiltros _currentFiltros = const ProductoFiltros();
   List<ProductoListItem> _allProductos = [];
+
+  /// Cache de productos completos (para evitar peticiones duplicadas)
+  final Map<String, Producto> _productosFullCache = {};
 
   /// Carga la lista de productos
   Future<void> loadProductos({
@@ -43,6 +47,11 @@ class ProductoListCubit extends Cubit<ProductoListState> {
     if (result is Success<ProductosPaginados>) {
       final data = result.data;
       _allProductos = data.data.cast<ProductoListItem>();
+
+      // Almacenar productos completos en cache (si existen)
+      if (data.fullProductosCache != null) {
+        _productosFullCache.addAll(data.fullProductosCache!.cast<String, Producto>());
+      }
 
       emit(ProductoListLoaded(
         productos: _allProductos,
@@ -80,6 +89,11 @@ class ProductoListCubit extends Cubit<ProductoListState> {
     if (result is Success<ProductosPaginados>) {
       final data = result.data;
       _allProductos.addAll(data.data.cast<ProductoListItem>());
+
+      // Almacenar productos completos en cache (si existen)
+      if (data.fullProductosCache != null) {
+        _productosFullCache.addAll(data.fullProductosCache!.cast<String, Producto>());
+      }
 
       emit(ProductoListLoaded(
         productos: _allProductos,
@@ -131,6 +145,23 @@ class ProductoListCubit extends Cubit<ProductoListState> {
     _currentSedeId = null;
     _currentFiltros = const ProductoFiltros();
     _allProductos = [];
+    _productosFullCache.clear();
     emit(const ProductoListInitial());
+  }
+
+  /// Invalida el cache local (llamar cuando se crea/actualiza/elimina producto)
+  /// Esto sincroniza con la invalidación de cache de Redis en el backend
+  void invalidateCache() {
+    _productosFullCache.clear();
+  }
+
+  /// Almacena un producto completo en el cache
+  void cacheProductoCompleto(Producto producto) {
+    _productosFullCache[producto.id] = producto;
+  }
+
+  /// Obtiene un producto completo del cache (si existe)
+  Producto? getProductoFromCache(String productoId) {
+    return _productosFullCache[productoId];
   }
 }

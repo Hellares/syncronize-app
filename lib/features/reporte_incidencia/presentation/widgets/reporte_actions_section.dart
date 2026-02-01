@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:syncronize/core/fonts/app_text_widgets.dart';
+import 'package:syncronize/features/auth/presentation/widgets/custom_button.dart';
 import 'package:syncronize/features/reporte_incidencia/domain/entities/reporte_incidencia.dart';
 import 'package:syncronize/features/reporte_incidencia/presentation/bloc/gestionar_reporte/gestionar_reporte_cubit.dart';
+
+import '../../../../core/theme/gradient_container.dart';
 
 class ReporteActionsSection extends StatelessWidget {
   final ReporteIncidencia reporte;
@@ -19,22 +23,18 @@ class ReporteActionsSection extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    return Card(
+    return GradientContainer(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
+          
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Acciones Disponibles',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            AppSubtitle('ACCIONES DISPONIBLES'),
             const Divider(),
             ...actions.map((action) => _buildActionButton(context, action)),
           ],
+          
         ),
       ),
     );
@@ -133,20 +133,13 @@ class ReporteActionsSection extends StatelessWidget {
   }
 
   Widget _buildActionButton(BuildContext context, _ReporteAction action) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: SizedBox(
-        width: double.infinity,
-        child: ElevatedButton.icon(
-          onPressed: () => action.onTap(context),
-          icon: Icon(action.icon),
-          label: Text(action.label),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: action.color,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 12),
-          ),
-        ),
+    return Container(
+      margin: EdgeInsets.only(bottom: 10),
+      child: CustomButton(
+        backgroundColor: action.color,
+        text: action.label,
+        icon: Icon(action.icon),
+        onPressed: () => action.onTap(context),
       ),
     );
   }

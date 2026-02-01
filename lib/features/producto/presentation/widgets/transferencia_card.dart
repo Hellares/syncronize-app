@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:syncronize/core/theme/app_gradients.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/widgets/info_chip.dart';
+import 'package:syncronize/core/utils/date_formatter.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/transferencia_stock.dart';
 
@@ -115,7 +115,7 @@ class TransferenciaCard extends StatelessWidget {
                     ],
                   ),
                   Text(
-                    DateFormat('dd/MM/yyyy').format(transferencia.creadoEn),
+                    DateFormatter.formatDate(transferencia.creadoEn),
                     style: TextStyle(
                       fontSize: 11,
                       color: Colors.grey[600],

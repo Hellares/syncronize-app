@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:intl/intl.dart';
+import 'package:syncronize/core/utils/date_formatter.dart';
 import '../../domain/entities/transferencia_stock.dart';
 
 /// Servicio para generar documentos PDF de transferencias de stock
@@ -102,7 +102,7 @@ class PdfTransferenciaGenerator {
             ),
             pw.SizedBox(height: 4),
             pw.Text(
-              DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now()),
+              DateFormatter.formatDateTime(DateTime.now()),
               style: const pw.TextStyle(fontSize: 10),
             ),
           ],
@@ -139,16 +139,16 @@ class PdfTransferenciaGenerator {
           pw.Divider(color: PdfColors.grey300),
           pw.SizedBox(height: 8),
           _buildInfoRow('Fecha de creación',
-            DateFormat('dd/MM/yyyy HH:mm').format(transferencia.creadoEn)),
+            DateFormatter.formatDateTime(transferencia.creadoEn)),
           if (transferencia.fechaAprobacion != null)
             _buildInfoRow('Fecha de aprobación',
-              DateFormat('dd/MM/yyyy HH:mm').format(transferencia.fechaAprobacion!)),
+              DateFormatter.formatDateTime(transferencia.fechaAprobacion!)),
           if (transferencia.fechaEnvio != null)
             _buildInfoRow('Fecha de envío',
-              DateFormat('dd/MM/yyyy HH:mm').format(transferencia.fechaEnvio!)),
+              DateFormatter.formatDateTime(transferencia.fechaEnvio!)),
           if (transferencia.fechaRecepcion != null)
             _buildInfoRow('Fecha de recepción',
-              DateFormat('dd/MM/yyyy HH:mm').format(transferencia.fechaRecepcion!)),
+              DateFormatter.formatDateTime(transferencia.fechaRecepcion!)),
           if (transferencia.motivo != null) ...[
             pw.SizedBox(height: 4),
             pw.Divider(color: PdfColors.grey300),
@@ -431,7 +431,7 @@ class PdfTransferenciaGenerator {
             style: const pw.TextStyle(fontSize: 8),
           ),
           pw.Text(
-            'Generado: ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}',
+            'Generado: ${DateFormatter.formatDateTime(DateTime.now())}',
             style: const pw.TextStyle(fontSize: 8),
           ),
         ],

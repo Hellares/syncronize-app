@@ -4,6 +4,8 @@ import 'package:syncronize/core/fonts/app_fonts.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/di/injection_container.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
+import 'package:syncronize/features/producto/presentation/bloc/producto_list/producto_list_cubit.dart';
+import 'package:syncronize/features/producto/presentation/bloc/producto_list/producto_list_state.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../bloc/ajuste_masivo/ajuste_masivo_cubit.dart';
@@ -42,20 +44,58 @@ class _AjusteMasivoPreciosPageContentState extends State<_AjusteMasivoPreciosPag
   bool _incluirVariantes = true;
   String _razon = '';
 
+  /// Obtiene el sedeId actual de la empresa
+  /// Como los precios son por sede, siempre necesitamos una sede seleccionada
+  String _getSedeIdActual(List<dynamic> sedes) {
+    if (sedes.isEmpty) {
+      throw Exception('No hay sedes disponibles');
+    }
+    // Si solo hay una sede, usarla
+    if (sedes.length == 1) {
+      return sedes.first.id;
+    }
+    // Usar la sede principal
+    try {
+      final sedePrincipal = sedes.firstWhere((s) => s.esPrincipal);
+      return sedePrincipal.id;
+    } catch (e) {
+      // Si no hay sede principal, usar la primera
+      return sedes.first.id;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocListener<AjusteMasivoCubit, AjusteMasivoState>(
       listener: (context, state) {
         if (state is AjusteMasivoSuccess) {
+          // Obtener información del resultado (nueva estructura del backend)
+          int? totalActualizados;
+          String? sedeNombre;
+
+          try {
+            totalActualizados = state.resultado['totalActualizados'] as int?;
+            final sede = state.resultado['sede'];
+            if (sede != null && sede is Map) {
+              sedeNombre = sede['nombre'] as String?;
+            }
+          } catch (e) {
+            // Ignorar error de parseo
+          }
+
           // Mostrar mensaje de éxito
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                'Ajuste aplicado: ${state.resultado['resumen']['totalProductosAfectados']} productos actualizados',
+                totalActualizados != null
+                    ? 'Precios actualizados: $totalActualizados producto(s) en ${sedeNombre ?? "la sede"}'
+                    : 'Precios actualizados exitosamente',
               ),
               backgroundColor: Colors.green,
+              duration: const Duration(seconds: 3),
             ),
           );
+
           // Volver a la lista
           Navigator.pop(context, true);
         } else if (state is AjusteMasivoError) {
@@ -63,6 +103,7 @@ class _AjusteMasivoPreciosPageContentState extends State<_AjusteMasivoPreciosPag
             SnackBar(
               content: Text(state.message),
               backgroundColor: Colors.red,
+              duration: const Duration(seconds: 4),
             ),
           );
         }
@@ -162,13 +203,27 @@ class _AjusteMasivoPreciosPageContentState extends State<_AjusteMasivoPreciosPag
   }
 
   Widget _buildStepContent() {
+    final empresaState = context.read<EmpresaContextCubit>().state;
+
+    // Obtener sedeId
+    String? sedeId;
+    if (empresaState is EmpresaContextLoaded) {
+      sedeId = _getSedeIdActual(empresaState.context.sedes);
+    }
+
     switch (_currentStep) {
       case 0:
+        if (sedeId == null) {
+          return const Center(
+            child: Text('No hay sede disponible'),
+          );
+        }
         return Paso1SeleccionProductos(
           alcance: _alcance,
           productosSeleccionadosIds: _productosSeleccionadosIds,
           onAlcanceChanged: (value) => setState(() => _alcance = value),
           onProductosSeleccionadosChanged: (ids) => setState(() => _productosSeleccionadosIds = ids),
+          sedeId: sedeId,
         );
       case 1:
         return Paso2ConfiguracionAjuste(
@@ -285,26 +340,37 @@ class _AjusteMasivoPreciosPageContentState extends State<_AjusteMasivoPreciosPag
   void _generarPreview() {
     setState(() => _currentStep = 2);
 
+    // Obtener productos del cubit (ya están cargados del Paso 1)
+    final productoState = context.read<ProductoListCubit>().state;
+    List<dynamic> productosParaPreview = [];
+
+    if (productoState is ProductoListLoaded) {
+      final todosProductos = productoState.productos;
+
+      // Filtrar según alcance
+      if (_alcance == 'TODOS') {
+        productosParaPreview = todosProductos;
+      } else if (_alcance == 'SELECCIONADOS') {
+        productosParaPreview = todosProductos
+            .where((p) => _productosSeleccionadosIds.contains(p.id))
+            .toList();
+      }
+    }
+
     final empresaState = context.read<EmpresaContextCubit>().state;
-    if (empresaState is! EmpresaContextLoaded) return;
+    String? sedeId;
+    if (empresaState is EmpresaContextLoaded) {
+      sedeId = _getSedeIdActual(empresaState.context.sedes);
+    }
 
-    final empresaId = empresaState.context.empresa.id;
-
-    final dto = {
-      'alcance': _alcance,
-      if (_alcance == 'SELECCIONADOS') 'productosIds': _productosSeleccionadosIds,
-      'tipoAjuste': 'PORCENTAJE',
-      'valor': _porcentaje,
-      'operacion': _operacion,
-      'incluirVariantes': _incluirVariantes,
-      'redondeo': 'DOS_DECIMALES',
-      if (_razon.isNotEmpty) 'razon': _razon,
-    };
-
-    context.read<AjusteMasivoCubit>().generarPreview(
-          empresaId: empresaId,
-          dto: dto,
-        );
+    // Generar preview calculado con los productos ya cargados
+    context.read<AjusteMasivoCubit>().generarPreviewConProductos(
+      alcance: _alcance,
+      productos: productosParaPreview,
+      sedeId: sedeId,
+      porcentaje: _porcentaje,
+      operacion: _operacion,
+    );
   }
 
   Future<void> _aplicarCambios() async {
@@ -349,19 +415,23 @@ class _AjusteMasivoPreciosPageContentState extends State<_AjusteMasivoPreciosPag
     if (empresaState is! EmpresaContextLoaded) return;
 
     final empresaId = empresaState.context.empresa.id;
+    final sedeId = _getSedeIdActual(empresaState.context.sedes);
+
+    // Convertir INCREMENTO/DECREMENTO a AUMENTAR/DISMINUIR
+    final operacionBackend = _operacion == 'INCREMENTO' ? 'AUMENTAR' : 'DISMINUIR';
 
     final dto = {
-      'alcance': _alcance,
-      if (_alcance == 'SELECCIONADOS') 'productosIds': _productosSeleccionadosIds,
-      'tipoAjuste': 'PORCENTAJE',
+      'tipo': 'PORCENTAJE',
+      'aplicarA': 'PRECIO',
       'valor': _porcentaje,
-      'operacion': _operacion,
-      'incluirVariantes': _incluirVariantes,
-      'redondeo': 'DOS_DECIMALES',
-      if (_razon.isNotEmpty) 'razon': _razon,
+      'operacion': operacionBackend,
+      // Solo enviar productoIds si es selección manual (sin 's' en producto)
+      if (_alcance == 'SELECCIONADOS' && _productosSeleccionadosIds.isNotEmpty)
+        'productoIds': _productosSeleccionadosIds,
     };
 
     context.read<AjusteMasivoCubit>().aplicarAjuste(
+          sedeId: sedeId,
           empresaId: empresaId,
           dto: dto,
         );
