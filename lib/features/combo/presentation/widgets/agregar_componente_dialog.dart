@@ -15,6 +15,7 @@ class ComponenteCarrito {
   final double precio;
   final int stock;
   int cantidad;
+  double? precioEnCombo;
   String? categoriaComponente;
   bool esPersonalizable;
 
@@ -25,15 +26,21 @@ class ComponenteCarrito {
     required this.precio,
     required this.stock,
     this.cantidad = 1,
+    this.precioEnCombo,
     this.categoriaComponente,
     this.esPersonalizable = false,
   });
+
+  /// Retorna true si el precio en combo difiere del precio regular
+  bool get tienePrecioOverride =>
+      precioEnCombo != null && precioEnCombo != precio;
 
   Map<String, dynamic> toJson() {
     return {
       if (productoId != null) 'componenteProductoId': productoId,
       if (varianteId != null) 'componenteVarianteId': varianteId,
       'cantidad': cantidad,
+      if (precioEnCombo != null) 'precioEnCombo': precioEnCombo,
       if (categoriaComponente != null && categoriaComponente!.isNotEmpty)
         'categoriaComponente': categoriaComponente,
       'esPersonalizable': esPersonalizable,
@@ -44,11 +51,13 @@ class ComponenteCarrito {
 class AgregarComponenteDialog extends StatelessWidget {
   final String comboId;
   final String empresaId;
+  final String sedeId;
 
   const AgregarComponenteDialog({
     super.key,
     required this.comboId,
     required this.empresaId,
+    required this.sedeId,
   });
 
   @override
@@ -59,6 +68,7 @@ class AgregarComponenteDialog extends StatelessWidget {
       child: _AgregarComponenteDialogContent(
         comboId: comboId,
         empresaId: empresaId,
+        sedeId: sedeId,
       ),
     );
   }
@@ -67,10 +77,12 @@ class AgregarComponenteDialog extends StatelessWidget {
 class _AgregarComponenteDialogContent extends StatefulWidget {
   final String comboId;
   final String empresaId;
+  final String sedeId;
 
   const _AgregarComponenteDialogContent({
     required this.comboId,
     required this.empresaId,
+    required this.sedeId,
   });
 
   @override
@@ -82,6 +94,7 @@ class _AgregarComponenteDialogContentState
     extends State<_AgregarComponenteDialogContent> {
   final _formKey = GlobalKey<FormState>();
   final _cantidadController = TextEditingController(text: '1');
+  final _precioEnComboController = TextEditingController();
   final _categoriaController = TextEditingController();
 
   Producto? _productoSeleccionado;
@@ -94,6 +107,7 @@ class _AgregarComponenteDialogContentState
   @override
   void dispose() {
     _cantidadController.dispose();
+    _precioEnComboController.dispose();
     _categoriaController.dispose();
     super.dispose();
   }
@@ -318,7 +332,12 @@ class _AgregarComponenteDialogContentState
                   onChanged: (producto) {
                     setState(() {
                       _productoSeleccionado = producto;
-                      _varianteSeleccionadaId = null; // Reset variante
+                      _varianteSeleccionadaId = null;
+                      if (producto != null && producto.tieneVariantes != true) {
+                        _precioEnComboController.text = producto.precio.toStringAsFixed(2);
+                      } else {
+                        _precioEnComboController.clear();
+                      }
                     });
                   },
                 ),
@@ -376,6 +395,12 @@ class _AgregarComponenteDialogContentState
                     onChanged: (varianteId) {
                       setState(() {
                         _varianteSeleccionadaId = varianteId;
+                        if (varianteId != null) {
+                          final variante = _productoSeleccionado!.variantes!
+                              .firstWhere((v) => v.id == varianteId);
+                          _precioEnComboController.text =
+                              variante.precio.toStringAsFixed(2);
+                        }
                       });
                     },
                   ),
@@ -460,6 +485,32 @@ class _AgregarComponenteDialogContentState
                     ),
                   ],
                 ),
+              ),
+            ],
+
+            // Campo de precio en combo (solo cuando hay producto/variante seleccionado)
+            if (_productoSeleccionado != null &&
+                (_productoSeleccionado!.tieneVariantes != true ||
+                    _varianteSeleccionadaId != null)) ...[
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _precioEnComboController,
+                decoration: InputDecoration(
+                  labelText: 'Precio en Combo',
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.price_check_sharp),
+                  prefixText: '\$',
+                  helperText: 'Precio regular: \$${_getPrecioRegular().toStringAsFixed(2)}',
+                ),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                validator: (value) {
+                  if (value == null || value.isEmpty) return null;
+                  final precio = double.tryParse(value);
+                  if (precio == null || precio < 0) {
+                    return 'Ingresa un precio válido';
+                  }
+                  return null;
+                },
               ),
             ],
 
@@ -563,13 +614,33 @@ class _AgregarComponenteDialogContentState
                                     ),
                                   ),
                                   const SizedBox(width: 12),
-                                  Text(
-                                    '\$${item.precio.toStringAsFixed(2)}',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey[700],
+                                  if (item.tienePrecioOverride) ...[
+                                    Text(
+                                      '\$${item.precio.toStringAsFixed(2)}',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey[500],
+                                        decoration: TextDecoration.lineThrough,
+                                      ),
                                     ),
-                                  ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      '\$${item.precioEnCombo!.toStringAsFixed(2)}',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.green,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ] else ...[
+                                    Text(
+                                      '\$${item.precio.toStringAsFixed(2)}',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey[700],
+                                      ),
+                                    ),
+                                  ],
                                 ],
                               ),
                               if (item.categoriaComponente != null &&
@@ -684,6 +755,12 @@ class _AgregarComponenteDialogContentState
       varianteId = null;
     }
 
+    // Parsear precio en combo si fue ingresado
+    final precioEnComboText = _precioEnComboController.text.trim();
+    final precioEnCombo = precioEnComboText.isNotEmpty
+        ? double.tryParse(precioEnComboText)
+        : null;
+
     // Crear item del carrito
     final item = ComponenteCarrito(
       productoId: productoId,
@@ -692,6 +769,7 @@ class _AgregarComponenteDialogContentState
       precio: precio,
       stock: stock,
       cantidad: cantidad,
+      precioEnCombo: precioEnCombo,
       categoriaComponente: categoria.isEmpty ? null : categoria,
       esPersonalizable: _esPersonalizable,
     );
@@ -702,6 +780,7 @@ class _AgregarComponenteDialogContentState
       _productoSeleccionado = null;
       _varianteSeleccionadaId = null;
       _cantidadController.text = '1';
+      _precioEnComboController.clear();
       _categoriaController.clear();
       _esPersonalizable = false;
     });
@@ -727,8 +806,21 @@ class _AgregarComponenteDialogContentState
     context.read<ComboCubit>().addComponentesBatch(
           comboId: widget.comboId,
           empresaId: widget.empresaId,
+          sedeId: widget.sedeId,
           componentes: componentesJson,
         );
+  }
+
+  /// Retorna el precio regular del producto o variante actualmente seleccionado
+  double _getPrecioRegular() {
+    if (_productoSeleccionado == null) return 0.0;
+    if (_varianteSeleccionadaId != null &&
+        _productoSeleccionado!.variantes != null) {
+      final variante = _productoSeleccionado!.variantes!
+          .firstWhere((v) => v.id == _varianteSeleccionadaId);
+      return variante.precio;
+    }
+    return _productoSeleccionado!.precio;
   }
 
   /// Obtiene el stock disponible del producto o variante seleccionado

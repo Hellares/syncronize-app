@@ -17,6 +17,7 @@ class FloatingButtonText extends StatelessWidget {
   final double fontSize;
   final FontWeight fontWeight;
   final double iconSize;
+  final Color? borderColor;
 
   const FloatingButtonText({
     super.key,
@@ -30,7 +31,8 @@ class FloatingButtonText extends StatelessWidget {
     this.foregroundColor = Colors.white,
     this.fontSize = 10,
     this.fontWeight = FontWeight.w600,
-    this.iconSize = 18,
+    this.iconSize = 16,
+    this.borderColor = AppColors.blue1,
   });
 
   @override
@@ -53,6 +55,7 @@ class FloatingButtonText extends StatelessWidget {
         ),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(borderRadius),
+          side: BorderSide(color: borderColor ?? foregroundColor)
         ),
       ),
     );

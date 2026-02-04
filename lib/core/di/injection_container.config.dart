@@ -153,6 +153,12 @@ import '../../features/combo/domain/usecases/get_combo_completo_usecase.dart'
 import '../../features/combo/domain/usecases/get_combos_usecase.dart' as _i235;
 import '../../features/combo/domain/usecases/get_componentes_usecase.dart'
     as _i330;
+import '../../features/combo/domain/usecases/get_reservacion_usecase.dart'
+    as _i1031;
+import '../../features/combo/domain/usecases/liberar_reserva_usecase.dart'
+    as _i813;
+import '../../features/combo/domain/usecases/reservar_stock_usecase.dart'
+    as _i409;
 import '../../features/combo/presentation/bloc/combo_cubit.dart' as _i1039;
 import '../../features/combo/presentation/bloc/producto_selector_cubit.dart'
     as _i466;
@@ -1032,6 +1038,15 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i330.GetComponentesUseCase>(
       () => _i330.GetComponentesUseCase(gh<_i200.ComboRepository>()),
     );
+    gh.factory<_i1031.GetReservacionUseCase>(
+      () => _i1031.GetReservacionUseCase(gh<_i200.ComboRepository>()),
+    );
+    gh.factory<_i813.LiberarReservaUseCase>(
+      () => _i813.LiberarReservaUseCase(gh<_i200.ComboRepository>()),
+    );
+    gh.factory<_i409.ReservarStockUseCase>(
+      () => _i409.ReservarStockUseCase(gh<_i200.ComboRepository>()),
+    );
     gh.factory<_i59.UsuarioFormCubit>(
       () => _i59.UsuarioFormCubit(gh<_i715.RegistrarUsuarioUseCase>()),
     );
@@ -1426,17 +1441,6 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i961.ListarIncidenciasCubit>(
       () => _i961.ListarIncidenciasCubit(gh<_i599.ListarIncidenciasUseCase>()),
     );
-    gh.factory<_i1039.ComboCubit>(
-      () => _i1039.ComboCubit(
-        createComboUseCase: gh<_i53.CreateComboUseCase>(),
-        getCombos: gh<_i235.GetCombosUseCase>(),
-        getComboCompleto: gh<_i209.GetComboCompletoUseCase>(),
-        agregarComponente: gh<_i237.AgregarComponenteUseCase>(),
-        agregarComponentesBatch: gh<_i378.AgregarComponentesBatchUseCase>(),
-        getComponentes: gh<_i330.GetComponentesUseCase>(),
-        eliminarComponente: gh<_i40.EliminarComponenteUseCase>(),
-      ),
-    );
     gh.factory<_i743.ProductoDetailCubit>(
       () => _i743.ProductoDetailCubit(gh<_i460.GetProductoUseCase>()),
     );
@@ -1479,6 +1483,20 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i809.CheckAuthMethodsUseCase>(),
         gh<_i726.SetPasswordUseCase>(),
         gh<_i469.AuthBloc>(),
+      ),
+    );
+    gh.factory<_i1039.ComboCubit>(
+      () => _i1039.ComboCubit(
+        createComboUseCase: gh<_i53.CreateComboUseCase>(),
+        getCombos: gh<_i235.GetCombosUseCase>(),
+        getComboCompleto: gh<_i209.GetComboCompletoUseCase>(),
+        agregarComponente: gh<_i237.AgregarComponenteUseCase>(),
+        agregarComponentesBatch: gh<_i378.AgregarComponentesBatchUseCase>(),
+        getComponentes: gh<_i330.GetComponentesUseCase>(),
+        eliminarComponente: gh<_i40.EliminarComponenteUseCase>(),
+        getReservacionUseCase: gh<_i1031.GetReservacionUseCase>(),
+        reservarStockUseCase: gh<_i409.ReservarStockUseCase>(),
+        liberarReservaUseCase: gh<_i813.LiberarReservaUseCase>(),
       ),
     );
     gh.factory<_i65.LoginCubit>(

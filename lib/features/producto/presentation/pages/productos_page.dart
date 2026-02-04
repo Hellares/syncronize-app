@@ -8,7 +8,8 @@ import 'package:syncronize/core/widgets/floating_button_icon.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import 'package:syncronize/core/widgets/custom_loading.dart';
 import 'package:syncronize/core/widgets/custom_navigation_menu.dart';
-import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
+import 'package:syncronize/core/widgets/custom_search_field.dart';
+// import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/utils/resource.dart';
@@ -36,7 +37,7 @@ import '../widgets/seleccionar_sede_stock_bottom_sheet.dart';
 import '../widgets/ajustar_stock_dialog.dart';
 import '../widgets/configurar_precios_dialog.dart';
 import '../../../../core/services/storage_service.dart';
-import '../../../../core/services/search_history_service.dart';
+// import '../../../../core/services/search_history_service.dart';
 import '../../../../core/di/injection_container.dart';
 // Imports para páginas de inventario/stock
 import 'stock_por_sede_page.dart';
@@ -44,8 +45,9 @@ import 'alertas_stock_bajo_page.dart';
 import 'transferencias_stock_page.dart';
 import 'agregar_stock_inicial_page.dart';
 // Import para SearchDelegate
-import '../search_delegate/producto_search_delegate.dart';
+// import '../search_delegate/producto_search_delegate.dart';
 import '../bloc/producto_search/producto_search_cubit.dart';
+import '../bloc/producto_search/producto_search_state.dart';
 
 class ProductosPage extends StatefulWidget {
   const ProductosPage({super.key});
@@ -57,9 +59,13 @@ class ProductosPage extends StatefulWidget {
 class _ProductosPageState extends State<ProductosPage>
     with SingleTickerProviderStateMixin {
   final _scrollController = ScrollController();
+  final _searchController = TextEditingController();
   late TabController _tabController;
+  late ProductoSearchCubit _searchCubit;
   ProductoFiltros _filtros = const ProductoFiltros();
   String? _currentEmpresaId;
+  String _searchQuery = '';
+  bool _useServerSearch = false; // Controla si usar búsqueda en servidor
 
   // Enum para los tipos de tab
   int _currentTabIndex = 0;
@@ -67,6 +73,7 @@ class _ProductosPageState extends State<ProductosPage>
   @override
   void initState() {
     super.initState();
+    _searchCubit = locator<ProductoSearchCubit>();
     _tabController = TabController(length: 3, vsync: this);
     _tabController.addListener(_onTabChanged);
     _scrollController.addListener(_onScroll);
@@ -76,7 +83,9 @@ class _ProductosPageState extends State<ProductosPage>
   @override
   void dispose() {
     _scrollController.dispose();
+    _searchController.dispose();
     _tabController.dispose();
+    _searchCubit.clear();
     super.dispose();
   }
 
@@ -206,22 +215,90 @@ class _ProductosPageState extends State<ProductosPage>
   }
 
   /// Abre el SearchDelegate para buscar productos
-  void _openSearch() {
+  /// COMENTADO - Se usará para marketplace en el futuro
+  // void _openSearch() {
+  //   final empresaState = context.read<EmpresaContextCubit>().state;
+  //   if (empresaState is! EmpresaContextLoaded) return;
+  //
+  //   final sedeState = context.read<SedeSelectionCubit>().state;
+  //   final sedeId = sedeState is SedeSelected ? sedeState.sedeId : null;
+  //
+  //   showSearch(
+  //     context: context,
+  //     delegate: ProductoSearchDelegate(
+  //       searchCubit: locator<ProductoSearchCubit>(),
+  //       searchHistoryService: locator<SearchHistoryService>(),
+  //       empresaId: empresaState.context.empresa.id,
+  //       sedeId: sedeId,
+  //     ),
+  //   );
+  // }
+
+  /// Filtrado local de productos por búsqueda
+  /// Si no hay resultados locales, automáticamente busca en servidor
+  void _onSearchChanged(String value) {
+    final query = value.trim();
+    setState(() {
+      _searchQuery = query.toLowerCase();
+      _useServerSearch = false; // Inicialmente búsqueda local
+    });
+
+    // Si el query es muy corto, no buscar en servidor
+    if (query.length < 3) {
+      _searchCubit.clear();
+      return;
+    }
+
+    // Verificar si hay resultados locales
+    final productoListState = context.read<ProductoListCubit>().state;
+    if (productoListState is ProductoListLoaded) {
+      final productosLocales = productoListState.productos.where((producto) {
+        final searchText = '${producto.nombre} ${producto.codigoEmpresa} ${producto.categoriaNombre ?? ''} ${producto.marcaNombre ?? ''}'.toLowerCase();
+        return searchText.contains(_searchQuery);
+      }).toList();
+
+      // Si NO hay resultados locales, buscar automáticamente en servidor
+      if (productosLocales.isEmpty && query.isNotEmpty) {
+        _triggerServerSearch(query);
+      } else {
+        // Hay resultados locales, limpiar búsqueda de servidor
+        _searchCubit.clear();
+      }
+    }
+  }
+
+  /// Dispara búsqueda en servidor (automática o manual)
+  void _triggerServerSearch(String query) {
     final empresaState = context.read<EmpresaContextCubit>().state;
     if (empresaState is! EmpresaContextLoaded) return;
 
     final sedeState = context.read<SedeSelectionCubit>().state;
     final sedeId = sedeState is SedeSelected ? sedeState.sedeId : null;
 
-    showSearch(
-      context: context,
-      delegate: ProductoSearchDelegate(
-        searchCubit: locator<ProductoSearchCubit>(),
-        searchHistoryService: locator<SearchHistoryService>(),
-        empresaId: empresaState.context.empresa.id,
-        sedeId: sedeId,
-      ),
+    setState(() {
+      _useServerSearch = true;
+    });
+
+    _searchCubit.search(
+      query: query,
+      empresaId: empresaState.context.empresa.id,
+      sedeId: sedeId,
     );
+  }
+
+  /// Búsqueda en servidor (al presionar Enter - fuerza búsqueda)
+  void _onSearchSubmitted(String value) {
+    final query = value.trim();
+    if (query.isEmpty) {
+      setState(() {
+        _useServerSearch = false;
+      });
+      _searchCubit.clear();
+      return;
+    }
+
+    // Forzar búsqueda en servidor
+    _triggerServerSearch(query);
   }
 
   Future<void> _showArchivoManager(
@@ -667,22 +744,55 @@ class _ProductosPageState extends State<ProductosPage>
   }
 
   Widget _buildSearchBar() {
-    return GestureDetector(
-      onTap: _openSearch,
-      child: Padding(
-        padding: const EdgeInsets.only(right: 10, left: 10),
-        child: CustomText(
-          hintText: 'Buscar producto...',
-          borderColor: AppColors.blue1,
-          prefixIcon: Icon(Icons.search),
-          suffixIcon: Icon(Icons.arrow_forward_ios_sharp),
-          enabled: false,
-        ),
+    return Padding(
+      padding: const EdgeInsets.only(right: 10, left: 10),
+      child: CustomSearchField(
+        controller: _searchController,
+        hintText: 'Buscar producto...',
+        borderColor: AppColors.blue1,
+        onChanged: _onSearchChanged,
+        onSubmitted: _onSearchSubmitted,
+        onClear: () {
+          setState(() {
+            _searchQuery = '';
+            _useServerSearch = false;
+          });
+          _searchCubit.clear();
+        },
       ),
     );
   }
 
   Widget _buildProductList() {
+    // Si está usando búsqueda en servidor, mostrar resultados del SearchCubit
+    if (_useServerSearch) {
+      return BlocBuilder<ProductoSearchCubit, ProductoSearchState>(
+        bloc: _searchCubit,
+        builder: (context, searchState) {
+          if (searchState is ProductoSearchLoading) {
+            return CustomLoading.small(message: 'Buscando en servidor...');
+          }
+
+          if (searchState is ProductoSearchError) {
+            return _buildErrorView(searchState.message);
+          }
+
+          if (searchState is ProductoSearchLoaded) {
+            final productos = searchState.productos;
+
+            if (productos.isEmpty) {
+              return _buildEmptySearchView();
+            }
+
+            return _buildProductListView(productos, hasMore: searchState.hasMore);
+          }
+
+          return _buildEmptyView();
+        },
+      );
+    }
+
+    // Búsqueda local en productos ya cargados
     return BlocBuilder<ProductoListCubit, ProductoListState>(
       builder: (context, state) {
         if (state is ProductoListLoading) {
@@ -694,76 +804,19 @@ class _ProductosPageState extends State<ProductosPage>
         }
 
         if (state is ProductoListLoaded) {
-          final productos = state.productos;
+          // Filtrar productos por búsqueda local
+          final productos = _searchQuery.isEmpty
+              ? state.productos
+              : state.productos.where((producto) {
+                  final searchText = '${producto.nombre} ${producto.codigoEmpresa} ${producto.categoriaNombre ?? ''} ${producto.marcaNombre ?? ''}'.toLowerCase();
+                  return searchText.contains(_searchQuery);
+                }).toList();
 
           if (productos.isEmpty) {
-            return _buildEmptyView();
+            return _buildEmptyLocalSearchView();
           }
 
-          return RefreshIndicator(
-            onRefresh: () async {
-              _loadProductos();
-            },
-            child: ListView.builder(
-              controller: _scrollController,
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              itemCount: productos.length + (state.hasMore ? 1 : 0),
-              itemBuilder: (context, index) {
-                if (index >= productos.length) {
-                  return const Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Center(child: CircularProgressIndicator()),
-                  );
-                }
-
-                final producto = productos[index];
-                final empresaContext = context
-                    .read<EmpresaContextCubit>()
-                    .state;
-
-                // Si no hay empresa cargada, no renderizar el tile
-                if (empresaContext is! EmpresaContextLoaded) {
-                  return const SizedBox.shrink();
-                }
-
-                final sedeId = _getSedeIdActual(empresaContext.context.sedes);
-
-                return ProductoListTile(
-                  producto: producto,
-                  sedeId: sedeId,
-                  onTap: () async {
-                    // Navegar a la página correcta según el tipo
-                    if (producto.esCombo) {
-                      context.push(
-                        '/empresa/combos/${producto.id}?empresaId=${empresaContext.context.empresa.id}',
-                      );
-                    } else {
-                      // Intentar obtener el producto completo del cache (evita petición duplicada)
-                      final productoCompleto = context.read<ProductoListCubit>().getProductoFromCache(producto.id);
-
-                      // Esperar el resultado del detalle
-                      final result = await context.push(
-                        '/empresa/productos/${producto.id}?sedeId=$sedeId',
-                        extra: productoCompleto, // ✅ Pasar producto completo del cache
-                      );
-
-                      // ✅ Si retorna true (producto fue editado), recargar la lista
-                      if (result == true && mounted) {
-                        _loadProductos();
-                      }
-                    }
-                  },
-                  onManageFiles: () =>
-                      _showArchivoManager(producto.id, producto.nombre),
-                  onViewVariants: producto.tieneVariantes
-                      ? () => _showVariantes(producto.id, producto.nombre)
-                      : null,
-                  onStockDoubleTap: () => _handleStockDoubleTap(producto),
-                  onPrecioTap: () => _handlePrecioTap(producto),
-                );
-              },
-            ),
-          );
+          return _buildProductListView(productos, hasMore: state.hasMore);
         }
 
         if (state is ProductoListLoadingMore) {
@@ -775,7 +828,7 @@ class _ProductosPageState extends State<ProductosPage>
             },
             child: ListView.builder(
               controller: _scrollController,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 10),
               itemCount: productos.length + 1,
               itemBuilder: (context, index) {
                 if (index >= productos.length) {
@@ -857,6 +910,128 @@ class _ProductosPageState extends State<ProductosPage>
             style: TextStyle(fontSize: 14, color: Colors.grey[500]),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyLocalSearchView() {
+    // Este widget ya no debería mostrarse porque automáticamente
+    // busca en servidor cuando no hay resultados locales
+    // Pero lo dejamos por si acaso (queries muy cortos < 3 caracteres)
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.search_off, size: 80, color: Colors.grey[400]),
+          const SizedBox(height: 16),
+          Text(
+            'No se encontró "$_searchQuery"',
+            style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Escribe al menos 3 caracteres para buscar',
+            style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptySearchView() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.search_off, size: 80, color: Colors.grey[400]),
+          const SizedBox(height: 16),
+          Text(
+            'No se encontraron resultados',
+            style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'para "$_searchQuery"',
+            style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProductListView(List<ProductoListItem> productos, {bool hasMore = false}) {
+    return RefreshIndicator(
+      onRefresh: () async {
+        if (_useServerSearch) {
+          _onSearchSubmitted(_searchController.text);
+        } else {
+          _loadProductos();
+        }
+      },
+      child: ListView.builder(
+        controller: _scrollController,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        itemCount: productos.length + (hasMore ? 1 : 0),
+        itemBuilder: (context, index) {
+          if (index >= productos.length) {
+            // Cargar más productos del servidor si es búsqueda en servidor
+            if (_useServerSearch && hasMore) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                _searchCubit.loadMore();
+              });
+            }
+            return const Padding(
+              padding: EdgeInsets.all(16),
+              child: Center(child: CircularProgressIndicator()),
+            );
+          }
+
+          final producto = productos[index];
+          final empresaContext = context.read<EmpresaContextCubit>().state;
+
+          if (empresaContext is! EmpresaContextLoaded) {
+            return const SizedBox.shrink();
+          }
+
+          final sedeId = _getSedeIdActual(empresaContext.context.sedes);
+
+          return ProductoListTile(
+            producto: producto,
+            sedeId: sedeId,
+            onTap: () async {
+              if (producto.esCombo) {
+                context.push(
+                  '/empresa/combos/${producto.id}?empresaId=${empresaContext.context.empresa.id}',
+                );
+              } else {
+                final productoCompleto = _useServerSearch
+                    ? _searchCubit.getProductoFromCache(producto.id)
+                    : context.read<ProductoListCubit>().getProductoFromCache(producto.id);
+
+                final result = await context.push(
+                  '/empresa/productos/${producto.id}?sedeId=$sedeId',
+                  extra: productoCompleto,
+                );
+
+                if (result == true && mounted) {
+                  if (_useServerSearch) {
+                    _onSearchSubmitted(_searchController.text);
+                  } else {
+                    _loadProductos();
+                  }
+                }
+              }
+            },
+            onManageFiles: () => _showArchivoManager(producto.id, producto.nombre),
+            onViewVariants: producto.tieneVariantes
+                ? () => _showVariantes(producto.id, producto.nombre)
+                : null,
+            onStockDoubleTap: () => _handleStockDoubleTap(producto),
+            onPrecioTap: () => _handlePrecioTap(producto),
+          );
+        },
       ),
     );
   }

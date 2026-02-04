@@ -329,11 +329,12 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
     DateTime? fechaInicioOfertaSede = producto.fechaInicioOferta;
     DateTime? fechaFinOfertaSede = producto.fechaFinOferta;
     bool tienePrecioConfigurado = precioMostrar > 0;
+    dynamic stockSede;
 
     // Si hay sede seleccionada, buscar los datos específicos de esa sede
     if (widget.sedeId != null && producto.stocksPorSede != null) {
       try {
-        final stockSede = producto.stocksPorSede!.firstWhere(
+        stockSede = producto.stocksPorSede!.firstWhere(
           (s) => s.sedeId == widget.sedeId,
         );
 
@@ -507,9 +508,9 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
                 icon: hasStock ? Icons.check_circle : Icons.cancel,
                 textColor: hasStock ? AppColors.blue1 : AppColors.red,
               ),
-              if (widget.sedeId != null)
+              if (stockSede != null)
                 InfoChip(
-                  text: 'Stock en Sede ${producto.stocksPorSede!.firstWhere((s) => s.sedeId == widget.sedeId).sedeNombre}',
+                  text: 'Stock en Sede ${stockSede.sedeNombre}',
                   icon: Icons.warehouse,
                   textColor: AppColors.blue1,
                   backgroundColor: AppColors.blueborder.withValues(alpha: 0.1),

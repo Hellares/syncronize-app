@@ -12,10 +12,12 @@ class GetComboCompletoUseCase {
   Future<Resource<Combo>> call({
     required String comboId,
     required String empresaId,
+    required String sedeId,
   }) {
     return repository.getComboCompleto(
       comboId: comboId,
       empresaId: empresaId,
+      sedeId: sedeId,
     );
   }
 }

@@ -36,10 +36,11 @@ class ComboRemoteDataSource {
   /// Obtiene todos los combos de una empresa con información completa
   ///
   /// GET /api/combos (incluye componentes, stock y precio calculado)
-  Future<List<ComboModel>> getCombos() async {
+  Future<List<ComboModel>> getCombos({required String sedeId}) async {
     try {
       final response = await _dioClient.get(
         ApiConstants.combos,
+        queryParameters: {'sedeId': sedeId},
       );
 
       // El backend devuelve un array de combos completos
@@ -60,10 +61,12 @@ class ComboRemoteDataSource {
   /// GET /api/combos/:id/combo-completo
   Future<ComboModel> getComboCompleto({
     required String comboId,
+    required String sedeId,
   }) async {
     try {
       final response = await _dioClient.get(
         '${ApiConstants.combos}/$comboId/combo-completo',
+        queryParameters: {'sedeId': sedeId},
       );
 
       return ComboModel.fromJson(response.data as Map<String, dynamic>);
@@ -79,12 +82,14 @@ class ComboRemoteDataSource {
   /// POST /api/combos/:id/componentes
   Future<ComponenteComboModel> agregarComponente({
     required String comboId,
+    required String sedeId,
     required Map<String, dynamic> data,
   }) async {
     try {
       final response = await _dioClient.post(
         '${ApiConstants.combos}/$comboId/componentes',
         data: data,
+        queryParameters: {'sedeId': sedeId},
       );
 
       return ComponenteComboModel.fromJson(
@@ -101,12 +106,14 @@ class ComboRemoteDataSource {
   /// POST /api/combos/:id/componentes/batch
   Future<List<ComponenteComboModel>> agregarComponentesBatch({
     required String comboId,
+    required String sedeId,
     required List<Map<String, dynamic>> componentes,
   }) async {
     try {
       final response = await _dioClient.post(
         '${ApiConstants.combos}/$comboId/componentes/batch',
         data: {'componentes': componentes},
+        queryParameters: {'sedeId': sedeId},
       );
 
       final List<dynamic> data = response.data as List<dynamic>;
@@ -126,10 +133,12 @@ class ComboRemoteDataSource {
   /// GET /api/combos/:id/componentes
   Future<List<ComponenteComboModel>> getComponentes({
     required String comboId,
+    required String sedeId,
   }) async {
     try {
       final response = await _dioClient.get(
         '${ApiConstants.combos}/$comboId/componentes',
+        queryParameters: {'sedeId': sedeId},
       );
 
       final List<dynamic> data = response.data as List<dynamic>;
@@ -149,12 +158,14 @@ class ComboRemoteDataSource {
   /// PUT /api/combos/componentes/:id
   Future<ComponenteComboModel> actualizarComponente({
     required String componenteId,
+    required String sedeId,
     required Map<String, dynamic> data,
   }) async {
     try {
       final response = await _dioClient.put(
         '${ApiConstants.combos}/componentes/$componenteId',
         data: data,
+        queryParameters: {'sedeId': sedeId},
       );
 
       return ComponenteComboModel.fromJson(
@@ -188,10 +199,12 @@ class ComboRemoteDataSource {
   /// GET /api/combos/:id/stock-disponible-combo
   Future<int> getStockDisponible({
     required String comboId,
+    required String sedeId,
   }) async {
     try {
       final response = await _dioClient.get(
         '${ApiConstants.combos}/$comboId/stock-disponible-combo',
+        queryParameters: {'sedeId': sedeId},
       );
 
       final data = response.data as Map<String, dynamic>;
@@ -208,10 +221,12 @@ class ComboRemoteDataSource {
   /// GET /api/combos/:id/precio-calculado-combo
   Future<double> getPrecioCalculado({
     required String comboId,
+    required String sedeId,
   }) async {
     try {
       final response = await _dioClient.get(
         '${ApiConstants.combos}/$comboId/precio-calculado-combo',
+        queryParameters: {'sedeId': sedeId},
       );
 
       final data = response.data as Map<String, dynamic>;
@@ -229,10 +244,12 @@ class ComboRemoteDataSource {
   Future<bool> validarStock({
     required String comboId,
     required int cantidad,
+    required String sedeId,
   }) async {
     try {
       final response = await _dioClient.get(
         '${ApiConstants.combos}/$comboId/validar-stock-combo/$cantidad',
+        queryParameters: {'sedeId': sedeId},
       );
 
       final data = response.data as Map<String, dynamic>;
@@ -241,6 +258,71 @@ class ComboRemoteDataSource {
       throw _handleDioError(e);
     } catch (e) {
       throw Exception('Error inesperado al validar stock: $e');
+    }
+  }
+
+  /// Obtiene la reservación actual de un combo en una sede
+  ///
+  /// GET /api/combos/:id/reservacion
+  Future<int> getReservacion({
+    required String comboId,
+    required String sedeId,
+  }) async {
+    try {
+      final response = await _dioClient.get(
+        '${ApiConstants.combos}/$comboId/reservacion',
+        queryParameters: {'sedeId': sedeId},
+      );
+
+      final data = response.data as Map<String, dynamic>;
+      return data['cantidad'] as int? ?? 0;
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    } catch (e) {
+      throw Exception('Error inesperado al obtener reservación: $e');
+    }
+  }
+
+  /// Reserva stock para un combo (crear/actualizar reservación)
+  ///
+  /// POST /api/combos/:id/reservar-stock
+  Future<int> reservarStock({
+    required String comboId,
+    required String sedeId,
+    required int cantidad,
+  }) async {
+    try {
+      final response = await _dioClient.post(
+        '${ApiConstants.combos}/$comboId/reservar-stock',
+        data: {'cantidad': cantidad},
+        queryParameters: {'sedeId': sedeId},
+      );
+
+      final data = response.data as Map<String, dynamic>;
+      return data['cantidad'] as int? ?? 0;
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    } catch (e) {
+      throw Exception('Error inesperado al reservar stock: $e');
+    }
+  }
+
+  /// Libera toda la reservación de un combo en una sede
+  ///
+  /// DELETE /api/combos/:id/reservar-stock
+  Future<void> liberarReserva({
+    required String comboId,
+    required String sedeId,
+  }) async {
+    try {
+      await _dioClient.delete(
+        '${ApiConstants.combos}/$comboId/reservar-stock',
+        queryParameters: {'sedeId': sedeId},
+      );
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    } catch (e) {
+      throw Exception('Error inesperado al liberar reservación: $e');
     }
   }
 

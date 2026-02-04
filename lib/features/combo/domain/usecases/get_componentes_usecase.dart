@@ -12,10 +12,12 @@ class GetComponentesUseCase {
   Future<Resource<List<ComponenteCombo>>> call({
     required String comboId,
     required String empresaId,
+    required String sedeId,
   }) {
     return repository.getComponentes(
       comboId: comboId,
       empresaId: empresaId,
+      sedeId: sedeId,
     );
   }
 }

@@ -1,21 +1,22 @@
 import 'package:injectable/injectable.dart';
 import '../../../../core/utils/resource.dart';
-import '../entities/combo.dart';
 import '../repositories/combo_repository.dart';
 
 @injectable
-class GetCombosUseCase {
+class ReservarStockUseCase {
   final ComboRepository repository;
 
-  GetCombosUseCase(this.repository);
+  ReservarStockUseCase(this.repository);
 
-  Future<Resource<List<Combo>>> call({
-    required String empresaId,
+  Future<Resource<int>> call({
+    required String comboId,
     required String sedeId,
+    required int cantidad,
   }) {
-    return repository.getCombos(
-      empresaId: empresaId,
+    return repository.reservarStock(
+      comboId: comboId,
       sedeId: sedeId,
+      cantidad: cantidad,
     );
   }
 }

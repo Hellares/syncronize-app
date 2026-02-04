@@ -15,10 +15,11 @@ class Combo extends Equatable {
   final String? descripcion;
   final bool esCombo;
   final TipoPrecioCombo tipoPrecioCombo;
-  final double precio; // Precio del combo
-  final double precioCalculado; // Precio calculado desde componentes
-  final double? descuentoAplicado; // Descuento aplicado si es precio fijo
-  final double? descuentoPorcentaje; // Porcentaje de descuento (si aplica)
+  final double precio;              // Precio final del combo (lo que paga el cliente)
+  final double precioCalculado;     // Precio calculado desde componentes (con overrides aplicados)
+  final double precioRegularTotal;  // Precio si se comprara cada componente por separado
+  final double? descuentoAplicado;  // Ahorro total: precioRegularTotal - precio
+  final double? descuentoPorcentaje;
   final int stockDisponible; // Stock máximo de combos que se pueden armar
   final List<ComponenteCombo> componentes;
   final bool tieneStockSuficiente;
@@ -33,6 +34,7 @@ class Combo extends Equatable {
     required this.tipoPrecioCombo,
     required this.precio,
     required this.precioCalculado,
+    required this.precioRegularTotal,
     this.descuentoAplicado,
     this.descuentoPorcentaje,
     required this.stockDisponible,
@@ -51,6 +53,7 @@ class Combo extends Equatable {
         tipoPrecioCombo,
         precio,
         precioCalculado,
+        precioRegularTotal,
         descuentoAplicado,
         descuentoPorcentaje,
         stockDisponible,
@@ -68,14 +71,14 @@ class Combo extends Equatable {
       case TipoPrecioCombo.calculado:
         return precioCalculado;
       case TipoPrecioCombo.calculadoConDescuento:
-        return precioCalculado;
+        return precio; // El backend ya aplica el descuento en este campo
     }
   }
 
-  /// Retorna el porcentaje de ahorro si hay descuento
+  /// Porcentaje de ahorro vs comprar los componentes por separado
   double? get porcentajeAhorro {
-    if (descuentoAplicado != null && precioCalculado > 0) {
-      return (descuentoAplicado! / precioCalculado) * 100;
+    if (descuentoAplicado != null && precioRegularTotal > 0 && descuentoAplicado! > 0) {
+      return (descuentoAplicado! / precioRegularTotal) * 100;
     }
     return null;
   }

@@ -29,11 +29,12 @@ class CombosLoaded extends ComboState {
 /// Estado de combo cargado exitosamente
 class ComboLoaded extends ComboState {
   final Combo combo;
+  final int reservacionCantidad;
 
-  const ComboLoaded(this.combo);
+  const ComboLoaded(this.combo, {this.reservacionCantidad = 0});
 
   @override
-  List<Object?> get props => [combo];
+  List<Object?> get props => [combo, reservacionCantidad];
 }
 
 /// Estado de lista de componentes cargados
@@ -120,4 +121,15 @@ class StockValidated extends ComboState {
 
   @override
   List<Object?> get props => [tieneStock, stockDisponible];
+}
+
+/// Estado de reservación actualizada exitosamente
+class ReservacionUpdated extends ComboState {
+  final int cantidad;
+  final String message;
+
+  const ReservacionUpdated(this.cantidad, this.message);
+
+  @override
+  List<Object?> get props => [cantidad, message];
 }

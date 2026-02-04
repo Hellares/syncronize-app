@@ -1079,14 +1079,11 @@ class _CurrencyTextFieldState extends State<CurrencyTextField>
 
   Widget? _buildSymbolIcon() {
     if (!widget.showSymbolIcon) return null;
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 8),
-      child: Text(
-        widget.currencySymbol,
-        style: _getCachedTextStyle().copyWith(
-          color: widget.borderColor ?? AppColors.blue3,
-          fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
-        ),
+    return Text(
+      widget.currencySymbol,
+      style: _getCachedTextStyle().copyWith(
+        color: widget.borderColor ?? AppColors.blue3,
+        fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
       ),
     );
   }
@@ -1095,25 +1092,22 @@ class _CurrencyTextFieldState extends State<CurrencyTextField>
     return ValueListenableBuilder<ValidationState>(
       valueListenable: _validationManager.state,
       builder: (context, state, child) {
-        return Padding(
-          padding: const EdgeInsets.only(right: 8),
-          child: SizedBox(
-            width: 16,
-            height: 16,
-            child: Center(
-              child: switch (state) {
-                ValidationLoading() => const SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: CircularProgressIndicator(strokeWidth: 1),
-                  ),
-                ValidationValid() =>
-                  const Icon(Icons.check_circle, color: Colors.green, size: 16),
-                ValidationInvalid() =>
-                  const Icon(Icons.error, color: Colors.red, size: 16),
-                ValidationNone() => const SizedBox.shrink(),
-              },
-            ),
+        return SizedBox(
+          width: 16,
+          height: 16,
+          child: Center(
+            child: switch (state) {
+              ValidationLoading() => const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 1),
+                ),
+              ValidationValid() =>
+                const Icon(Icons.check_circle, color: Colors.green, size: 16),
+              ValidationInvalid() =>
+                const Icon(Icons.error, color: Colors.red, size: 16),
+              ValidationNone() => const SizedBox.shrink(),
+            },
           ),
         );
       },
@@ -1288,20 +1282,32 @@ class _CurrencyTextFieldState extends State<CurrencyTextField>
                         disabledBorder: InputBorder.none,
 
                         // ✅ símbolo: o icono o texto, pero no ambos
-                        prefixIcon: widget.showSymbolIcon ? _buildSymbolIcon() : null,
+                        prefixIcon: widget.showSymbolIcon
+                            ? Padding(
+                                padding: const EdgeInsets.only(left: 5),
+                                child: _buildSymbolIcon(),
+                              )
+                            : Padding(
+                                padding: const EdgeInsets.only(left: 5),
+                                child: Text(
+                                  '${widget.currencySymbol} ',
+                                  style: _getCachedTextStyle().copyWith(
+                                    color: AppColors.blueGrey,
+                                    height: 1.0,
+                                  ),
+                                ),
+                              ),
                         prefixIconConstraints:
-                            const BoxConstraints(minWidth: 40, minHeight: 35),
-                        prefixText: widget.showSymbolIcon ? null : '${widget.currencySymbol} ',
-                        prefixStyle: _getCachedTextStyle().copyWith(
-                          color: AppColors.blueGrey,
-                          height: 1.0,
-                        ),
+                            const BoxConstraints(minWidth: 20, minHeight: 20),
 
                         suffixIcon: widget.enableRealTimeValidation
-                            ? _buildValidationIcon()
+                            ? Padding(
+                                padding: const EdgeInsets.only(right: 5),
+                                child: _buildValidationIcon(),
+                              )
                             : null,
                         suffixIconConstraints:
-                            const BoxConstraints(minWidth: 30, minHeight: 35),
+                            const BoxConstraints(minWidth: 20, minHeight: 20),
                         counterText: '',
                       ),
                     ),

@@ -49,11 +49,17 @@ class ComponenteCombo extends Equatable {
   /// Retorna el nombre del componente
   String get nombre => componenteInfo?.nombre ?? 'Componente';
 
-  /// Retorna el precio unitario del componente
-  double get precioUnitario => componenteInfo?.precio ?? 0;
+  /// Precio unitario efectivo (usa precioEnCombo si existe, sino precio regular)
+  double get precioUnitario => componenteInfo?.precioEfectivo ?? 0;
 
-  /// Retorna el precio total (precio x cantidad)
+  /// Precio unitario regular (sin override del combo)
+  double get precioUnitarioRegular => componenteInfo?.precio ?? 0;
+
+  /// Precio total efectivo en el combo (precio x cantidad)
   double get precioTotal => precioUnitario * cantidad;
+
+  /// Precio total regular sin combo (precio regular x cantidad)
+  double get precioTotalRegular => precioUnitarioRegular * cantidad;
 
   /// Retorna el stock disponible del componente
   int get stockDisponible => componenteInfo?.stock ?? 0;
@@ -70,18 +76,20 @@ class ComponenteInfo extends Equatable {
   final String id;
   final String nombre;
   final String? sku;
-  final double precio;
+  final double precio;          // Precio regular del producto (desde ProductoStock)
+  final double? precioEnCombo;  // Precio override dentro del combo. Null = se usa precio regular.
   final int stock;
   final bool esVariante;
   final String? imagen;
-  final String? productoNombre; // Nombre del producto (cuando es variante)
-  final String? varianteNombre; // Nombre de la variante específica
+  final String? productoNombre;
+  final String? varianteNombre;
 
   const ComponenteInfo({
     required this.id,
     required this.nombre,
     this.sku,
     required this.precio,
+    this.precioEnCombo,
     required this.stock,
     required this.esVariante,
     this.imagen,
@@ -89,12 +97,19 @@ class ComponenteInfo extends Equatable {
     this.varianteNombre,
   });
 
+  /// Precio efectivo dentro del combo: usa override si existe, sino el precio regular
+  double get precioEfectivo => precioEnCombo ?? precio;
+
+  /// Si tiene precio diferente al regular dentro del combo
+  bool get tienePrecioOverride => precioEnCombo != null && precioEnCombo != precio;
+
   @override
   List<Object?> get props => [
         id,
         nombre,
         sku,
         precio,
+        precioEnCombo,
         stock,
         esVariante,
         imagen,

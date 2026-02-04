@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:syncronize/core/fonts/app_text_widgets.dart';
+import 'package:syncronize/core/theme/app_colors.dart';
+import 'package:syncronize/core/theme/gradient_container.dart';
+import 'package:syncronize/core/widgets/info_chip.dart';
 import '../../domain/entities/componente_combo.dart';
 
 class ComponenteListTile extends StatelessWidget {
@@ -13,46 +17,37 @@ class ComponenteListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return GradientContainer(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
         leading: CircleAvatar(
           backgroundColor: Theme.of(context).primaryColor.withValues(alpha: 0.1),
           child: Icon(
             Icons.inventory_2,
-            color: Theme.of(context).primaryColor,
+            color: AppColors.blue1,
+            size: 20,
           ),
         ),
-        title: Text(
-          _getNombreComponente(),
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
+        title: AppSubtitle(_getNombreComponente()),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 4),
-            Text('Cantidad: ${componente.cantidad}'),
+            AppSubtitle('Cantidad: ${componente.cantidad}'),
             if (componente.esPersonalizable)
-              Chip(
-                label: const Text(
-                  'Personalizable',
-                  style: TextStyle(fontSize: 11),
-                ),
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                visualDensity: VisualDensity.compact,
-              ),
+              InfoChip(text: 'Personalizable'),
             if (componente.categoriaComponente != null)
               Text(
                 'Categoría: ${componente.categoriaComponente}',
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: 10,
                   color: Colors.grey[600],
                 ),
               ),
           ],
         ),
         trailing: IconButton(
-          icon: const Icon(Icons.delete_outline, color: Colors.red),
+          icon: const Icon(Icons.delete_outline, color: Colors.red, size: 18,),
           onPressed: onDelete,
         ),
       ),

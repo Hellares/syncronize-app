@@ -20,6 +20,7 @@ class ProductoListItemModel extends ProductoListItem {
     super.esCombo,
     super.tieneVariantes,
     super.stocksPorSede,
+    super.comboReservado,
   });
 
   factory ProductoListItemModel.fromJson(Map<String, dynamic> json) {
@@ -54,6 +55,7 @@ class ProductoListItemModel extends ProductoListItem {
               .map((e) => StockPorSedeInfoModel.fromJson(e as Map<String, dynamic>))
               .toList()
           : null,
+      comboReservado: json['comboReservado'] as int? ?? 0,
     );
   }
 
@@ -101,6 +103,7 @@ class ProductoListItemModel extends ProductoListItem {
       isActive: entity.isActive,
       esCombo: entity.esCombo,
       tieneVariantes: entity.tieneVariantes,
+      comboReservado: entity.comboReservado,
     );
   }
 }

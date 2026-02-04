@@ -12,6 +12,7 @@ class AgregarComponenteUseCase {
   Future<Resource<ComponenteCombo>> call({
     required String comboId,
     required String empresaId,
+    required String sedeId,
     String? componenteProductoId,
     String? componenteVarianteId,
     required int cantidad,
@@ -22,6 +23,7 @@ class AgregarComponenteUseCase {
     return repository.agregarComponente(
       comboId: comboId,
       empresaId: empresaId,
+      sedeId: sedeId,
       componenteProductoId: componenteProductoId,
       componenteVarianteId: componenteVarianteId,
       cantidad: cantidad,

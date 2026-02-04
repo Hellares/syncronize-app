@@ -43,6 +43,7 @@ class ComboRepositoryImpl implements ComboRepository {
   @override
   Future<Resource<List<Combo>>> getCombos({
     required String empresaId,
+    required String sedeId,
   }) async {
     if (!await _networkInfo.isConnected) {
       return Error(
@@ -52,7 +53,7 @@ class ComboRepositoryImpl implements ComboRepository {
     }
 
     try {
-      final combos = await _remoteDataSource.getCombos();
+      final combos = await _remoteDataSource.getCombos(sedeId: sedeId);
       return Success(combos.map((combo) => combo.toEntity()).toList());
     } catch (e) {
       return Error(
@@ -66,6 +67,7 @@ class ComboRepositoryImpl implements ComboRepository {
   Future<Resource<Combo>> getComboCompleto({
     required String comboId,
     required String empresaId,
+    required String sedeId,
   }) async {
     if (!await _networkInfo.isConnected) {
       return Error(
@@ -77,6 +79,7 @@ class ComboRepositoryImpl implements ComboRepository {
     try {
       final combo = await _remoteDataSource.getComboCompleto(
         comboId: comboId,
+        sedeId: sedeId,
       );
       return Success(combo.toEntity());
     } catch (e) {
@@ -91,6 +94,7 @@ class ComboRepositoryImpl implements ComboRepository {
   Future<Resource<ComponenteCombo>> agregarComponente({
     required String comboId,
     required String empresaId,
+    required String sedeId,
     String? componenteProductoId,
     String? componenteVarianteId,
     required int cantidad,
@@ -120,6 +124,7 @@ class ComboRepositoryImpl implements ComboRepository {
 
       final componente = await _remoteDataSource.agregarComponente(
         comboId: comboId,
+        sedeId: sedeId,
         data: data,
       );
       return Success(componente.toEntity());
@@ -135,6 +140,7 @@ class ComboRepositoryImpl implements ComboRepository {
   Future<Resource<List<ComponenteCombo>>> agregarComponentesBatch({
     required String comboId,
     required String empresaId,
+    required String sedeId,
     required List<Map<String, dynamic>> componentes,
   }) async {
     if (!await _networkInfo.isConnected) {
@@ -147,6 +153,7 @@ class ComboRepositoryImpl implements ComboRepository {
     try {
       final componentesAgregados = await _remoteDataSource.agregarComponentesBatch(
         comboId: comboId,
+        sedeId: sedeId,
         componentes: componentes,
       );
       return Success(componentesAgregados.map((c) => c.toEntity()).toList());
@@ -162,6 +169,7 @@ class ComboRepositoryImpl implements ComboRepository {
   Future<Resource<List<ComponenteCombo>>> getComponentes({
     required String comboId,
     required String empresaId,
+    required String sedeId,
   }) async {
     if (!await _networkInfo.isConnected) {
       return Error(
@@ -173,6 +181,7 @@ class ComboRepositoryImpl implements ComboRepository {
     try {
       final componentes = await _remoteDataSource.getComponentes(
         comboId: comboId,
+        sedeId: sedeId,
       );
       return Success(componentes.map((c) => c.toEntity()).toList());
     } catch (e) {
@@ -187,6 +196,7 @@ class ComboRepositoryImpl implements ComboRepository {
   Future<Resource<ComponenteCombo>> actualizarComponente({
     required String componenteId,
     required String empresaId,
+    required String sedeId,
     int? cantidad,
     bool? esPersonalizable,
     String? categoriaComponente,
@@ -210,6 +220,7 @@ class ComboRepositoryImpl implements ComboRepository {
 
       final componente = await _remoteDataSource.actualizarComponente(
         componenteId: componenteId,
+        sedeId: sedeId,
         data: data,
       );
       return Success(componente.toEntity());
@@ -249,6 +260,7 @@ class ComboRepositoryImpl implements ComboRepository {
   @override
   Future<Resource<int>> getStockDisponible({
     required String comboId,
+    required String sedeId,
   }) async {
     if (!await _networkInfo.isConnected) {
       return Error(
@@ -260,6 +272,7 @@ class ComboRepositoryImpl implements ComboRepository {
     try {
       final stock = await _remoteDataSource.getStockDisponible(
         comboId: comboId,
+        sedeId: sedeId,
       );
       return Success(stock);
     } catch (e) {
@@ -273,6 +286,7 @@ class ComboRepositoryImpl implements ComboRepository {
   @override
   Future<Resource<double>> getPrecioCalculado({
     required String comboId,
+    required String sedeId,
   }) async {
     if (!await _networkInfo.isConnected) {
       return Error(
@@ -284,6 +298,7 @@ class ComboRepositoryImpl implements ComboRepository {
     try {
       final precio = await _remoteDataSource.getPrecioCalculado(
         comboId: comboId,
+        sedeId: sedeId,
       );
       return Success(precio);
     } catch (e) {
@@ -298,6 +313,7 @@ class ComboRepositoryImpl implements ComboRepository {
   Future<Resource<bool>> validarStock({
     required String comboId,
     required int cantidad,
+    required String sedeId,
   }) async {
     if (!await _networkInfo.isConnected) {
       return Error(
@@ -310,8 +326,89 @@ class ComboRepositoryImpl implements ComboRepository {
       final tieneStock = await _remoteDataSource.validarStock(
         comboId: comboId,
         cantidad: cantidad,
+        sedeId: sedeId,
       );
       return Success(tieneStock);
+    } catch (e) {
+      return Error(
+        e.toString().replaceFirst('Exception: ', ''),
+        errorCode: 'SERVER_ERROR',
+      );
+    }
+  }
+
+  @override
+  Future<Resource<int>> getReservacion({
+    required String comboId,
+    required String sedeId,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error(
+        'No hay conexión a internet',
+        errorCode: 'NETWORK_ERROR',
+      );
+    }
+
+    try {
+      final cantidad = await _remoteDataSource.getReservacion(
+        comboId: comboId,
+        sedeId: sedeId,
+      );
+      return Success(cantidad);
+    } catch (e) {
+      return Error(
+        e.toString().replaceFirst('Exception: ', ''),
+        errorCode: 'SERVER_ERROR',
+      );
+    }
+  }
+
+  @override
+  Future<Resource<int>> reservarStock({
+    required String comboId,
+    required String sedeId,
+    required int cantidad,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error(
+        'No hay conexión a internet',
+        errorCode: 'NETWORK_ERROR',
+      );
+    }
+
+    try {
+      final result = await _remoteDataSource.reservarStock(
+        comboId: comboId,
+        sedeId: sedeId,
+        cantidad: cantidad,
+      );
+      return Success(result);
+    } catch (e) {
+      return Error(
+        e.toString().replaceFirst('Exception: ', ''),
+        errorCode: 'SERVER_ERROR',
+      );
+    }
+  }
+
+  @override
+  Future<Resource<void>> liberarReserva({
+    required String comboId,
+    required String sedeId,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error(
+        'No hay conexión a internet',
+        errorCode: 'NETWORK_ERROR',
+      );
+    }
+
+    try {
+      await _remoteDataSource.liberarReserva(
+        comboId: comboId,
+        sedeId: sedeId,
+      );
+      return Success(null);
     } catch (e) {
       return Error(
         e.toString().replaceFirst('Exception: ', ''),

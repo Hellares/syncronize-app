@@ -21,7 +21,10 @@ class AppColors {
   static const Color blueGrey = Color(0xFF607D8B);
   static const Color green = Color.fromARGB(255, 43, 175, 71);
   static const Color greendark = Color(0xFF088A24);
-  static const Color orange = Color(0xFFDD8A3B);
+  // static const Color greenContainer = Color(0xFFA5D6A7); //shade 200
+  static const Color greenBorder = Color(0xFFA5D6A7);//shade 200
+  static const Color greenContainer = Color(0xFFE8F5E9);//shade 50
+  static const Color orange = Color(0xFFDD8A3B); 
   static const Color amberText = Color(0xFFFF6F00);
   static const Color amberShadow = Color(0x33FFC107);
   static const Color yellow = Color.fromARGB(255, 255, 226, 94);

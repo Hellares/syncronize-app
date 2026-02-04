@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:syncronize/core/theme/app_colors.dart';
+import 'package:syncronize/core/widgets/floating_button_text.dart';
+import 'package:syncronize/core/widgets/smart_appbar.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
+import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
+import '../../../producto/presentation/bloc/sede_selection/sede_selection_cubit.dart';
 import '../../domain/entities/componente_combo.dart';
 import '../bloc/combo_cubit.dart';
 import '../bloc/combo_state.dart';
@@ -19,31 +25,47 @@ class ComboComponentesPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final sedeId = _resolveSedeId(context);
     return BlocProvider(
       create: (_) => locator<ComboCubit>()
-        ..loadComponentes(comboId: comboId, empresaId: empresaId),
+        ..loadComponentes(comboId: comboId, empresaId: empresaId, sedeId: sedeId),
       child: _ComboComponentesView(
         comboId: comboId,
         empresaId: empresaId,
+        sedeId: sedeId,
       ),
     );
+  }
+
+  static String _resolveSedeId(BuildContext ctx) {
+    final selected = ctx.read<SedeSelectionCubit>().selectedSedeId;
+    if (selected != null) return selected;
+    final empresaState = ctx.read<EmpresaContextCubit>().state;
+    if (empresaState is EmpresaContextLoaded && empresaState.context.sedes.isNotEmpty) {
+      return empresaState.context.sedePrincipal!.id;
+    }
+    return '';
   }
 }
 
 class _ComboComponentesView extends StatelessWidget {
   final String comboId;
   final String empresaId;
+  final String sedeId;
 
   const _ComboComponentesView({
     required this.comboId,
     required this.empresaId,
+    required this.sedeId,
   });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Componentes del Combo'),
+      appBar: SmartAppBar(
+        backgroundColor: AppColors.blue1,
+        foregroundColor: AppColors.white,
+        title: 'COMPONENTES DEL COMBO',
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -51,6 +73,7 @@ class _ComboComponentesView extends StatelessWidget {
               context.read<ComboCubit>().loadComponentes(
                     comboId: comboId,
                     empresaId: empresaId,
+                    sedeId: sedeId,
                   );
             },
           ),
@@ -69,6 +92,7 @@ class _ComboComponentesView extends StatelessWidget {
             context.read<ComboCubit>().loadComponentes(
                   comboId: comboId,
                   empresaId: empresaId,
+                  sedeId: sedeId,
                 );
           } else if (state is ComboError) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -93,10 +117,15 @@ class _ComboComponentesView extends StatelessWidget {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _mostrarAgregarComponenteDialog(context),
-        icon: const Icon(Icons.add),
-        label: const Text('Agregar Componente'),
+      // floatingActionButton: FloatingActionButton.extended(
+      //   onPressed: () => _mostrarAgregarComponenteDialog(context),
+      //   icon: const Icon(Icons.add),
+      //   label: const Text('Agregar Componente'),
+      // ),
+      floatingActionButton: FloatingButtonText(
+        onPressed: () => _mostrarAgregarComponenteDialog(context), 
+        label: 'Agregar Componente', 
+        icon: Icons.add,
       ),
     );
   }
@@ -157,6 +186,7 @@ class _ComboComponentesView extends StatelessWidget {
         child: AgregarComponenteDialog(
           comboId: comboId,
           empresaId: empresaId,
+          sedeId: sedeId,
         ),
       ),
     );

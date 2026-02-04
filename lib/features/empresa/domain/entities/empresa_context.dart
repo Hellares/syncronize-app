@@ -26,9 +26,14 @@ class EmpresaContext extends Equatable {
   UserRoleInfo? get primaryRole =>
       userRoles.isNotEmpty ? userRoles.first : null;
 
-  /// Obtiene la sede principal
-  Sede? get sedePrincipal =>
-      sedes.firstWhere((s) => s.esPrincipal, orElse: () => sedes.first);
+  /// Obtiene la sede principal (o la primera si ninguna es principal)
+  Sede? get sedePrincipal {
+    if (sedes.isEmpty) return null;
+    for (final sede in sedes) {
+      if (sede.esPrincipal) return sede;
+    }
+    return sedes.first;
+  }
 
   /// Indica si el usuario tiene múltiples roles
   bool get hasMultipleRoles => userRoles.length > 1;

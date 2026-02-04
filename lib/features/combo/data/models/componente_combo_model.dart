@@ -68,6 +68,7 @@ class ComponenteInfoModel extends ComponenteInfo {
     required super.nombre,
     super.sku,
     required super.precio,
+    super.precioEnCombo,
     required super.stock,
     required super.esVariante,
     super.imagen,
@@ -81,6 +82,9 @@ class ComponenteInfoModel extends ComponenteInfo {
       nombre: json['nombre'] as String,
       sku: json['sku'] as String?,
       precio: (json['precio'] as num).toDouble(),
+      precioEnCombo: json['precioEnCombo'] != null
+          ? (json['precioEnCombo'] as num).toDouble()
+          : null,
       stock: json['stock'] as int,
       esVariante: json['esVariante'] as bool,
       imagen: json['imagen'] as String?,

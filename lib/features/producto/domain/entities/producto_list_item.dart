@@ -20,6 +20,7 @@ class ProductoListItem extends Equatable {
   final bool esCombo;
   final bool tieneVariantes;
   final List<StockPorSedeInfo>? stocksPorSede; // Desglose de stock por sede
+  final int comboReservado; // Cantidad de combos reservados (solo aplica cuando esCombo)
 
   const ProductoListItem({
     required this.id,
@@ -39,6 +40,7 @@ class ProductoListItem extends Equatable {
     this.esCombo = false,
     this.tieneVariantes = false,
     this.stocksPorSede,
+    this.comboReservado = 0,
   });
 
   /// Verifica si tiene stock disponible
@@ -163,5 +165,6 @@ class ProductoListItem extends Equatable {
         esCombo,
         tieneVariantes,
         stocksPorSede,
+        comboReservado,
       ];
 }

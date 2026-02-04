@@ -10,6 +10,7 @@ class ComboModel extends Combo {
     required super.tipoPrecioCombo,
     required super.precio,
     required super.precioCalculado,
+    required super.precioRegularTotal,
     super.descuentoAplicado,
     super.descuentoPorcentaje,
     required super.stockDisponible,
@@ -29,6 +30,9 @@ class ComboModel extends Combo {
       precio: json['precio'] != null ? (json['precio'] as num).toDouble() : 0.0,
       precioCalculado: json['precioCalculado'] != null
           ? (json['precioCalculado'] as num).toDouble()
+          : 0.0,
+      precioRegularTotal: json['precioRegularTotal'] != null
+          ? (json['precioRegularTotal'] as num).toDouble()
           : 0.0,
       descuentoAplicado: json['descuentoAplicado'] != null
           ? (json['descuentoAplicado'] as num).toDouble()
@@ -85,6 +89,7 @@ class ComboModel extends Combo {
       tipoPrecioCombo: tipoPrecioCombo,
       precio: precio,
       precioCalculado: precioCalculado,
+      precioRegularTotal: precioRegularTotal,
       descuentoAplicado: descuentoAplicado,
       descuentoPorcentaje: descuentoPorcentaje,
       stockDisponible: stockDisponible,

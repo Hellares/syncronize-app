@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
+import 'package:syncronize/core/services/speech_to_text_service.dart';
 
 import '../../../../core/fonts/app_fonts.dart';
 
@@ -368,6 +369,10 @@ class CustomText extends StatefulWidget {
   final bool showHelperOnlyOnFocus;
   final TextStyle? helperStyle;
 
+  // Voice input
+  final bool enableVoiceInput;
+  final String voiceLocale;
+
   const CustomText({
     super.key,
     this.label,
@@ -419,6 +424,10 @@ class CustomText extends StatefulWidget {
     this.helperBuilder,
     this.showHelperOnlyOnFocus = true,
     this.helperStyle,
+
+    // voice input defaults
+    this.enableVoiceInput = false,
+    this.voiceLocale = 'es_ES',
   }) : obscureText = fieldType == FieldType.password
            ? true
            : (obscureText ?? false);
@@ -428,7 +437,7 @@ class CustomText extends StatefulWidget {
 }
 
 class _CustomTextFieldState extends State<CustomText>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   bool _isFocused = false;
   bool _hasText = false;
 
@@ -439,10 +448,20 @@ class _CustomTextFieldState extends State<CustomText>
 
   late bool _isObscured;
 
+  // Voice input state
+  bool _isListening = false;
+  final SpeechToTextService _speechService = SpeechToTextService();
+  String _textBeforeListening = ''; // Guarda el texto antes de comenzar a escuchar
+
   late FocusNode _focusNode;
   late AnimationController _animationController;
   late Animation<double> _shadowAnimation;
   late Animation<double> _scaleAnimation;
+
+  // Voice animation
+  late AnimationController _voiceAnimationController;
+  late Animation<double> _micPulseAnimation;
+  late Animation<double> _waveAnimation;
 
   late ValidationManager _validationManager;
 
@@ -484,6 +503,26 @@ class _CustomTextFieldState extends State<CustomText>
       CurvedAnimation(
         parent: _animationController,
         curve: Curves.fastOutSlowIn,
+      ),
+    );
+
+    // Voice animations
+    _voiceAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    );
+
+    _micPulseAnimation = Tween<double>(begin: 1.0, end: 1.04).animate(
+      CurvedAnimation(
+        parent: _voiceAnimationController,
+        curve: Curves.easeInOut,
+      ),
+    );
+
+    _waveAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _voiceAnimationController,
+        curve: Curves.easeOut,
       ),
     );
 
@@ -579,11 +618,18 @@ class _CustomTextFieldState extends State<CustomText>
 
     _validationManager.dispose();
     _animationController.dispose();
+    _voiceAnimationController.dispose();
 
     _focusNode.removeListener(_onFocusChange);
     if (widget.focusNode == null) _focusNode.dispose();
 
     widget.controller?.removeListener(_onTextChanged);
+
+    // Detener escucha si está activa
+    if (_isListening) {
+      _speechService.stopListening();
+    }
+
     super.dispose();
   }
 
@@ -760,6 +806,60 @@ class _CustomTextFieldState extends State<CustomText>
     return err == null;
   }
 
+  // ---------- Voice input methods ----------
+  Future<void> _toggleVoiceInput() async {
+    if (!widget.enableVoiceInput || !widget.enabled) return;
+
+    if (_isListening) {
+      await _stopVoiceInput();
+    } else {
+      await _startVoiceInput();
+    }
+  }
+
+  Future<void> _startVoiceInput() async {
+    // Guardar el texto actual antes de comenzar a escuchar
+    _textBeforeListening = widget.controller?.text ?? '';
+
+    final started = await _speechService.startListening(
+      onResult: (text) {
+        if (!mounted) return;
+
+        // Combinar el texto anterior con el nuevo texto reconocido
+        // No concatenamos porque 'text' ya contiene todo el reconocimiento actual
+        final newText = _textBeforeListening.isEmpty
+            ? text
+            : '$_textBeforeListening $text';
+
+        widget.controller?.text = newText;
+        widget.controller?.selection = TextSelection.fromPosition(
+          TextPosition(offset: newText.length),
+        );
+      },
+      localeId: widget.voiceLocale,
+    );
+
+    if (started && mounted) {
+      setState(() => _isListening = true);
+      // Iniciar animación de voz
+      _voiceAnimationController.repeat(reverse: true);
+    }
+  }
+
+  Future<void> _stopVoiceInput() async {
+    await _speechService.stopListening();
+    if (mounted) {
+      // Detener animación de voz
+      _voiceAnimationController.stop();
+      _voiceAnimationController.reset();
+
+      setState(() {
+        _isListening = false;
+        _textBeforeListening = ''; // Limpiar el texto guardado
+      });
+    }
+  }
+
   // ---------- cached UI helpers ----------
   TextInputType _getKeyboardType() {
     switch (widget.fieldType) {
@@ -853,6 +953,10 @@ class _CustomTextFieldState extends State<CustomText>
       );
 
   Color _borderColor() {
+    // Si está escuchando, usar color azul animado
+    if (_isListening) {
+      return AppColors.blue1.withValues(alpha: 0.6 + (_micPulseAnimation.value * 0.4));
+    }
     return widget.borderColor ??
         (_isFocused
             ? CustomTextFieldConstants.defaultFocusedBorderColor
@@ -962,31 +1066,41 @@ class _CustomTextFieldState extends State<CustomText>
         widget.borderColor ??
         (_isFocused ? const Color(0xFF666666) : Colors.grey[600]);
 
-    return Container(
-      margin: const EdgeInsets.only(left: 4),
-      child: IconTheme(
-        data: IconThemeData(color: color, size: 16),
-        child: icon,
-      ),
+    return IconTheme(
+      data: IconThemeData(color: color, size: 16),
+      child: icon,
     );
   }
 
   Widget? _buildPrefixIcon() {
-    if (widget.prefixIcon != null) return _wrapIcon(widget.prefixIcon!);
+    Widget? icon;
 
-    IconData? icon;
-    switch (widget.fieldType) {
-      case FieldType.email:
-        icon = Icons.email_outlined;
-        break;
-      case FieldType.password:
-        icon = Icons.lock_outlined;
-        break;
-      default:
-        icon = null;
+    if (widget.prefixIcon != null) {
+      icon = _wrapIcon(widget.prefixIcon!);
+    } else {
+      IconData? iconData;
+      switch (widget.fieldType) {
+        case FieldType.email:
+          iconData = Icons.email_outlined;
+          break;
+        case FieldType.password:
+          iconData = Icons.lock_outlined;
+          break;
+        default:
+          iconData = null;
+      }
+      if (iconData != null) {
+        icon = _wrapIcon(Icon(iconData, size: 16));
+      }
     }
+
     if (icon == null) return null;
-    return _wrapIcon(Icon(icon, size: 16));
+
+    // Agregar espacio de 5px desde el borde izquierdo
+    return Padding(
+      padding: const EdgeInsets.only(left: 5),
+      child: icon,
+    );
   }
 
   Widget _passwordToggle() {
@@ -1000,6 +1114,8 @@ class _CustomTextFieldState extends State<CustomText>
       color: _isFocused ? const Color(0xFF666666) : Colors.grey[600],
       iconSize: 20,
       splashRadius: 20,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(),
       tooltip: _isObscured ? 'Mostrar contraseña' : 'Ocultar contraseña',
     );
   }
@@ -1012,25 +1128,19 @@ class _CustomTextFieldState extends State<CustomText>
 
     if (state is ValidationLoading) {
       return const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+        padding: EdgeInsets.symmetric(vertical: 10),
         child: CustomTextFieldConstants.loadingIndicator,
       );
     }
 
     if (state is ValidationInvalid) {
       if (!_shouldShowError) return const SizedBox.shrink();
-      return Container(
-        margin: const EdgeInsets.only(right: 12),
-        child: CustomTextFieldConstants.invalidIcon,
-      );
+      return CustomTextFieldConstants.invalidIcon;
     }
 
     if (state is ValidationValid) {
       if (!widget.showSuccessIndicator) return const SizedBox.shrink();
-      return Container(
-        margin: const EdgeInsets.only(right: 12),
-        child: CustomTextFieldConstants.validIcon,
-      );
+      return CustomTextFieldConstants.validIcon;
     }
 
     return const SizedBox.shrink();
@@ -1045,20 +1155,108 @@ class _CustomTextFieldState extends State<CustomText>
     final wantsIndicator =
         widget.showValidationIndicator && _shouldShowErrorOrIndicator;
 
+    // Botón de micrófono para voice input
+    final voiceButton = widget.enableVoiceInput && widget.enabled
+        ? _buildVoiceButton()
+        : null;
+
+    Widget? suffixContent;
+
     if (widget.obscureText) {
-      return Row(
+      suffixContent = Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           if (wantsIndicator) indicator,
-          const SizedBox(width: 4),
+          if (voiceButton != null) voiceButton,
           _passwordToggle(),
         ],
       );
+    } else {
+      // Si hay múltiples íconos, mostrarlos en fila
+      final hasMultipleIcons = [
+        if (wantsIndicator) indicator,
+        if (voiceButton != null) voiceButton,
+        if (widget.suffixIcon != null) _wrapIcon(widget.suffixIcon!),
+      ].length > 1;
+
+      if (hasMultipleIcons) {
+        suffixContent = Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (wantsIndicator) indicator,
+            if (voiceButton != null) voiceButton,
+            if (widget.suffixIcon != null) _wrapIcon(widget.suffixIcon!),
+          ],
+        );
+      } else {
+        // Un solo ícono
+        if (wantsIndicator) {
+          suffixContent = indicator;
+        } else if (voiceButton != null) {
+          suffixContent = voiceButton;
+        } else if (widget.suffixIcon != null) {
+          suffixContent = _wrapIcon(widget.suffixIcon!);
+        }
+      }
     }
 
-    if (wantsIndicator) return indicator;
-    if (widget.suffixIcon != null) return _wrapIcon(widget.suffixIcon!);
-    return null;
+    if (suffixContent == null) return null;
+
+    // Agregar espacio de 5px desde el borde derecho
+    return Padding(
+      padding: const EdgeInsets.only(right: 5),
+      child: suffixContent,
+    );
+  }
+
+  Widget _buildVoiceButton() {
+    return GestureDetector(
+      onTap: _toggleVoiceInput,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: AnimatedBuilder(
+          animation: _voiceAnimationController,
+          builder: (context, child) {
+            return Stack(
+              alignment: Alignment.center,
+              children: [
+                // Ondas de sonido (cuando está escuchando)
+                if (_isListening) ...[
+                  _buildSoundWave(1, 20 * _waveAnimation.value),
+                  _buildSoundWave(0.7, 15 * _waveAnimation.value),
+                  _buildSoundWave(0.4, 10 * _waveAnimation.value),
+                ],
+                // Ícono del micrófono con pulso
+                Transform.scale(
+                  scale: _isListening ? _micPulseAnimation.value : 1.0,
+                  child: Icon(
+                    _isListening ? Icons.mic : Icons.mic_none,
+                    size: 18,
+                    color: _isListening
+                        ? AppColors.blue1
+                        : (_isFocused ? const Color(0xFF666666) : Colors.grey[600]),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSoundWave(double opacity, double size) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: AppColors.blue.withValues(alpha: opacity * 0.3),
+          width: 1.0,
+        ),
+      ),
+    );
   }
 
   Widget _counter() {
@@ -1136,6 +1334,59 @@ class _CustomTextFieldState extends State<CustomText>
     );
   }
 
+  Widget _listeningIndicator() {
+    if (!_isListening) return const SizedBox.shrink();
+
+    return AnimatedBuilder(
+      animation: _voiceAnimationController,
+      builder: (context, child) {
+        return Padding(
+          padding: const EdgeInsets.only(top: 3),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.mic,
+                size: 14,
+                color: AppColors.blue.withValues(alpha: 0.5 + (_micPulseAnimation.value * 0.5)),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                'Escuchando...',
+                style: TextStyle(
+                  color: AppColors.blue1,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(width: 6),
+              // Puntos animados
+              _buildDot(0),
+              const SizedBox(width: 2),
+              _buildDot(0.3),
+              const SizedBox(width: 2),
+              _buildDot(0.6),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDot(double delay) {
+    final progress = (_waveAnimation.value + delay) % 1.0;
+    final opacity = (progress < 0.5 ? progress * 2 : (1 - progress) * 2).clamp(0.2, 1.0);
+
+    return Container(
+      width: 3,
+      height: 3,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: AppColors.blue.withValues(alpha: opacity),
+      ),
+    );
+  }
+
   Widget _buildTextField() {
     final semanticsLabel = widget.label ?? widget.hintText ?? 'Campo de texto';
     final isMultiline = widget.maxLines == null || widget.maxLines! > 1;
@@ -1179,13 +1430,13 @@ class _CustomTextFieldState extends State<CustomText>
                 hintText: widget.hintText,
                 prefixIcon: _buildPrefixIcon(),
                 prefixIconConstraints: const BoxConstraints(
-                  minWidth: 30,
-                  minHeight: 35,
+                  minWidth: 20,
+                  minHeight: 20,
                 ),
                 suffixIcon: _suffixIcon(),
                 suffixIconConstraints: const BoxConstraints(
-                  minWidth: 30,
-                  minHeight: 35,
+                  minWidth: 20,
+                  minHeight: 20,
                 ),
                 prefixText: widget.prefixText,
                 suffixText: widget.suffixText,
@@ -1224,6 +1475,7 @@ class _CustomTextFieldState extends State<CustomText>
         children: [
           if (widget.label != null) Text(widget.label!, style: _labelStyle()),
           if (showCounter) Stack(children: [field, _counter()]) else field,
+          _listeningIndicator(), // Indicador "Escuchando..."
           _helperMessage(),
           _errorMessage(),
         ],

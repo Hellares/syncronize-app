@@ -37,6 +37,7 @@ class ProductoBasicInfoSection extends StatelessWidget {
             borderColor: AppColors.blue1,
             label: 'Nombre del Producto *',
             hintText: 'Ej: Laptop HP Pavilion',
+            enableVoiceInput: true,
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
                 return 'El nombre es requerido';
@@ -50,6 +51,7 @@ class ProductoBasicInfoSection extends StatelessWidget {
             borderColor: AppColors.blue1,
             label: 'Descripción',
             hintText: 'Descripción del producto',
+            enableVoiceInput: true,
             maxLines: null,
             minLines: 3,
           ),
@@ -59,7 +61,7 @@ class ProductoBasicInfoSection extends StatelessWidget {
               Expanded(
                 child: CustomText(
                   controller: skuController,
-                  prefixIcon: const Icon(Icons.numbers, size: 16),
+                  prefixIcon: const Icon(Icons.numbers,),
                   borderColor: AppColors.blue1,
                   label: 'SKU',
                   hintText: 'Código SKU',
@@ -69,7 +71,7 @@ class ProductoBasicInfoSection extends StatelessWidget {
               Expanded(
                 child: CustomText(
                   controller: codigoBarrasController,
-                  prefixIcon: const Icon(Icons.qr_code_scanner_outlined, size: 16),
+                  prefixIcon: const Icon(Icons.qr_code_scanner_outlined,),
                   borderColor: AppColors.blue1,
                   label: 'Código de Barras',
                   hintText: 'EAN/UPC',

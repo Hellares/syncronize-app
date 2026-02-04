@@ -11,6 +11,9 @@ import '../../domain/usecases/eliminar_componente_usecase.dart';
 import '../../domain/usecases/get_combo_completo_usecase.dart';
 import '../../domain/usecases/get_combos_usecase.dart';
 import '../../domain/usecases/get_componentes_usecase.dart';
+import '../../domain/usecases/get_reservacion_usecase.dart';
+import '../../domain/usecases/reservar_stock_usecase.dart';
+import '../../domain/usecases/liberar_reserva_usecase.dart';
 import 'combo_state.dart';
 
 @injectable
@@ -22,6 +25,9 @@ class ComboCubit extends Cubit<ComboState> {
   final AgregarComponentesBatchUseCase agregarComponentesBatch;
   final GetComponentesUseCase getComponentes;
   final EliminarComponenteUseCase eliminarComponente;
+  final GetReservacionUseCase getReservacionUseCase;
+  final ReservarStockUseCase reservarStockUseCase;
+  final LiberarReservaUseCase liberarReservaUseCase;
 
   ComboCubit({
     required this.createComboUseCase,
@@ -31,6 +37,9 @@ class ComboCubit extends Cubit<ComboState> {
     required this.agregarComponentesBatch,
     required this.getComponentes,
     required this.eliminarComponente,
+    required this.getReservacionUseCase,
+    required this.reservarStockUseCase,
+    required this.liberarReservaUseCase,
   }) : super(ComboInitial());
 
   /// Crea un nuevo combo directamente
@@ -58,11 +67,13 @@ class ComboCubit extends Cubit<ComboState> {
   /// Obtiene todos los combos de una empresa
   Future<void> loadCombos({
     required String empresaId,
+    required String sedeId,
   }) async {
     emit(ComboLoading());
 
     final result = await getCombos(
       empresaId: empresaId,
+      sedeId: sedeId,
     );
 
     if (result is Success<List<Combo>>) {
@@ -80,16 +91,23 @@ class ComboCubit extends Cubit<ComboState> {
   Future<void> loadCombo({
     required String comboId,
     required String empresaId,
+    required String sedeId,
   }) async {
     emit(ComboLoading());
 
     final result = await getComboCompleto(
       comboId: comboId,
       empresaId: empresaId,
+      sedeId: sedeId,
     );
 
     if (result is Success<Combo>) {
-      emit(ComboLoaded(result.data));
+      final resResult = await getReservacionUseCase(
+        comboId: comboId,
+        sedeId: sedeId,
+      );
+      final reservacionCantidad = resResult is Success<int> ? resResult.data : 0;
+      emit(ComboLoaded(result.data, reservacionCantidad: reservacionCantidad));
     } else if (result is Error) {
       final error = result as Error;
       emit(ComboError(
@@ -103,6 +121,7 @@ class ComboCubit extends Cubit<ComboState> {
   Future<void> addComponente({
     required String comboId,
     required String empresaId,
+    required String sedeId,
     String? componenteProductoId,
     String? componenteVarianteId,
     required int cantidad,
@@ -115,6 +134,7 @@ class ComboCubit extends Cubit<ComboState> {
     final result = await agregarComponente(
       comboId: comboId,
       empresaId: empresaId,
+      sedeId: sedeId,
       componenteProductoId: componenteProductoId,
       componenteVarianteId: componenteVarianteId,
       cantidad: cantidad,
@@ -141,6 +161,7 @@ class ComboCubit extends Cubit<ComboState> {
   Future<void> addComponentesBatch({
     required String comboId,
     required String empresaId,
+    required String sedeId,
     required List<Map<String, dynamic>> componentes,
   }) async {
     emit(ComboLoading());
@@ -148,6 +169,7 @@ class ComboCubit extends Cubit<ComboState> {
     final result = await agregarComponentesBatch(
       comboId: comboId,
       empresaId: empresaId,
+      sedeId: sedeId,
       componentes: componentes,
     );
 
@@ -169,12 +191,14 @@ class ComboCubit extends Cubit<ComboState> {
   Future<void> loadComponentes({
     required String comboId,
     required String empresaId,
+    required String sedeId,
   }) async {
     emit(ComboLoading());
 
     final result = await getComponentes(
       comboId: comboId,
       empresaId: empresaId,
+      sedeId: sedeId,
     );
 
     if (result is Success<List<ComponenteCombo>>) {
@@ -206,6 +230,54 @@ class ComboCubit extends Cubit<ComboState> {
       emit(ComboError(
         result.message,
         errorCode: result.errorCode,
+      ));
+    }
+  }
+
+  /// Reserva stock para combos en una sede
+  Future<void> reservarStock({
+    required String comboId,
+    required String sedeId,
+    required int cantidad,
+  }) async {
+    emit(ComboLoading());
+
+    final result = await reservarStockUseCase(
+      comboId: comboId,
+      sedeId: sedeId,
+      cantidad: cantidad,
+    );
+
+    if (result is Success<int>) {
+      emit(ReservacionUpdated(result.data, 'Reserva actualizada a ${result.data} combos'));
+    } else if (result is Error) {
+      final error = result as Error;
+      emit(ComboError(
+        error.message,
+        errorCode: error.errorCode,
+      ));
+    }
+  }
+
+  /// Libera la reserva de stock de un combo en una sede
+  Future<void> liberarReserva({
+    required String comboId,
+    required String sedeId,
+  }) async {
+    emit(ComboLoading());
+
+    final result = await liberarReservaUseCase(
+      comboId: comboId,
+      sedeId: sedeId,
+    );
+
+    if (result is Success) {
+      emit(ReservacionUpdated(0, 'Reserva liberada exitosamente'));
+    } else if (result is Error) {
+      final error = result;
+      emit(ComboError(
+        error.message,
+        errorCode: error.errorCode,
       ));
     }
   }

@@ -510,7 +510,7 @@ class ProductoListTile extends StatelessWidget {
               ),
             ],
 
-            // COMBO badge
+            // COMBO badge + badge de reservación
             if (producto.esCombo) ...[
               const SizedBox(width: 8),
               Container(
@@ -600,9 +600,10 @@ class ProductoListTile extends StatelessWidget {
   }
 
   Widget _buildStockBadge() {
-    final hasStock = producto.hasStockTotal;
-    final stockTotal = producto.stockTotal;
-    final isLowStock = producto.isStockLowTotal;
+    // Para combos mostrar la cantidad reservada; para productos normales el stock total
+    final int stockToShow = producto.esCombo ? producto.comboReservado : producto.stockTotal;
+    final bool hasStock = stockToShow > 0;
+    final bool isLowStock = producto.esCombo ? false : producto.isStockLowTotal;
 
     Color badgeColor;
     IconData icon;
@@ -610,16 +611,16 @@ class ProductoListTile extends StatelessWidget {
 
     if (!hasStock) {
       badgeColor = Colors.red;
-      icon = Icons.remove_circle_outline;
+      icon = producto.esCombo ? Icons.lock_outline : Icons.remove_circle_outline;
       badgeText = '0';
     } else if (isLowStock) {
       badgeColor = Colors.orange;
       icon = Icons.warning_amber_rounded;
-      badgeText = '$stockTotal';
+      badgeText = '$stockToShow';
     } else {
       badgeColor = Colors.green;
-      icon = Icons.check_circle_outline;
-      badgeText = '$stockTotal';
+      icon = producto.esCombo ? Icons.lock : Icons.check_circle_outline;
+      badgeText = '$stockToShow';
     }
 
     // Si hay stock por sede, mostrar información adicional
@@ -642,7 +643,7 @@ class ProductoListTile extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               AppSubtitle(
-                'Stock: $badgeText',
+                '${producto.esCombo ? 'Reservado' : 'Stock'}: $badgeText',
                 fontSize: 10,
                 color: badgeColor,
               ),

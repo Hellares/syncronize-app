@@ -12,11 +12,13 @@ class AgregarComponentesBatchUseCase {
   Future<Resource<List<ComponenteCombo>>> call({
     required String comboId,
     required String empresaId,
+    required String sedeId,
     required List<Map<String, dynamic>> componentes,
   }) async {
     return await _repository.agregarComponentesBatch(
       comboId: comboId,
       empresaId: empresaId,
+      sedeId: sedeId,
       componentes: componentes,
     );
   }

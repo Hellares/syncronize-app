@@ -45,5 +45,9 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Esta aplicación necesita acceso al reconocimiento de voz para transcribir texto mediante dictado.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Esta aplicación necesita acceso al micrófono para habilitar la función de dictado por voz.</string>
 </dict>
 </plist>

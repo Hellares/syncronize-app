@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
+import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
+import '../../../producto/presentation/bloc/sede_selection/sede_selection_cubit.dart';
 import '../../domain/entities/combo.dart';
 import '../bloc/combo_cubit.dart';
 import '../bloc/combo_state.dart';
@@ -37,7 +40,17 @@ class _CombosViewState extends State<_CombosView> {
   @override
   void initState() {
     super.initState();
-    context.read<ComboCubit>().loadCombos(empresaId: widget.empresaId);
+    context.read<ComboCubit>().loadCombos(empresaId: widget.empresaId, sedeId: _getSedeId());
+  }
+
+  String _getSedeId() {
+    final selected = context.read<SedeSelectionCubit>().selectedSedeId;
+    if (selected != null) return selected;
+    final empresaState = context.read<EmpresaContextCubit>().state;
+    if (empresaState is EmpresaContextLoaded && empresaState.context.sedes.isNotEmpty) {
+      return empresaState.context.sedePrincipal!.id;
+    }
+    return '';
   }
 
   @override
@@ -98,7 +111,7 @@ class _CombosViewState extends State<_CombosView> {
 
     return RefreshIndicator(
       onRefresh: () async {
-        context.read<ComboCubit>().loadCombos(empresaId: widget.empresaId);
+        context.read<ComboCubit>().loadCombos(empresaId: widget.empresaId, sedeId: _getSedeId());
       },
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
