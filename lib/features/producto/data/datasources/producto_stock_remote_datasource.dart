@@ -105,6 +105,26 @@ class ProductoStockRemoteDataSource {
     }
   }
 
+  /// Obtiene el stock de una variante en una sede específica
+  ///
+  /// GET /api/producto-stock/variante/:varianteId/sede/:sedeId
+  Future<ProductoStockModel> getStockVarianteEnSede({
+    required String varianteId,
+    required String sedeId,
+  }) async {
+    try {
+      final response = await _dioClient.get(
+        '/producto-stock/variante/$varianteId/sede/$sedeId',
+      );
+
+      return ProductoStockModel.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    } catch (e) {
+      throw Exception('Error inesperado al obtener stock de la variante: $e');
+    }
+  }
+
   /// Obtiene el stock de un producto en TODAS las sedes
   ///
   /// GET /api/producto-stock/producto/:productoId/todas-sedes
@@ -279,7 +299,7 @@ class ProductoStockRemoteDataSource {
   /// Descuenta el stock de un combo al vender
   ///
   /// POST /api/producto-stock/combo/descontar-stock
-  Future<List<MovimientoStockModel>> descontarStockCombo({
+  Future<void> descontarStockCombo({
     required String empresaId,
     required String comboId,
     required String sedeId,
@@ -288,7 +308,7 @@ class ProductoStockRemoteDataSource {
     String? numeroDocumento,
   }) async {
     try {
-      final response = await _dioClient.post(
+      await _dioClient.post(
         '/producto-stock/combo/descontar-stock',
         data: {
           'comboId': comboId,
@@ -298,11 +318,6 @@ class ProductoStockRemoteDataSource {
           if (numeroDocumento != null) 'numeroDocumento': numeroDocumento,
         },
       );
-
-      final List movimientos = response.data as List;
-      return movimientos
-          .map((e) => MovimientoStockModel.fromJson(e as Map<String, dynamic>))
-          .toList();
     } on DioException catch (e) {
       throw _handleDioError(e);
     } catch (e) {

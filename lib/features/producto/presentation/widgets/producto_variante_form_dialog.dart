@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:syncronize/core/fonts/app_text_widgets.dart';
+import 'package:syncronize/core/theme/app_colors.dart';
+import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
+import '../../../../core/theme/gradient_container.dart';
 import '../../domain/entities/producto_atributo.dart';
 import '../../domain/entities/producto_variante.dart';
 import '../bloc/precio_nivel/precio_nivel_cubit.dart';
@@ -38,10 +42,6 @@ class _ProductoVarianteFormDialogState
   late TextEditingController _nombreController;
   late TextEditingController _skuController;
   late TextEditingController _codigoBarrasController;
-  late TextEditingController _precioController;
-  late TextEditingController _precioCostoController;
-  late TextEditingController _precioOfertaController;
-  late TextEditingController _stockController;
   late TextEditingController _pesoController;
 
   bool _isActive = true;
@@ -54,20 +54,6 @@ class _ProductoVarianteFormDialogState
     _skuController = TextEditingController(text: widget.variante?.sku);
     _codigoBarrasController =
         TextEditingController(text: widget.variante?.codigoBarras);
-    _precioController = TextEditingController(
-      text: widget.variante?.precio.toStringAsFixed(2),
-    );
-    _precioCostoController = TextEditingController(
-      text: widget.variante?.precioCosto?.toStringAsFixed(2),
-    );
-    _precioOfertaController = TextEditingController(
-      text: widget.variante?.precioOferta?.toStringAsFixed(2),
-    );
-    // NOTA: El stock ahora se maneja por sede mediante ProductoStock
-    // Por compatibilidad temporal, se inicializa en 0
-    _stockController = TextEditingController(
-      text: widget.variante?.stockTotal.toString() ?? '0',
-    );
     _pesoController = TextEditingController(
       text: widget.variante?.peso?.toString(),
     );
@@ -102,10 +88,6 @@ class _ProductoVarianteFormDialogState
     _nombreController.dispose();
     _skuController.dispose();
     _codigoBarrasController.dispose();
-    _precioController.dispose();
-    _precioCostoController.dispose();
-    _precioOfertaController.dispose();
-    _stockController.dispose();
     _pesoController.dispose();
     super.dispose();
   }
@@ -135,7 +117,12 @@ class _ProductoVarianteFormDialogState
         }
 
         if (state is PrecioNivelLoaded) {
-          final precioBase = double.tryParse(_precioController.text);
+          // Obtener precio base desde stocksPorSede
+          final stocks = widget.variante?.stocksPorSede;
+          final stockConPrecio = stocks != null && stocks.isNotEmpty
+              ? (stocks.where((s) => s.precioConfigurado && s.precio != null).firstOrNull ?? stocks.first)
+              : null;
+          final precioBase = stockConPrecio?.precio;
 
           return PrecioNivelesSection(
             niveles: state.niveles,
@@ -162,50 +149,29 @@ class _ProductoVarianteFormDialogState
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 600, maxHeight: 700),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+      child: GradientContainer(
+        // constraints: const BoxConstraints(maxWidth: 600, maxHeight: 700),
         child: Column(
           children: [
             // Header
             Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary,
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(4),
-                  topRight: Radius.circular(4),
-                ),
-              ),
+              padding: const EdgeInsets.only(right: 14, left: 14, top: 4),
               child: Row(
                 children: [
-                  const Icon(Icons.tune, color: Colors.white),
+                  const Icon(Icons.tune, color: AppColors.blue1, size: 18,),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          widget.variante == null
-                              ? 'Nueva Variante'
-                              : 'Editar Variante',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Text(
-                          'Producto: ${widget.productoNombre}',
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 13,
-                          ),
-                        ),
+                        AppSubtitle(widget.variante == null ? 'NUEVA VARIANTE' : 'EDITAR VARIANTE'),
+                        AppText('Producto: ${widget.productoNombre}',)
                       ],
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white),
+                    icon: const Icon(Icons.close, color: AppColors.blue1, size: 18,),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
@@ -217,7 +183,7 @@ class _ProductoVarianteFormDialogState
               child: Form(
                 key: _formKey,
                 child: ListView(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.only(right: 10, left: 10),
                   children: [
                     // Atributos - Sistema unificado para creación y edición
                     VarianteAtributosSection(
@@ -225,26 +191,19 @@ class _ProductoVarianteFormDialogState
                       showPlantillaButton: true,
                       empresaId: 'empresa-id-placeholder', // TODO: Get from auth/storage
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 16),
 
                     // Información básica
-                    const Text(
-                      'Información Básica',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    AppSubtitle('INFORMACION BASICA'),
                     const SizedBox(height: 12),
 
-                    TextFormField(
+                    CustomText(
+                      borderColor: AppColors.blue1,
                       controller: _nombreController,
-                      decoration: const InputDecoration(
-                        labelText: 'Nombre de la variante *',
-                        hintText: 'Ej: Teclado Lenovo Rojo USB',
-                        prefixIcon: Icon(Icons.label),
-                      ),
-                      validator: (value) {
+                      label: 'Nombre de la variante *',
+                      hintText: 'Ej: Teclado Lenovo Rojo USB',
+                      prefixIcon: Icon(Icons.label),
+                      validator: (value){
                         if (value == null || value.trim().isEmpty) {
                           return 'El nombre es requerido';
                         }
@@ -304,103 +263,7 @@ class _ProductoVarianteFormDialogState
                     ),
                     const SizedBox(height: 24),
 
-                    // Precios
-                    const Text(
-                      'Precios',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: _precioController,
-                            decoration: const InputDecoration(
-                              labelText: 'Precio de venta *',
-                              prefixIcon: Icon(Icons.attach_money),
-                            ),
-                            keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true,
-                            ),
-                            inputFormatters: [
-                              FilteringTextInputFormatter.allow(
-                                  RegExp(r'^\d+\.?\d{0,2}')),
-                            ],
-                            validator: (value) {
-                              if (value == null || value.trim().isEmpty) {
-                                return 'El precio es requerido';
-                              }
-                              final precio = double.tryParse(value);
-                              if (precio == null || precio <= 0) {
-                                return 'Precio inválido';
-                              }
-
-                              // Validar precio >= costo
-                              final costoText = _precioCostoController.text.trim();
-                              if (costoText.isNotEmpty) {
-                                final costo = double.tryParse(costoText);
-                                if (costo != null && precio < costo) {
-                                  return 'El precio debe ser mayor o igual al costo';
-                                }
-                              }
-
-                              return null;
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: TextFormField(
-                            controller: _precioCostoController,
-                            decoration: const InputDecoration(
-                              labelText: 'Precio de costo',
-                              prefixIcon: Icon(Icons.money_off),
-                            ),
-                            keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true,
-                            ),
-                            inputFormatters: [
-                              FilteringTextInputFormatter.allow(
-                                  RegExp(r'^\d+\.?\d{0,2}')),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-
-                    TextFormField(
-                      controller: _precioOfertaController,
-                      decoration: const InputDecoration(
-                        labelText: 'Precio de oferta',
-                        hintText: 'Opcional',
-                        prefixIcon: Icon(Icons.local_offer),
-                      ),
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(
-                            RegExp(r'^\d+\.?\d{0,2}')),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Inventario
-                    const Text(
-                      'Inventario',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // NOTA: El campo de stock ha sido removido porque ahora se gestiona por sede
-                    // mediante ProductoStock. El stock se debe agregar/editar desde el módulo de inventario.
+                    // Precios y Stock - se gestionan por sede vía ProductoStock
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
@@ -414,7 +277,7 @@ class _ProductoVarianteFormDialogState
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'El stock se gestiona por sede desde el módulo de inventario',
+                              'Los precios y el stock se gestionan por sede desde el módulo de inventario',
                               style: TextStyle(
                                 fontSize: 12,
                                 color: Colors.blue.shade700,
@@ -606,16 +469,8 @@ class _ProductoVarianteFormDialogState
           : _codigoBarrasController.text.trim(),
       if (atributosEstructurados.isNotEmpty)
         'atributosEstructurados': atributosEstructurados,
-      'precio': double.parse(_precioController.text),
-      'precioCosto': _precioCostoController.text.isEmpty
-          ? null
-          : double.parse(_precioCostoController.text),
-      'precioOferta': _precioOfertaController.text.isEmpty
-          ? null
-          : double.parse(_precioOfertaController.text),
-      // NOTA: El campo 'stock' ha sido removido del backend.
-      // Use ProductoStock para gestionar stock por sede después de crear la variante.
-      // 'stock': int.parse(_stockController.text),
+      // NOTA: Los precios y stock se gestionan vía ProductoStock (por sede).
+      // No se envían en la creación/actualización de la variante.
       'peso': _pesoController.text.isEmpty
           ? null
           : double.parse(_pesoController.text),

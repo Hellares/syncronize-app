@@ -14,10 +14,6 @@ class ProductoVariante extends Equatable {
   final String? codigoBarras;
   final String codigoEmpresa;
   final List<AtributoValor> atributosValores;
-  final double precio;
-  final double? precioCosto;
-  final double? precioOferta;
-  final int stock; // Stock total calculado desde ProductoStock
   final List<StockPorSedeInfo>? stocksPorSede; // Desglose de stock por sede
   final double? peso;
   final Map<String, dynamic>? dimensiones;
@@ -38,10 +34,6 @@ class ProductoVariante extends Equatable {
     this.codigoBarras,
     required this.codigoEmpresa,
     required this.atributosValores,
-    required this.precio,
-    this.precioCosto,
-    this.precioOferta,
-    required this.stock,
     this.stocksPorSede,
     this.peso,
     this.dimensiones,
@@ -52,15 +44,6 @@ class ProductoVariante extends Equatable {
     required this.creadoEn,
     required this.actualizadoEn,
   });
-
-  /// Verifica si la variante tiene stock disponible
-  bool get hasStock => stock > 0;
-
-  /// Verifica si el stock está agotado
-  bool get isOutOfStock => stock <= 0;
-
-  /// Obtiene el precio efectivo (con oferta si aplica)
-  double get precioEfectivo => precioOferta ?? precio;
 
   /// Obtiene la imagen principal de la variante
   String? get imagenPrincipal {
@@ -127,13 +110,11 @@ class ProductoVariante extends Equatable {
   }
 
   /// Calcula el stock total basado en el desglose por sede
-  /// Suma todas las cantidades de stocksPorSede
-  /// Si no hay stocksPorSede, usa el campo legacy stock
   int get stockTotal {
     if (stocksPorSede != null && stocksPorSede!.isNotEmpty) {
       return stocksPorSede!.fold(0, (sum, stockSede) => sum + stockSede.cantidad);
     }
-    return stock; // Fallback al campo legacy
+    return 0;
   }
 
   /// Obtiene el stock para una sede específica
@@ -241,10 +222,6 @@ class ProductoVariante extends Equatable {
         codigoBarras,
         codigoEmpresa,
         atributosValores,
-        precio,
-        precioCosto,
-        precioOferta,
-        stock,
         stocksPorSede,
         peso,
         dimensiones,

@@ -148,6 +148,8 @@ import '../../features/combo/domain/usecases/agregar_componentes_batch_usecase.d
 import '../../features/combo/domain/usecases/create_combo_usecase.dart' as _i53;
 import '../../features/combo/domain/usecases/eliminar_componente_usecase.dart'
     as _i40;
+import '../../features/combo/domain/usecases/eliminar_componentes_batch_usecase.dart'
+    as _i619;
 import '../../features/combo/domain/usecases/get_combo_completo_usecase.dart'
     as _i209;
 import '../../features/combo/domain/usecases/get_combos_usecase.dart' as _i235;
@@ -320,6 +322,8 @@ import '../../features/producto/domain/usecases/get_stock_producto_en_sede_useca
     as _i265;
 import '../../features/producto/domain/usecases/get_stock_todas_sedes_usecase.dart'
     as _i858;
+import '../../features/producto/domain/usecases/get_stock_variante_en_sede_usecase.dart'
+    as _i84;
 import '../../features/producto/domain/usecases/listar_incidencias_usecase.dart'
     as _i599;
 import '../../features/producto/domain/usecases/listar_transferencias_usecase.dart'
@@ -502,6 +506,8 @@ import '../services/storage_service.dart' as _i306;
 import '../storage/local_storage_service.dart' as _i744;
 import '../storage/secure_storage_service.dart' as _i666;
 import '../storage/storage.dart' as _i321;
+import '../widgets/producto_sede_selector/producto_sede_search_cubit.dart'
+    as _i13;
 import 'register_module.dart' as _i291;
 
 extension GetItInjectableX on _i174.GetIt {
@@ -930,6 +936,11 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i858.GetStockTodasSedesUseCase>(
       () =>
           _i858.GetStockTodasSedesUseCase(gh<_i262.ProductoStockRepository>()),
+    );
+    gh.factory<_i84.GetStockVarianteEnSedeUseCase>(
+      () => _i84.GetStockVarianteEnSedeUseCase(
+        gh<_i262.ProductoStockRepository>(),
+      ),
     );
     gh.factory<_i314.CategoriasEmpresaCubit>(
       () => _i314.CategoriasEmpresaCubit(
@@ -1361,6 +1372,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i53.CreateComboUseCase>(
       () => _i53.CreateComboUseCase(gh<_i200.ComboRepository>()),
     );
+    gh.lazySingleton<_i619.EliminarComponentesBatchUseCase>(
+      () => _i619.EliminarComponentesBatchUseCase(gh<_i200.ComboRepository>()),
+    );
     gh.factory<_i413.EliminarItemCubit>(
       () => _i413.EliminarItemCubit(gh<_i192.EliminarItemUsecase>()),
     );
@@ -1389,6 +1403,21 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i549.AsignarUsuarios>(),
         gh<_i873.ObtenerUsuariosAsignados>(),
         gh<_i141.LoggerService>(),
+      ),
+    );
+    gh.factory<_i1039.ComboCubit>(
+      () => _i1039.ComboCubit(
+        createComboUseCase: gh<_i53.CreateComboUseCase>(),
+        getCombos: gh<_i235.GetCombosUseCase>(),
+        getComboCompleto: gh<_i209.GetComboCompletoUseCase>(),
+        agregarComponente: gh<_i237.AgregarComponenteUseCase>(),
+        agregarComponentesBatch: gh<_i378.AgregarComponentesBatchUseCase>(),
+        getComponentes: gh<_i330.GetComponentesUseCase>(),
+        eliminarComponente: gh<_i40.EliminarComponenteUseCase>(),
+        eliminarComponentesBatch: gh<_i619.EliminarComponentesBatchUseCase>(),
+        getReservacionUseCase: gh<_i1031.GetReservacionUseCase>(),
+        reservarStockUseCase: gh<_i409.ReservarStockUseCase>(),
+        liberarReservaUseCase: gh<_i813.LiberarReservaUseCase>(),
       ),
     );
     gh.factory<_i94.ProveedorListCubit>(
@@ -1485,19 +1514,8 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i469.AuthBloc>(),
       ),
     );
-    gh.factory<_i1039.ComboCubit>(
-      () => _i1039.ComboCubit(
-        createComboUseCase: gh<_i53.CreateComboUseCase>(),
-        getCombos: gh<_i235.GetCombosUseCase>(),
-        getComboCompleto: gh<_i209.GetComboCompletoUseCase>(),
-        agregarComponente: gh<_i237.AgregarComponenteUseCase>(),
-        agregarComponentesBatch: gh<_i378.AgregarComponentesBatchUseCase>(),
-        getComponentes: gh<_i330.GetComponentesUseCase>(),
-        eliminarComponente: gh<_i40.EliminarComponenteUseCase>(),
-        getReservacionUseCase: gh<_i1031.GetReservacionUseCase>(),
-        reservarStockUseCase: gh<_i409.ReservarStockUseCase>(),
-        liberarReservaUseCase: gh<_i813.LiberarReservaUseCase>(),
-      ),
+    gh.factory<_i13.ProductoSedeSearchCubit>(
+      () => _i13.ProductoSedeSearchCubit(gh<_i202.GetProductosUseCase>()),
     );
     gh.factory<_i65.LoginCubit>(
       () => _i65.LoginCubit(

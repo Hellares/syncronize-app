@@ -260,14 +260,34 @@ class ProductoFormController extends ChangeNotifier {
     descripcionController.text = producto.descripcion ?? '';
     skuController.text = producto.sku ?? '';
     codigoBarrasController.text = producto.codigoBarras ?? '';
-    precioController.currencyValue = producto.precio;
-    precioCostoController.currencyValue = producto.precioCosto ?? 0.0;
+    // Obtener precio/costo/oferta desde stocksPorSede (sistema multi-sede)
+    double _precioFromStock = 0.0;
+    double _precioCostoFromStock = 0.0;
+    double _precioOfertaFromStock = 0.0;
+    bool _enOfertaFromStock = false;
+    DateTime? _fechaInicioFromStock;
+    DateTime? _fechaFinFromStock;
+    if (producto.stocksPorSede != null && producto.stocksPorSede!.isNotEmpty) {
+      final stockConPrecio = producto.stocksPorSede!.firstWhere(
+        (s) => s.precioConfigurado && s.precio != null,
+        orElse: () => producto.stocksPorSede!.first,
+      );
+      _precioFromStock = stockConPrecio.precio ?? 0.0;
+      _precioCostoFromStock = stockConPrecio.precioCosto ?? 0.0;
+      _precioOfertaFromStock = stockConPrecio.precioOferta ?? 0.0;
+      _enOfertaFromStock = stockConPrecio.enOferta;
+      _fechaInicioFromStock = stockConPrecio.fechaInicioOferta;
+      _fechaFinFromStock = stockConPrecio.fechaFinOferta;
+    }
+
+    precioController.currencyValue = _precioFromStock;
+    precioCostoController.currencyValue = _precioCostoFromStock;
     // NOTA: Los campos stock y stockMinimo fueron removidos.
     // El stock se gestiona por sede usando ProductoStock después de crear el producto.
     stockController.text = '0'; // Default para compatibilidad del formulario
     stockMinimoController.text = ''; // Default vacío
     pesoController.text = producto.peso?.toString() ?? '';
-    precioOfertaController.currencyValue = producto.precioOferta ?? 0.0;
+    precioOfertaController.currencyValue = _precioOfertaFromStock;
     videoUrlController.text = producto.videoUrl ?? '';
     impuestoPorcentajeController.text = producto.impuestoPorcentaje?.toString() ?? '';
     descuentoMaximoController.text = producto.descuentoMaximo?.toString() ?? '';
@@ -286,13 +306,13 @@ class ProductoFormController extends ChangeNotifier {
     _selectedConfiguracionPrecioId = producto.configuracionPrecioId;
     _visibleMarketplace = producto.visibleMarketplace;
     _destacado = producto.destacado;
-    _enOferta = producto.enOferta;
+    _enOferta = _enOfertaFromStock;
     _tieneVariantes = producto.tieneVariantes;
     _esCombo = producto.esCombo;
     _tipoPrecioCombo = producto.tipoPrecioCombo;
     _productoIsActive = producto.isActive;
-    _fechaInicioOferta = producto.fechaInicioOferta;
-    _fechaFinOferta = producto.fechaFinOferta;
+    _fechaInicioOferta = _fechaInicioFromStock;
+    _fechaFinOferta = _fechaFinFromStock;
 
     // Resetear el flag de cambios después de llenar el formulario
     _hasUnsavedChanges = false;

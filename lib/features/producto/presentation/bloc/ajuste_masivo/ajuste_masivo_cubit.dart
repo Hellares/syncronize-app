@@ -27,11 +27,16 @@ class AjusteMasivoCubit extends Cubit<AjusteMasivoState> {
     for (final producto in productos) {
       double? precioActual;
 
-      // Obtener precio actual según la sede
+      // Obtener precio actual según la sede (precios siempre desde stocksPorSede)
       if (sedeId != null) {
         precioActual = producto.precioEnSede(sedeId);
       } else {
-        precioActual = producto.precio;
+        // Sin sede específica, usar el primer stock con precio configurado
+        final stocks = producto.stocksPorSede;
+        if (stocks != null && stocks.isNotEmpty) {
+          final stockConPrecio = stocks.where((s) => s.precioConfigurado && s.precio != null).firstOrNull ?? stocks.first;
+          precioActual = stockConPrecio.precio;
+        }
       }
 
       // Si no tiene precio configurado, omitir

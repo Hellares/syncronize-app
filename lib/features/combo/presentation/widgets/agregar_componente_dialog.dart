@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../../core/di/injection_container.dart';
-import '../../../producto/domain/entities/producto.dart';
+import 'package:syncronize/core/fonts/app_text_widgets.dart';
+import 'package:syncronize/core/theme/app_colors.dart';
+import 'package:syncronize/core/widgets/chip_simple.dart';
+import 'package:syncronize/core/widgets/custom_switch_tile.dart';
+import 'package:syncronize/core/widgets/producto_sede_selector/producto_sede_selector_exports.dart';
+import '../../../producto/domain/entities/producto_variante.dart';
+import '../../../../core/theme/gradient_container.dart';
+import '../../../../core/widgets/custom_button.dart';
+import '../../../auth/presentation/widgets/custom_text.dart';
+import '../../../producto/domain/entities/producto_list_item.dart';
 import '../bloc/combo_cubit.dart';
 import '../bloc/combo_state.dart';
-import '../bloc/producto_selector_cubit.dart';
-import '../bloc/producto_selector_state.dart';
 
 /// Representa un componente en el carrito temporal
 class ComponenteCarrito {
@@ -62,14 +68,10 @@ class AgregarComponenteDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => locator<ProductoSelectorCubit>()
-        ..loadProductosDisponibles(empresaId: empresaId),
-      child: _AgregarComponenteDialogContent(
-        comboId: comboId,
-        empresaId: empresaId,
-        sedeId: sedeId,
-      ),
+    return _AgregarComponenteDialogContent(
+      comboId: comboId,
+      empresaId: empresaId,
+      sedeId: sedeId,
     );
   }
 }
@@ -97,12 +99,16 @@ class _AgregarComponenteDialogContentState
   final _precioEnComboController = TextEditingController();
   final _categoriaController = TextEditingController();
 
-  Producto? _productoSeleccionado;
-  String? _varianteSeleccionadaId;
+  ProductoListItem? _productoSeleccionado;
+  ProductoVariante? _varianteSeleccionada;
+  String? _sedeIdSeleccionada; // Sede desde donde se está seleccionando el producto
   bool _esPersonalizable = false;
 
   // Carrito temporal de componentes
   final List<ComponenteCarrito> _carrito = [];
+
+  // Mensaje de error para mostrar en el dialog
+  String? _mensajeError;
 
   @override
   void dispose() {
@@ -133,426 +139,272 @@ class _AgregarComponenteDialogContentState
           );
         }
       },
-      child: AlertDialog(
-        title: Row(
-          children: [
-            const Text('Agregar Componentes'),
-            const Spacer(),
-            if (_carrito.isNotEmpty)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.blue,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  '${_carrito.length}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-          ],
-        ),
-        content: SizedBox(
-          width: MediaQuery.of(context).size.width * 0.9,
-          height: MediaQuery.of(context).size.height * 0.7,
-          child: BlocBuilder<ProductoSelectorCubit, ProductoSelectorState>(
-            builder: (context, state) {
-              if (state is ProductoSelectorLoading) {
-                return const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(32.0),
-                    child: CircularProgressIndicator(),
-                  ),
-                );
-              }
-
-              if (state is ProductoSelectorError) {
-                return Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.error_outline, size: 48, color: Colors.red),
-                      const SizedBox(height: 16),
-                      Text(
-                        state.message,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.red),
-                      ),
-                      const SizedBox(height: 16),
-                      TextButton(
-                        onPressed: () {
-                          context
-                              .read<ProductoSelectorCubit>()
-                              .loadProductosDisponibles(empresaId: widget.empresaId);
-                        },
-                        child: const Text('Reintentar'),
-                      ),
-                    ],
-                  ),
-                );
-              }
-
-              if (state is ProductosDisponiblesLoaded) {
-                return Column(
-                  children: [
-                    Expanded(
-                      child: _buildFormulario(context, state.productos),
-                    ),
-                    if (_carrito.isNotEmpty) ...[
-                      const Divider(height: 32),
-                      _buildCarrito(),
-                    ],
-                  ],
-                );
-              }
-
-              return const SizedBox.shrink();
-            },
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancelar'),
-          ),
-          if (_carrito.isNotEmpty)
-            BlocBuilder<ComboCubit, ComboState>(
-              builder: (context, state) {
-                final isLoading = state is ComboLoading;
-                return FilledButton.icon(
-                  onPressed: isLoading ? null : _confirmarTodos,
-                  icon: isLoading
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Icon(Icons.check),
-                  label: Text('Agregar ${_carrito.length} Componente${_carrito.length > 1 ? 's' : ''}'),
-                );
-              },
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFormulario(BuildContext context, List<Producto> productos) {
-    // Filtrar combos para evitar recursividad
-    final productosDisponibles = productos.where((p) => p.esCombo != true).toList();
-
-    if (productosDisponibles.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32.0),
+      child: Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: GradientContainer(
+          height: MediaQuery.of(context).size.height * 0.81,
+          padding: const EdgeInsets.only(right: 10, left: 10, top: 8,bottom: 5),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.inventory_2_outlined, size: 48, color: Colors.grey),
-              const SizedBox(height: 16),
-              Text(
-                productos.isEmpty
-                  ? 'No hay productos disponibles'
-                  : 'No hay productos simples disponibles',
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.grey),
+              // Header con título y badge
+              Row(
+                children: [
+                  AppSubtitle('Agregar Componentes'),
+                  const Spacer(),
+                  if (_carrito.isNotEmpty)
+                    ChipSimple(label: '${_carrito.length}', color: AppColors.blue, fontWeight: FontWeight.bold,)
+                ],
               ),
-              const SizedBox(height: 8),
-              Text(
-                productos.isEmpty
-                  ? 'Crea productos primero para poder agregarlos como componentes'
-                  : 'Los combos no pueden contener otros combos como componentes. Crea productos simples o con variantes.',
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
+              const SizedBox(height: 10),
+              const Divider(height: 1),
+              const SizedBox(height: 10),
 
-    return SingleChildScrollView(
-      child: Form(
-        key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Selector de producto
-            const Text(
-              'Selecciona un producto *',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Container(
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade300),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<Producto>(
-                  isExpanded: true,
-                  value: _productoSeleccionado,
-                  hint: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12),
-                    child: Text('Selecciona un producto'),
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  items: productosDisponibles.map((producto) {
-                    return DropdownMenuItem(
-                      value: producto,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            producto.nombre,
-                            style: const TextStyle(fontWeight: FontWeight.w500),
-                          ),
-                          Text(
-                            '\$${producto.precio.toStringAsFixed(2)} - Stock: ${producto.stockTotal}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                  onChanged: (producto) {
-                    setState(() {
-                      _productoSeleccionado = producto;
-                      _varianteSeleccionadaId = null;
-                      if (producto != null && producto.tieneVariantes != true) {
-                        _precioEnComboController.text = producto.precio.toStringAsFixed(2);
-                      } else {
-                        _precioEnComboController.clear();
-                      }
-                    });
-                  },
-                ),
-              ),
-            ),
-
-            // Selector de variante (si el producto tiene variantes)
-            if (_productoSeleccionado?.tieneVariantes == true &&
-                _productoSeleccionado?.variantes?.isNotEmpty == true) ...[
-              const SizedBox(height: 16),
-              const Text(
-                'Selecciona una variante *',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade300),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    isExpanded: true,
-                    value: _varianteSeleccionadaId,
-                    hint: const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 12),
-                      child: Text('Selecciona una variante'),
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    items: _productoSeleccionado!.variantes!.map((variante) {
-                      return DropdownMenuItem(
-                        value: variante.id,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              variante.nombre,
-                              style: const TextStyle(fontWeight: FontWeight.w500),
-                            ),
-                            Text(
-                              '\$${variante.precio.toStringAsFixed(2)} - Stock: ${variante.stock}',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey.shade600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: (varianteId) {
-                      setState(() {
-                        _varianteSeleccionadaId = varianteId;
-                        if (varianteId != null) {
-                          final variante = _productoSeleccionado!.variantes!
-                              .firstWhere((v) => v.id == varianteId);
-                          _precioEnComboController.text =
-                              variante.precio.toStringAsFixed(2);
-                        }
-                      });
-                    },
-                  ),
-                ),
-              ),
-            ],
-
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _cantidadController,
-              decoration: InputDecoration(
-                labelText: 'Cantidad *',
-                border: const OutlineInputBorder(),
-                prefixIcon: const Icon(Icons.numbers),
-                suffixIcon: _productoSeleccionado != null
-                    ? Tooltip(
-                        message: 'Stock disponible',
-                        child: Padding(
-                          padding: const EdgeInsets.only(right: 12),
-                          child: Row(
+              // Contenido principal
+              Expanded(
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: SingleChildScrollView(
+                        child: Form(
+                          key: _formKey,
+                          child: Column(
                             mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Icon(
-                                Icons.inventory_2,
-                                size: 18,
-                                color: _getStockDisponible() > 0 ? Colors.green : Colors.red,
+                              // Selector de producto con sede
+                              ProductoSedeSelector(
+                                empresaId: widget.empresaId,
+                                sedeIdInicial: widget.sedeId,
+                                mostrarSelectorSede: false, // Solo productos de la sede del combo
+                                onProductoSeleccionado: ({
+                                  required producto,
+                                  required sedeId,
+                                  variante,
+                                }) {
+                                  setState(() {
+                                    _productoSeleccionado = producto;
+                                    _varianteSeleccionada = variante;
+                                    _sedeIdSeleccionada = sedeId;
+
+                                    // Usar precio de la variante/producto en la sede seleccionada
+                                    final precio = variante != null
+                                        ? (variante.precioEnSede(sedeId) ?? 0.0)
+                                        : (producto.precioEnSede(sedeId) ?? 0.0);
+                                    _precioEnComboController.text =
+                                        precio.toStringAsFixed(2);
+                                  });
+                                },
                               ),
-                              const SizedBox(width: 4),
-                              Text(
-                                '${_getStockDisponible()}',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: _getStockDisponible() > 0 ? Colors.green : Colors.red,
+
+                              const SizedBox(height: 16),
+                              const Divider(height: 1),
+                              const SizedBox(height: 16),
+
+                              // Campos del formulario (solo si hay producto seleccionado)
+                              if (_productoSeleccionado != null) ...[
+                                // Campo de cantidad
+                                CustomText(
+                                  controller: _cantidadController,
+                                  label: 'Cantidad *',
+                                  borderColor: AppColors.blue1,
+                                  keyboardType: TextInputType.number,
+                                  prefixIcon: const Icon(Icons.numbers),
+                                  suffixIcon: Tooltip(
+                                    message: 'Stock disponible',
+                                    child: Padding(
+                                      padding: const EdgeInsets.only(right: 12),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.inventory_2_outlined,
+                                            size: 14,
+                                            color: _getStockDisponible() > 0
+                                                ? Colors.green
+                                                : Colors.red,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          AppSubtitle(
+                                            '${_getStockDisponible()}',
+                                            color: _getStockDisponible() > 0
+                                                ? Colors.green
+                                                : Colors.red,
+                                          )
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  validator: (value) {
+                                    if (value == null || value.isEmpty) {
+                                      return 'La cantidad es requerida';
+                                    }
+                                    final cantidad = int.tryParse(value);
+                                    if (cantidad == null || cantidad <= 0) {
+                                      return 'Ingresa una cantidad válida';
+                                    }
+
+                                    // Validar stock disponible
+                                    final stockDisponible = _getStockDisponible();
+                                    if (cantidad > stockDisponible) {
+                                      return 'Stock insuficiente. Disponible: $stockDisponible';
+                                    }
+
+                                    return null;
+                                  },
                                 ),
-                              ),
+
+                                // Advertencia de stock bajo
+                                if (_getStockDisponible() <= 10) ...[
+                                  const SizedBox(height: 8),
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: Colors.orange.shade50,
+                                      borderRadius: BorderRadius.circular(4),
+                                      border: Border.all(color: Colors.orange.shade200),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.warning_amber,
+                                            size: 16, color: Colors.orange.shade700),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            'Stock bajo: solo ${_getStockDisponible()} unidades disponibles',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.grey[800],
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+
+                                // Campo de precio en combo
+                                ...[
+                                  const SizedBox(height: 10),
+                                  CustomText(
+                                    controller: _precioEnComboController,
+                                    label: 'Precio Combo',
+                                    borderColor: AppColors.blue1,
+                                    prefixIcon: const Icon(Icons.price_check_rounded),
+                                    helperText:
+                                        'Precio regular: \$${_getPrecioRegular().toStringAsFixed(2)}',
+                                    keyboardType: TextInputType.number,
+                                    validator: (value) {
+                                      if (value == null || value.isEmpty) return null;
+                                      final precio = double.tryParse(value);
+                                      if (precio == null || precio < 0) {
+                                        return 'Ingresa un precio valido';
+                                      }
+                                      return null;
+                                    },
+                                  )
+                                ],
+
+                                const SizedBox(height: 10),
+
+                                // Campo de categoría
+                                CustomText(
+                                  controller: _categoriaController,
+                                  borderColor: AppColors.blue1,
+                                  label: 'Categoria del Componente (opcional)',
+                                  hintText: 'Ej: Procesador, RAM, Disco, etc.',
+                                  prefixIcon: const Icon(Icons.category_outlined),
+                                ),
+
+                                // Switch de personalizable
+                                CustomSwitchTile(
+                                  title: '¿Es personalizable',
+                                  subtitle: 'El cliente puede elegir entre opciones',
+                                  value: _esPersonalizable,
+                                  activeColor: AppColors.blue,
+                                  onChanged: (value) {
+                                    setState(() => _esPersonalizable = value);
+                                  },
+                                ),
+
+                                // Mensaje de error visible
+                                if (_mensajeError != null) ...[
+                                  Text(
+                                    _mensajeError!,
+                                    style: TextStyle(
+                                        fontSize: 9, color: AppColors.amberText),
+                                  ),
+                                ],
+
+                                // Botón agregar al carrito
+                                CustomButton(
+                                  onPressed:
+                                      _carrito.length >= 15 ? null : _agregarAlCarrito,
+                                  text: _carrito.length >= 15
+                                      ? 'Carrito lleno (15/15)'
+                                      : 'Agregar al Carrito',
+                                  icon: Icon(
+                                    _carrito.length >= 15
+                                        ? Icons.block
+                                        : Icons.add_shopping_cart,
+                                    size: 16,
+                                    color: AppColors.white,
+                                  ),
+                                  backgroundColor: AppColors.blue1,
+                                  borderRadius: 6,
+                                ),
+                              ],
                             ],
                           ),
                         ),
-                      )
-                    : null,
-              ),
-              keyboardType: TextInputType.number,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'La cantidad es requerida';
-                }
-                final cantidad = int.tryParse(value);
-                if (cantidad == null || cantidad <= 0) {
-                  return 'Ingresa una cantidad válida';
-                }
-
-                // Validar stock disponible
-                final stockDisponible = _getStockDisponible();
-                if (cantidad > stockDisponible) {
-                  return 'Stock insuficiente. Disponible: $stockDisponible';
-                }
-
-                return null;
-              },
-            ),
-            if (_productoSeleccionado != null && _getStockDisponible() <= 10) ...[
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.orange.shade50,
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: Colors.orange.shade200),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.warning_amber, size: 16, color: Colors.orange.shade700),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Stock bajo: solo ${_getStockDisponible()} unidades disponibles',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[800],
-                        ),
                       ),
                     ),
+
+                    // Carrito
+                    if (_carrito.isNotEmpty) ...[
+                      const Divider(height: 20),
+                      _buildCarrito(),
+                    ],
                   ],
                 ),
               ),
-            ],
 
-            // Campo de precio en combo (solo cuando hay producto/variante seleccionado)
-            if (_productoSeleccionado != null &&
-                (_productoSeleccionado!.tieneVariantes != true ||
-                    _varianteSeleccionadaId != null)) ...[
               const SizedBox(height: 16),
-              TextFormField(
-                controller: _precioEnComboController,
-                decoration: InputDecoration(
-                  labelText: 'Precio en Combo',
-                  border: const OutlineInputBorder(),
-                  prefixIcon: const Icon(Icons.price_check_sharp),
-                  prefixText: '\$',
-                  helperText: 'Precio regular: \$${_getPrecioRegular().toStringAsFixed(2)}',
-                ),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                validator: (value) {
-                  if (value == null || value.isEmpty) return null;
-                  final precio = double.tryParse(value);
-                  if (precio == null || precio < 0) {
-                    return 'Ingresa un precio válido';
-                  }
-                  return null;
-                },
+              const Divider(height: 1),
+              const SizedBox(height: 16),
+
+              // Botones de acción
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    // child: const Text('Cancelar', style: TextStyle( fontSize: 10),),
+                    child: AppSubtitle('Cancelar'),
+                  ),
+                  const SizedBox(width: 8),
+                  if (_carrito.isNotEmpty)
+                    BlocBuilder<ComboCubit, ComboState>(
+                      builder: (context, state) {
+                        final isLoading = state is ComboLoading;
+                        return Expanded(
+                          child: CustomButton(
+                            text: 'Agregar ${_carrito.length} Componente${_carrito.length > 1 ? 's' : ''}',
+                            onPressed: isLoading ? null : _confirmarTodos,
+                            isLoading: isLoading,
+                            icon: const Icon(Icons.check, size: 16, color: Colors.white),
+                            backgroundColor: AppColors.blue1,
+                            borderColor: AppColors.blue1,
+                            borderWidth: 1.0,
+                            // height: 35,
+                          ),
+                        );
+                      },
+                    ),
+                ],
               ),
             ],
-
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _categoriaController,
-              decoration: const InputDecoration(
-                labelText: 'Categoría del Componente (opcional)',
-                hintText: 'Ej: Procesador, RAM, Disco, etc.',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.category),
-              ),
-            ),
-
-            const SizedBox(height: 16),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('¿Es personalizable?'),
-              subtitle: const Text(
-                'El cliente puede elegir entre opciones',
-                style: TextStyle(fontSize: 12),
-              ),
-              value: _esPersonalizable,
-              onChanged: (value) {
-                setState(() => _esPersonalizable = value);
-              },
-            ),
-
-            const SizedBox(height: 24),
-            // Botón para agregar al carrito
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: _agregarAlCarrito,
-                icon: const Icon(Icons.add_shopping_cart),
-                label: const Text('Agregar al Carrito'),
-                style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -567,18 +419,12 @@ class _AgregarComponenteDialogContentState
         children: [
           Row(
             children: [
-              const Icon(Icons.shopping_cart, size: 18),
+              const Icon(Icons.shopping_cart, size: 16),
               const SizedBox(width: 8),
-              Text(
-                'Componentes a Agregar (${_carrito.length})',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                ),
-              ),
+              AppSubtitle('Componentes a Agregar (${_carrito.length})',)
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Expanded(
             child: ListView.separated(
               shrinkWrap: true,
@@ -586,60 +432,28 @@ class _AgregarComponenteDialogContentState
               separatorBuilder: (context, index) => const Divider(height: 1),
               itemBuilder: (context, index) {
                 final item = _carrito[index];
-                return Card(
+                return GradientContainer(
                   margin: const EdgeInsets.symmetric(vertical: 4),
                   child: Padding(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.only(left: 10),
                     child: Row(
                       children: [
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                item.nombre,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 14,
-                                ),
-                              ),
+                              AppSubtitle(item.nombre),
                               const SizedBox(height: 4),
                               Row(
                                 children: [
-                                  Text(
-                                    'Cantidad: ${item.cantidad}',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey[700],
-                                    ),
-                                  ),
+                                  AppLabelText('Cantidad: ${item.cantidad}', color: AppColors.blueGrey),
                                   const SizedBox(width: 12),
                                   if (item.tienePrecioOverride) ...[
-                                    Text(
-                                      '\$${item.precio.toStringAsFixed(2)}',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey[500],
-                                        decoration: TextDecoration.lineThrough,
-                                      ),
-                                    ),
+                                    AppLabelText('S/ ${item.precio.toStringAsFixed(2)}', color: AppColors.blueGrey),
                                     const SizedBox(width: 6),
-                                    Text(
-                                      '\$${item.precioEnCombo!.toStringAsFixed(2)}',
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.green,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
+                                    AppLabelText('S/ ${item.precioEnCombo!.toStringAsFixed(2)}', color: AppColors.green,),
                                   ] else ...[
-                                    Text(
-                                      '\$${item.precio.toStringAsFixed(2)}',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey[700],
-                                      ),
-                                    ),
+                                    AppLabelText('S/ ${item.precio.toStringAsFixed(2)}', color: AppColors.blueGrey,),
                                   ],
                                 ],
                               ),
@@ -649,7 +463,7 @@ class _AgregarComponenteDialogContentState
                                 Text(
                                   'Categoría: ${item.categoriaComponente}',
                                   style: TextStyle(
-                                    fontSize: 11,
+                                    fontSize: 10,
                                     color: Colors.grey[600],
                                     fontStyle: FontStyle.italic,
                                   ),
@@ -705,61 +519,70 @@ class _AgregarComponenteDialogContentState
     if (!_formKey.currentState!.validate()) return;
 
     if (_productoSeleccionado == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Debes seleccionar un producto'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      setState(() {
+        _mensajeError = 'Debes seleccionar un producto';
+      });
       return;
     }
 
-    // Si el producto tiene variantes, debe seleccionar una
-    if (_productoSeleccionado!.tieneVariantes == true &&
-        _productoSeleccionado!.variantes?.isNotEmpty == true &&
-        _varianteSeleccionadaId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Debes seleccionar una variante'),
-          backgroundColor: Colors.red,
-        ),
-      );
+    // Validar que se haya seleccionado variante si el producto tiene variantes
+    if (_productoSeleccionado!.tieneVariantes &&
+        _productoSeleccionado!.variantes != null &&
+        _productoSeleccionado!.variantes!.isNotEmpty &&
+        _varianteSeleccionada == null) {
+      setState(() {
+        _mensajeError = 'Debes seleccionar una variante del producto';
+      });
+      return;
+    }
+
+    // Validar que el producto sea de la misma sede del combo
+    if (_sedeIdSeleccionada != null && _sedeIdSeleccionada != widget.sedeId) {
+      setState(() {
+        _mensajeError = 'Solo puedes agregar productos de la sede del combo';
+      });
       return;
     }
 
     final cantidad = int.parse(_cantidadController.text);
     final categoria = _categoriaController.text.trim();
 
-    // Obtener datos del producto o variante seleccionada
-    String nombre;
-    double precio;
-    int stock;
-    String? productoId;
-    String? varianteId;
-
-    if (_varianteSeleccionadaId != null) {
-      // Se seleccionó una variante
-      final variante = _productoSeleccionado!.variantes!
-          .firstWhere((v) => v.id == _varianteSeleccionadaId);
-      nombre = '${_productoSeleccionado!.nombre} - ${variante.nombre}';
-      precio = variante.precio;
-      stock = variante.stock;
-      varianteId = variante.id;
-      productoId = null;
-    } else {
-      // Producto sin variantes
-      nombre = _productoSeleccionado!.nombre;
-      precio = _productoSeleccionado!.precio;
-      stock = _productoSeleccionado!.stockTotal;
-      productoId = _productoSeleccionado!.id;
-      varianteId = null;
-    }
+    // Obtener datos del producto (o variante si aplica)
+    final tieneVariante = _varianteSeleccionada != null;
+    final nombre = tieneVariante
+        ? '${_productoSeleccionado!.nombre} - ${_varianteSeleccionada!.nombre}'
+        : _productoSeleccionado!.nombre;
+    final precio = tieneVariante
+        ? (_varianteSeleccionada!.precioEnSede(widget.sedeId) ?? 0.0)
+        : (_productoSeleccionado!.precioEnSede(widget.sedeId) ?? 0.0);
+    final stock = tieneVariante
+        ? (_varianteSeleccionada!.stockEnSede(widget.sedeId) ??
+            _varianteSeleccionada!.stockTotal)
+        : _productoSeleccionado!.stockTotal;
+    final productoId = _productoSeleccionado!.id;
 
     // Parsear precio en combo si fue ingresado
     final precioEnComboText = _precioEnComboController.text.trim();
     final precioEnCombo = precioEnComboText.isNotEmpty
         ? double.tryParse(precioEnComboText)
         : null;
+
+    // Validar que no exista duplicado en el carrito
+    final varianteId = _varianteSeleccionada?.id;
+    final bool existeEnCarrito = _carrito.any((componente) {
+      if (varianteId != null) {
+        return componente.productoId == productoId &&
+            componente.varianteId == varianteId;
+      }
+      return componente.productoId == productoId;
+    });
+
+    if (existeEnCarrito) {
+      setState(() {
+        _mensajeError = '$nombre ya está en el carrito';
+      });
+      return;
+    }
 
     // Crear item del carrito
     final item = ComponenteCarrito(
@@ -778,26 +601,35 @@ class _AgregarComponenteDialogContentState
       _carrito.add(item);
       // Limpiar formulario para siguiente componente
       _productoSeleccionado = null;
-      _varianteSeleccionadaId = null;
+      _varianteSeleccionada = null;
       _cantidadController.text = '1';
       _precioEnComboController.clear();
       _categoriaController.clear();
       _esPersonalizable = false;
+      // Limpiar mensaje de error si existía
+      _mensajeError = null;
     });
-
-    // Mostrar mensaje de confirmación
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$nombre agregado al carrito'),
-        backgroundColor: Colors.green,
-        duration: const Duration(seconds: 1),
-      ),
-    );
   }
 
   /// Confirma y envía todos los componentes del carrito al backend
   void _confirmarTodos() {
     if (_carrito.isEmpty) return;
+
+    // Validar límite de 15 componentes por petición
+    const maxComponentesPorPeticion = 15;
+    if (_carrito.length > maxComponentesPorPeticion) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Solo puedes agregar máximo $maxComponentesPorPeticion componentes a la vez.\n'
+            'Tienes ${_carrito.length} en el carrito. Por favor, agrega algunos primero.',
+          ),
+          backgroundColor: Colors.orange,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+      return;
+    }
 
     // Convertir items del carrito a formato JSON
     final componentesJson = _carrito.map((item) => item.toJson()).toList();
@@ -811,32 +643,22 @@ class _AgregarComponenteDialogContentState
         );
   }
 
-  /// Retorna el precio regular del producto o variante actualmente seleccionado
+  /// Retorna el precio regular del producto actualmente seleccionado
   double _getPrecioRegular() {
     if (_productoSeleccionado == null) return 0.0;
-    if (_varianteSeleccionadaId != null &&
-        _productoSeleccionado!.variantes != null) {
-      final variante = _productoSeleccionado!.variantes!
-          .firstWhere((v) => v.id == _varianteSeleccionadaId);
-      return variante.precio;
+    if (_varianteSeleccionada != null) {
+      return _varianteSeleccionada!.precioEnSede(widget.sedeId) ?? 0.0;
     }
-    return _productoSeleccionado!.precio;
+    return _productoSeleccionado!.precioEnSede(widget.sedeId) ?? 0.0;
   }
 
-  /// Obtiene el stock disponible del producto o variante seleccionado
+  /// Obtiene el stock disponible del producto seleccionado
   int _getStockDisponible() {
     if (_productoSeleccionado == null) return 0;
-
-    // Si tiene variantes y una variante está seleccionada
-    if (_productoSeleccionado!.tieneVariantes == true &&
-        _varianteSeleccionadaId != null &&
-        _productoSeleccionado!.variantes != null) {
-      final variante = _productoSeleccionado!.variantes!
-          .firstWhere((v) => v.id == _varianteSeleccionadaId);
-      return variante.stock;
+    if (_varianteSeleccionada != null) {
+      return _varianteSeleccionada!.stockEnSede(widget.sedeId) ??
+          _varianteSeleccionada!.stockTotal;
     }
-
-    // Si es producto simple, retornar su stock total
     return _productoSeleccionado!.stockTotal;
   }
 }

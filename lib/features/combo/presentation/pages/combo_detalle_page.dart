@@ -4,9 +4,11 @@ import 'package:go_router/go_router.dart';
 import 'package:syncronize/core/fonts/app_fonts.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
+import 'package:syncronize/core/theme/app_gradients.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/widgets/container_large.dart';
 import 'package:syncronize/core/widgets/floating_button_text.dart';
+// import 'package:syncronize/core/widgets/info_chip.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
@@ -31,9 +33,14 @@ class ComboDetallePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final sedeId = _resolveSedeId(context);
     return BlocProvider(
-      create: (_) => locator<ComboCubit>()
-        ..loadCombo(comboId: comboId, empresaId: empresaId, sedeId: sedeId),
-      child: _ComboDetalleView(comboId: comboId, empresaId: empresaId, sedeId: sedeId),
+      create: (_) =>
+          locator<ComboCubit>()
+            ..loadCombo(comboId: comboId, empresaId: empresaId, sedeId: sedeId),
+      child: _ComboDetalleView(
+        comboId: comboId,
+        empresaId: empresaId,
+        sedeId: sedeId,
+      ),
     );
   }
 
@@ -41,7 +48,8 @@ class ComboDetallePage extends StatelessWidget {
     final selected = ctx.read<SedeSelectionCubit>().selectedSedeId;
     if (selected != null) return selected;
     final empresaState = ctx.read<EmpresaContextCubit>().state;
-    if (empresaState is EmpresaContextLoaded && empresaState.context.sedes.isNotEmpty) {
+    if (empresaState is EmpresaContextLoaded &&
+        empresaState.context.sedes.isNotEmpty) {
       return empresaState.context.sedePrincipal!.id;
     }
     return '';
@@ -53,7 +61,11 @@ class _ComboDetalleView extends StatelessWidget {
   final String empresaId;
   final String sedeId;
 
-  const _ComboDetalleView({required this.comboId, required this.empresaId, required this.sedeId});
+  const _ComboDetalleView({
+    required this.comboId,
+    required this.empresaId,
+    required this.sedeId,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -65,23 +77,38 @@ class _ComboDetalleView extends StatelessWidget {
         actions: [
           IconButton(
             icon: Icon(Icons.refresh),
-            onPressed: (){
-              context.read<ComboCubit>().loadCombo(comboId: comboId, empresaId: empresaId, sedeId: sedeId);
+            onPressed: () {
+              context.read<ComboCubit>().loadCombo(
+                comboId: comboId,
+                empresaId: empresaId,
+                sedeId: sedeId,
+              );
             },
-          )
+          ),
         ],
       ),
       body: BlocConsumer<ComboCubit, ComboState>(
         listener: (context, state) {
           if (state is ReservacionUpdated) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.message), duration: const Duration(seconds: 2)),
+              SnackBar(
+                content: Text(state.message),
+                duration: const Duration(seconds: 2),
+              ),
             );
-            context.read<ComboCubit>().loadCombo(comboId: comboId, empresaId: empresaId, sedeId: sedeId);
+            context.read<ComboCubit>().loadCombo(
+              comboId: comboId,
+              empresaId: empresaId,
+              sedeId: sedeId,
+            );
           }
           if (state is ComboError) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.message), backgroundColor: Colors.red, duration: const Duration(seconds: 3)),
+              SnackBar(
+                content: Text(state.message),
+                backgroundColor: Colors.red,
+                duration: const Duration(seconds: 3),
+              ),
             );
           }
         },
@@ -92,7 +119,11 @@ class _ComboDetalleView extends StatelessWidget {
           }
 
           if (state is ComboLoaded) {
-            return _buildComboDetails(context, state.combo, state.reservacionCantidad);
+            return _buildComboDetails(
+              context,
+              state.combo,
+              state.reservacionCantidad,
+            );
           }
 
           if (state is ComboError) {
@@ -116,28 +147,30 @@ class _ComboDetalleView extends StatelessWidget {
             );
           }
 
-          return const Center(
-            child: Text('No se pudo cargar el combo'),
-          );
+          return const Center(child: Text('No se pudo cargar el combo'));
         },
       ),
     );
   }
 
-  Widget _buildComboDetails(BuildContext context, Combo combo, int reservacionCantidad) {
+  Widget _buildComboDetails(
+    BuildContext context,
+    Combo combo,
+    int reservacionCantidad,
+  ) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildInfoCard(context, combo),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           _buildPrecioCard(context, combo),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           _buildStockCard(context, combo),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           _buildReservacionSection(context, combo, reservacionCantidad),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           _buildComponentesSection(context, combo),
         ],
       ),
@@ -147,15 +180,15 @@ class _ComboDetalleView extends StatelessWidget {
   Widget _buildInfoCard(BuildContext context, Combo combo) {
     return GradientContainer(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.only(left: 10, right: 10, top: 8, bottom: 5),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(Icons.inventory_2, color: AppColors.blue1, size: 16,),
+                Icon(Icons.inventory_2, color: AppColors.blue1, size: 16),
                 const SizedBox(width: 8),
-                AppSubtitle('INFORMACION DEL COMBO')
+                AppSubtitle('INFORMACION DEL COMBO'),
               ],
             ),
             const Divider(height: 24),
@@ -171,19 +204,20 @@ class _ComboDetalleView extends StatelessWidget {
 
   Widget _buildPrecioCard(BuildContext context, Combo combo) {
     final tipoPrecioLabel = _getTipoPrecioLabel(combo.tipoPrecioCombo);
-    final bool tieneDescuento = combo.porcentajeAhorro != null && combo.porcentajeAhorro! > 0;
+    final bool tieneDescuento =
+        combo.porcentajeAhorro != null && combo.porcentajeAhorro! > 0;
 
     return GradientContainer(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.only(left: 10, right: 10, top: 8, bottom: 5),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(Icons.attach_money, size: 18,color: AppColors.blue1,),
+                Icon(Icons.attach_money, size: 18, color: AppColors.blue1),
                 const SizedBox(width: 8),
-                AppSubtitle('PRECIO')
+                AppSubtitle('PRECIO'),
               ],
             ),
             const Divider(height: 24),
@@ -231,9 +265,10 @@ class _ComboDetalleView extends StatelessWidget {
               const Divider(height: 16),
               ContainerLarge(
                 leftIcon: Icons.savings,
-                leftText: 'Ahorro: ${combo.porcentajeAhorro!.toStringAsFixed(1)}%',
+                leftText:
+                    'Ahorro: ${combo.porcentajeAhorro!.toStringAsFixed(1)}%',
                 rightText: 'S/ ${combo.descuentoAplicado!.toStringAsFixed(2)}',
-              )
+              ),
             ],
           ],
         ),
@@ -248,15 +283,15 @@ class _ComboDetalleView extends StatelessWidget {
 
     return GradientContainer(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.only(left: 10, right: 10, top: 8, bottom: 5),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(Icons.inventory, color: AppColors.blue1, size: 18,),
+                Icon(Icons.inventory, color: AppColors.blue1, size: 18),
                 const SizedBox(width: 8),
-                AppSubtitle('STOCK DISPONIBLE')
+                AppSubtitle('STOCK DISPONIBLE'),
               ],
             ),
             const Divider(height: 24),
@@ -271,7 +306,11 @@ class _ComboDetalleView extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 AppSubtitle('Puedes armar: '),
-                AppSubtitle('${combo.stockDisponible} ${combo.stockDisponible == 1 ? 'combo' : 'combos'}', fontSize: 12, color: AppColors.green,)
+                AppSubtitle(
+                  '${combo.stockDisponible} ${combo.stockDisponible == 1 ? 'combo' : 'combos'}',
+                  fontSize: 12,
+                  color: AppColors.green,
+                ),
               ],
             ),
             const SizedBox(height: 12),
@@ -280,23 +319,36 @@ class _ComboDetalleView extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: tieneStock ? Colors.green.shade50 : Colors.orange.shade50,
+                color: tieneStock
+                    ? Colors.green.shade50
+                    : Colors.orange.shade50,
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                  color: tieneStock ? Colors.green.shade200 : Colors.orange.shade200,
-                  width: 0.6
+                  color: tieneStock
+                      ? Colors.green.shade200
+                      : Colors.orange.shade200,
+                  width: 0.6,
                 ),
               ),
               child: Row(
                 children: [
                   Icon(
-                    tieneStock ? Icons.info_outline : Icons.warning_amber_outlined,
+                    tieneStock
+                        ? Icons.info_outline
+                        : Icons.warning_amber_outlined,
                     size: 16,
-                    color: tieneStock ? Colors.green.shade700 : Colors.orange.shade700,
+                    color: tieneStock
+                        ? Colors.green.shade700
+                        : Colors.orange.shade700,
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: AppSubtitle(tieneStock ? 'El stock se calcula automáticamente según el componente con menor disponibilidad': 'No hay stock suficiente para armar combos. Revisa los componentes.', color: AppColors.greendark,),
+                    child: AppSubtitle(
+                      tieneStock
+                          ? 'El stock se calcula automáticamente según el componente con menor disponibilidad'
+                          : 'No hay stock suficiente para armar combos. Revisa los componentes.',
+                      color: AppColors.greendark,
+                    ),
                   ),
                 ],
               ),
@@ -317,7 +369,11 @@ class _ComboDetalleView extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.error_outline, color: Colors.red.shade700, size: 18),
+                        Icon(
+                          Icons.error_outline,
+                          color: Colors.red.shade700,
+                          size: 18,
+                        ),
                         const SizedBox(width: 8),
                         Text(
                           'Componentes sin stock:',
@@ -330,24 +386,30 @@ class _ComboDetalleView extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    ...combo.componentesSinStock!.map((nombre) => Padding(
-                          padding: const EdgeInsets.only(left: 26, top: 4),
-                          child: Row(
-                            children: [
-                              Icon(Icons.circle, size: 6, color: Colors.red.shade700),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  nombre,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey[800],
-                                  ),
+                    ...combo.componentesSinStock!.map(
+                      (nombre) => Padding(
+                        padding: const EdgeInsets.only(left: 26, top: 4),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.circle,
+                              size: 6,
+                              color: Colors.red.shade700,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                nombre,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[800],
                                 ),
                               ),
-                            ],
-                          ),
-                        )),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -360,8 +422,10 @@ class _ComboDetalleView extends StatelessWidget {
 
   Widget _buildComponentesSection(BuildContext context, Combo combo) {
     return GradientContainer(
+      gradient: AppGradients.sinfondo,
+      borderColor: AppColors.blueborder,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.only(left: 10, right: 10, top: 8, bottom: 5),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -369,22 +433,47 @@ class _ComboDetalleView extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Row(
+                  mainAxisSize:
+                      MainAxisSize.min, // evita que ocupe todo el espacio
                   children: [
-                    Icon(Icons.view_list, color: AppColors.blue1),
+                    Icon(
+                      Icons.view_list,
+                      color: AppColors.blue1,
+                      size: 18, // un poco más grande = mejor legibilidad
+                    ),
                     const SizedBox(width: 8),
-                    AppSubtitle('COMPONENTES')
+                    AppSubtitle('COMPONENTES'),
                   ],
                 ),
                 TextButton.icon(
-                  onPressed: () {
-                    context.push('/empresa/combos/${combo.id}/componentes?empresaId=$empresaId');
+                  onPressed: () async {
+                    final result = await context.push<bool>(
+                      '/empresa/combos/${combo.id}/componentes?empresaId=$empresaId',
+                    );
+                    if (result == true && context.mounted) {
+                      context.read<ComboCubit>().loadCombo(
+                        comboId: comboId,
+                        empresaId: empresaId,
+                        sedeId: sedeId,
+                      );
+                    }
                   },
-                  icon: const Icon(Icons.edit, size: 16, color: AppColors.blue1,),
-                  label: AppSubtitle('Gestionar')
+                  icon: const Icon(Icons.edit, size: 18),
+                  label: AppSubtitle('Gestionar'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.blue1,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    minimumSize:
+                        Size.zero, // evita padding excesivo en botones pequeños
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
                 ),
               ],
             ),
-            const Divider(height: 24),
+            const Divider(height: 15),
             if (combo.componentes.isEmpty)
               Center(
                 child: Padding(
@@ -408,10 +497,10 @@ class _ComboDetalleView extends StatelessWidget {
   Widget _buildComponenteTile(ComponenteCombo componente) {
     final bool tieneStock = componente.tieneStockSuficiente;
     final stockColor = tieneStock ? Colors.green : Colors.red;
-    final int maxCombos = componente.maxCombos;
+    // final int maxCombos = componente.maxCombos;
 
     return GradientContainer(
-      // borderColor: AppColors.blueborder,
+      // gradient: AppGradients.sinfondo,
       margin: const EdgeInsets.only(bottom: 8),
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -446,124 +535,229 @@ class _ComboDetalleView extends StatelessWidget {
                 ),
                 if (componente.esPersonalizable)
                   const Chip(
-                    label: Text('Personalizable', style: TextStyle(fontSize: 10)),
+                    label: Text(
+                      'Personalizable',
+                      style: TextStyle(fontSize: 10),
+                    ),
                     visualDensity: VisualDensity.compact,
                     padding: EdgeInsets.symmetric(horizontal: 4),
                   ),
               ],
             ),
-            const SizedBox(height: 8),
-            Row(
+
+            const SizedBox(height: 4),
+
+            // Row(
+            //   children: [
+            //     // Cantidad requerida
+            //     InfoChip(
+            //       icon: Icons.numbers,iconSize: 14,
+            //       borderRadius: 4,
+            //       height: 24,
+            //       text: 'x${componente.cantidad}',
+            //       textColor: AppColors.blue1,
+            //       // borderColor: AppColors.bluechip,
+            //       fontWeight: FontWeight.bold,
+            //     ),
+            //     const SizedBox(width: 8),
+
+            //     // Precio: muestra precio regular tachado si tiene override
+            //     if (componente.componenteInfo?.tienePrecioOverride == true) ...[
+            //       Text(
+            //         'S/ ${componente.precioUnitarioRegular.toStringAsFixed(2)}',
+            //         style: TextStyle(
+            //           fontSize: 12,
+            //           color: Colors.grey[500],
+            //           decoration: TextDecoration.lineThrough,
+            //         ),
+            //       ),
+            //       const SizedBox(width: 4),
+            //       Text(
+            //         'S/ ${componente.precioUnitario.toStringAsFixed(2)}',
+            //         style: TextStyle(
+            //           fontSize: 12,
+            //           fontWeight: FontWeight.bold,
+            //           color: Colors.green.shade700,
+            //         ),
+            //       ),
+            //       const SizedBox(width: 8),
+            //     ] else ...[
+            //       Text(
+            //         'S/ ${componente.precioUnitario.toStringAsFixed(2)}',
+            //         style: TextStyle(
+            //           fontSize: 12,
+            //           fontWeight: FontWeight.bold,
+            //           color: Colors.grey[700],
+            //         ),
+            //       ),
+            //       const SizedBox(width: 8),
+            //     ],
+
+            //     // Stock disponible
+            //     InfoChip(
+            //       backgroundColor: tieneStock ? AppColors.greenContainer : AppColors.red,
+            //       height: 25,
+            //       borderRadius: 4,
+            //       borderColor: tieneStock ? AppColors.greenContainer : AppColors.red,
+            //       icon: Icons.inventory_2_outlined, iconSize: 14,
+            //       text: 'Stock: ${componente.stockDisponible}',
+            //       textColor: stockColor,
+
+            //     ),
+            //     const SizedBox(width: 8),
+            //     InfoChip(
+            //       backgroundColor: Colors.purple.shade50,
+            //       height: 25,
+            //       borderRadius: 4,
+            //       // borderColor: Colors.purple.shade200,
+            //       icon: Icons.auto_awesome, iconSize: 14,
+            //       text: 'Máx: $maxCombos',
+            //       textColor: Colors.purple.shade700,
+
+            //     ),
+            //   ],
+            // ),
+            Table(
+              columnWidths: const {
+                0: FlexColumnWidth(1.2), // Cantidad
+                1: FlexColumnWidth(2.6), // Precio (más espacio por el tachado)
+                2: FlexColumnWidth(1.9), // Stock
+                // 3: FlexColumnWidth(1.7),   // Máx combos
+              },
+              defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+              border: TableBorder.all(
+                color: Colors.grey.shade300,
+                width: 0.8,
+                borderRadius: BorderRadius.circular(8),
+              ),
               children: [
-                // Cantidad requerida
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                // Fila 1: Encabezados
+                TableRow(
                   decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(color: Colors.blue.shade200),
+                    color: Colors
+                        .grey
+                        .shade100, // fondo gris claro para destacar encabezados
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(8),
+                    ),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.numbers, size: 14, color: Colors.blue.shade700),
-                      const SizedBox(width: 4),
-                      Text(
-                        'x${componente.cantidad}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blue.shade700,
-                        ),
-                      ),
-                    ],
-                  ),
+                  children: [
+                    _buildHeaderCell('Cantidad'),
+                    _buildHeaderCell('Precio'),
+                    _buildHeaderCell('Stock'),
+                    // _buildHeaderCell('Máx'),
+                  ],
                 ),
-                const SizedBox(width: 8),
 
-                // Precio: muestra precio regular tachado si tiene override
-                if (componente.componenteInfo?.tienePrecioOverride == true) ...[
-                  Text(
-                    '\$${componente.precioUnitarioRegular.toStringAsFixed(2)}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[500],
-                      decoration: TextDecoration.lineThrough,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '\$${componente.precioUnitario.toStringAsFixed(2)}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green.shade700,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                ] else ...[
-                  Text(
-                    '\$${componente.precioUnitario.toStringAsFixed(2)}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey[700],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                ],
-
-                // Stock disponible
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                // Fila 2: Datos / Valores
+                TableRow(
                   decoration: BoxDecoration(
-                    color: tieneStock ? Colors.green.shade50 : Colors.red.shade50,
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(
-                      color: tieneStock ? Colors.green.shade200 : Colors.red.shade200,
+                    color: Colors.white, // o Colors.grey.shade50 para alternar
+                    borderRadius: const BorderRadius.vertical(
+                      bottom: Radius.circular(8),
                     ),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.inventory_2, size: 14, color: stockColor),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Stock: ${componente.stockDisponible}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: stockColor,
-                        ),
+                  children: [
+                    // Celda Cantidad
+                    _buildDataCell(
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.numbers, size: 14, color: AppColors.blue1),
+                          const SizedBox(width: 6),
+                          Text(
+                            'x${componente.cantidad}',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.blue1,
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
+                    ),
 
-                // Máximo de combos con este componente
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.purple.shade50,
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(color: Colors.purple.shade200),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.auto_awesome, size: 14, color: Colors.purple.shade700),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Máx: $maxCombos',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.purple.shade700,
-                        ),
+                    // Celda Precio
+                    _buildDataCell(
+                      componente.componenteInfo?.tienePrecioOverride == true
+                          ? Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'S/ ${componente.precioUnitarioRegular.toStringAsFixed(2)}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey[600],
+                                    decoration: TextDecoration.lineThrough,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'S/ ${componente.precioUnitario.toStringAsFixed(2)}',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.green.shade700,
+                                  ),
+                                ),
+                              ],
+                            )
+                          : Text(
+                              'S/ ${componente.precioUnitario.toStringAsFixed(2)}',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey[800],
+                              ),
+                            ),
+                    ),
+
+                    // Celda Stock
+                    _buildDataCell(
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.inventory_2_outlined,
+                            size: 14,
+                            color: stockColor,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            '${componente.stockDisponible}',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: stockColor,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+
+                    // Celda Máx
+                    // _buildDataCell(
+                    //   Row(
+                    //     mainAxisSize: MainAxisSize.min,
+                    //     children: [
+                    //       Icon(
+                    //         Icons.auto_awesome,
+                    //         size: 14,
+                    //         color: Colors.purple.shade700,
+                    //       ),
+                    //       const SizedBox(width: 6),
+                    //       Text(
+                    //         '$maxCombos',
+                    //         style: TextStyle(
+                    //           fontSize: 13,
+                    //           color: Colors.purple.shade700,
+                    //           fontWeight: FontWeight.w600,
+                    //         ),
+                    //       ),
+                    //     ],
+                    //   ),
+                    // ),
+                  ],
                 ),
               ],
             ),
@@ -573,20 +767,47 @@ class _ComboDetalleView extends StatelessWidget {
     );
   }
 
-  Widget _buildReservacionSection(BuildContext context, Combo combo, int reservacionCantidad) {
+  Widget _buildDataCell(Widget child) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      child: Center(child: child),
+    );
+  }
+
+  Widget _buildHeaderCell(String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      // child: Text(
+      //   text,
+      //   style: TextStyle(
+      //     fontSize: 10,
+      //     fontWeight: FontWeight.bold,
+      //     color: Colors.grey[800],
+      //   ),
+      //   textAlign: TextAlign.center,
+      // ),
+      child: AppSubtitle(text, fontSize: 10, textAlign: TextAlign.center),
+    );
+  }
+
+  Widget _buildReservacionSection(
+    BuildContext context,
+    Combo combo,
+    int reservacionCantidad,
+  ) {
     final bool tieneReserva = reservacionCantidad > 0;
 
     return GradientContainer(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.only(left: 10, right: 10, top: 8, bottom: 5),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(Icons.lock_outline, color: AppColors.blue1, size: 18,),
+                Icon(Icons.lock_outline, color: AppColors.blue1, size: 18),
                 const SizedBox(width: 8),
-                AppSubtitle('RESERVA DE STOCK')
+                AppSubtitle('RESERVA DE STOCK'),
               ],
             ),
             const Divider(height: 24),
@@ -607,7 +828,9 @@ class _ComboDetalleView extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
-                        color: tieneReserva ? Colors.blue.shade700 : Colors.grey[500],
+                        color: tieneReserva
+                            ? Colors.blue.shade700
+                            : Colors.grey[500],
                       ),
                     ),
                   ],
@@ -616,7 +839,11 @@ class _ComboDetalleView extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     FloatingButtonText(
-                      onPressed: () => _showReservarDialog(context, combo.id, reservacionCantidad),
+                      onPressed: () => _showReservarDialog(
+                        context,
+                        combo.id,
+                        reservacionCantidad,
+                      ),
                       icon: tieneReserva ? Icons.edit : Icons.lock,
                       label: tieneReserva ? 'Modificar' : 'Reservar',
                       width: 110,
@@ -627,11 +854,13 @@ class _ComboDetalleView extends StatelessWidget {
                       FloatingButtonText(
                         backgroundColor: AppColors.white,
                         foregroundColor: AppColors.blue1,
-                        onPressed: () => context.read<ComboCubit>().liberarReserva(comboId: combo.id, sedeId: sedeId),
+                        onPressed: () => context
+                            .read<ComboCubit>()
+                            .liberarReserva(comboId: combo.id, sedeId: sedeId),
                         icon: Icons.lock_open,
                         label: 'Liberar',
                         width: 110,
-                      )
+                      ),
                     ],
                   ],
                 ),
@@ -648,13 +877,18 @@ class _ComboDetalleView extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.info_outline, size: 16, color: Colors.blue.shade700),
+                  Icon(
+                    Icons.info_outline,
+                    size: 16,
+                    color: Colors.blue.shade700,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: AppSubtitle(
-                      tieneReserva 
-                      ? 'Se inhabilitan componentes para venta individual, asegurando stock para $reservacionCantidad combo${reservacionCantidad == 1 ? '' : 's'}.' 
-                      : 'Reserva stock de componentes para garantizar que se puedan armar combos sin que se vendan por separado.', color: AppColors.blue
+                      tieneReserva
+                          ? 'Se inhabilitan componentes para venta individual, asegurando stock para $reservacionCantidad combo${reservacionCantidad == 1 ? '' : 's'}.'
+                          : 'Reserva stock de componentes para garantizar que se puedan armar combos sin que se vendan por separado.',
+                      color: AppColors.blue,
                     ),
                   ),
                 ],
@@ -666,7 +900,11 @@ class _ComboDetalleView extends StatelessWidget {
     );
   }
 
-  void _showReservarDialog(BuildContext context, String comboId, int cantidadActual) {
+  void _showReservarDialog(
+    BuildContext context,
+    String comboId,
+    int cantidadActual,
+  ) {
     final controller = TextEditingController(text: cantidadActual.toString());
     final cubit = context.read<ComboCubit>();
 
@@ -719,18 +957,17 @@ class _ComboDetalleView extends StatelessWidget {
                 Navigator.pop(ctx, val);
               }
             },
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.blue1, foregroundColor: AppColors.white),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.blue1,
+              foregroundColor: AppColors.white,
+            ),
             child: const Text('Confirmar'),
           ),
         ],
       ),
     ).then((result) {
       if (result != null) {
-        cubit.reservarStock(
-              comboId: comboId,
-              sedeId: sedeId,
-              cantidad: result,
-            );
+        cubit.reservarStock(comboId: comboId, sedeId: sedeId, cantidad: result);
       }
     });
   }
@@ -749,11 +986,9 @@ class _ComboDetalleView extends StatelessWidget {
         children: [
           SizedBox(
             width: 120,
-            child: AppSubtitle('$label:',color: AppColors.blueGrey,),
+            child: AppSubtitle('$label:', color: AppColors.blueGrey),
           ),
-          Expanded(
-            child: AppSubtitle(value),
-          ),
+          Expanded(child: AppSubtitle(value)),
         ],
       ),
     );
@@ -775,7 +1010,9 @@ class _ComboDetalleView extends StatelessWidget {
       final info = componente.componenteInfo!;
 
       // Si es una variante, mostrar: "Producto - Variante"
-      if (info.esVariante && info.varianteNombre != null && info.productoNombre != null) {
+      if (info.esVariante &&
+          info.varianteNombre != null &&
+          info.productoNombre != null) {
         return '${info.productoNombre} - ${info.varianteNombre}';
       }
 

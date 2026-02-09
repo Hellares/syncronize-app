@@ -14,10 +14,6 @@ class ProductoVarianteModel extends ProductoVariante {
     super.codigoBarras,
     required super.codigoEmpresa,
     required super.atributosValores,
-    required super.precio,
-    super.precioCosto,
-    super.precioOferta,
-    required super.stock,
     super.stocksPorSede,
     super.peso,
     super.dimensiones,
@@ -44,14 +40,6 @@ class ProductoVarianteModel extends ProductoVariante {
               .map((e) => AtributoValorModel.fromJson(e as Map<String, dynamic>))
               .toList()
           : [],
-      precio: _toDouble(json['precio']),
-      precioCosto: json['precioCosto'] != null
-          ? _toDouble(json['precioCosto'])
-          : null,
-      precioOferta: json['precioOferta'] != null
-          ? _toDouble(json['precioOferta'])
-          : null,
-      stock: _toInt(json['stock']),
       stocksPorSede: json['stocksPorSede'] != null
           ? (json['stocksPorSede'] as List)
               .map((e) => StockPorSedeInfoModel.fromJson(e as Map<String, dynamic>))
@@ -109,10 +97,6 @@ class ProductoVarianteModel extends ProductoVariante {
       'atributosValores': atributosValores
           .map((av) => AtributoValorModel.fromEntity(av).toJson())
           .toList(),
-      'precio': precio,
-      if (precioCosto != null) 'precioCosto': precioCosto,
-      if (precioOferta != null) 'precioOferta': precioOferta,
-      'stock': stock,
       if (stocksPorSede != null)
         'stocksPorSede': stocksPorSede!
             .map((s) => StockPorSedeInfoModel.fromEntity(s).toJson())
@@ -139,10 +123,6 @@ class ProductoVarianteModel extends ProductoVariante {
       codigoBarras: entity.codigoBarras,
       codigoEmpresa: entity.codigoEmpresa,
       atributosValores: entity.atributosValores,
-      precio: entity.precio,
-      precioCosto: entity.precioCosto,
-      precioOferta: entity.precioOferta,
-      stock: entity.stock,
       stocksPorSede: entity.stocksPorSede,
       peso: entity.peso,
       dimensiones: entity.dimensiones,

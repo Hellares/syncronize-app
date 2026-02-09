@@ -320,15 +320,15 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
   }
 
   Widget _buildPriceSection(dynamic producto) {
-    // Obtener precio y stock según la sede seleccionada
-    double precioMostrar = producto.precio ?? 0.0;
-    double precioEfectivoMostrar = producto.precioEfectivo ?? 0.0;
+    // Precios y stock se obtienen desde stocksPorSede (sistema multi-sede)
+    double precioMostrar = 0.0;
+    double precioEfectivoMostrar = 0.0;
     int stockMostrar = producto.stockTotal ?? 0;
-    bool isOfertaActivaSede = producto.isOfertaActiva ?? false;
-    double? porcentajeDescuentoSede = producto.porcentajeDescuento;
-    DateTime? fechaInicioOfertaSede = producto.fechaInicioOferta;
-    DateTime? fechaFinOfertaSede = producto.fechaFinOferta;
-    bool tienePrecioConfigurado = precioMostrar > 0;
+    bool isOfertaActivaSede = false;
+    double? porcentajeDescuentoSede;
+    DateTime? fechaInicioOfertaSede;
+    DateTime? fechaFinOfertaSede;
+    bool tienePrecioConfigurado = false;
     dynamic stockSede;
 
     // Si hay sede seleccionada, buscar los datos específicos de esa sede
@@ -600,11 +600,12 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
 
             const Divider(height: 24),
 
-            // Precios y costos
-            if (producto.precioCosto != null)
+            // Precios y costos (desde stocksPorSede)
+            if (widget.sedeId != null && producto.stockSedeInfo(widget.sedeId!) != null &&
+                producto.stockSedeInfo(widget.sedeId!)!.precioCosto != null)
               _buildInfoRow(
                 'Precio de costo',
-                'S/${producto.precioCosto!.toStringAsFixed(2)}',
+                'S/${producto.stockSedeInfo(widget.sedeId!)!.precioCosto!.toStringAsFixed(2)}',
               ),
             if (producto.impuestoPorcentaje != null)
               _buildInfoRow('Impuesto', '${producto.impuestoPorcentaje}%'),

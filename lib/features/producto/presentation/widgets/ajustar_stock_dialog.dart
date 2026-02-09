@@ -3,9 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
-import 'package:syncronize/core/theme/app_gradients.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/widgets/custom_dropdown.dart';
+import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import '../../domain/entities/movimiento_stock.dart';
 import '../../domain/entities/producto_stock.dart';
 import '../bloc/ajustar_stock/ajustar_stock_cubit.dart';
@@ -77,18 +77,19 @@ class _AjustarStockDialogState extends State<AjustarStockDialog> {
         }
       },
       child: Dialog(
+        insetPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 20),
         child: GradientContainer(
-          gradient: AppGradients.blueWhiteDialog(),
-          padding: const EdgeInsets.all(20.0),
-          borderRadius: BorderRadius.circular(10.0),
+          // gradient: AppGradients.blueWhiteDialog(),
+          // padding: const EdgeInsets.all(12),
+          // borderRadius: BorderRadius.circular(10.0),
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Título con estilo mejorado
               Row(
                 children: [
                   Container(
+                    margin: EdgeInsets.only(left: 16, top: 10),
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       color: AppColors.bluechip,
@@ -103,70 +104,48 @@ class _AjustarStockDialogState extends State<AjustarStockDialog> {
                   const SizedBox(width: 12),
                   AppSubtitle(
                     'AJUSTAR STOCK',
-                    fontSize: 12
                   ),
                 ],
               ),
               const SizedBox(height: 15),
-              
-              // Contenido del formulario
-              SizedBox(
-                width: MediaQuery.of(context).size.width * 0.8,
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Información del producto
-                      _buildInfoSection(),
-                
-                      const SizedBox(height: 16),
-                
-                      // Tipo de movimiento
-                      _buildLabel('Tipo de movimiento'),
-                      const SizedBox(height: 8),
-                      _buildDropdownTipoMovimiento(),
-                
-                      const SizedBox(height: 16),
-                
-                      // Cantidad
-                      _buildLabel('Cantidad'),
-                      const SizedBox(height: 8),
-                      _buildCantidadField(),
-                
-                      const SizedBox(height: 16),
-                
-                      // Tipo de documento (opcional)
-                      _buildLabel('Tipo de documento (opcional)'),
-                      const SizedBox(height: 8),
-                      _buildDropdownTipoDocumento(),
-                
-                      const SizedBox(height: 16),
-                
-                      // Número de documento (opcional)
-                      _buildLabel('Número de documento (opcional)'),
-                      const SizedBox(height: 8),
-                      _buildNumeroDocumentoField(),
-                
-                      const SizedBox(height: 16),
-                
-                      // Motivo
-                      _buildLabel('Motivo (opcional)'),
-                      const SizedBox(height: 8),
-                      _buildMotivoField(),
-                
-                      const SizedBox(height: 16),
-                
-                      // Preview del nuevo stock
-                      _buildPreviewSection(),
-                    ],
+
+              // Contenido del formulario (scrollable)
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.only(
+                    bottom: MediaQuery.of(context).viewInsets.bottom,
+                  ),
+                  child: SizedBox(
+                    width: MediaQuery.of(context).size.width * 0.8,
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildInfoSection(),
+                          const SizedBox(height: 16),
+                          const SizedBox(height: 8),
+                          _buildDropdownTipoMovimiento(),
+                          const SizedBox(height: 8),
+                          _buildCantidadField(),
+                          const SizedBox(height: 8),
+                          _buildDropdownTipoDocumento(),
+                          const SizedBox(height: 8),
+                          _buildNumeroDocumentoField(),
+                          const SizedBox(height: 8),
+                          _buildMotivoField(),
+                          const SizedBox(height: 16),
+                          _buildPreviewSection(),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
-              
+
               const SizedBox(height: 24),
-              
+
               // Botones de acción
               _buildActionButtons(),
             ],
@@ -176,19 +155,11 @@ class _AjustarStockDialogState extends State<AjustarStockDialog> {
     );
   }
 
-  Widget _buildLabel(String text) {
-    return Text(
-      text,
-      style: TextStyle(
-        fontSize: 14,
-        fontWeight: FontWeight.w500,
-        color: Colors.grey[700],
-      ),
-    );
-  }
+  
 
   Widget _buildDropdownTipoMovimiento() {
     return CustomDropdown<TipoMovimientoStock>(
+      label: 'Tipo de movimiento',
       hintText: 'Seleccione un tipo',
       value: _tipoSeleccionado,
       items: TipoMovimientoStock.values.map((tipo) {
@@ -212,37 +183,28 @@ class _AjustarStockDialogState extends State<AjustarStockDialog> {
   }
 
   Widget _buildCantidadField() {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey.shade300),
-        color: Colors.grey.shade50,
-      ),
-      child: TextFormField(
-        controller: _cantidadController,
-        decoration: InputDecoration(
-          border: InputBorder.none,
-          hintText: 'Ingrese la cantidad',
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        ),
-        keyboardType: TextInputType.number,
-        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-        validator: (value) {
-          if (value == null || value.isEmpty) {
-            return 'Ingrese una cantidad';
-          }
-          final cantidad = int.tryParse(value);
-          if (cantidad == null || cantidad <= 0) {
-            return 'Ingrese una cantidad válida';
-          }
-          return null;
-        },
-      ),
+    return CustomText(
+      controller: _cantidadController,
+      label: 'Ingrese la cantidad',
+      borderColor: AppColors.blue1,
+      keyboardType: TextInputType.number,
+      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+      validator: (value){
+        if(value == null || value.isEmpty){
+          return 'Ingrese una cantidad';
+        }
+        final cantidad = int.tryParse(value);
+        if(cantidad == null || cantidad <= 0){
+          return 'Ingrese una cantidad válida';
+        }
+        return null;
+      },
     );
   }
 
   Widget _buildDropdownTipoDocumento() {
     return CustomDropdown<String>(
+      label: 'Tipo de documento (opcional)',
       hintText: 'Seleccione un tipo',
       value: _tipoDocumentoSeleccionado,
       items: _tiposDocumento.map((tipo) {
@@ -261,39 +223,23 @@ class _AjustarStockDialogState extends State<AjustarStockDialog> {
   }
 
   Widget _buildNumeroDocumentoField() {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey.shade300),
-        color: Colors.grey.shade50,
-      ),
-      child: TextFormField(
-        controller: _numeroDocumentoController,
-        decoration: InputDecoration(
-          border: InputBorder.none,
-          hintText: 'Ej: FC-2026-001',
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        ),
-      ),
+    return CustomText(
+      label: 'Numero de documento (opcional)',
+      hintText: 'Ej: FC-2026-001',
+      borderColor: AppColors.blue1,
+      controller: _numeroDocumentoController,
     );
   }
 
   Widget _buildMotivoField() {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey.shade300),
-        color: Colors.grey.shade50,
-      ),
-      child: TextFormField(
-        controller: _motivoController,
-        decoration: InputDecoration(
-          border: InputBorder.none,
-          hintText: 'Ingrese el motivo del ajuste',
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        ),
-        maxLines: 2,
-      ),
+    return CustomText(
+      controller: _motivoController,
+      borderColor: AppColors.blue1,
+      label: 'Motivo (opcional)',
+      hintText: 'Ingrese el motivo del ajuste',
+      maxLines: null,
+      minLines: 3,
+      
     );
   }
 
@@ -352,7 +298,7 @@ class _AjustarStockDialogState extends State<AjustarStockDialog> {
 
   Widget _buildInfoSection() {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: AppColors.blue1.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
@@ -368,7 +314,7 @@ class _AjustarStockDialogState extends State<AjustarStockDialog> {
               fontSize: 12,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           if (widget.stock.sede != null)
             Padding(
               padding: const EdgeInsets.only(bottom: 4),
@@ -394,7 +340,7 @@ class _AjustarStockDialogState extends State<AjustarStockDialog> {
             children: [
               Icon(
                 Icons.inventory_outlined,
-                size: 16,
+                size: 14,
                 color: Colors.grey[600],
               ),
               const SizedBox(width: 4),
@@ -402,7 +348,7 @@ class _AjustarStockDialogState extends State<AjustarStockDialog> {
                 'Stock actual: ${widget.stock.stockActual} unidades',
                 style: TextStyle(
                   color: Colors.grey[600],
-                  fontSize: 14,
+                  fontSize: 12,
                 ),
               ),
             ],

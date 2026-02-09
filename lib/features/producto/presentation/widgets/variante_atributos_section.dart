@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:syncronize/core/fonts/app_text_widgets.dart';
+import 'package:syncronize/core/theme/app_colors.dart';
+import 'package:syncronize/core/theme/app_gradients.dart';
+import 'package:syncronize/core/theme/gradient_container.dart';
+import 'package:syncronize/core/widgets/custom_button.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../domain/entities/atributo_valor.dart';
 import '../../domain/entities/producto_atributo.dart';
@@ -54,7 +59,7 @@ class VarianteAtributosSection extends StatelessWidget {
           return const Card(
             elevation: 2,
             child: Padding(
-              padding: EdgeInsets.all(32),
+              padding: EdgeInsets.all(20),
               child: Center(child: CircularProgressIndicator()),
             ),
           );
@@ -67,10 +72,10 @@ class VarianteAtributosSection extends StatelessWidget {
           final isLoading =
               state is VarianteAtributoLoaded ? state.isLoading : false;
 
-          return Card(
-            elevation: 2,
+          return GradientContainer(
+            borderColor: AppColors.blueborder,
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.only(right: 10, left: 10, bottom: 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -79,14 +84,9 @@ class VarianteAtributosSection extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.label_outline, size: 24),
+                          const Icon(Icons.label_outline, size: 16),
                           const SizedBox(width: 8),
-                          Text(
-                            'Atributos de la Variante',
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                          ),
+                          AppSubtitle('Atributos de la Variante')
                         ],
                       ),
                       Row(
@@ -95,20 +95,17 @@ class VarianteAtributosSection extends StatelessWidget {
                           if (showPlantillaButton && empresaId != null)
                             TextButton.icon(
                               onPressed: isLoading ? null : () => _showPlantillaSelector(context),
-                              icon: const Icon(Icons.auto_awesome, size: 18),
-                              label: const Text('Plantilla'),
+                              icon: const Icon(Icons.auto_awesome, size: 16, color: AppColors.blue1,),
+                              label: AppSubtitle('Plantilla')
                             ),
-                          if (atributoValores.isNotEmpty)
-                            TextButton.icon(
-                              onPressed: isLoading ? null : () => _showAddAtributoDialog(context),
-                              icon: const Icon(Icons.add, size: 18),
-                              label: const Text('Agregar'),
-                            ),
+                          // if (atributoValores.isNotEmpty)
+
+                          //   IconButton(onPressed: isLoading ? null : () => _showAddAtributoDialog(context),icon: const Icon(Icons.add, size: 18,color: AppColors.blue1),)
                         ],
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
+                  // const SizedBox(height: 10),
                   if (atributoValores.isEmpty) ...[
                     Center(
                       child: Column(
@@ -121,27 +118,30 @@ class VarianteAtributosSection extends StatelessWidget {
                                   color: Colors.grey,
                                 ),
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 10),
                           Wrap(
                             spacing: 12,
                             runSpacing: 12,
                             alignment: WrapAlignment.center,
                             children: [
                               if (showPlantillaButton && empresaId != null)
-                                ElevatedButton.icon(
+                                CustomButton(
+                                  width: 200,
+                                  backgroundColor: AppColors.blue1,
+                                  iconColor: AppColors.white,
+                                  text: 'Usar Plantilla',
                                   onPressed: () => _showPlantillaSelector(context),
-                                  icon: const Icon(Icons.auto_awesome),
-                                  label: const Text('Usar Plantilla'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Theme.of(context).colorScheme.primary,
-                                    foregroundColor: Colors.white,
-                                  ),
+                                  icon: const Icon(Icons.auto_awesome, size: 16,),
                                 ),
-                              ElevatedButton.icon(
-                                onPressed: () => _showAddAtributoDialog(context),
-                                icon: const Icon(Icons.add),
-                                label: const Text('Agregar Manualmente'),
-                              ),
+
+                              // CustomButton(
+                              //   width: 200,
+                              //   backgroundColor: AppColors.blue1,
+                              //   iconColor: AppColors.white,
+                              //   text: 'Agregar Manualmente',
+                              //   onPressed: () => _showAddAtributoDialog(context),
+                              //   icon: Icon(Icons.add, size: 16,),
+                              // )
                             ],
                           ),
                         ],
@@ -157,22 +157,19 @@ class VarianteAtributosSection extends StatelessWidget {
         }
 
         if (state is VarianteAtributoError) {
-          return Card(
-            elevation: 2,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  const Icon(Icons.error_outline, size: 48, color: Colors.red),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Error al cargar atributos',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(state.message),
-                ],
-              ),
+          return Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                const SizedBox(height: 8),
+                Text(
+                  'Error al cargar atributos',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 4),
+                Text(state.message),
+              ],
             ),
           );
         }
@@ -187,33 +184,30 @@ class VarianteAtributosSection extends StatelessWidget {
     AtributoValor atributoValor,
     bool isLoading,
   ) {
-    return Card(
+    return GradientContainer(
+      borderColor: AppColors.blueborder,
+      gradient: AppGradients.sinfondo,
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-          child: Icon(
-            _getAtributoIcon(atributoValor.atributo.clave),
-            color: Theme.of(context).colorScheme.primary,
-            size: 20,
-          ),
-        ),
+        visualDensity: VisualDensity.compact,
+        dense: true,
+        leading: Icon(_getAtributoIcon(atributoValor.atributo.clave), size: 16,),
         title: Text(
           atributoValor.atributo.nombre,
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10),
         ),
         subtitle: Text(atributoValor.valor),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
-              icon: const Icon(Icons.edit, size: 20),
+              icon: const Icon(Icons.edit, size: 18),
               onPressed: isLoading
                   ? null
                   : () => _showEditAtributoDialog(context, atributoValor),
             ),
             IconButton(
-              icon: const Icon(Icons.delete, size: 20, color: Colors.red),
+              icon: const Icon(Icons.delete, size: 18, color: Colors.red),
               onPressed: isLoading
                   ? null
                   : () => _confirmRemoveAtributo(context, atributoValor),
@@ -239,92 +233,92 @@ class VarianteAtributosSection extends StatelessWidget {
     }
   }
 
-  void _showAddAtributoDialog(BuildContext context) {
-    final cubit = context.read<VarianteAtributoCubit>();
-    final currentState = cubit.state;
+  // void _showAddAtributoDialog(BuildContext context) {
+  //   final cubit = context.read<VarianteAtributoCubit>();
+  //   final currentState = cubit.state;
 
-    if (currentState is! VarianteAtributoLoaded) return;
+  //   if (currentState is! VarianteAtributoLoaded) return;
 
-    // Filtrar atributos que ya están asignados
-    final atributosYaAsignados = currentState.atributoValores
-        .map((av) => av.atributoId)
-        .toSet();
-    final atributosDisponiblesFiltrados = atributosDisponibles
-        .where((a) => !atributosYaAsignados.contains(a.id))
-        .toList();
+  //   // Filtrar atributos que ya están asignados
+  //   final atributosYaAsignados = currentState.atributoValores
+  //       .map((av) => av.atributoId)
+  //       .toSet();
+  //   final atributosDisponiblesFiltrados = atributosDisponibles
+  //       .where((a) => !atributosYaAsignados.contains(a.id))
+  //       .toList();
 
-    if (atributosDisponiblesFiltrados.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Todos los atributos disponibles ya han sido agregados'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
+  //   if (atributosDisponiblesFiltrados.isEmpty) {
+  //     ScaffoldMessenger.of(context).showSnackBar(
+  //       const SnackBar(
+  //         content: Text('Todos los atributos disponibles ya han sido agregados'),
+  //         backgroundColor: Colors.orange,
+  //       ),
+  //     );
+  //     return;
+  //   }
 
-    ProductoAtributo? selectedAtributo;
-    final valorController = TextEditingController();
+  //   ProductoAtributo? selectedAtributo;
+  //   final valorController = TextEditingController();
 
-    showDialog(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('Agregar Atributo'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              DropdownButtonFormField<ProductoAtributo>(
-                decoration: const InputDecoration(
-                  labelText: 'Atributo',
-                  border: OutlineInputBorder(),
-                ),
-                initialValue: selectedAtributo,
-                items: atributosDisponiblesFiltrados.map((atributo) {
-                  return DropdownMenuItem(
-                    value: atributo,
-                    child: Text(atributo.nombre),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    selectedAtributo = value;
-                  });
-                },
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: valorController,
-                decoration: const InputDecoration(
-                  labelText: 'Valor',
-                  border: OutlineInputBorder(),
-                  hintText: 'Ej: Rojo, M, Algodón',
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (selectedAtributo != null && valorController.text.isNotEmpty) {
-                  cubit.addAtributo(
-                    atributo: selectedAtributo!,
-                    valor: valorController.text.trim(),
-                  );
-                  Navigator.of(dialogContext).pop();
-                }
-              },
-              child: const Text('Agregar'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  //   showDialog(
+  //     context: context,
+  //     builder: (dialogContext) => StatefulBuilder(
+  //       builder: (context, setState) => AlertDialog(
+  //         title: const Text('Agregar Atributo'),
+  //         content: Column(
+  //           mainAxisSize: MainAxisSize.min,
+  //           children: [
+  //             DropdownButtonFormField<ProductoAtributo>(
+  //               decoration: const InputDecoration(
+  //                 labelText: 'Atributo',
+  //                 border: OutlineInputBorder(),
+  //               ),
+  //               initialValue: selectedAtributo,
+  //               items: atributosDisponiblesFiltrados.map((atributo) {
+  //                 return DropdownMenuItem(
+  //                   value: atributo,
+  //                   child: Text(atributo.nombre),
+  //                 );
+  //               }).toList(),
+  //               onChanged: (value) {
+  //                 setState(() {
+  //                   selectedAtributo = value;
+  //                 });
+  //               },
+  //             ),
+  //             const SizedBox(height: 16),
+  //             TextField(
+  //               controller: valorController,
+  //               decoration: const InputDecoration(
+  //                 labelText: 'Valor',
+  //                 border: OutlineInputBorder(),
+  //                 hintText: 'Ej: Rojo, M, Algodón',
+  //               ),
+  //             ),
+  //           ],
+  //         ),
+  //         actions: [
+  //           TextButton(
+  //             onPressed: () => Navigator.of(dialogContext).pop(),
+  //             child: const Text('Cancelar'),
+  //           ),
+  //           ElevatedButton(
+  //             onPressed: () {
+  //               if (selectedAtributo != null && valorController.text.isNotEmpty) {
+  //                 cubit.addAtributo(
+  //                   atributo: selectedAtributo!,
+  //                   valor: valorController.text.trim(),
+  //                 );
+  //                 Navigator.of(dialogContext).pop();
+  //               }
+  //             },
+  //             child: const Text('Agregar'),
+  //           ),
+  //         ],
+  //       ),
+  //     ),
+  //   );
+  // }
 
   void _showEditAtributoDialog(BuildContext context, AtributoValor atributoValor) {
     final cubit = context.read<VarianteAtributoCubit>();
@@ -741,7 +735,7 @@ class VarianteAtributosSection extends StatelessWidget {
   }
 
   ProductoAtributo _convertirAtributoInfoAProductoAtributo(
-    plantilla.AtributoInfo atributoInfo,
+    plantilla.PlantillaAtributoInfo atributoInfo,
     List<String> valores,
     int orden,
     bool requerido,

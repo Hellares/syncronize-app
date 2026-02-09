@@ -36,6 +36,12 @@ abstract class ProductoStockRepository {
     required String sedeId,
   });
 
+  /// Obtiene el stock de una variante en una sede específica
+  Future<Resource<ProductoStock>> getStockVarianteEnSede({
+    required String varianteId,
+    required String sedeId,
+  });
+
   /// Obtiene el stock de un producto en TODAS las sedes
   Future<Resource<Map<String, dynamic>>> getStockTodasSedes({
     required String productoId,
@@ -88,7 +94,7 @@ abstract class ProductoStockRepository {
   });
 
   /// Descuenta el stock de un combo al vender
-  Future<Resource<List<MovimientoStock>>> descontarStockCombo({
+  Future<Resource<void>> descontarStockCombo({
     required String empresaId,
     required String comboId,
     required String sedeId,

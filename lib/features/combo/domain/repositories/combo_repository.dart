@@ -68,6 +68,12 @@ abstract class ComboRepository {
     required String empresaId,
   });
 
+  /// Elimina múltiples componentes del combo en batch
+  Future<Resource<void>> eliminarComponentesBatch({
+    required List<String> componenteIds,
+    required String empresaId,
+  });
+
   /// Obtiene el stock disponible de un combo
   Future<Resource<int>> getStockDisponible({
     required String comboId,

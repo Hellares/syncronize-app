@@ -239,58 +239,103 @@ class _PlantillaFormDialogState extends State<PlantillaFormDialog> {
   }
 
   Widget _buildAtributoItem(int index, _AtributoSeleccionado atributo) {
-    // Determinar si el atributo tiene valores que se pueden override
     final tieneValores = atributo.valoresDisponibles.isNotEmpty;
     final cantidadOverride = atributo.valoresOverride?.length ?? atributo.valoresDisponibles.length;
 
     return Card(
       key: ValueKey(atributo.atributoId),
       margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: Row(
-          mainAxisSize: MainAxisSize.min,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        child: Row(
           children: [
-            const Icon(Icons.drag_handle),
+            // Drag handle + índice
+            const Icon(Icons.drag_handle, size: 20, color: Colors.grey),
+            const SizedBox(width: 4),
+            SizedBox(
+              width: 20,
+              child: Text(
+                '${index + 1}',
+                style: const TextStyle(fontSize: 13, color: Colors.grey),
+                textAlign: TextAlign.center,
+              ),
+            ),
             const SizedBox(width: 8),
-            Text('${index + 1}'),
-          ],
-        ),
-        title: Text(atributo.nombre),
-        subtitle: Text(
-          '${atributo.clave} • ${atributo.tipo}${tieneValores ? " • $cantidadOverride/${atributo.valoresDisponibles.length} valores" : ""}',
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Editar valores (solo si tiene valores disponibles)
+            // Nombre, clave y tipo
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    atributo.nombre,
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      Text(
+                        atributo.tipo,
+                        style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                      ),
+                      if (tieneValores) ...[
+                        Text(
+                          ' • $cantidadOverride/${atributo.valoresDisponibles.length} val.',
+                          style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            // Configurar valores
             if (tieneValores)
               IconButton(
-                icon: const Icon(Icons.tune, size: 20),
+                icon: const Icon(Icons.tune, size: 18),
                 tooltip: 'Configurar valores',
                 onPressed: () => _editarValoresOverride(context, index, atributo),
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                padding: EdgeInsets.zero,
               ),
-            // Toggle requerido
-            Checkbox(
-              value: atributo.requeridoOverride ?? false,
-              onChanged: (value) {
-                setState(() {
-                  _atributosSeleccionados[index] =
-                      atributo.copyWith(requeridoOverride: value);
-                });
-              },
-              visualDensity: VisualDensity.compact,
+            // Requerido toggle
+            SizedBox(
+              height: 32,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: Checkbox(
+                      value: atributo.requeridoOverride ?? false,
+                      onChanged: (value) {
+                        setState(() {
+                          _atributosSeleccionados[index] =
+                              atributo.copyWith(requeridoOverride: value);
+                        });
+                      },
+                      visualDensity: VisualDensity.compact,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ),
+                  const SizedBox(width: 2),
+                  const Text('Req.', style: TextStyle(fontSize: 11)),
+                ],
+              ),
             ),
-            const Text('Req.', style: TextStyle(fontSize: 12)),
-            const SizedBox(width: 8),
             // Eliminar
             IconButton(
-              icon: const Icon(Icons.close, size: 20),
+              icon: Icon(Icons.close, size: 18, color: Colors.red.shade300),
               onPressed: () {
                 setState(() {
                   _atributosSeleccionados.removeAt(index);
                   _actualizarOrdenes();
                 });
               },
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+              padding: EdgeInsets.zero,
             ),
           ],
         ),

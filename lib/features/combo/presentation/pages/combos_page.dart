@@ -97,6 +97,7 @@ class _CombosViewState extends State<_CombosView> {
         },
       ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'combos_page_fab',
         onPressed: () => context.push('/empresa/combos/nuevo'),
         icon: const Icon(Icons.add),
         label: const Text('Crear Combo'),

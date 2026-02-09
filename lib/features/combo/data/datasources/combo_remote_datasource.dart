@@ -194,6 +194,24 @@ class ComboRemoteDataSource {
     }
   }
 
+  /// Elimina múltiples componentes del combo en batch
+  ///
+  /// DELETE /api/combos/componentes/batch
+  Future<void> eliminarComponentesBatch({
+    required List<String> componenteIds,
+  }) async {
+    try {
+      await _dioClient.delete(
+        '${ApiConstants.combos}/componentes/batch',
+        data: {'componenteIds': componenteIds},
+      );
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    } catch (e) {
+      throw Exception('Error inesperado al eliminar componentes en batch: $e');
+    }
+  }
+
   /// Obtiene el stock disponible de un combo
   ///
   /// GET /api/combos/:id/stock-disponible-combo

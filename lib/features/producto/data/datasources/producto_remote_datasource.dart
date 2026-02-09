@@ -382,6 +382,32 @@ class ProductoRemoteDataSource {
     }
   }
 
+  /// Genera variantes automáticamente por combinación de atributos
+  ///
+  /// POST /api/productos/:productoId/variantes/generar-combinaciones
+  Future<List<ProductoVarianteModel>> generarCombinaciones({
+    required String productoId,
+    required String empresaId,
+    required Map<String, dynamic> data,
+  }) async {
+    try {
+      final response = await _dioClient.post(
+        '${ApiConstants.productos}/$productoId/variantes/generar-combinaciones',
+        data: data,
+      );
+
+      final List<dynamic> responseData = response.data as List<dynamic>;
+      return responseData
+          .map((e) =>
+              ProductoVarianteModel.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    } catch (e) {
+      throw Exception('Error inesperado al generar combinaciones: $e');
+    }
+  }
+
   // =========================================
   // MÉTODOS PARA ATRIBUTOS (PLANTILLAS)
   // =========================================

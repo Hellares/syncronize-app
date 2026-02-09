@@ -123,6 +123,32 @@ class ProductoStockRepositoryImpl implements ProductoStockRepository {
   }
 
   @override
+  Future<Resource<ProductoStock>> getStockVarianteEnSede({
+    required String varianteId,
+    required String sedeId,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error(
+        'No hay conexión a internet',
+        errorCode: 'NETWORK_ERROR',
+      );
+    }
+
+    try {
+      final stock = await _remoteDataSource.getStockVarianteEnSede(
+        varianteId: varianteId,
+        sedeId: sedeId,
+      );
+      return Success(stock);
+    } catch (e) {
+      return Error(
+        e.toString().replaceFirst('Exception: ', ''),
+        errorCode: 'SERVER_ERROR',
+      );
+    }
+  }
+
+  @override
   Future<Resource<Map<String, dynamic>>> getStockTodasSedes({
     required String productoId,
     required String empresaId,
@@ -310,7 +336,7 @@ class ProductoStockRepositoryImpl implements ProductoStockRepository {
   }
 
   @override
-  Future<Resource<List<MovimientoStock>>> descontarStockCombo({
+  Future<Resource<void>> descontarStockCombo({
     required String empresaId,
     required String comboId,
     required String sedeId,
@@ -326,7 +352,7 @@ class ProductoStockRepositoryImpl implements ProductoStockRepository {
     }
 
     try {
-      final movimientos = await _remoteDataSource.descontarStockCombo(
+      await _remoteDataSource.descontarStockCombo(
         empresaId: empresaId,
         comboId: comboId,
         sedeId: sedeId,
@@ -334,7 +360,7 @@ class ProductoStockRepositoryImpl implements ProductoStockRepository {
         tipoDocumento: tipoDocumento,
         numeroDocumento: numeroDocumento,
       );
-      return Success(movimientos);
+      return Success(null);
     } catch (e) {
       return Error(
         e.toString().replaceFirst('Exception: ', ''),

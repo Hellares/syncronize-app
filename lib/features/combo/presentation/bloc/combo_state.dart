@@ -101,6 +101,17 @@ class ComponenteDeleted extends ComboState {
   List<Object?> get props => [message];
 }
 
+/// Estado de múltiples componentes eliminados en batch
+class ComponentesBatchDeleted extends ComboState {
+  final int count;
+  final String message;
+
+  const ComponentesBatchDeleted(this.count, this.message);
+
+  @override
+  List<Object?> get props => [count, message];
+}
+
 /// Estado de error
 class ComboError extends ComboState {
   final String message;

@@ -303,8 +303,14 @@ class _ProductoVariantesBottomSheetState extends State<ProductoVariantesBottomSh
   }
 
   Widget _buildVarianteCard(ProductoVariante variante) {
-    final hasOferta = variante.precioOferta != null;
-    final precioActual = variante.precioEfectivo;
+    // Obtener precios desde stocksPorSede (sistema multi-sede)
+    final _stocks = variante.stocksPorSede;
+    final _stockInfo = _stocks != null && _stocks.isNotEmpty
+        ? (_stocks.where((s) => s.precioConfigurado && s.precio != null).firstOrNull ?? _stocks.first)
+        : null;
+    final hasOferta = _stockInfo?.isOfertaActiva ?? false;
+    final precioActual = _stockInfo?.precioEfectivo ?? 0.0;
+    final precioOriginal = _stockInfo?.precio ?? 0.0;
 
     return GradientContainer(
       gradient: AppGradients.blueWhiteBlue(),
@@ -427,7 +433,7 @@ class _ProductoVariantesBottomSheetState extends State<ProductoVariantesBottomSh
                             ),
                             const SizedBox(width: 6),
                             Text(
-                              'S/ ${variante.precio.toStringAsFixed(2)}',
+                              'S/ ${precioOriginal.toStringAsFixed(2)}',
                               style: TextStyle(
                                 fontSize: 11,
                                 decoration: TextDecoration.lineThrough,

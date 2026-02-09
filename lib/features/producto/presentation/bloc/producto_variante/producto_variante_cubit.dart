@@ -134,6 +134,40 @@ class ProductoVarianteCubit extends Cubit<ProductoVarianteState> {
     }
   }
 
+  /// Generar combinaciones de variantes automáticamente
+  Future<void> generarCombinaciones({
+    required String productoId,
+    required String empresaId,
+    required Map<String, dynamic> data,
+  }) async {
+    try {
+      if (isClosed) return;
+      emit(const ProductoVarianteLoading());
+
+      final variantes = await _remoteDataSource.generarCombinaciones(
+        productoId: productoId,
+        empresaId: empresaId,
+        data: data,
+      );
+
+      // Recargar la lista
+      if (isClosed) return;
+      await loadVariantes(productoId: productoId, empresaId: empresaId);
+
+      if (isClosed) return;
+      final currentState = state;
+      if (currentState is ProductoVarianteLoaded) {
+        emit(ProductoVarianteOperationSuccess(
+          '${variantes.length} variantes generadas exitosamente',
+          currentState.variantes,
+        ));
+      }
+    } catch (e) {
+      if (isClosed) return;
+      emit(ProductoVarianteError(_getErrorMessage(e)));
+    }
+  }
+
   /// Actualizar stock de una variante
   Future<void> actualizarStock({
     required String varianteId,

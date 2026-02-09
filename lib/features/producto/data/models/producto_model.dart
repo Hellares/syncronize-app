@@ -18,8 +18,6 @@ class ProductoModel extends Producto {
     super.codigoBarras,
     required super.nombre,
     super.descripcion,
-    required super.precio,
-    super.precioCosto,
     super.peso,
     super.dimensiones,
     super.videoUrl,
@@ -28,10 +26,6 @@ class ProductoModel extends Producto {
     required super.visibleMarketplace,
     required super.destacado,
     super.ordenMarketplace,
-    required super.enOferta,
-    super.precioOferta,
-    super.fechaInicioOferta,
-    super.fechaFinOferta,
     required super.isActive,
     super.tieneVariantes,
     super.esCombo,
@@ -52,47 +46,6 @@ class ProductoModel extends Producto {
   });
 
   factory ProductoModel.fromJson(Map<String, dynamic> json) {
-    // Parsear stocks por sede primero para obtener precios si es necesario
-    final stocksPorSede = json['stocksPorSede'] != null
-        ? (json['stocksPorSede'] as List)
-            .map((e) => StockPorSedeInfoModel.fromJson(e as Map<String, dynamic>))
-            .toList()
-        : null;
-
-    // Obtener precio: priorizar JSON directo para compatibilidad, sino del primer stock
-    double precio = 0.0;
-    double? precioCosto;
-    bool enOferta = false;
-    double? precioOferta;
-    DateTime? fechaInicioOferta;
-    DateTime? fechaFinOferta;
-
-    if (json.containsKey('precio') && json['precio'] != null) {
-      // Formato antiguo: precio en la raíz del producto
-      precio = _toDouble(json['precio']);
-      precioCosto = json['precioCosto'] != null ? _toDouble(json['precioCosto']) : null;
-      enOferta = json['enOferta'] as bool? ?? false;
-      precioOferta = json['precioOferta'] != null ? _toDouble(json['precioOferta']) : null;
-      fechaInicioOferta = json['fechaInicioOferta'] != null
-          ? DateTime.parse(json['fechaInicioOferta'] as String)
-          : null;
-      fechaFinOferta = json['fechaFinOferta'] != null
-          ? DateTime.parse(json['fechaFinOferta'] as String)
-          : null;
-    } else if (stocksPorSede != null && stocksPorSede.isNotEmpty) {
-      // Nuevo formato: obtener del primer stock disponible con precio configurado
-      final stockConPrecio = stocksPorSede.firstWhere(
-        (s) => s.precioConfigurado && s.precio != null,
-        orElse: () => stocksPorSede.first,
-      );
-      precio = stockConPrecio.precio ?? 0.0;
-      precioCosto = stockConPrecio.precioCosto;
-      enOferta = stockConPrecio.enOferta;
-      precioOferta = stockConPrecio.precioOferta;
-      fechaInicioOferta = stockConPrecio.fechaInicioOferta;
-      fechaFinOferta = stockConPrecio.fechaFinOferta;
-    }
-
     return ProductoModel(
       id: json['id'] as String,
       empresaId: json['empresaId'] as String,
@@ -106,8 +59,6 @@ class ProductoModel extends Producto {
       codigoBarras: json['codigoBarras'] as String?,
       nombre: json['nombre'] as String,
       descripcion: json['descripcion'] as String?,
-      precio: precio,
-      precioCosto: precioCosto,
       peso: json['peso'] != null ? _toDouble(json['peso']) : null,
       dimensiones: json['dimensiones'] as Map<String, dynamic>?,
       videoUrl: json['videoUrl'] as String?,
@@ -122,10 +73,6 @@ class ProductoModel extends Producto {
       ordenMarketplace: json['ordenMarketplace'] != null
           ? _toInt(json['ordenMarketplace'])
           : null,
-      enOferta: enOferta,
-      precioOferta: precioOferta,
-      fechaInicioOferta: fechaInicioOferta,
-      fechaFinOferta: fechaFinOferta,
       isActive: json['isActive'] as bool? ?? true,
       tieneVariantes: json['tieneVariantes'] as bool? ?? false,
       esCombo: json['esCombo'] as bool? ?? false,
@@ -168,7 +115,11 @@ class ProductoModel extends Producto {
               .map((e) => ProductoVarianteModel.fromJson(e as Map<String, dynamic>))
               .toList()
           : null,
-      stocksPorSede: stocksPorSede,
+      stocksPorSede: json['stocksPorSede'] != null
+          ? (json['stocksPorSede'] as List)
+              .map((e) => StockPorSedeInfoModel.fromJson(e as Map<String, dynamic>))
+              .toList()
+          : null,
     );
   }
 
@@ -203,8 +154,6 @@ class ProductoModel extends Producto {
       if (codigoBarras != null) 'codigoBarras': codigoBarras,
       'nombre': nombre,
       if (descripcion != null) 'descripcion': descripcion,
-      'precio': precio,
-      if (precioCosto != null) 'precioCosto': precioCosto,
       if (peso != null) 'peso': peso,
       if (dimensiones != null) 'dimensiones': dimensiones,
       if (videoUrl != null) 'videoUrl': videoUrl,
@@ -213,12 +162,6 @@ class ProductoModel extends Producto {
       'visibleMarketplace': visibleMarketplace,
       'destacado': destacado,
       if (ordenMarketplace != null) 'ordenMarketplace': ordenMarketplace,
-      'enOferta': enOferta,
-      if (precioOferta != null) 'precioOferta': precioOferta,
-      if (fechaInicioOferta != null)
-        'fechaInicioOferta': fechaInicioOferta!.toIso8601String(),
-      if (fechaFinOferta != null)
-        'fechaFinOferta': fechaFinOferta!.toIso8601String(),
       'isActive': isActive,
       'tieneVariantes': tieneVariantes,
       'esCombo': esCombo,
@@ -247,8 +190,6 @@ class ProductoModel extends Producto {
       codigoBarras: entity.codigoBarras,
       nombre: entity.nombre,
       descripcion: entity.descripcion,
-      precio: entity.precio,
-      precioCosto: entity.precioCosto,
       peso: entity.peso,
       dimensiones: entity.dimensiones,
       videoUrl: entity.videoUrl,
@@ -257,10 +198,6 @@ class ProductoModel extends Producto {
       visibleMarketplace: entity.visibleMarketplace,
       destacado: entity.destacado,
       ordenMarketplace: entity.ordenMarketplace,
-      enOferta: entity.enOferta,
-      precioOferta: entity.precioOferta,
-      fechaInicioOferta: entity.fechaInicioOferta,
-      fechaFinOferta: entity.fechaFinOferta,
       isActive: entity.isActive,
       tieneVariantes: entity.tieneVariantes,
       esCombo: entity.esCombo,
@@ -277,6 +214,7 @@ class ProductoModel extends Producto {
       archivos: entity.archivos,
       atributosValores: entity.atributosValores,
       variantes: entity.variantes,
+      stocksPorSede: entity.stocksPorSede,
     );
   }
 }

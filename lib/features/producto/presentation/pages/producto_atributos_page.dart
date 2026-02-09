@@ -7,7 +7,6 @@ import '../../../catalogo/presentation/bloc/categorias_empresa/categorias_empres
 import '../../../catalogo/presentation/bloc/categorias_empresa/categorias_empresa_state.dart';
 import '../bloc/producto_atributo/producto_atributo_cubit.dart';
 import '../bloc/producto_atributo/producto_atributo_state.dart';
-import '../widgets/plantilla_selector_dialog.dart';
 
 class ProductoAtributosPage extends StatefulWidget {
   const ProductoAtributosPage({super.key});
@@ -38,13 +37,6 @@ class _ProductoAtributosPageState extends State<ProductoAtributosPage> {
       appBar: AppBar(
         title: const Text('Atributos de Productos'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.dashboard_customize),
-            onPressed: () {
-              _showPlantillasDialog();
-            },
-            tooltip: 'Aplicar Plantilla',
-          ),
           IconButton(
             icon: const Icon(Icons.help_outline),
             onPressed: () {
@@ -93,6 +85,7 @@ class _ProductoAtributosPageState extends State<ProductoAtributosPage> {
         },
       ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'producto_atributos_fab',
         onPressed: () => _showAtributoDialog(),
         icon: const Icon(Icons.add),
         label: const Text('Nuevo Atributo'),
@@ -131,43 +124,16 @@ class _ProductoAtributosPageState extends State<ProductoAtributosPage> {
               ),
             ),
             const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                OutlinedButton.icon(
-                  onPressed: () => _showPlantillasDialog(),
-                  icon: const Icon(Icons.dashboard_customize),
-                  label: const Text('Usar Plantilla'),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 12,
-                    ),
-                  ),
+            ElevatedButton.icon(
+              onPressed: () => _showAtributoDialog(),
+              icon: const Icon(Icons.add),
+              label: const Text('Crear Atributo'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
                 ),
-                const SizedBox(width: 12),
-                ElevatedButton.icon(
-                  onPressed: () => _showAtributoDialog(),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Crear Manualmente'),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 12,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              '💡 Tip: Usa plantillas para agregar múltiples atributos rápidamente',
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.grey[600],
-                fontStyle: FontStyle.italic,
               ),
-              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -482,22 +448,6 @@ class _ProductoAtributosPageState extends State<ProductoAtributosPage> {
             child: const Text('Eliminar'),
           ),
         ],
-      ),
-    );
-  }
-
-  void _showPlantillasDialog() {
-    final empresaState = context.read<EmpresaContextCubit>().state;
-    if (empresaState is! EmpresaContextLoaded) return;
-
-    showDialog(
-      context: context,
-      builder: (context) => PlantillaSelectorDialog(
-        empresaId: empresaState.context.empresa.id,
-        onPlantillaAplicada: () {
-          // Recargar atributos después de aplicar plantilla
-          _loadAtributos();
-        },
       ),
     );
   }

@@ -302,7 +302,7 @@ class _VariantePlantillaAtributosDialogState
         const SizedBox(height: 16),
         ...atributosOrdenados.map((plantillaAtributo) {
           final valorActual = _valores[plantillaAtributo.atributoId];
-          // Convertir AtributoInfo a ProductoAtributo
+          // Convertir PlantillaAtributoInfo a ProductoAtributo
           final productoAtributo = _convertirAtributoInfoAProductoAtributo(
             plantillaAtributo.atributo,
             plantillaAtributo.valoresActuales,
@@ -355,9 +355,9 @@ class _VariantePlantillaAtributosDialogState
     );
   }
 
-  /// Convierte AtributoInfo a ProductoAtributo para compatibilidad con el widget
+  /// Convierte PlantillaAtributoInfo a ProductoAtributo para compatibilidad con el widget
   ProductoAtributo _convertirAtributoInfoAProductoAtributo(
-    AtributoInfo atributoInfo,
+    PlantillaAtributoInfo atributoInfo,
     List<String> valores,
     int orden,
     bool requerido,

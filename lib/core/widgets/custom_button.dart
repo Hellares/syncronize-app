@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-// import '../../../core/theme/app_colors.dart'; // Descomenta según tu estructura
+import 'package:flutter_svg/flutter_svg.dart';
 
 // 🚀 ENUMS PARA ESTADOS DEL BOTÓN
 enum ButtonState {
@@ -17,14 +17,23 @@ class CustomButtonConstants {
   static const double defaultHeight = 30.0;
 }
 
-// 🚀 WIDGET PRINCIPAL - CON CONTROL DE SOMBRAS
+// 🚀 SUPER CUSTOM BUTTON - FUSIÓN COMPLETA
+// ✅ Base: core/widgets (4 estados, gradientes, animaciones complejas)
+// ✅ Nuevas características de auth/widgets:
+//    - Soporte SVG/PNG (iconPath)
+//    - Variante Outlined (isOutlined)
+//    - Glow Effect (enableGlow, glowOnPressOnly, glowColor, glowIntensity)
 class CustomButton extends StatefulWidget {
-  // Propiedades básicas
+  // ═══════════════════════════════════════════════════════════════════════
+  // PROPIEDADES BÁSICAS
+  // ═══════════════════════════════════════════════════════════════════════
   final String text;
   final VoidCallback? onPressed;
   final bool enabled;
 
-  // Propiedades de estado y loading
+  // ═══════════════════════════════════════════════════════════════════════
+  // PROPIEDADES DE ESTADO Y LOADING
+  // ═══════════════════════════════════════════════════════════════════════
   final ButtonState buttonState;
   final String? loadingText;
   final String? successText;
@@ -33,7 +42,12 @@ class CustomButton extends StatefulWidget {
   final double? loadingIndicatorSize;
   final Duration? stateResetDuration;
 
-  // Propiedades de estilo
+  // 🆕 COMPATIBILIDAD: Alternativa simple al buttonState para loading
+  final bool isLoading;
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // PROPIEDADES DE ESTILO
+  // ═══════════════════════════════════════════════════════════════════════
   final Gradient? gradient;
   final Color? backgroundColor; // Para un fondo sólido
   final Color? borderColor;
@@ -42,57 +56,109 @@ class CustomButton extends StatefulWidget {
   final double? height;
   final double? borderRadius;
 
-  // Propiedades opcionales
+  // 🆕 VARIANTE OUTLINED (del auth/widgets)
+  final bool isOutlined;
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // PROPIEDADES DE ÍCONOS
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /// Widget personalizado para el ícono (tiene prioridad sobre iconPath)
+  /// Se muestra solo en estado idle
+  final Widget? icon;
+
+  /// 🆕 Ruta del asset del ícono (soporta PNG y SVG)
+  /// Ejemplo: 'assets/logos/google_logo.png' o 'assets/icons/icon.svg'
+  final String? iconPath;
+
+  /// 🆕 Tamaño del ícono cuando se usa iconPath
+  final double iconSize;
+
+  final Color? iconColor;
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // PROPIEDADES DE TEXTO
+  // ═══════════════════════════════════════════════════════════════════════
   final EdgeInsetsGeometry? padding;
   final TextStyle? textStyle;
-  final Duration animationDuration;
-  final bool showHapticFeedback;
-
-  // 🚀 NUEVA PROPIEDAD PARA CONTROLAR SOMBRAS
-  final bool enableShadows;
-
-  // 🚀 PROPIEDADES DE TEXTO PERSONALIZABLES
   final Color? textColor;
   final FontWeight? fontWeight;
   final double? fontSize;
+  final String? fontFamily;
 
-  // 🚀 PROPIEDADES DE ÍCONOS PERSONALIZABLES
-  final Color? iconColor;
+  // ═══════════════════════════════════════════════════════════════════════
+  // PROPIEDADES DE ANIMACIÓN Y FEEDBACK
+  // ═══════════════════════════════════════════════════════════════════════
+  final Duration animationDuration;
+  final bool showHapticFeedback;
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // PROPIEDADES DE SOMBRAS
+  // ═══════════════════════════════════════════════════════════════════════
+  final bool enableShadows;
+
+  /// 🆕 Glow (neón suave) que se adapta al borde (del auth/widgets)
+  final bool enableGlow;
+
+  /// 🆕 Solo activar glow al presionar
+  final bool glowOnPressOnly;
+
+  /// 🆕 Color del glow (si no se especifica, usa borderColor)
+  final Color? glowColor;
+
+  /// 🆕 Intensidad del glow (0.0 - 1.0 recomendado)
+  final double glowIntensity;
 
   const CustomButton({
     super.key,
     required this.text,
-    this.gradient,
-    this.backgroundColor,
     this.onPressed,
-    
+
+    // Estado
     this.enabled = true,
-    // Propiedades de estado
     this.buttonState = ButtonState.idle,
+    this.isLoading = false, // 🆕 Compatibilidad simple
     this.loadingText,
     this.successText,
     this.errorText,
     this.loadingIndicatorColor,
     this.loadingIndicatorSize,
     this.stateResetDuration,
-    // Propiedades de estilo
+
+    // Estilo
+    this.gradient,
+    this.backgroundColor,
     this.borderColor,
     this.borderWidth = 1.0,
     this.width,
     this.height,
     this.borderRadius,
+    this.isOutlined = false, // 🆕
+
+    // Íconos
+    this.icon,
+    this.iconPath, // 🆕
+    this.iconSize = 18, // 🆕
+    this.iconColor,
+
+    // Texto
     this.padding,
     this.textStyle,
-    this.animationDuration = CustomButtonConstants.defaultAnimationDuration,
-    this.showHapticFeedback = true,
-    // 🚀 CONTROL DE SOMBRAS (POR DEFECTO HABILITADAS)
-    this.enableShadows = true,
-    // 🚀 PROPIEDADES DE TEXTO PERSONALIZABLES
     this.textColor,
     this.fontWeight,
     this.fontSize,
-    // 🚀 PROPIEDADES DE ÍCONOS PERSONALIZABLES
-    this.iconColor,
+    this.fontFamily, // 🆕
+
+    // Animación
+    this.animationDuration = CustomButtonConstants.defaultAnimationDuration,
+    this.showHapticFeedback = true,
+
+    // Sombras y Glow
+    this.enableShadows = true,
+    this.enableGlow = false, // 🆕
+    this.glowOnPressOnly = false, // 🆕
+    this.glowColor, // 🆕
+    this.glowIntensity = 0.65, // 🆕
   });
 
   @override
@@ -163,7 +229,7 @@ class _CustomButtonState extends State<CustomButton>
     _borderWidthAnimation =
         Tween<double>(
           begin: widget.borderWidth,
-          end: widget.borderWidth * 1.5, // 50% más grueso al presionar
+          end: widget.borderWidth * 1.5,
         ).animate(
           CurvedAnimation(
             parent: _animationController,
@@ -174,7 +240,7 @@ class _CustomButtonState extends State<CustomButton>
     _flashBorderWidthAnimation =
         Tween<double>(
           begin: widget.borderWidth,
-          end: widget.borderWidth * 1.5, // 50% más grueso en flash
+          end: widget.borderWidth * 1.5,
         ).animate(
           CurvedAnimation(
             parent: _flashController,
@@ -190,8 +256,18 @@ class _CustomButtonState extends State<CustomButton>
     super.dispose();
   }
 
+  // ═══════════════════════════════════════════════════════════════════════
+  // CONSTRUCCIÓN DEL CONTENIDO POR ESTADO
+  // ═══════════════════════════════════════════════════════════════════════
+
+  ButtonState get _effectiveState {
+    // Compatibilidad: isLoading tiene prioridad si está en true
+    if (widget.isLoading) return ButtonState.loading;
+    return widget.buttonState;
+  }
+
   Widget _buildButtonContent() {
-    switch (widget.buttonState) {
+    switch (_effectiveState) {
       case ButtonState.loading:
         return _buildLoadingContent();
       case ButtonState.success:
@@ -204,10 +280,55 @@ class _CustomButtonState extends State<CustomButton>
   }
 
   Widget _buildIdleContent() {
-    return Text(
+    final textWidget = Text(
       widget.text,
       style: _getTextStyle(),
       textAlign: TextAlign.center,
+      overflow: TextOverflow.ellipsis,
+    );
+
+    // 🆕 Soporte para íconos custom (widget, SVG, PNG)
+    final iconWidget = _buildIcon();
+    if (iconWidget == null) return textWidget;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        iconWidget,
+        const SizedBox(width: 8),
+        Flexible(child: textWidget),
+      ],
+    );
+  }
+
+  /// 🆕 Construye el widget del ícono basándose en icon o iconPath
+  Widget? _buildIcon() {
+    // Prioridad 1: Widget personalizado
+    if (widget.icon != null) return widget.icon;
+
+    // Prioridad 2: iconPath (SVG/PNG)
+    if (widget.iconPath == null) return null;
+
+    final path = widget.iconPath!;
+    final size = widget.iconSize;
+
+    // Detectar si es SVG por la extensión
+    if (path.toLowerCase().endsWith('.svg')) {
+      return SvgPicture.asset(
+        path,
+        width: size,
+        height: size,
+        fit: BoxFit.contain,
+      );
+    }
+
+    // Para PNG, JPG, etc.
+    return Image.asset(
+      path,
+      width: size,
+      height: size,
+      fit: BoxFit.contain,
     );
   }
 
@@ -284,8 +405,12 @@ class _CustomButtonState extends State<CustomButton>
     );
   }
 
+  // ═══════════════════════════════════════════════════════════════════════
+  // MANEJO DE EVENTOS
+  // ═══════════════════════════════════════════════════════════════════════
+
   bool _isButtonEnabled() {
-    return widget.enabled && widget.buttonState == ButtonState.idle;
+    return widget.enabled && _effectiveState == ButtonState.idle;
   }
 
   void _handleTapDown(TapDownDetails details) {
@@ -330,8 +455,21 @@ class _CustomButtonState extends State<CustomButton>
     });
   }
 
+  // ═══════════════════════════════════════════════════════════════════════
+  // BUILD PRINCIPAL
+  // ═══════════════════════════════════════════════════════════════════════
+
   @override
   Widget build(BuildContext context) {
+    // 🆕 Soporte para variante outlined
+    if (widget.isOutlined) {
+      return _buildOutlinedButton();
+    }
+    return _buildFilledButton();
+  }
+
+  /// Botón filled (original)
+  Widget _buildFilledButton() {
     return AnimatedBuilder(
       animation: Listenable.merge([_animationController, _flashController]),
       builder: (context, child) {
@@ -344,8 +482,7 @@ class _CustomButtonState extends State<CustomButton>
               borderRadius: BorderRadius.circular(
                 widget.borderRadius ?? CustomButtonConstants.defaultBorderRadius,
               ),
-              // 🚀 SOMBRAS SOLO SI enableShadows ES TRUE
-              boxShadow: widget.enableShadows ? _buildShadows() : null,
+              boxShadow: _buildShadows(),
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(
@@ -387,6 +524,52 @@ class _CustomButtonState extends State<CustomButton>
     );
   }
 
+  /// 🆕 Botón outlined
+  Widget _buildOutlinedButton() {
+    // final borderColor = widget.borderColor ?? Colors.blue;
+
+    return AnimatedBuilder(
+      animation: Listenable.merge([_animationController, _flashController]),
+      builder: (context, child) {
+        return Transform.scale(
+          scale: _scaleAnimation.value,
+          child: Container(
+            width: widget.width,
+            height: widget.height ?? CustomButtonConstants.defaultHeight,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(
+                widget.borderRadius ?? CustomButtonConstants.defaultBorderRadius,
+              ),
+              boxShadow: _buildShadows(),
+            ),
+            child: OutlinedButton(
+              onPressed: _isButtonEnabled() ? _handleTap : null,
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(
+                  color: _getCurrentBorderColor(),
+                  width: _getCurrentBorderWidth(),
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(
+                    widget.borderRadius ?? CustomButtonConstants.defaultBorderRadius,
+                  ),
+                ),
+                padding: widget.padding ??
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                backgroundColor: Colors.transparent,
+              ),
+              child: _buildButtonContent(),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // HELPERS DE ESTILO
+  // ═══════════════════════════════════════════════════════════════════════
+
   Gradient _getDisabledGradient() {
     return LinearGradient(colors: [Colors.grey.shade300, Colors.grey.shade400]);
   }
@@ -395,6 +578,7 @@ class _CustomButtonState extends State<CustomButton>
     final defaultStyle = TextStyle(
       fontSize: widget.fontSize ?? 10,
       fontWeight: widget.fontWeight ?? FontWeight.w600,
+      fontFamily: widget.fontFamily,
       color: widget.textColor ??
           (widget.enabled ? Colors.white : Colors.grey.shade600),
       height: 1.2,
@@ -405,51 +589,83 @@ class _CustomButtonState extends State<CustomButton>
         : defaultStyle;
   }
 
-  // 🚀 MÉTODO DE SOMBRAS MODIFICADO - RETORNA NULL SI enableShadows ES FALSE
+  // ═══════════════════════════════════════════════════════════════════════
+  // SOMBRAS Y GLOW
+  // ═══════════════════════════════════════════════════════════════════════
+
   List<BoxShadow>? _buildShadows() {
-    // Si las sombras están deshabilitadas, retornar null
-    if (!widget.enableShadows || !widget.enabled) return null;
+    if (!widget.enabled) return null;
 
-    final double intensity = _shadowAnimation.value;
-    final Color shadowColor = _getShadowColorFromBorder();
+    final List<BoxShadow> shadows = [];
 
-    if (_isPressed) {
-      return [
+    // 🆕 GLOW EFFECT (del auth/widgets)
+    final shouldGlow = widget.enableGlow && (!widget.glowOnPressOnly || _isPressed);
+    if (shouldGlow) {
+      final glowBase = widget.glowColor ?? widget.borderColor ?? Colors.blue;
+      final t = widget.glowIntensity.clamp(0.0, 1.0);
+      final pressBoost = _isPressed ? 1.15 : 1.0;
+
+      shadows.addAll([
         BoxShadow(
-          color: shadowColor.withValues(alpha: 0.35 + (intensity * 0.15)),
-          offset: const Offset(0, 2),
-          blurRadius: 6 + (intensity * 2),
-          spreadRadius: 0,
+          color: glowBase.withValues(alpha: (0.22 * t) * pressBoost),
+          blurRadius: (22.0 + 18.0 * t) * pressBoost,
+          spreadRadius: (1.5 + 2.0 * t) * pressBoost,
+          offset: const Offset(0, 0),
         ),
         BoxShadow(
-          color: Colors.white.withValues(alpha: 0.7),
-          offset: const Offset(-1, -1),
-          blurRadius: 6,
-          spreadRadius: -1,
+          color: glowBase.withValues(alpha: (0.14 * t) * pressBoost),
+          blurRadius: (10.0 + 10.0 * t) * pressBoost,
+          spreadRadius: (0.6 + 1.2 * t) * pressBoost,
+          offset: const Offset(0, 0),
         ),
-      ];
-    } else {
-      return [
-        BoxShadow(
-          color: shadowColor.withValues(alpha: 0.3),
-          offset: const Offset(3, 3),
-          blurRadius: 6,
-          spreadRadius: 0,
-        ),
-        BoxShadow(
-          color: shadowColor.withValues(alpha: 0.5),
-          offset: const Offset(1, 1),
-          blurRadius: 4,
-          spreadRadius: -1,
-        ),
-        BoxShadow(
-          color: Colors.white.withValues(alpha: 0.9),
-          offset: const Offset(-2, -2),
-          blurRadius: 6,
-          spreadRadius: -1,
-        ),
-      ];
+      ]);
     }
+
+    // SOMBRAS NORMALES (solo si enableShadows está activo)
+    if (widget.enableShadows) {
+      final double intensity = _shadowAnimation.value;
+      final Color shadowColor = _getShadowColorFromBorder();
+
+      if (_isPressed) {
+        shadows.addAll([
+          BoxShadow(
+            color: shadowColor.withValues(alpha: 0.35 + (intensity * 0.15)),
+            offset: const Offset(0, 2),
+            blurRadius: 6 + (intensity * 2),
+            spreadRadius: 0,
+          ),
+          BoxShadow(
+            color: Colors.white.withValues(alpha: 0.7),
+            offset: const Offset(-1, -1),
+            blurRadius: 6,
+            spreadRadius: -1,
+          ),
+        ]);
+      } else {
+        shadows.addAll([
+          BoxShadow(
+            color: shadowColor.withValues(alpha: 0.3),
+            offset: const Offset(3, 3),
+            blurRadius: 6,
+            spreadRadius: 0,
+          ),
+          BoxShadow(
+            color: shadowColor.withValues(alpha: 0.5),
+            offset: const Offset(1, 1),
+            blurRadius: 4,
+            spreadRadius: -1,
+          ),
+          BoxShadow(
+            color: Colors.white.withValues(alpha: 0.9),
+            offset: const Offset(-2, -2),
+            blurRadius: 6,
+            spreadRadius: -1,
+          ),
+        ]);
+      }
+    }
+
+    return shadows.isEmpty ? null : shadows;
   }
 
   Color _getShadowColorFromBorder() {
@@ -492,6 +708,10 @@ class _CustomButtonState extends State<CustomButton>
     return const Color(0xFF424242);
   }
 
+  // ═══════════════════════════════════════════════════════════════════════
+  // HELPERS DE BORDE
+  // ═══════════════════════════════════════════════════════════════════════
+
   double _getCurrentBorderWidth() {
     if (_isFlashing) {
       return _flashBorderWidthAnimation.value;
@@ -501,7 +721,6 @@ class _CustomButtonState extends State<CustomButton>
       return _borderWidthAnimation.value;
     }
 
-    // Usar el borderWidth del widget como valor base
     return widget.borderWidth;
   }
 

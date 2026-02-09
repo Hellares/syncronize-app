@@ -1,4 +1,5 @@
 import '../../domain/entities/producto_list_item.dart';
+import 'producto_variante_model.dart';
 import 'stock_por_sede_info_model.dart';
 
 class ProductoListItemModel extends ProductoListItem {
@@ -6,12 +7,6 @@ class ProductoListItemModel extends ProductoListItem {
     required super.id,
     required super.nombre,
     required super.codigoEmpresa,
-    required super.precio,
-    required super.stock,
-    required super.enOferta,
-    super.precioOferta,
-    super.ofertaFechaInicio,
-    super.ofertaFechaFin,
     required super.destacado,
     super.imagenPrincipal,
     super.categoriaNombre,
@@ -19,6 +14,7 @@ class ProductoListItemModel extends ProductoListItem {
     required super.isActive,
     super.esCombo,
     super.tieneVariantes,
+    super.variantes,
     super.stocksPorSede,
     super.comboReservado,
   });
@@ -28,18 +24,6 @@ class ProductoListItemModel extends ProductoListItem {
       id: json['id'] as String,
       nombre: json['nombre'] as String,
       codigoEmpresa: json['codigoEmpresa'] as String,
-      precio: json['precio'] != null ? (json['precio'] as num).toDouble() : 0.0,
-      stock: json['stock'] as int? ?? 0,
-      enOferta: json['enOferta'] as bool? ?? false,
-      precioOferta: json['precioOferta'] != null
-          ? (json['precioOferta'] as num).toDouble()
-          : null,
-      ofertaFechaInicio: json['fechaInicioOferta'] != null
-          ? DateTime.parse(json['fechaInicioOferta'] as String)
-          : null,
-      ofertaFechaFin: json['fechaFinOferta'] != null
-          ? DateTime.parse(json['fechaFinOferta'] as String)
-          : null,
       destacado: json['destacado'] as bool? ?? false,
       imagenPrincipal: json['imagenes'] != null &&
               (json['imagenes'] as List).isNotEmpty
@@ -50,6 +34,11 @@ class ProductoListItemModel extends ProductoListItem {
       isActive: json['isActive'] as bool? ?? true,
       esCombo: json['esCombo'] as bool? ?? false,
       tieneVariantes: json['tieneVariantes'] as bool? ?? false,
+      variantes: json['variantes'] != null
+          ? (json['variantes'] as List)
+              .map((e) => ProductoVarianteModel.fromJson(e as Map<String, dynamic>))
+              .toList()
+          : null,
       stocksPorSede: json['stocksPorSede'] != null
           ? (json['stocksPorSede'] as List)
               .map((e) => StockPorSedeInfoModel.fromJson(e as Map<String, dynamic>))
@@ -64,14 +53,6 @@ class ProductoListItemModel extends ProductoListItem {
       'id': id,
       'nombre': nombre,
       'codigoEmpresa': codigoEmpresa,
-      'precio': precio,
-      'stock': stock,
-      'enOferta': enOferta,
-      if (precioOferta != null) 'precioOferta': precioOferta,
-      if (ofertaFechaInicio != null)
-        'fechaInicioOferta': ofertaFechaInicio!.toIso8601String(),
-      if (ofertaFechaFin != null)
-        'fechaFinOferta': ofertaFechaFin!.toIso8601String(),
       'destacado': destacado,
       if (imagenPrincipal != null) 'imagenes': [imagenPrincipal],
       if (categoriaNombre != null)
@@ -80,6 +61,14 @@ class ProductoListItemModel extends ProductoListItem {
       'isActive': isActive,
       'esCombo': esCombo,
       'tieneVariantes': tieneVariantes,
+      if (variantes != null)
+        'variantes': variantes!
+            .map((v) => ProductoVarianteModel.fromEntity(v).toJson())
+            .toList(),
+      if (stocksPorSede != null)
+        'stocksPorSede': stocksPorSede!
+            .map((s) => StockPorSedeInfoModel.fromEntity(s).toJson())
+            .toList(),
     };
   }
 
@@ -90,12 +79,6 @@ class ProductoListItemModel extends ProductoListItem {
       id: entity.id,
       nombre: entity.nombre,
       codigoEmpresa: entity.codigoEmpresa,
-      precio: entity.precio,
-      stock: entity.stock,
-      enOferta: entity.enOferta,
-      precioOferta: entity.precioOferta,
-      ofertaFechaInicio: entity.ofertaFechaInicio,
-      ofertaFechaFin: entity.ofertaFechaFin,
       destacado: entity.destacado,
       imagenPrincipal: entity.imagenPrincipal,
       categoriaNombre: entity.categoriaNombre,
@@ -103,6 +86,8 @@ class ProductoListItemModel extends ProductoListItem {
       isActive: entity.isActive,
       esCombo: entity.esCombo,
       tieneVariantes: entity.tieneVariantes,
+      variantes: entity.variantes,
+      stocksPorSede: entity.stocksPorSede,
       comboReservado: entity.comboReservado,
     );
   }

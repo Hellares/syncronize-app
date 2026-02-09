@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'producto_variante.dart';
 import 'stock_por_sede_info.dart';
 
 /// Entity simplificada para listados de productos
@@ -6,12 +7,6 @@ class ProductoListItem extends Equatable {
   final String id;
   final String nombre;
   final String codigoEmpresa;
-  final double precio;
-  final int stock;
-  final bool enOferta;
-  final double? precioOferta;
-  final DateTime? ofertaFechaInicio;
-  final DateTime? ofertaFechaFin;
   final bool destacado;
   final String? imagenPrincipal;
   final String? categoriaNombre;
@@ -19,6 +14,7 @@ class ProductoListItem extends Equatable {
   final bool isActive;
   final bool esCombo;
   final bool tieneVariantes;
+  final List<ProductoVariante>? variantes;
   final List<StockPorSedeInfo>? stocksPorSede; // Desglose de stock por sede
   final int comboReservado; // Cantidad de combos reservados (solo aplica cuando esCombo)
 
@@ -26,12 +22,6 @@ class ProductoListItem extends Equatable {
     required this.id,
     required this.nombre,
     required this.codigoEmpresa,
-    required this.precio,
-    required this.stock,
-    required this.enOferta,
-    this.precioOferta,
-    this.ofertaFechaInicio,
-    this.ofertaFechaFin,
     required this.destacado,
     this.imagenPrincipal,
     this.categoriaNombre,
@@ -39,37 +29,17 @@ class ProductoListItem extends Equatable {
     required this.isActive,
     this.esCombo = false,
     this.tieneVariantes = false,
+    this.variantes,
     this.stocksPorSede,
     this.comboReservado = 0,
   });
 
-  /// Verifica si tiene stock disponible
-  bool get hasStock => stock > 0;
-
-  /// Obtiene el precio efectivo (con oferta si aplica)
-  double get precioEfectivo => (enOferta && precioOferta != null) ? precioOferta! : precio;
-
-  /// Calcula el porcentaje de descuento
-  double? get porcentajeDescuento {
-    if (!enOferta || precioOferta == null || precio == 0) return null;
-    return ((precio - precioOferta!) / precio) * 100;
-  }
-
-  /// Verifica si la oferta está activa (compatible con ProductoListItem)
-  bool get isOfertaActiva => enOferta;
-
-  /// Verifica si el stock está bajo (compatible con otras entities)
-  /// Como ProductoListItem no tiene stockMinimo, siempre retorna false
-  bool get isStockLow => false;
-
   /// Calcula el stock total basado en el desglose por sede
-  /// Si hay stocksPorSede, suma todas las cantidades
-  /// Si no hay stocksPorSede, usa el stock tradicional
   int get stockTotal {
     if (stocksPorSede != null && stocksPorSede!.isNotEmpty) {
       return stocksPorSede!.fold(0, (sum, stockSede) => sum + stockSede.cantidad);
     }
-    return stock;
+    return 0;
   }
 
   /// Obtiene el stock para una sede específica
@@ -86,6 +56,9 @@ class ProductoListItem extends Equatable {
   /// Verifica si tiene stock disponible considerando stocksPorSede
   bool get hasStockTotal => stockTotal > 0;
 
+  /// Verifica si el stock total está agotado
+  bool get isOutOfStockTotal => stockTotal <= 0;
+
   /// Verifica si alguna sede tiene stock bajo (por debajo del mínimo)
   bool get isStockLowTotal {
     if (stocksPorSede == null || stocksPorSede!.isEmpty) return false;
@@ -97,42 +70,42 @@ class ProductoListItem extends Equatable {
     if (stocksPorSede == null) return null;
     try {
       final stock = stocksPorSede!.firstWhere((s) => s.sedeId == sedeId);
-      return stock.precio ?? precio;
+      return stock.precio;
     } catch (e) {
-      return precio;
+      return null;
     }
   }
 
   /// Obtiene el precio efectivo (con oferta si aplica) de una sede específica
   double? precioEfectivoEnSede(String sedeId) {
-    if (stocksPorSede == null) return precioEfectivo;
+    if (stocksPorSede == null) return null;
     try {
       final stock = stocksPorSede!.firstWhere((s) => s.sedeId == sedeId);
-      return stock.precioEfectivo ?? precioEfectivo;
+      return stock.precioEfectivo;
     } catch (e) {
-      return precioEfectivo;
+      return null;
     }
   }
 
   /// Verifica si está en oferta en una sede específica
   bool enOfertaEnSede(String sedeId) {
-    if (stocksPorSede == null) return enOferta;
+    if (stocksPorSede == null) return false;
     try {
       final stock = stocksPorSede!.firstWhere((s) => s.sedeId == sedeId);
       return stock.isOfertaActiva;
     } catch (e) {
-      return enOferta;
+      return false;
     }
   }
 
   /// Obtiene el porcentaje de descuento en una sede específica
   double? porcentajeDescuentoEnSede(String sedeId) {
-    if (stocksPorSede == null) return porcentajeDescuento;
+    if (stocksPorSede == null) return null;
     try {
       final stock = stocksPorSede!.firstWhere((s) => s.sedeId == sedeId);
       return stock.porcentajeDescuento;
     } catch (e) {
-      return porcentajeDescuento;
+      return null;
     }
   }
 
@@ -151,12 +124,6 @@ class ProductoListItem extends Equatable {
         id,
         nombre,
         codigoEmpresa,
-        precio,
-        stock,
-        enOferta,
-        precioOferta,
-        ofertaFechaInicio,
-        ofertaFechaFin,
         destacado,
         imagenPrincipal,
         categoriaNombre,
@@ -164,6 +131,7 @@ class ProductoListItem extends Equatable {
         isActive,
         esCombo,
         tieneVariantes,
+        variantes,
         stocksPorSede,
         comboReservado,
       ];

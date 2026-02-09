@@ -6,15 +6,24 @@ import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/widgets/info_chip.dart';
 import 'package:syncronize/core/widgets/popup_item.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/utils/resource.dart';
+import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
+import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../domain/entities/producto_atributo.dart';
+import '../../domain/entities/producto_stock.dart';
 import '../../domain/entities/producto_variante.dart';
+import '../../domain/usecases/get_stock_variante_en_sede_usecase.dart';
 import '../bloc/producto_atributo/producto_atributo_cubit.dart';
 import '../bloc/producto_atributo/producto_atributo_state.dart';
 import '../bloc/producto_variante/producto_variante_cubit.dart';
 import '../bloc/producto_variante/producto_variante_state.dart';
 import '../bloc/precio_nivel/precio_nivel_cubit.dart';
 import '../bloc/variante_atributo/variante_atributo_cubit.dart';
+import '../bloc/configurar_precios/configurar_precios_cubit.dart';
+import '../bloc/sede_selection/sede_selection_cubit.dart';
 import '../widgets/producto_variante_form_dialog.dart';
+import '../widgets/generar_combinaciones_dialog.dart';
+import '../widgets/configurar_precios_dialog.dart';
 
 class ProductoVariantesPage extends StatelessWidget {
   final String productoId;
@@ -69,6 +78,7 @@ class _ProductoVariantesView extends StatefulWidget {
 
 class _ProductoVariantesViewState extends State<_ProductoVariantesView> {
   String? _empresaId;
+  String? _sedeId;
   List<ProductoAtributo> _atributosDisponibles = [];
 
   @override
@@ -78,8 +88,11 @@ class _ProductoVariantesViewState extends State<_ProductoVariantesView> {
   }
 
   Future<void> _loadData() async {
-    // TODO: Get empresaId from auth/storage
-    _empresaId = 'empresa-id-placeholder';
+    final empresaState = context.read<EmpresaContextCubit>().state;
+    if (empresaState is EmpresaContextLoaded) {
+      _empresaId = empresaState.context.empresa.id;
+      _sedeId = _getSedeIdActual(empresaState.context.sedes);
+    }
 
     if (_empresaId != null) {
       context.read<ProductoVarianteCubit>().loadVariantes(
@@ -87,6 +100,29 @@ class _ProductoVariantesViewState extends State<_ProductoVariantesView> {
             empresaId: _empresaId!,
           );
       context.read<ProductoAtributoCubit>().loadAtributos(_empresaId!);
+    }
+  }
+
+  String _getSedeIdActual(List<dynamic> sedes) {
+    if (sedes.isEmpty) {
+      throw Exception('No hay sedes disponibles');
+    }
+
+    final selectedSedeId = context.read<SedeSelectionCubit>().selectedSedeId;
+
+    if (selectedSedeId != null && sedes.any((s) => s.id == selectedSedeId)) {
+      return selectedSedeId;
+    }
+
+    if (sedes.length == 1) {
+      return sedes.first.id;
+    }
+
+    try {
+      final sedePrincipal = sedes.firstWhere((s) => s.esPrincipal);
+      return sedePrincipal.id;
+    } catch (e) {
+      return sedes.first.id;
     }
   }
 
@@ -223,6 +259,7 @@ class _ProductoVariantesViewState extends State<_ProductoVariantesView> {
                     onEdit: () => _showVarianteDialog(variante),
                     onDelete: () => _confirmDelete(variante),
                     onUpdateStock: () => _showStockDialog(variante),
+                    onPrecioTap: () => _handlePrecioTap(variante),
                   );
                 },
               ),
@@ -230,10 +267,67 @@ class _ProductoVariantesViewState extends State<_ProductoVariantesView> {
           },
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showVarianteDialog(null),
+      floatingActionButton: _buildFab(),
+    );
+  }
+
+  Widget _buildFab() {
+    return PopupMenuButton<String>(
+      onSelected: (value) {
+        if (value == 'nueva') {
+          _showVarianteDialog(null);
+        } else if (value == 'combinaciones') {
+          _showGenerarCombinacionesDialog();
+        }
+      },
+      itemBuilder: (context) => [
+        const PopupMenuItem(
+          value: 'nueva',
+          child: Row(
+            children: [
+              Icon(Icons.add, size: 20, color: AppColors.blue1),
+              SizedBox(width: 8),
+              Text('Nueva Variante'),
+            ],
+          ),
+        ),
+        const PopupMenuItem(
+          value: 'combinaciones',
+          child: Row(
+            children: [
+              Icon(Icons.auto_awesome, size: 20, color: AppColors.blue1),
+              SizedBox(width: 8),
+              Text('Generar Combinaciones'),
+            ],
+          ),
+        ),
+      ],
+      child: FloatingActionButton.extended(
+        heroTag: 'producto_variantes_fab',
+        onPressed: null,
         icon: const Icon(Icons.add),
-        label: const Text('Nueva Variante'),
+        label: const Text('Variantes'),
+      ),
+    );
+  }
+
+  void _showGenerarCombinacionesDialog() {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => GenerarCombinacionesDialog(
+        productoId: widget.productoId,
+        productoNombre: widget.productoNombre,
+        atributosDisponibles: _atributosDisponibles,
+        onSave: (data) {
+          if (_empresaId != null) {
+            context.read<ProductoVarianteCubit>().generarCombinaciones(
+                  productoId: widget.productoId,
+                  empresaId: _empresaId!,
+                  data: data,
+                );
+          }
+          Navigator.of(dialogContext).pop();
+        },
       ),
     );
   }
@@ -319,8 +413,61 @@ class _ProductoVariantesViewState extends State<_ProductoVariantesView> {
     );
   }
 
+  Future<void> _handlePrecioTap(ProductoVariante variante) async {
+    if (_empresaId == null || _sedeId == null) return;
+
+    try {
+      final getStockUseCase = locator<GetStockVarianteEnSedeUseCase>();
+      final result = await getStockUseCase(
+        varianteId: variante.id,
+        sedeId: _sedeId!,
+      );
+
+      if (!mounted) return;
+
+      if (result is Success<ProductoStock>) {
+        final stock = result.data;
+
+        showDialog(
+          context: context,
+          builder: (dialogContext) => MultiBlocProvider(
+            providers: [
+              BlocProvider(
+                create: (_) => locator<ConfigurarPreciosCubit>(),
+              ),
+            ],
+            child: ConfigurarPreciosDialog(
+              stock: stock,
+              empresaId: _empresaId!,
+            ),
+          ),
+        ).then((result) {
+          if (result == true && mounted) {
+            _loadData();
+          }
+        });
+      } else if (result is Error<ProductoStock>) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al cargar stock: ${result.message}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   void _showStockDialog(ProductoVariante variante) {
-    final controller = TextEditingController(text: variante.stock.toString());
+    final controller = TextEditingController(text: variante.stockTotal.toString());
 
     showDialog(
       context: context,
@@ -332,7 +479,7 @@ class _ProductoVariantesViewState extends State<_ProductoVariantesView> {
           children: [
             Text('Variante: ${variante.nombre}'),
             const SizedBox(height: 8),
-            Text('Stock actual: ${variante.stock}'),
+            Text('Stock actual: ${variante.stockTotal}'),
             const SizedBox(height: 16),
             TextField(
               controller: controller,
@@ -375,12 +522,14 @@ class _VarianteCard extends StatelessWidget {
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   final VoidCallback onUpdateStock;
+  final VoidCallback onPrecioTap;
 
   const _VarianteCard({
     required this.variante,
     required this.onEdit,
     required this.onDelete,
     required this.onUpdateStock,
+    required this.onPrecioTap,
   });
 
   @override
@@ -475,6 +624,12 @@ class _VarianteCard extends StatelessWidget {
                       color: AppColors.blue1,
                     ),
                     ActionMenuItem(
+                      type: ActionMenuType.precio,
+                      label: 'Precio',
+                      icon: Icons.attach_money,
+                      color: AppColors.blue1,
+                    ),
+                    ActionMenuItem(
                       type: ActionMenuType.stock,
                       label: 'Stock',
                       icon: Icons.inventory,
@@ -492,6 +647,9 @@ class _VarianteCard extends StatelessWidget {
                       case ActionMenuType.edit:
                         onEdit();
                         break;
+                      case ActionMenuType.precio:
+                        onPrecioTap();
+                        break;
                       case ActionMenuType.stock:
                         onUpdateStock();
                         break;
@@ -499,7 +657,6 @@ class _VarianteCard extends StatelessWidget {
                         onDelete();
                         break;
                       default:
-                        // Otros casos no aplican para variantes
                         break;
                     }
                   },
@@ -535,13 +692,19 @@ class _VarianteCard extends StatelessWidget {
                       'Precio',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
-                    Text(
-                      'S/${variante.precioEfectivo.toStringAsFixed(2)}',
+                    Builder(builder: (context) {
+                      final stocks = variante.stocksPorSede;
+                      final stockInfo = stocks != null && stocks.isNotEmpty
+                          ? (stocks.where((s) => s.precioConfigurado && s.precio != null).firstOrNull ?? stocks.first)
+                          : null;
+                      return Text(
+                      'S/${(stockInfo?.precioEfectivo ?? 0.0).toStringAsFixed(2)}',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                             color: Colors.green,
                           ),
-                    ),
+                    );
+                    }),
                   ],
                 ),
                 Column(
@@ -560,7 +723,7 @@ class _VarianteCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          '${variante.stock}',
+                          '${variante.stockTotal}',
                           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                 fontWeight: FontWeight.bold,
                                 color: _getStockColor(),
@@ -600,12 +763,12 @@ class _VarianteCard extends StatelessWidget {
   // }
 
   IconData _getStockIcon() {
-    if (variante.stock == 0) return Icons.remove_circle;
+    if (variante.stockTotal == 0) return Icons.remove_circle;
     return Icons.check_circle;
   }
 
   Color _getStockColor() {
-    if (variante.stock == 0) return Colors.red;
+    if (variante.stockTotal == 0) return Colors.red;
     return Colors.green;
   }
 }

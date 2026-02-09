@@ -125,7 +125,7 @@ class CustomDropdown<T> extends StatefulWidget {
     this.hintStyle,
     this.filled = true,
     this.focusNode,
-    this.height = 35,
+    this.height = 33,
     this.borderWidth = 0.5,
     this.prefixIcon,
     this.suffixIcon,
@@ -541,7 +541,7 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>>
                                   focusedBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(6),
                                     borderSide: const BorderSide(
-                                      color: Colors.blue, // ← cambia este color
+                                      color: AppColors.blue1, // ← cambia este color
                                       width:0.6, // ← cambia este grosor (ej: 2.0, 2.5, etc)
                                     ),
                                   ),
@@ -592,7 +592,7 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>>
                                         decoration: BoxDecoration(
                                           color: isSelected
                                               ? (widget.borderColor ??
-                                                        AppColors.blue)
+                                                        AppColors.blue1)
                                                     .withValues(alpha: 0.1)
                                               : null,
                                         ),
@@ -612,7 +612,7 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>>
                                                   size: 16,
                                                   color: isSelected
                                                       ? widget.borderColor ??
-                                                            AppColors.blue
+                                                            AppColors.blue1
                                                       : Colors.grey,
                                                 ),
                                               ),
@@ -631,7 +631,7 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>>
                                                   color: item.enabled
                                                       ? (isSelected
                                                             ? widget.borderColor ??
-                                                                  AppColors.blue
+                                                                  AppColors.blue1
                                                             : Colors.black87)
                                                       : Colors.grey,
                                                 ),
@@ -647,7 +647,7 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>>
                                                 size: 16,
                                                 color:
                                                     widget.borderColor ??
-                                                    AppColors.blue,
+                                                    AppColors.blue1,
                                               ),
                                           ],
                                         ),

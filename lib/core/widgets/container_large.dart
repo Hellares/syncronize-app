@@ -4,7 +4,7 @@ import 'package:syncronize/core/fonts/app_fonts.dart';
 class ContainerLarge extends StatelessWidget {
   // Propiedades requeridas
   final String leftText;
-  final String rightText;
+  final String? rightText;
 
   final AppFont? fontLeft;       // ← nuevo
   final AppFont? fontRight;      // ← nuevo
@@ -28,7 +28,7 @@ class ContainerLarge extends StatelessWidget {
   const ContainerLarge({
     super.key,
     required this.leftText,
-    required this.rightText,
+    this.rightText = '',
     this.leftIcon,
     this.rightIcon,
     this.width,
@@ -87,7 +87,7 @@ class ContainerLarge extends StatelessWidget {
 
           // Texto derecho
           Text(
-            rightText,
+            rightText!,
             style: (fontRight ?? AppFont.oxygenRegular).style(  // ← aquí
               fontSize: fontSizeRight ?? fontSize,
               // fontWeight: fontWeight,

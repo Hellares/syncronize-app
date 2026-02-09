@@ -116,6 +116,7 @@ class _PlantillasAtributosViewState extends State<_PlantillasAtributosView> {
         builder: (context, state) {
           if (state is AtributoPlantillaLoaded) {
             return FloatingActionButton.extended(
+              heroTag: 'plantillas_atributos_fab',
               onPressed: state.puedeCrearMas
                   ? () => _mostrarFormularioCrear(context)
                   : () => _mostrarLimiteAlcanzado(context, state),

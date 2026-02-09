@@ -18,8 +18,6 @@ class Producto extends Equatable {
   final String? codigoBarras;
   final String nombre;
   final String? descripcion;
-  final double precio;
-  final double? precioCosto;
   final double? peso;
   final Map<String, dynamic>? dimensiones;
   final String? videoUrl;
@@ -28,10 +26,6 @@ class Producto extends Equatable {
   final bool visibleMarketplace;
   final bool destacado;
   final int? ordenMarketplace;
-  final bool enOferta;
-  final double? precioOferta;
-  final DateTime? fechaInicioOferta;
-  final DateTime? fechaFinOferta;
   final bool isActive;
   final bool tieneVariantes;
   final bool esCombo;
@@ -50,7 +44,7 @@ class Producto extends Equatable {
   final List<ProductoArchivo>? archivos;
   final List<AtributoValor>? atributosValores; // Atributos del producto base (solo si no tiene variantes)
   final List<ProductoVariante>? variantes;
-  final List<StockPorSedeInfo>? stocksPorSede; // Desglose de stock por sede (nuevo sistema multi-sede)
+  final List<StockPorSedeInfo>? stocksPorSede; // Desglose de stock por sede (sistema multi-sede)
 
   const Producto({
     required this.id,
@@ -65,8 +59,6 @@ class Producto extends Equatable {
     this.codigoBarras,
     required this.nombre,
     this.descripcion,
-    required this.precio,
-    this.precioCosto,
     this.peso,
     this.dimensiones,
     this.videoUrl,
@@ -75,10 +67,6 @@ class Producto extends Equatable {
     required this.visibleMarketplace,
     required this.destacado,
     this.ordenMarketplace,
-    required this.enOferta,
-    this.precioOferta,
-    this.fechaInicioOferta,
-    this.fechaFinOferta,
     required this.isActive,
     this.tieneVariantes = false,
     this.esCombo = false,
@@ -97,42 +85,6 @@ class Producto extends Equatable {
     this.variantes,
     this.stocksPorSede,
   });
-
-  /// Verifica si el producto tiene stock disponible
-  bool get hasStock => stockTotal > 0;
-
-  /// Verifica si el stock está agotado
-  bool get isOutOfStock => stockTotal <= 0;
-
-  /// Verifica si la oferta está activa actualmente
-  bool get isOfertaActiva {
-    if (!enOferta || precioOferta == null) return false;
-
-    final now = DateTime.now();
-
-    // Si hay fecha de inicio, verificar que ya comenzó
-    if (fechaInicioOferta != null && now.isBefore(fechaInicioOferta!)) {
-      return false;
-    }
-
-    // Si hay fecha de fin, verificar que no terminó
-    if (fechaFinOferta != null && now.isAfter(fechaFinOferta!)) {
-      return false;
-    }
-
-    return true;
-  }
-
-  /// Obtiene el precio efectivo a mostrar (con oferta si aplica)
-  double get precioEfectivo {
-    return isOfertaActiva ? precioOferta! : precio;
-  }
-
-  /// Calcula el porcentaje de descuento de la oferta
-  double? get porcentajeDescuento {
-    if (!isOfertaActiva || precioOferta == null || precio == 0) return null;
-    return ((precio - precioOferta!) / precio) * 100;
-  }
 
   /// Obtiene la imagen principal (primera imagen)
   String? get imagenPrincipal {
@@ -181,12 +133,11 @@ class Producto extends Equatable {
   }
 
   /// Calcula el stock total basado en el desglose por sede
-  /// Suma todas las cantidades de stocksPorSede
   int get stockTotal {
     if (stocksPorSede != null && stocksPorSede!.isNotEmpty) {
       return stocksPorSede!.fold(0, (sum, stockSede) => sum + stockSede.cantidad);
     }
-    return 0; // Si no hay stock por sede, retorna 0
+    return 0;
   }
 
   /// Obtiene el stock para una sede específica
@@ -273,6 +224,12 @@ class Producto extends Equatable {
     return stock.isOfertaActiva;
   }
 
+  /// Obtiene el porcentaje de descuento en una sede específica
+  double? porcentajeDescuentoEnSede(String sedeId) {
+    final stock = stockSedeInfo(sedeId);
+    return stock?.porcentajeDescuento;
+  }
+
   /// Obtiene el stock de ProductoStock para una sede específica (info completa)
   StockPorSedeInfo? stockSedeInfo(String sedeId) {
     if (stocksPorSede == null) return null;
@@ -297,8 +254,6 @@ class Producto extends Equatable {
         codigoBarras,
         nombre,
         descripcion,
-        precio,
-        precioCosto,
         peso,
         dimensiones,
         videoUrl,
@@ -307,10 +262,6 @@ class Producto extends Equatable {
         visibleMarketplace,
         destacado,
         ordenMarketplace,
-        enOferta,
-        precioOferta,
-        fechaInicioOferta,
-        fechaFinOferta,
         isActive,
         tieneVariantes,
         esCombo,

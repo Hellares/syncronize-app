@@ -9,7 +9,7 @@ class PlantillaAtributo extends Equatable {
   final int orden;
   final bool? requeridoOverride;
   final List<String>? valoresOverride;
-  final AtributoInfo atributo;
+  final PlantillaAtributoInfo atributo;
 
   const PlantillaAtributo({
     required this.id,
@@ -39,7 +39,7 @@ class PlantillaAtributo extends Equatable {
     int? orden,
     bool? requeridoOverride,
     List<String>? valoresOverride,
-    AtributoInfo? atributo,
+    PlantillaAtributoInfo? atributo,
   }) {
     return PlantillaAtributo(
       id: id ?? this.id,
@@ -63,7 +63,7 @@ class PlantillaAtributo extends Equatable {
 }
 
 /// Información simplificada del atributo dentro de una plantilla
-class AtributoInfo extends Equatable {
+class PlantillaAtributoInfo extends Equatable {
   final String id;
   final String nombre;
   final String clave;
@@ -73,7 +73,7 @@ class AtributoInfo extends Equatable {
   final String? unidad;
   final List<String> valores;
 
-  const AtributoInfo({
+  const PlantillaAtributoInfo({
     required this.id,
     required this.nombre,
     required this.clave,
@@ -111,7 +111,7 @@ class AtributoInfo extends Equatable {
     }
   }
 
-  AtributoInfo copyWith({
+  PlantillaAtributoInfo copyWith({
     String? id,
     String? nombre,
     String? clave,
@@ -121,7 +121,7 @@ class AtributoInfo extends Equatable {
     String? unidad,
     List<String>? valores,
   }) {
-    return AtributoInfo(
+    return PlantillaAtributoInfo(
       id: id ?? this.id,
       nombre: nombre ?? this.nombre,
       clave: clave ?? this.clave,

@@ -18,6 +18,7 @@ class FloatingButtonText extends StatelessWidget {
   final FontWeight fontWeight;
   final double iconSize;
   final Color? borderColor;
+  final Object? heroTag;
 
   const FloatingButtonText({
     super.key,
@@ -33,6 +34,7 @@ class FloatingButtonText extends StatelessWidget {
     this.fontWeight = FontWeight.w600,
     this.iconSize = 16,
     this.borderColor = AppColors.blue1,
+    this.heroTag,
   });
 
   @override
@@ -41,6 +43,7 @@ class FloatingButtonText extends StatelessWidget {
       height: height,
       width: width,
       child: FloatingActionButton.extended(
+        heroTag: heroTag,
         onPressed: onPressed,
         backgroundColor: backgroundColor,
         elevation: 0,

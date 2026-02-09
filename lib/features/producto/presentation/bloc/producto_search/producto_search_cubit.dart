@@ -42,6 +42,7 @@ class ProductoSearchCubit extends Cubit<ProductoSearchState> {
     _empresaId = empresaId;
     _sedeId = sedeId;
     _currentPage = 1;
+    _productosCache.clear();
 
     // Emitir estado de carga
     emit(const ProductoSearchLoading());

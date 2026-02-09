@@ -360,4 +360,5 @@ List<BlocProvider> blocProviders = [
     create: (context) => locator<SedesSelectorCubit>(),
     lazy: true,
   ),
+
 ];

@@ -20,7 +20,7 @@ class PlantillaAtributoModel extends PlantillaAtributo {
       valoresOverride: (json['valoresOverride'] as List<dynamic>?)
           ?.map((e) => e as String)
           .toList(),
-      atributo: AtributoInfoModel.fromJson(json['atributo'] as Map<String, dynamic>),
+      atributo: PlantillaAtributoInfoModel.fromJson(json['atributo'] as Map<String, dynamic>),
     );
   }
 
@@ -32,14 +32,14 @@ class PlantillaAtributoModel extends PlantillaAtributo {
       if (requeridoOverride != null) 'requeridoOverride': requeridoOverride,
       if (valoresOverride != null && valoresOverride!.isNotEmpty)
         'valoresOverride': valoresOverride,
-      'atributo': (atributo as AtributoInfoModel).toJson(),
+      'atributo': (atributo as PlantillaAtributoInfoModel).toJson(),
     };
   }
 }
 
-/// Model para AtributoInfo
-class AtributoInfoModel extends AtributoInfo {
-  const AtributoInfoModel({
+/// Model para PlantillaAtributoInfo
+class PlantillaAtributoInfoModel extends PlantillaAtributoInfo {
+  const PlantillaAtributoInfoModel({
     required super.id,
     required super.nombre,
     required super.clave,
@@ -50,8 +50,8 @@ class AtributoInfoModel extends AtributoInfo {
     required super.valores,
   });
 
-  factory AtributoInfoModel.fromJson(Map<String, dynamic> json) {
-    return AtributoInfoModel(
+  factory PlantillaAtributoInfoModel.fromJson(Map<String, dynamic> json) {
+    return PlantillaAtributoInfoModel(
       id: json['id'] as String,
       nombre: json['nombre'] as String,
       clave: json['clave'] as String,

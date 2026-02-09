@@ -7,27 +7,45 @@ import '../../domain/entities/componente_combo.dart';
 
 class ComponenteListTile extends StatelessWidget {
   final ComponenteCombo componente;
-  final VoidCallback onDelete;
+  final VoidCallback? onDelete;
+  final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
+  final bool modoSeleccion;
+  final bool isSelected;
 
   const ComponenteListTile({
     super.key,
     required this.componente,
-    required this.onDelete,
+    this.onDelete,
+    this.onTap,
+    this.onLongPress,
+    this.modoSeleccion = false,
+    this.isSelected = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return GradientContainer(
       margin: const EdgeInsets.only(bottom: 12),
+      // Agregar borde cuando está seleccionado
+      borderColor: isSelected ? AppColors.blue : AppColors.white,
+      borderWidth: isSelected ? 2.0 : 0.5,
       child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: Theme.of(context).primaryColor.withValues(alpha: 0.1),
-          child: Icon(
-            Icons.inventory_2,
-            color: AppColors.blue1,
-            size: 20,
-          ),
-        ),
+        // Mostrar checkbox en modo selección
+        leading: modoSeleccion
+            ? Checkbox(
+                value: isSelected,
+                onChanged: onTap != null ? (_) => onTap!() : null,
+                activeColor: AppColors.blue,
+              )
+            : CircleAvatar(
+                backgroundColor: Theme.of(context).primaryColor.withValues(alpha: 0.1),
+                child: Icon(
+                  Icons.inventory_2,
+                  color: AppColors.blue1,
+                  size: 20,
+                ),
+              ),
         title: AppSubtitle(_getNombreComponente()),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -46,10 +64,19 @@ class ComponenteListTile extends StatelessWidget {
               ),
           ],
         ),
-        trailing: IconButton(
-          icon: const Icon(Icons.delete_outline, color: Colors.red, size: 18,),
-          onPressed: onDelete,
-        ),
+        // Mostrar botón delete solo si NO está en modo selección
+        trailing: !modoSeleccion && onDelete != null
+            ? IconButton(
+                icon: const Icon(Icons.delete_outline, color: Colors.red, size: 18),
+                onPressed: onDelete,
+              )
+            : null,
+        // En modo selección, el tap activa/desactiva la selección
+        onTap: onTap,
+        // Long press activa el modo selección
+        onLongPress: onLongPress,
+        // Cambiar color de fondo cuando está seleccionado
+        tileColor: isSelected ? AppColors.blue.withValues(alpha: 0.1) : null,
       ),
     );
   }

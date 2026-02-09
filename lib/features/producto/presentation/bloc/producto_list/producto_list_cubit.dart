@@ -33,6 +33,7 @@ class ProductoListCubit extends Cubit<ProductoListState> {
     _currentSedeId = sedeId;
     _currentFiltros = filtros ?? const ProductoFiltros();
     _allProductos = [];
+    _productosFullCache.clear();
 
     emit(const ProductoListLoading());
 

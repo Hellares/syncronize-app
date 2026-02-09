@@ -8,6 +8,7 @@ import '../../domain/usecases/agregar_componente_usecase.dart';
 import '../../domain/usecases/agregar_componentes_batch_usecase.dart';
 import '../../domain/usecases/create_combo_usecase.dart';
 import '../../domain/usecases/eliminar_componente_usecase.dart';
+import '../../domain/usecases/eliminar_componentes_batch_usecase.dart';
 import '../../domain/usecases/get_combo_completo_usecase.dart';
 import '../../domain/usecases/get_combos_usecase.dart';
 import '../../domain/usecases/get_componentes_usecase.dart';
@@ -25,6 +26,7 @@ class ComboCubit extends Cubit<ComboState> {
   final AgregarComponentesBatchUseCase agregarComponentesBatch;
   final GetComponentesUseCase getComponentes;
   final EliminarComponenteUseCase eliminarComponente;
+  final EliminarComponentesBatchUseCase eliminarComponentesBatch;
   final GetReservacionUseCase getReservacionUseCase;
   final ReservarStockUseCase reservarStockUseCase;
   final LiberarReservaUseCase liberarReservaUseCase;
@@ -37,6 +39,7 @@ class ComboCubit extends Cubit<ComboState> {
     required this.agregarComponentesBatch,
     required this.getComponentes,
     required this.eliminarComponente,
+    required this.eliminarComponentesBatch,
     required this.getReservacionUseCase,
     required this.reservarStockUseCase,
     required this.liberarReservaUseCase,
@@ -226,6 +229,31 @@ class ComboCubit extends Cubit<ComboState> {
 
     if (result is Success) {
       emit(ComponenteDeleted('Componente eliminado exitosamente'));
+    } else if (result is Error) {
+      emit(ComboError(
+        result.message,
+        errorCode: result.errorCode,
+      ));
+    }
+  }
+
+  /// Elimina múltiples componentes del combo en batch
+  Future<void> deleteComponentesBatch({
+    required List<String> componenteIds,
+    required String empresaId,
+  }) async {
+    emit(ComboLoading());
+
+    final result = await eliminarComponentesBatch(
+      componenteIds: componenteIds,
+      empresaId: empresaId,
+    );
+
+    if (result is Success) {
+      emit(ComponentesBatchDeleted(
+        componenteIds.length,
+        '${componenteIds.length} componentes eliminados exitosamente',
+      ));
     } else if (result is Error) {
       emit(ComboError(
         result.message,

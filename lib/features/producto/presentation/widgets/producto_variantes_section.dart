@@ -56,10 +56,6 @@ class _ProductoVariantesSectionState extends State<ProductoVariantesSection> {
               children: [
                 const Icon(Icons.tune, size: 16),
                 const SizedBox(width: 8),
-                // const Text(
-                //   'Variantes Disponibles',
-                //   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                // ),
                 const AppSubtitle('VARIANTES DISPONIBLES'),
                 const Spacer(),
                 Text(
@@ -142,6 +138,13 @@ class _ProductoVariantesSectionState extends State<ProductoVariantesSection> {
   // }
 
   Widget _buildVarianteCard(ProductoVariante variante, bool isSelected) {
+    // Obtener precio desde stocksPorSede (sistema multi-sede)
+    final stocks = variante.stocksPorSede;
+    final stockInfo = stocks != null && stocks.isNotEmpty
+        ? (stocks.where((s) => s.precioConfigurado && s.precio != null).firstOrNull ?? stocks.first)
+        : null;
+    final precioEfectivoDisplay = stockInfo?.precioEfectivo ?? 0.0;
+
     return InkWell(
       onTap: () {
         setState(() {
@@ -249,9 +252,9 @@ class _ProductoVariantesSectionState extends State<ProductoVariantesSection> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Precio
+                // Precio (desde stocksPorSede)
                 Text(
-                  'S/${variante.precioEfectivo.toStringAsFixed(2)}',
+                  'S/${precioEfectivoDisplay.toStringAsFixed(2)}',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,

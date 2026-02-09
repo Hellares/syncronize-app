@@ -5,7 +5,6 @@ import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/theme/app_gradients.dart';
-import 'package:syncronize/core/widgets/currency/currency_formatter.dart';
 import 'package:syncronize/core/widgets/info_chip.dart';
 import 'package:syncronize/core/services/storage_service.dart';
 import 'package:syncronize/features/producto/presentation/bloc/producto_list/producto_list_cubit.dart';
@@ -253,8 +252,19 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
     _controller.descripcionController.text = producto.descripcion ?? '';
     _controller.skuController.text = producto.sku ?? '';
     _controller.codigoBarrasController.text = producto.codigoBarras ?? '';
-    _controller.precioController.currencyValue = producto.precio;
-    _controller.precioCostoController.currencyValue = producto.precioCosto ?? 0.0;
+    // Obtener precio/costo desde stocksPorSede (sistema multi-sede)
+    // double _precioFromStock = 0.0;
+    // double _precioCostoFromStock = 0.0;
+    // if (producto.stocksPorSede != null && producto.stocksPorSede!.isNotEmpty) {
+    //   final _stockConPrecio = producto.stocksPorSede!.firstWhere(
+    //     (s) => s.precioConfigurado && s.precio != null,
+    //     orElse: () => producto.stocksPorSede!.first,
+    //   );
+    //   _precioFromStock = _stockConPrecio.precio ?? 0.0;
+    //   _precioCostoFromStock = _stockConPrecio.precioCosto ?? 0.0;
+    // }
+    // _controller.precioController.currencyValue = _precioFromStock;
+    // _controller.precioCostoController.currencyValue = _precioCostoFromStock;
     // NOTA: El stock ya no se edita desde el formulario de producto.
     // Ahora se maneja por sede mediante ProductoStock
     // _controller.stockController.text = producto.stockTotal.toString();
@@ -330,16 +340,29 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
       _controller.selectedConfiguracionPrecioId = producto.configuracionPrecioId;
       _controller.visibleMarketplace = producto.visibleMarketplace;
       _controller.destacado = producto.destacado;
-      _controller.enOferta = producto.enOferta;
+      // Obtener oferta desde stocksPorSede (sistema multi-sede)
+      // bool _enOfertaFromStock = false;
+      // double? _precioOfertaFromStock;
+      // DateTime? _fechaInicioFromStock;
+      // DateTime? _fechaFinFromStock;
+      // if (producto.stocksPorSede != null && producto.stocksPorSede!.isNotEmpty) {
+      //   final _stockConPrecio = producto.stocksPorSede!.firstWhere(
+      //     (s) => s.precioConfigurado && s.precio != null,
+      //     orElse: () => producto.stocksPorSede!.first,
+      //   );
+      //   _enOfertaFromStock = _stockConPrecio.enOferta;
+      //   _precioOfertaFromStock = _stockConPrecio.precioOferta;
+      //   _fechaInicioFromStock = _stockConPrecio.fechaInicioOferta;
+      //   _fechaFinFromStock = _stockConPrecio.fechaFinOferta;
+      // }
+      // _controller.enOferta = _enOfertaFromStock;
       _controller.tieneVariantes = producto.tieneVariantes;
 
-      if (producto.enOferta) {
-        _controller.precioOfertaController.currencyValue = producto.precioOferta ?? 0.0;
-        // _fechaInicioOferta = producto.fechaInicioOferta;
-        // _fechaFinOferta = producto.fechaFinOferta;
-        _controller.fechaInicioOferta = producto.fechaInicioOferta;
-        _controller.fechaFinOferta = producto.fechaFinOferta;
-      }
+      // if (_enOfertaFromStock) {
+      //   _controller.precioOfertaController.currencyValue = _precioOfertaFromStock ?? 0.0;
+      //   _controller.fechaInicioOferta = _fechaInicioFromStock;
+      //   _controller.fechaFinOferta = _fechaFinFromStock;
+      // }
     });
   }
 
@@ -1091,7 +1114,7 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
               const SizedBox(height: 16),
               ..._controller.selectedPlantilla!.atributos.map((plantillaAtributo) {
                 final atributoInfo = plantillaAtributo.atributo;
-                // Convertir AtributoInfo a ProductoAtributo
+                // Convertir PlantillaAtributoInfo a ProductoAtributo
                 // Usar valoresActuales que retorna valoresOverride si existe, sino valores base
                 final productoAtributo = ProductoAtributo(
                   id: atributoInfo.id,
