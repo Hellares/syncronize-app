@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/app_gradients.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
@@ -23,6 +24,8 @@ import '../bloc/configurar_precios/configurar_precios_cubit.dart';
 import '../bloc/sede_selection/sede_selection_cubit.dart';
 import '../widgets/producto_variante_form_dialog.dart';
 import '../widgets/generar_combinaciones_dialog.dart';
+import '../bloc/ajustar_stock/ajustar_stock_cubit.dart';
+import '../widgets/ajustar_stock_dialog.dart';
 import '../widgets/configurar_precios_dialog.dart';
 
 class ProductoVariantesPage extends StatelessWidget {
@@ -135,7 +138,7 @@ class _ProductoVariantesViewState extends State<_ProductoVariantesView> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            const Text('Gestión de Variantes', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.white),),
+            const Text('Gestión de Variantes', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.white),),
             Text(
               widget.productoNombre,
               style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w400, color: AppColors.white),
@@ -308,6 +311,7 @@ class _ProductoVariantesViewState extends State<_ProductoVariantesView> {
         icon: const Icon(Icons.add),
         label: const Text('Variantes'),
       ),
+     
     );
   }
 
@@ -342,6 +346,7 @@ class _ProductoVariantesViewState extends State<_ProductoVariantesView> {
   }
 
   void _showVarianteDialog(ProductoVariante? variante) {
+    if (_empresaId == null) return;
     showDialog(
       context: context,
       builder: (dialogContext) => MultiBlocProvider(
@@ -353,6 +358,7 @@ class _ProductoVariantesViewState extends State<_ProductoVariantesView> {
           productoId: widget.productoId,
           productoNombre: widget.productoNombre,
           productoIsActive: widget.productoIsActive,
+          empresaId: _empresaId!,
           variante: variante,
           atributosDisponibles: _atributosDisponibles,
           onSave: (data) {
@@ -466,54 +472,53 @@ class _ProductoVariantesViewState extends State<_ProductoVariantesView> {
     }
   }
 
-  void _showStockDialog(ProductoVariante variante) {
-    final controller = TextEditingController(text: variante.stockTotal.toString());
+  Future<void> _showStockDialog(ProductoVariante variante) async {
+    if (_empresaId == null || _sedeId == null) return;
 
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Actualizar Stock'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Variante: ${variante.nombre}'),
-            const SizedBox(height: 8),
-            Text('Stock actual: ${variante.stockTotal}'),
-            const SizedBox(height: 16),
-            TextField(
-              controller: controller,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Nuevo stock',
-                border: OutlineInputBorder(),
-              ),
+    try {
+      final getStockUseCase = locator<GetStockVarianteEnSedeUseCase>();
+      final result = await getStockUseCase(
+        varianteId: variante.id,
+        sedeId: _sedeId!,
+      );
+
+      if (!mounted) return;
+
+      if (result is Success<ProductoStock>) {
+        final stock = result.data;
+
+        showDialog(
+          context: context,
+          builder: (dialogContext) => BlocProvider(
+            create: (_) => locator<AjustarStockCubit>(),
+            child: AjustarStockDialog(
+              stock: stock,
+              empresaId: _empresaId!,
             ),
-          ],
+          ),
+        ).then((result) {
+          if (result == true && mounted) {
+            _loadData();
+          }
+        });
+      } else if (result is Error<ProductoStock>) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al cargar stock: ${result.message}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Colors.red,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final newStock = int.tryParse(controller.text);
-              if (newStock != null && _empresaId != null) {
-                context.read<ProductoVarianteCubit>().actualizarStock(
-                      varianteId: variante.id,
-                      productoId: widget.productoId,
-                      empresaId: _empresaId!,
-                      cantidad: newStock,
-                    );
-              }
-              Navigator.of(dialogContext).pop();
-            },
-            child: const Text('Actualizar'),
-          ),
-        ],
-      ),
-    );
+      );
+    }
   }
 }
 
@@ -540,7 +545,7 @@ class _VarianteCard extends StatelessWidget {
       gradient: AppGradients.blueWhiteBlue(),
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
-        padding: const EdgeInsets.only( left: 16, right: 16, bottom: 8),
+        padding: const EdgeInsets.only( left: 14, right: 14, bottom: 5, top: 5),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -550,17 +555,19 @@ class _VarianteCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        variante.nombre,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                      ),
+                      // Text(
+                      //   variante.nombre,
+                      //   style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      //         fontWeight: FontWeight.bold,
+                      //       ),
+                      // ),
+                      AppSubtitle(variante.nombre),
                       const SizedBox(height: 4),
-                      Text(
-                        'SKU: ${variante.sku}',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
+                      // Text(
+                      //   'SKU: ${variante.sku}',
+                      //   style: Theme.of(context).textTheme.bodySmall,
+                      // ),
+                      AppLabelText(variante.sku)
                     ],
                   ),
                 ),
@@ -671,14 +678,16 @@ class _VarianteCard extends StatelessWidget {
                 children: variante.atributosValores.map((atributoValor) {
                   return InfoChip(
                     icon: Icons.label, 
+                    fontSize: 9,
                     text: '${atributoValor.atributo.nombre}: ${atributoValor.valor}',
                     backgroundColor: AppColors.white,
                     borderColor: AppColors.blue1,
                     borderRadius: 4,
+                    contentPadding: EdgeInsets.symmetric(horizontal: 5, vertical: 5),
                   );
                 }).toList(),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
             ],
             const Divider(),
             const SizedBox(height: 4),
@@ -688,10 +697,7 @@ class _VarianteCard extends StatelessWidget {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Precio',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
+                    AppLabelText('Precio'),
                     Builder(builder: (context) {
                       final stocks = variante.stocksPorSede;
                       final stockInfo = stocks != null && stocks.isNotEmpty
@@ -710,10 +716,7 @@ class _VarianteCard extends StatelessWidget {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text(
-                      'Stock',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
+                    AppLabelText('Stock'),
                     Row(
                       children: [
                         Icon(

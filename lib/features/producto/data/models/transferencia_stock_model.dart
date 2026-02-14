@@ -1,3 +1,4 @@
+import 'package:syncronize/core/utils/type_converters.dart';
 import '../../domain/entities/transferencia_stock.dart';
 
 class TransferenciaStockModel extends TransferenciaStock {
@@ -35,10 +36,10 @@ class TransferenciaStockModel extends TransferenciaStock {
       sedeDestinoId: json['sedeDestinoId'] as String,
       codigo: json['codigo'] as String,
       estado: EstadoTransferencia.fromString(json['estado'] as String),
-      totalItems: _toInt(json['totalItems']),
-      itemsAprobados: _toInt(json['itemsAprobados']),
-      itemsRechazados: _toInt(json['itemsRechazados']),
-      itemsRecibidos: _toInt(json['itemsRecibidos']),
+      totalItems: toSafeInt(json['totalItems']),
+      itemsAprobados: toSafeInt(json['itemsAprobados']),
+      itemsRechazados: toSafeInt(json['itemsRechazados']),
+      itemsRecibidos: toSafeInt(json['itemsRecibidos']),
       motivo: json['motivo'] as String?,
       observaciones: json['observaciones'] as String?,
       solicitadoPor: json['solicitadoPor'] as String,
@@ -70,14 +71,6 @@ class TransferenciaStockModel extends TransferenciaStock {
               .toList()
           : null,
     );
-  }
-
-  static int _toInt(dynamic value) {
-    if (value == null) return 0;
-    if (value is int) return value;
-    if (value is double) return value.toInt();
-    if (value is String) return int.parse(value);
-    return 0;
   }
 
   Map<String, dynamic> toJson() {
@@ -213,15 +206,15 @@ class TransferenciaStockItemModel extends TransferenciaStockItem {
       empresaId: json['empresaId'] as String,
       productoId: json['productoId'] as String?,
       varianteId: json['varianteId'] as String?,
-      cantidadSolicitada: _toInt(json['cantidadSolicitada']),
+      cantidadSolicitada: toSafeInt(json['cantidadSolicitada']),
       cantidadAprobada: json['cantidadAprobada'] != null
-          ? _toInt(json['cantidadAprobada'])
+          ? toSafeInt(json['cantidadAprobada'])
           : null,
       cantidadEnviada: json['cantidadEnviada'] != null
-          ? _toInt(json['cantidadEnviada'])
+          ? toSafeInt(json['cantidadEnviada'])
           : null,
       cantidadRecibida: json['cantidadRecibida'] != null
-          ? _toInt(json['cantidadRecibida'])
+          ? toSafeInt(json['cantidadRecibida'])
           : null,
       estado: EstadoItemTransferencia.fromString(json['estado'] as String),
       motivo: json['motivo'] as String?,
@@ -237,14 +230,6 @@ class TransferenciaStockItemModel extends TransferenciaStockItem {
               json['variante'] as Map<String, dynamic>)
           : null,
     );
-  }
-
-  static int _toInt(dynamic value) {
-    if (value == null) return 0;
-    if (value is int) return value;
-    if (value is double) return value.toInt();
-    if (value is String) return int.parse(value);
-    return 0;
   }
 
   Map<String, dynamic> toJson() {

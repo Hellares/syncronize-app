@@ -11,6 +11,7 @@ import '../../domain/entities/producto_variante.dart';
 import '../bloc/producto_variante/producto_variante_cubit.dart';
 import '../bloc/producto_variante/producto_variante_state.dart';
 import 'archivo_manager_bottom_sheet.dart';
+import 'variante_detail_dialog.dart';
 
 class ProductoVariantesBottomSheet extends StatefulWidget {
   final String productoId;
@@ -115,9 +116,7 @@ class _ProductoVariantesBottomSheetState extends State<ProductoVariantesBottomSh
         );
 
     return Container(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.75,
-      ),
+      height: MediaQuery.of(context).size.height * 0.75,
       decoration: const BoxDecoration(
         color: AppColors.scaffoldBackground,
         borderRadius: BorderRadius.only(
@@ -126,10 +125,9 @@ class _ProductoVariantesBottomSheetState extends State<ProductoVariantesBottomSh
         ),
       ),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
         children: [
           _buildHeader(context),
-          Flexible(
+          Expanded(
             child: BlocBuilder<ProductoVarianteCubit, ProductoVarianteState>(
               builder: (context, state) {
                 if (state is ProductoVarianteLoading) {
@@ -164,7 +162,7 @@ class _ProductoVariantesBottomSheetState extends State<ProductoVariantesBottomSh
 
   Widget _buildHeader(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppColors.cardBackground,
         borderRadius: const BorderRadius.only(
@@ -194,7 +192,7 @@ class _ProductoVariantesBottomSheetState extends State<ProductoVariantesBottomSh
               const Icon(
                 Icons.widgets,
                 color: AppColors.blue1,
-                size: 20,
+                size: 18,
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -203,7 +201,7 @@ class _ProductoVariantesBottomSheetState extends State<ProductoVariantesBottomSh
                   children: [
                     AppTitle(
                       'Variantes',
-                      fontSize: 16,
+                      fontSize: 14,
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -289,7 +287,7 @@ class _ProductoVariantesBottomSheetState extends State<ProductoVariantesBottomSh
 
   Widget _buildVariantesList(List<ProductoVariante> variantes) {
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       shrinkWrap: true,
       itemCount: variantes.length,
       itemBuilder: (context, index) {
@@ -304,206 +302,252 @@ class _ProductoVariantesBottomSheetState extends State<ProductoVariantesBottomSh
 
   Widget _buildVarianteCard(ProductoVariante variante) {
     // Obtener precios desde stocksPorSede (sistema multi-sede)
-    final _stocks = variante.stocksPorSede;
-    final _stockInfo = _stocks != null && _stocks.isNotEmpty
-        ? (_stocks.where((s) => s.precioConfigurado && s.precio != null).firstOrNull ?? _stocks.first)
+    final stocks = variante.stocksPorSede;
+    final precioStock = stocks != null && stocks.isNotEmpty
+        ? (stocks.where((s) => s.precioConfigurado && s.precio != null).firstOrNull ?? stocks.first)
         : null;
-    final hasOferta = _stockInfo?.isOfertaActiva ?? false;
-    final precioActual = _stockInfo?.precioEfectivo ?? 0.0;
-    final precioOriginal = _stockInfo?.precio ?? 0.0;
+    final hasOferta = precioStock?.isOfertaActiva ?? false;
+    final precioActual = precioStock?.precioEfectivo ?? 0.0;
+    final precioOriginal = precioStock?.precio ?? 0.0;
 
-    return GradientContainer(
-      gradient: AppGradients.blueWhiteBlue(),
-      borderRadius: BorderRadius.circular(12),
-      shadowStyle: ShadowStyle.glow,
-      borderColor: AppColors.cardBackground,
-      borderWidth: 0.8,
-      child: Stack(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-            // Header: Nombre + Estado
+    return InkWell(
+      onTap: () => showVarianteDetailDialog(context: context, variante: variante),
+      borderRadius: BorderRadius.circular(8),
+      child: GradientContainer(
+        gradient: AppGradients.blueWhiteBlue(),
+        borderRadius: BorderRadius.circular(8),
+        shadowStyle: ShadowStyle.glow,
+        borderColor: AppColors.blueborder,
+        borderWidth: 0.8,
+      child: SizedBox(
+        height: 100,
+        child: Stack(
+          clipBehavior: Clip.hardEdge,
+          children: [
             Row(
               children: [
-                Expanded(
-                  child: Text(
-                    variante.nombre,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
+                // Imagen de la variante
+                SizedBox(
+                  width: 80,
+                  height: 100,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.grey[200],
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(8),
+                          bottomLeft: Radius.circular(8),
+                        ),
+                      ),
+                      child: variante.imagenPrincipal != null
+                          ? ClipRRect(
+                              borderRadius: const BorderRadius.only(
+                                topLeft: Radius.circular(8),
+                                bottomLeft: Radius.circular(8),
+                              ),
+                              child: Image.network(
+                                variante.imagenPrincipal!,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return _buildImagePlaceholder();
+                                },
+                              ),
+                            )
+                          : _buildImagePlaceholder(),
                     ),
                   ),
-                ),
-                if (!variante.isActive)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.red.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
-                    ),
-                    child: Text(
-                      'INACTIVO',
-                      style: TextStyle(
-                        fontSize: 8,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.red[700],
-                      ),
-                    ),
-                  ),
-              ],
-            ),
 
-            // SKU
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                Icon(Icons.tag, size: 11, color: Colors.grey[600]),
-                const SizedBox(width: 4),
-                Text(
-                  variante.codigoEmpresa,
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: Colors.grey[700],
-                    fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
-                  ),
-                ),
-              ],
-            ),
-
-            // Atributos (Color, Talla, etc.)
-            if (variante.atributosValores.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 6,
-                runSpacing: 4,
-                children: variante.atributosValores.map((av) {
-                  return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(
-                        color: Colors.grey.withValues(alpha: 0.3),
-                        width: 0.5,
-                      ),
-                    ),
-                    child: Text(
-                      '${av.atributo.nombre}: ${av.valor}',
-                      style: TextStyle(
-                        fontSize: 9,
-                        color: Colors.grey[700],
-                        fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ],
-
-            // Separator
-            Container(
-              height: 1,
-              color: Colors.grey[300],
-              margin: const EdgeInsets.symmetric(vertical: 10),
-            ),
-
-            // Footer: Precio + Stock
-            Row(
-              children: [
-                // Precio
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (hasOferta) ...[
+                  // Contenido principal
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 12, right: 30, top: 5, bottom: 5),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Header: Nombre + Estado
                         Row(
                           children: [
-                            Text(
-                              'S/ ${precioActual.toStringAsFixed(2)}',
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.green,
+                            Expanded(
+                              child: Text(
+                                variante.nombre,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                            const SizedBox(width: 6),
+                            if (!variante.isActive)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                                ),
+                                child: Text(
+                                  'INACTIVO',
+                                  style: TextStyle(
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.red[700],
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+
+                        // SKU
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            Icon(Icons.tag, size: 11, color: Colors.grey[600]),
+                            const SizedBox(width: 4),
                             Text(
-                              'S/ ${precioOriginal.toStringAsFixed(2)}',
+                              variante.codigoEmpresa,
                               style: TextStyle(
-                                fontSize: 11,
-                                decoration: TextDecoration.lineThrough,
-                                color: Colors.grey[500],
+                                fontSize: 10,
+                                color: Colors.grey[700],
+                                fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
                               ),
                             ),
                           ],
                         ),
-                      ] else ...[
-                        Text(
-                          'S/ ${precioActual.toStringAsFixed(2)}',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary,
+
+                        // Atributos (Color, Talla, etc.) - una sola línea
+                        if (variante.atributosValores.isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  variante.atributosValores.map((av) => '${av.atributo.nombre}: ${av.valor}').join('  •  '),
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    color: Colors.grey[700],
+                                    fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
                           ),
+                        ],
+
+                        // Separator
+                        Container(
+                          height: 1,
+                          color: Colors.grey[300],
+                          margin: const EdgeInsets.symmetric(vertical: 4),
+                        ),
+
+                        // Footer: Precio + Stock
+                        Row(
+                          children: [
+                            // Precio
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (hasOferta) ...[
+                                    Row(
+                                      children: [
+                                        Text(
+                                          'S/ ${precioActual.toStringAsFixed(2)}',
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.green,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          'S/ ${precioOriginal.toStringAsFixed(2)}',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            decoration: TextDecoration.lineThrough,
+                                            color: Colors.grey[500],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ] else ...[
+                                    Text(
+                                      'S/ ${precioActual.toStringAsFixed(2)}',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.textPrimary,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+
+                            // Stock Badge
+                            _buildStockBadge(variante),
+                          ],
                         ),
                       ],
-                    ],
+                    ),
                   ),
                 ),
-
-                // Stock Badge
-                _buildStockBadge(variante),
               ],
+            ),
+
+            // Botón de gestionar archivos en esquina superior derecha
+            Positioned(
+              top: 0,
+              right: 0,
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => _showArchivoManager(variante),
+                  borderRadius: const BorderRadius.only(
+                    topRight: Radius.circular(8),
+                    topLeft: Radius.circular(4),
+                    bottomLeft: Radius.circular(4),
+                    bottomRight: Radius.circular(4),
+                  ),
+                  child: Container(
+                    padding: const EdgeInsets.all(5),
+                    decoration: BoxDecoration(
+                      color: AppColors.blue1.withValues(alpha: 0.1),
+                      borderRadius: const BorderRadius.only(
+                        topRight: Radius.circular(8),
+                        topLeft: Radius.circular(4),
+                        bottomLeft: Radius.circular(4),
+                        bottomRight: Radius.circular(4),
+                      ),
+                      border: Border.all(
+                        color: AppColors.cardBackground,
+                        width: 1,
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.attach_file,
+                      size: 14,
+                      color: AppColors.blue1,
+                    ),
+                  ),
+                ),
+              ),
             ),
           ],
         ),
       ),
+      ),
+    );
+  }
 
-      // Botón de gestionar archivos en esquina superior derecha
-      Positioned(
-        top: 0,
-        right: 0,
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: () => _showArchivoManager(variante),
-            borderRadius: const BorderRadius.only(
-              topRight: Radius.circular(12),
-              topLeft: Radius.circular(4),
-              bottomLeft: Radius.circular(4),
-              bottomRight: Radius.circular(4),
-            ),
-            child: Container(
-              padding: const EdgeInsets.all(5),
-              decoration: BoxDecoration(
-                color: AppColors.blue1.withValues(alpha: 0.1),
-                borderRadius: const BorderRadius.only(
-                  topRight: Radius.circular(12),
-                  topLeft: Radius.circular(4),
-                  bottomLeft: Radius.circular(4),
-                  bottomRight: Radius.circular(4),
-                ),
-                border: Border.all(
-                  color: AppColors.cardBackground,
-                  width: 1,
-                ),
-              ),
-              child: const Icon(
-                Icons.attach_file,
-                size: 14,
-                color: AppColors.blue1,
-              ),
-            ),
-          ),
-        ),
-      ),
-    ],
-      ),
+  Widget _buildImagePlaceholder() {
+    return Center(
+      child: Icon(Icons.inventory_2_outlined, size: 32, color: Colors.grey[400]),
     );
   }
 

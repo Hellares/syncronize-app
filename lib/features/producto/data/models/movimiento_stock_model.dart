@@ -1,3 +1,4 @@
+import 'package:syncronize/core/utils/type_converters.dart';
 import '../../domain/entities/movimiento_stock.dart';
 
 class MovimientoStockModel extends MovimientoStock {
@@ -28,9 +29,9 @@ class MovimientoStockModel extends MovimientoStock {
       tipo: TipoMovimientoStockExtension.fromString(json['tipo'] as String),
       tipoDocumento: json['tipoDocumento'] as String?,
       numeroDocumento: json['numeroDocumento'] as String?,
-      cantidadAnterior: _toInt(json['cantidadAnterior']),
-      cantidad: _toInt(json['cantidad']),
-      cantidadNueva: _toInt(json['cantidadNueva']),
+      cantidadAnterior: toSafeInt(json['cantidadAnterior']),
+      cantidad: toSafeInt(json['cantidad']),
+      cantidadNueva: toSafeInt(json['cantidadNueva']),
       motivo: json['motivo'] as String?,
       observaciones: json['observaciones'] as String?,
       transferenciaId: json['transferenciaId'] as String?,
@@ -39,13 +40,6 @@ class MovimientoStockModel extends MovimientoStock {
     );
   }
 
-  static int _toInt(dynamic value) {
-    if (value == null) return 0;
-    if (value is int) return value;
-    if (value is double) return value.toInt();
-    if (value is String) return int.parse(value);
-    return 0;
-  }
 
   Map<String, dynamic> toJson() {
     return {

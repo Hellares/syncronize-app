@@ -105,7 +105,7 @@ class InfoChip extends StatelessWidget {
         children: [
           if (icon != null) ...[
             Icon(icon, color: currentText, size: resolvedIconSize),
-            const SizedBox(width: 6),
+            const SizedBox(width: 4),
           ],
           Text(
             text,
@@ -117,7 +117,7 @@ class InfoChip extends StatelessWidget {
             ),
           ),
           if (showCheckmark && selected) ...[
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
             Icon(Icons.check, color: currentText, size: resolvedIconSize + 2),
           ],
         ],

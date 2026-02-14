@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:syncronize/core/di/injection_container.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/app_gradients.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/widgets/info_chip.dart';
+import '../../data/datasources/producto_remote_datasource.dart';
 import '../../domain/entities/producto_variante.dart';
+import 'variante_detail_dialog.dart';
 import 'variante_plantilla_atributos_dialog.dart';
 
 class ProductoVariantesSection extends StatefulWidget {
@@ -12,6 +15,7 @@ class ProductoVariantesSection extends StatefulWidget {
   final Function(ProductoVariante)? onVarianteSelected;
   final ProductoVariante? selectedVariante;
   final String empresaId;
+  final String productoId;
   final VoidCallback? onAtributosChanged;
 
   const ProductoVariantesSection({
@@ -20,6 +24,7 @@ class ProductoVariantesSection extends StatefulWidget {
     this.onVarianteSelected,
     this.selectedVariante,
     required this.empresaId,
+    required this.productoId,
     this.onAtributosChanged,
   });
 
@@ -30,11 +35,38 @@ class ProductoVariantesSection extends StatefulWidget {
 
 class _ProductoVariantesSectionState extends State<ProductoVariantesSection> {
   ProductoVariante? _selectedVariante;
+  Map<String, ProductoVariante> _variantesCompletas = {};
 
   @override
   void initState() {
     super.initState();
     _selectedVariante = widget.selectedVariante ?? widget.variantes.firstOrNull;
+    _fetchVariantesCompletas();
+  }
+
+  Future<void> _fetchVariantesCompletas() async {
+    if (widget.variantes.isEmpty) return;
+    try {
+      final datasource = locator<ProductoRemoteDataSource>();
+      final variantes = await datasource.getVariantes(
+        productoId: widget.productoId,
+        empresaId: widget.empresaId,
+      );
+      if (mounted) {
+        setState(() {
+          _variantesCompletas = {
+            for (final v in variantes) v.id: v,
+          };
+        });
+      }
+    } catch (e) {
+      debugPrint('Error al cargar variantes completas: $e');
+    }
+  }
+
+  /// Obtiene la variante enriquecida con archivos si está disponible.
+  ProductoVariante _getVarianteCompleta(ProductoVariante variante) {
+    return _variantesCompletas[variante.id] ?? variante;
   }
 
   @override
@@ -114,28 +146,14 @@ class _ProductoVariantesSectionState extends State<ProductoVariantesSection> {
           fontSize: 10,
         );
         
+
+
+
       }).toList(),
     );
   }
 
-  // Widget _getAtributoIcon(String key) {
-  //   final keyLower = key.toLowerCase();
-  //   IconData icon = Icons.label;
 
-  //   if (keyLower.contains('color')) {
-  //     icon = Icons.palette;
-  //   } else if (keyLower.contains('talla') || keyLower.contains('tamaño')) {
-  //     icon = Icons.straighten;
-  //   } else if (keyLower.contains('material')) {
-  //     icon = Icons.category;
-  //   } else if (keyLower.contains('capacidad')) {
-  //     icon = Icons.storage;
-  //   } else if (keyLower.contains('conexi') || keyLower.contains('conex')) {
-  //     icon = Icons.cable;
-  //   }
-
-  //   return Icon(icon, size: 16);
-  // }
 
   Widget _buildVarianteCard(ProductoVariante variante, bool isSelected) {
     // Obtener precio desde stocksPorSede (sistema multi-sede)
@@ -152,6 +170,10 @@ class _ProductoVariantesSectionState extends State<ProductoVariantesSection> {
         });
         widget.onVarianteSelected?.call(variante);
       },
+      onLongPress: () => showVarianteDetailDialog(
+        context: context,
+        variante: _getVarianteCompleta(variante),
+      ),
       borderRadius: BorderRadius.circular(8),
       child: Container(
         padding: const EdgeInsets.only(left: 8, right: 8, bottom: 10),
@@ -169,11 +191,11 @@ class _ProductoVariantesSectionState extends State<ProductoVariantesSection> {
             Row(
               children: [
                 // Imagen miniatura si existe
-                if (variante.imagenPrincipal != null) ...[
+                if (_getVarianteCompleta(variante).imagenPrincipal != null) ...[
                   ClipRRect(
                     borderRadius: BorderRadius.circular(6),
                     child: Image.network(
-                      variante.thumbnailPrincipal!,
+                      _getVarianteCompleta(variante).thumbnailPrincipal!,
                       width: 40,
                       height: 40,
                       fit: BoxFit.cover,

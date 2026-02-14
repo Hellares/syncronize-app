@@ -3,7 +3,7 @@ import 'producto_variante_model.dart';
 import 'stock_por_sede_info_model.dart';
 
 class ProductoListItemModel extends ProductoListItem {
-  const ProductoListItemModel({
+  ProductoListItemModel({
     required super.id,
     required super.nombre,
     required super.codigoEmpresa,

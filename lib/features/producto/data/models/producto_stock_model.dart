@@ -1,3 +1,4 @@
+import 'package:syncronize/core/utils/type_converters.dart';
 import '../../domain/entities/producto_stock.dart';
 
 class ProductoStockModel extends ProductoStock {
@@ -36,29 +37,29 @@ class ProductoStockModel extends ProductoStock {
       productoId: json['productoId'] as String?,
       varianteId: json['varianteId'] as String?,
       empresaId: json['empresaId'] as String,
-      stockActual: _toInt(json['stockActual']),
+      stockActual: toSafeInt(json['stockActual']),
       stockReservado: json['stockReservado'] != null
-          ? _toInt(json['stockReservado'])
+          ? toSafeInt(json['stockReservado'])
           : 0,
       stockReservadoVenta: json['stockReservadoVenta'] != null
-          ? _toInt(json['stockReservadoVenta'])
+          ? toSafeInt(json['stockReservadoVenta'])
           : 0,
       stockDanado: json['stockDanado'] != null
-          ? _toInt(json['stockDanado'])
+          ? toSafeInt(json['stockDanado'])
           : 0,
       stockEnGarantia: json['stockEnGarantia'] != null
-          ? _toInt(json['stockEnGarantia'])
+          ? toSafeInt(json['stockEnGarantia'])
           : 0,
       stockMinimo: json['stockMinimo'] != null
-          ? _toInt(json['stockMinimo'])
+          ? toSafeInt(json['stockMinimo'])
           : null,
       stockMaximo: json['stockMaximo'] != null
-          ? _toInt(json['stockMaximo'])
+          ? toSafeInt(json['stockMaximo'])
           : null,
       ubicacion: json['ubicacion'] as String?,
-      precio: json['precio'] != null ? _toDouble(json['precio']) : null,
-      precioCosto: json['precioCosto'] != null ? _toDouble(json['precioCosto']) : null,
-      precioOferta: json['precioOferta'] != null ? _toDouble(json['precioOferta']) : null,
+      precio: json['precio'] != null ? toSafeDouble(json['precio']) : null,
+      precioCosto: json['precioCosto'] != null ? toSafeDouble(json['precioCosto']) : null,
+      precioOferta: json['precioOferta'] != null ? toSafeDouble(json['precioOferta']) : null,
       enOferta: json['enOferta'] as bool? ?? false,
       fechaInicioOferta: json['fechaInicioOferta'] != null
           ? DateTime.parse(json['fechaInicioOferta'] as String)
@@ -83,21 +84,6 @@ class ProductoStockModel extends ProductoStock {
     );
   }
 
-  static int _toInt(dynamic value) {
-    if (value == null) return 0;
-    if (value is int) return value;
-    if (value is double) return value.toInt();
-    if (value is String) return int.parse(value);
-    return 0;
-  }
-
-  static double _toDouble(dynamic value) {
-    if (value == null) return 0.0;
-    if (value is double) return value;
-    if (value is int) return value.toDouble();
-    if (value is String) return double.parse(value);
-    return 0.0;
-  }
 
   Map<String, dynamic> toJson() {
     return {

@@ -2,10 +2,11 @@ import 'package:equatable/equatable.dart';
 import 'producto_variante.dart';
 import 'atributo_valor.dart';
 import 'stock_por_sede_info.dart';
+import 'stock_por_sede_mixin.dart';
 import '../../../catalogo/domain/entities/unidad_medida.dart';
 
 /// Entity que representa un producto
-class Producto extends Equatable {
+class Producto extends Equatable with StockPorSedeMixin {
   final String id;
   final String empresaId;
   final String? sedeId;
@@ -46,7 +47,7 @@ class Producto extends Equatable {
   final List<ProductoVariante>? variantes;
   final List<StockPorSedeInfo>? stocksPorSede; // Desglose de stock por sede (sistema multi-sede)
 
-  const Producto({
+  Producto({
     required this.id,
     required this.empresaId,
     this.sedeId,
@@ -130,114 +131,6 @@ class Producto extends Equatable {
       return unidadMedida!.codigoEfectivo!;
     }
     return 'NIU'; // Por defecto código SUNAT de "Unidad"
-  }
-
-  /// Calcula el stock total basado en el desglose por sede
-  int get stockTotal {
-    if (stocksPorSede != null && stocksPorSede!.isNotEmpty) {
-      return stocksPorSede!.fold(0, (sum, stockSede) => sum + stockSede.cantidad);
-    }
-    return 0;
-  }
-
-  /// Obtiene el stock para una sede específica
-  int? stockEnSede(String sedeId) {
-    if (stocksPorSede == null) return null;
-    final stockSede = stocksPorSede!.firstWhere(
-      (s) => s.sedeId == sedeId,
-      orElse: () => StockPorSedeInfo(
-        sedeId: '',
-        sedeNombre: '',
-        sedeCodigo: '',
-        cantidad: 0,
-      ),
-    );
-    return stockSede.cantidad;
-  }
-
-  /// Verifica si tiene stock disponible considerando stocksPorSede
-  bool get hasStockTotal => stockTotal > 0;
-
-  /// Verifica si el stock total está agotado
-  bool get isOutOfStockTotal => stockTotal <= 0;
-
-  /// Verifica si alguna sede tiene stock bajo (por debajo del mínimo)
-  bool get isStockLowTotal {
-    if (stocksPorSede == null || stocksPorSede!.isEmpty) return false;
-    return stocksPorSede!.any((stock) => stock.esBajoMinimo);
-  }
-
-  /// Obtiene la cantidad de sedes con stock crítico (cero)
-  int get sedesConStockCritico {
-    if (stocksPorSede == null || stocksPorSede!.isEmpty) return 0;
-    return stocksPorSede!.where((stock) => stock.esCritico).length;
-  }
-
-  /// Obtiene la cantidad de sedes con stock bajo mínimo
-  int get sedesConStockBajo {
-    if (stocksPorSede == null || stocksPorSede!.isEmpty) return 0;
-    return stocksPorSede!.where((stock) => stock.esBajoMinimo).length;
-  }
-
-  /// Obtiene el precio de una sede específica
-  double? precioEnSede(String sedeId) {
-    if (stocksPorSede == null) return null;
-    final stock = stocksPorSede!.firstWhere(
-      (s) => s.sedeId == sedeId,
-      orElse: () => StockPorSedeInfo(
-        sedeId: '',
-        sedeNombre: '',
-        sedeCodigo: '',
-        cantidad: 0,
-      ),
-    );
-    return stock.precio;
-  }
-
-  /// Obtiene el precio efectivo (con oferta si aplica) de una sede específica
-  double? precioEfectivoEnSede(String sedeId) {
-    if (stocksPorSede == null) return null;
-    final stock = stocksPorSede!.firstWhere(
-      (s) => s.sedeId == sedeId,
-      orElse: () => StockPorSedeInfo(
-        sedeId: '',
-        sedeNombre: '',
-        sedeCodigo: '',
-        cantidad: 0,
-      ),
-    );
-    return stock.precioEfectivo;
-  }
-
-  /// Verifica si está en oferta en una sede específica
-  bool enOfertaEnSede(String sedeId) {
-    if (stocksPorSede == null) return false;
-    final stock = stocksPorSede!.firstWhere(
-      (s) => s.sedeId == sedeId,
-      orElse: () => StockPorSedeInfo(
-        sedeId: '',
-        sedeNombre: '',
-        sedeCodigo: '',
-        cantidad: 0,
-      ),
-    );
-    return stock.isOfertaActiva;
-  }
-
-  /// Obtiene el porcentaje de descuento en una sede específica
-  double? porcentajeDescuentoEnSede(String sedeId) {
-    final stock = stockSedeInfo(sedeId);
-    return stock?.porcentajeDescuento;
-  }
-
-  /// Obtiene el stock de ProductoStock para una sede específica (info completa)
-  StockPorSedeInfo? stockSedeInfo(String sedeId) {
-    if (stocksPorSede == null) return null;
-    try {
-      return stocksPorSede!.firstWhere((s) => s.sedeId == sedeId);
-    } catch (e) {
-      return null;
-    }
   }
 
   @override

@@ -48,8 +48,9 @@ class ProductoTipoSection extends StatelessWidget {
         children: [
           _buildHeader(),
           const SizedBox(height: 8),
-          _buildComboSwitch(context),
-          _buildVariantesSwitch(context),
+          // Creando: solo mostrar combo | Editando: solo mostrar variantes
+          if (!isEditing) _buildComboSwitch(context),
+          if (isEditing && !esCombo) _buildVariantesSwitch(context),
           if (esCombo) ..._buildComboOptions(context),
           if (tieneVariantes && !isEditing) _buildVariantesInfo(),
         ],

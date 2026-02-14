@@ -69,69 +69,75 @@ class ProductoListTile extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 12),
       child: GradientContainer(
         gradient:AppGradients.blueWhiteBlue(), // Gradiente sutil para las cards
-        borderRadius: BorderRadius.circular(8),
+        // borderRadius: BorderRadius.circular(8),
         shadowStyle: ShadowStyle.glow, // Efecto neumórfico elegante
         borderColor: AppColors.blueborder,
         borderWidth: 0.8,
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(12),
-          child: Stack(
+          child: SizedBox(
+            height: 105,
+            child: Stack(
+            clipBehavior: Clip.hardEdge,
             children: [
-              // Imagen posicionada a la izquierda
-              Positioned(
-                left: 0,
-                top: 0,
-                bottom: 0,
-                child: Container(
-                  width: 95,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(8),
-                      bottomLeft: Radius.circular(8),
+              Row(
+                children: [
+                  // Imagen de la variante
+                  SizedBox(
+                    width: 95,
+                    height: 105,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.grey[200],
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(8),
+                          bottomLeft: Radius.circular(8),
+                        ),
+                      ),
+                      child: producto.imagenPrincipal != null
+                          ? ClipRRect(
+                              borderRadius: const BorderRadius.only(
+                                topLeft: Radius.circular(8),
+                                bottomLeft: Radius.circular(8),
+                              ),
+                              child: Image.network(
+                                producto.imagenPrincipal!,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return _buildPlaceholder();
+                                },
+                              ),
+                            )
+                          : _buildPlaceholder(),
                     ),
                   ),
-                  child: producto.imagenPrincipal != null
-                      ? ClipRRect(
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(8),
-                            bottomLeft: Radius.circular(8),
-                          ),
-                          child: Image.network(
-                            producto.imagenPrincipal!,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return _buildPlaceholder();
-                            },
-                          ),
-                        )
-                      : _buildPlaceholder(),
-                ),
+
+                  // Contenido principal
+                  Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.only(
+                        left: 12,
+                        top: 4,
+                        // bottom: 8,
+                        right: onManageFiles != null ? 40 : 10,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildHeader(),
+                          _buildFooter(),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
 
-              // Contenido principal
-              Padding(
-                padding: EdgeInsets.only(
-                  left: 107, // 95 (imagen) + 12 (spacing)
-                  top: 6,
-                  bottom: 8,
-                  right: onManageFiles != null
-                      ? 40
-                      : 10, // Espacio para botón adjuntar
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildHeader(),
-                    // const SizedBox(height: 8),
-                    _buildFooter(),
-                  ],
-                ),
-              ),
-
-              // Botón de gestionar archivos en esquina superior derecha
-              if (onManageFiles != null)
+              // Botón de gestionar archivos (oculto para variantes)
+              if (onManageFiles != null && !producto.tieneVariantes)
                 Positioned(
                   top: 0,
                   right: 0,
@@ -170,8 +176,8 @@ class ProductoListTile extends StatelessWidget {
                   ),
                 ),
 
-              // Botón de configurar precio en esquina inferior derecha (izquierda del stock)
-              if (onPrecioTap != null)
+              // Botón de configurar precio (oculto para variantes y combos)
+              if (onPrecioTap != null && !producto.tieneVariantes && !producto.esCombo)
                 Positioned(
                   bottom: 0,
                   right: 35, // A la izquierda del botón de stock
@@ -210,8 +216,8 @@ class ProductoListTile extends StatelessWidget {
                   ),
                 ),
 
-              // Botón de agregar stock en esquina inferior derecha
-              if (onStockDoubleTap != null)
+              // Botón de agregar stock (oculto para variantes y combos)
+              if (onStockDoubleTap != null && !producto.tieneVariantes && !producto.esCombo)
                 Positioned(
                   bottom: 0,
                   right: 0,
@@ -250,6 +256,7 @@ class ProductoListTile extends StatelessWidget {
                   ),
                 ),
             ],
+          ),
           ),
         ),
       ),
@@ -377,109 +384,111 @@ class ProductoListTile extends StatelessWidget {
           margin: const EdgeInsets.symmetric(vertical: 2),
         ),
 
-        // Línea 1: Precio con descuento + badge de descuento inline
-        if (!_tienePrecioConfigurado()) ...[
-          const Text(
-            'Sin precio',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-              color: Colors.orange,
-              fontStyle: FontStyle.italic,
+        // Línea 1: Precio (oculto para productos con variantes)
+        if (!producto.tieneVariantes) ...[
+          if (!_tienePrecioConfigurado()) ...[
+            const Text(
+              'Sin precio',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: Colors.orange,
+                fontStyle: FontStyle.italic,
+              ),
             ),
-          ),
-        ] else if (_isOfertaActiva) ...[
-          Wrap(
-            spacing: 8,
-            runSpacing: 4,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              Text(
-               'S/ ${_formatPrecio(_precioEfectivo)}',
-               style: const TextStyle(
-                 fontSize: 11,
-                 fontWeight: FontWeight.bold,
-                 color: Colors.green,
+          ] else if (_isOfertaActiva) ...[
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(
+                 'S/ ${_formatPrecio(_precioEfectivo)}',
+                 style: const TextStyle(
+                   fontSize: 11,
+                   fontWeight: FontWeight.bold,
+                   color: Colors.green,
+                 ),
                ),
-             ),
-             Text(
-               'S/ ${_formatPrecio(_precio)}',
-               style: TextStyle(
-                 fontSize: 11,
-                 decoration: TextDecoration.lineThrough,
-                 color: Colors.grey[500],
+               Text(
+                 'S/ ${_formatPrecio(_precio)}',
+                 style: TextStyle(
+                   fontSize: 11,
+                   decoration: TextDecoration.lineThrough,
+                   color: Colors.grey[500],
+                 ),
                ),
-             ),
-              // Badge de descuento inline con fecha
-              if (_porcentajeDescuento != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.orange.shade400,
-                        Colors.deepOrange.shade500,
+                // Badge de descuento inline con fecha
+                if (_porcentajeDescuento != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.orange.shade400,
+                          Colors.deepOrange.shade500,
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(4),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.orange.withValues(alpha: 0.3),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
                       ],
                     ),
-                    borderRadius: BorderRadius.circular(4),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.orange.withValues(alpha: 0.3),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        '-${_porcentajeDescuento?.toStringAsFixed(0) ?? '0'}%',
-                        style: const TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      if (_fechaFinOferta != null) ...[
-                        const SizedBox(width: 6),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
                         Text(
-                          '•',
-                          style: TextStyle(
-                            fontSize: 9,
-                            color: Colors.white.withValues(alpha: 0.7),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        const Icon(
-                          Icons.schedule,
-                          size: 10,
-                          color: Colors.white,
-                        ),
-                        const SizedBox(width: 3),
-                        Text(
-                          DateFormatter.formatDateShort(_fechaFinOferta!),
+                          '-${_porcentajeDescuento?.toStringAsFixed(0) ?? '0'}%',
                           style: const TextStyle(
-                            fontSize: 8,
-                            fontWeight: FontWeight.w600,
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
                             color: Colors.white,
                           ),
                         ),
+                        if (_fechaFinOferta != null) ...[
+                          const SizedBox(width: 6),
+                          Text(
+                            '•',
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: Colors.white.withValues(alpha: 0.7),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          const Icon(
+                            Icons.schedule,
+                            size: 10,
+                            color: Colors.white,
+                          ),
+                          const SizedBox(width: 3),
+                          Text(
+                            DateFormatter.formatDateShort(_fechaFinOferta!),
+                            style: const TextStyle(
+                              fontSize: 8,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
-                ),
-            ],
-          ),
-        ] else ...[
-          Text(
-           'S/ ${_formatPrecio(_precioEfectivo)}',
-           style: const TextStyle(
-             fontSize: 11,
-             fontWeight: FontWeight.bold,
-             color: AppColors.textPrimary,
+              ],
+            ),
+          ] else ...[
+            Text(
+             'S/ ${_formatPrecio(_precioEfectivo)}',
+             style: const TextStyle(
+               fontSize: 11,
+               fontWeight: FontWeight.bold,
+               color: AppColors.textPrimary,
+             ),
            ),
-         ),
+          ],
         ],
 
         // Línea 2: Stock badge + COMBO badge (horizontal)
@@ -489,9 +498,9 @@ class ProductoListTile extends StatelessWidget {
             // Stock badge
             _buildStockBadge(),
 
-            // SIN PRECIO badge (solo si no tiene precio configurado)
-            if (!_tienePrecioConfigurado()) ...[
-              const SizedBox(width: 8),
+            // SIN PRECIO badge (solo si no tiene precio configurado y no es producto con variantes)
+            if (!producto.tieneVariantes && !_tienePrecioConfigurado()) ...[
+              // const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4.5),
                 decoration: BoxDecoration(
@@ -600,10 +609,12 @@ class ProductoListTile extends StatelessWidget {
   }
 
   Widget _buildStockBadge() {
-    // Para combos mostrar la cantidad reservada; para productos normales el stock total
-    final int stockToShow = producto.esCombo ? producto.comboReservado : producto.stockTotal;
+    // Para combos mostrar la cantidad reservada; para productos con variantes el stock consolidado; para productos normales el stock total
+    final int stockToShow = producto.esCombo
+        ? producto.comboReservado
+        : producto.stockConsolidado;
     final bool hasStock = stockToShow > 0;
-    final bool isLowStock = producto.esCombo ? false : producto.isStockLowTotal;
+    final bool isLowStock = producto.esCombo ? false : (producto.tieneVariantes ? false : producto.isStockLowTotal);
 
     Color badgeColor;
     IconData icon;
@@ -623,11 +634,11 @@ class ProductoListTile extends StatelessWidget {
       badgeText = '$stockToShow';
     }
 
-    // Si hay stock por sede, mostrar información adicional
-    final tieneStockPorSede = producto.stocksPorSede != null && producto.stocksPorSede!.isNotEmpty;
+    // Si hay stock por sede, mostrar información adicional (no para productos con variantes)
+    final tieneStockPorSede = !producto.tieneVariantes && producto.stocksPorSede != null && producto.stocksPorSede!.isNotEmpty;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
         color: badgeColor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(4),

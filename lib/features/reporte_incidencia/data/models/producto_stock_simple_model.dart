@@ -1,3 +1,5 @@
+import 'package:syncronize/core/utils/type_converters.dart';
+
 class ProductoStockSimpleModel {
   final String id;
   final String productoId;
@@ -50,8 +52,8 @@ class ProductoStockSimpleModel {
       nombreProducto: nombreProducto,
       nombreVariante: nombreVariante,
       sku: sku,
-      stockActual: _toInt(json['stockActual']),
-      stockDisponible: _toInt(json['stockDisponible']),
+      stockActual: toSafeInt(json['stockActual']),
+      stockDisponible: toSafeInt(json['stockDisponible']),
     );
   }
 
@@ -62,11 +64,4 @@ class ProductoStockSimpleModel {
     return nombreProducto;
   }
 
-  static int _toInt(dynamic value) {
-    if (value == null) return 0;
-    if (value is int) return value;
-    if (value is double) return value.toInt();
-    if (value is String) return int.tryParse(value) ?? 0;
-    return 0;
-  }
 }

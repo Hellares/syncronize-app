@@ -12,38 +12,30 @@ class ProductosStockRemoteDatasource {
     required String empresaId,
     required String sedeId,
   }) async {
-    try {
-      final response = await _dio.get(
-        '/producto-stock/sede/$sedeId',
-        options: Options(
-          headers: {
-            'X-Tenant-ID': empresaId,
-          },
-        ),
-      );
+    final response = await _dio.get(
+      '/producto-stock/sede/$sedeId',
+      options: Options(
+        headers: {
+          'X-Tenant-ID': empresaId,
+        },
+      ),
+    );
 
-      if (response.data == null) {
-        return [];
-      }
-
-      // El backend puede devolver un objeto con data o directamente una lista
-      final data = response.data is Map && response.data['data'] != null
-          ? response.data['data']
-          : response.data;
-
-      if (data is! List) {
-        return [];
-      }
-
-      return data
-          .map((json) => ProductoStockSimpleModel.fromJson(json as Map<String, dynamic>))
-          .toList();
-    } on DioException catch (e) {
-      throw Exception(
-        e.response?.data['message'] ?? 'Error al obtener productos stock',
-      );
-    } catch (e) {
-      throw Exception('Error inesperado: $e');
+    if (response.data == null) {
+      return [];
     }
+
+    // El backend puede devolver un objeto con data o directamente una lista
+    final data = response.data is Map && response.data['data'] != null
+        ? response.data['data']
+        : response.data;
+
+    if (data is! List) {
+      return [];
+    }
+
+    return data
+        .map((json) => ProductoStockSimpleModel.fromJson(json as Map<String, dynamic>))
+        .toList();
   }
 }

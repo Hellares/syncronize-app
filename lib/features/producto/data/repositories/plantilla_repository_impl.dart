@@ -1,5 +1,6 @@
 import 'package:injectable/injectable.dart';
 import '../../../../core/network/network_info.dart';
+import '../../../../core/services/error_handler_service.dart';
 import '../../../../core/utils/resource.dart';
 import '../../domain/entities/atributo_plantilla.dart';
 import '../../domain/repositories/plantilla_repository.dart';
@@ -10,10 +11,12 @@ import '../models/atributo_plantilla_model.dart';
 class PlantillaRepositoryImpl implements PlantillaRepository {
   final PlantillaRemoteDataSource _remoteDataSource;
   final NetworkInfo _networkInfo;
+  final ErrorHandlerService _errorHandler;
 
   PlantillaRepositoryImpl(
     this._remoteDataSource,
     this._networkInfo,
+    this._errorHandler,
   );
 
   @override
@@ -52,10 +55,7 @@ class PlantillaRepositoryImpl implements PlantillaRepository {
       final plantilla = await _remoteDataSource.crearPlantilla(dto);
       return Success(plantilla.toEntity());
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'Plantilla');
     }
   }
 
@@ -76,10 +76,7 @@ class PlantillaRepositoryImpl implements PlantillaRepository {
       );
       return Success(plantillas.map((p) => p.toEntity()).toList());
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'Plantilla');
     }
   }
 
@@ -98,10 +95,7 @@ class PlantillaRepositoryImpl implements PlantillaRepository {
       final plantilla = await _remoteDataSource.getPlantilla(plantillaId);
       return Success(plantilla.toEntity());
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'Plantilla');
     }
   }
 
@@ -145,10 +139,7 @@ class PlantillaRepositoryImpl implements PlantillaRepository {
       );
       return Success(plantilla.toEntity());
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'Plantilla');
     }
   }
 
@@ -167,10 +158,7 @@ class PlantillaRepositoryImpl implements PlantillaRepository {
       await _remoteDataSource.eliminarPlantilla(plantillaId);
       return Success(null);
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'Plantilla');
     }
   }
 
@@ -199,10 +187,7 @@ class PlantillaRepositoryImpl implements PlantillaRepository {
         atributosCreados: result['atributosCreados'] as int,
       ));
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'Plantilla');
     }
   }
 
@@ -229,10 +214,7 @@ class PlantillaRepositoryImpl implements PlantillaRepository {
         ),
       ));
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'Plantilla');
     }
   }
 }

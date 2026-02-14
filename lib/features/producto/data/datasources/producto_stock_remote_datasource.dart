@@ -1,4 +1,3 @@
-import 'package:dio/dio.dart';
 import 'package:injectable/injectable.dart';
 import '../../../../core/network/dio_client.dart';
 import '../models/producto_stock_model.dart';
@@ -31,32 +30,26 @@ class ProductoStockRemoteDataSource {
     DateTime? fechaInicioOferta,
     DateTime? fechaFinOferta,
   }) async {
-    try {
-      final response = await _dioClient.post(
-        '/producto-stock',
-        data: {
-          'sedeId': sedeId,
-          if (productoId != null) 'productoId': productoId,
-          if (varianteId != null) 'varianteId': varianteId,
-          'stockActual': stockActual,
-          if (stockMinimo != null) 'stockMinimo': stockMinimo,
-          if (stockMaximo != null) 'stockMaximo': stockMaximo,
-          if (ubicacion != null) 'ubicacion': ubicacion,
-          if (precio != null) 'precio': precio,
-          if (precioCosto != null) 'precioCosto': precioCosto,
-          if (precioOferta != null) 'precioOferta': precioOferta,
-          if (enOferta != null) 'enOferta': enOferta,
-          if (fechaInicioOferta != null) 'fechaInicioOferta': fechaInicioOferta.toIso8601String(),
-          if (fechaFinOferta != null) 'fechaFinOferta': fechaFinOferta.toIso8601String(),
-        },
-      );
+    final response = await _dioClient.post(
+      '/producto-stock',
+      data: {
+        'sedeId': sedeId,
+        if (productoId != null) 'productoId': productoId,
+        if (varianteId != null) 'varianteId': varianteId,
+        'stockActual': stockActual,
+        if (stockMinimo != null) 'stockMinimo': stockMinimo,
+        if (stockMaximo != null) 'stockMaximo': stockMaximo,
+        if (ubicacion != null) 'ubicacion': ubicacion,
+        if (precio != null) 'precio': precio,
+        if (precioCosto != null) 'precioCosto': precioCosto,
+        if (precioOferta != null) 'precioOferta': precioOferta,
+        if (enOferta != null) 'enOferta': enOferta,
+        if (fechaInicioOferta != null) 'fechaInicioOferta': fechaInicioOferta.toIso8601String(),
+        if (fechaFinOferta != null) 'fechaFinOferta': fechaFinOferta.toIso8601String(),
+      },
+    );
 
-      return ProductoStockModel.fromJson(response.data as Map<String, dynamic>);
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al crear stock: $e');
-    }
+    return ProductoStockModel.fromJson(response.data as Map<String, dynamic>);
   }
 
   /// Lista el stock de una sede específica
@@ -68,21 +61,15 @@ class ProductoStockRemoteDataSource {
     int page = 1,
     int limit = 50,
   }) async {
-    try {
-      final response = await _dioClient.get(
-        '/producto-stock/sede/$sedeId',
-        queryParameters: {
-          'page': page,
-          'limit': limit,
-        },
-      );
+    final response = await _dioClient.get(
+      '/producto-stock/sede/$sedeId',
+      queryParameters: {
+        'page': page,
+        'limit': limit,
+      },
+    );
 
-      return response.data as Map<String, dynamic>;
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al obtener stock de sede: $e');
-    }
+    return response.data as Map<String, dynamic>;
   }
 
   /// Obtiene el stock de un producto en una sede específica
@@ -92,17 +79,11 @@ class ProductoStockRemoteDataSource {
     required String productoId,
     required String sedeId,
   }) async {
-    try {
-      final response = await _dioClient.get(
-        '/producto-stock/producto/$productoId/sede/$sedeId',
-      );
+    final response = await _dioClient.get(
+      '/producto-stock/producto/$productoId/sede/$sedeId',
+    );
 
-      return ProductoStockModel.fromJson(response.data as Map<String, dynamic>);
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al obtener stock del producto: $e');
-    }
+    return ProductoStockModel.fromJson(response.data as Map<String, dynamic>);
   }
 
   /// Obtiene el stock de una variante en una sede específica
@@ -112,17 +93,11 @@ class ProductoStockRemoteDataSource {
     required String varianteId,
     required String sedeId,
   }) async {
-    try {
-      final response = await _dioClient.get(
-        '/producto-stock/variante/$varianteId/sede/$sedeId',
-      );
+    final response = await _dioClient.get(
+      '/producto-stock/variante/$varianteId/sede/$sedeId',
+    );
 
-      return ProductoStockModel.fromJson(response.data as Map<String, dynamic>);
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al obtener stock de la variante: $e');
-    }
+    return ProductoStockModel.fromJson(response.data as Map<String, dynamic>);
   }
 
   /// Obtiene el stock de un producto en TODAS las sedes
@@ -133,21 +108,15 @@ class ProductoStockRemoteDataSource {
     required String empresaId,
     String? varianteId,
   }) async {
-    try {
-      final response = await _dioClient.get(
-        '/producto-stock/producto/$productoId/todas-sedes',
-        queryParameters: {
-          if (varianteId != null) 'varianteId': varianteId,
-        },
-      );
+    final response = await _dioClient.get(
+      '/producto-stock/producto/$productoId/todas-sedes',
+      queryParameters: {
+        if (varianteId != null) 'varianteId': varianteId,
+      },
+    );
 
-      return StockTodasSedesModel.fromJson(
-          response.data as Map<String, dynamic>);
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al obtener stock en todas las sedes: $e');
-    }
+    return StockTodasSedesModel.fromJson(
+        response.data as Map<String, dynamic>);
   }
 
   /// Ajusta el stock (entrada o salida)
@@ -163,25 +132,19 @@ class ProductoStockRemoteDataSource {
     String? tipoDocumento,
     String? numeroDocumento,
   }) async {
-    try {
-      final response = await _dioClient.put(
-        '/producto-stock/$stockId/ajustar',
-        data: {
-          'tipo': tipo.value,
-          'cantidad': cantidad,
-          if (motivo != null) 'motivo': motivo,
-          if (observaciones != null) 'observaciones': observaciones,
-          if (tipoDocumento != null) 'tipoDocumento': tipoDocumento,
-          if (numeroDocumento != null) 'numeroDocumento': numeroDocumento,
-        },
-      );
+    final response = await _dioClient.put(
+      '/producto-stock/$stockId/ajustar',
+      data: {
+        'tipo': tipo.value,
+        'cantidad': cantidad,
+        if (motivo != null) 'motivo': motivo,
+        if (observaciones != null) 'observaciones': observaciones,
+        if (tipoDocumento != null) 'tipoDocumento': tipoDocumento,
+        if (numeroDocumento != null) 'numeroDocumento': numeroDocumento,
+      },
+    );
 
-      return ProductoStockModel.fromJson(response.data as Map<String, dynamic>);
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al ajustar stock: $e');
-    }
+    return ProductoStockModel.fromJson(response.data as Map<String, dynamic>);
   }
 
   /// Actualiza los precios de un ProductoStock
@@ -197,27 +160,21 @@ class ProductoStockRemoteDataSource {
     DateTime? fechaInicioOferta,
     DateTime? fechaFinOferta,
   }) async {
-    try {
-      final response = await _dioClient.patch(
-        '/producto-stock/$productoStockId/precios',
-        data: {
-          if (precio != null) 'precio': precio,
-          if (precioCosto != null) 'precioCosto': precioCosto,
-          if (precioOferta != null) 'precioOferta': precioOferta,
-          'enOferta': enOferta,
-          if (fechaInicioOferta != null)
-            'fechaInicioOferta': fechaInicioOferta.toIso8601String(),
-          if (fechaFinOferta != null)
-            'fechaFinOferta': fechaFinOferta.toIso8601String(),
-        },
-      );
+    final response = await _dioClient.patch(
+      '/producto-stock/$productoStockId/precios',
+      data: {
+        if (precio != null) 'precio': precio,
+        if (precioCosto != null) 'precioCosto': precioCosto,
+        if (precioOferta != null) 'precioOferta': precioOferta,
+        'enOferta': enOferta,
+        if (fechaInicioOferta != null)
+          'fechaInicioOferta': fechaInicioOferta.toIso8601String(),
+        if (fechaFinOferta != null)
+          'fechaFinOferta': fechaFinOferta.toIso8601String(),
+      },
+    );
 
-      return ProductoStockModel.fromJson(response.data as Map<String, dynamic>);
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al actualizar precios: $e');
-    }
+    return ProductoStockModel.fromJson(response.data as Map<String, dynamic>);
   }
 
   /// Obtiene el historial de movimientos de un stock
@@ -227,23 +184,17 @@ class ProductoStockRemoteDataSource {
     required String stockId,
     int limit = 50,
   }) async {
-    try {
-      final response = await _dioClient.get(
-        '/producto-stock/$stockId/movimientos',
-        queryParameters: {
-          'limit': limit,
-        },
-      );
+    final response = await _dioClient.get(
+      '/producto-stock/$stockId/movimientos',
+      queryParameters: {
+        'limit': limit,
+      },
+    );
 
-      final List movimientos = response.data as List;
-      return movimientos
-          .map((e) => MovimientoStockModel.fromJson(e as Map<String, dynamic>))
-          .toList();
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al obtener historial de movimientos: $e');
-    }
+    final List movimientos = response.data as List;
+    return movimientos
+        .map((e) => MovimientoStockModel.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   /// Obtiene alertas de productos con stock bajo el mínimo
@@ -253,20 +204,14 @@ class ProductoStockRemoteDataSource {
     required String empresaId,
     String? sedeId,
   }) async {
-    try {
-      final response = await _dioClient.get(
-        '/producto-stock/alertas/bajo-minimo',
-        queryParameters: {
-          if (sedeId != null) 'sedeId': sedeId,
-        },
-      );
+    final response = await _dioClient.get(
+      '/producto-stock/alertas/bajo-minimo',
+      queryParameters: {
+        if (sedeId != null) 'sedeId': sedeId,
+      },
+    );
 
-      return response.data as Map<String, dynamic>;
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al obtener alertas de stock bajo: $e');
-    }
+    return response.data as Map<String, dynamic>;
   }
 
   /// Valida si hay stock suficiente de un combo
@@ -278,22 +223,16 @@ class ProductoStockRemoteDataSource {
     required String sedeId,
     required int cantidad,
   }) async {
-    try {
-      final response = await _dioClient.post(
-        '/producto-stock/combo/validar-stock',
-        data: {
-          'comboId': comboId,
-          'sedeId': sedeId,
-          'cantidad': cantidad,
-        },
-      );
+    final response = await _dioClient.post(
+      '/producto-stock/combo/validar-stock',
+      data: {
+        'comboId': comboId,
+        'sedeId': sedeId,
+        'cantidad': cantidad,
+      },
+    );
 
-      return response.data as Map<String, dynamic>;
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al validar stock de combo: $e');
-    }
+    return response.data as Map<String, dynamic>;
   }
 
   /// Descuenta el stock de un combo al vender
@@ -307,22 +246,16 @@ class ProductoStockRemoteDataSource {
     String? tipoDocumento,
     String? numeroDocumento,
   }) async {
-    try {
-      await _dioClient.post(
-        '/producto-stock/combo/descontar-stock',
-        data: {
-          'comboId': comboId,
-          'sedeId': sedeId,
-          'cantidad': cantidad,
-          if (tipoDocumento != null) 'tipoDocumento': tipoDocumento,
-          if (numeroDocumento != null) 'numeroDocumento': numeroDocumento,
-        },
-      );
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al descontar stock de combo: $e');
-    }
+    await _dioClient.post(
+      '/producto-stock/combo/descontar-stock',
+      data: {
+        'comboId': comboId,
+        'sedeId': sedeId,
+        'cantidad': cantidad,
+        if (tipoDocumento != null) 'tipoDocumento': tipoDocumento,
+        if (numeroDocumento != null) 'numeroDocumento': numeroDocumento,
+      },
+    );
   }
 
   /// Ajuste masivo de precios por sede
@@ -333,59 +266,11 @@ class ProductoStockRemoteDataSource {
     required String empresaId,
     required Map<String, dynamic> dto,
   }) async {
-    try {
-      final response = await _dioClient.post(
-        '/producto-stock/sedes/$sedeId/precios/ajuste-masivo',
-        data: dto,
-      );
+    final response = await _dioClient.post(
+      '/producto-stock/sedes/$sedeId/precios/ajuste-masivo',
+      data: dto,
+    );
 
-      return response.data as Map<String, dynamic>;
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al aplicar ajuste masivo de precios: $e');
-    }
-  }
-
-  /// Manejo de errores de Dio
-  Exception _handleDioError(DioException error) {
-    String message = 'Error en la operación de stock';
-
-    if (error.response != null) {
-      final data = error.response!.data;
-      if (data is Map<String, dynamic> && data.containsKey('message')) {
-        message = data['message'] as String;
-      } else if (data is String) {
-        message = data;
-      }
-
-      switch (error.response!.statusCode) {
-        case 400:
-          return Exception('Solicitud inválida: $message');
-        case 401:
-          return Exception('No autorizado: $message');
-        case 403:
-          return Exception('Acceso denegado: $message');
-        case 404:
-          return Exception('Stock no encontrado: $message');
-        case 409:
-          return Exception('Conflicto: $message');
-        case 500:
-          return Exception('Error del servidor: $message');
-        default:
-          return Exception('Error: $message');
-      }
-    }
-
-    if (error.type == DioExceptionType.connectionTimeout ||
-        error.type == DioExceptionType.receiveTimeout) {
-      return Exception('Tiempo de espera agotado');
-    }
-
-    if (error.type == DioExceptionType.connectionError) {
-      return Exception('Error de conexión. Verifica tu conexión a internet');
-    }
-
-    return Exception(message);
+    return response.data as Map<String, dynamic>;
   }
 }

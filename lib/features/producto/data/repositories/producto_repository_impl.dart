@@ -1,5 +1,6 @@
 import 'package:injectable/injectable.dart';
 import '../../../../core/network/network_info.dart';
+import '../../../../core/services/error_handler_service.dart';
 import '../../../../core/utils/resource.dart';
 import '../../domain/entities/producto.dart';
 import '../../domain/entities/producto_filtros.dart';
@@ -12,10 +13,12 @@ import '../models/producto_model.dart';
 class ProductoRepositoryImpl implements ProductoRepository {
   final ProductoRemoteDataSource _remoteDataSource;
   final NetworkInfo _networkInfo;
+  final ErrorHandlerService _errorHandler;
 
   ProductoRepositoryImpl(
     this._remoteDataSource,
     this._networkInfo,
+    this._errorHandler,
   );
 
   @override
@@ -29,11 +32,6 @@ class ProductoRepositoryImpl implements ProductoRepository {
     String? codigoBarras,
     required String nombre,
     String? descripcion,
-    // ❌ DEPRECADO: precio, precioCosto, stock, stockMinimo ahora se manejan en ProductoStock
-    double? precio,
-    double? precioCosto,
-    int? stock,
-    int? stockMinimo,
     double? peso,
     Map<String, dynamic>? dimensiones,
     String? videoUrl,
@@ -41,13 +39,9 @@ class ProductoRepositoryImpl implements ProductoRepository {
     double? descuentoMaximo,
     bool? visibleMarketplace,
     bool? destacado,
-    bool? enOferta,
     bool? tieneVariantes,
     bool? esCombo,
     String? tipoPrecioCombo,
-    double? precioOferta,
-    DateTime? fechaInicioOferta,
-    DateTime? fechaFinOferta,
     List<String>? imagenesIds,
     String? configuracionPrecioId,
   }) async {
@@ -70,13 +64,6 @@ class ProductoRepositoryImpl implements ProductoRepository {
         if (codigoBarras != null) 'codigoBarras': codigoBarras,
         'nombre': nombre,
         if (descripcion != null) 'descripcion': descripcion,
-        // ❌ DEPRECADO: precio, precioCosto, stock, stockMinimo, enOferta, precioOferta
-        // Ahora se gestionan en ProductoStock por sede
-        // Usar POST /producto-stock después de crear el producto
-        // 'precio': precio,
-        // if (precioCosto != null) 'precioCosto': precioCosto,
-        // if (stock != null) 'stock': stock,
-        // if (stockMinimo != null) 'stockMinimo': stockMinimo,
         if (peso != null) 'peso': peso,
         if (dimensiones != null) 'dimensiones': dimensiones,
         if (videoUrl != null) 'videoUrl': videoUrl,
@@ -86,14 +73,6 @@ class ProductoRepositoryImpl implements ProductoRepository {
         if (visibleMarketplace != null)
           'visibleMarketplace': visibleMarketplace,
         if (destacado != null) 'destacado': destacado,
-        // ❌ DEPRECADO: enOferta, precioOferta, fechas
-        // Ahora se gestionan en ProductoStock por sede
-        // if (enOferta != null) 'enOferta': enOferta,
-        // if (precioOferta != null) 'precioOferta': precioOferta,
-        // if (fechaInicioOferta != null)
-        //   'fechaInicioOferta': fechaInicioOferta.toIso8601String(),
-        // if (fechaFinOferta != null)
-        //   'fechaFinOferta': fechaFinOferta.toIso8601String(),
         if (tieneVariantes != null) 'tieneVariantes': tieneVariantes,
         if (esCombo != null) 'esCombo': esCombo,
         if (tipoPrecioCombo != null) 'tipoPrecioCombo': tipoPrecioCombo,
@@ -105,10 +84,7 @@ class ProductoRepositoryImpl implements ProductoRepository {
       final producto = await _remoteDataSource.crearProducto(data);
       return Success(producto.toEntity());
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'Producto');
     }
   }
 
@@ -164,10 +140,7 @@ class ProductoRepositoryImpl implements ProductoRepository {
 
       return Success(paginados);
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'Producto');
     }
   }
 
@@ -190,10 +163,7 @@ class ProductoRepositoryImpl implements ProductoRepository {
       );
       return Success(producto.toEntity());
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'Producto');
     }
   }
 
@@ -209,11 +179,6 @@ class ProductoRepositoryImpl implements ProductoRepository {
     String? codigoBarras,
     String? nombre,
     String? descripcion,
-    double? precio,
-    double? precioCosto,
-    // DEPRECATED: Stock ahora se maneja mediante ProductoStock por sede
-    // int? stock,
-    // int? stockMinimo,
     double? peso,
     Map<String, dynamic>? dimensiones,
     String? videoUrl,
@@ -222,13 +187,9 @@ class ProductoRepositoryImpl implements ProductoRepository {
     bool? visibleMarketplace,
     bool? destacado,
     int? ordenMarketplace,
-    bool? enOferta,
     bool? tieneVariantes,
     bool? esCombo,
     String? tipoPrecioCombo,
-    double? precioOferta,
-    DateTime? fechaInicioOferta,
-    DateTime? fechaFinOferta,
     List<String>? imagenesIds,
     String? configuracionPrecioId,
   }) async {
@@ -250,17 +211,6 @@ class ProductoRepositoryImpl implements ProductoRepository {
         if (codigoBarras != null) 'codigoBarras': codigoBarras,
         if (nombre != null) 'nombre': nombre,
         if (descripcion != null) 'descripcion': descripcion,
-        // ❌ DEPRECADO: Precio, precioCosto y ofertas ahora se manejan en ProductoStock por sede
-        // NO se deben enviar al actualizar el producto base
-        // if (precio != null) 'precio': precio,
-        // if (precioCosto != null) 'precioCosto': precioCosto,
-        // if (enOferta != null) 'enOferta': enOferta,
-        // if (precioOferta != null) 'precioOferta': precioOferta,
-        // if (fechaInicioOferta != null) 'fechaInicioOferta': fechaInicioOferta.toIso8601String(),
-        // if (fechaFinOferta != null) 'fechaFinOferta': fechaFinOferta.toIso8601String(),
-        // DEPRECATED: Stock ahora se maneja mediante ProductoStock por sede
-        // if (stock != null) 'stock': stock,
-        // if (stockMinimo != null) 'stockMinimo': stockMinimo,
         if (peso != null) 'peso': peso,
         if (dimensiones != null) 'dimensiones': dimensiones,
         if (videoUrl != null) 'videoUrl': videoUrl,
@@ -286,10 +236,7 @@ class ProductoRepositoryImpl implements ProductoRepository {
       );
       return Success(producto.toEntity());
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'Producto');
     }
   }
 
@@ -312,42 +259,7 @@ class ProductoRepositoryImpl implements ProductoRepository {
       );
       return Success(null);
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
-    }
-  }
-
-  @override
-  Future<Resource<Map<String, dynamic>>> actualizarStock({
-    required String productoId,
-    required String empresaId,
-    required String sedeId,
-    required int cantidad,
-    required String operacion,
-  }) async {
-    if (!await _networkInfo.isConnected) {
-      return Error(
-        'No hay conexión a internet',
-        errorCode: 'NETWORK_ERROR',
-      );
-    }
-
-    try {
-      final resultado = await _remoteDataSource.actualizarStock(
-        productoId: productoId,
-        empresaId: empresaId,
-        sedeId: sedeId,
-        cantidad: cantidad,
-        operacion: operacion,
-      );
-      return Success(resultado);
-    } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'Producto');
     }
   }
 
@@ -370,10 +282,7 @@ class ProductoRepositoryImpl implements ProductoRepository {
       );
       return Success(stockTotal);
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'Producto');
     }
   }
 
@@ -394,10 +303,7 @@ class ProductoRepositoryImpl implements ProductoRepository {
       );
       return Success(productos.map((p) => p.toEntity()).toList());
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'Producto');
     }
   }
 
@@ -420,10 +326,7 @@ class ProductoRepositoryImpl implements ProductoRepository {
       );
       return Success(resultado);
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'Producto');
     }
   }
 
@@ -452,10 +355,7 @@ class ProductoRepositoryImpl implements ProductoRepository {
       );
       return Success(resultado);
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'Producto');
     }
   }
 
@@ -484,10 +384,7 @@ class ProductoRepositoryImpl implements ProductoRepository {
       );
       return Success(resultado);
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'Producto');
     }
   }
 
@@ -512,10 +409,7 @@ class ProductoRepositoryImpl implements ProductoRepository {
       );
       return Success(resultado);
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'Producto');
     }
   }
 }

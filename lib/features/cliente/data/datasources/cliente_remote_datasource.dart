@@ -1,4 +1,3 @@
-import 'package:dio/dio.dart';
 import 'package:injectable/injectable.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/network/dio_client.dart';
@@ -19,20 +18,14 @@ class ClienteRemoteDataSource {
   Future<RegistroClienteResponseModel> registrarCliente(
     Map<String, dynamic> data,
   ) async {
-    try {
-      final response = await _dioClient.post(
-        ApiConstants.clientes,
-        data: data,
-      );
+    final response = await _dioClient.post(
+      ApiConstants.clientes,
+      data: data,
+    );
 
-      return RegistroClienteResponseModel.fromJson(
-        response.data as Map<String, dynamic>,
-      );
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al registrar cliente: $e');
-    }
+    return RegistroClienteResponseModel.fromJson(
+      response.data as Map<String, dynamic>,
+    );
   }
 
   /// Obtiene lista paginada de clientes con filtros
@@ -43,20 +36,14 @@ class ClienteRemoteDataSource {
     required String empresaId,
     required ClienteFiltros filtros,
   }) async {
-    try {
-      final queryParams = filtros.toQueryParams();
+    final queryParams = filtros.toQueryParams();
 
-      final response = await _dioClient.get(
-        ApiConstants.clientes,
-        queryParameters: queryParams,
-      );
+    final response = await _dioClient.get(
+      ApiConstants.clientes,
+      queryParameters: queryParams,
+    );
 
-      return response.data as Map<String, dynamic>;
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al obtener clientes: $e');
-    }
+    return response.data as Map<String, dynamic>;
   }
 
   /// Obtiene un cliente por ID
@@ -67,17 +54,11 @@ class ClienteRemoteDataSource {
     required String clienteId,
     required String empresaId,
   }) async {
-    try {
-      final response = await _dioClient.get(
-        '${ApiConstants.clientes}/$clienteId',
-      );
+    final response = await _dioClient.get(
+      '${ApiConstants.clientes}/$clienteId',
+    );
 
-      return ClienteModel.fromJson(response.data as Map<String, dynamic>);
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al obtener cliente: $e');
-    }
+    return ClienteModel.fromJson(response.data as Map<String, dynamic>);
   }
 
   /// Actualiza un cliente existente
@@ -89,18 +70,12 @@ class ClienteRemoteDataSource {
     required String empresaId,
     required Map<String, dynamic> data,
   }) async {
-    try {
-      final response = await _dioClient.put(
-        '${ApiConstants.clientes}/$clienteId',
-        data: data,
-      );
+    final response = await _dioClient.put(
+      '${ApiConstants.clientes}/$clienteId',
+      data: data,
+    );
 
-      return ClienteModel.fromJson(response.data as Map<String, dynamic>);
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al actualizar cliente: $e');
-    }
+    return ClienteModel.fromJson(response.data as Map<String, dynamic>);
   }
 
   /// Elimina un cliente (soft delete)
@@ -111,56 +86,8 @@ class ClienteRemoteDataSource {
     required String clienteId,
     required String empresaId,
   }) async {
-    try {
-      await _dioClient.delete(
-        '${ApiConstants.clientes}/$clienteId',
-      );
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al eliminar cliente: $e');
-    }
-  }
-
-  /// Maneja errores de Dio y los convierte a excepciones con mensajes descriptivos
-  Exception _handleDioError(DioException error) {
-    if (error.response != null) {
-      final statusCode = error.response!.statusCode;
-      final data = error.response!.data;
-
-      String message = 'Error del servidor';
-
-      if (data is Map<String, dynamic>) {
-        message = data['message'] as String? ??
-            data['error'] as String? ??
-            message;
-      }
-
-      switch (statusCode) {
-        case 400:
-          return Exception('Solicitud inválida: $message');
-        case 401:
-          return Exception('No autorizado: $message');
-        case 403:
-          return Exception('No tienes permisos para esta operación');
-        case 404:
-          return Exception('Cliente no encontrado');
-        case 500:
-          return Exception('Error del servidor: $message');
-        default:
-          return Exception('Error HTTP $statusCode: $message');
-      }
-    }
-
-    if (error.type == DioExceptionType.connectionTimeout ||
-        error.type == DioExceptionType.receiveTimeout) {
-      return Exception('Tiempo de espera agotado');
-    }
-
-    if (error.type == DioExceptionType.connectionError) {
-      return Exception('Error de conexión. Verifica tu internet.');
-    }
-
-    return Exception('Error de red: ${error.message}');
+    await _dioClient.delete(
+      '${ApiConstants.clientes}/$clienteId',
+    );
   }
 }

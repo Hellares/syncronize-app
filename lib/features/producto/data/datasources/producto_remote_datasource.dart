@@ -1,4 +1,3 @@
-import 'package:dio/dio.dart';
 import 'package:injectable/injectable.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/network/dio_client.dart';
@@ -18,18 +17,12 @@ class ProductoRemoteDataSource {
   ///
   /// POST /api/productos
   Future<ProductoModel> crearProducto(Map<String, dynamic> data) async {
-    try {
-      final response = await _dioClient.post(
-        ApiConstants.productos,
-        data: data,
-      );
+    final response = await _dioClient.post(
+      ApiConstants.productos,
+      data: data,
+    );
 
-      return ProductoModel.fromJson(response.data as Map<String, dynamic>);
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al crear producto: $e');
-    }
+    return ProductoModel.fromJson(response.data as Map<String, dynamic>);
   }
 
   /// Obtiene lista paginada de productos con filtros
@@ -41,23 +34,17 @@ class ProductoRemoteDataSource {
     String? sedeId,
     required ProductoFiltros filtros,
   }) async {
-    try {
-      final queryParams = {
-        ...filtros.toQueryParams(),
-        if (sedeId != null) 'sedeId': sedeId,
-      };
+    final queryParams = {
+      ...filtros.toQueryParams(),
+      if (sedeId != null) 'sedeId': sedeId,
+    };
 
-      final response = await _dioClient.get(
-        ApiConstants.productos,
-        queryParameters: queryParams,
-      );
+    final response = await _dioClient.get(
+      ApiConstants.productos,
+      queryParameters: queryParams,
+    );
 
-      return response.data as Map<String, dynamic>;
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al obtener productos: $e');
-    }
+    return response.data as Map<String, dynamic>;
   }
 
   /// Obtiene un producto por ID
@@ -68,17 +55,11 @@ class ProductoRemoteDataSource {
     required String productoId,
     required String empresaId,
   }) async {
-    try {
-      final response = await _dioClient.get(
-        '${ApiConstants.productos}/$productoId',
-      );
+    final response = await _dioClient.get(
+      '${ApiConstants.productos}/$productoId',
+    );
 
-      return ProductoModel.fromJson(response.data as Map<String, dynamic>);
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al obtener producto: $e');
-    }
+    return ProductoModel.fromJson(response.data as Map<String, dynamic>);
   }
 
   /// Actualiza un producto existente
@@ -90,18 +71,12 @@ class ProductoRemoteDataSource {
     required String empresaId,
     required Map<String, dynamic> data,
   }) async {
-    try {
-      final response = await _dioClient.put(
-        '${ApiConstants.productos}/$productoId',
-        data: data,
-      );
+    final response = await _dioClient.put(
+      '${ApiConstants.productos}/$productoId',
+      data: data,
+    );
 
-      return ProductoModel.fromJson(response.data as Map<String, dynamic>);
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al actualizar producto: $e');
-    }
+    return ProductoModel.fromJson(response.data as Map<String, dynamic>);
   }
 
   /// Elimina un producto (soft delete)
@@ -112,48 +87,9 @@ class ProductoRemoteDataSource {
     required String productoId,
     required String empresaId,
   }) async {
-    try {
-      await _dioClient.delete(
-        '${ApiConstants.productos}/$productoId',
-      );
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al eliminar producto: $e');
-    }
-  }
-
-  /// Actualiza el stock de un producto en una sede específica
-  ///
-  /// PATCH /api/productos/:id/stock
-  /// MIGRADO: Ahora requiere sedeId y retorna stock por sede
-  ///
-  /// @deprecated Use ProductoStockRemoteDataSource.ajustarStock() para mejor control
-  /// Nota: empresaId se valida automáticamente en headers X-Tenant-ID
-  Future<Map<String, dynamic>> actualizarStock({
-    required String productoId,
-    required String empresaId,
-    required String sedeId, // 🆕 AHORA REQUERIDO
-    required int cantidad,
-    required String operacion, // 'agregar' o 'quitar'
-  }) async {
-    try {
-      final response = await _dioClient.patch(
-        '${ApiConstants.productos}/$productoId/stock',
-        data: {
-          'sedeId': sedeId, // 🆕 NUEVO
-          'cantidad': cantidad,
-          'operacion': operacion,
-        },
-      );
-
-      // Ahora retorna { stock: int, stockTotal: int }
-      return response.data as Map<String, dynamic>;
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al actualizar stock: $e');
-    }
+    await _dioClient.delete(
+      '${ApiConstants.productos}/$productoId',
+    );
   }
 
   /// Obtiene el stock total de un producto (incluyendo variantes)
@@ -164,18 +100,12 @@ class ProductoRemoteDataSource {
     required String productoId,
     required String empresaId,
   }) async {
-    try {
-      final response = await _dioClient.get(
-        '${ApiConstants.productos}/$productoId/stock-total',
-      );
+    final response = await _dioClient.get(
+      '${ApiConstants.productos}/$productoId/stock-total',
+    );
 
-      final data = response.data as Map<String, dynamic>;
-      return data['stockTotal'] as int? ?? 0;
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al obtener stock total: $e');
-    }
+    final data = response.data as Map<String, dynamic>;
+    return data['stockTotal'] as int? ?? 0;
   }
 
   /// Obtiene productos disponibles para usar como componentes de combo
@@ -185,65 +115,17 @@ class ProductoRemoteDataSource {
   Future<List<ProductoModel>> getProductosDisponiblesParaCombo({
     required String empresaId,
   }) async {
-    try {
-      final response = await _dioClient.get(
-        '${ApiConstants.productos}/disponibles-para-combo',
-      );
+    final response = await _dioClient.get(
+      '${ApiConstants.productos}/disponibles-para-combo',
+    );
 
-      // El backend retorna estructura paginada {data: [...], meta: {...}}
-      final responseData = response.data as Map<String, dynamic>;
-      final List<dynamic> data = responseData['data'] as List<dynamic>;
+    // El backend retorna estructura paginada {data: [...], meta: {...}}
+    final responseData = response.data as Map<String, dynamic>;
+    final List<dynamic> data = responseData['data'] as List<dynamic>;
 
-      return data
-          .map((json) => ProductoModel.fromJson(json as Map<String, dynamic>))
-          .toList();
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al obtener productos disponibles: $e');
-    }
-  }
-
-  /// Maneja errores de Dio y los convierte en excepciones con mensajes claros
-  Exception _handleDioError(DioException error) {
-    if (error.response != null) {
-      final statusCode = error.response!.statusCode;
-      final data = error.response!.data;
-
-      String message = 'Error del servidor';
-
-      if (data is Map<String, dynamic>) {
-        message = data['message'] as String? ??
-            data['error'] as String? ??
-            message;
-      }
-
-      switch (statusCode) {
-        case 400:
-          return Exception('Solicitud inválida: $message');
-        case 401:
-          return Exception('No autorizado: $message');
-        case 403:
-          return Exception('No tienes permisos para esta operación');
-        case 404:
-          return Exception('Producto no encontrado');
-        case 500:
-          return Exception('Error del servidor: $message');
-        default:
-          return Exception('Error HTTP $statusCode: $message');
-      }
-    }
-
-    if (error.type == DioExceptionType.connectionTimeout ||
-        error.type == DioExceptionType.receiveTimeout) {
-      return Exception('Tiempo de espera agotado');
-    }
-
-    if (error.type == DioExceptionType.connectionError) {
-      return Exception('Error de conexión. Verifica tu internet.');
-    }
-
-    return Exception('Error de red: ${error.message}');
+    return data
+        .map((json) => ProductoModel.fromJson(json as Map<String, dynamic>))
+        .toList();
   }
 
   // =========================================
@@ -258,19 +140,13 @@ class ProductoRemoteDataSource {
     required String empresaId,
     required Map<String, dynamic> data,
   }) async {
-    try {
-      final response = await _dioClient.post(
-        '${ApiConstants.productos}/$productoId/variantes',
-        data: data,
-      );
+    final response = await _dioClient.post(
+      '${ApiConstants.productos}/$productoId/variantes',
+      data: data,
+    );
 
-      return ProductoVarianteModel.fromJson(
-          response.data as Map<String, dynamic>);
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al crear variante: $e');
-    }
+    return ProductoVarianteModel.fromJson(
+        response.data as Map<String, dynamic>);
   }
 
   /// Obtiene todas las variantes de un producto
@@ -280,21 +156,15 @@ class ProductoRemoteDataSource {
     required String productoId,
     required String empresaId,
   }) async {
-    try {
-      final response = await _dioClient.get(
-        '${ApiConstants.productos}/$productoId/variantes',
-      );
+    final response = await _dioClient.get(
+      '${ApiConstants.productos}/$productoId/variantes',
+    );
 
-      final List<dynamic> data = response.data as List<dynamic>;
-      return data
-          .map((e) =>
-              ProductoVarianteModel.fromJson(e as Map<String, dynamic>))
-          .toList();
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al obtener variantes: $e');
-    }
+    final List<dynamic> data = response.data as List<dynamic>;
+    return data
+        .map((e) =>
+            ProductoVarianteModel.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   /// Obtiene una variante por ID
@@ -304,18 +174,12 @@ class ProductoRemoteDataSource {
     required String varianteId,
     required String empresaId,
   }) async {
-    try {
-      final response = await _dioClient.get(
-        '${ApiConstants.productos}/variantes/$varianteId',
-      );
+    final response = await _dioClient.get(
+      '${ApiConstants.productos}/variantes/$varianteId',
+    );
 
-      return ProductoVarianteModel.fromJson(
-          response.data as Map<String, dynamic>);
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al obtener variante: $e');
-    }
+    return ProductoVarianteModel.fromJson(
+        response.data as Map<String, dynamic>);
   }
 
   /// Actualiza una variante
@@ -326,19 +190,13 @@ class ProductoRemoteDataSource {
     required String empresaId,
     required Map<String, dynamic> data,
   }) async {
-    try {
-      final response = await _dioClient.put(
-        '${ApiConstants.productos}/variantes/$varianteId',
-        data: data,
-      );
+    final response = await _dioClient.put(
+      '${ApiConstants.productos}/variantes/$varianteId',
+      data: data,
+    );
 
-      return ProductoVarianteModel.fromJson(
-          response.data as Map<String, dynamic>);
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al actualizar variante: $e');
-    }
+    return ProductoVarianteModel.fromJson(
+        response.data as Map<String, dynamic>);
   }
 
   /// Elimina una variante
@@ -348,15 +206,9 @@ class ProductoRemoteDataSource {
     required String varianteId,
     required String empresaId,
   }) async {
-    try {
-      await _dioClient.delete(
-        '${ApiConstants.productos}/variantes/$varianteId',
-      );
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al eliminar variante: $e');
-    }
+    await _dioClient.delete(
+      '${ApiConstants.productos}/variantes/$varianteId',
+    );
   }
 
   /// Actualiza el stock de una variante
@@ -367,19 +219,13 @@ class ProductoRemoteDataSource {
     required String empresaId,
     required int cantidad,
   }) async {
-    try {
-      final response = await _dioClient.patch(
-        '${ApiConstants.productos}/variantes/$varianteId/stock',
-        data: {'cantidad': cantidad},
-      );
+    final response = await _dioClient.patch(
+      '${ApiConstants.productos}/variantes/$varianteId/stock',
+      data: {'cantidad': cantidad},
+    );
 
-      return ProductoVarianteModel.fromJson(
-          response.data as Map<String, dynamic>);
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al actualizar stock de variante: $e');
-    }
+    return ProductoVarianteModel.fromJson(
+        response.data as Map<String, dynamic>);
   }
 
   /// Genera variantes automáticamente por combinación de atributos
@@ -390,22 +236,16 @@ class ProductoRemoteDataSource {
     required String empresaId,
     required Map<String, dynamic> data,
   }) async {
-    try {
-      final response = await _dioClient.post(
-        '${ApiConstants.productos}/$productoId/variantes/generar-combinaciones',
-        data: data,
-      );
+    final response = await _dioClient.post(
+      '${ApiConstants.productos}/$productoId/variantes/generar-combinaciones',
+      data: data,
+    );
 
-      final List<dynamic> responseData = response.data as List<dynamic>;
-      return responseData
-          .map((e) =>
-              ProductoVarianteModel.fromJson(e as Map<String, dynamic>))
-          .toList();
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al generar combinaciones: $e');
-    }
+    final List<dynamic> responseData = response.data as List<dynamic>;
+    return responseData
+        .map((e) =>
+            ProductoVarianteModel.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   // =========================================
@@ -419,19 +259,13 @@ class ProductoRemoteDataSource {
     required String empresaId,
     required Map<String, dynamic> data,
   }) async {
-    try {
-      final response = await _dioClient.post(
-        '/producto-atributos',
-        data: data,
-      );
+    final response = await _dioClient.post(
+      '/producto-atributos',
+      data: data,
+    );
 
-      return ProductoAtributoModel.fromJson(
-          response.data as Map<String, dynamic>);
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al crear atributo: $e');
-    }
+    return ProductoAtributoModel.fromJson(
+        response.data as Map<String, dynamic>);
   }
 
   /// Obtiene todos los atributos de la empresa (plantillas)
@@ -440,21 +274,15 @@ class ProductoRemoteDataSource {
   Future<List<ProductoAtributoModel>> getAtributos({
     required String empresaId,
   }) async {
-    try {
-      final response = await _dioClient.get(
-        '/producto-atributos',
-      );
+    final response = await _dioClient.get(
+      '/producto-atributos',
+    );
 
-      final List<dynamic> data = response.data as List<dynamic>;
-      return data
-          .map((e) =>
-              ProductoAtributoModel.fromJson(e as Map<String, dynamic>))
-          .toList();
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al obtener atributos: $e');
-    }
+    final List<dynamic> data = response.data as List<dynamic>;
+    return data
+        .map((e) =>
+            ProductoAtributoModel.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   /// Obtiene atributos por categoría
@@ -464,21 +292,15 @@ class ProductoRemoteDataSource {
     required String categoriaId,
     required String empresaId,
   }) async {
-    try {
-      final response = await _dioClient.get(
-        '/producto-atributos/categoria/$categoriaId',
-      );
+    final response = await _dioClient.get(
+      '/producto-atributos/categoria/$categoriaId',
+    );
 
-      final List<dynamic> data = response.data as List<dynamic>;
-      return data
-          .map((e) =>
-              ProductoAtributoModel.fromJson(e as Map<String, dynamic>))
-          .toList();
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al obtener atributos por categoría: $e');
-    }
+    final List<dynamic> data = response.data as List<dynamic>;
+    return data
+        .map((e) =>
+            ProductoAtributoModel.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   /// Obtiene un atributo por ID
@@ -488,18 +310,12 @@ class ProductoRemoteDataSource {
     required String atributoId,
     required String empresaId,
   }) async {
-    try {
-      final response = await _dioClient.get(
-        '/producto-atributos/$atributoId',
-      );
+    final response = await _dioClient.get(
+      '/producto-atributos/$atributoId',
+    );
 
-      return ProductoAtributoModel.fromJson(
-          response.data as Map<String, dynamic>);
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al obtener atributo: $e');
-    }
+    return ProductoAtributoModel.fromJson(
+        response.data as Map<String, dynamic>);
   }
 
   /// Actualiza un atributo
@@ -510,19 +326,13 @@ class ProductoRemoteDataSource {
     required String empresaId,
     required Map<String, dynamic> data,
   }) async {
-    try {
-      final response = await _dioClient.put(
-        '/producto-atributos/$atributoId',
-        data: data,
-      );
+    final response = await _dioClient.put(
+      '/producto-atributos/$atributoId',
+      data: data,
+    );
 
-      return ProductoAtributoModel.fromJson(
-          response.data as Map<String, dynamic>);
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al actualizar atributo: $e');
-    }
+    return ProductoAtributoModel.fromJson(
+        response.data as Map<String, dynamic>);
   }
 
   /// Elimina un atributo
@@ -532,15 +342,9 @@ class ProductoRemoteDataSource {
     required String atributoId,
     required String empresaId,
   }) async {
-    try {
-      await _dioClient.delete(
-        '/producto-atributos/$atributoId',
-      );
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al eliminar atributo: $e');
-    }
+    await _dioClient.delete(
+      '/producto-atributos/$atributoId',
+    );
   }
 
   // =========================================
@@ -555,16 +359,10 @@ class ProductoRemoteDataSource {
     required String empresaId,
     required Map<String, dynamic> data,
   }) async {
-    try {
-      await _dioClient.post(
-        '${ApiConstants.productos}/$productoId/atributos',
-        data: data,
-      );
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al asignar atributos al producto: $e');
-    }
+    await _dioClient.post(
+      '${ApiConstants.productos}/$productoId/atributos',
+      data: data,
+    );
   }
 
   /// Obtiene los atributos de un producto base
@@ -574,18 +372,12 @@ class ProductoRemoteDataSource {
     required String productoId,
     required String empresaId,
   }) async {
-    try {
-      final response = await _dioClient.get(
-        '${ApiConstants.productos}/$productoId/atributos',
-      );
+    final response = await _dioClient.get(
+      '${ApiConstants.productos}/$productoId/atributos',
+    );
 
-      final List<dynamic> data = response.data as List<dynamic>;
-      return data.map((e) => e as Map<String, dynamic>).toList();
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al obtener atributos del producto: $e');
-    }
+    final List<dynamic> data = response.data as List<dynamic>;
+    return data.map((e) => e as Map<String, dynamic>).toList();
   }
 
   /// Asigna atributos a una variante
@@ -596,16 +388,10 @@ class ProductoRemoteDataSource {
     required String empresaId,
     required Map<String, dynamic> data,
   }) async {
-    try {
-      await _dioClient.post(
-        '${ApiConstants.productos}/variantes/$varianteId/atributos',
-        data: data,
-      );
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al asignar atributos a la variante: $e');
-    }
+    await _dioClient.post(
+      '${ApiConstants.productos}/variantes/$varianteId/atributos',
+      data: data,
+    );
   }
 
   /// Obtiene los atributos de una variante
@@ -615,18 +401,12 @@ class ProductoRemoteDataSource {
     required String varianteId,
     required String empresaId,
   }) async {
-    try {
-      final response = await _dioClient.get(
-        '${ApiConstants.productos}/variantes/$varianteId/atributos',
-      );
+    final response = await _dioClient.get(
+      '${ApiConstants.productos}/variantes/$varianteId/atributos',
+    );
 
-      final List<dynamic> data = response.data as List<dynamic>;
-      return data.map((e) => e as Map<String, dynamic>).toList();
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al obtener atributos de la variante: $e');
-    }
+    final List<dynamic> data = response.data as List<dynamic>;
+    return data.map((e) => e as Map<String, dynamic>).toList();
   }
 
   /// Ajuste masivo de precios
@@ -636,18 +416,12 @@ class ProductoRemoteDataSource {
     required String empresaId,
     required Map<String, dynamic> dto,
   }) async {
-    try {
-      final response = await _dioClient.post(
-        '${ApiConstants.productos}/ajuste-masivo-precios',
-        data: dto,
-      );
+    final response = await _dioClient.post(
+      '${ApiConstants.productos}/ajuste-masivo-precios',
+      data: dto,
+    );
 
-      return response.data as Map<String, dynamic>;
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al aplicar ajuste masivo de precios: $e');
-    }
+    return response.data as Map<String, dynamic>;
   }
 
   // ========================================
@@ -662,19 +436,12 @@ class ProductoRemoteDataSource {
     required String empresaId,
     required Map<String, dynamic> request,
   }) async {
-    try {
-      final response = await _dioClient.post(
-        '/transferencias-stock/$transferenciaId/recibir-con-incidencias',
-        data: request,
-      );
+    final response = await _dioClient.post(
+      '/transferencias-stock/$transferenciaId/recibir-con-incidencias',
+      data: request,
+    );
 
-      return response.data as Map<String, dynamic>;
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception(
-          'Error inesperado al recibir transferencia con incidencias: $e');
-    }
+    return response.data as Map<String, dynamic>;
   }
 
   /// Lista incidencias de transferencias con filtros
@@ -687,28 +454,22 @@ class ProductoRemoteDataSource {
     String? sedeId,
     String? transferenciaId,
   }) async {
-    try {
-      final queryParameters = <String, dynamic>{};
-      if (resuelto != null) queryParameters['resuelto'] = resuelto.toString();
-      if (tipo != null) queryParameters['tipo'] = tipo;
-      if (sedeId != null) queryParameters['sedeId'] = sedeId;
-      if (transferenciaId != null) {
-        queryParameters['transferenciaId'] = transferenciaId;
-      }
-
-      final response = await _dioClient.get(
-        '/transferencias-stock/incidencias',
-        queryParameters: queryParameters,
-      );
-
-      return (response.data as List)
-          .map((item) => item as Map<String, dynamic>)
-          .toList();
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al listar incidencias: $e');
+    final queryParameters = <String, dynamic>{};
+    if (resuelto != null) queryParameters['resuelto'] = resuelto.toString();
+    if (tipo != null) queryParameters['tipo'] = tipo;
+    if (sedeId != null) queryParameters['sedeId'] = sedeId;
+    if (transferenciaId != null) {
+      queryParameters['transferenciaId'] = transferenciaId;
     }
+
+    final response = await _dioClient.get(
+      '/transferencias-stock/incidencias',
+      queryParameters: queryParameters,
+    );
+
+    return (response.data as List)
+        .map((item) => item as Map<String, dynamic>)
+        .toList();
   }
 
   /// Resuelve una incidencia tomando una acción específica
@@ -719,17 +480,11 @@ class ProductoRemoteDataSource {
     required String empresaId,
     required Map<String, dynamic> request,
   }) async {
-    try {
-      final response = await _dioClient.post(
-        '/transferencias-stock/incidencias/$incidenciaId/resolver',
-        data: request,
-      );
+    final response = await _dioClient.post(
+      '/transferencias-stock/incidencias/$incidenciaId/resolver',
+      data: request,
+    );
 
-      return response.data as Map<String, dynamic>;
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al resolver incidencia: $e');
-    }
+    return response.data as Map<String, dynamic>;
   }
 }

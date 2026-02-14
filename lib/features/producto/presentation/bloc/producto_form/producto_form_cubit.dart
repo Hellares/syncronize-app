@@ -100,15 +100,6 @@ class ProductoFormCubit extends Cubit<ProductoFormState> {
       final nombre = controller.nombreController.text.trim();
       final descripcion = controller.descripcionController.text.trim();
 
-      // ❌ DEPRECADO: Precio ahora se maneja en ProductoStock por sede
-      // final double precio;
-      // if (controller.esCombo &&
-      //     (controller.tipoPrecioCombo == 'CALCULADO' || controller.tipoPrecioCombo == 'CALCULADO_CON_DESCUENTO')) {
-      //   precio = 0.0;
-      // } else {
-      //   precio = controller.precioController.currencyValue;
-      // }
-
       // Preparar dimensiones
       Map<String, dynamic>? dimensiones;
       if (controller.dimensionLargoController.text.isNotEmpty ||
@@ -133,21 +124,10 @@ class ProductoFormCubit extends Cubit<ProductoFormState> {
           unidadMedidaId: controller.selectedUnidadMedidaId,
           nombre: nombre,
           descripcion: descripcion.isEmpty ? null : descripcion,
-          // ❌ DEPRECADO: Precio, precioCosto y ofertas ahora se manejan en ProductoStock por sede
-          // NO se deben enviar al actualizar el producto base
-          // precio: precio,
-          // precioCosto: controller.precioCostoController.currencyValue > 0 ? controller.precioCostoController.currencyValue : null,
-          // enOferta: controller.enOferta,
-          // precioOferta: controller.enOferta ? controller.precioOfertaController.currencyValue : null,
-          // fechaInicioOferta: controller.enOferta ? controller.fechaInicioOferta : null,
-          // fechaFinOferta: controller.enOferta ? controller.fechaFinOferta : null,
           empresaCategoriaId: controller.selectedCategoriaId,
           empresaMarcaId: controller.selectedMarcaId,
           sku: controller.skuController.text.trim().isEmpty ? null : controller.skuController.text.trim(),
           codigoBarras: controller.codigoBarrasController.text.trim().isEmpty ? null : controller.codigoBarrasController.text.trim(),
-          // DEPRECATED: Stock ahora se maneja mediante ProductoStock por sede
-          // stock: controller.stockController.text.isEmpty ? null : int.tryParse(controller.stockController.text),
-          // stockMinimo: controller.stockMinimoController.text.isEmpty ? null : int.tryParse(controller.stockMinimoController.text),
           peso: controller.pesoController.text.isEmpty ? null : double.tryParse(controller.pesoController.text),
           dimensiones: dimensiones,
           videoUrl: controller.videoUrlController.text.trim(),
@@ -172,16 +152,6 @@ class ProductoFormCubit extends Cubit<ProductoFormState> {
           unidadMedidaId: controller.selectedUnidadMedidaId,
           nombre: nombre,
           descripcion: descripcion.isEmpty ? null : descripcion,
-          // ❌ DEPRECADO: Precio, stock y ofertas ahora se manejan en ProductoStock por sede
-          // TODO: Después de crear el producto, crear ProductoStock para cada sede
-          // precio: precio,
-          // precioCosto: controller.precioCostoController.currencyValue > 0 ? controller.precioCostoController.currencyValue : null,
-          // stock: 0,
-          // stockMinimo: null,
-          // enOferta: controller.enOferta,
-          // precioOferta: controller.enOferta ? controller.precioOfertaController.currencyValue : null,
-          // fechaInicioOferta: controller.enOferta ? controller.fechaInicioOferta : null,
-          // fechaFinOferta: controller.enOferta ? controller.fechaFinOferta : null,
           empresaCategoriaId: controller.selectedCategoriaId,
           empresaMarcaId: controller.selectedMarcaId,
           sku: controller.skuController.text.trim().isEmpty ? null : controller.skuController.text.trim(),

@@ -1,5 +1,6 @@
 import 'package:injectable/injectable.dart';
 import '../../../../core/network/network_info.dart';
+import '../../../../core/services/error_handler_service.dart';
 import '../../../../core/utils/resource.dart';
 import '../../domain/entities/producto_stock.dart';
 import '../../domain/entities/movimiento_stock.dart';
@@ -10,10 +11,12 @@ import '../datasources/producto_stock_remote_datasource.dart';
 class ProductoStockRepositoryImpl implements ProductoStockRepository {
   final ProductoStockRemoteDataSource _remoteDataSource;
   final NetworkInfo _networkInfo;
+  final ErrorHandlerService _errorHandler;
 
   ProductoStockRepositoryImpl(
     this._remoteDataSource,
     this._networkInfo,
+    this._errorHandler,
   );
 
   @override
@@ -59,10 +62,7 @@ class ProductoStockRepositoryImpl implements ProductoStockRepository {
       );
       return Success(stock);
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'ProductoStock');
     }
   }
 
@@ -89,10 +89,7 @@ class ProductoStockRepositoryImpl implements ProductoStockRepository {
       );
       return Success(resultado);
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'ProductoStock');
     }
   }
 
@@ -115,10 +112,7 @@ class ProductoStockRepositoryImpl implements ProductoStockRepository {
       );
       return Success(stock);
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'ProductoStock');
     }
   }
 
@@ -141,10 +135,7 @@ class ProductoStockRepositoryImpl implements ProductoStockRepository {
       );
       return Success(stock);
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'ProductoStock');
     }
   }
 
@@ -170,10 +161,7 @@ class ProductoStockRepositoryImpl implements ProductoStockRepository {
       // Convertir el modelo a un Map para mantener la flexibilidad
       return Success(stock.toJson());
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'ProductoStock');
     }
   }
 
@@ -208,10 +196,7 @@ class ProductoStockRepositoryImpl implements ProductoStockRepository {
       );
       return Success(stock);
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'ProductoStock');
     }
   }
 
@@ -246,10 +231,7 @@ class ProductoStockRepositoryImpl implements ProductoStockRepository {
       );
       return Success(stock);
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'ProductoStock');
     }
   }
 
@@ -272,10 +254,7 @@ class ProductoStockRepositoryImpl implements ProductoStockRepository {
       );
       return Success(movimientos);
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'ProductoStock');
     }
   }
 
@@ -298,10 +277,7 @@ class ProductoStockRepositoryImpl implements ProductoStockRepository {
       );
       return Success(alertas);
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'ProductoStock');
     }
   }
 
@@ -328,10 +304,7 @@ class ProductoStockRepositoryImpl implements ProductoStockRepository {
       );
       return Success(resultado);
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'ProductoStock');
     }
   }
 
@@ -362,10 +335,7 @@ class ProductoStockRepositoryImpl implements ProductoStockRepository {
       );
       return Success(null);
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'ProductoStock');
     }
   }
 
@@ -390,10 +360,7 @@ class ProductoStockRepositoryImpl implements ProductoStockRepository {
       );
       return Success(resultado);
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'ProductoStock');
     }
   }
 }

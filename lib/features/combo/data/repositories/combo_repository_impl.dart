@@ -1,5 +1,6 @@
 import 'package:injectable/injectable.dart';
 import '../../../../core/network/network_info.dart';
+import '../../../../core/services/error_handler_service.dart';
 import '../../../../core/utils/resource.dart';
 import '../../domain/entities/combo.dart';
 import '../../domain/entities/componente_combo.dart';
@@ -12,10 +13,12 @@ import '../models/create_combo_dto.dart';
 class ComboRepositoryImpl implements ComboRepository {
   final ComboRemoteDataSource _remoteDataSource;
   final NetworkInfo _networkInfo;
+  final ErrorHandlerService _errorHandler;
 
   ComboRepositoryImpl(
     this._remoteDataSource,
     this._networkInfo,
+    this._errorHandler,
   );
 
   @override
@@ -33,10 +36,7 @@ class ComboRepositoryImpl implements ComboRepository {
       final combo = await _remoteDataSource.createCombo(dto: dto);
       return Success(combo.toEntity());
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'Combo');
     }
   }
 
@@ -56,10 +56,7 @@ class ComboRepositoryImpl implements ComboRepository {
       final combos = await _remoteDataSource.getCombos(sedeId: sedeId);
       return Success(combos.map((combo) => combo.toEntity()).toList());
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'Combo');
     }
   }
 
@@ -83,10 +80,7 @@ class ComboRepositoryImpl implements ComboRepository {
       );
       return Success(combo.toEntity());
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'Combo');
     }
   }
 
@@ -129,10 +123,7 @@ class ComboRepositoryImpl implements ComboRepository {
       );
       return Success(componente.toEntity());
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'Combo');
     }
   }
 
@@ -158,10 +149,7 @@ class ComboRepositoryImpl implements ComboRepository {
       );
       return Success(componentesAgregados.map((c) => c.toEntity()).toList());
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'Combo');
     }
   }
 
@@ -185,10 +173,7 @@ class ComboRepositoryImpl implements ComboRepository {
       );
       return Success(componentes.map((c) => c.toEntity()).toList());
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'Combo');
     }
   }
 
@@ -225,10 +210,7 @@ class ComboRepositoryImpl implements ComboRepository {
       );
       return Success(componente.toEntity());
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'Combo');
     }
   }
 
@@ -250,10 +232,7 @@ class ComboRepositoryImpl implements ComboRepository {
       );
       return Success(null);
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'Combo');
     }
   }
 
@@ -275,10 +254,7 @@ class ComboRepositoryImpl implements ComboRepository {
       );
       return Success(null);
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'Combo');
     }
   }
 
@@ -301,10 +277,7 @@ class ComboRepositoryImpl implements ComboRepository {
       );
       return Success(stock);
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'Combo');
     }
   }
 
@@ -327,10 +300,7 @@ class ComboRepositoryImpl implements ComboRepository {
       );
       return Success(precio);
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'Combo');
     }
   }
 
@@ -355,10 +325,7 @@ class ComboRepositoryImpl implements ComboRepository {
       );
       return Success(tieneStock);
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'Combo');
     }
   }
 
@@ -381,10 +348,7 @@ class ComboRepositoryImpl implements ComboRepository {
       );
       return Success(cantidad);
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'Combo');
     }
   }
 
@@ -409,10 +373,7 @@ class ComboRepositoryImpl implements ComboRepository {
       );
       return Success(result);
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'Combo');
     }
   }
 
@@ -435,10 +396,7 @@ class ComboRepositoryImpl implements ComboRepository {
       );
       return Success(null);
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'Combo');
     }
   }
 }

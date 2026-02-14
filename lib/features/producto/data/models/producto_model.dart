@@ -1,3 +1,4 @@
+import 'package:syncronize/core/utils/type_converters.dart';
 import '../../domain/entities/producto.dart';
 import 'producto_variante_model.dart';
 import 'atributo_valor_model.dart';
@@ -5,7 +6,7 @@ import 'stock_por_sede_info_model.dart';
 import '../../../catalogo/data/models/unidad_medida_model.dart';
 
 class ProductoModel extends Producto {
-  const ProductoModel({
+  ProductoModel({
     required super.id,
     required super.empresaId,
     super.sedeId,
@@ -59,19 +60,19 @@ class ProductoModel extends Producto {
       codigoBarras: json['codigoBarras'] as String?,
       nombre: json['nombre'] as String,
       descripcion: json['descripcion'] as String?,
-      peso: json['peso'] != null ? _toDouble(json['peso']) : null,
+      peso: json['peso'] != null ? toSafeDouble(json['peso']) : null,
       dimensiones: json['dimensiones'] as Map<String, dynamic>?,
       videoUrl: json['videoUrl'] as String?,
       impuestoPorcentaje: json['impuestoPorcentaje'] != null
-          ? _toDouble(json['impuestoPorcentaje'])
+          ? toSafeDouble(json['impuestoPorcentaje'])
           : null,
       descuentoMaximo: json['descuentoMaximo'] != null
-          ? _toDouble(json['descuentoMaximo'])
+          ? toSafeDouble(json['descuentoMaximo'])
           : null,
       visibleMarketplace: json['visibleMarketplace'] as bool? ?? true,
       destacado: json['destacado'] as bool? ?? false,
       ordenMarketplace: json['ordenMarketplace'] != null
-          ? _toInt(json['ordenMarketplace'])
+          ? toSafeInt(json['ordenMarketplace'])
           : null,
       isActive: json['isActive'] as bool? ?? true,
       tieneVariantes: json['tieneVariantes'] as bool? ?? false,
@@ -123,22 +124,6 @@ class ProductoModel extends Producto {
     );
   }
 
-  // Helper methods para convertir valores de forma segura
-  static double _toDouble(dynamic value) {
-    if (value == null) return 0.0;
-    if (value is double) return value;
-    if (value is int) return value.toDouble();
-    if (value is String) return double.parse(value);
-    return 0.0;
-  }
-
-  static int _toInt(dynamic value) {
-    if (value == null) return 0;
-    if (value is int) return value;
-    if (value is double) return value.toInt();
-    if (value is String) return int.parse(value);
-    return 0;
-  }
 
   Map<String, dynamic> toJson() {
     return {

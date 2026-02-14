@@ -1,4 +1,3 @@
-import 'package:dio/dio.dart';
 import 'package:injectable/injectable.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../empresa/data/models/sede_model.dart';
@@ -14,23 +13,17 @@ class SedeRemoteDataSource {
   ///
   /// GET /api/empresas/:empresaId/sedes
   Future<List<SedeModel>> getSedes(String empresaId) async {
-    try {
-      final response = await _dioClient.get(
-        '/empresas/$empresaId/sedes',
-      );
+    final response = await _dioClient.get(
+      '/empresas/$empresaId/sedes',
+    );
 
-      if (response.data is! List) {
-        throw Exception('Respuesta inválida del servidor');
-      }
-
-      return (response.data as List)
-          .map((json) => SedeModel.fromJson(json as Map<String, dynamic>))
-          .toList();
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al obtener sedes: $e');
+    if (response.data is! List) {
+      throw Exception('Respuesta inválida del servidor');
     }
+
+    return (response.data as List)
+        .map((json) => SedeModel.fromJson(json as Map<String, dynamic>))
+        .toList();
   }
 
   /// Obtiene los detalles de una sede específica
@@ -40,17 +33,11 @@ class SedeRemoteDataSource {
     required String empresaId,
     required String sedeId,
   }) async {
-    try {
-      final response = await _dioClient.get(
-        '/empresas/$empresaId/sedes/$sedeId',
-      );
+    final response = await _dioClient.get(
+      '/empresas/$empresaId/sedes/$sedeId',
+    );
 
-      return SedeModel.fromJson(response.data as Map<String, dynamic>);
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al obtener sede: $e');
-    }
+    return SedeModel.fromJson(response.data as Map<String, dynamic>);
   }
 
   /// Crea una nueva sede
@@ -60,18 +47,12 @@ class SedeRemoteDataSource {
     required String empresaId,
     required Map<String, dynamic> data,
   }) async {
-    try {
-      final response = await _dioClient.post(
-        '/empresas/$empresaId/sedes',
-        data: data,
-      );
+    final response = await _dioClient.post(
+      '/empresas/$empresaId/sedes',
+      data: data,
+    );
 
-      return SedeModel.fromJson(response.data as Map<String, dynamic>);
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al crear sede: $e');
-    }
+    return SedeModel.fromJson(response.data as Map<String, dynamic>);
   }
 
   /// Actualiza una sede existente
@@ -82,18 +63,12 @@ class SedeRemoteDataSource {
     required String sedeId,
     required Map<String, dynamic> data,
   }) async {
-    try {
-      final response = await _dioClient.put(
-        '/empresas/$empresaId/sedes/$sedeId',
-        data: data,
-      );
+    final response = await _dioClient.put(
+      '/empresas/$empresaId/sedes/$sedeId',
+      data: data,
+    );
 
-      return SedeModel.fromJson(response.data as Map<String, dynamic>);
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al actualizar sede: $e');
-    }
+    return SedeModel.fromJson(response.data as Map<String, dynamic>);
   }
 
   /// Elimina una sede (soft delete)
@@ -103,15 +78,9 @@ class SedeRemoteDataSource {
     required String empresaId,
     required String sedeId,
   }) async {
-    try {
-      await _dioClient.delete(
-        '/empresas/$empresaId/sedes/$sedeId',
-      );
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al eliminar sede: $e');
-    }
+    await _dioClient.delete(
+      '/empresas/$empresaId/sedes/$sedeId',
+    );
   }
 
   /// Obtiene los usuarios asignados a una sede
@@ -121,21 +90,15 @@ class SedeRemoteDataSource {
     required String empresaId,
     required String sedeId,
   }) async {
-    try {
-      final response = await _dioClient.get(
-        '/empresas/$empresaId/sedes/$sedeId/usuarios',
-      );
+    final response = await _dioClient.get(
+      '/empresas/$empresaId/sedes/$sedeId/usuarios',
+    );
 
-      if (response.data is! List) {
-        throw Exception('Respuesta inválida del servidor');
-      }
-
-      return (response.data as List).cast<Map<String, dynamic>>();
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al obtener usuarios de sede: $e');
+    if (response.data is! List) {
+      throw Exception('Respuesta inválida del servidor');
     }
+
+    return (response.data as List).cast<Map<String, dynamic>>();
   }
 
   /// Asigna un usuario a una sede con un rol específico
@@ -146,18 +109,12 @@ class SedeRemoteDataSource {
     required String sedeId,
     required Map<String, dynamic> data,
   }) async {
-    try {
-      final response = await _dioClient.post(
-        '/empresas/$empresaId/sedes/$sedeId/usuarios',
-        data: data,
-      );
+    final response = await _dioClient.post(
+      '/empresas/$empresaId/sedes/$sedeId/usuarios',
+      data: data,
+    );
 
-      return response.data as Map<String, dynamic>;
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al asignar usuario a sede: $e');
-    }
+    return response.data as Map<String, dynamic>;
   }
 
   /// Remueve un usuario de una sede
@@ -168,58 +125,8 @@ class SedeRemoteDataSource {
     required String sedeId,
     required String usuarioSedeRolId,
   }) async {
-    try {
-      await _dioClient.delete(
-        '/empresas/$empresaId/sedes/$sedeId/usuarios/$usuarioSedeRolId',
-      );
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al remover usuario de sede: $e');
-    }
-  }
-
-  /// Manejo de errores de Dio
-  Exception _handleDioError(DioException error) {
-    if (error.response != null) {
-      final statusCode = error.response!.statusCode;
-      final data = error.response!.data;
-
-      // Extraer mensaje de error del backend
-      String message = 'Error del servidor';
-      if (data is Map<String, dynamic>) {
-        message = data['message'] as String? ?? message;
-      }
-
-      switch (statusCode) {
-        case 400:
-          return Exception('Datos inválidos: $message');
-        case 401:
-          return Exception('No autorizado. Inicia sesión nuevamente.');
-        case 403:
-          return Exception('No tienes permisos para realizar esta acción.');
-        case 404:
-          return Exception('Sede no encontrada');
-        case 409:
-          return Exception('Conflicto: $message');
-        case 500:
-          return Exception('Error del servidor. Intenta nuevamente.');
-        default:
-          return Exception(message);
-      }
-    }
-
-    // Errores de conexión
-    if (error.type == DioExceptionType.connectionTimeout ||
-        error.type == DioExceptionType.receiveTimeout ||
-        error.type == DioExceptionType.sendTimeout) {
-      return Exception('Error de conexión. Verifica tu internet.');
-    }
-
-    if (error.type == DioExceptionType.unknown) {
-      return Exception('Sin conexión a internet');
-    }
-
-    return Exception('Error inesperado: ${error.message}');
+    await _dioClient.delete(
+      '/empresas/$empresaId/sedes/$sedeId/usuarios/$usuarioSedeRolId',
+    );
   }
 }

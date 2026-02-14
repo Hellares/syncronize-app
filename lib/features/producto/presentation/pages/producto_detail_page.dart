@@ -192,6 +192,7 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
                                 variantes: producto.variantes!,
                                 selectedVariante: _selectedVariante,
                                 empresaId: empresaId,
+                                productoId: producto.id,
                                 onVarianteSelected: (variante) {
                                   setState(() {
                                     _selectedVariante = variante;

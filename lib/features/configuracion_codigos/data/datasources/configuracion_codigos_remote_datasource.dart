@@ -1,4 +1,3 @@
-import 'package:dio/dio.dart';
 import 'package:injectable/injectable.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/network/dio_client.dart';
@@ -15,19 +14,13 @@ class ConfiguracionCodigosRemoteDataSource {
   ///
   /// GET /api/configuracion-codigos/:empresaId
   Future<ConfiguracionCodigosModel> getConfiguracion(String empresaId) async {
-    try {
-      final response = await _dioClient.get(
-        '${ApiConstants.configuracionCodigos}/$empresaId',
-      );
+    final response = await _dioClient.get(
+      '${ApiConstants.configuracionCodigos}/$empresaId',
+    );
 
-      return ConfiguracionCodigosModel.fromJson(
-        response.data as Map<String, dynamic>,
-      );
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al obtener configuración: $e');
-    }
+    return ConfiguracionCodigosModel.fromJson(
+      response.data as Map<String, dynamic>,
+    );
   }
 
   /// Actualizar configuración de productos
@@ -37,22 +30,14 @@ class ConfiguracionCodigosRemoteDataSource {
     required String empresaId,
     Map<String, dynamic>? data,
   }) async {
-    try {
-      final response = await _dioClient.put(
-        '${ApiConstants.configuracionCodigos}/$empresaId/productos',
-        data: data ?? {},
-      );
+    final response = await _dioClient.put(
+      '${ApiConstants.configuracionCodigos}/$empresaId/productos',
+      data: data ?? {},
+    );
 
-      return ConfiguracionCodigosModel.fromJson(
-        response.data as Map<String, dynamic>,
-      );
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception(
-        'Error inesperado al actualizar configuración de productos: $e',
-      );
-    }
+    return ConfiguracionCodigosModel.fromJson(
+      response.data as Map<String, dynamic>,
+    );
   }
 
   /// Actualizar configuración de variantes
@@ -62,22 +47,14 @@ class ConfiguracionCodigosRemoteDataSource {
     required String empresaId,
     Map<String, dynamic>? data,
   }) async {
-    try {
-      final response = await _dioClient.put(
-        '${ApiConstants.configuracionCodigos}/$empresaId/variantes',
-        data: data ?? {},
-      );
+    final response = await _dioClient.put(
+      '${ApiConstants.configuracionCodigos}/$empresaId/variantes',
+      data: data ?? {},
+    );
 
-      return ConfiguracionCodigosModel.fromJson(
-        response.data as Map<String, dynamic>,
-      );
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception(
-        'Error inesperado al actualizar configuración de variantes: $e',
-      );
-    }
+    return ConfiguracionCodigosModel.fromJson(
+      response.data as Map<String, dynamic>,
+    );
   }
 
   /// Actualizar configuración de servicios
@@ -87,22 +64,14 @@ class ConfiguracionCodigosRemoteDataSource {
     required String empresaId,
     Map<String, dynamic>? data,
   }) async {
-    try {
-      final response = await _dioClient.put(
-        '${ApiConstants.configuracionCodigos}/$empresaId/servicios',
-        data: data ?? {},
-      );
+    final response = await _dioClient.put(
+      '${ApiConstants.configuracionCodigos}/$empresaId/servicios',
+      data: data ?? {},
+    );
 
-      return ConfiguracionCodigosModel.fromJson(
-        response.data as Map<String, dynamic>,
-      );
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception(
-        'Error inesperado al actualizar configuración de servicios: $e',
-      );
-    }
+    return ConfiguracionCodigosModel.fromJson(
+      response.data as Map<String, dynamic>,
+    );
   }
 
   /// Actualizar configuración de ventas (Notas de Venta)
@@ -112,22 +81,14 @@ class ConfiguracionCodigosRemoteDataSource {
     required String empresaId,
     Map<String, dynamic>? data,
   }) async {
-    try {
-      final response = await _dioClient.put(
-        '${ApiConstants.configuracionCodigos}/$empresaId/ventas',
-        data: data ?? {},
-      );
+    final response = await _dioClient.put(
+      '${ApiConstants.configuracionCodigos}/$empresaId/ventas',
+      data: data ?? {},
+    );
 
-      return ConfiguracionCodigosModel.fromJson(
-        response.data as Map<String, dynamic>,
-      );
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception(
-        'Error inesperado al actualizar configuración de ventas: $e',
-      );
-    }
+    return ConfiguracionCodigosModel.fromJson(
+      response.data as Map<String, dynamic>,
+    );
   }
 
   /// Vista previa de código
@@ -137,20 +98,14 @@ class ConfiguracionCodigosRemoteDataSource {
     required String empresaId,
     required Map<String, dynamic> data,
   }) async {
-    try {
-      final response = await _dioClient.post(
-        '${ApiConstants.configuracionCodigos}/$empresaId/preview',
-        data: data,
-      );
+    final response = await _dioClient.post(
+      '${ApiConstants.configuracionCodigos}/$empresaId/preview',
+      data: data,
+    );
 
-      return PreviewCodigoModel.fromJson(
-        response.data as Map<String, dynamic>,
-      );
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al obtener vista previa: $e');
-    }
+    return PreviewCodigoModel.fromJson(
+      response.data as Map<String, dynamic>,
+    );
   }
 
   /// Sincronizar contador con estado real de BD
@@ -160,52 +115,10 @@ class ConfiguracionCodigosRemoteDataSource {
     required String empresaId,
     required String tipo,
   }) async {
-    try {
-      final response = await _dioClient.post(
-        '${ApiConstants.configuracionCodigos}/$empresaId/sincronizar/$tipo',
-      );
+    final response = await _dioClient.post(
+      '${ApiConstants.configuracionCodigos}/$empresaId/sincronizar/$tipo',
+    );
 
-      return response.data as Map<String, dynamic>;
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al sincronizar contador: $e');
-    }
-  }
-
-  /// Maneja errores de Dio y devuelve un mensaje apropiado
-  Exception _handleDioError(DioException error) {
-    switch (error.type) {
-      case DioExceptionType.connectionTimeout:
-      case DioExceptionType.sendTimeout:
-      case DioExceptionType.receiveTimeout:
-        return Exception(
-          'Tiempo de espera agotado. Verifica tu conexión a internet.',
-        );
-      case DioExceptionType.badResponse:
-        final statusCode = error.response?.statusCode;
-        final message = error.response?.data?['message'] as String?;
-
-        if (statusCode == 400) {
-          return Exception(message ?? 'Solicitud inválida');
-        } else if (statusCode == 401) {
-          return Exception('No autorizado. Inicia sesión nuevamente.');
-        } else if (statusCode == 403) {
-          return Exception(message ?? 'No tienes permisos para esta acción');
-        } else if (statusCode == 404) {
-          return Exception(message ?? 'Configuración no encontrada');
-        } else if (statusCode == 500) {
-          return Exception('Error del servidor. Intenta nuevamente más tarde.');
-        }
-        return Exception(message ?? 'Error al procesar la solicitud');
-      case DioExceptionType.cancel:
-        return Exception('Solicitud cancelada');
-      case DioExceptionType.unknown:
-        return Exception(
-          'Error de conexión. Verifica tu conexión a internet.',
-        );
-      default:
-        return Exception('Error inesperado: ${error.message}');
-    }
+    return response.data as Map<String, dynamic>;
   }
 }

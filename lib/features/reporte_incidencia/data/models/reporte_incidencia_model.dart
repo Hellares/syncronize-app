@@ -1,3 +1,4 @@
+import 'package:syncronize/core/utils/type_converters.dart';
 import '../../domain/entities/reporte_incidencia.dart';
 
 class UsuarioReporteModel extends UsuarioReporte {
@@ -89,7 +90,7 @@ class ReporteIncidenciaItemModel extends ReporteIncidenciaItem {
       nombreProducto: json['nombreProducto'] as String,
       codigoProducto: json['codigoProducto'] as String?,
       tipo: TipoIncidenciaProducto.fromString(json['tipo'] as String),
-      cantidadAfectada: _toInt(json['cantidadAfectada']),
+      cantidadAfectada: toSafeInt(json['cantidadAfectada']),
       descripcion: json['descripcion'] as String,
       observaciones: json['observaciones'] as String?,
       estadoItem: EstadoItemIncidencia.fromString(json['estadoItem'] as String),
@@ -128,13 +129,6 @@ class ReporteIncidenciaItemModel extends ReporteIncidenciaItem {
     };
   }
 
-  static int _toInt(dynamic value) {
-    if (value == null) return 0;
-    if (value is int) return value;
-    if (value is double) return value.toInt();
-    if (value is String) return int.tryParse(value) ?? 0;
-    return 0;
-  }
 }
 
 class ReporteIncidenciaModel extends ReporteIncidencia {
@@ -198,11 +192,11 @@ class ReporteIncidenciaModel extends ReporteIncidencia {
       fechaResolucion: json['fechaResolucion'] != null
           ? DateTime.parse(json['fechaResolucion'] as String)
           : null,
-      totalProductosAfectados: _toInt(json['totalProductosAfectados']),
-      totalCantidadAfectada: _toInt(json['totalCantidadAfectada']),
-      totalDanados: _toInt(json['totalDanados']),
-      totalPerdidos: _toInt(json['totalPerdidos']),
-      totalOtros: _toInt(json['totalOtros']),
+      totalProductosAfectados: toSafeInt(json['totalProductosAfectados']),
+      totalCantidadAfectada: toSafeInt(json['totalCantidadAfectada']),
+      totalDanados: toSafeInt(json['totalDanados']),
+      totalPerdidos: toSafeInt(json['totalPerdidos']),
+      totalOtros: toSafeInt(json['totalOtros']),
       observacionesFinales: json['observacionesFinales'] as String?,
       creadoEn: DateTime.parse(json['creadoEn'] as String),
       actualizadoEn: DateTime.parse(json['actualizadoEn'] as String),
@@ -264,11 +258,4 @@ class ReporteIncidenciaModel extends ReporteIncidencia {
     };
   }
 
-  static int _toInt(dynamic value) {
-    if (value == null) return 0;
-    if (value is int) return value;
-    if (value is double) return value.toInt();
-    if (value is String) return int.tryParse(value) ?? 0;
-    return 0;
-  }
 }

@@ -1,10 +1,11 @@
+import 'package:syncronize/core/utils/type_converters.dart';
 import '../../domain/entities/producto_variante.dart';
 import 'atributo_valor_model.dart';
 import 'stock_por_sede_info_model.dart';
 import '../../../catalogo/data/models/unidad_medida_model.dart';
 
 class ProductoVarianteModel extends ProductoVariante {
-  const ProductoVarianteModel({
+  ProductoVarianteModel({
     required super.id,
     required super.productoId,
     required super.empresaId,
@@ -26,13 +27,28 @@ class ProductoVarianteModel extends ProductoVariante {
   });
 
   factory ProductoVarianteModel.fromJson(Map<String, dynamic> json) {
+    // Campos obligatorios: lanzan excepción si faltan
+    final id = json['id'] as String?;
+    final nombre = json['nombre'] as String?;
+    final sku = json['sku'] as String?;
+    if (id == null || id.isEmpty) {
+      throw FormatException('ProductoVariante: campo "id" es requerido', json);
+    }
+    if (nombre == null || nombre.isEmpty) {
+      throw FormatException('ProductoVariante: campo "nombre" es requerido', json);
+    }
+    if (sku == null || sku.isEmpty) {
+      throw FormatException('ProductoVariante: campo "sku" es requerido', json);
+    }
+
     return ProductoVarianteModel(
-      id: json['id'] as String? ?? '',
+      id: id,
+      // productoId/empresaId pueden no venir en variantes anidadas del endpoint de producto
       productoId: json['productoId'] as String? ?? '',
       empresaId: json['empresaId'] as String? ?? '',
       unidadMedidaId: json['unidadMedidaId'] as String?,
-      nombre: json['nombre'] as String? ?? '',
-      sku: json['sku'] as String? ?? '',
+      nombre: nombre,
+      sku: sku,
       codigoBarras: json['codigoBarras'] as String?,
       codigoEmpresa: json['codigoEmpresa'] as String? ?? '',
       atributosValores: json['atributosValores'] != null
@@ -45,10 +61,10 @@ class ProductoVarianteModel extends ProductoVariante {
               .map((e) => StockPorSedeInfoModel.fromJson(e as Map<String, dynamic>))
               .toList()
           : null,
-      peso: json['peso'] != null ? _toDouble(json['peso']) : null,
+      peso: json['peso'] != null ? toSafeDouble(json['peso']) : null,
       dimensiones: json['dimensiones'] as Map<String, dynamic>?,
       isActive: json['isActive'] as bool? ?? true,
-      orden: _toInt(json['orden']),
+      orden: toSafeInt(json['orden']),
       archivos: json['archivos'] != null
           ? (json['archivos'] as List)
               .map((e) => ProductoVarianteArchivoModel.fromJson(
@@ -59,6 +75,7 @@ class ProductoVarianteModel extends ProductoVariante {
           ? EmpresaUnidadMedidaModel.fromJson(
               json['unidadMedida'] as Map<String, dynamic>)
           : null,
+      // Timestamps pueden no venir en variantes anidadas
       creadoEn: json['creadoEn'] != null
           ? DateTime.parse(json['creadoEn'] as String)
           : DateTime.now(),
@@ -68,21 +85,6 @@ class ProductoVarianteModel extends ProductoVariante {
     );
   }
 
-  static double _toDouble(dynamic value) {
-    if (value == null) return 0.0;
-    if (value is double) return value;
-    if (value is int) return value.toDouble();
-    if (value is String) return double.parse(value);
-    return 0.0;
-  }
-
-  static int _toInt(dynamic value) {
-    if (value == null) return 0;
-    if (value is int) return value;
-    if (value is double) return value.toInt();
-    if (value is String) return int.parse(value);
-    return 0;
-  }
 
   Map<String, dynamic> toJson() {
     return {

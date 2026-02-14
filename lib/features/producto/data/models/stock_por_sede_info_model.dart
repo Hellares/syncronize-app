@@ -1,3 +1,4 @@
+import 'package:syncronize/core/utils/type_converters.dart';
 import '../../domain/entities/stock_por_sede_info.dart';
 
 class StockPorSedeInfoModel extends StockPorSedeInfo {
@@ -51,9 +52,9 @@ class StockPorSedeInfoModel extends StockPorSedeInfo {
       stockMinimo: json['stockMinimo'] as int?,
       stockMaximo: json['stockMaximo'] as int?,
       ubicacion: json['ubicacion'] as String?,
-      precio: json['precio'] != null ? _toDouble(json['precio']) : null,
-      precioCosto: json['precioCosto'] != null ? _toDouble(json['precioCosto']) : null,
-      precioOferta: json['precioOferta'] != null ? _toDouble(json['precioOferta']) : null,
+      precio: json['precio'] != null ? toSafeDouble(json['precio']) : null,
+      precioCosto: json['precioCosto'] != null ? toSafeDouble(json['precioCosto']) : null,
+      precioOferta: json['precioOferta'] != null ? toSafeDouble(json['precioOferta']) : null,
       enOferta: json['enOferta'] as bool? ?? false,
       fechaInicioOferta: json['fechaInicioOferta'] != null
           ? DateTime.parse(json['fechaInicioOferta'] as String)
@@ -65,13 +66,6 @@ class StockPorSedeInfoModel extends StockPorSedeInfo {
     );
   }
 
-  static double _toDouble(dynamic value) {
-    if (value == null) return 0.0;
-    if (value is double) return value;
-    if (value is int) return value.toDouble();
-    if (value is String) return double.parse(value);
-    return 0.0;
-  }
 
   Map<String, dynamic> toJson() {
     return {

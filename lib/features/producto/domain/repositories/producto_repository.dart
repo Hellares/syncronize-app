@@ -16,11 +16,6 @@ abstract class ProductoRepository {
     String? codigoBarras,
     required String nombre,
     String? descripcion,
-    // ❌ DEPRECADO: precio, precioCosto, stock, stockMinimo ahora se manejan en ProductoStock
-    double? precio,
-    double? precioCosto,
-    int? stock,
-    int? stockMinimo,
     double? peso,
     Map<String, dynamic>? dimensiones,
     String? videoUrl,
@@ -28,13 +23,9 @@ abstract class ProductoRepository {
     double? descuentoMaximo,
     bool? visibleMarketplace,
     bool? destacado,
-    bool? enOferta,
     bool? tieneVariantes,
     bool? esCombo,
     String? tipoPrecioCombo,
-    double? precioOferta,
-    DateTime? fechaInicioOferta,
-    DateTime? fechaFinOferta,
     List<String>? imagenesIds,
     String? configuracionPrecioId,
   });
@@ -64,11 +55,6 @@ abstract class ProductoRepository {
     String? codigoBarras,
     String? nombre,
     String? descripcion,
-    double? precio,
-    double? precioCosto,
-    // DEPRECATED: Stock ahora se maneja mediante ProductoStock por sede
-    // int? stock,
-    // int? stockMinimo,
     double? peso,
     Map<String, dynamic>? dimensiones,
     String? videoUrl,
@@ -77,13 +63,9 @@ abstract class ProductoRepository {
     bool? visibleMarketplace,
     bool? destacado,
     int? ordenMarketplace,
-    bool? enOferta,
     bool? tieneVariantes,
     bool? esCombo,
     String? tipoPrecioCombo,
-    double? precioOferta,
-    DateTime? fechaInicioOferta,
-    DateTime? fechaFinOferta,
     List<String>? imagenesIds,
     String? configuracionPrecioId,
   });
@@ -92,16 +74,6 @@ abstract class ProductoRepository {
   Future<Resource<void>> eliminarProducto({
     required String productoId,
     required String empresaId,
-  });
-
-  /// Actualiza el stock de un producto
-  /// @deprecated Usa ProductoStockRepository en su lugar para operaciones de stock por sede
-  Future<Resource<Map<String, dynamic>>> actualizarStock({
-    required String productoId,
-    required String empresaId,
-    required String sedeId,
-    required int cantidad,
-    required String operacion, // 'agregar' o 'quitar'
   });
 
   /// Obtiene el stock total de un producto

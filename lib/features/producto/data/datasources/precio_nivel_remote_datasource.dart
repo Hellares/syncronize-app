@@ -1,4 +1,3 @@
-import 'package:dio/dio.dart';
 import 'package:injectable/injectable.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/network/dio_client.dart';
@@ -18,18 +17,12 @@ class PrecioNivelRemoteDataSource {
     required String productoId,
     required PrecioNivelDto dto,
   }) async {
-    try {
-      final response = await _dioClient.post(
-        '${ApiConstants.productos}/$productoId/precios-nivel',
-        data: dto.toJson(),
-      );
+    final response = await _dioClient.post(
+      '${ApiConstants.productos}/$productoId/precios-nivel',
+      data: dto.toJson(),
+    );
 
-      return PrecioNivelModel.fromJson(response.data as Map<String, dynamic>);
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al crear nivel de precio: $e');
-    }
+    return PrecioNivelModel.fromJson(response.data as Map<String, dynamic>);
   }
 
   /// Crea un nivel de precio para una variante
@@ -39,18 +32,12 @@ class PrecioNivelRemoteDataSource {
     required String varianteId,
     required PrecioNivelDto dto,
   }) async {
-    try {
-      final response = await _dioClient.post(
-        '${ApiConstants.productos}/variantes/$varianteId/precios-nivel',
-        data: dto.toJson(),
-      );
+    final response = await _dioClient.post(
+      '${ApiConstants.productos}/variantes/$varianteId/precios-nivel',
+      data: dto.toJson(),
+    );
 
-      return PrecioNivelModel.fromJson(response.data as Map<String, dynamic>);
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al crear nivel de precio: $e');
-    }
+    return PrecioNivelModel.fromJson(response.data as Map<String, dynamic>);
   }
 
   /// Obtiene todos los niveles de precio de un producto
@@ -59,21 +46,14 @@ class PrecioNivelRemoteDataSource {
   Future<List<PrecioNivelModel>> getPreciosNivelProducto({
     required String productoId,
   }) async {
-    try {
-      final response = await _dioClient.get(
-        '${ApiConstants.productos}/$productoId/precios-nivel',
-      );
+    final response = await _dioClient.get(
+      '${ApiConstants.productos}/$productoId/precios-nivel',
+    );
 
-      final list = response.data as List;
-      return list
-          .map((json) => PrecioNivelModel.fromJson(json as Map<String, dynamic>))
-          .toList();
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception(
-          'Error inesperado al obtener niveles de precio del producto: $e');
-    }
+    final list = response.data as List;
+    return list
+        .map((json) => PrecioNivelModel.fromJson(json as Map<String, dynamic>))
+        .toList();
   }
 
   /// Obtiene todos los niveles de precio de una variante
@@ -82,21 +62,14 @@ class PrecioNivelRemoteDataSource {
   Future<List<PrecioNivelModel>> getPreciosNivelVariante({
     required String varianteId,
   }) async {
-    try {
-      final response = await _dioClient.get(
-        '${ApiConstants.productos}/variantes/$varianteId/precios-nivel',
-      );
+    final response = await _dioClient.get(
+      '${ApiConstants.productos}/variantes/$varianteId/precios-nivel',
+    );
 
-      final list = response.data as List;
-      return list
-          .map((json) => PrecioNivelModel.fromJson(json as Map<String, dynamic>))
-          .toList();
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception(
-          'Error inesperado al obtener niveles de precio de la variante: $e');
-    }
+    final list = response.data as List;
+    return list
+        .map((json) => PrecioNivelModel.fromJson(json as Map<String, dynamic>))
+        .toList();
   }
 
   /// Obtiene un nivel de precio por ID
@@ -105,17 +78,11 @@ class PrecioNivelRemoteDataSource {
   Future<PrecioNivelModel> getPrecioNivel({
     required String nivelId,
   }) async {
-    try {
-      final response = await _dioClient.get(
-        '${ApiConstants.productos}/precios-nivel/$nivelId',
-      );
+    final response = await _dioClient.get(
+      '${ApiConstants.productos}/precios-nivel/$nivelId',
+    );
 
-      return PrecioNivelModel.fromJson(response.data as Map<String, dynamic>);
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al obtener nivel de precio: $e');
-    }
+    return PrecioNivelModel.fromJson(response.data as Map<String, dynamic>);
   }
 
   /// Actualiza un nivel de precio
@@ -125,18 +92,12 @@ class PrecioNivelRemoteDataSource {
     required String nivelId,
     required Map<String, dynamic> data,
   }) async {
-    try {
-      final response = await _dioClient.patch(
-        '${ApiConstants.productos}/precios-nivel/$nivelId',
-        data: data,
-      );
+    final response = await _dioClient.patch(
+      '${ApiConstants.productos}/precios-nivel/$nivelId',
+      data: data,
+    );
 
-      return PrecioNivelModel.fromJson(response.data as Map<String, dynamic>);
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al actualizar nivel de precio: $e');
-    }
+    return PrecioNivelModel.fromJson(response.data as Map<String, dynamic>);
   }
 
   /// Elimina un nivel de precio
@@ -145,15 +106,9 @@ class PrecioNivelRemoteDataSource {
   Future<void> eliminarPrecioNivel({
     required String nivelId,
   }) async {
-    try {
-      await _dioClient.delete(
-        '${ApiConstants.productos}/precios-nivel/$nivelId',
-      );
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al eliminar nivel de precio: $e');
-    }
+    await _dioClient.delete(
+      '${ApiConstants.productos}/precios-nivel/$nivelId',
+    );
   }
 
   /// Calcula el precio según la cantidad para un producto
@@ -163,19 +118,13 @@ class PrecioNivelRemoteDataSource {
     required String productoId,
     required int cantidad,
   }) async {
-    try {
-      final response = await _dioClient.get(
-        '${ApiConstants.productos}/$productoId/calcular-precio',
-        queryParameters: {'cantidad': cantidad},
-      );
+    final response = await _dioClient.get(
+      '${ApiConstants.productos}/$productoId/calcular-precio',
+      queryParameters: {'cantidad': cantidad},
+    );
 
-      return CalculoPrecioResultModel.fromJson(
-          response.data as Map<String, dynamic>);
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al calcular precio: $e');
-    }
+    return CalculoPrecioResultModel.fromJson(
+        response.data as Map<String, dynamic>);
   }
 
   /// Calcula el precio según la cantidad para una variante
@@ -185,39 +134,12 @@ class PrecioNivelRemoteDataSource {
     required String varianteId,
     required int cantidad,
   }) async {
-    try {
-      final response = await _dioClient.get(
-        '${ApiConstants.productos}/variantes/$varianteId/calcular-precio',
-        queryParameters: {'cantidad': cantidad},
-      );
+    final response = await _dioClient.get(
+      '${ApiConstants.productos}/variantes/$varianteId/calcular-precio',
+      queryParameters: {'cantidad': cantidad},
+    );
 
-      return CalculoPrecioResultModel.fromJson(
-          response.data as Map<String, dynamic>);
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    } catch (e) {
-      throw Exception('Error inesperado al calcular precio: $e');
-    }
-  }
-
-  /// Maneja errores de Dio y los convierte en excepciones más específicas
-  Exception _handleDioError(DioException e) {
-    switch (e.type) {
-      case DioExceptionType.connectionTimeout:
-      case DioExceptionType.sendTimeout:
-      case DioExceptionType.receiveTimeout:
-        return Exception('Tiempo de espera agotado. Verifica tu conexión.');
-      case DioExceptionType.badResponse:
-        final statusCode = e.response?.statusCode;
-        final message = e.response?.data?['message'] ?? 'Error del servidor';
-        return Exception('Error $statusCode: $message');
-      case DioExceptionType.cancel:
-        return Exception('Solicitud cancelada');
-      case DioExceptionType.connectionError:
-        return Exception(
-            'Error de conexión. Verifica tu conexión a internet.');
-      default:
-        return Exception('Error inesperado: ${e.message}');
-    }
+    return CalculoPrecioResultModel.fromJson(
+        response.data as Map<String, dynamic>);
   }
 }

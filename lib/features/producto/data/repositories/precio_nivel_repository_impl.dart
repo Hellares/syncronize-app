@@ -1,5 +1,6 @@
 import 'package:injectable/injectable.dart';
 import '../../../../core/network/network_info.dart';
+import '../../../../core/services/error_handler_service.dart';
 import '../../../../core/utils/resource.dart';
 import '../../domain/entities/precio_nivel.dart';
 import '../../domain/repositories/precio_nivel_repository.dart';
@@ -10,10 +11,12 @@ import '../models/precio_nivel_model.dart';
 class PrecioNivelRepositoryImpl implements PrecioNivelRepository {
   final PrecioNivelRemoteDataSource _remoteDataSource;
   final NetworkInfo _networkInfo;
+  final ErrorHandlerService _errorHandler;
 
   PrecioNivelRepositoryImpl(
     this._remoteDataSource,
     this._networkInfo,
+    this._errorHandler,
   );
 
   @override
@@ -35,10 +38,7 @@ class PrecioNivelRepositoryImpl implements PrecioNivelRepository {
       );
       return Success(nivel);
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'PrecioNivel');
     }
   }
 
@@ -61,10 +61,7 @@ class PrecioNivelRepositoryImpl implements PrecioNivelRepository {
       );
       return Success(nivel);
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'PrecioNivel');
     }
   }
 
@@ -85,10 +82,7 @@ class PrecioNivelRepositoryImpl implements PrecioNivelRepository {
       );
       return Success(niveles);
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'PrecioNivel');
     }
   }
 
@@ -109,10 +103,7 @@ class PrecioNivelRepositoryImpl implements PrecioNivelRepository {
       );
       return Success(niveles);
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'PrecioNivel');
     }
   }
 
@@ -133,10 +124,7 @@ class PrecioNivelRepositoryImpl implements PrecioNivelRepository {
       );
       return Success(nivel);
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'PrecioNivel');
     }
   }
 
@@ -159,10 +147,7 @@ class PrecioNivelRepositoryImpl implements PrecioNivelRepository {
       );
       return Success(nivel);
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'PrecioNivel');
     }
   }
 
@@ -183,10 +168,7 @@ class PrecioNivelRepositoryImpl implements PrecioNivelRepository {
       );
       return Success(null);
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'PrecioNivel');
     }
   }
 
@@ -209,10 +191,7 @@ class PrecioNivelRepositoryImpl implements PrecioNivelRepository {
       );
       return Success(result);
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'PrecioNivel');
     }
   }
 
@@ -235,10 +214,7 @@ class PrecioNivelRepositoryImpl implements PrecioNivelRepository {
       );
       return Success(result);
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'PrecioNivel');
     }
   }
 }

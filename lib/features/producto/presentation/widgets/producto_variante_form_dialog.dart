@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
+import 'package:syncronize/core/widgets/floating_button_text.dart';
 import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import '../../../../core/theme/gradient_container.dart';
 import '../../domain/entities/producto_atributo.dart';
@@ -17,6 +18,7 @@ class ProductoVarianteFormDialog extends StatefulWidget {
   final String productoId;
   final String productoNombre;
   final bool productoIsActive; // Estado del producto padre
+  final String empresaId;
   final ProductoVariante? variante;
   final List<ProductoAtributo>? atributosDisponibles;
   final Function(Map<String, dynamic>) onSave;
@@ -26,6 +28,7 @@ class ProductoVarianteFormDialog extends StatefulWidget {
     required this.productoId,
     required this.productoNombre,
     required this.productoIsActive,
+    required this.empresaId,
     this.variante,
     this.atributosDisponibles,
     required this.onSave,
@@ -66,10 +69,9 @@ class _ProductoVarianteFormDialogState
       Future.microtask(() {
         if (mounted) {
           context.read<PrecioNivelCubit>().loadNivelesVariante(widget.variante!.id);
-          // TODO: Get empresaId from auth/storage
           context.read<VarianteAtributoCubit>().loadVarianteAtributos(
             varianteId: widget.variante!.id,
-            empresaId: 'empresa-id-placeholder',
+            empresaId: widget.empresaId,
           );
         }
       });
@@ -189,7 +191,7 @@ class _ProductoVarianteFormDialogState
                     VarianteAtributosSection(
                       atributosDisponibles: widget.atributosDisponibles ?? [],
                       showPlantillaButton: true,
-                      empresaId: 'empresa-id-placeholder', // TODO: Get from auth/storage
+                      empresaId: widget.empresaId,
                     ),
                     const SizedBox(height: 16),
 
@@ -210,23 +212,23 @@ class _ProductoVarianteFormDialogState
                         return null;
                       },
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 10),
 
                     Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Expanded(
                               flex: 3,
-                              child: TextFormField(
+                              child: CustomText(
                                 controller: _skuController,
-                                decoration: const InputDecoration(
-                                  labelText: 'SKU *',
-                                  hintText: 'TEC-LEN-001',
-                                  prefixIcon: Icon(Icons.qr_code),
-                                ),
-                                validator: (value) {
+                                borderColor: AppColors.blue1,
+                                label: 'SKU *',
+                                hintText: 'TEC-LEN-001',
+                                prefixIcon: Icon(Icons.qr_code_rounded),
+                                validator: (value){
                                   if (value == null || value.trim().isEmpty) {
                                     return 'El SKU es requerido';
                                   }
@@ -237,14 +239,17 @@ class _ProductoVarianteFormDialogState
                             const SizedBox(width: 8),
                             Expanded(
                               flex: 1,
-                              child: Tooltip(
-                                message: 'Generar SKU automático',
-                                child: OutlinedButton.icon(
-                                  onPressed: _generateSKU,
-                                  icon: const Icon(Icons.auto_awesome, size: 18),
-                                  label: const Text('Auto'),
-                                  style: OutlinedButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 20),
+                              child: Padding(
+                                padding: const EdgeInsets.only(top: 13),
+                                child: Tooltip(
+                                  message: 'Generar SKU automático',
+                                  child: FloatingButtonText(
+                                    onPressed: _generateSKU,
+                                    icon: Icons.auto_awesome,
+                                    label: 'Auto',
+                                    width: 32,
+                                    height: 33,
+                                    
                                   ),
                                 ),
                               ),
@@ -252,13 +257,13 @@ class _ProductoVarianteFormDialogState
                           ],
                         ),
                         const SizedBox(height: 12),
-                        TextFormField(
+                        CustomText(
                           controller: _codigoBarrasController,
-                          decoration: const InputDecoration(
-                            labelText: 'Código de barras',
-                            prefixIcon: Icon(Icons.barcode_reader),
-                          ),
-                        ),
+                          borderColor: AppColors.blue1,
+                          label: 'Codigo de barras',
+                          hintText: 'Codigo de barras',
+                          prefixIcon: Icon(Icons.barcode_reader),
+                        )
                       ],
                     ),
                     const SizedBox(height: 24),
@@ -447,10 +452,9 @@ class _ProductoVarianteFormDialogState
     // Si estamos EDITANDO una variante, guardar atributos primero
     if (widget.variante != null) {
       try {
-        // TODO: Get empresaId from auth/storage
         await cubit.saveAtributos(
           varianteId: widget.variante!.id,
-          empresaId: 'empresa-id-placeholder',
+          empresaId: widget.empresaId,
         );
       } catch (e) {
         // El error ya se muestra en el listener del widget

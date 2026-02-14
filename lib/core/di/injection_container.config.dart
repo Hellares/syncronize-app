@@ -676,10 +676,22 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i32.UsuarioRemoteDataSource>(
       () => _i32.UsuarioRemoteDataSource(gh<_i667.DioClient>()),
     );
+    gh.lazySingleton<_i27.ConfiguracionPrecioRepository>(
+      () => _i185.ConfiguracionPrecioRepositoryImpl(
+        gh<_i134.ConfiguracionPrecioRemoteDataSource>(),
+        gh<_i932.NetworkInfo>(),
+        gh<_i490.ErrorHandlerService>(),
+      ),
+    );
     gh.lazySingleton<_i419.SedeRepository>(
       () => _i997.SedeRepositoryImpl(
         gh<_i785.SedeRemoteDataSource>(),
         gh<_i932.NetworkInfo>(),
+      ),
+    );
+    gh.factory<_i840.ConfiguracionPrecioCubit>(
+      () => _i840.ConfiguracionPrecioCubit(
+        gh<_i27.ConfiguracionPrecioRepository>(),
       ),
     );
     gh.factory<_i1062.CreateSedeUseCase>(
@@ -768,23 +780,11 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i932.NetworkInfo>(),
       ),
     );
-    gh.lazySingleton<_i27.ConfiguracionPrecioRepository>(
-      () => _i185.ConfiguracionPrecioRepositoryImpl(
-        gh<_i134.ConfiguracionPrecioRemoteDataSource>(),
-        gh<_i932.NetworkInfo>(),
-      ),
-    );
     gh.factory<_i795.ClienteFormCubit>(
       () => _i795.ClienteFormCubit(gh<_i213.RegistrarClienteUseCase>()),
     );
     gh.factory<_i475.ProductoImagesCubit>(
       () => _i475.ProductoImagesCubit(gh<_i306.StorageService>()),
-    );
-    gh.lazySingleton<_i1006.PlantillaRepository>(
-      () => _i364.PlantillaRepositoryImpl(
-        gh<_i902.PlantillaRemoteDataSource>(),
-        gh<_i932.NetworkInfo>(),
-      ),
     );
     gh.factory<_i717.GetPersonalizacionUseCase>(
       () => _i717.GetPersonalizacionUseCase(gh<_i544.EmpresaRepository>()),
@@ -800,6 +800,13 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i411.SwitchEmpresaUseCase>(
       () => _i411.SwitchEmpresaUseCase(gh<_i544.EmpresaRepository>()),
+    );
+    gh.lazySingleton<_i262.ProductoStockRepository>(
+      () => _i714.ProductoStockRepositoryImpl(
+        gh<_i88.ProductoStockRemoteDataSource>(),
+        gh<_i932.NetworkInfo>(),
+        gh<_i490.ErrorHandlerService>(),
+      ),
     );
     gh.lazySingleton<_i266.ReporteIncidenciaRepository>(
       () => _i522.ReporteIncidenciaRepositoryImpl(
@@ -831,12 +838,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i932.NetworkInfo>(),
       ),
     );
-    gh.lazySingleton<_i262.ProductoStockRepository>(
-      () => _i714.ProductoStockRepositoryImpl(
-        gh<_i88.ProductoStockRemoteDataSource>(),
-        gh<_i932.NetworkInfo>(),
-      ),
-    );
     gh.factory<_i353.DeleteUsuarioUseCase>(
       () => _i353.DeleteUsuarioUseCase(gh<_i662.UsuarioRepository>()),
     );
@@ -859,6 +860,13 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i919.ProveedorRepositoryImpl(
         gh<_i478.ProveedorRemoteDataSource>(),
         gh<_i932.NetworkInfo>(),
+      ),
+    );
+    gh.lazySingleton<_i1006.PlantillaRepository>(
+      () => _i364.PlantillaRepositoryImpl(
+        gh<_i902.PlantillaRemoteDataSource>(),
+        gh<_i932.NetworkInfo>(),
+        gh<_i490.ErrorHandlerService>(),
       ),
     );
     gh.factory<_i78.ActivarCategoriaUseCase>(
@@ -890,10 +898,11 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i815.TransferenciaStockRemoteDataSource>(),
       ),
     );
-    gh.lazySingleton<_i200.ComboRepository>(
-      () => _i206.ComboRepositoryImpl(
-        gh<_i532.ComboRemoteDataSource>(),
+    gh.lazySingleton<_i640.PrecioNivelRepository>(
+      () => _i92.PrecioNivelRepositoryImpl(
+        gh<_i872.PrecioNivelRemoteDataSource>(),
         gh<_i932.NetworkInfo>(),
+        gh<_i490.ErrorHandlerService>(),
       ),
     );
     gh.factory<_i365.CatalogoPreviewCubit>(
@@ -952,14 +961,15 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i449.StockTodasSedesCubit>(
       () => _i449.StockTodasSedesCubit(gh<_i858.GetStockTodasSedesUseCase>()),
     );
+    gh.factory<_i656.StockPorSedeCubit>(
+      () => _i656.StockPorSedeCubit(gh<_i394.GetStockPorSedeUseCase>()),
+    );
     gh.lazySingleton<_i398.ProductoRepository>(
       () => _i469.ProductoRepositoryImpl(
         gh<_i1047.ProductoRemoteDataSource>(),
         gh<_i932.NetworkInfo>(),
+        gh<_i490.ErrorHandlerService>(),
       ),
-    );
-    gh.factory<_i656.StockPorSedeCubit>(
-      () => _i656.StockPorSedeCubit(gh<_i394.GetStockPorSedeUseCase>()),
     );
     gh.factory<_i57.ActualizarProveedorUseCase>(
       () => _i57.ActualizarProveedorUseCase(gh<_i871.ProveedorRepository>()),
@@ -981,12 +991,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i1056.GetMarcasEmpresaUseCase>(),
         gh<_i895.ActivarMarcaUseCase>(),
         gh<_i405.DesactivarMarcaUseCase>(),
-      ),
-    );
-    gh.lazySingleton<_i640.PrecioNivelRepository>(
-      () => _i92.PrecioNivelRepositoryImpl(
-        gh<_i872.PrecioNivelRemoteDataSource>(),
-        gh<_i932.NetworkInfo>(),
       ),
     );
     gh.factory<_i135.EmpresaContextCubit>(
@@ -1034,32 +1038,15 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i605.ResolverItemUsecase>(
       () => _i605.ResolverItemUsecase(gh<_i266.ReporteIncidenciaRepository>()),
     );
-    gh.factory<_i237.AgregarComponenteUseCase>(
-      () => _i237.AgregarComponenteUseCase(gh<_i200.ComboRepository>()),
-    );
-    gh.factory<_i40.EliminarComponenteUseCase>(
-      () => _i40.EliminarComponenteUseCase(gh<_i200.ComboRepository>()),
-    );
-    gh.factory<_i209.GetComboCompletoUseCase>(
-      () => _i209.GetComboCompletoUseCase(gh<_i200.ComboRepository>()),
-    );
-    gh.factory<_i235.GetCombosUseCase>(
-      () => _i235.GetCombosUseCase(gh<_i200.ComboRepository>()),
-    );
-    gh.factory<_i330.GetComponentesUseCase>(
-      () => _i330.GetComponentesUseCase(gh<_i200.ComboRepository>()),
-    );
-    gh.factory<_i1031.GetReservacionUseCase>(
-      () => _i1031.GetReservacionUseCase(gh<_i200.ComboRepository>()),
-    );
-    gh.factory<_i813.LiberarReservaUseCase>(
-      () => _i813.LiberarReservaUseCase(gh<_i200.ComboRepository>()),
-    );
-    gh.factory<_i409.ReservarStockUseCase>(
-      () => _i409.ReservarStockUseCase(gh<_i200.ComboRepository>()),
-    );
     gh.factory<_i59.UsuarioFormCubit>(
       () => _i59.UsuarioFormCubit(gh<_i715.RegistrarUsuarioUseCase>()),
+    );
+    gh.lazySingleton<_i200.ComboRepository>(
+      () => _i206.ComboRepositoryImpl(
+        gh<_i532.ComboRemoteDataSource>(),
+        gh<_i932.NetworkInfo>(),
+        gh<_i490.ErrorHandlerService>(),
+      ),
     );
     gh.factory<_i147.AgregarFamiliar>(
       () => _i147.AgregarFamiliar(gh<_i605.DescuentoRepository>()),
@@ -1118,11 +1105,6 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i102.AjusteMasivoCubit>(
       () => _i102.AjusteMasivoCubit(gh<_i619.AjusteMasivoPreciosUseCase>()),
-    );
-    gh.factory<_i840.ConfiguracionPrecioCubit>(
-      () => _i840.ConfiguracionPrecioCubit(
-        gh<_i27.ConfiguracionPrecioRepository>(),
-      ),
     );
     gh.factory<_i648.ReportesIncidenciaListCubit>(
       () =>
@@ -1405,21 +1387,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i141.LoggerService>(),
       ),
     );
-    gh.factory<_i1039.ComboCubit>(
-      () => _i1039.ComboCubit(
-        createComboUseCase: gh<_i53.CreateComboUseCase>(),
-        getCombos: gh<_i235.GetCombosUseCase>(),
-        getComboCompleto: gh<_i209.GetComboCompletoUseCase>(),
-        agregarComponente: gh<_i237.AgregarComponenteUseCase>(),
-        agregarComponentesBatch: gh<_i378.AgregarComponentesBatchUseCase>(),
-        getComponentes: gh<_i330.GetComponentesUseCase>(),
-        eliminarComponente: gh<_i40.EliminarComponenteUseCase>(),
-        eliminarComponentesBatch: gh<_i619.EliminarComponentesBatchUseCase>(),
-        getReservacionUseCase: gh<_i1031.GetReservacionUseCase>(),
-        reservarStockUseCase: gh<_i409.ReservarStockUseCase>(),
-        liberarReservaUseCase: gh<_i813.LiberarReservaUseCase>(),
-      ),
-    );
     gh.factory<_i94.ProveedorListCubit>(
       () => _i94.ProveedorListCubit(gh<_i825.GetProveedoresUseCase>()),
     );
@@ -1469,6 +1436,30 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i961.ListarIncidenciasCubit>(
       () => _i961.ListarIncidenciasCubit(gh<_i599.ListarIncidenciasUseCase>()),
+    );
+    gh.factory<_i237.AgregarComponenteUseCase>(
+      () => _i237.AgregarComponenteUseCase(gh<_i200.ComboRepository>()),
+    );
+    gh.factory<_i40.EliminarComponenteUseCase>(
+      () => _i40.EliminarComponenteUseCase(gh<_i200.ComboRepository>()),
+    );
+    gh.factory<_i209.GetComboCompletoUseCase>(
+      () => _i209.GetComboCompletoUseCase(gh<_i200.ComboRepository>()),
+    );
+    gh.factory<_i235.GetCombosUseCase>(
+      () => _i235.GetCombosUseCase(gh<_i200.ComboRepository>()),
+    );
+    gh.factory<_i330.GetComponentesUseCase>(
+      () => _i330.GetComponentesUseCase(gh<_i200.ComboRepository>()),
+    );
+    gh.factory<_i1031.GetReservacionUseCase>(
+      () => _i1031.GetReservacionUseCase(gh<_i200.ComboRepository>()),
+    );
+    gh.factory<_i813.LiberarReservaUseCase>(
+      () => _i813.LiberarReservaUseCase(gh<_i200.ComboRepository>()),
+    );
+    gh.factory<_i409.ReservarStockUseCase>(
+      () => _i409.ReservarStockUseCase(gh<_i200.ComboRepository>()),
     );
     gh.factory<_i743.ProductoDetailCubit>(
       () => _i743.ProductoDetailCubit(gh<_i460.GetProductoUseCase>()),
@@ -1527,6 +1518,21 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i815.VerifyEmailCubit>(
       () => _i815.VerifyEmailCubit(
         verifyEmailUseCase: gh<_i30.VerifyEmailUseCase>(),
+      ),
+    );
+    gh.factory<_i1039.ComboCubit>(
+      () => _i1039.ComboCubit(
+        createComboUseCase: gh<_i53.CreateComboUseCase>(),
+        getCombos: gh<_i235.GetCombosUseCase>(),
+        getComboCompleto: gh<_i209.GetComboCompletoUseCase>(),
+        agregarComponente: gh<_i237.AgregarComponenteUseCase>(),
+        agregarComponentesBatch: gh<_i378.AgregarComponentesBatchUseCase>(),
+        getComponentes: gh<_i330.GetComponentesUseCase>(),
+        eliminarComponente: gh<_i40.EliminarComponenteUseCase>(),
+        eliminarComponentesBatch: gh<_i619.EliminarComponentesBatchUseCase>(),
+        getReservacionUseCase: gh<_i1031.GetReservacionUseCase>(),
+        reservarStockUseCase: gh<_i409.ReservarStockUseCase>(),
+        liberarReservaUseCase: gh<_i813.LiberarReservaUseCase>(),
       ),
     );
     return this;

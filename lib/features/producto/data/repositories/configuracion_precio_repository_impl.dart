@@ -1,5 +1,6 @@
 import 'package:injectable/injectable.dart';
 import '../../../../core/network/network_info.dart';
+import '../../../../core/services/error_handler_service.dart';
 import '../../../../core/utils/resource.dart';
 import '../../domain/entities/configuracion_precio.dart';
 import '../../domain/repositories/configuracion_precio_repository.dart';
@@ -11,10 +12,12 @@ class ConfiguracionPrecioRepositoryImpl
     implements ConfiguracionPrecioRepository {
   final ConfiguracionPrecioRemoteDataSource _remoteDataSource;
   final NetworkInfo _networkInfo;
+  final ErrorHandlerService _errorHandler;
 
   ConfiguracionPrecioRepositoryImpl(
     this._remoteDataSource,
     this._networkInfo,
+    this._errorHandler,
   );
 
   @override
@@ -32,10 +35,7 @@ class ConfiguracionPrecioRepositoryImpl
       final configuracion = await _remoteDataSource.crear(dto);
       return Success<ConfiguracionPrecio>(configuracion);
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'ConfiguracionPrecio');
     }
   }
 
@@ -52,10 +52,7 @@ class ConfiguracionPrecioRepositoryImpl
       final configuraciones = await _remoteDataSource.obtenerTodas();
       return Success<List<ConfiguracionPrecio>>(configuraciones);
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'ConfiguracionPrecio');
     }
   }
 
@@ -76,10 +73,7 @@ class ConfiguracionPrecioRepositoryImpl
       );
       return Success<ConfiguracionPrecio>(configuracion);
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'ConfiguracionPrecio');
     }
   }
 
@@ -102,10 +96,7 @@ class ConfiguracionPrecioRepositoryImpl
       );
       return Success<ConfiguracionPrecio>(configuracion);
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'ConfiguracionPrecio');
     }
   }
 
@@ -124,10 +115,7 @@ class ConfiguracionPrecioRepositoryImpl
       await _remoteDataSource.eliminar(configuracionId);
       return Success(null);
     } catch (e) {
-      return Error(
-        e.toString().replaceFirst('Exception: ', ''),
-        errorCode: 'SERVER_ERROR',
-      );
+      return _errorHandler.handleException(e, context: 'ConfiguracionPrecio');
     }
   }
 }

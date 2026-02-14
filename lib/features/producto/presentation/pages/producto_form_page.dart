@@ -43,8 +43,6 @@ import '../widgets/precio_niveles_section.dart';
 import '../widgets/configuracion_precio_selector.dart';
 import '../../data/models/precio_nivel_model.dart';
 import '../widgets/form_sections/producto_basic_info_section.dart';
-import '../widgets/form_sections/producto_pricing_section.dart';
-import '../widgets/form_sections/producto_oferta_section.dart';
 import '../widgets/form_sections/producto_inventory_section.dart';
 import '../widgets/form_sections/producto_dimensiones_section.dart';
 import '../widgets/form_sections/producto_options_section.dart';
@@ -247,51 +245,11 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
     }
   }
 
-  void _fillFormWithProducto(dynamic producto) {
-    _controller.nombreController.text = producto.nombre;
-    _controller.descripcionController.text = producto.descripcion ?? '';
-    _controller.skuController.text = producto.sku ?? '';
-    _controller.codigoBarrasController.text = producto.codigoBarras ?? '';
-    // Obtener precio/costo desde stocksPorSede (sistema multi-sede)
-    // double _precioFromStock = 0.0;
-    // double _precioCostoFromStock = 0.0;
-    // if (producto.stocksPorSede != null && producto.stocksPorSede!.isNotEmpty) {
-    //   final _stockConPrecio = producto.stocksPorSede!.firstWhere(
-    //     (s) => s.precioConfigurado && s.precio != null,
-    //     orElse: () => producto.stocksPorSede!.first,
-    //   );
-    //   _precioFromStock = _stockConPrecio.precio ?? 0.0;
-    //   _precioCostoFromStock = _stockConPrecio.precioCosto ?? 0.0;
-    // }
-    // _controller.precioController.currencyValue = _precioFromStock;
-    // _controller.precioCostoController.currencyValue = _precioCostoFromStock;
-    // NOTA: El stock ya no se edita desde el formulario de producto.
-    // Ahora se maneja por sede mediante ProductoStock
-    // _controller.stockController.text = producto.stockTotal.toString();
-    // _controller.stockMinimoController.text = '';
-    _controller.pesoController.text = producto.peso?.toString() ?? '';
-    _controller.videoUrlController.text = producto.videoUrl ?? '';
-    _controller.impuestoPorcentajeController.text = producto.impuestoPorcentaje?.toString() ?? '';
-    _controller.descuentoMaximoController.text = producto.descuentoMaximo?.toString() ?? '';
+  void _fillFormWithProducto(Producto producto) {
+    // Delegar carga de datos al controller centralizado
+    _controller.fillFromProducto(producto);
 
-    // Cargar estado de esCombo para validación XOR
-    _controller.esCombo = producto.esCombo ?? false;
-    // Cargar tipo de precio combo si existe
-    // _tipoPrecioCombo = producto.tipoPrecioCombo;
-    _controller.tipoPrecioCombo = producto.tipoPrecioCombo;
-
-    // Cargar estado isActive para validación de variantes
-    // _productoIsActive = producto.isActive ?? true;
-    _controller.productoIsActive = producto.isActive ?? true;
-
-    // Cargar dimensiones si existen
-    if (producto.dimensiones != null && producto.dimensiones is Map) {
-      _controller.dimensionLargoController.text = producto.dimensiones['largo']?.toString() ?? '';
-      _controller.dimensionAnchoController.text = producto.dimensiones['ancho']?.toString() ?? '';
-      _controller.dimensionAltoController.text = producto.dimensiones['alto']?.toString() ?? '';
-    }
-
-    // Cargar imágenes existentes
+    // Cargar imágenes existentes (requiere context)
     if (producto.archivos != null && producto.archivos is List) {
       final existingImages = (producto.archivos as List).map((archivo) {
         return ProductoImage(
@@ -305,65 +263,18 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
         );
       }).toList();
 
-      // Ordenar por orden
       existingImages.sort((a, b) => a.order.compareTo(b.order));
-
-      // Cargar en el cubit
       context.read<ProductoImagesCubit>().loadExistingImages(existingImages);
     }
 
-    // Cargar atributos del producto (si tiene y no es variante ni combo)
+    // Cargar atributos del producto (requiere context para plantillas)
     if (!producto.tieneVariantes && !producto.esCombo &&
         producto.atributosValores != null &&
         producto.atributosValores!.isNotEmpty) {
       _cargarAtributosProducto(producto.atributosValores!);
     }
 
-    setState(() {
-      _controller.selectedCategoriaId = producto.empresaCategoriaId;
-      _controller.selectedMarcaId = producto.empresaMarcaId;
-
-      // Cargar todas las sedes donde está el producto (basado en stocksPorSede)
-      if (producto.stocksPorSede != null && producto.stocksPorSede!.isNotEmpty) {
-        _controller.selectedSedesIds = (producto.stocksPorSede as List)
-            .map<String>((stock) => stock.sedeId as String)
-            .toList();
-      } else if (producto.sedeId != null) {
-        // Fallback para productos antiguos sin stocksPorSede
-        _controller.selectedSedesIds = [producto.sedeId!];
-      } else {
-        _controller.selectedSedesIds = [];
-      }
-
-      _controller.selectedUnidadMedidaId = producto.unidadMedidaId;  // Cargar unidad de medida del producto
-      // _selectedConfiguracionPrecioId = producto.configuracionPrecioId;
-      _controller.selectedConfiguracionPrecioId = producto.configuracionPrecioId;
-      _controller.visibleMarketplace = producto.visibleMarketplace;
-      _controller.destacado = producto.destacado;
-      // Obtener oferta desde stocksPorSede (sistema multi-sede)
-      // bool _enOfertaFromStock = false;
-      // double? _precioOfertaFromStock;
-      // DateTime? _fechaInicioFromStock;
-      // DateTime? _fechaFinFromStock;
-      // if (producto.stocksPorSede != null && producto.stocksPorSede!.isNotEmpty) {
-      //   final _stockConPrecio = producto.stocksPorSede!.firstWhere(
-      //     (s) => s.precioConfigurado && s.precio != null,
-      //     orElse: () => producto.stocksPorSede!.first,
-      //   );
-      //   _enOfertaFromStock = _stockConPrecio.enOferta;
-      //   _precioOfertaFromStock = _stockConPrecio.precioOferta;
-      //   _fechaInicioFromStock = _stockConPrecio.fechaInicioOferta;
-      //   _fechaFinFromStock = _stockConPrecio.fechaFinOferta;
-      // }
-      // _controller.enOferta = _enOfertaFromStock;
-      _controller.tieneVariantes = producto.tieneVariantes;
-
-      // if (_enOfertaFromStock) {
-      //   _controller.precioOfertaController.currencyValue = _precioOfertaFromStock ?? 0.0;
-      //   _controller.fechaInicioOferta = _fechaInicioFromStock;
-      //   _controller.fechaFinOferta = _fechaFinFromStock;
-      // }
-    });
+    setState(() {});
   }
 
   /// Cargar atributos del producto y detectar la plantilla correspondiente
@@ -417,7 +328,6 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
     }
   }
 
-  @override
   @override
   void dispose() {
     _controller.removeListener(_onControllerChanged);
@@ -559,11 +469,7 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
                       _controller.tieneVariantes = value;
                       _markAsChanged();
                       if (value) {
-                        _controller.precioController.text = '0';
-                        // Stock ya no se maneja aquí, se agrega después mediante ProductoStock
                         _controller.skuController.clear();
-                        _controller.enOferta = false;
-                        _controller.precioOfertaController.clear();
                       }
                     });
                   },
@@ -616,51 +522,14 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
                   const SizedBox(height: 24),
                 ],
                 if (!_controller.tieneVariantes && !_controller.esCombo) ...[
-                  ProductoPricingSection(
-                    precioController: _controller.precioController,
-                    precioCostoController: _controller.precioCostoController,
-                    esCombo: _controller.esCombo,
-                    tipoPrecioCombo: _controller.tipoPrecioCombo,//_tipoPrecioCombo,
-                  ),
+                  _buildPrecioStockInfoBanner(),
                   const SizedBox(height: 24),
-                  // Selector de configuración de precios
                   _buildConfiguracionPrecioSelector(),
                   const SizedBox(height: 24),
-                  // Sección de precios por volumen (solo en modo edición)
                   if (widget.isEditing) ...[
                     _buildPrecioNivelesSection(),
                     const SizedBox(height: 24),
                   ],
-                  ProductoOfertaSection(
-                    enOferta: _controller.enOferta,
-                    onEnOfertaChanged: (value) {
-                      setState(() {
-                        _controller.enOferta = value;
-                        if (!value) {
-                          _controller.precioOfertaController.clear();
-                          _controller.fechaInicioOferta = null;
-                          _controller.fechaFinOferta = null;
-                        }
-                      });
-                    },
-                    precioOfertaController: _controller.precioOfertaController,
-                    precioController: _controller.precioController,
-                    // fechaInicioOferta: _fechaInicioOferta,
-                    // fechaFinOferta: _fechaFinOferta,
-                    fechaInicioOferta: _controller.fechaInicioOferta,
-                    fechaFinOferta: _controller.fechaFinOferta,                    
-                    onFechaInicioChanged: (date) {
-                      setState(() {
-                        _controller.fechaInicioOferta = date;
-                      });
-                    },
-                    onFechaFinChanged: (date) {
-                      setState(() {
-                        _controller.fechaFinOferta = date;
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 24),
                   ProductoInventorySection(
                     pesoController: _controller.pesoController,
                   ),
@@ -874,7 +743,7 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Precio actual: \$${_controller.precioController.text}\nEl stock se agregará después por sede',
+                      'Los precios y stock se gestionarán por sede después de la conversión.',
                       style: TextStyle(
                         fontSize: 13,
                         color: Colors.blue.shade900,
@@ -922,6 +791,53 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildPrecioStockInfoBanner() {
+    final isEditing = widget.isEditing;
+    return GradientContainer(
+      shadowStyle: ShadowStyle.colorful,
+      borderColor: AppColors.blue1,
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.storefront, color: AppColors.blue1, size: 20),
+              const SizedBox(width: 8),
+              AppSubtitle('PRECIOS, STOCK Y OFERTAS'),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.blue1.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.blue1.withValues(alpha: 0.2)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline, color: AppColors.blue1, size: 20),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    isEditing
+                        ? 'Los precios, stock y ofertas se gestionan por sede desde la vista de inventario del producto.'
+                        : 'Los precios, stock y ofertas se configuran por sede después de crear el producto.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[800],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 

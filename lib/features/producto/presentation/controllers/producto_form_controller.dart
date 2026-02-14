@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import '../../domain/entities/atributo_plantilla.dart';
 import '../../domain/entities/producto.dart';
+import '../../domain/entities/stock_por_sede_info.dart';
 import '../../../../core/widgets/currency/currency_formatter.dart';
 
 /// Controller que centraliza el estado del formulario de producto.
 /// Usa ChangeNotifier para notificar cambios a los widgets.
+///
+/// NOTA: Precio, precioCosto, stock, ofertas se gestionan por sede
+/// mediante ProductoStock. Este formulario solo maneja datos del producto base.
 class ProductoFormController extends ChangeNotifier {
   // ============================================================
   // TEXT EDITING CONTROLLERS
@@ -13,14 +17,10 @@ class ProductoFormController extends ChangeNotifier {
   final descripcionController = TextEditingController();
   final skuController = TextEditingController();
   final codigoBarrasController = TextEditingController();
+  // precioController se mantiene solo como referencia para PrecioNivelesSection
   final precioController = TextEditingController();
   final precioCostoController = TextEditingController();
-  // DEPRECATED: Stock ahora se maneja mediante ProductoStock por sede
-  // Mantenidos solo para compatibilidad al editar productos legacy
-  final stockController = TextEditingController();
-  final stockMinimoController = TextEditingController();
   final pesoController = TextEditingController();
-  final precioOfertaController = TextEditingController();
   final videoUrlController = TextEditingController();
   final impuestoPorcentajeController = TextEditingController();
   final descuentoMaximoController = TextEditingController();
@@ -36,10 +36,7 @@ class ProductoFormController extends ChangeNotifier {
         codigoBarrasController,
         precioController,
         precioCostoController,
-        stockController,
-        stockMinimoController,
         pesoController,
-        precioOfertaController,
         videoUrlController,
         impuestoPorcentajeController,
         descuentoMaximoController,
@@ -115,20 +112,6 @@ class ProductoFormController extends ChangeNotifier {
     notifyListeners();
   }
 
-  bool _enOferta = false;
-  bool get enOferta => _enOferta;
-  set enOferta(bool value) {
-    _enOferta = value;
-    if (!value) {
-      // Limpiar valores de oferta cuando se desactiva
-      precioOfertaController.clear();
-      _fechaInicioOferta = null;
-      _fechaFinOferta = null;
-    }
-    markAsChanged();
-    notifyListeners();
-  }
-
   bool _tieneVariantes = false;
   bool get tieneVariantes => _tieneVariantes;
   set tieneVariantes(bool value) {
@@ -169,22 +152,6 @@ class ProductoFormController extends ChangeNotifier {
   String? get tipoPrecioCombo => _tipoPrecioCombo;
   set tipoPrecioCombo(String? value) {
     _tipoPrecioCombo = value;
-    markAsChanged();
-    notifyListeners();
-  }
-
-  DateTime? _fechaInicioOferta;
-  DateTime? get fechaInicioOferta => _fechaInicioOferta;
-  set fechaInicioOferta(DateTime? value) {
-    _fechaInicioOferta = value;
-    markAsChanged();
-    notifyListeners();
-  }
-
-  DateTime? _fechaFinOferta;
-  DateTime? get fechaFinOferta => _fechaFinOferta;
-  set fechaFinOferta(DateTime? value) {
-    _fechaFinOferta = value;
     markAsChanged();
     notifyListeners();
   }
@@ -254,45 +221,31 @@ class ProductoFormController extends ChangeNotifier {
     }
   }
 
-  /// Llena el formulario con los datos de un producto existente
+  /// Llena el formulario con los datos de un producto existente.
+  /// Precio/costo se cargan como referencia desde la primera sede con precio configurado.
   void fillFromProducto(Producto producto) {
     nombreController.text = producto.nombre;
     descripcionController.text = producto.descripcion ?? '';
     skuController.text = producto.sku ?? '';
     codigoBarrasController.text = producto.codigoBarras ?? '';
-    // Obtener precio/costo/oferta desde stocksPorSede (sistema multi-sede)
-    double _precioFromStock = 0.0;
-    double _precioCostoFromStock = 0.0;
-    double _precioOfertaFromStock = 0.0;
-    bool _enOfertaFromStock = false;
-    DateTime? _fechaInicioFromStock;
-    DateTime? _fechaFinFromStock;
+
+    // Cargar precio de referencia desde stocksPorSede (para PrecioNivelesSection)
     if (producto.stocksPorSede != null && producto.stocksPorSede!.isNotEmpty) {
-      final stockConPrecio = producto.stocksPorSede!.firstWhere(
+      final stocks = producto.stocksPorSede!;
+      final stockConPrecio = stocks.cast<StockPorSedeInfo>().firstWhere(
         (s) => s.precioConfigurado && s.precio != null,
-        orElse: () => producto.stocksPorSede!.first,
+        orElse: () => stocks.first,
       );
-      _precioFromStock = stockConPrecio.precio ?? 0.0;
-      _precioCostoFromStock = stockConPrecio.precioCosto ?? 0.0;
-      _precioOfertaFromStock = stockConPrecio.precioOferta ?? 0.0;
-      _enOfertaFromStock = stockConPrecio.enOferta;
-      _fechaInicioFromStock = stockConPrecio.fechaInicioOferta;
-      _fechaFinFromStock = stockConPrecio.fechaFinOferta;
+      precioController.currencyValue = stockConPrecio.precio ?? 0.0;
+      precioCostoController.currencyValue = stockConPrecio.precioCosto ?? 0.0;
     }
 
-    precioController.currencyValue = _precioFromStock;
-    precioCostoController.currencyValue = _precioCostoFromStock;
-    // NOTA: Los campos stock y stockMinimo fueron removidos.
-    // El stock se gestiona por sede usando ProductoStock después de crear el producto.
-    stockController.text = '0'; // Default para compatibilidad del formulario
-    stockMinimoController.text = ''; // Default vacío
     pesoController.text = producto.peso?.toString() ?? '';
-    precioOfertaController.currencyValue = _precioOfertaFromStock;
     videoUrlController.text = producto.videoUrl ?? '';
     impuestoPorcentajeController.text = producto.impuestoPorcentaje?.toString() ?? '';
     descuentoMaximoController.text = producto.descuentoMaximo?.toString() ?? '';
 
-    // Dimensiones vienen en un Map
+    // Dimensiones
     if (producto.dimensiones != null) {
       dimensionLargoController.text = producto.dimensiones!['largo']?.toString() ?? '';
       dimensionAnchoController.text = producto.dimensiones!['ancho']?.toString() ?? '';
@@ -301,18 +254,25 @@ class ProductoFormController extends ChangeNotifier {
 
     _selectedCategoriaId = producto.empresaCategoriaId;
     _selectedMarcaId = producto.empresaMarcaId;
-    _selectedSedesIds = producto.sedeId != null ? [producto.sedeId!] : [];
     _selectedUnidadMedidaId = producto.unidadMedidaId;
     _selectedConfiguracionPrecioId = producto.configuracionPrecioId;
     _visibleMarketplace = producto.visibleMarketplace;
     _destacado = producto.destacado;
-    _enOferta = _enOfertaFromStock;
     _tieneVariantes = producto.tieneVariantes;
     _esCombo = producto.esCombo;
     _tipoPrecioCombo = producto.tipoPrecioCombo;
     _productoIsActive = producto.isActive;
-    _fechaInicioOferta = _fechaInicioFromStock;
-    _fechaFinOferta = _fechaFinFromStock;
+
+    // Cargar sedes desde stocksPorSede
+    if (producto.stocksPorSede != null && producto.stocksPorSede!.isNotEmpty) {
+      _selectedSedesIds = producto.stocksPorSede!
+          .map<String>((stock) => stock.sedeId)
+          .toList();
+    } else if (producto.sedeId != null) {
+      _selectedSedesIds = [producto.sedeId!];
+    } else {
+      _selectedSedesIds = [];
+    }
 
     // Resetear el flag de cambios después de llenar el formulario
     _hasUnsavedChanges = false;
@@ -344,13 +304,10 @@ class ProductoFormController extends ChangeNotifier {
 
     _visibleMarketplace = true;
     _destacado = false;
-    _enOferta = false;
     _tieneVariantes = false;
     _esCombo = false;
     _tipoPrecioCombo = null;
     _productoIsActive = true;
-    _fechaInicioOferta = null;
-    _fechaFinOferta = null;
 
     _hasUnsavedChanges = false;
     _formSubmittedSuccessfully = false;

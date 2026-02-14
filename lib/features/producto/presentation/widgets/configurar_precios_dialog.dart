@@ -174,7 +174,7 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
                         controller: _precioCostoController,
                         borderColor: AppColors.blue1,
                         allowZero: false,
-                        enabled: false,
+                        enabled: widget.stock.precioCosto == null || widget.stock.precioCosto == 0,
                       ),
                       const SizedBox(height: 16),
 

@@ -1,3 +1,4 @@
+import 'package:syncronize/core/utils/type_converters.dart';
 import '../../domain/entities/precio_nivel.dart';
 
 class PrecioNivelModel extends PrecioNivel {
@@ -19,24 +20,35 @@ class PrecioNivelModel extends PrecioNivel {
   });
 
   factory PrecioNivelModel.fromJson(Map<String, dynamic> json) {
+    final id = json['id'] as String?;
+    final nombre = json['nombre'] as String?;
+    final tipoPrecio = json['tipoPrecio'] as String?;
+    if (id == null || id.isEmpty) {
+      throw FormatException('PrecioNivel: campo "id" es requerido', json);
+    }
+    if (nombre == null || nombre.isEmpty) {
+      throw FormatException('PrecioNivel: campo "nombre" es requerido', json);
+    }
+    if (tipoPrecio == null || tipoPrecio.isEmpty) {
+      throw FormatException('PrecioNivel: campo "tipoPrecio" es requerido', json);
+    }
+
     return PrecioNivelModel(
-      id: json['id'] as String? ?? '',
+      id: id,
       productoId: json['productoId'] as String?,
       varianteId: json['varianteId'] as String?,
-      nombre: json['nombre'] as String? ?? '',
-      cantidadMinima: _toInt(json['cantidadMinima']),
+      nombre: nombre,
+      cantidadMinima: toSafeInt(json['cantidadMinima']),
       cantidadMaxima: json['cantidadMaxima'] != null
-          ? _toInt(json['cantidadMaxima'])
+          ? toSafeInt(json['cantidadMaxima'])
           : null,
-      tipoPrecio: TipoPrecioNivel.fromString(
-        json['tipoPrecio'] as String? ?? 'PRECIO_FIJO',
-      ),
-      precio: json['precio'] != null ? _toDouble(json['precio']) : null,
+      tipoPrecio: TipoPrecioNivel.fromString(tipoPrecio),
+      precio: json['precio'] != null ? toSafeDouble(json['precio']) : null,
       porcentajeDesc: json['porcentajeDesc'] != null
-          ? _toDouble(json['porcentajeDesc'])
+          ? toSafeDouble(json['porcentajeDesc'])
           : null,
       descripcion: json['descripcion'] as String?,
-      orden: _toInt(json['orden']),
+      orden: toSafeInt(json['orden']),
       isActive: json['isActive'] as bool? ?? true,
       creadoEn: json['creadoEn'] != null
           ? DateTime.parse(json['creadoEn'] as String)
@@ -66,21 +78,6 @@ class PrecioNivelModel extends PrecioNivel {
     };
   }
 
-  static double _toDouble(dynamic value) {
-    if (value == null) return 0.0;
-    if (value is double) return value;
-    if (value is int) return value.toDouble();
-    if (value is String) return double.tryParse(value) ?? 0.0;
-    return 0.0;
-  }
-
-  static int _toInt(dynamic value) {
-    if (value == null) return 0;
-    if (value is int) return value;
-    if (value is double) return value.toInt();
-    if (value is String) return int.tryParse(value) ?? 0;
-    return 0;
-  }
 }
 
 class CalculoPrecioResultModel extends CalculoPrecioResult {
@@ -93,20 +90,13 @@ class CalculoPrecioResultModel extends CalculoPrecioResult {
 
   factory CalculoPrecioResultModel.fromJson(Map<String, dynamic> json) {
     return CalculoPrecioResultModel(
-      precioUnitario: _toDouble(json['precioUnitario']),
+      precioUnitario: toSafeDouble(json['precioUnitario']),
       nivelAplicado: json['nivelAplicado'] as String? ?? 'Precio base',
-      descuentoAplicado: _toDouble(json['descuentoAplicado']),
-      precioBase: _toDouble(json['precioBase']),
+      descuentoAplicado: toSafeDouble(json['descuentoAplicado']),
+      precioBase: toSafeDouble(json['precioBase']),
     );
   }
 
-  static double _toDouble(dynamic value) {
-    if (value == null) return 0.0;
-    if (value is double) return value;
-    if (value is int) return value.toDouble();
-    if (value is String) return double.tryParse(value) ?? 0.0;
-    return 0.0;
-  }
 }
 
 /// DTO para crear/actualizar precio nivel
