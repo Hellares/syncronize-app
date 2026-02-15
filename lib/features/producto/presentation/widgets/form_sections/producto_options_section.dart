@@ -26,12 +26,12 @@ class ProductoOptionsSection extends StatelessWidget {
     return GradientContainer(
       shadowStyle: ShadowStyle.neumorphic,
       borderColor: AppColors.blueborder,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.only(left: 12, right: 12, top: 8, bottom: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           AppSubtitle('OPCIONES'),
-          const SizedBox(height: 8),
+          // const SizedBox(height: 8),
           CustomSwitchTile(
             activeColor: Colors.green,
             activeTrackColor: Colors.green.shade200,
@@ -40,7 +40,7 @@ class ProductoOptionsSection extends StatelessWidget {
             value: visibleMarketplace,
             onChanged: onVisibleMarketplaceChanged,
           ),
-          const SizedBox(height: 4),
+          // const SizedBox(height: 4),
           CustomSwitchTile(
             title: 'Producto Destacado',
             subtitle: 'Se mostrará con prioridad en listados',

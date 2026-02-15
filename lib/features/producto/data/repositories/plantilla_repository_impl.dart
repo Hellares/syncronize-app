@@ -203,14 +203,22 @@ class PlantillaRepositoryImpl implements PlantillaRepository {
     try {
       final data = await _remoteDataSource.getLimitsInfo();
 
-      final plantillasData = data['limites']['plantillasAtributos'] as Map<String, dynamic>;
+      final limites = data['limites'] as Map<String, dynamic>?;
+      if (limites == null) {
+        return Error('Respuesta inválida: falta campo "limites"', errorCode: 'PARSE_ERROR');
+      }
+
+      final plantillasData = limites['plantillasAtributos'] as Map<String, dynamic>?;
+      if (plantillasData == null) {
+        return Error('Respuesta inválida: falta campo "plantillasAtributos"', errorCode: 'PARSE_ERROR');
+      }
 
       return Success(PlanLimitsInfo(
-        plan: data['plan'] as String,
+        plan: (data['plan'] as String?) ?? 'unknown',
         plantillasAtributos: PlanLimitDetail(
-          limite: plantillasData['limite'] as int?,
-          actual: plantillasData['actual'] as int,
-          disponible: plantillasData['disponible'] as int?,
+          limite: plantillasData['limite'] is int ? plantillasData['limite'] as int : null,
+          actual: (plantillasData['actual'] as int?) ?? 0,
+          disponible: plantillasData['disponible'] is int ? plantillasData['disponible'] as int : null,
         ),
       ));
     } catch (e) {

@@ -30,7 +30,7 @@ import '../bloc/sede_selection/sede_selection_cubit.dart';
 import '../bloc/sede_selection/sede_selection_state.dart';
 import '../bloc/configurar_precios/configurar_precios_cubit.dart';
 import '../widgets/producto_list_tile.dart';
-import '../widgets/filtros_productos_widget.dart';
+// import '../widgets/filtros_productos_widget.dart';
 import '../widgets/archivo_manager_bottom_sheet.dart';
 import '../widgets/producto_variantes_bottom_sheet.dart';
 import '../widgets/seleccionar_sede_stock_bottom_sheet.dart';
@@ -62,7 +62,7 @@ class _ProductosPageState extends State<ProductosPage>
   final _searchController = TextEditingController();
   late TabController _tabController;
   late ProductoSearchCubit _searchCubit;
-  ProductoFiltros _filtros = const ProductoFiltros();
+  final ProductoFiltros _filtros = const ProductoFiltros();
   String? _currentEmpresaId;
   String _searchQuery = '';
   bool _useServerSearch = false; // Controla si usar búsqueda en servidor
@@ -183,12 +183,12 @@ class _ProductosPageState extends State<ProductosPage>
     return currentScroll >= (maxScroll * 0.9);
   }
 
-  void _applyFiltros(ProductoFiltros filtros) {
-    setState(() {
-      _filtros = filtros;
-    });
-    _loadProductos();
-  }
+  // void _applyFiltros(ProductoFiltros filtros) {
+  //   setState(() {
+  //     _filtros = filtros;
+  //   });
+  //   _loadProductos();
+  // }
 
   /// Maneja el cambio de sede
   Future<void> _onSedeChanged(String sedeId) async {
@@ -202,17 +202,16 @@ class _ProductosPageState extends State<ProductosPage>
     _loadProductos();
   }
 
-
-  void _showFiltros() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) => FiltrosProductosWidget(
-        filtrosActuales: _filtros,
-        onApply: _applyFiltros,
-      ),
-    );
-  }
+  // void _showFiltros() {
+  //   showModalBottomSheet(
+  //     context: context,
+  //     isScrollControlled: true,
+  //     builder: (context) => FiltrosProductosWidget(
+  //       filtrosActuales: _filtros,
+  //       onApply: _applyFiltros,
+  //     ),
+  //   );
+  // }
 
   /// Abre el SearchDelegate para buscar productos
   /// COMENTADO - Se usará para marketplace en el futuro
@@ -253,7 +252,9 @@ class _ProductosPageState extends State<ProductosPage>
     final productoListState = context.read<ProductoListCubit>().state;
     if (productoListState is ProductoListLoaded) {
       final productosLocales = productoListState.productos.where((producto) {
-        final searchText = '${producto.nombre} ${producto.codigoEmpresa} ${producto.categoriaNombre ?? ''} ${producto.marcaNombre ?? ''}'.toLowerCase();
+        final searchText =
+            '${producto.nombre} ${producto.codigoEmpresa} ${producto.categoriaNombre ?? ''} ${producto.marcaNombre ?? ''}'
+                .toLowerCase();
         return searchText.contains(_searchQuery);
       }).toList();
 
@@ -550,20 +551,15 @@ class _ProductosPageState extends State<ProductosPage>
 
       if (result is Success<ProductoStock>) {
         final stock = result.data;
-        
+
         // Mostrar el diálogo de configuración de precios
         showDialog(
           context: context,
           builder: (dialogContext) => MultiBlocProvider(
             providers: [
-              BlocProvider(
-                create: (_) => locator<ConfigurarPreciosCubit>(),
-              ),
+              BlocProvider(create: (_) => locator<ConfigurarPreciosCubit>()),
             ],
-            child: ConfigurarPreciosDialog(
-              stock: stock,
-              empresaId: empresaId,
-            ),
+            child: ConfigurarPreciosDialog(stock: stock, empresaId: empresaId),
           ),
         ).then((result) {
           // Si se guardaron los precios correctamente, recargar la lista
@@ -583,10 +579,7 @@ class _ProductosPageState extends State<ProductosPage>
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
       );
     }
   }
@@ -633,7 +626,9 @@ class _ProductosPageState extends State<ProductosPage>
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const StockPorSedePage()),
+                      MaterialPageRoute(
+                        builder: (_) => const StockPorSedePage(),
+                      ),
                     );
                   },
                 ),
@@ -667,11 +662,11 @@ class _ProductosPageState extends State<ProductosPage>
                 ),
               ],
             ),
-            IconButton(
-              icon: const Icon(Icons.filter_list, size: 18),
-              onPressed: _showFiltros,
-              tooltip: 'Filtros',
-            ),
+            // IconButton(
+            //   icon: const Icon(Icons.filter_list, size: 18),
+            //   onPressed: _showFiltros,
+            //   tooltip: 'Filtros',
+            // ),
             IconButton(
               icon: const Icon(Icons.refresh, size: 18),
               onPressed: _loadProductos,
@@ -784,7 +779,10 @@ class _ProductosPageState extends State<ProductosPage>
               return _buildEmptySearchView();
             }
 
-            return _buildProductListView(productos, hasMore: searchState.hasMore);
+            return _buildProductListView(
+              productos,
+              hasMore: searchState.hasMore,
+            );
           }
 
           return _buildEmptyView();
@@ -808,7 +806,9 @@ class _ProductosPageState extends State<ProductosPage>
           final productos = _searchQuery.isEmpty
               ? state.productos
               : state.productos.where((producto) {
-                  final searchText = '${producto.nombre} ${producto.codigoEmpresa} ${producto.categoriaNombre ?? ''} ${producto.marcaNombre ?? ''}'.toLowerCase();
+                  final searchText =
+                      '${producto.nombre} ${producto.codigoEmpresa} ${producto.categoriaNombre ?? ''} ${producto.marcaNombre ?? ''}'
+                          .toLowerCase();
                   return searchText.contains(_searchQuery);
                 }).toList();
 
@@ -861,12 +861,15 @@ class _ProductosPageState extends State<ProductosPage>
                       );
                     } else {
                       // Intentar obtener el producto completo del cache (evita petición duplicada)
-                      final productoCompleto = context.read<ProductoListCubit>().getProductoFromCache(producto.id);
+                      final productoCompleto = context
+                          .read<ProductoListCubit>()
+                          .getProductoFromCache(producto.id);
 
                       // Esperar el resultado del detalle
                       final result = await context.push(
                         '/empresa/productos/${producto.id}?sedeId=$sedeId',
-                        extra: productoCompleto, // ✅ Pasar producto completo del cache
+                        extra:
+                            productoCompleto, // ✅ Pasar producto completo del cache
                       );
 
                       // ✅ Si retorna true (producto fue editado), recargar la lista
@@ -961,7 +964,10 @@ class _ProductosPageState extends State<ProductosPage>
     );
   }
 
-  Widget _buildProductListView(List<ProductoListItem> productos, {bool hasMore = false}) {
+  Widget _buildProductListView(
+    List<ProductoListItem> productos, {
+    bool hasMore = false,
+  }) {
     return RefreshIndicator(
       onRefresh: () async {
         if (_useServerSearch) {
@@ -1008,7 +1014,9 @@ class _ProductosPageState extends State<ProductosPage>
               } else {
                 final productoCompleto = _useServerSearch
                     ? _searchCubit.getProductoFromCache(producto.id)
-                    : context.read<ProductoListCubit>().getProductoFromCache(producto.id);
+                    : context.read<ProductoListCubit>().getProductoFromCache(
+                        producto.id,
+                      );
 
                 final result = await context.push(
                   '/empresa/productos/${producto.id}?sedeId=$sedeId',
@@ -1024,7 +1032,8 @@ class _ProductosPageState extends State<ProductosPage>
                 }
               }
             },
-            onManageFiles: () => _showArchivoManager(producto.id, producto.nombre),
+            onManageFiles: () =>
+                _showArchivoManager(producto.id, producto.nombre),
             onViewVariants: producto.tieneVariantes
                 ? () => _showVariantes(producto.id, producto.nombre)
                 : null,
@@ -1089,119 +1098,17 @@ class _ProductosPageState extends State<ProductosPage>
             } catch (e) {
               sedeActual = sedes.first;
             }
-
-            // return PopupMenuButton<String>(
-            //   tooltip: 'Cambiar sede',
-            //   onSelected: _onSedeChanged,
-            //   itemBuilder: (context) => sedes.map((sede) {
-            //     final isSelected = sede.id == sedeIdActual;
-            //     return PopupMenuItem(
-            //       value: sede.id,
-            //       child: Row(
-            //         children: [
-            //           Icon(
-            //             isSelected
-            //                 ? Icons.check_circle
-            //                 : IconData(
-            //                     sede.tipoSedeIconCode,
-            //                     fontFamily: 'MaterialIcons',
-            //                   ),
-            //             size: 18,
-            //             color: isSelected
-            //                 ? Theme.of(context).primaryColor
-            //                 : Color(sede.tipoSedeColor),
-            //           ),
-            //           const SizedBox(width: 12),
-            //           Expanded(
-            //             child: Column(
-            //               crossAxisAlignment: CrossAxisAlignment.start,
-            //               children: [
-            //                 Text(
-            //                   sede.nombre,
-            //                   style: TextStyle(
-            //                     fontWeight: isSelected
-            //                         ? FontWeight.w600
-            //                         : FontWeight.w400,
-            //                   ),
-            //                 ),
-            //                 Text(
-            //                   sede.tipoSede.displayName,
-            //                   style: TextStyle(
-            //                     fontSize: 12,
-            //                     color: Colors.grey[600],
-            //                   ),
-            //                 ),
-            //               ],
-            //             ),
-            //           ),
-            //           if (sede.esPrincipal)
-            //             Container(
-            //               padding: const EdgeInsets.symmetric(horizontal: 6),
-            //               decoration: BoxDecoration(
-            //                 color: Colors.amber.withValues(alpha: 0.2),
-            //                 borderRadius: BorderRadius.circular(4),
-            //               ),
-            //               child: Text(
-            //                 'Principal',
-            //                 style: TextStyle(
-            //                   fontSize: 12,
-            //                   color: Colors.amber[900],
-            //                   fontWeight: FontWeight.w600,
-            //                 ),
-            //               ),
-            //             ),
-            //         ],
-            //       ),
-            //     );
-            //   }).toList(),
-            //   child: Padding(
-            //     padding: const EdgeInsets.only(
-            //       left: 8,
-            //       right: 8,
-            //     ), // Padding mínimo, igual que IconButton en AppBar compacta
-            //     child: Row(
-            //       mainAxisSize: MainAxisSize.min,
-            //       crossAxisAlignment:
-            //           CrossAxisAlignment.center, // Centrado vertical perfecto
-            //       children: [
-            //         Icon(
-            //           IconData(
-            //             sedeActual.tipoSedeIconCode,
-            //             fontFamily: 'MaterialIcons',
-            //           ),
-            //           size: 18, // Tamaño ideal para 35 px de altura
-            //           color: Color(sedeActual.tipoSedeColor),
-            //         ),
-            //         const SizedBox(width: 6), // Espacio muy reducido
-            //         Flexible(
-            //           child: Text(
-            //             sedeActual.nombre,
-            //             style: const TextStyle(
-            //               fontWeight: FontWeight.w500,
-            //               fontSize:
-            //                   12, // Compacto y legible, mantiene tu estilo original
-            //             ),
-            //             overflow: TextOverflow.ellipsis,
-            //             maxLines: 1,
-            //           ),
-            //         ),
-            //         const SizedBox(width: 6),
-            //         const Icon(Icons.arrow_drop_down, size: 18),
-            //       ],
-            //     ),
-            //   ),
-            // );
             return Tooltip(
-  message: 'Cambiar sede',
-  child: CustomSedeSelector(
-    sedes: sedes,
-    currentSede: sedeActual,
-    onSelected: _onSedeChanged,
-    // Opcional: personaliza si quieres
-    // menuWidth: 280,
-    // borderRadius: 16,
-  ),
-);
+              message: 'Cambiar sede',
+              child: CustomSedeSelector(
+                sedes: sedes,
+                currentSede: sedeActual,
+                onSelected: _onSedeChanged,
+                // Opcional: personaliza si quieres
+                // menuWidth: 280,
+                // borderRadius: 16,
+              ),
+            );
           },
         );
       },

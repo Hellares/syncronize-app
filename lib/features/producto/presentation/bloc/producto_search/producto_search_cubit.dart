@@ -69,7 +69,7 @@ class ProductoSearchCubit extends Cubit<ProductoSearchState> {
 
       // Cachear productos completos si existen
       if (data.fullProductosCache != null) {
-        _productosCache.addAll(data.fullProductosCache!.cast<String, Producto>());
+        _productosCache.addAll(data.fullProductosCache!);
       }
 
       emit(ProductoSearchLoaded(
@@ -129,7 +129,7 @@ class ProductoSearchCubit extends Cubit<ProductoSearchState> {
 
       // Cachear productos completos si existen
       if (data.fullProductosCache != null) {
-        _productosCache.addAll(data.fullProductosCache!.cast<String, Producto>());
+        _productosCache.addAll(data.fullProductosCache!);
       }
 
       // Combinar resultados anteriores con nuevos
@@ -165,6 +165,11 @@ class ProductoSearchCubit extends Cubit<ProductoSearchState> {
   /// Obtiene un producto del cache
   Producto? getProductoFromCache(String productoId) {
     return _productosCache[productoId];
+  }
+
+  /// Elimina un producto específico del cache (invalidación selectiva)
+  void removeFromCache(String productoId) {
+    _productosCache.remove(productoId);
   }
 
   /// Verifica si hay productos cacheados

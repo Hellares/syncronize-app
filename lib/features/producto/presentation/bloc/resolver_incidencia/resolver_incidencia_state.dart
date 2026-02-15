@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../../domain/entities/transferencia_incidencia.dart';
 
 abstract class ResolverIncidenciaState extends Equatable {
   const ResolverIncidenciaState();
@@ -16,7 +17,7 @@ class ResolverIncidenciaProcessing extends ResolverIncidenciaState {
 }
 
 class ResolverIncidenciaSuccess extends ResolverIncidenciaState {
-  final Map<String, dynamic> incidenciaResuelta;
+  final TransferenciaIncidencia incidenciaResuelta;
   final String message;
 
   const ResolverIncidenciaSuccess({

@@ -21,12 +21,12 @@ class ProductoInventorySection extends StatelessWidget {
     return GradientContainer(
       shadowStyle: ShadowStyle.neumorphic,
       borderColor: AppColors.blueborder,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.only(left: 12, right: 12, top: 8, bottom: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           AppSubtitle('CARACTERÍSTICAS FÍSICAS'),
-          const SizedBox(height: 12),
+          const SizedBox(height: 5),
           CustomText(
             controller: pesoController,
             borderColor: AppColors.blue1,
@@ -38,7 +38,7 @@ class ProductoInventorySection extends StatelessWidget {
           Text(
             'El stock se agregará después de crear el producto',
             style: TextStyle(
-              fontSize: 12,
+              fontSize: 10,
               color: AppColors.grey,
               fontStyle: FontStyle.italic,
             ),

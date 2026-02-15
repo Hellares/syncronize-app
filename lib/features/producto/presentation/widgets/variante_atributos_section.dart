@@ -673,43 +673,22 @@ class VarianteAtributosSection extends StatelessWidget {
                         flex: 2,
                         child: ElevatedButton.icon(
                           onPressed: () {
-                            // Validar campos requeridos
-                            final atributosRequeridos = plantillaSeleccionada.atributos
-                                .where((pa) => pa.esRequerido)
-                                .toList();
+                            final campoFaltante = cubit.initializeFromPlantilla(
+                              plantillaAtributos: plantillaSeleccionada.atributos,
+                              valores: valores,
+                            );
 
-                            for (var plantillaAtributo in atributosRequeridos) {
-                              final valor = valores[plantillaAtributo.atributoId];
-                              if (valor == null || valor.isEmpty) {
-                                ScaffoldMessenger.of(builderContext).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      'El atributo "${plantillaAtributo.atributo.nombre}" es requerido',
-                                    ),
-                                    backgroundColor: Colors.orange,
+                            if (campoFaltante != null) {
+                              ScaffoldMessenger.of(builderContext).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'El atributo "$campoFaltante" es requerido',
                                   ),
-                                );
-                                return;
-                              }
+                                  backgroundColor: Colors.orange,
+                                ),
+                              );
+                              return;
                             }
-
-                            // Convertir a formato para el cubit
-                            final atributosFormato = plantillaSeleccionada.atributos.map((pa) {
-                              return {
-                                'atributoId': pa.atributoId,
-                                'valor': valores[pa.atributoId] ?? '',
-                                'atributo': {
-                                  'id': pa.atributo.id,
-                                  'nombre': pa.atributo.nombre,
-                                  'clave': pa.atributo.clave,
-                                  'tipo': pa.atributo.tipo,
-                                  'unidad': pa.atributo.unidad,
-                                },
-                              };
-                            }).toList();
-
-                            // Aplicar al cubit (usando el cubit capturado antes del dialog)
-                            cubit.initializeFromPlantilla(atributosFormato);
 
                             Navigator.of(dialogContext).pop();
                             ScaffoldMessenger.of(builderContext).showSnackBar(
@@ -740,10 +719,8 @@ class VarianteAtributosSection extends StatelessWidget {
     int orden,
     bool requerido,
   ) {
-    return ProductoAtributo(
-      id: atributoInfo.id,
-      empresaId: empresaId ?? '',
-      categoriaId: null,
+    return ProductoAtributo.fromPlantillaInfo(
+      atributoId: atributoInfo.id,
       nombre: atributoInfo.nombre,
       clave: atributoInfo.clave,
       tipo: atributoInfo.tipoEnum,
@@ -752,12 +729,7 @@ class VarianteAtributosSection extends StatelessWidget {
       unidad: atributoInfo.unidad,
       valores: valores,
       orden: orden,
-      mostrarEnListado: true,
-      usarParaFiltros: true,
-      mostrarEnMarketplace: true,
-      isActive: true,
-      creadoEn: DateTime.now(),
-      actualizadoEn: DateTime.now(),
+      empresaId: empresaId ?? '',
     );
   }
 }

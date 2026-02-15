@@ -26,43 +26,46 @@ class ConfiguracionPrecioSelector extends StatelessWidget {
     return GradientContainer(
       shadowStyle: ShadowStyle.neumorphic,
       borderColor: AppColors.blueborder,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.only(left: 12, right: 12, bottom: 12, top: 5),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-            Row(
-              children: [
-                const Icon(Icons.auto_graph, size: 16, color: AppColors.blue1),
-                const SizedBox(width: 8),
-                const Expanded(
-                  child: AppSubtitle(
-                    'Configuración de Precios por Volumen',
-                    fontSize: 11
-                  ),
-                ),
-                if (onManageConfigurations != null)
-                  TextButton.icon(
-                    onPressed: onManageConfigurations,
-                    icon: const Icon(Icons.settings, size: 16),
-                    label: AppSubtitle(
-                      'Gestionar',
-                      fontSize: 10,
-                      color: AppColors.blue1,
+            SizedBox(
+              height: 35,
+              child: Row(
+                children: [
+                  const Icon(Icons.auto_graph, size: 16, color: AppColors.blue1),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: AppSubtitle(
+                      'CONFIGURACION DE PRECIOS POR VOLUMEN',
+                      fontSize: 10
                     ),
                   ),
-              ],
+                  if (onManageConfigurations != null)
+                    TextButton.icon(
+                      onPressed: onManageConfigurations,
+                      icon: const Icon(Icons.settings, size: 16),
+                      label: AppSubtitle(
+                        'GESTIONAR',
+                        fontSize: 10,
+                        color: AppColors.blue1,
+                      ),
+                    ),
+                ],
+              ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 5),
             AppSubtitle(
               'Selecciona una configuración predefinida de precios escalonados',
               fontSize: 10,
               color: Colors.grey[600],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 5),
 
             if (configuraciones.isEmpty)
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.only(left: 12, right: 12, bottom: 12),
                 decoration: BoxDecoration(
                   color: Colors.orange.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
@@ -141,7 +144,7 @@ class ConfiguracionPrecioSelector extends StatelessWidget {
     if (config == null) return [];
 
     return [
-      const SizedBox(height: 16),
+      const SizedBox(height: 10),
       Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(

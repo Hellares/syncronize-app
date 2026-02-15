@@ -51,7 +51,7 @@ class ProductoListCubit extends Cubit<ProductoListState> {
 
       // Almacenar productos completos en cache (si existen)
       if (data.fullProductosCache != null) {
-        _productosFullCache.addAll(data.fullProductosCache!.cast<String, Producto>());
+        _productosFullCache.addAll(data.fullProductosCache!);
       }
 
       emit(ProductoListLoaded(
@@ -93,7 +93,7 @@ class ProductoListCubit extends Cubit<ProductoListState> {
 
       // Almacenar productos completos en cache (si existen)
       if (data.fullProductosCache != null) {
-        _productosFullCache.addAll(data.fullProductosCache!.cast<String, Producto>());
+        _productosFullCache.addAll(data.fullProductosCache!);
       }
 
       emit(ProductoListLoaded(
@@ -154,6 +154,12 @@ class ProductoListCubit extends Cubit<ProductoListState> {
   /// Esto sincroniza con la invalidación de cache de Redis en el backend
   void invalidateCache() {
     _productosFullCache.clear();
+  }
+
+  /// Elimina un producto específico del cache (invalidación selectiva)
+  /// Usado cuando se crea/edita un producto para que el detalle haga una petición fresca
+  void removeFromCache(String productoId) {
+    _productosFullCache.remove(productoId);
   }
 
   /// Almacena un producto completo en el cache

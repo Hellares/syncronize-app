@@ -117,9 +117,8 @@ class ProductoListTile extends StatelessWidget {
                   Expanded(
                     child: Padding(
                       padding: EdgeInsets.only(
-                        left: 12,
+                        left: 8,
                         top: 4,
-                        // bottom: 8,
                         right: onManageFiles != null ? 40 : 10,
                       ),
                       child: Column(
@@ -381,7 +380,7 @@ class ProductoListTile extends StatelessWidget {
         Container(
           height: 1,
           color: Colors.grey[300],
-          margin: const EdgeInsets.symmetric(vertical: 2),
+          margin: const EdgeInsets.symmetric(vertical: 4),
         ),
 
         // Línea 1: Precio (oculto para productos con variantes)
@@ -413,7 +412,7 @@ class ProductoListTile extends StatelessWidget {
                Text(
                  'S/ ${_formatPrecio(_precio)}',
                  style: TextStyle(
-                   fontSize: 11,
+                   fontSize: 9,
                    decoration: TextDecoration.lineThrough,
                    color: Colors.grey[500],
                  ),

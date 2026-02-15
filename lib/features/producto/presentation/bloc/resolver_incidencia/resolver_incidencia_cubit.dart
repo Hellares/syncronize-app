@@ -30,13 +30,13 @@ class ResolverIncidenciaCubit extends Cubit<ResolverIncidenciaState> {
 
     if (isClosed) return;
 
-    if (result is Success) {
+    if (result is Success<TransferenciaIncidencia>) {
       final mensaje = _generarMensajeExito(request.accion);
       emit(ResolverIncidenciaSuccess(
-        incidenciaResuelta: result.data as Map<String, dynamic>,
+        incidenciaResuelta: result.data,
         message: mensaje,
       ));
-    } else if (result is Error) {
+    } else if (result is Error<TransferenciaIncidencia>) {
       emit(ResolverIncidenciaError(
         result.message,
         errorCode: result.errorCode,

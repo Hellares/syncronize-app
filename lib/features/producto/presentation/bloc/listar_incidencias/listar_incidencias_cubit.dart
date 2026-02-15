@@ -2,7 +2,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
 import '../../../../../core/utils/resource.dart';
-import '../../../data/models/transferencia_incidencia_model.dart';
+import '../../../domain/entities/transferencia_incidencia.dart';
 import '../../../domain/usecases/listar_incidencias_usecase.dart';
 import 'listar_incidencias_state.dart';
 
@@ -47,11 +47,8 @@ class ListarIncidenciasCubit extends Cubit<ListarIncidenciasState> {
 
     if (isClosed) return;
 
-    if (result is Success<List<dynamic>>) {
-      final incidencias = (result.data)
-          .map((json) =>
-              TransferenciaIncidenciaModel.fromJson(json as Map<String, dynamic>))
-          .toList();
+    if (result is Success<List<TransferenciaIncidencia>>) {
+      final incidencias = result.data;
 
       final totalPendientes =
           incidencias.where((i) => i.estaPendiente).length;
@@ -62,7 +59,7 @@ class ListarIncidenciasCubit extends Cubit<ListarIncidenciasState> {
         totalPendientes: totalPendientes,
         totalResueltas: totalResueltas,
       ));
-    } else if (result is Error<List<dynamic>>) {
+    } else if (result is Error<List<TransferenciaIncidencia>>) {
       emit(ListarIncidenciasError(
         result.message,
         errorCode: result.errorCode,

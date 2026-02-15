@@ -32,20 +32,26 @@ class StockTodasSedesCubit extends Cubit<StockTodasSedesState> {
     if (result is Success<Map<String, dynamic>>) {
       final data = result.data;
 
-      // Parse stocks
-      final stocks = (data['stocks'] as List)
-          .map((e) => ProductoStockModel.fromJson(e as Map<String, dynamic>))
-          .toList();
+      // Parse stocks con validación de tipos
+      final stocksRaw = data['stocks'];
+      final stocks = stocksRaw is List
+          ? stocksRaw
+              .whereType<Map<String, dynamic>>()
+              .map((e) => ProductoStockModel.fromJson(e))
+              .toList()
+          : <ProductoStockModel>[];
 
-      // Parse resumen
-      final resumen = data['resumen'] as Map<String, dynamic>;
+      // Parse resumen con null-safety
+      final resumen = data['resumen'] is Map<String, dynamic>
+          ? data['resumen'] as Map<String, dynamic>
+          : <String, dynamic>{};
 
       emit(StockTodasSedesLoaded(
         stocks: stocks,
-        totalSedes: resumen['totalSedes'] as int,
-        stockTotal: resumen['stockTotal'] as int,
-        sedesConStock: resumen['sedesConStock'] as int,
-        sedesSinStock: resumen['sedesSinStock'] as int,
+        totalSedes: (resumen['totalSedes'] as int?) ?? 0,
+        stockTotal: (resumen['stockTotal'] as int?) ?? 0,
+        sedesConStock: (resumen['sedesConStock'] as int?) ?? 0,
+        sedesSinStock: (resumen['sedesSinStock'] as int?) ?? 0,
         productoId: productoId,
         varianteId: varianteId,
       ));

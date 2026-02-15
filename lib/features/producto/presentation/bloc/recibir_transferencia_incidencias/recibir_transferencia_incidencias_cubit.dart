@@ -30,14 +30,14 @@ class RecibirTransferenciaIncidenciasCubit
 
     if (isClosed) return;
 
-    if (result is Success) {
+    if (result is Success<Map<String, dynamic>>) {
       emit(RecibirTransferenciaIncidenciasSuccess(
-        transferencia: result.data as Map<String, dynamic>,
+        transferencia: result.data,
         message: request.totalIncidencias > 0
             ? 'Transferencia recibida con ${request.totalIncidencias} incidencia(s) reportada(s)'
             : 'Transferencia recibida exitosamente',
       ));
-    } else if (result is Error) {
+    } else if (result is Error<Map<String, dynamic>>) {
       emit(RecibirTransferenciaIncidenciasError(
         result.message,
         errorCode: result.errorCode,

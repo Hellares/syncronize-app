@@ -60,8 +60,10 @@ class StockPorSedeCubit extends Cubit<StockPorSedeState> {
       final data = result.data;
 
       // Soportar tanto estructura con 'data' como sin ella (migración gradual)
-      final stocksList = (data['data'] ?? data['stocks']) as List? ?? [];
-      final meta = data['meta'] as Map<String, dynamic>?;
+      final rawList = data['data'] ?? data['stocks'];
+      final stocksList = rawList is List ? rawList : <dynamic>[];
+      final rawMeta = data['meta'];
+      final meta = rawMeta is Map<String, dynamic> ? rawMeta : null;
 
       final stocks = stocksList
           .map((e) => ProductoStockModel.fromJson(e as Map<String, dynamic>))

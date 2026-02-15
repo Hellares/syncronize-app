@@ -9,7 +9,7 @@ class RecibirTransferenciaConIncidenciasUseCase {
 
   RecibirTransferenciaConIncidenciasUseCase(this._repository);
 
-  Future<Resource<dynamic>> call({
+  Future<Resource<Map<String, dynamic>>> call({
     required String transferenciaId,
     required String empresaId,
     required RecibirTransferenciaConIncidenciasRequest request,

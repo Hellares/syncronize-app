@@ -17,6 +17,7 @@ import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../bloc/producto_detail/producto_detail_cubit.dart';
 import '../bloc/producto_detail/producto_detail_state.dart';
+import '../bloc/producto_list/producto_list_cubit.dart';
 import '../widgets/producto_variantes_section.dart';
 import '../widgets/variante_plantilla_atributos_dialog.dart';
 import '../widgets/oferta_countdown_timer.dart';
@@ -138,7 +139,13 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
         ],
       ),
       body: GradientBackground(
-        child: BlocBuilder<ProductoDetailCubit, ProductoDetailState>(
+        child: BlocConsumer<ProductoDetailCubit, ProductoDetailState>(
+          listener: (context, state) {
+            if (state is ProductoDetailLoaded) {
+              // Almacenar producto fresco en el cache del list cubit
+              context.read<ProductoListCubit>().cacheProductoCompleto(state.producto);
+            }
+          },
           builder: (context, state) {
             if (state is ProductoDetailLoading) {
               return const Center(child: CircularProgressIndicator());
@@ -168,15 +175,15 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
                         videoUrl: producto.videoUrl,
                         heroTag: 'product-image-${producto.id}',
                       ),
-
+                      _buildHeader(producto),
                       // Resto del contenido con padding
                       Padding(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(12),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _buildHeader(producto),
-                            const SizedBox(height: 16),
+                            // _buildHeader(producto),
+                            // const SizedBox(height: 16),
                             _buildPriceSection(producto),
                             const SizedBox(height: 16),
 
@@ -237,20 +244,25 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                producto.nombre,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
+        Container(
+          padding: EdgeInsets.only(left: 10, right: 10, top: 8, bottom: 8),
+          color: AppColors.bluechip,
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  producto.nombre,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    overflow: TextOverflow.ellipsis
+                  ),
                 ),
               ),
-            ),
-            if (producto.destacado)
-              InfoChip(icon: Icons.star, text: 'Destacado', textColor: AppColors.amberText ,backgroundColor: AppColors.amberShadow,)
-          ],
+              if (producto.destacado)
+                InfoChip(icon: Icons.star, text: 'Destacado', textColor: AppColors.amberText ,backgroundColor: AppColors.amberShadow,borderRadius: 4,)
+            ],
+          ),
         ),
         const SizedBox(height: 8),
 
@@ -317,6 +329,7 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
       icon: icon,
       backgroundColor: AppColors.blueborder.withValues(alpha: 0.1),
       textColor: AppColors.blue1,
+      borderRadius: 4,
     );
   }
 
@@ -433,6 +446,8 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
                   backgroundColor: AppColors.red,
                   textColor: Colors.white,
                   icon: Icons.local_offer,
+                  iconSize: 14,
+                  borderRadius: 4,
                 ),
               ],
             ),
@@ -446,7 +461,7 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
                 height: 1.0,
               ),
             ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
 
           // Fechas de oferta si aplica
           if (isOfertaActivaSede) ...[
@@ -508,19 +523,25 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
                 text: 'Stock: $stockMostrar',
                 icon: hasStock ? Icons.check_circle : Icons.cancel,
                 textColor: hasStock ? AppColors.blue1 : AppColors.red,
+                iconSize: 14,
+                borderRadius: 4,
               ),
               if (stockSede != null)
                 InfoChip(
                   text: 'Stock en Sede ${stockSede.sedeNombre}',
                   icon: Icons.warehouse,
                   textColor: AppColors.blue1,
-                  backgroundColor: AppColors.blueborder.withValues(alpha: 0.1),
+                  // backgroundColor: AppColors.blueborder.withValues(alpha: 0.1),
+                  iconSize: 14,
+                borderRadius: 4,
                 ),
               if (producto.visibleMarketplace)
                 InfoChip(
                   text: 'Marketplace',
                   icon: Icons.store,
                   textColor: AppColors.blue1,
+                  iconSize: 14,
+                  borderRadius: 4,
                 ),
             ],
           ),
@@ -613,19 +634,13 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
             if (producto.descuentoMaximo != null)
               _buildInfoRow('Descuento máximo', '${producto.descuentoMaximo}%'),
 
-            const Divider(height: 24),
+            const Divider(height: 12),
 
             // Stock por sedes (nuevo sistema multi-sede)
             if (producto.stocksPorSede != null && producto.stocksPorSede!.isNotEmpty) ...[
               const Padding(
-                padding: EdgeInsets.only(bottom: 12),
-                child: Text(
-                  'Stock por Sede',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                padding: EdgeInsets.only(bottom: 8),
+                child: AppSubtitle('STOCK POR SEDE'),
               ),
               ...producto.stocksPorSede!.map((stockSede) => Padding(
                 padding: const EdgeInsets.only(bottom: 8),
@@ -633,30 +648,20 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Expanded(
-                      child: Text(
-                        '${stockSede.sedeNombre} (${stockSede.sedeCodigo})',
-                        style: const TextStyle(fontSize: 13),
-                      ),
+                      child: AppText('${stockSede.sedeNombre} (${stockSede.sedeCodigo})', size: 10,),
                     ),
                     Row(
                       children: [
-                        Text(
+                        AppText(
                           '${stockSede.cantidad}',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: stockSede.esCritico
-                              ? AppColors.red
-                              : stockSede.esBajoMinimo
-                                ? AppColors.amberText
-                                : AppColors.blue1,
-                          ),
+                          color: stockSede.esCritico ? AppColors.red : stockSede.esBajoMinimo ? AppColors.amberText : AppColors.blue1, 
+                          fontWeight: FontWeight.bold,
                         ),
                         if (stockSede.stockMinimo != null) ...[
                           Text(
                             ' / ${stockSede.stockMinimo}',
                             style: const TextStyle(
-                              fontSize: 12,
+                              fontSize: 11,
                               color: AppColors.grey,
                             ),
                           ),
@@ -689,7 +694,7 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
               )),
             ],
 
-            const Divider(height: 24),
+            const Divider(height: 12),
 
             // Dimensiones y peso
             if (producto.peso != null)

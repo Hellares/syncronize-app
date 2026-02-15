@@ -63,6 +63,41 @@ class ProductoAtributo extends Equatable {
     required this.actualizadoEn,
   });
 
+  /// Crea un ProductoAtributo desde la información de una plantilla.
+  /// Usado para renderizar AtributoInputWidget con datos de plantilla.
+  factory ProductoAtributo.fromPlantillaInfo({
+    required String atributoId,
+    required String nombre,
+    required String clave,
+    required AtributoTipo tipo,
+    required bool requerido,
+    String? descripcion,
+    String? unidad,
+    required List<String> valores,
+    required int orden,
+    String empresaId = '',
+  }) {
+    return ProductoAtributo(
+      id: atributoId,
+      empresaId: empresaId,
+      categoriaId: null,
+      nombre: nombre,
+      clave: clave,
+      tipo: tipo,
+      requerido: requerido,
+      descripcion: descripcion,
+      unidad: unidad,
+      valores: valores,
+      orden: orden,
+      mostrarEnListado: true,
+      usarParaFiltros: true,
+      mostrarEnMarketplace: true,
+      isActive: true,
+      creadoEn: DateTime.timestamp(),
+      actualizadoEn: DateTime.timestamp(),
+    );
+  }
+
   /// Verifica si tiene valores predefinidos
   bool get hasValores => valores.isNotEmpty;
 

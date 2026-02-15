@@ -1,6 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 import '../../../data/datasources/producto_remote_datasource.dart';
+import '../../../domain/entities/atributo_plantilla.dart';
 import '../../../domain/entities/atributo_valor.dart';
 import '../../../domain/entities/producto_atributo.dart';
 import 'variante_atributo_state.dart';
@@ -17,27 +18,46 @@ class VarianteAtributoCubit extends Cubit<VarianteAtributoState> {
     emit(const VarianteAtributoLoaded(atributoValores: []));
   }
 
-  /// Inicializa con atributos desde una plantilla
-  void initializeFromPlantilla(List<Map<String, dynamic>> atributosPlantilla) {
-    final atributoValores = atributosPlantilla.map((item) {
-      final atributoData = item['atributo'] as Map<String, dynamic>?;
-      final atributoId = item['atributoId']?.toString() ?? '';
+  /// Verifica si un ID es temporal (no persistido en backend)
+  static bool isTempId(String id) => id.startsWith('temp_');
 
+  /// Inicializa con atributos desde una plantilla.
+  /// [plantillaAtributos] son los atributos de la plantilla seleccionada.
+  /// [valores] mapea atributoId → valor ingresado por el usuario.
+  /// Retorna null si es exitoso, o el nombre del campo requerido faltante.
+  String? initializeFromPlantilla({
+    required List<PlantillaAtributo> plantillaAtributos,
+    required Map<String, String> valores,
+  }) {
+    // Validar campos requeridos
+    for (final pa in plantillaAtributos) {
+      if (pa.esRequerido) {
+        final valor = valores[pa.atributoId];
+        if (valor == null || valor.isEmpty) {
+          return pa.atributo.nombre;
+        }
+      }
+    }
+
+    var counter = 0;
+    final atributoValores = plantillaAtributos.map((pa) {
+      counter++;
       return AtributoValor(
-        id: 'temp_${DateTime.now().millisecondsSinceEpoch}_$atributoId',
-        atributoId: atributoId,
-        valor: item['valor']?.toString() ?? '',
+        id: 'temp_${counter}_${pa.atributoId}',
+        atributoId: pa.atributoId,
+        valor: valores[pa.atributoId] ?? '',
         atributo: AtributoInfo(
-          id: atributoData?['id']?.toString() ?? '',
-          nombre: atributoData?['nombre']?.toString() ?? '',
-          clave: atributoData?['clave']?.toString() ?? '',
-          tipo: atributoData?['tipo']?.toString() ?? 'TEXTO',
-          unidad: atributoData?['unidad']?.toString(),
+          id: pa.atributo.id,
+          nombre: pa.atributo.nombre,
+          clave: pa.atributo.clave,
+          tipo: pa.atributo.tipo,
+          unidad: pa.atributo.unidad,
         ),
       );
     }).toList();
 
     emit(VarianteAtributoLoaded(atributoValores: atributoValores));
+    return null;
   }
 
   /// Carga los atributos de una variante desde el backend
@@ -97,9 +117,9 @@ class VarianteAtributoCubit extends Cubit<VarianteAtributoState> {
       return;
     }
 
-    // Crear un nuevo AtributoValor temporal (sin ID aún)
+    // Crear un nuevo AtributoValor temporal (sin ID real, se asigna al guardar en backend)
     final nuevoAtributoValor = AtributoValor(
-      id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
+      id: 'temp_${atributo.id}_${DateTime.now().millisecondsSinceEpoch}',
       atributoId: atributo.id,
       valor: valor,
       atributo: AtributoInfo(
@@ -211,13 +231,14 @@ class VarianteAtributoCubit extends Cubit<VarianteAtributoState> {
     emit(const VarianteAtributoLoaded(atributoValores: []));
   }
 
-  /// Obtiene los atributos en formato DTO para enviar al backend
+  /// Obtiene los atributos en formato DTO para enviar al backend.
+  /// Solo envía atributoId y valor — nunca envía IDs temporales.
   List<Map<String, dynamic>> getAtributosAsDto() {
     final currentState = state;
     if (currentState is! VarianteAtributoLoaded) return [];
 
     return currentState.atributoValores
-        .where((av) => av.valor.isNotEmpty)
+        .where((av) => av.valor.isNotEmpty && av.atributoId.isNotEmpty)
         .map((av) => {
               'atributoId': av.atributoId,
               'valor': av.valor,

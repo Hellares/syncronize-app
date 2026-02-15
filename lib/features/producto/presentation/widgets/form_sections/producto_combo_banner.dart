@@ -17,10 +17,10 @@ class ProductoComboBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GradientContainer(
-      shadowStyle: ShadowStyle.colorful,
+      shadowStyle: ShadowStyle.neumorphic,
       borderColor: Colors.blue,
       gradient: LinearGradient(colors: [Colors.blue.shade50, Colors.blue.shade50]),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.only(left: 12, right: 12, top: 8, bottom: 8),
       child: Column(
         children: [
           _buildHeader(),

@@ -3,6 +3,7 @@ import 'package:syncronize/core/theme/app_gradients.dart';
 import '../../../../../core/fonts/app_text_widgets.dart';
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/gradient_container.dart';
+import '../../../../../core/widgets/barcode_scanner_button.dart';
 import '../../../../auth/presentation/widgets/custom_text.dart';
 
 /// Sección de información básica del producto
@@ -26,12 +27,12 @@ class ProductoBasicInfoSection extends StatelessWidget {
     return GradientContainer(
       shadowStyle: ShadowStyle.neumorphic,
       borderColor: AppColors.blueborder,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.only(left: 12, right: 12, top: 8, bottom: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           AppSubtitle('INFORMACION BÁSICA'),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           CustomText(
             controller: nombreController,
             borderColor: AppColors.blue1,
@@ -55,7 +56,7 @@ class ProductoBasicInfoSection extends StatelessWidget {
             maxLines: null,
             minLines: 3,
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
           Row(
             children: [
               Expanded(
@@ -71,7 +72,10 @@ class ProductoBasicInfoSection extends StatelessWidget {
               Expanded(
                 child: CustomText(
                   controller: codigoBarrasController,
-                  prefixIcon: const Icon(Icons.qr_code_scanner_outlined,),
+                  // prefixIcon: const Icon(Icons.qr_code_scanner_outlined,),
+                  suffixIcon: BarcodeScannerButton(
+                    onScanned: (code) => codigoBarrasController.text = code,
+                  ),
                   borderColor: AppColors.blue1,
                   label: 'Código de Barras',
                   hintText: 'EAN/UPC',

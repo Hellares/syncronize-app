@@ -29,8 +29,8 @@ class AlertasStockCubit extends Cubit<AlertasStockState> {
 
     if (result is Success<Map<String, dynamic>>) {
       final data = result.data;
-      final total = data['total'] as int;
-      final criticos = data['criticos'] as int;
+      final total = (data['total'] as int?) ?? 0;
+      final criticos = (data['criticos'] as int?) ?? 0;
 
       // Si no hay alertas
       if (total == 0) {
@@ -39,8 +39,14 @@ class AlertasStockCubit extends Cubit<AlertasStockState> {
       }
 
       // Parse productos
-      final productos = (data['productos'] as List)
-          .map((e) => ProductoStockModel.fromJson(e as Map<String, dynamic>))
+      final productosRaw = data['productos'];
+      if (productosRaw is! List) {
+        emit(const AlertasStockEmpty());
+        return;
+      }
+      final productos = productosRaw
+          .whereType<Map<String, dynamic>>()
+          .map((e) => ProductoStockModel.fromJson(e))
           .toList();
 
       // Separar críticos de bajo mínimo

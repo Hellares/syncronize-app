@@ -1,5 +1,6 @@
 import 'package:injectable/injectable.dart';
 import '../../../../core/utils/resource.dart';
+import '../entities/transferencia_incidencia.dart';
 import '../repositories/producto_repository.dart';
 
 @injectable
@@ -8,7 +9,7 @@ class ListarIncidenciasUseCase {
 
   ListarIncidenciasUseCase(this._repository);
 
-  Future<Resource<List<dynamic>>> call({
+  Future<Resource<List<TransferenciaIncidencia>>> call({
     required String empresaId,
     bool? resuelto,
     String? tipo,

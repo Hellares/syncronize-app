@@ -2,9 +2,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../core/di/injection_container.dart';
 import '../../../../../core/utils/resource.dart';
 import '../../../domain/entities/producto.dart';
+import '../../../domain/repositories/producto_repository.dart';
 import '../../../domain/usecases/crear_producto_usecase.dart';
 import '../../../domain/usecases/actualizar_producto_usecase.dart';
-import '../../../data/datasources/producto_remote_datasource.dart';
 import '../../../data/models/producto_atributo_valor_dto.dart';
 import '../../controllers/producto_form_controller.dart';
 import 'producto_form_state.dart';
@@ -13,15 +13,15 @@ import 'producto_form_state.dart';
 class ProductoFormCubit extends Cubit<ProductoFormState> {
   final CrearProductoUseCase _crearProductoUseCase;
   final ActualizarProductoUseCase _actualizarProductoUseCase;
-  final ProductoRemoteDataSource _productoRemoteDataSource;
+  final ProductoRepository _productoRepository;
 
   ProductoFormCubit({
     CrearProductoUseCase? crearProductoUseCase,
     ActualizarProductoUseCase? actualizarProductoUseCase,
-    ProductoRemoteDataSource? productoRemoteDataSource,
+    ProductoRepository? productoRepository,
   })  : _crearProductoUseCase = crearProductoUseCase ?? locator<CrearProductoUseCase>(),
         _actualizarProductoUseCase = actualizarProductoUseCase ?? locator<ActualizarProductoUseCase>(),
-        _productoRemoteDataSource = productoRemoteDataSource ?? locator<ProductoRemoteDataSource>(),
+        _productoRepository = productoRepository ?? locator<ProductoRepository>(),
         super(const ProductoFormInitial());
 
   /// Resetea el estado a inicial
@@ -207,7 +207,7 @@ class ProductoFormCubit extends Cubit<ProductoFormState> {
     }
   }
 
-  /// Guarda los atributos de un producto
+  /// Guarda los atributos de un producto a través del Repository
   Future<void> _guardarAtributos({
     required String productoId,
     required String empresaId,
@@ -215,22 +215,17 @@ class ProductoFormCubit extends Cubit<ProductoFormState> {
   }) async {
     if (valores.isEmpty) return;
 
-    try {
-      final atributos = valores.entries
-          .map((e) => VarianteAtributoDto(
-                atributoId: e.key,
-                valor: e.value,
-              ))
-          .toList();
+    final atributos = valores.entries
+        .map((e) => VarianteAtributoDto(
+              atributoId: e.key,
+              valor: e.value,
+            ))
+        .toList();
 
-      await _productoRemoteDataSource.setProductoAtributos(
-        productoId: productoId,
-        empresaId: empresaId,
-        data: {'atributos': atributos.map((a) => a.toJson()).toList()},
-      );
-    } catch (e) {
-      // No emitir error, solo loggear - los atributos son secundarios
-      // El producto ya fue guardado exitosamente
-    }
+    await _productoRepository.setProductoAtributos(
+      productoId: productoId,
+      empresaId: empresaId,
+      data: {'atributos': atributos.map((a) => a.toJson()).toList()},
+    );
   }
 }

@@ -450,15 +450,16 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
             child: Form(
               key: _controller.formKey,
               child: ListView(
-                padding: const EdgeInsets.only(left: 16, right: 16),
+                padding: const EdgeInsets.only(left: 12, right: 12),
                 children: [
+                const SizedBox(height: 4),
                 ProductoBasicInfoSection(
                   nombreController: _controller.nombreController,
                   descripcionController: _controller.descripcionController,
                   skuController: _controller.skuController,
                   codigoBarrasController: _controller.codigoBarrasController,
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 15),
                 ProductoTipoSection(
                   tieneVariantes: _controller.tieneVariantes,
                   esCombo: _controller.esCombo,
@@ -492,7 +493,7 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
                   },
                   onShowConversionDialog: _mostrarDialogoConversionVariantes,
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 15),
                 ProductoCategorizacionSection(
                   selectedCategoriaId: _controller.selectedCategoriaId,
                   selectedMarcaId: _controller.selectedMarcaId,
@@ -515,25 +516,25 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
                     });
                   },
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 15),
                 // Plantilla de atributos (solo para productos simples)
                 if (!_controller.tieneVariantes && !_controller.esCombo) ...[
                   _buildPlantillasSection(),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 15),
                 ],
                 if (!_controller.tieneVariantes && !_controller.esCombo) ...[
                   _buildPrecioStockInfoBanner(),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 15),
                   _buildConfiguracionPrecioSelector(),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 15),
                   if (widget.isEditing) ...[
                     _buildPrecioNivelesSection(),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 15),
                   ],
                   ProductoInventorySection(
                     pesoController: _controller.pesoController,
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 15),
                 ] else if (_controller.tieneVariantes) ...[
                   ProductoVariantesBanner(
                     isEditing: widget.isEditing,
@@ -542,29 +543,29 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
                     categoriaId: _controller.selectedCategoriaId,
                     productoIsActive: _controller.productoIsActive,
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 15),
                 ] else if (_controller.esCombo) ...[
                   ProductoComboBanner(
                     isEditing: widget.isEditing,
                     tipoPrecioCombo: _controller.tipoPrecioCombo,
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 15),
                 ],
                 _buildImagesSection(),
-                const SizedBox(height: 24),
+                const SizedBox(height: 15),
                 ProductoDimensionesSection(
                   largoController: _controller.dimensionLargoController,
                   anchoController: _controller.dimensionAnchoController,
                   altoController: _controller.dimensionAltoController,
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 15),
                 ProductoImpuestosSection(
                   impuestoPorcentajeController: _controller.impuestoPorcentajeController,
                   descuentoMaximoController: _controller.descuentoMaximoController,
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 15),
                 _buildMultimediaSection(),
-                const SizedBox(height: 24),
+                const SizedBox(height: 15),
                 ProductoOptionsSection(
                   visibleMarketplace: _controller.visibleMarketplace,
                   destacado: _controller.destacado,
@@ -617,8 +618,8 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
             _controller.formSubmittedSuccessfully = true;
           });
 
-          // ✅ Invalidar cache local (sincronizar con Redis)
-          context.read<ProductoListCubit>().invalidateCache();
+          // ✅ Invalidar cache selectivo del producto modificado
+          context.read<ProductoListCubit>().removeFromCache(state.producto.id);
 
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -745,7 +746,7 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
                     child: Text(
                       'Los precios y stock se gestionarán por sede después de la conversión.',
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: 12,
                         color: Colors.blue.shade900,
                         fontWeight: FontWeight.w500,
                       ),
@@ -797,44 +798,36 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
   Widget _buildPrecioStockInfoBanner() {
     final isEditing = widget.isEditing;
     return GradientContainer(
-      shadowStyle: ShadowStyle.colorful,
-      borderColor: AppColors.blue1,
-      padding: const EdgeInsets.all(16),
+      shadowStyle: ShadowStyle.neumorphic,
+      borderColor: AppColors.blueborder,
+      padding: const EdgeInsets.only(left: 12, right: 12, top: 8, bottom: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.storefront, color: AppColors.blue1, size: 20),
+              Icon(Icons.storefront, color: AppColors.blue1, size: 16),
               const SizedBox(width: 8),
               AppSubtitle('PRECIOS, STOCK Y OFERTAS'),
             ],
           ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.blue1.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppColors.blue1.withValues(alpha: 0.2)),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.info_outline, color: AppColors.blue1, size: 20),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    isEditing
-                        ? 'Los precios, stock y ofertas se gestionan por sede desde la vista de inventario del producto.'
-                        : 'Los precios, stock y ofertas se configuran por sede después de crear el producto.',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[800],
-                    ),
+          const SizedBox(height: 5),
+          Row(
+            children: [
+              Icon(Icons.info_outline, color: AppColors.blue1, size: 16),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  isEditing
+                      ? 'Los precios, stock y ofertas se gestionan por sede desde la vista de inventario del producto.'
+                      : 'Los precios, stock y ofertas se configuran por sede después de crear el producto.',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.grey[800],
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ],
       ),
@@ -880,7 +873,7 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
     return GradientContainer(
       shadowStyle: ShadowStyle.neumorphic,
       borderColor: AppColors.blueborder,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.only(left: 12, right: 12, top: 8, bottom: 12),
       child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -888,7 +881,7 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
             const SizedBox(height: 8),
 
             AppSubtitle('Selecciona una plantilla para cargar automáticamente sus atributos. Esto reemplazará los atributos por categoría.', fontSize: 10, color: Colors.blueGrey,),
-            const SizedBox(height: 16),
+            const SizedBox(height: 10),
             BlocBuilder<AtributoPlantillaCubit, AtributoPlantillaState>(
               builder: (context, state) {
                 if (state is AtributoPlantillaLoading) {
@@ -1032,24 +1025,16 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
                 final atributoInfo = plantillaAtributo.atributo;
                 // Convertir PlantillaAtributoInfo a ProductoAtributo
                 // Usar valoresActuales que retorna valoresOverride si existe, sino valores base
-                final productoAtributo = ProductoAtributo(
-                  id: atributoInfo.id,
-                  empresaId: '', // No necesario para visualización
-                  categoriaId: null,
+                final productoAtributo = ProductoAtributo.fromPlantillaInfo(
+                  atributoId: atributoInfo.id,
                   nombre: atributoInfo.nombre,
                   clave: atributoInfo.clave,
                   tipo: atributoInfo.tipoEnum,
                   requerido: plantillaAtributo.esRequerido,
                   descripcion: atributoInfo.descripcion,
                   unidad: atributoInfo.unidad,
-                  valores: plantillaAtributo.valoresActuales, // ✅ Usa override o base
+                  valores: plantillaAtributo.valoresActuales,
                   orden: plantillaAtributo.orden,
-                  mostrarEnListado: false,
-                  usarParaFiltros: false,
-                  mostrarEnMarketplace: false,
-                  isActive: true,
-                  creadoEn: DateTime.now(),
-                  actualizadoEn: DateTime.now(),
                 );
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 16),
@@ -1109,7 +1094,7 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
           return const GradientContainer(
             shadowStyle: ShadowStyle.neumorphic,
             borderColor: AppColors.blue1,
-            padding: EdgeInsets.all(32),
+            padding: EdgeInsets.only(left: 12, right: 12, top: 8, bottom: 12),
             child: Center(child: CircularProgressIndicator()),
           );
         }

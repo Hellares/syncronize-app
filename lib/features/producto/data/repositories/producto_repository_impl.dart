@@ -4,10 +4,12 @@ import '../../../../core/services/error_handler_service.dart';
 import '../../../../core/utils/resource.dart';
 import '../../domain/entities/producto.dart';
 import '../../domain/entities/producto_filtros.dart';
+import '../../domain/entities/transferencia_incidencia.dart';
 import '../../domain/repositories/producto_repository.dart';
 import '../datasources/producto_remote_datasource.dart';
 import '../models/producto_list_item_model.dart';
 import '../models/producto_model.dart';
+import '../models/transferencia_incidencia_model.dart';
 
 @LazySingleton(as: ProductoRepository)
 class ProductoRepositoryImpl implements ProductoRepository {
@@ -117,7 +119,7 @@ class ProductoRepositoryImpl implements ProductoRepository {
           .toList();
 
       // También parsear como Producto completo para el cache (evita peticiones duplicadas)
-      final fullProductosCache = <String, dynamic>{};
+      final fullProductosCache = <String, Producto>{};
       for (final json in dataList) {
         final productoCompleto = ProductoModel.fromJson(json as Map<String, dynamic>);
         fullProductosCache[productoCompleto.id] = productoCompleto.toEntity();
@@ -335,7 +337,7 @@ class ProductoRepositoryImpl implements ProductoRepository {
   // ========================================
 
   @override
-  Future<Resource<dynamic>> recibirTransferenciaConIncidencias({
+  Future<Resource<Map<String, dynamic>>> recibirTransferenciaConIncidencias({
     required String transferenciaId,
     required String empresaId,
     required Map<String, dynamic> request,
@@ -360,7 +362,7 @@ class ProductoRepositoryImpl implements ProductoRepository {
   }
 
   @override
-  Future<Resource<List<dynamic>>> listarIncidencias({
+  Future<Resource<List<TransferenciaIncidencia>>> listarIncidencias({
     required String empresaId,
     bool? resuelto,
     String? tipo,
@@ -382,14 +384,17 @@ class ProductoRepositoryImpl implements ProductoRepository {
         sedeId: sedeId,
         transferenciaId: transferenciaId,
       );
-      return Success(resultado);
+      final incidencias = resultado
+          .map((json) => TransferenciaIncidenciaModel.fromJson(json).toEntity())
+          .toList();
+      return Success(incidencias);
     } catch (e) {
       return _errorHandler.handleException(e, context: 'Producto');
     }
   }
 
   @override
-  Future<Resource<dynamic>> resolverIncidencia({
+  Future<Resource<TransferenciaIncidencia>> resolverIncidencia({
     required String incidenciaId,
     required String empresaId,
     required Map<String, dynamic> request,
@@ -407,7 +412,32 @@ class ProductoRepositoryImpl implements ProductoRepository {
         empresaId: empresaId,
         request: request,
       );
-      return Success(resultado);
+      return Success(TransferenciaIncidenciaModel.fromJson(resultado).toEntity());
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Producto');
+    }
+  }
+
+  @override
+  Future<Resource<void>> setProductoAtributos({
+    required String productoId,
+    required String empresaId,
+    required Map<String, dynamic> data,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error(
+        'No hay conexión a internet',
+        errorCode: 'NETWORK_ERROR',
+      );
+    }
+
+    try {
+      await _remoteDataSource.setProductoAtributos(
+        productoId: productoId,
+        empresaId: empresaId,
+        data: data,
+      );
+      return Success(null);
     } catch (e) {
       return _errorHandler.handleException(e, context: 'Producto');
     }

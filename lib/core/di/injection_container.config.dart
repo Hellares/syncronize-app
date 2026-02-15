@@ -536,16 +536,8 @@ extension GetItInjectableX on _i174.GetIt {
       () => registerModule.authDio,
       instanceName: 'authDio',
     );
-    gh.factory<_i942.ProductosStockRemoteDatasource>(
-      () => _i942.ProductosStockRemoteDatasource(gh<_i361.Dio>()),
-    );
     gh.lazySingleton<_i666.SecureStorageService>(
       () => _i666.SecureStorageService(gh<_i558.FlutterSecureStorage>()),
-    );
-    gh.factory<_i690.ProductosStockRepository>(
-      () => _i733.ProductosStockRepositoryImpl(
-        gh<_i942.ProductosStockRemoteDatasource>(),
-      ),
     );
     gh.lazySingleton<_i490.ErrorHandlerService>(
       () => _i490.ErrorHandlerService(gh<_i141.LoggerService>()),
@@ -561,10 +553,6 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i744.LocalStorageService>(
       () => _i744.LocalStorageService(gh<_i460.SharedPreferences>()),
-    );
-    gh.factory<_i880.GetProductosStockUseCase>(
-      () =>
-          _i880.GetProductosStockUseCase(gh<_i690.ProductosStockRepository>()),
     );
     gh.lazySingleton<_i15.CatalogoLocalDataSource>(
       () => _i15.CatalogoLocalDataSource(gh<_i744.LocalStorageService>()),
@@ -592,11 +580,6 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i283.SearchHistoryService>(
       () => _i283.SearchHistoryService(gh<_i744.LocalStorageService>()),
-    );
-    gh.factory<_i101.ProductosStockSelectorCubit>(
-      () => _i101.ProductosStockSelectorCubit(
-        gh<_i880.GetProductosStockUseCase>(),
-      ),
     );
     gh.factory<_i386.GetLocalUserUseCase>(
       () => _i386.GetLocalUserUseCase(gh<_i992.AuthLocalDataSource>()),
@@ -675,6 +658,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i32.UsuarioRemoteDataSource>(
       () => _i32.UsuarioRemoteDataSource(gh<_i667.DioClient>()),
+    );
+    gh.factory<_i942.ProductosStockRemoteDatasource>(
+      () => _i942.ProductosStockRemoteDatasource(gh<_i667.DioClient>()),
     );
     gh.lazySingleton<_i27.ConfiguracionPrecioRepository>(
       () => _i185.ConfiguracionPrecioRepositoryImpl(
@@ -800,6 +786,12 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i411.SwitchEmpresaUseCase>(
       () => _i411.SwitchEmpresaUseCase(gh<_i544.EmpresaRepository>()),
+    );
+    gh.factory<_i690.ProductosStockRepository>(
+      () => _i733.ProductosStockRepositoryImpl(
+        gh<_i942.ProductosStockRemoteDatasource>(),
+        gh<_i932.NetworkInfo>(),
+      ),
     );
     gh.lazySingleton<_i262.ProductoStockRepository>(
       () => _i714.ProductoStockRepositoryImpl(
@@ -1230,6 +1222,10 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i57.ActualizarProveedorUseCase>(),
       ),
     );
+    gh.factory<_i880.GetProductosStockUseCase>(
+      () =>
+          _i880.GetProductosStockUseCase(gh<_i690.ProductosStockRepository>()),
+    );
     gh.factory<_i620.GestionarReporteCubit>(
       () => _i620.GestionarReporteCubit(
         gh<_i218.EnviarParaRevisionUsecase>(),
@@ -1477,6 +1473,11 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i917.RechazarTransferenciaUseCase>(),
         gh<_i917.CancelarTransferenciaUseCase>(),
         gh<_i1062.ProcesarCompletoTransferenciaUseCase>(),
+      ),
+    );
+    gh.factory<_i101.ProductosStockSelectorCubit>(
+      () => _i101.ProductosStockSelectorCubit(
+        gh<_i880.GetProductosStockUseCase>(),
       ),
     );
     gh.factory<_i147.RegisterCubit>(

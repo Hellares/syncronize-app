@@ -1,24 +1,19 @@
-import 'package:dio/dio.dart';
 import 'package:injectable/injectable.dart';
+import '../../../../core/network/dio_client.dart';
 import '../models/producto_stock_simple_model.dart';
 
 @injectable
 class ProductosStockRemoteDatasource {
-  final Dio _dio;
+  final DioClient _dioClient;
 
-  ProductosStockRemoteDatasource(this._dio);
+  ProductosStockRemoteDatasource(this._dioClient);
 
   Future<List<ProductoStockSimpleModel>> getProductosStock({
     required String empresaId,
     required String sedeId,
   }) async {
-    final response = await _dio.get(
+    final response = await _dioClient.get(
       '/producto-stock/sede/$sedeId',
-      options: Options(
-        headers: {
-          'X-Tenant-ID': empresaId,
-        },
-      ),
     );
 
     if (response.data == null) {

@@ -1,7 +1,7 @@
 import '../../../../core/utils/resource.dart';
 import '../entities/producto.dart';
-
 import '../entities/producto_filtros.dart';
+import '../entities/transferencia_incidencia.dart';
 
 /// Repository interface para operaciones relacionadas con productos
 abstract class ProductoRepository {
@@ -103,14 +103,14 @@ abstract class ProductoRepository {
 
   /// Recibe una transferencia con manejo detallado de incidencias
   /// Permite reportar productos dañados, faltantes, etc.
-  Future<Resource<dynamic>> recibirTransferenciaConIncidencias({
+  Future<Resource<Map<String, dynamic>>> recibirTransferenciaConIncidencias({
     required String transferenciaId,
     required String empresaId,
     required Map<String, dynamic> request,
   });
 
   /// Lista incidencias de transferencias con filtros
-  Future<Resource<List<dynamic>>> listarIncidencias({
+  Future<Resource<List<TransferenciaIncidencia>>> listarIncidencias({
     required String empresaId,
     bool? resuelto,
     String? tipo,
@@ -119,9 +119,16 @@ abstract class ProductoRepository {
   });
 
   /// Resuelve una incidencia tomando una acción específica
-  Future<Resource<dynamic>> resolverIncidencia({
+  Future<Resource<TransferenciaIncidencia>> resolverIncidencia({
     required String incidenciaId,
     required String empresaId,
     required Map<String, dynamic> request,
+  });
+
+  /// Asigna atributos a un producto base
+  Future<Resource<void>> setProductoAtributos({
+    required String productoId,
+    required String empresaId,
+    required Map<String, dynamic> data,
   });
 }

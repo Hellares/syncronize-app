@@ -5,6 +5,7 @@ import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/widgets/floating_button_text.dart';
 import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
+import '../../../../core/widgets/barcode_scanner_button.dart';
 import '../../../../core/theme/gradient_container.dart';
 import '../../domain/entities/producto_atributo.dart';
 import '../../domain/entities/producto_variante.dart';
@@ -262,7 +263,10 @@ class _ProductoVarianteFormDialogState
                           borderColor: AppColors.blue1,
                           label: 'Codigo de barras',
                           hintText: 'Codigo de barras',
-                          prefixIcon: Icon(Icons.barcode_reader),
+                          prefixIcon: const Icon(Icons.barcode_reader),
+                          suffixIcon: BarcodeScannerButton(
+                            onScanned: (code) => _codigoBarrasController.text = code,
+                          ),
                         )
                       ],
                     ),
@@ -483,6 +487,5 @@ class _ProductoVarianteFormDialogState
     };
 
     widget.onSave(data);
-    Navigator.pop(context);
   }
 }

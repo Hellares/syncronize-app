@@ -323,6 +323,7 @@ class _ProductoVariantesViewState extends State<_ProductoVariantesView> {
         productoNombre: widget.productoNombre,
         atributosDisponibles: _atributosDisponibles,
         onSave: (data) {
+          Navigator.of(dialogContext).pop();
           if (_empresaId != null) {
             context.read<ProductoVarianteCubit>().generarCombinaciones(
                   productoId: widget.productoId,
@@ -330,7 +331,6 @@ class _ProductoVariantesViewState extends State<_ProductoVariantesView> {
                   data: data,
                 );
           }
-          Navigator.of(dialogContext).pop();
         },
       ),
     );
@@ -361,24 +361,27 @@ class _ProductoVariantesViewState extends State<_ProductoVariantesView> {
           empresaId: _empresaId!,
           variante: variante,
           atributosDisponibles: _atributosDisponibles,
-          onSave: (data) {
-            if (_empresaId != null) {
-              if (variante == null) {
-                context.read<ProductoVarianteCubit>().crearVariante(
-                      productoId: widget.productoId,
-                      empresaId: _empresaId!,
-                      data: data,
-                    );
-              } else {
-                context.read<ProductoVarianteCubit>().actualizarVariante(
-                      varianteId: variante.id,
-                      productoId: widget.productoId,
-                      empresaId: _empresaId!,
-                      data: data,
-                    );
-              }
-            }
+          onSave: (data) async {
+            if (_empresaId == null) return;
+
+            // Cerrar el dialog primero para evitar race conditions
+            // ("setState after dispose" si el cubit emite mientras el dialog está cerrando)
             Navigator.of(dialogContext).pop();
+
+            if (variante == null) {
+              context.read<ProductoVarianteCubit>().crearVariante(
+                    productoId: widget.productoId,
+                    empresaId: _empresaId!,
+                    data: data,
+                  );
+            } else {
+              context.read<ProductoVarianteCubit>().actualizarVariante(
+                    varianteId: variante.id,
+                    productoId: widget.productoId,
+                    empresaId: _empresaId!,
+                    data: data,
+                  );
+            }
           },
         ),
       ),
@@ -400,6 +403,7 @@ class _ProductoVariantesViewState extends State<_ProductoVariantesView> {
           ),
           ElevatedButton(
             onPressed: () {
+              Navigator.of(dialogContext).pop();
               if (_empresaId != null) {
                 context.read<ProductoVarianteCubit>().eliminarVariante(
                       varianteId: variante.id,
@@ -407,7 +411,6 @@ class _ProductoVariantesViewState extends State<_ProductoVariantesView> {
                       empresaId: _empresaId!,
                     );
               }
-              Navigator.of(dialogContext).pop();
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
@@ -555,69 +558,12 @@ class _VarianteCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Text(
-                      //   variante.nombre,
-                      //   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      //         fontWeight: FontWeight.bold,
-                      //       ),
-                      // ),
                       AppSubtitle(variante.nombre),
                       const SizedBox(height: 4),
-                      // Text(
-                      //   'SKU: ${variante.sku}',
-                      //   style: Theme.of(context).textTheme.bodySmall,
-                      // ),
                       AppLabelText(variante.sku)
                     ],
                   ),
                 ),
-                // PopupMenuButton(
-                //   itemBuilder: (context) => [
-                //     const PopupMenuItem(
-                //       value: 'edit',
-                //       child: Row(
-                //         children: [
-                //           Icon(Icons.edit, size: 20),
-                //           SizedBox(width: 8),
-                //           Text('Editar'),
-                //         ],
-                //       ),
-                //     ),
-                //     const PopupMenuItem(
-                //       value: 'stock',
-                //       child: Row(
-                //         children: [
-                //           Icon(Icons.inventory, size: 20),
-                //           SizedBox(width: 8),
-                //           Text('Actualizar Stock'),
-                //         ],
-                //       ),
-                //     ),
-                //     const PopupMenuItem(
-                //       value: 'delete',
-                //       child: Row(
-                //         children: [
-                //           Icon(Icons.delete, size: 20, color: Colors.red),
-                //           SizedBox(width: 8),
-                //           Text('Eliminar', style: TextStyle(color: Colors.red)),
-                //         ],
-                //       ),
-                //     ),
-                //   ],
-                //   onSelected: (value) {
-                //     switch (value) {
-                //       case 'edit':
-                //         onEdit();
-                //         break;
-                //       case 'stock':
-                //         onUpdateStock();
-                //         break;
-                //       case 'delete':
-                //         onDelete();
-                //         break;
-                //     }
-                //   },
-                // ),
                 CustomActionMenu(
                   yNudge: 33,
                   menuWidth: 100,
@@ -743,28 +689,6 @@ class _VarianteCard extends StatelessWidget {
       ),
     );
   }
-
-  // Widget _getAtributoIcon(String key) {
-  //   IconData icon;
-  //   switch (key.toUpperCase()) {
-  //     case 'COLOR':
-  //       icon = Icons.palette;
-  //       break;
-  //     case 'TALLA':
-  //       icon = Icons.straighten;
-  //       break;
-  //     case 'MATERIAL':
-  //       icon = Icons.category;
-  //       break;
-  //     case 'CAPACIDAD':
-  //       icon = Icons.storage;
-  //       break;
-  //     default:
-  //       icon = Icons.label;
-  //   }
-  //   return Icon(icon, size: 18);
-  // }
-
   IconData _getStockIcon() {
     if (variante.stockTotal == 0) return Icons.remove_circle;
     return Icons.check_circle;

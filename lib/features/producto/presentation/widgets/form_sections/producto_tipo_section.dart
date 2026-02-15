@@ -41,13 +41,13 @@ class ProductoTipoSection extends StatelessWidget {
           ? LinearGradient(colors: [Colors.purple.shade50, Colors.purple.shade50])
           : (esCombo
               ? LinearGradient(colors: [Colors.blue.shade50, Colors.blue.shade50])
-              : AppGradients.fondo),
-      padding: const EdgeInsets.all(16),
+              : AppGradients.blueWhiteBlue()),
+      padding: const EdgeInsets.only(left: 12, right: 12, top: 8, bottom: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildHeader(),
-          const SizedBox(height: 8),
+          // const SizedBox(height: 8),
           // Creando: solo mostrar combo | Editando: solo mostrar variantes
           if (!isEditing) _buildComboSwitch(context),
           if (isEditing && !esCombo) _buildVariantesSwitch(context),
@@ -66,7 +66,7 @@ class ProductoTipoSection extends StatelessWidget {
           color: tieneVariantes
               ? Colors.purple
               : (esCombo ? Colors.blue : AppColors.blueGrey),
-          size: 20,
+          size: 16,
         ),
         const SizedBox(width: 8),
         AppSubtitle('TIPO DE PRODUCTO'),

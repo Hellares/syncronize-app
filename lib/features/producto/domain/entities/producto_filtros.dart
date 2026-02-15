@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'producto.dart';
 
 /// Enum para ordenamiento de productos
 enum OrdenProducto {
@@ -181,7 +182,7 @@ class ProductoFiltros extends Equatable {
 
 /// Entity que representa el resultado paginado de productos
 class ProductosPaginados extends Equatable {
-  final List<dynamic> data; // Puede ser List<Producto> o List<ProductoListItem>
+  final List<dynamic> data;
   final int total;
   final int page;
   final int pageSize;
@@ -191,7 +192,8 @@ class ProductosPaginados extends Equatable {
   final bool hasPrevious;
 
   /// Cache de productos completos (para evitar peticiones duplicadas al ver detalle)
-  final Map<String, dynamic>? fullProductosCache;
+  // /// Tipado como Map<String, Producto> para evitar casts inseguros en tiempo de ejecución
+  final Map<String, Producto>? fullProductosCache;
 
   const ProductosPaginados({
     required this.data,

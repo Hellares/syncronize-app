@@ -44,18 +44,18 @@ class ProductoCategorizacionSection extends StatelessWidget {
     return GradientContainer(
       shadowStyle: ShadowStyle.neumorphic,
       borderColor: AppColors.blueborder,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.only(left: 12, right: 12, top: 8, bottom: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           AppSubtitle('CATEGORIZACIÓN'),
           const SizedBox(height: 12),
           _buildCategoriaDropdown(),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           _buildMarcaDropdown(),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           _buildSedeDropdown(),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           _buildUnidadMedidaDropdown(),
         ],
       ),
