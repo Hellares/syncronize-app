@@ -15,6 +15,13 @@ import '../../domain/usecases/get_componentes_usecase.dart';
 import '../../domain/usecases/get_reservacion_usecase.dart';
 import '../../domain/usecases/reservar_stock_usecase.dart';
 import '../../domain/usecases/liberar_reserva_usecase.dart';
+import '../../domain/usecases/actualizar_precio_combo_usecase.dart';
+import '../../domain/usecases/actualizar_oferta_combo_usecase.dart';
+import '../../domain/usecases/desactivar_oferta_combo_usecase.dart';
+import '../../domain/usecases/get_historial_precios_combo_usecase.dart';
+import '../../data/models/update_combo_pricing_dto.dart';
+import '../../data/models/update_combo_oferta_dto.dart';
+import '../../domain/entities/combo_config_historial.dart';
 import 'combo_state.dart';
 
 @injectable
@@ -30,6 +37,10 @@ class ComboCubit extends Cubit<ComboState> {
   final GetReservacionUseCase getReservacionUseCase;
   final ReservarStockUseCase reservarStockUseCase;
   final LiberarReservaUseCase liberarReservaUseCase;
+  final ActualizarPrecioComboUseCase actualizarPrecioComboUseCase;
+  final ActualizarOfertaComboUseCase actualizarOfertaComboUseCase;
+  final DesactivarOfertaComboUseCase desactivarOfertaComboUseCase;
+  final GetHistorialPreciosComboUseCase getHistorialPreciosComboUseCase;
 
   ComboCubit({
     required this.createComboUseCase,
@@ -43,6 +54,10 @@ class ComboCubit extends Cubit<ComboState> {
     required this.getReservacionUseCase,
     required this.reservarStockUseCase,
     required this.liberarReservaUseCase,
+    required this.actualizarPrecioComboUseCase,
+    required this.actualizarOfertaComboUseCase,
+    required this.desactivarOfertaComboUseCase,
+    required this.getHistorialPreciosComboUseCase,
   }) : super(ComboInitial());
 
   /// Crea un nuevo combo directamente
@@ -307,6 +322,88 @@ class ComboCubit extends Cubit<ComboState> {
         error.message,
         errorCode: error.errorCode,
       ));
+    }
+  }
+
+  /// Actualiza la configuración de precios del combo
+  Future<void> actualizarPrecio({
+    required String comboId,
+    required String sedeId,
+    required UpdateComboPricingDto dto,
+  }) async {
+    emit(ComboLoading());
+
+    final result = await actualizarPrecioComboUseCase(
+      comboId: comboId,
+      sedeId: sedeId,
+      dto: dto,
+    );
+
+    if (result is Success<Combo>) {
+      emit(ComboPricingUpdated(result.data, 'Precio actualizado exitosamente'));
+    } else if (result is Error) {
+      final error = result as Error;
+      emit(ComboError(error.message, errorCode: error.errorCode));
+    }
+  }
+
+  /// Actualiza la oferta del combo
+  Future<void> actualizarOferta({
+    required String comboId,
+    required String sedeId,
+    required UpdateComboOfertaDto dto,
+  }) async {
+    emit(ComboLoading());
+
+    final result = await actualizarOfertaComboUseCase(
+      comboId: comboId,
+      sedeId: sedeId,
+      dto: dto,
+    );
+
+    if (result is Success<Combo>) {
+      emit(ComboOfertaUpdated(result.data, 'Oferta actualizada exitosamente'));
+    } else if (result is Error) {
+      final error = result as Error;
+      emit(ComboError(error.message, errorCode: error.errorCode));
+    }
+  }
+
+  /// Desactiva la oferta del combo
+  Future<void> desactivarOferta({
+    required String comboId,
+    required String sedeId,
+  }) async {
+    emit(ComboLoading());
+
+    final result = await desactivarOfertaComboUseCase(
+      comboId: comboId,
+      sedeId: sedeId,
+    );
+
+    if (result is Success<Combo>) {
+      emit(ComboOfertaUpdated(result.data, 'Oferta desactivada exitosamente'));
+    } else if (result is Error) {
+      final error = result as Error;
+      emit(ComboError(error.message, errorCode: error.errorCode));
+    }
+  }
+
+  /// Carga el historial de cambios de precios del combo
+  Future<void> loadHistorialPrecios({
+    required String comboId,
+  }) async {
+    emit(ComboLoading());
+
+    final result = await getHistorialPreciosComboUseCase(
+      comboId: comboId,
+    );
+
+    if (result is Success<List<ComboConfigHistorialEntry>>) {
+      emit(ComboHistorialLoaded(result.data));
+    } else if (result is Error) {
+      final error = result as Error;
+      emit(ComboError(error.message, errorCode: error.errorCode));
     }
   }
 

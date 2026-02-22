@@ -3,10 +3,12 @@ import '../../../../core/network/network_info.dart';
 import '../../../../core/utils/resource.dart';
 import '../../domain/entities/empresa_context.dart';
 import '../../domain/entities/empresa_list_item.dart';
+import '../../domain/entities/configuracion_empresa.dart';
 import '../../domain/entities/personalizacion_empresa.dart';
 import '../../domain/repositories/empresa_repository.dart';
 import '../datasources/empresa_local_datasource.dart';
 import '../datasources/empresa_remote_datasource.dart';
+import '../models/configuracion_empresa_model.dart';
 import '../models/personalizacion_empresa_model.dart';
 
 @LazySingleton(as: EmpresaRepository)
@@ -165,6 +167,55 @@ class EmpresaRepositoryImpl implements EmpresaRepository {
     try {
       final model = PersonalizacionEmpresaModel.fromEntity(personalizacion);
       final updated = await _remoteDataSource.updatePersonalizacion(
+        empresaId: empresaId,
+        data: model.toJson(),
+      );
+      return Success(updated.toEntity());
+    } catch (e) {
+      return Error(
+        e.toString().replaceFirst('Exception: ', ''),
+        errorCode: 'SERVER_ERROR',
+      );
+    }
+  }
+
+  @override
+  Future<Resource<ConfiguracionEmpresa>> getConfiguracion(
+      String empresaId) async {
+    if (!await _networkInfo.isConnected) {
+      return Error(
+        'No hay conexión a internet',
+        errorCode: 'NETWORK_ERROR',
+      );
+    }
+
+    try {
+      final configuracion =
+          await _remoteDataSource.getConfiguracion(empresaId);
+      return Success(configuracion.toEntity());
+    } catch (e) {
+      return Error(
+        e.toString().replaceFirst('Exception: ', ''),
+        errorCode: 'SERVER_ERROR',
+      );
+    }
+  }
+
+  @override
+  Future<Resource<ConfiguracionEmpresa>> updateConfiguracion(
+    String empresaId,
+    ConfiguracionEmpresa configuracion,
+  ) async {
+    if (!await _networkInfo.isConnected) {
+      return Error(
+        'No hay conexión a internet',
+        errorCode: 'NETWORK_ERROR',
+      );
+    }
+
+    try {
+      final model = ConfiguracionEmpresaModel.fromEntity(configuracion);
+      final updated = await _remoteDataSource.updateConfiguracion(
         empresaId: empresaId,
         data: model.toJson(),
       );

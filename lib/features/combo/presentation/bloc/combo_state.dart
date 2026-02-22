@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import '../../domain/entities/combo.dart';
+import '../../domain/entities/combo_config_historial.dart';
 import '../../domain/entities/componente_combo.dart';
 
 /// Estados base del Combo Cubit
@@ -143,4 +144,36 @@ class ReservacionUpdated extends ComboState {
 
   @override
   List<Object?> get props => [cantidad, message];
+}
+
+/// Estado de precio del combo actualizado
+class ComboPricingUpdated extends ComboState {
+  final Combo combo;
+  final String message;
+
+  const ComboPricingUpdated(this.combo, this.message);
+
+  @override
+  List<Object?> get props => [combo, message];
+}
+
+/// Estado de oferta del combo actualizada
+class ComboOfertaUpdated extends ComboState {
+  final Combo combo;
+  final String message;
+
+  const ComboOfertaUpdated(this.combo, this.message);
+
+  @override
+  List<Object?> get props => [combo, message];
+}
+
+/// Estado de historial de configuración cargado
+class ComboHistorialLoaded extends ComboState {
+  final List<ComboConfigHistorialEntry> historial;
+
+  const ComboHistorialLoaded(this.historial);
+
+  @override
+  List<Object?> get props => [historial];
 }

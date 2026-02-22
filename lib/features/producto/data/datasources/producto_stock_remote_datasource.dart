@@ -159,6 +159,7 @@ class ProductoStockRemoteDataSource {
     required bool enOferta,
     DateTime? fechaInicioOferta,
     DateTime? fechaFinOferta,
+    bool precioIncluyeIgv = false,
   }) async {
     final response = await _dioClient.patch(
       '/producto-stock/$productoStockId/precios',
@@ -167,6 +168,7 @@ class ProductoStockRemoteDataSource {
         if (precioCosto != null) 'precioCosto': precioCosto,
         if (precioOferta != null) 'precioOferta': precioOferta,
         'enOferta': enOferta,
+        'precioIncluyeIgv': precioIncluyeIgv,
         if (fechaInicioOferta != null)
           'fechaInicioOferta': fechaInicioOferta.toIso8601String(),
         if (fechaFinOferta != null)

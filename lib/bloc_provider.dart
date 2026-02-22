@@ -50,6 +50,11 @@ import 'package:syncronize/features/reporte_incidencia/presentation/bloc/elimina
 import 'package:syncronize/features/reporte_incidencia/presentation/bloc/gestionar_reporte/gestionar_reporte_cubit.dart';
 import 'package:syncronize/features/reporte_incidencia/presentation/bloc/productos_stock_selector/productos_stock_selector_cubit.dart';
 import 'package:syncronize/features/reporte_incidencia/presentation/bloc/sedes_selector/sedes_selector_cubit.dart';
+import 'package:syncronize/features/producto/presentation/bloc/compatibilidad/compatibilidad_cubit.dart';
+import 'package:syncronize/features/cotizacion/presentation/bloc/cotizacion_list/cotizacion_list_cubit.dart';
+import 'package:syncronize/features/cotizacion/presentation/bloc/cotizacion_form/cotizacion_form_cubit.dart';
+import 'package:syncronize/features/empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_cubit.dart';
+import 'package:syncronize/features/configuracion_documentos/presentation/bloc/configuracion_documentos_cubit.dart';
 
 /// Lista centralizada de todos los BLoCs globales de la aplicación
 List<BlocProvider> blocProviders = [
@@ -217,6 +222,23 @@ List<BlocProvider> blocProviders = [
     lazy: true,
   ),
 
+  // Configuracion Empresa Cubit - Maneja la configuración fiscal/operativa
+  BlocProvider<ConfiguracionEmpresaCubit>(
+    create: (context) {
+      final cubit = locator<ConfiguracionEmpresaCubit>();
+      // Cargar configuración automáticamente si ya hay tenantId
+      Future.microtask(() {
+        final localStorage = locator<LocalStorageService>();
+        final tenantId = localStorage.getString(StorageConstants.tenantId);
+        if (tenantId != null && tenantId.isNotEmpty) {
+          cubit.cargar(tenantId);
+        }
+      });
+      return cubit;
+    },
+    lazy: false,
+  ),
+
   // Sede List Cubit - Maneja la lista de sedes
   BlocProvider<SedeListCubit>(
     create: (context) => locator<SedeListCubit>(),
@@ -358,6 +380,30 @@ List<BlocProvider> blocProviders = [
   // Sedes Selector Cubit - Maneja la selección de sedes
   BlocProvider<SedesSelectorCubit>(
     create: (context) => locator<SedesSelectorCubit>(),
+    lazy: true,
+  ),
+
+  // Compatibilidad Cubit - Maneja las reglas de compatibilidad entre productos
+  BlocProvider<CompatibilidadCubit>(
+    create: (context) => locator<CompatibilidadCubit>(),
+    lazy: true,
+  ),
+
+  // Cotizacion List Cubit - Maneja la lista de cotizaciones
+  BlocProvider<CotizacionListCubit>(
+    create: (context) => locator<CotizacionListCubit>(),
+    lazy: true,
+  ),
+
+  // Cotizacion Form Cubit - Maneja el formulario de cotizaciones
+  BlocProvider<CotizacionFormCubit>(
+    create: (context) => locator<CotizacionFormCubit>(),
+    lazy: true,
+  ),
+
+  // Configuracion Documentos Cubit - Maneja configuracion de documentos PDF
+  BlocProvider<ConfiguracionDocumentosCubit>(
+    create: (context) => locator<ConfiguracionDocumentosCubit>(),
     lazy: true,
   ),
 

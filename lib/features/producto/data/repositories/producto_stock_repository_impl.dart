@@ -210,6 +210,7 @@ class ProductoStockRepositoryImpl implements ProductoStockRepository {
     required bool enOferta,
     DateTime? fechaInicioOferta,
     DateTime? fechaFinOferta,
+    bool precioIncluyeIgv = false,
   }) async {
     if (!await _networkInfo.isConnected) {
       return Error(
@@ -228,6 +229,7 @@ class ProductoStockRepositoryImpl implements ProductoStockRepository {
         enOferta: enOferta,
         fechaInicioOferta: fechaInicioOferta,
         fechaFinOferta: fechaFinOferta,
+        precioIncluyeIgv: precioIncluyeIgv,
       );
       return Success(stock);
     } catch (e) {

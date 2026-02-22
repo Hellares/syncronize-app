@@ -3,11 +3,13 @@ import '../../../../core/network/network_info.dart';
 import '../../../../core/services/error_handler_service.dart';
 import '../../../../core/utils/resource.dart';
 import '../../domain/entities/combo.dart';
+import '../../domain/entities/combo_config_historial.dart';
 import '../../domain/entities/componente_combo.dart';
 import '../../domain/repositories/combo_repository.dart';
 import '../datasources/combo_remote_datasource.dart';
-// import '../models/combo_model.dart';
 import '../models/create_combo_dto.dart';
+import '../models/update_combo_pricing_dto.dart';
+import '../models/update_combo_oferta_dto.dart';
 
 @LazySingleton(as: ComboRepository)
 class ComboRepositoryImpl implements ComboRepository {
@@ -395,6 +397,88 @@ class ComboRepositoryImpl implements ComboRepository {
         sedeId: sedeId,
       );
       return Success(null);
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Combo');
+    }
+  }
+
+  @override
+  Future<Resource<Combo>> actualizarPrecioCombo({
+    required String comboId,
+    required String sedeId,
+    required UpdateComboPricingDto dto,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
+    }
+
+    try {
+      final combo = await _remoteDataSource.actualizarPrecioCombo(
+        comboId: comboId,
+        sedeId: sedeId,
+        dto: dto,
+      );
+      return Success(combo.toEntity());
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Combo');
+    }
+  }
+
+  @override
+  Future<Resource<Combo>> actualizarOfertaCombo({
+    required String comboId,
+    required String sedeId,
+    required UpdateComboOfertaDto dto,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
+    }
+
+    try {
+      final combo = await _remoteDataSource.actualizarOfertaCombo(
+        comboId: comboId,
+        sedeId: sedeId,
+        dto: dto,
+      );
+      return Success(combo.toEntity());
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Combo');
+    }
+  }
+
+  @override
+  Future<Resource<Combo>> desactivarOfertaCombo({
+    required String comboId,
+    required String sedeId,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
+    }
+
+    try {
+      final combo = await _remoteDataSource.desactivarOfertaCombo(
+        comboId: comboId,
+        sedeId: sedeId,
+      );
+      return Success(combo.toEntity());
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Combo');
+    }
+  }
+
+  @override
+  Future<Resource<List<ComboConfigHistorialEntry>>> getHistorialPrecios({
+    required String comboId,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
+    }
+
+    try {
+      final historial = await _remoteDataSource.getHistorialPrecios(
+        comboId: comboId,
+      );
+      return Success(historial.map((h) => h.toEntity()).toList());
     } catch (e) {
       return _errorHandler.handleException(e, context: 'Combo');
     }

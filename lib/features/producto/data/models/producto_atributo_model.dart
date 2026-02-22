@@ -4,7 +4,7 @@ class ProductoAtributoModel extends ProductoAtributo {
   const ProductoAtributoModel({
     required super.id,
     required super.empresaId,
-    super.categoriaId,
+    super.categoriaIds,
     required super.nombre,
     required super.clave,
     required super.tipo,
@@ -25,7 +25,7 @@ class ProductoAtributoModel extends ProductoAtributo {
     return ProductoAtributoModel(
       id: json['id'] as String,
       empresaId: json['empresaId'] as String,
-      categoriaId: json['categoriaId'] as String?,
+      categoriaIds: (json['categoriaIds'] as List?)?.map((e) => e.toString()).toList() ?? [],
       nombre: json['nombre'] as String,
       clave: json['clave'] as String,
       tipo: AtributoTipo.fromString(json['tipo'] as String),
@@ -47,7 +47,7 @@ class ProductoAtributoModel extends ProductoAtributo {
     return {
       'id': id,
       'empresaId': empresaId,
-      if (categoriaId != null) 'categoriaId': categoriaId,
+      'categoriaIds': categoriaIds,
       'nombre': nombre,
       'clave': clave,
       'tipo': tipo.value,
@@ -71,7 +71,7 @@ class ProductoAtributoModel extends ProductoAtributo {
     return ProductoAtributoModel(
       id: entity.id,
       empresaId: entity.empresaId,
-      categoriaId: entity.categoriaId,
+      categoriaIds: entity.categoriaIds,
       nombre: entity.nombre,
       clave: entity.clave,
       tipo: entity.tipo,

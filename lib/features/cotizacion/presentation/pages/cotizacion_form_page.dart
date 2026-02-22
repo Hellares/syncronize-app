@@ -1,0 +1,632 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:syncronize/core/fonts/app_text_widgets.dart';
+import 'package:syncronize/core/theme/app_colors.dart';
+import 'package:syncronize/core/theme/gradient_container.dart';
+import 'package:syncronize/core/widgets/custom_button.dart';
+import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
+import '../../../../core/di/injection_container.dart';
+import '../../../../core/widgets/custom_dropdown.dart';
+import '../../../../core/widgets/date/custom_date.dart';
+import '../../../../core/widgets/smart_appbar.dart';
+import '../../../auth/presentation/bloc/auth/auth_bloc.dart';
+import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
+import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
+import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_cubit.dart';
+import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_state.dart';
+import '../bloc/cotizacion_form/cotizacion_form_cubit.dart';
+import '../bloc/cotizacion_form/cotizacion_form_state.dart';
+import '../../domain/entities/cotizacion_detalle_input.dart';
+import '../widgets/cotizacion_item_selector.dart';
+import '../widgets/cotizacion_compatibilidad_banner.dart';
+
+class CotizacionFormPage extends StatefulWidget {
+  const CotizacionFormPage({super.key});
+
+  @override
+  State<CotizacionFormPage> createState() => _CotizacionFormPageState();
+}
+
+class _CotizacionFormPageState extends State<CotizacionFormPage> {
+  int _currentStep = 0;
+  final _formKey = GlobalKey<FormState>();
+
+  // Nombre de la cotizacion
+  final _nombreCotizacionController = TextEditingController();
+
+  // Paso 1: Datos del cliente
+  final _nombreClienteController = TextEditingController();
+  final _documentoController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _telefonoController = TextEditingController();
+  final _direccionController = TextEditingController();
+  String? _sedeId;
+  String? _vendedorId;
+
+  // Paso 2: Items
+  final List<CotizacionDetalleInput> _items = [];
+
+  // Paso 3: Observaciones
+  final _observacionesController = TextEditingController();
+  final _condicionesController = TextEditingController();
+  final _fechaVencimientoController = TextEditingController();
+  String _moneda = 'PEN';
+
+  // Compatibilidad
+  bool? _compatible;
+  List<Map<String, dynamic>> _conflictos = [];
+
+  // Configuración fiscal (defaults si no se ha cargado)
+  double _impuestoPorcentaje = 18.0;
+  String _nombreImpuesto = 'IGV';
+  int _diasVigencia = 30;
+
+  @override
+  void initState() {
+    super.initState();
+    // Obtener sedeId desde EmpresaContext
+    final empresaState = context.read<EmpresaContextCubit>().state;
+    if (empresaState is EmpresaContextLoaded) {
+      final sedes = empresaState.context.sedes;
+      if (sedes.isNotEmpty) {
+        _sedeId = empresaState.context.sedePrincipal?.id ?? sedes.first.id;
+      }
+      // Cargar configuración fiscal
+      context.read<ConfiguracionEmpresaCubit>().cargar(
+        empresaState.context.empresa.id,
+      );
+    }
+    // Obtener vendedorId desde AuthBloc (usuario actual)
+    final authState = context.read<AuthBloc>().state;
+    if (authState is Authenticated) {
+      _vendedorId = authState.user.id;
+    }
+    // Leer configuración si ya está cargada
+    _leerConfiguracion();
+  }
+
+  void _leerConfiguracion() {
+    final configState = context.read<ConfiguracionEmpresaCubit>().state;
+    if (configState is ConfiguracionEmpresaLoaded) {
+      _impuestoPorcentaje = configState.configuracion.impuestoDefaultPorcentaje;
+      _nombreImpuesto = configState.configuracion.nombreImpuesto;
+      _diasVigencia = configState.configuracion.diasVigenciaCotizacion;
+      _moneda = configState.configuracion.monedaPrincipal;
+    }
+  }
+
+  @override
+  void dispose() {
+    _nombreCotizacionController.dispose();
+    _nombreClienteController.dispose();
+    _documentoController.dispose();
+    _emailController.dispose();
+    _telefonoController.dispose();
+    _direccionController.dispose();
+    _observacionesController.dispose();
+    _condicionesController.dispose();
+    _fechaVencimientoController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (_) => locator<CotizacionFormCubit>(),
+      child: BlocListener<ConfiguracionEmpresaCubit, ConfiguracionEmpresaState>(
+        listener: (context, configState) {
+          if (configState is ConfiguracionEmpresaLoaded) {
+            setState(() {
+              _impuestoPorcentaje = configState.configuracion.impuestoDefaultPorcentaje;
+              _nombreImpuesto = configState.configuracion.nombreImpuesto;
+              _diasVigencia = configState.configuracion.diasVigenciaCotizacion;
+              _moneda = configState.configuracion.monedaPrincipal;
+            });
+          }
+        },
+        child: BlocConsumer<CotizacionFormCubit, CotizacionFormState>(
+        listener: (context, state) {
+          if (state is CotizacionFormSuccess) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(state.message)),
+            );
+            Navigator.pop(context, true);
+          }
+          if (state is CotizacionFormError) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.message),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          if (state is CotizacionCompatibilidadResult) {
+            setState(() {
+              _compatible = state.compatible;
+              _conflictos = state.conflictos;
+            });
+          }
+        },
+        builder: (context, state) {
+          return Scaffold(
+            appBar: SmartAppBar(
+              title: 'Nueva Cotizacion',
+              backgroundColor: AppColors.blue1,
+              foregroundColor: Colors.white,
+            ),
+            body: GradientContainer(
+              child: Form(
+                key: _formKey,
+                child: Theme(
+                  data: Theme.of(context).copyWith(
+                    colorScheme: Theme.of(context).colorScheme.copyWith(
+                      primary: AppColors.blue1,
+                      onPrimary: Colors.white,
+                    ),
+                  ),
+                  child: Stepper(
+                    currentStep: _currentStep,
+                    margin: const EdgeInsets.only(left: 10, right: 8, bottom: 12),
+                    connectorColor: WidgetStatePropertyAll(AppColors.blue1),
+                    onStepContinue: _onStepContinue,
+                    onStepCancel: _onStepCancel,
+                    onStepTapped: _onStepTapped,
+                  controlsBuilder: (context, details) {
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 16),
+                      child: Row(
+                        children: [
+                          if (_currentStep < 3)
+
+                            CustomButton(text: 'Siguiente', onPressed: details.onStepContinue, backgroundColor: AppColors.blue1,),
+                          if (_currentStep == 3)
+                            CustomButton(
+                              text: state is CotizacionFormLoading
+                                  ? 'Creando...'
+                                  : 'Crear Cotizacion',
+                              onPressed: state is CotizacionFormLoading
+                                  ? null
+                                  : () => _submitCotizacion(context),
+                              backgroundColor: AppColors.green,
+                            ),
+                          const SizedBox(width: 4),
+                          if (_currentStep > 0)
+                            TextButton(
+                              onPressed: details.onStepCancel,
+                              child: const Text('Anterior', style: TextStyle(fontSize: 10)),
+                            ),
+                        ],
+                      ),
+                    );
+                  },
+                  steps: [
+                    // Paso 1: Datos del cliente
+                    Step(
+                      title: AppSubtitle('CLIENTE'),
+                      isActive: _currentStep >= 0,
+                      state: _currentStep > 0
+                          ? StepState.complete
+                          : StepState.indexed,
+                      content: _buildStep1(),
+                    ),
+              
+                    // Paso 2: Items (lazy: solo construye el contenido pesado cuando el usuario llega)
+                    Step(
+                      title: AppSubtitle('ITEMS'),
+                      isActive: _currentStep >= 1,
+                      state: _currentStep > 1
+                          ? StepState.complete
+                          : StepState.indexed,
+                      content: _currentStep >= 1
+                          ? _buildStep2(context)
+                          : const SizedBox.shrink(),
+                    ),
+
+                    // Paso 3: Condiciones
+                    Step(
+                      title: AppSubtitle('CONDICIONES'),
+                      isActive: _currentStep >= 2,
+                      state: _currentStep > 2
+                          ? StepState.complete
+                          : StepState.indexed,
+                      content: _currentStep >= 2
+                          ? _buildStep3()
+                          : const SizedBox.shrink(),
+                    ),
+
+                    // Paso 4: Resumen
+                    Step(
+                      title: AppSubtitle('RESUMEN'),
+                      isActive: _currentStep >= 3,
+                      content: _currentStep >= 3
+                          ? _buildStep4()
+                          : const SizedBox.shrink(),
+                    ),
+                  ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+      ),
+    );
+  }
+
+  // Paso 1: Datos del cliente y vendedor
+  Widget _buildStep1() {
+    return Column(
+      children: [
+        CustomText(
+          controller: _nombreCotizacionController,
+          label: 'Nombre de la cotizacion',
+          hintText: 'Ej: PC GAMER PROFESIONAL',
+          borderColor: AppColors.blue1,
+        ),
+        const SizedBox(height: 12),
+        CustomText(
+          controller: _nombreClienteController,
+          label: 'Nombre del cliente',
+          borderColor: AppColors.blue1,
+          validator: (v) =>
+              v == null || v.isEmpty ? 'El nombre es requerido' : null,
+        ),
+        const SizedBox(height: 12),
+        CustomText(
+          controller: _documentoController,
+          label: 'Documento (DNI/RUC)',
+          borderColor: AppColors.blue1,
+          validator: (v) =>
+              v == null || v.isEmpty ? 'El documento es requerido' : null,
+        ),
+        const SizedBox(height: 12),
+        CustomText(
+          controller: _direccionController,
+          label: 'Direccion',
+          borderColor: AppColors.blue1,
+        ),
+        const SizedBox(height: 12),
+        CustomText(
+          controller: _emailController,
+          label: 'Email',
+          borderColor: AppColors.blue1,
+
+          keyboardType: TextInputType.emailAddress,
+        ),
+        const SizedBox(height: 12),
+        CustomText(
+          controller: _telefonoController,
+          label: 'Telefono',
+          borderColor: AppColors.blue1,
+          keyboardType: TextInputType.phone,
+        ),
+      ],
+    );
+  }
+
+  // Paso 2: Items
+  Widget _buildStep2(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Banner de compatibilidad
+        if (_compatible != null)
+          CotizacionCompatibilidadBanner(
+            compatible: _compatible!,
+            conflictos: _conflictos,
+          ),
+
+        // Selector de items
+        CotizacionItemSelector(
+          onItemSelected: (item) {
+            setState(() {
+              _items.add(item);
+            });
+            // Validar compatibilidad si hay 2+ items con productoId
+            _checkCompatibilidad(context);
+          },
+        ),
+
+        const SizedBox(height: 12),
+
+        // Lista de items agregados
+        if (_items.isNotEmpty) ...[
+          AppSubtitle('Items agregados (${_items.length})'),
+          const SizedBox(height: 8),
+          ..._items.asMap().entries.map((entry) {
+            final index = entry.key;
+            final item = entry.value;
+            final cantidad = item.cantidad;
+            final precio = item.precioUnitario;
+            final subtotal = cantidad * precio;
+
+            return GradientContainer(
+              margin: const EdgeInsets.only(bottom: 6),
+              child: ListTile(
+                dense: true,
+                contentPadding: const EdgeInsets.only(right: 1, left: 10),
+                title: AppSubtitle(item.descripcion),
+                subtitle: AppSubtitle(
+                  '${cantidad.toStringAsFixed(0)} x $_moneda ${precio.toStringAsFixed(2)}',
+                  color: Colors.grey.shade600,
+                ),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    AppSubtitle(
+                      '$_moneda ${subtotal.toStringAsFixed(2)}',
+                      color: AppColors.blue1,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+
+                    ),
+                    const SizedBox(width: 4),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline,
+                          size: 20, color: Colors.red),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      onPressed: () {
+                        setState(() => _items.removeAt(index));
+                        _checkCompatibilidad(context);
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }),
+        ],
+      ],
+    );
+  }
+
+  // Paso 3: Condiciones
+  Widget _buildStep3() {
+    return Column(
+      children: [
+        CustomDropdown<String>(
+          label: 'Moneda',
+          value: _moneda,
+          borderColor: AppColors.blue1,
+          items: const [
+            DropdownItem(value: 'PEN', label: 'PEN - Soles'),
+            DropdownItem(value: 'USD', label: 'USD - Dolares'),
+          ],
+          onChanged: (v) => setState(() => _moneda = v ?? 'PEN'),
+        ),
+        const SizedBox(height: 12),
+        CustomDate(
+          label: 'Fecha de vencimiento',
+          controller: _fechaVencimientoController,
+          borderColor: AppColors.blue1,
+          initialDate: DateTime.now().add(Duration(days: _diasVigencia)),
+          firstDate: DateTime.now(),
+          lastDate: DateTime.now().add(const Duration(days: 365)),
+        ),
+        const SizedBox(height: 12),
+        CustomText(
+          controller: _observacionesController,
+          borderColor: AppColors.blue1,
+          label: 'Observaciones',
+          hintText: 'Notas adicionales para la cotización',
+          enableVoiceInput: true,
+          maxLines: null,
+          minLines: 3,
+        ),
+        const SizedBox(height: 12),
+        CustomText(
+          controller: _condicionesController,
+          borderColor: AppColors.blue1,
+          label: 'Condiciones comerciales',
+          hintText: 'Condiciones especiales de venta',
+          enableVoiceInput: true,
+          maxLines: null,
+          minLines: 3,
+        ),
+      ],
+    );
+  }
+
+  // Paso 4: Resumen
+  Widget _buildStep4() {
+    final subtotal = _items.fold<double>(0, (sum, item) {
+      return sum + item.subtotal;
+    });
+    final igv = subtotal * (_impuestoPorcentaje / 100);
+    final total = subtotal + igv;
+
+    return GradientContainer(
+      width: double.infinity,
+      borderColor: AppColors.blueborder,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (_nombreCotizacionController.text.trim().isNotEmpty) ...[
+              AppSubtitle('Cotizacion:  ${_nombreCotizacionController.text.trim()}'),
+              const SizedBox(height: 8),
+            ],
+
+            // Cliente
+            AppSubtitle('Cliente: ${_nombreClienteController.text}', color: AppColors.blue1),
+            if (_documentoController.text.isNotEmpty)
+              Text('Doc: ${_documentoController.text}',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+
+            Divider(color: AppColors.blueborder, height: 24),
+
+            // Items
+            AppSubtitle('Items (${_items.length})'),
+            const SizedBox(height: 6),
+            ..._items.map((item) => Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                          child: AppSubtitle(item.descripcion)
+                      ),
+                      AppSubtitle(
+                        '$_moneda ${(item.cantidad * item.precioUnitario).toStringAsFixed(2)}',
+                        color: AppColors.blue1,
+                      ),
+                    ],
+                  ),
+                )),
+
+            Divider(color: AppColors.blueborder, height: 24),
+
+            // Totales
+            _SummaryRow('Subtotal', '$_moneda ${subtotal.toStringAsFixed(2)}'),
+            _SummaryRow('$_nombreImpuesto (${_impuestoPorcentaje.toStringAsFixed(0)}%)', '$_moneda ${igv.toStringAsFixed(2)}'),
+            const SizedBox(height: 4),
+            _SummaryRow('Total', '$_moneda ${total.toStringAsFixed(2)}',
+                bold: true),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Valida si un paso específico está completo
+  bool _isStepValid(int step) {
+    switch (step) {
+      case 0:
+        return _nombreClienteController.text.trim().isNotEmpty;
+      case 1:
+        return _items.isNotEmpty;
+      default:
+        return true;
+    }
+  }
+
+  /// Muestra error de validación para un paso
+  void _showStepError(int step) {
+    String message;
+    switch (step) {
+      case 0:
+        message = 'El nombre del cliente es requerido';
+        break;
+      case 1:
+        message = 'Agregue al menos un item';
+        break;
+      default:
+        return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  void _onStepTapped(int step) {
+    // Permitir retroceder siempre
+    if (step <= _currentStep) {
+      setState(() => _currentStep = step);
+      return;
+    }
+    // Para avanzar, validar todos los pasos intermedios
+    for (int i = _currentStep; i < step; i++) {
+      if (!_isStepValid(i)) {
+        _showStepError(i);
+        return;
+      }
+    }
+    setState(() => _currentStep = step);
+  }
+
+  void _onStepContinue() {
+    if (!_isStepValid(_currentStep)) {
+      _showStepError(_currentStep);
+      return;
+    }
+    if (_currentStep < 3) {
+      setState(() => _currentStep++);
+    }
+  }
+
+  void _onStepCancel() {
+    if (_currentStep > 0) {
+      setState(() => _currentStep--);
+    }
+  }
+
+  void _checkCompatibilidad(BuildContext context) {
+    final productItems = _items
+        .where((i) => i.productoId != null || i.varianteId != null)
+        .toList();
+    if (productItems.length >= 2) {
+      context.read<CotizacionFormCubit>().validarCompatibilidad(
+        productItems.map((i) => i.toMap()).toList(),
+      );
+    } else {
+      setState(() {
+        _compatible = null;
+        _conflictos = [];
+      });
+    }
+  }
+
+  void _submitCotizacion(BuildContext context) {
+    // Construir fecha de vencimiento
+    String? fechaVencimiento;
+    if (_fechaVencimientoController.text.isNotEmpty) {
+      final parts = _fechaVencimientoController.text.split('/');
+      if (parts.length == 3) {
+        final day = int.tryParse(parts[0]) ?? 1;
+        final month = int.tryParse(parts[1]) ?? 1;
+        final year = int.tryParse(parts[2]) ?? 2026;
+        fechaVencimiento = DateTime(year, month, day).toIso8601String();
+      }
+    }
+
+    final data = <String, dynamic>{
+      'sedeId': _sedeId ?? '',
+      'vendedorId': _vendedorId ?? '',
+      if (_nombreCotizacionController.text.trim().isNotEmpty)
+        'nombre': _nombreCotizacionController.text.trim(),
+      'nombreCliente': _nombreClienteController.text.trim(),
+      if (_documentoController.text.isNotEmpty)
+        'documentoCliente': _documentoController.text.trim(),
+      if (_emailController.text.isNotEmpty)
+        'emailCliente': _emailController.text.trim(),
+      if (_telefonoController.text.isNotEmpty)
+        'telefonoCliente': _telefonoController.text.trim(),
+      if (_direccionController.text.isNotEmpty)
+        'direccionCliente': _direccionController.text.trim(),
+      'moneda': _moneda,
+      if (_observacionesController.text.isNotEmpty)
+        'observaciones': _observacionesController.text.trim(),
+      if (_condicionesController.text.isNotEmpty)
+        'condiciones': _condicionesController.text.trim(),
+      if (fechaVencimiento != null) 'fechaVencimiento': fechaVencimiento,
+      'detalles': _items.map((item) => item.toMap()).toList(),
+    };
+
+    context.read<CotizacionFormCubit>().crearCotizacion(data);
+  }
+}
+
+class _SummaryRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final bool bold;
+
+  const _SummaryRow(this.label, this.value, {this.bold = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          AppSubtitle(label),
+          AppSubtitle(value, color: bold ? AppColors.blue1 : Colors.black),
+        ],
+      ),
+    );
+  }
+}

@@ -44,6 +44,7 @@ import 'stock_por_sede_page.dart';
 import 'alertas_stock_bajo_page.dart';
 import 'transferencias_stock_page.dart';
 import 'agregar_stock_inicial_page.dart';
+import 'bulk_upload_productos_page.dart';
 // Import para SearchDelegate
 // import '../search_delegate/producto_search_delegate.dart';
 import '../bloc/producto_search/producto_search_cubit.dart';
@@ -656,6 +657,20 @@ class _ProductosPageState extends State<ProductosPage>
                       context,
                       MaterialPageRoute(
                         builder: (_) => const TransferenciasStockPage(),
+                      ),
+                    );
+                  },
+                ),
+                NavigationMenuItem(
+                  id: 'bulk_upload',
+                  label: 'Carga Masiva',
+                  icon: Icons.upload_file,
+                  iconColor: Colors.deepPurple,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const BulkUploadProductosPage(),
                       ),
                     );
                   },

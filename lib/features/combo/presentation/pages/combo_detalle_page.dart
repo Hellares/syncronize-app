@@ -18,6 +18,8 @@ import '../../domain/entities/combo.dart';
 import '../../domain/entities/componente_combo.dart';
 import '../bloc/combo_cubit.dart';
 import '../bloc/combo_state.dart';
+import '../widgets/combo_pricing_dialog.dart';
+import '../widgets/combo_oferta_dialog.dart';
 
 class ComboDetallePage extends StatelessWidget {
   final String comboId;
@@ -102,6 +104,23 @@ class _ComboDetalleView extends StatelessWidget {
               sedeId: sedeId,
             );
           }
+          if (state is ComboPricingUpdated || state is ComboOfertaUpdated) {
+            final message = state is ComboPricingUpdated
+                ? state.message
+                : (state as ComboOfertaUpdated).message;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(message),
+                backgroundColor: Colors.green,
+                duration: const Duration(seconds: 2),
+              ),
+            );
+            context.read<ComboCubit>().loadCombo(
+              comboId: comboId,
+              empresaId: empresaId,
+              sedeId: sedeId,
+            );
+          }
           if (state is ComboError) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -112,7 +131,10 @@ class _ComboDetalleView extends StatelessWidget {
             );
           }
         },
-        buildWhen: (previous, current) => current is! ReservacionUpdated,
+        buildWhen: (previous, current) =>
+            current is! ReservacionUpdated &&
+            current is! ComboPricingUpdated &&
+            current is! ComboOfertaUpdated,
         builder: (context, state) {
           if (state is ComboLoading) {
             return const Center(child: CircularProgressIndicator());
@@ -218,6 +240,27 @@ class _ComboDetalleView extends StatelessWidget {
                 Icon(Icons.attach_money, size: 18, color: AppColors.blue1),
                 const SizedBox(width: 8),
                 AppSubtitle('PRECIO'),
+                const Spacer(),
+                IconButton(
+                  icon: Icon(Icons.edit, size: 18, color: AppColors.blue1),
+                  tooltip: 'Editar precio',
+                  onPressed: () {
+                    showDialog<bool>(
+                      context: context,
+                      builder: (_) => BlocProvider.value(
+                        value: context.read<ComboCubit>(),
+                        child: ComboPricingDialog(
+                          combo: combo,
+                          empresaId: empresaId,
+                          sedeId: sedeId,
+                        ),
+                      ),
+                    );
+                  },
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
               ],
             ),
             const Divider(height: 24),
@@ -270,9 +313,119 @@ class _ComboDetalleView extends StatelessWidget {
                 rightText: 'S/ ${combo.descuentoAplicado!.toStringAsFixed(2)}',
               ),
             ],
+
+            // Sección de oferta
+            const Divider(height: 16),
+            _buildOfertaSection(context, combo),
+
+            // Historial de precios
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: () {
+                  context.push(
+                    '/empresa/combos/${combo.id}/historial-precios?empresaId=$empresaId',
+                  );
+                },
+                icon: Icon(Icons.history, size: 16, color: AppColors.blue1),
+                label: AppSubtitle(
+                  'Ver historial',
+                  fontSize: 11,
+                  color: AppColors.blue1,
+                ),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
+            ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildOfertaSection(BuildContext context, Combo combo) {
+    final bool tieneOferta = combo.ofertaActiva == true;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              Icons.local_offer,
+              size: 16,
+              color: tieneOferta ? Colors.green.shade700 : AppColors.blueGrey,
+            ),
+            const SizedBox(width: 8),
+            AppSubtitle(
+              tieneOferta ? 'OFERTA ACTIVA' : 'Sin oferta',
+              fontSize: 11,
+              color: tieneOferta ? Colors.green.shade700 : AppColors.blueGrey,
+            ),
+            const Spacer(),
+            TextButton(
+              onPressed: () {
+                showDialog<bool>(
+                  context: context,
+                  builder: (_) => BlocProvider.value(
+                    value: context.read<ComboCubit>(),
+                    child: ComboOfertaDialog(
+                      combo: combo,
+                      empresaId: empresaId,
+                      sedeId: sedeId,
+                    ),
+                  ),
+                );
+              },
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: AppSubtitle(
+                tieneOferta ? 'Editar oferta' : 'Crear oferta',
+                fontSize: 11,
+                color: AppColors.blue1,
+              ),
+            ),
+          ],
+        ),
+        if (tieneOferta && combo.precioOferta != null) ...[
+          const SizedBox(height: 4),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.green.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.green.shade200, width: 0.6),
+            ),
+            child: Row(
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    AppSubtitle(
+                      'Precio oferta: S/ ${combo.precioOferta!.toStringAsFixed(2)}',
+                      fontSize: 12,
+                      color: Colors.green.shade700,
+                    ),
+                    if (combo.precioSinOferta != null)
+                      AppSubtitle(
+                        'Precio regular: S/ ${combo.precioSinOferta!.toStringAsFixed(2)}',
+                        fontSize: 10,
+                        color: AppColors.blueGrey,
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
     );
   }
 

@@ -27,7 +27,7 @@ enum AtributoTipo {
 class ProductoAtributo extends Equatable {
   final String id;
   final String empresaId;
-  final String? categoriaId;
+  final List<String> categoriaIds;
   final String nombre;
   final String clave;
   final AtributoTipo tipo;
@@ -46,7 +46,7 @@ class ProductoAtributo extends Equatable {
   const ProductoAtributo({
     required this.id,
     required this.empresaId,
-    this.categoriaId,
+    this.categoriaIds = const [],
     required this.nombre,
     required this.clave,
     required this.tipo,
@@ -80,7 +80,7 @@ class ProductoAtributo extends Equatable {
     return ProductoAtributo(
       id: atributoId,
       empresaId: empresaId,
-      categoriaId: null,
+      categoriaIds: const [],
       nombre: nombre,
       clave: clave,
       tipo: tipo,
@@ -114,7 +114,7 @@ class ProductoAtributo extends Equatable {
   List<Object?> get props => [
         id,
         empresaId,
-        categoriaId,
+        categoriaIds,
         nombre,
         clave,
         tipo,

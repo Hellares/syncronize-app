@@ -80,11 +80,38 @@ class ComboCard extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  _buildInfoChip(
-                    icon: Icons.attach_money,
-                    label: '\$${combo.precioFinal.toStringAsFixed(2)}',
-                    color: Colors.green,
-                  ),
+                  // Precio con soporte de oferta
+                  if (combo.ofertaActiva == true && combo.precioOferta != null) ...[
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.attach_money, size: 16, color: Colors.grey),
+                        const SizedBox(width: 2),
+                        Text(
+                          'S/ ${(combo.precioSinOferta ?? combo.precioCalculado).toStringAsFixed(2)}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[500],
+                            decoration: TextDecoration.lineThrough,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'S/ ${combo.precioOferta!.toStringAsFixed(2)}',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green.shade700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ] else
+                    _buildInfoChip(
+                      icon: Icons.attach_money,
+                      label: 'S/ ${combo.precioFinal.toStringAsFixed(2)}',
+                      color: Colors.green,
+                    ),
                   _buildInfoChip(
                     icon: Icons.inventory,
                     label: 'Stock: ${combo.stockDisponible}',
@@ -116,6 +143,22 @@ class ComboCard extends StatelessWidget {
                         style: const TextStyle(fontSize: 11),
                       ),
                       backgroundColor: Colors.orange.shade100,
+                      visualDensity: VisualDensity.compact,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ],
+                  if (combo.ofertaActiva == true) ...[
+                    const SizedBox(width: 8),
+                    Chip(
+                      label: Text(
+                        'EN OFERTA',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.green.shade700,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      backgroundColor: Colors.green.shade50,
                       visualDensity: VisualDensity.compact,
                       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),

@@ -2,8 +2,11 @@ import 'package:injectable/injectable.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/network/dio_client.dart';
 import '../models/combo_model.dart';
+import '../models/combo_config_historial_model.dart';
 import '../models/componente_combo_model.dart';
 import '../models/create_combo_dto.dart';
+import '../models/update_combo_pricing_dto.dart';
+import '../models/update_combo_oferta_dto.dart';
 
 /// Data source remoto para operaciones de combos
 @lazySingleton
@@ -251,5 +254,71 @@ class ComboRemoteDataSource {
       '${ApiConstants.combos}/$comboId/reservar-stock',
       queryParameters: {'sedeId': sedeId},
     );
+  }
+
+  /// Actualiza la configuración de precios del combo
+  ///
+  /// PUT /api/combos/:id/pricing
+  Future<ComboModel> actualizarPrecioCombo({
+    required String comboId,
+    required String sedeId,
+    required UpdateComboPricingDto dto,
+  }) async {
+    final response = await _dioClient.put(
+      '${ApiConstants.combos}/$comboId/pricing',
+      data: dto.toJson(),
+      queryParameters: {'sedeId': sedeId},
+    );
+
+    return ComboModel.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  /// Actualiza la oferta del combo
+  ///
+  /// PUT /api/combos/:id/oferta
+  Future<ComboModel> actualizarOfertaCombo({
+    required String comboId,
+    required String sedeId,
+    required UpdateComboOfertaDto dto,
+  }) async {
+    final response = await _dioClient.put(
+      '${ApiConstants.combos}/$comboId/oferta',
+      data: dto.toJson(),
+      queryParameters: {'sedeId': sedeId},
+    );
+
+    return ComboModel.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  /// Desactiva la oferta del combo
+  ///
+  /// DELETE /api/combos/:id/oferta
+  Future<ComboModel> desactivarOfertaCombo({
+    required String comboId,
+    required String sedeId,
+  }) async {
+    final response = await _dioClient.delete(
+      '${ApiConstants.combos}/$comboId/oferta',
+      queryParameters: {'sedeId': sedeId},
+    );
+
+    return ComboModel.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  /// Obtiene el historial de cambios de precios del combo
+  ///
+  /// GET /api/combos/:id/historial-precios
+  Future<List<ComboConfigHistorialModel>> getHistorialPrecios({
+    required String comboId,
+  }) async {
+    final response = await _dioClient.get(
+      '${ApiConstants.combos}/$comboId/historial-precios',
+    );
+
+    final List<dynamic> data = response.data as List<dynamic>;
+    return data
+        .map((e) =>
+            ComboConfigHistorialModel.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 }

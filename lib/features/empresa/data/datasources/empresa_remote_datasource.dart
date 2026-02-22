@@ -3,6 +3,7 @@ import '../../../../core/constants/api_constants.dart';
 import '../../../../core/network/dio_client.dart';
 import '../models/empresa_context_model.dart';
 import '../models/empresa_list_item_model.dart';
+import '../models/configuracion_empresa_model.dart';
 import '../models/personalizacion_empresa_model.dart';
 
 /// Data source remoto para operaciones de empresa
@@ -79,6 +80,34 @@ class EmpresaRemoteDataSource {
     );
 
     return PersonalizacionEmpresaModel.fromJson(
+        response.data as Map<String, dynamic>);
+  }
+
+  /// Obtiene la configuración fiscal/operativa de la empresa
+  ///
+  /// GET /api/empresas/:empresaId/configuracion
+  Future<ConfiguracionEmpresaModel> getConfiguracion(String empresaId) async {
+    final response = await _dioClient.get(
+      '${ApiConstants.empresas}/$empresaId/configuracion',
+    );
+
+    return ConfiguracionEmpresaModel.fromJson(
+        response.data as Map<String, dynamic>);
+  }
+
+  /// Actualiza la configuración fiscal/operativa de la empresa
+  ///
+  /// PUT /api/empresas/:empresaId/configuracion
+  Future<ConfiguracionEmpresaModel> updateConfiguracion({
+    required String empresaId,
+    required Map<String, dynamic> data,
+  }) async {
+    final response = await _dioClient.put(
+      '${ApiConstants.empresas}/$empresaId/configuracion',
+      data: data,
+    );
+
+    return ConfiguracionEmpresaModel.fromJson(
         response.data as Map<String, dynamic>);
   }
 }

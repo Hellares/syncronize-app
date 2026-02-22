@@ -121,9 +121,9 @@ class ProductoAtributoCubit extends Cubit<ProductoAtributoState> {
     final currentState = state;
     if (currentState is ProductoAtributoLoaded) {
       if (categoriaId == null) {
-        return currentState.atributos.where((a) => a.categoriaId == null).toList();
+        return currentState.atributos.where((a) => a.categoriaIds.isEmpty).toList();
       }
-      return currentState.atributos.where((a) => a.categoriaId == categoriaId).toList();
+      return currentState.atributos.where((a) => a.categoriaIds.contains(categoriaId)).toList();
     }
     return [];
   }

@@ -14,7 +14,7 @@ enum ButtonState {
 class CustomButtonConstants {
   static const Duration defaultAnimationDuration = Duration(milliseconds: 300);
   static const double defaultBorderRadius = 18.0;
-  static const double defaultHeight = 30.0;
+  static const double defaultHeight = 35.0;
 }
 
 // 🚀 SUPER CUSTOM BUTTON - FUSIÓN COMPLETA
@@ -138,7 +138,7 @@ class CustomButton extends StatefulWidget {
     // Íconos
     this.icon,
     this.iconPath, // 🆕
-    this.iconSize = 18, // 🆕
+    this.iconSize = 16, // 🆕
     this.iconColor,
 
     // Texto
@@ -571,7 +571,7 @@ class _CustomButtonState extends State<CustomButton>
   // ═══════════════════════════════════════════════════════════════════════
 
   Gradient _getDisabledGradient() {
-    return LinearGradient(colors: [Colors.grey.shade300, Colors.grey.shade400]);
+    return LinearGradient(colors: [Colors.grey.shade300, Colors.grey.shade300]);
   }
 
   TextStyle _getTextStyle() {

@@ -16,6 +16,10 @@ class EmpresaPermissions extends Equatable {
   final bool canViewDiscounts;     // Ver políticas de descuento
   final bool canManageDiscounts;   // Crear, editar, eliminar políticas de descuento
 
+  // Cotizaciones - Separado en VIEW y MANAGE
+  final bool canViewCotizaciones;   // Ver lista de cotizaciones
+  final bool canManageCotizaciones; // Crear, editar, eliminar cotizaciones
+
   // Proveedores - Separado en VIEW y MANAGE
   final bool canViewProveedores;   // Ver catálogo de proveedores
   final bool canManageProveedores; // Crear, editar, eliminar proveedores
@@ -37,6 +41,8 @@ class EmpresaPermissions extends Equatable {
     required this.canManageServices,
     required this.canViewDiscounts,
     required this.canManageDiscounts,
+    required this.canViewCotizaciones,
+    required this.canManageCotizaciones,
     required this.canViewProveedores,
     required this.canManageProveedores,
     required this.canManageSedes,
@@ -65,6 +71,8 @@ class EmpresaPermissions extends Equatable {
         canManageServices,
         canViewDiscounts,
         canManageDiscounts,
+        canViewCotizaciones,
+        canManageCotizaciones,
         canViewProveedores,
         canManageProveedores,
         canManageSedes,

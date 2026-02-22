@@ -36,6 +36,7 @@ class ProductoStock extends Equatable {
 
   // Estado de configuración de precio
   final bool precioConfigurado; // true cuando se ha establecido al menos el precio de venta
+  final bool precioIncluyeIgv; // true cuando el precio de venta ya incluye IGV
 
   final DateTime creadoEn;
   final DateTime actualizadoEn;
@@ -66,6 +67,7 @@ class ProductoStock extends Equatable {
     this.fechaInicioOferta,
     this.fechaFinOferta,
     this.precioConfigurado = false,
+    this.precioIncluyeIgv = false,
     required this.creadoEn,
     required this.actualizadoEn,
     this.sede,
@@ -95,6 +97,7 @@ class ProductoStock extends Equatable {
         fechaInicioOferta,
         fechaFinOferta,
         precioConfigurado,
+        precioIncluyeIgv,
         creadoEn,
         actualizadoEn,
       ];

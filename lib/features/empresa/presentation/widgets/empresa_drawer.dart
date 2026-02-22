@@ -134,6 +134,13 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
                   routeMatch: const _RouteMatch.startsWith('/empresa/productos/ajuste-masivo'),
                   onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/productos/ajuste-masivo')),
                 ),
+                _TileNode(
+                  title: 'Reglas de Compatibilidad',
+                  icon: Icons.rule,
+                  iconColor: AppColors.blue2,
+                  routeMatch: const _RouteMatch.startsWith('/empresa/productos/compatibilidad'),
+                  onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/productos/compatibilidad')),
+                ),
               ],
             ),
 
@@ -179,6 +186,13 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             const _DividerNode(),
 
             const _SectionTitleNode('Operaciones'),
+            _TileNode(
+              title: 'Cotizaciones',
+              icon: Icons.request_quote,
+              iconColor: AppColors.blue2,
+              routeMatch: const _RouteMatch.startsWith('/empresa/cotizaciones'),
+              onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/cotizaciones')),
+            ),
             _TileNode(
               visible: permissions?.canViewDiscounts ?? false,
               title: 'Políticas de Descuento',
@@ -229,10 +243,21 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             const _DividerNode(),
 
             const _SectionTitleNode('Administración'),
-            const _TileNode.disabled(
-              title: 'Configuración',
+            _TileNode(
+              visible: permissions?.canManageSettings ?? false,
+              title: 'Configuración Fiscal',
               icon: Icons.settings,
               iconColor: AppColors.blue2,
+              routeMatch: const _RouteMatch.startsWith('/empresa/configuracion'),
+              onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/configuracion')),
+            ),
+            _TileNode(
+              visible: permissions?.canManageSettings ?? false,
+              title: 'Configuración Documentos',
+              icon: Icons.description,
+              iconColor: AppColors.blue2,
+              routeMatch: const _RouteMatch.startsWith('/empresa/configuracion-documentos'),
+              onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/configuracion-documentos')),
             ),
             _TileNode(
               visible: permissions?.canManageUsers ?? false,
@@ -532,23 +557,12 @@ final class _TileNode extends _DrawerNode {
     this.routeMatch,
   }) : enabled = true;
 
-  const _TileNode.disabled({
-    required this.title,
-    required this.icon,
-    required this.iconColor,
-  })  : enabled = false,
-        onTap = _noopTap,
-        routeMatch = null,
-        super(visible: true);
-
   final String title;
   final IconData icon;
   final Color iconColor;
   final bool enabled;
   final void Function(BuildContext ctx) onTap;
   final _RouteMatch? routeMatch;
-
-  static void _noopTap(BuildContext _) {}
 }
 
 final class _DividerNode extends _DrawerNode {

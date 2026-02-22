@@ -11,6 +11,8 @@ class AppTitle extends StatelessWidget {
   final Color? color;
   final double? fontSize;
   final TextAlign? textAlign;
+  final TextOverflow? overflow;
+  final int? maxLines;
 
   const AppTitle(
     this.text, {
@@ -19,6 +21,8 @@ class AppTitle extends StatelessWidget {
     this.color,
     this.fontSize,
     this.textAlign,
+    this.overflow,
+    this.maxLines,
   });
 
   @override
@@ -30,6 +34,8 @@ class AppTitle extends StatelessWidget {
         fontSize: fontSize,
       ),
       textAlign: textAlign,
+      overflow: overflow,
+      maxLines: maxLines,
     );
   }
 }
@@ -42,6 +48,8 @@ class AppSubtitle extends StatelessWidget {
   final double? fontSize;
   final TextAlign? textAlign;
   final TextStyle? textStyle;
+  final TextOverflow? overflow;
+  final int? maxLines;
 
   const AppSubtitle(
     this.text, {
@@ -51,6 +59,8 @@ class AppSubtitle extends StatelessWidget {
     this.fontSize,
     this.textAlign,
     this.textStyle,
+    this.overflow,
+    this.maxLines,
   });
 
   @override
@@ -62,6 +72,8 @@ class AppSubtitle extends StatelessWidget {
         fontSize: fontSize,
       ),
       textAlign: textAlign,
+      overflow: overflow,
+      maxLines: maxLines,
     );
   }
 }
@@ -168,6 +180,8 @@ class AppButtonText extends StatelessWidget {
   final Color? color;
   final double? fontSize;
   final TextAlign? textAlign;
+  final TextOverflow? overflow;
+  final int? maxLines;
 
   const AppButtonText(
     this.text, {
@@ -176,6 +190,8 @@ class AppButtonText extends StatelessWidget {
     this.color,
     this.fontSize,
     this.textAlign,
+    this.overflow,
+    this.maxLines,
   });
 
   @override
@@ -187,10 +203,10 @@ class AppButtonText extends StatelessWidget {
         fontSize: fontSize,
       ),
       textAlign: textAlign,
+      overflow: overflow,
+      maxLines: maxLines,
     );
   }
-
-  
 }
 
 class AppHeadingText extends StatelessWidget {
@@ -199,6 +215,8 @@ class AppHeadingText extends StatelessWidget {
   final Color? color;
   final double? fontSize;
   final TextAlign? textAlign;
+  final TextOverflow? overflow;
+  final int? maxLines;
 
   const AppHeadingText(
     this.text, {
@@ -207,6 +225,8 @@ class AppHeadingText extends StatelessWidget {
     this.color,
     this.fontSize,
     this.textAlign,
+    this.overflow,
+    this.maxLines,
   });
 
   @override
@@ -218,6 +238,8 @@ class AppHeadingText extends StatelessWidget {
         fontSize: fontSize,
       ),
       textAlign: textAlign,
+      overflow: overflow,
+      maxLines: maxLines,
     );
   }
 }
@@ -228,6 +250,8 @@ class AppLabelText extends StatelessWidget {
   final Color? color;
   final double? fontSize;
   final TextAlign? textAlign;
+  final TextOverflow? overflow;
+  final int? maxLines;
 
   const AppLabelText(
     this.text, {
@@ -236,6 +260,8 @@ class AppLabelText extends StatelessWidget {
     this.color,
     this.fontSize,
     this.textAlign,
+    this.overflow,
+    this.maxLines,
   });
 
   @override
@@ -247,8 +273,8 @@ class AppLabelText extends StatelessWidget {
         fontSize: fontSize,
       ),
       textAlign: textAlign,
+      overflow: overflow,
+      maxLines: maxLines,
     );
   }
-
-  
 }

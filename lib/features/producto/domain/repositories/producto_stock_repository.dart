@@ -71,6 +71,7 @@ abstract class ProductoStockRepository {
     required bool enOferta,
     DateTime? fechaInicioOferta,
     DateTime? fechaFinOferta,
+    bool precioIncluyeIgv = false,
   });
 
   /// Obtiene el historial de movimientos de un stock

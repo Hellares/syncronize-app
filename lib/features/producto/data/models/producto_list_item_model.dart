@@ -28,7 +28,7 @@ class ProductoListItemModel extends ProductoListItem {
       imagenPrincipal: json['imagenes'] != null &&
               (json['imagenes'] as List).isNotEmpty
           ? (json['imagenes'] as List).first as String
-          : null,
+          : _extractFirstVariantImage(json),
       categoriaNombre: json['categoria']?['nombre'] as String?,
       marcaNombre: json['marca']?['nombre'] as String?,
       isActive: json['isActive'] as bool? ?? true,
@@ -70,6 +70,20 @@ class ProductoListItemModel extends ProductoListItem {
             .map((s) => StockPorSedeInfoModel.fromEntity(s).toJson())
             .toList(),
     };
+  }
+
+  /// Busca la primera imagen disponible en las variantes del producto
+  static String? _extractFirstVariantImage(Map<String, dynamic> json) {
+    final variantes = json['variantes'] as List?;
+    if (variantes == null || variantes.isEmpty) return null;
+    for (final variante in variantes) {
+      final archivos = (variante as Map<String, dynamic>)['archivos'] as List?;
+      if (archivos != null && archivos.isNotEmpty) {
+        final primer = archivos.first as Map<String, dynamic>;
+        return primer['url'] as String?;
+      }
+    }
+    return null;
   }
 
   ProductoListItem toEntity() => this;

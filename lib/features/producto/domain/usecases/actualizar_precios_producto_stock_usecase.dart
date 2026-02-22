@@ -19,6 +19,7 @@ class ActualizarPreciosProductoStockUseCase {
     required bool enOferta,
     DateTime? fechaInicioOferta,
     DateTime? fechaFinOferta,
+    bool precioIncluyeIgv = false,
   }) async {
     return await _repository.actualizarPrecios(
       productoStockId: productoStockId,
@@ -29,6 +30,7 @@ class ActualizarPreciosProductoStockUseCase {
       enOferta: enOferta,
       fechaInicioOferta: fechaInicioOferta,
       fechaFinOferta: fechaFinOferta,
+      precioIncluyeIgv: precioIncluyeIgv,
     );
   }
 }

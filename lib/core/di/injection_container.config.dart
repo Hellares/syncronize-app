@@ -141,11 +141,17 @@ import '../../features/combo/data/repositories/combo_repository_impl.dart'
     as _i206;
 import '../../features/combo/domain/repositories/combo_repository.dart'
     as _i200;
+import '../../features/combo/domain/usecases/actualizar_oferta_combo_usecase.dart'
+    as _i370;
+import '../../features/combo/domain/usecases/actualizar_precio_combo_usecase.dart'
+    as _i1067;
 import '../../features/combo/domain/usecases/agregar_componente_usecase.dart'
     as _i237;
 import '../../features/combo/domain/usecases/agregar_componentes_batch_usecase.dart'
     as _i378;
 import '../../features/combo/domain/usecases/create_combo_usecase.dart' as _i53;
+import '../../features/combo/domain/usecases/desactivar_oferta_combo_usecase.dart'
+    as _i840;
 import '../../features/combo/domain/usecases/eliminar_componente_usecase.dart'
     as _i40;
 import '../../features/combo/domain/usecases/eliminar_componentes_batch_usecase.dart'
@@ -155,6 +161,8 @@ import '../../features/combo/domain/usecases/get_combo_completo_usecase.dart'
 import '../../features/combo/domain/usecases/get_combos_usecase.dart' as _i235;
 import '../../features/combo/domain/usecases/get_componentes_usecase.dart'
     as _i330;
+import '../../features/combo/domain/usecases/get_historial_precios_combo_usecase.dart'
+    as _i824;
 import '../../features/combo/domain/usecases/get_reservacion_usecase.dart'
     as _i1031;
 import '../../features/combo/domain/usecases/liberar_reserva_usecase.dart'
@@ -186,6 +194,52 @@ import '../../features/configuracion_codigos/domain/usecases/update_config_venta
     as _i951;
 import '../../features/configuracion_codigos/presentation/bloc/configuracion_codigos_cubit.dart'
     as _i1046;
+import '../../features/configuracion_documentos/data/datasources/configuracion_documentos_remote_datasource.dart'
+    as _i1057;
+import '../../features/configuracion_documentos/data/repositories/configuracion_documentos_repository_impl.dart'
+    as _i772;
+import '../../features/configuracion_documentos/domain/repositories/configuracion_documentos_repository.dart'
+    as _i876;
+import '../../features/configuracion_documentos/domain/usecases/get_configuracion_completa_usecase.dart'
+    as _i930;
+import '../../features/configuracion_documentos/domain/usecases/get_configuracion_documentos_usecase.dart'
+    as _i448;
+import '../../features/configuracion_documentos/domain/usecases/get_plantilla_by_tipo_usecase.dart'
+    as _i294;
+import '../../features/configuracion_documentos/domain/usecases/get_plantillas_usecase.dart'
+    as _i638;
+import '../../features/configuracion_documentos/domain/usecases/update_configuracion_documentos_usecase.dart'
+    as _i466;
+import '../../features/configuracion_documentos/domain/usecases/update_plantilla_usecase.dart'
+    as _i715;
+import '../../features/configuracion_documentos/presentation/bloc/configuracion_documentos_cubit.dart'
+    as _i925;
+import '../../features/cotizacion/data/datasources/cotizacion_remote_datasource.dart'
+    as _i369;
+import '../../features/cotizacion/data/repositories/cotizacion_repository_impl.dart'
+    as _i843;
+import '../../features/cotizacion/domain/repositories/cotizacion_repository.dart'
+    as _i823;
+import '../../features/cotizacion/domain/usecases/actualizar_cotizacion_usecase.dart'
+    as _i1016;
+import '../../features/cotizacion/domain/usecases/cambiar_estado_cotizacion_usecase.dart'
+    as _i716;
+import '../../features/cotizacion/domain/usecases/crear_cotizacion_usecase.dart'
+    as _i343;
+import '../../features/cotizacion/domain/usecases/duplicar_cotizacion_usecase.dart'
+    as _i499;
+import '../../features/cotizacion/domain/usecases/eliminar_cotizacion_usecase.dart'
+    as _i965;
+import '../../features/cotizacion/domain/usecases/get_cotizacion_usecase.dart'
+    as _i813;
+import '../../features/cotizacion/domain/usecases/get_cotizaciones_usecase.dart'
+    as _i232;
+import '../../features/cotizacion/domain/usecases/validar_compatibilidad_cotizacion_usecase.dart'
+    as _i76;
+import '../../features/cotizacion/presentation/bloc/cotizacion_form/cotizacion_form_cubit.dart'
+    as _i298;
+import '../../features/cotizacion/presentation/bloc/cotizacion_list/cotizacion_list_cubit.dart'
+    as _i9;
 import '../../features/descuento/data/datasources/descuento_remote_datasource.dart'
     as _i1036;
 import '../../features/descuento/data/repositories/descuento_repository_impl.dart'
@@ -244,6 +298,8 @@ import '../../features/empresa/domain/usecases/switch_empresa_usecase.dart'
     as _i411;
 import '../../features/empresa/domain/usecases/update_personalizacion_usecase.dart'
     as _i771;
+import '../../features/empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_cubit.dart'
+    as _i740;
 import '../../features/empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart'
     as _i135;
 import '../../features/producto/data/datasources/configuracion_precio_remote_datasource.dart'
@@ -288,22 +344,32 @@ import '../../features/producto/domain/usecases/actualizar_precios_producto_stoc
     as _i395;
 import '../../features/producto/domain/usecases/actualizar_producto_usecase.dart'
     as _i604;
+import '../../features/producto/domain/usecases/actualizar_regla_compatibilidad_usecase.dart'
+    as _i397;
 import '../../features/producto/domain/usecases/ajustar_stock_usecase.dart'
     as _i132;
 import '../../features/producto/domain/usecases/ajuste_masivo_precios_usecase.dart'
     as _i619;
+import '../../features/producto/domain/usecases/bulk_upload_productos_usecase.dart'
+    as _i692;
 import '../../features/producto/domain/usecases/crear_incidencia_posterior_usecase.dart'
     as _i374;
 import '../../features/producto/domain/usecases/crear_producto_usecase.dart'
     as _i244;
+import '../../features/producto/domain/usecases/crear_regla_compatibilidad_usecase.dart'
+    as _i435;
 import '../../features/producto/domain/usecases/crear_stock_inicial_usecase.dart'
     as _i494;
 import '../../features/producto/domain/usecases/crear_transferencia_usecase.dart'
     as _i629;
 import '../../features/producto/domain/usecases/crear_transferencias_multiples_usecase.dart'
     as _i831;
+import '../../features/producto/domain/usecases/download_bulk_template_usecase.dart'
+    as _i570;
 import '../../features/producto/domain/usecases/eliminar_producto_usecase.dart'
     as _i419;
+import '../../features/producto/domain/usecases/eliminar_regla_compatibilidad_usecase.dart'
+    as _i432;
 import '../../features/producto/domain/usecases/gestionar_transferencia_usecase.dart'
     as _i917;
 import '../../features/producto/domain/usecases/get_alertas_stock_bajo_usecase.dart'
@@ -316,6 +382,8 @@ import '../../features/producto/domain/usecases/get_productos_disponibles_para_c
     as _i787;
 import '../../features/producto/domain/usecases/get_productos_usecase.dart'
     as _i202;
+import '../../features/producto/domain/usecases/get_reglas_compatibilidad_usecase.dart'
+    as _i403;
 import '../../features/producto/domain/usecases/get_stock_por_sede_usecase.dart'
     as _i394;
 import '../../features/producto/domain/usecases/get_stock_producto_en_sede_usecase.dart'
@@ -334,6 +402,8 @@ import '../../features/producto/domain/usecases/recibir_transferencia_con_incide
     as _i154;
 import '../../features/producto/domain/usecases/resolver_incidencia_usecase.dart'
     as _i1007;
+import '../../features/producto/domain/usecases/validar_compatibilidad_usecase.dart'
+    as _i709;
 import '../../features/producto/presentation/bloc/agregar_stock_inicial/agregar_stock_inicial_cubit.dart'
     as _i873;
 import '../../features/producto/presentation/bloc/ajustar_stock/ajustar_stock_cubit.dart'
@@ -344,6 +414,10 @@ import '../../features/producto/presentation/bloc/alertas_stock/alertas_stock_cu
     as _i914;
 import '../../features/producto/presentation/bloc/atributo_plantilla/atributo_plantilla_cubit.dart'
     as _i123;
+import '../../features/producto/presentation/bloc/bulk_upload/bulk_upload_cubit.dart'
+    as _i286;
+import '../../features/producto/presentation/bloc/compatibilidad/compatibilidad_cubit.dart'
+    as _i243;
 import '../../features/producto/presentation/bloc/configuracion_precio/configuracion_precio_cubit.dart'
     as _i840;
 import '../../features/producto/presentation/bloc/configurar_precios/configurar_precios_cubit.dart'
@@ -623,6 +697,13 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i719.ConfiguracionCodigosRemoteDataSource>(
       () => _i719.ConfiguracionCodigosRemoteDataSource(gh<_i667.DioClient>()),
     );
+    gh.lazySingleton<_i1057.ConfiguracionDocumentosRemoteDataSource>(
+      () =>
+          _i1057.ConfiguracionDocumentosRemoteDataSource(gh<_i667.DioClient>()),
+    );
+    gh.lazySingleton<_i369.CotizacionRemoteDataSource>(
+      () => _i369.CotizacionRemoteDataSource(gh<_i667.DioClient>()),
+    );
     gh.lazySingleton<_i1036.DescuentoRemoteDataSource>(
       () => _i1036.DescuentoRemoteDataSource(gh<_i667.DioClient>()),
     );
@@ -766,6 +847,13 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i932.NetworkInfo>(),
       ),
     );
+    gh.lazySingleton<_i876.ConfiguracionDocumentosRepository>(
+      () => _i772.ConfiguracionDocumentosRepositoryImpl(
+        gh<_i1057.ConfiguracionDocumentosRemoteDataSource>(),
+        gh<_i932.NetworkInfo>(),
+        gh<_i490.ErrorHandlerService>(),
+      ),
+    );
     gh.factory<_i795.ClienteFormCubit>(
       () => _i795.ClienteFormCubit(gh<_i213.RegistrarClienteUseCase>()),
     );
@@ -791,6 +879,36 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i733.ProductosStockRepositoryImpl(
         gh<_i942.ProductosStockRemoteDatasource>(),
         gh<_i932.NetworkInfo>(),
+      ),
+    );
+    gh.factory<_i930.GetConfiguracionCompletaUseCase>(
+      () => _i930.GetConfiguracionCompletaUseCase(
+        gh<_i876.ConfiguracionDocumentosRepository>(),
+      ),
+    );
+    gh.factory<_i448.GetConfiguracionDocumentosUseCase>(
+      () => _i448.GetConfiguracionDocumentosUseCase(
+        gh<_i876.ConfiguracionDocumentosRepository>(),
+      ),
+    );
+    gh.factory<_i294.GetPlantillaByTipoUseCase>(
+      () => _i294.GetPlantillaByTipoUseCase(
+        gh<_i876.ConfiguracionDocumentosRepository>(),
+      ),
+    );
+    gh.factory<_i638.GetPlantillasUseCase>(
+      () => _i638.GetPlantillasUseCase(
+        gh<_i876.ConfiguracionDocumentosRepository>(),
+      ),
+    );
+    gh.factory<_i466.UpdateConfiguracionDocumentosUseCase>(
+      () => _i466.UpdateConfiguracionDocumentosUseCase(
+        gh<_i876.ConfiguracionDocumentosRepository>(),
+      ),
+    );
+    gh.factory<_i715.UpdatePlantillaUseCase>(
+      () => _i715.UpdatePlantillaUseCase(
+        gh<_i876.ConfiguracionDocumentosRepository>(),
       ),
     );
     gh.lazySingleton<_i262.ProductoStockRepository>(
@@ -897,6 +1015,17 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i490.ErrorHandlerService>(),
       ),
     );
+    gh.factory<_i925.ConfiguracionDocumentosCubit>(
+      () => _i925.ConfiguracionDocumentosCubit(
+        getConfiguracionUseCase: gh<_i448.GetConfiguracionDocumentosUseCase>(),
+        updateConfiguracionUseCase:
+            gh<_i466.UpdateConfiguracionDocumentosUseCase>(),
+        getPlantillasUseCase: gh<_i638.GetPlantillasUseCase>(),
+        getPlantillaByTipoUseCase: gh<_i294.GetPlantillaByTipoUseCase>(),
+        updatePlantillaUseCase: gh<_i715.UpdatePlantillaUseCase>(),
+        getCompletaUseCase: gh<_i930.GetConfiguracionCompletaUseCase>(),
+      ),
+    );
     gh.factory<_i365.CatalogoPreviewCubit>(
       () => _i365.CatalogoPreviewCubit(
         getCatalogoPreviewUseCase: gh<_i75.GetCatalogoPreviewUseCase>(),
@@ -983,6 +1112,13 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i1056.GetMarcasEmpresaUseCase>(),
         gh<_i895.ActivarMarcaUseCase>(),
         gh<_i405.DesactivarMarcaUseCase>(),
+      ),
+    );
+    gh.lazySingleton<_i823.CotizacionRepository>(
+      () => _i843.CotizacionRepositoryImpl(
+        gh<_i369.CotizacionRemoteDataSource>(),
+        gh<_i932.NetworkInfo>(),
+        gh<_i490.ErrorHandlerService>(),
       ),
     );
     gh.factory<_i135.EmpresaContextCubit>(
@@ -1097,6 +1233,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i102.AjusteMasivoCubit>(
       () => _i102.AjusteMasivoCubit(gh<_i619.AjusteMasivoPreciosUseCase>()),
+    );
+    gh.factory<_i740.ConfiguracionEmpresaCubit>(
+      () => _i740.ConfiguracionEmpresaCubit(gh<_i544.EmpresaRepository>()),
     );
     gh.factory<_i648.ReportesIncidenciaListCubit>(
       () =>
@@ -1242,6 +1381,35 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i835.AgregarItemCubit>(
       () => _i835.AgregarItemCubit(gh<_i87.AgregarItemUsecase>()),
     );
+    gh.lazySingleton<_i343.CrearCotizacionUseCase>(
+      () => _i343.CrearCotizacionUseCase(gh<_i823.CotizacionRepository>()),
+    );
+    gh.factory<_i1016.ActualizarCotizacionUseCase>(
+      () =>
+          _i1016.ActualizarCotizacionUseCase(gh<_i823.CotizacionRepository>()),
+    );
+    gh.factory<_i716.CambiarEstadoCotizacionUseCase>(
+      () => _i716.CambiarEstadoCotizacionUseCase(
+        gh<_i823.CotizacionRepository>(),
+      ),
+    );
+    gh.factory<_i499.DuplicarCotizacionUseCase>(
+      () => _i499.DuplicarCotizacionUseCase(gh<_i823.CotizacionRepository>()),
+    );
+    gh.factory<_i965.EliminarCotizacionUseCase>(
+      () => _i965.EliminarCotizacionUseCase(gh<_i823.CotizacionRepository>()),
+    );
+    gh.factory<_i813.GetCotizacionUseCase>(
+      () => _i813.GetCotizacionUseCase(gh<_i823.CotizacionRepository>()),
+    );
+    gh.factory<_i232.GetCotizacionesUseCase>(
+      () => _i232.GetCotizacionesUseCase(gh<_i823.CotizacionRepository>()),
+    );
+    gh.factory<_i76.ValidarCompatibilidadCotizacionUseCase>(
+      () => _i76.ValidarCompatibilidadCotizacionUseCase(
+        gh<_i823.CotizacionRepository>(),
+      ),
+    );
     gh.factory<_i121.UnidadMedidaCubit>(
       () => _i121.UnidadMedidaCubit(
         gh<_i696.GetUnidadesMaestrasUseCase>(),
@@ -1316,11 +1484,31 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i604.ActualizarProductoUseCase>(
       () => _i604.ActualizarProductoUseCase(gh<_i398.ProductoRepository>()),
     );
+    gh.factory<_i397.ActualizarReglaCompatibilidadUseCase>(
+      () => _i397.ActualizarReglaCompatibilidadUseCase(
+        gh<_i398.ProductoRepository>(),
+      ),
+    );
+    gh.factory<_i692.BulkUploadProductosUseCase>(
+      () => _i692.BulkUploadProductosUseCase(gh<_i398.ProductoRepository>()),
+    );
     gh.factory<_i244.CrearProductoUseCase>(
       () => _i244.CrearProductoUseCase(gh<_i398.ProductoRepository>()),
     );
+    gh.factory<_i435.CrearReglaCompatibilidadUseCase>(
+      () =>
+          _i435.CrearReglaCompatibilidadUseCase(gh<_i398.ProductoRepository>()),
+    );
+    gh.factory<_i570.DownloadBulkTemplateUseCase>(
+      () => _i570.DownloadBulkTemplateUseCase(gh<_i398.ProductoRepository>()),
+    );
     gh.factory<_i419.EliminarProductoUseCase>(
       () => _i419.EliminarProductoUseCase(gh<_i398.ProductoRepository>()),
+    );
+    gh.factory<_i432.EliminarReglaCompatibilidadUseCase>(
+      () => _i432.EliminarReglaCompatibilidadUseCase(
+        gh<_i398.ProductoRepository>(),
+      ),
     );
     gh.factory<_i460.GetProductoUseCase>(
       () => _i460.GetProductoUseCase(gh<_i398.ProductoRepository>()),
@@ -1333,6 +1521,10 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i202.GetProductosUseCase>(
       () => _i202.GetProductosUseCase(gh<_i398.ProductoRepository>()),
     );
+    gh.factory<_i403.GetReglasCompatibilidadUseCase>(
+      () =>
+          _i403.GetReglasCompatibilidadUseCase(gh<_i398.ProductoRepository>()),
+    );
     gh.factory<_i599.ListarIncidenciasUseCase>(
       () => _i599.ListarIncidenciasUseCase(gh<_i398.ProductoRepository>()),
     );
@@ -1343,6 +1535,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i1007.ResolverIncidenciaUseCase>(
       () => _i1007.ResolverIncidenciaUseCase(gh<_i398.ProductoRepository>()),
+    );
+    gh.factory<_i709.ValidarCompatibilidadUseCase>(
+      () => _i709.ValidarCompatibilidadUseCase(gh<_i398.ProductoRepository>()),
     );
     gh.lazySingleton<_i378.AgregarComponentesBatchUseCase>(
       () => _i378.AgregarComponentesBatchUseCase(gh<_i200.ComboRepository>()),
@@ -1355,6 +1550,17 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i413.EliminarItemCubit>(
       () => _i413.EliminarItemCubit(gh<_i192.EliminarItemUsecase>()),
+    );
+    gh.factory<_i298.CotizacionFormCubit>(
+      () => _i298.CotizacionFormCubit(
+        crearCotizacionUseCase: gh<_i343.CrearCotizacionUseCase>(),
+        actualizarCotizacionUseCase: gh<_i1016.ActualizarCotizacionUseCase>(),
+        cambiarEstadoUseCase: gh<_i716.CambiarEstadoCotizacionUseCase>(),
+        duplicarCotizacionUseCase: gh<_i499.DuplicarCotizacionUseCase>(),
+        eliminarCotizacionUseCase: gh<_i965.EliminarCotizacionUseCase>(),
+        validarCompatibilidadUseCase:
+            gh<_i76.ValidarCompatibilidadCotizacionUseCase>(),
+      ),
     );
     gh.factory<_i227.ProductoListCubit>(
       () => _i227.ProductoListCubit(gh<_i202.GetProductosUseCase>()),
@@ -1385,6 +1591,12 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i94.ProveedorListCubit>(
       () => _i94.ProveedorListCubit(gh<_i825.GetProveedoresUseCase>()),
+    );
+    gh.factory<_i286.BulkUploadCubit>(
+      () => _i286.BulkUploadCubit(
+        gh<_i570.DownloadBulkTemplateUseCase>(),
+        gh<_i692.BulkUploadProductosUseCase>(),
+      ),
     );
     gh.factory<_i788.ChangePasswordUseCase>(
       () => _i788.ChangePasswordUseCase(gh<_i787.AuthRepository>()),
@@ -1433,8 +1645,17 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i961.ListarIncidenciasCubit>(
       () => _i961.ListarIncidenciasCubit(gh<_i599.ListarIncidenciasUseCase>()),
     );
+    gh.factory<_i370.ActualizarOfertaComboUseCase>(
+      () => _i370.ActualizarOfertaComboUseCase(gh<_i200.ComboRepository>()),
+    );
+    gh.factory<_i1067.ActualizarPrecioComboUseCase>(
+      () => _i1067.ActualizarPrecioComboUseCase(gh<_i200.ComboRepository>()),
+    );
     gh.factory<_i237.AgregarComponenteUseCase>(
       () => _i237.AgregarComponenteUseCase(gh<_i200.ComboRepository>()),
+    );
+    gh.factory<_i840.DesactivarOfertaComboUseCase>(
+      () => _i840.DesactivarOfertaComboUseCase(gh<_i200.ComboRepository>()),
     );
     gh.factory<_i40.EliminarComponenteUseCase>(
       () => _i40.EliminarComponenteUseCase(gh<_i200.ComboRepository>()),
@@ -1447,6 +1668,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i330.GetComponentesUseCase>(
       () => _i330.GetComponentesUseCase(gh<_i200.ComboRepository>()),
+    );
+    gh.factory<_i824.GetHistorialPreciosComboUseCase>(
+      () => _i824.GetHistorialPreciosComboUseCase(gh<_i200.ComboRepository>()),
     );
     gh.factory<_i1031.GetReservacionUseCase>(
       () => _i1031.GetReservacionUseCase(gh<_i200.ComboRepository>()),
@@ -1480,8 +1704,31 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i880.GetProductosStockUseCase>(),
       ),
     );
+    gh.factory<_i1039.ComboCubit>(
+      () => _i1039.ComboCubit(
+        createComboUseCase: gh<_i53.CreateComboUseCase>(),
+        getCombos: gh<_i235.GetCombosUseCase>(),
+        getComboCompleto: gh<_i209.GetComboCompletoUseCase>(),
+        agregarComponente: gh<_i237.AgregarComponenteUseCase>(),
+        agregarComponentesBatch: gh<_i378.AgregarComponentesBatchUseCase>(),
+        getComponentes: gh<_i330.GetComponentesUseCase>(),
+        eliminarComponente: gh<_i40.EliminarComponenteUseCase>(),
+        eliminarComponentesBatch: gh<_i619.EliminarComponentesBatchUseCase>(),
+        getReservacionUseCase: gh<_i1031.GetReservacionUseCase>(),
+        reservarStockUseCase: gh<_i409.ReservarStockUseCase>(),
+        liberarReservaUseCase: gh<_i813.LiberarReservaUseCase>(),
+        actualizarPrecioComboUseCase: gh<_i1067.ActualizarPrecioComboUseCase>(),
+        actualizarOfertaComboUseCase: gh<_i370.ActualizarOfertaComboUseCase>(),
+        desactivarOfertaComboUseCase: gh<_i840.DesactivarOfertaComboUseCase>(),
+        getHistorialPreciosComboUseCase:
+            gh<_i824.GetHistorialPreciosComboUseCase>(),
+      ),
+    );
     gh.factory<_i147.RegisterCubit>(
       () => _i147.RegisterCubit(registerUseCase: gh<_i941.RegisterUseCase>()),
+    );
+    gh.factory<_i9.CotizacionListCubit>(
+      () => _i9.CotizacionListCubit(gh<_i232.GetCotizacionesUseCase>()),
     );
     gh.factory<_i279.ResolverIncidenciaCubit>(
       () =>
@@ -1497,6 +1744,15 @@ extension GetItInjectableX on _i174.GetIt {
         checkAuthStatus: gh<_i52.CheckAuthStatusUseCase>(),
         getLocalUser: gh<_i386.GetLocalUserUseCase>(),
         logout: gh<_i48.LogoutUseCase>(),
+      ),
+    );
+    gh.factory<_i243.CompatibilidadCubit>(
+      () => _i243.CompatibilidadCubit(
+        gh<_i403.GetReglasCompatibilidadUseCase>(),
+        gh<_i435.CrearReglaCompatibilidadUseCase>(),
+        gh<_i397.ActualizarReglaCompatibilidadUseCase>(),
+        gh<_i432.EliminarReglaCompatibilidadUseCase>(),
+        gh<_i709.ValidarCompatibilidadUseCase>(),
       ),
     );
     gh.factory<_i547.AccountSecurityCubit>(
@@ -1519,21 +1775,6 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i815.VerifyEmailCubit>(
       () => _i815.VerifyEmailCubit(
         verifyEmailUseCase: gh<_i30.VerifyEmailUseCase>(),
-      ),
-    );
-    gh.factory<_i1039.ComboCubit>(
-      () => _i1039.ComboCubit(
-        createComboUseCase: gh<_i53.CreateComboUseCase>(),
-        getCombos: gh<_i235.GetCombosUseCase>(),
-        getComboCompleto: gh<_i209.GetComboCompletoUseCase>(),
-        agregarComponente: gh<_i237.AgregarComponenteUseCase>(),
-        agregarComponentesBatch: gh<_i378.AgregarComponentesBatchUseCase>(),
-        getComponentes: gh<_i330.GetComponentesUseCase>(),
-        eliminarComponente: gh<_i40.EliminarComponenteUseCase>(),
-        eliminarComponentesBatch: gh<_i619.EliminarComponentesBatchUseCase>(),
-        getReservacionUseCase: gh<_i1031.GetReservacionUseCase>(),
-        reservarStockUseCase: gh<_i409.ReservarStockUseCase>(),
-        liberarReservaUseCase: gh<_i813.LiberarReservaUseCase>(),
       ),
     );
     return this;

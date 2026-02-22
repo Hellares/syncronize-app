@@ -534,7 +534,7 @@ class _AtributoFormDialogState extends State<AtributoFormDialog> {
   late bool _mostrarEnListado;
   late bool _usarParaFiltros;
   late bool _mostrarEnMarketplace;
-  String? _categoriaId;
+  List<String> _categoriaIds = [];
 
   @override
   void initState() {
@@ -550,7 +550,7 @@ class _AtributoFormDialogState extends State<AtributoFormDialog> {
     _mostrarEnListado = widget.atributo?.mostrarEnListado ?? true;
     _usarParaFiltros = widget.atributo?.usarParaFiltros ?? true;
     _mostrarEnMarketplace = widget.atributo?.mostrarEnMarketplace ?? true;
-    _categoriaId = widget.atributo?.categoriaId;
+    _categoriaIds = List<String>.from(widget.atributo?.categoriaIds ?? []);
   }
 
   @override
@@ -730,7 +730,7 @@ class _AtributoFormDialogState extends State<AtributoFormDialog> {
                     Icon(Icons.category, size: 18, color: Colors.blue.shade700),
                     const SizedBox(width: 8),
                     const Text(
-                      'Categoría (opcional)',
+                      'Categorias (opcional)',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
@@ -739,51 +739,58 @@ class _AtributoFormDialogState extends State<AtributoFormDialog> {
                   ],
                 ),
                 const SizedBox(height: 8),
-                const Text(
-                  'Asocia este atributo a una categoría específica para que aparezca solo en productos de esa categoría',
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                Text(
+                  _categoriaIds.isEmpty
+                      ? 'Sin categorias seleccionadas (atributo global)'
+                      : '${_categoriaIds.length} categoria(s) seleccionada(s)',
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
                 ),
                 const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: _categoriaId,
-                  decoration: const InputDecoration(
-                    labelText: 'Categoría',
-                    border: OutlineInputBorder(),
-                    filled: true,
-                    fillColor: Colors.white,
-                    contentPadding:
-                        EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  ),
-                  items: [
-                    const DropdownMenuItem(
-                      value: null,
-                      child: Text('Sin categoría (atributo global)'),
-                    ),
-                    ...categorias.map((categoria) {
-                      return DropdownMenuItem(
-                        value: categoria.id,
-                        child: Text(categoria.nombreDisplay),
-                      );
-                    }),
-                  ],
-                  onChanged: (value) {
-                    setState(() {
-                      _categoriaId = value;
-                    });
-                  },
-                  hint: const Text('Selecciona una categoría'),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: categorias.map((categoria) {
+                    final isSelected = _categoriaIds.contains(categoria.id);
+                    return FilterChip(
+                      label: Text(
+                        categoria.nombreDisplay,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: isSelected ? Colors.white : null,
+                        ),
+                      ),
+                      selected: isSelected,
+                      onSelected: (selected) {
+                        setState(() {
+                          if (selected) {
+                            _categoriaIds.add(categoria.id);
+                          } else {
+                            _categoriaIds.remove(categoria.id);
+                          }
+                        });
+                      },
+                      selectedColor: Colors.blue.shade600,
+                      checkmarkColor: Colors.white,
+                      backgroundColor: Colors.white,
+                      side: BorderSide(
+                        color: isSelected
+                            ? Colors.blue.shade600
+                            : Colors.grey.shade300,
+                      ),
+                    );
+                  }).toList(),
                 ),
               ],
             ),
           );
         }
 
-        // Si está cargando, mostrar un indicador
+        // Si esta cargando, mostrar un indicador
         if (state is CategoriasEmpresaLoading) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        // Si hay error o estado inicial, cargar categorías
+        // Si hay error o estado inicial, cargar categorias
         WidgetsBinding.instance.addPostFrameCallback((_) {
           context.read<CategoriasEmpresaCubit>().loadCategorias(widget.empresaId);
         });
@@ -841,7 +848,7 @@ class _AtributoFormDialogState extends State<AtributoFormDialog> {
         'mostrarEnListado': _mostrarEnListado,
         'usarParaFiltros': _usarParaFiltros,
         'mostrarEnMarketplace': _mostrarEnMarketplace,
-        if (_categoriaId != null) 'categoriaId': _categoriaId,
+        'categoriaIds': _categoriaIds,
       };
 
       widget.onSave(data);

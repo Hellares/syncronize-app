@@ -23,6 +23,7 @@ class ProductoStockModel extends ProductoStock {
     super.fechaInicioOferta,
     super.fechaFinOferta,
     super.precioConfigurado = false,
+    super.precioIncluyeIgv = false,
     required super.creadoEn,
     required super.actualizadoEn,
     super.sede,
@@ -68,6 +69,7 @@ class ProductoStockModel extends ProductoStock {
           ? DateTime.parse(json['fechaFinOferta'] as String)
           : null,
       precioConfigurado: json['precioConfigurado'] as bool? ?? false,
+      precioIncluyeIgv: json['precioIncluyeIgv'] as bool? ?? false,
       creadoEn: DateTime.parse(json['creadoEn'] as String),
       actualizadoEn: DateTime.parse(json['actualizadoEn'] as String),
       sede: json['sede'] != null
@@ -107,6 +109,7 @@ class ProductoStockModel extends ProductoStock {
       if (fechaInicioOferta != null) 'fechaInicioOferta': fechaInicioOferta!.toIso8601String(),
       if (fechaFinOferta != null) 'fechaFinOferta': fechaFinOferta!.toIso8601String(),
       'precioConfigurado': precioConfigurado,
+      'precioIncluyeIgv': precioIncluyeIgv,
       'creadoEn': creadoEn.toIso8601String(),
       'actualizadoEn': actualizadoEn.toIso8601String(),
     };

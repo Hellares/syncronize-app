@@ -25,6 +25,8 @@ class ApiConstants {
 
   // Endpoints de productos
   static const String productos = '/productos';
+  static const String productoBulkUploadTemplate = '/productos/bulk-upload/template';
+  static const String productoBulkUpload = '/productos/bulk-upload';
 
   // Endpoints de plantillas de atributos
   static const String plantillasAtributos = '/producto-atributo-plantillas';
@@ -47,8 +49,14 @@ class ApiConstants {
   // Endpoints de políticas de descuento
   static const String politicasDescuento = '/politicas-descuento';
 
+  // Endpoints de cotizaciones
+  static const String cotizaciones = '/cotizaciones';
+
   // Endpoints de configuración de códigos
   static const String configuracionCodigos = '/configuracion-codigos';
+
+  // Endpoints de configuracion de documentos
+  static const String configuracionDocumentos = '/configuracion-documentos';
 
   // Headers
   static const String authorization = 'Authorization';

@@ -16,6 +16,8 @@ import '../../../catalogo/presentation/bloc/categorias_empresa/categorias_empres
 import '../../../catalogo/presentation/bloc/marcas_empresa/marcas_empresa_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
+import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_cubit.dart';
+import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_state.dart';
 import '../../domain/entities/atributo_plantilla.dart';
 import '../../domain/entities/producto_atributo.dart';
 import '../../domain/entities/atributo_valor.dart';
@@ -154,6 +156,15 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
             setState(() {
               _controller.selectedSedesIds = [sedeIdInicial];
             });
+          }
+        }
+
+        // Pre-fill impuesto desde configuración de empresa
+        final configState = context.read<ConfiguracionEmpresaCubit>().state;
+        if (configState is ConfiguracionEmpresaLoaded) {
+          final defaultImpuesto = configState.configuracion.impuestoDefaultPorcentaje;
+          if (defaultImpuesto > 0) {
+            _controller.impuestoPorcentajeController.text = defaultImpuesto.toString();
           }
         }
       }
@@ -628,9 +639,13 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
             ),
           );
 
-          // Si es creación (no edición), preguntar si desea agregar stock
-          if (widget.productoId == null) {
+          // Si es creación (no edición) y es producto simple, preguntar si desea agregar stock
+          // Los combos no necesitan stock propio (se calcula desde componentes)
+          // Los productos con variantes gestionan stock por variante, no por producto base
+          if (widget.productoId == null && !state.producto.esCombo && !state.producto.tieneVariantes) {
             _mostrarDialogoAgregarStock(state.producto);
+          } else if (widget.productoId == null) {
+            if (mounted) context.pop();
           } else {
             // ✅ Retornar el producto actualizado para que ProductoDetailPage lo recargue
             context.pop(state.producto);

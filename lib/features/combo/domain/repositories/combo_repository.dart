@@ -1,6 +1,9 @@
 import '../../../../core/utils/resource.dart';
 import '../../data/models/create_combo_dto.dart';
+import '../../data/models/update_combo_pricing_dto.dart';
+import '../../data/models/update_combo_oferta_dto.dart';
 import '../entities/combo.dart';
+import '../entities/combo_config_historial.dart';
 import '../entities/componente_combo.dart';
 
 /// Repository interface para operaciones relacionadas con combos
@@ -110,5 +113,30 @@ abstract class ComboRepository {
   Future<Resource<void>> liberarReserva({
     required String comboId,
     required String sedeId,
+  });
+
+  /// Actualiza la configuración de precios del combo
+  Future<Resource<Combo>> actualizarPrecioCombo({
+    required String comboId,
+    required String sedeId,
+    required UpdateComboPricingDto dto,
+  });
+
+  /// Actualiza la oferta del combo
+  Future<Resource<Combo>> actualizarOfertaCombo({
+    required String comboId,
+    required String sedeId,
+    required UpdateComboOfertaDto dto,
+  });
+
+  /// Desactiva la oferta del combo
+  Future<Resource<Combo>> desactivarOfertaCombo({
+    required String comboId,
+    required String sedeId,
+  });
+
+  /// Obtiene el historial de cambios de precios del combo
+  Future<Resource<List<ComboConfigHistorialEntry>>> getHistorialPrecios({
+    required String comboId,
   });
 }

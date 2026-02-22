@@ -499,7 +499,7 @@ class ProductoListTile extends StatelessWidget {
 
             // SIN PRECIO badge (solo si no tiene precio configurado y no es producto con variantes)
             if (!producto.tieneVariantes && !_tienePrecioConfigurado()) ...[
-              // const SizedBox(width: 8),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4.5),
                 decoration: BoxDecoration(

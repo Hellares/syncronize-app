@@ -458,10 +458,10 @@ class _CustomTextFieldState extends State<CustomText>
   late Animation<double> _shadowAnimation;
   late Animation<double> _scaleAnimation;
 
-  // Voice animation
-  late AnimationController _voiceAnimationController;
-  late Animation<double> _micPulseAnimation;
-  late Animation<double> _waveAnimation;
+  // Voice animation (lazy: solo se crean si enableVoiceInput == true)
+  AnimationController? _voiceAnimationController;
+  Animation<double>? _micPulseAnimation;
+  Animation<double>? _waveAnimation;
 
   late ValidationManager _validationManager;
 
@@ -506,25 +506,27 @@ class _CustomTextFieldState extends State<CustomText>
       ),
     );
 
-    // Voice animations
-    _voiceAnimationController = AnimationController(
-      duration: const Duration(milliseconds: 1200),
-      vsync: this,
-    );
+    // Voice animations (lazy: solo si enableVoiceInput)
+    if (widget.enableVoiceInput) {
+      _voiceAnimationController = AnimationController(
+        duration: const Duration(milliseconds: 1200),
+        vsync: this,
+      );
 
-    _micPulseAnimation = Tween<double>(begin: 1.0, end: 1.04).animate(
-      CurvedAnimation(
-        parent: _voiceAnimationController,
-        curve: Curves.easeInOut,
-      ),
-    );
+      _micPulseAnimation = Tween<double>(begin: 1.0, end: 1.04).animate(
+        CurvedAnimation(
+          parent: _voiceAnimationController!,
+          curve: Curves.easeInOut,
+        ),
+      );
 
-    _waveAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _voiceAnimationController,
-        curve: Curves.easeOut,
-      ),
-    );
+      _waveAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+        CurvedAnimation(
+          parent: _voiceAnimationController!,
+          curve: Curves.easeOut,
+        ),
+      );
+    }
 
     if (widget.controller != null) {
       _hasText = widget.controller!.text.isNotEmpty;
@@ -618,7 +620,7 @@ class _CustomTextFieldState extends State<CustomText>
 
     _validationManager.dispose();
     _animationController.dispose();
-    _voiceAnimationController.dispose();
+    _voiceAnimationController?.dispose();
 
     _focusNode.removeListener(_onFocusChange);
     if (widget.focusNode == null) _focusNode.dispose();
@@ -842,7 +844,7 @@ class _CustomTextFieldState extends State<CustomText>
     if (started && mounted) {
       setState(() => _isListening = true);
       // Iniciar animación de voz
-      _voiceAnimationController.repeat(reverse: true);
+      _voiceAnimationController?.repeat(reverse: true);
     }
   }
 
@@ -850,8 +852,8 @@ class _CustomTextFieldState extends State<CustomText>
     await _speechService.stopListening();
     if (mounted) {
       // Detener animación de voz
-      _voiceAnimationController.stop();
-      _voiceAnimationController.reset();
+      _voiceAnimationController?.stop();
+      _voiceAnimationController?.reset();
 
       setState(() {
         _isListening = false;
@@ -954,8 +956,8 @@ class _CustomTextFieldState extends State<CustomText>
 
   Color _borderColor() {
     // Si está escuchando, usar color azul animado
-    if (_isListening) {
-      return AppColors.blue1.withValues(alpha: 0.6 + (_micPulseAnimation.value * 0.4));
+    if (_isListening && _micPulseAnimation != null) {
+      return AppColors.blue1.withValues(alpha: 0.6 + (_micPulseAnimation!.value * 0.4));
     }
     return widget.borderColor ??
         (_isFocused
@@ -1214,33 +1216,37 @@ class _CustomTextFieldState extends State<CustomText>
       onTap: _toggleVoiceInput,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
-        child: AnimatedBuilder(
-          animation: _voiceAnimationController,
-          builder: (context, child) {
-            return Stack(
-              alignment: Alignment.center,
-              children: [
-                // Ondas de sonido (cuando está escuchando)
-                if (_isListening) ...[
-                  _buildSoundWave(1, 20 * _waveAnimation.value),
-                  _buildSoundWave(0.7, 15 * _waveAnimation.value),
-                  _buildSoundWave(0.4, 10 * _waveAnimation.value),
-                ],
-                // Ícono del micrófono con pulso
-                Transform.scale(
-                  scale: _isListening ? _micPulseAnimation.value : 1.0,
-                  child: Icon(
-                    _isListening ? Icons.mic : Icons.mic_none,
-                    size: 18,
-                    color: _isListening
-                        ? AppColors.blue1
-                        : (_isFocused ? const Color(0xFF666666) : Colors.grey[600]),
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
+        child: _voiceAnimationController != null
+          ? AnimatedBuilder(
+              animation: _voiceAnimationController!,
+              builder: (context, child) {
+                return Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    if (_isListening) ...[
+                      _buildSoundWave(1, 20 * (_waveAnimation?.value ?? 0)),
+                      _buildSoundWave(0.7, 15 * (_waveAnimation?.value ?? 0)),
+                      _buildSoundWave(0.4, 10 * (_waveAnimation?.value ?? 0)),
+                    ],
+                    Transform.scale(
+                      scale: _isListening ? (_micPulseAnimation?.value ?? 1.0) : 1.0,
+                      child: Icon(
+                        _isListening ? Icons.mic : Icons.mic_none,
+                        size: 18,
+                        color: _isListening
+                            ? AppColors.blue1
+                            : (_isFocused ? const Color(0xFF666666) : Colors.grey[600]),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            )
+          : Icon(
+              Icons.mic_none,
+              size: 18,
+              color: _isFocused ? const Color(0xFF666666) : Colors.grey[600],
+            ),
       ),
     );
   }
@@ -1335,10 +1341,10 @@ class _CustomTextFieldState extends State<CustomText>
   }
 
   Widget _listeningIndicator() {
-    if (!_isListening) return const SizedBox.shrink();
+    if (!_isListening || _voiceAnimationController == null) return const SizedBox.shrink();
 
     return AnimatedBuilder(
-      animation: _voiceAnimationController,
+      animation: _voiceAnimationController!,
       builder: (context, child) {
         return Padding(
           padding: const EdgeInsets.only(top: 3),
@@ -1348,7 +1354,7 @@ class _CustomTextFieldState extends State<CustomText>
               Icon(
                 Icons.mic,
                 size: 14,
-                color: AppColors.blue.withValues(alpha: 0.5 + (_micPulseAnimation.value * 0.5)),
+                color: AppColors.blue.withValues(alpha: 0.5 + ((_micPulseAnimation?.value ?? 1.0) * 0.5)),
               ),
               const SizedBox(width: 4),
               Text(
@@ -1374,7 +1380,7 @@ class _CustomTextFieldState extends State<CustomText>
   }
 
   Widget _buildDot(double delay) {
-    final progress = (_waveAnimation.value + delay) % 1.0;
+    final progress = ((_waveAnimation?.value ?? 0) + delay) % 1.0;
     final opacity = (progress < 0.5 ? progress * 2 : (1 - progress) * 2).clamp(0.2, 1.0);
 
     return Container(

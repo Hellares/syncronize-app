@@ -2,11 +2,15 @@ import 'package:injectable/injectable.dart';
 import '../../../../core/network/network_info.dart';
 import '../../../../core/services/error_handler_service.dart';
 import '../../../../core/utils/resource.dart';
+import '../../domain/entities/bulk_upload_result.dart';
 import '../../domain/entities/producto.dart';
 import '../../domain/entities/producto_filtros.dart';
+import '../../domain/entities/regla_compatibilidad.dart';
+import '../../domain/entities/resultado_compatibilidad.dart';
 import '../../domain/entities/transferencia_incidencia.dart';
 import '../../domain/repositories/producto_repository.dart';
 import '../datasources/producto_remote_datasource.dart';
+import '../models/bulk_upload_result_model.dart';
 import '../models/producto_list_item_model.dart';
 import '../models/producto_model.dart';
 import '../models/transferencia_incidencia_model.dart';
@@ -438,6 +442,132 @@ class ProductoRepositoryImpl implements ProductoRepository {
         data: data,
       );
       return Success(null);
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Producto');
+    }
+  }
+
+  // ========================================
+  // COMPATIBILIDAD
+  // ========================================
+
+  @override
+  Future<Resource<List<ReglaCompatibilidad>>> getReglasCompatibilidad({
+    String? categoriaId,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
+    }
+
+    try {
+      final reglas = await _remoteDataSource.getReglasCompatibilidad(
+        categoriaId: categoriaId,
+      );
+      return Success(reglas.map((r) => r.toEntity()).toList());
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Compatibilidad');
+    }
+  }
+
+  @override
+  Future<Resource<ReglaCompatibilidad>> createReglaCompatibilidad(
+      Map<String, dynamic> data) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
+    }
+
+    try {
+      final regla = await _remoteDataSource.createReglaCompatibilidad(data);
+      return Success(regla.toEntity());
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Compatibilidad');
+    }
+  }
+
+  @override
+  Future<Resource<ReglaCompatibilidad>> updateReglaCompatibilidad(
+      String id, Map<String, dynamic> data) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
+    }
+
+    try {
+      final regla = await _remoteDataSource.updateReglaCompatibilidad(
+        id: id,
+        data: data,
+      );
+      return Success(regla.toEntity());
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Compatibilidad');
+    }
+  }
+
+  @override
+  Future<Resource<void>> deleteReglaCompatibilidad(String id) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
+    }
+
+    try {
+      await _remoteDataSource.deleteReglaCompatibilidad(id);
+      return Success(null);
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Compatibilidad');
+    }
+  }
+
+  @override
+  Future<Resource<ResultadoCompatibilidad>> validarCompatibilidad(
+      List<Map<String, String?>> productos) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
+    }
+
+    try {
+      final resultado =
+          await _remoteDataSource.validarCompatibilidad(productos);
+      return Success(resultado.toEntity());
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Compatibilidad');
+    }
+  }
+
+  // ========================================
+  // CARGA MASIVA DE PRODUCTOS
+  // ========================================
+
+  @override
+  Future<Resource<List<int>>> downloadBulkUploadTemplate() async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
+    }
+
+    try {
+      final bytes = await _remoteDataSource.downloadBulkUploadTemplate();
+      return Success(bytes);
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Producto');
+    }
+  }
+
+  @override
+  Future<Resource<BulkUploadResult>> bulkUploadProductos({
+    required String filePath,
+    required String fileName,
+    List<String>? sedesIds,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
+    }
+
+    try {
+      final response = await _remoteDataSource.bulkUploadProductos(
+        filePath: filePath,
+        fileName: fileName,
+        sedesIds: sedesIds,
+      );
+      final model = BulkUploadResultModel.fromJson(response);
+      return Success(model.toEntity());
     } catch (e) {
       return _errorHandler.handleException(e, context: 'Producto');
     }

@@ -1,9 +1,12 @@
+import 'package:dio/dio.dart';
 import 'package:injectable/injectable.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/network/dio_client.dart';
 import '../models/producto_model.dart';
 import '../models/producto_variante_model.dart';
 import '../models/producto_atributo_model.dart';
+import '../models/regla_compatibilidad_model.dart';
+import '../models/resultado_compatibilidad_model.dart';
 import '../../domain/entities/producto_filtros.dart';
 
 /// Data source remoto para operaciones de productos
@@ -472,6 +475,82 @@ class ProductoRemoteDataSource {
         .toList();
   }
 
+  // =========================================
+  // MÉTODOS PARA COMPATIBILIDAD
+  // =========================================
+
+  /// Obtiene las reglas de compatibilidad
+  ///
+  /// GET /api/compatibilidad/reglas
+  Future<List<ReglaCompatibilidadModel>> getReglasCompatibilidad({
+    String? categoriaId,
+  }) async {
+    final queryParams = <String, dynamic>{};
+    if (categoriaId != null) queryParams['categoriaId'] = categoriaId;
+
+    final response = await _dioClient.get(
+      '/compatibilidad/reglas',
+      queryParameters: queryParams,
+    );
+
+    final List<dynamic> data = response.data as List<dynamic>;
+    return data
+        .map((e) =>
+            ReglaCompatibilidadModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Crea una regla de compatibilidad
+  ///
+  /// POST /api/compatibilidad/reglas
+  Future<ReglaCompatibilidadModel> createReglaCompatibilidad(
+      Map<String, dynamic> data) async {
+    final response = await _dioClient.post(
+      '/compatibilidad/reglas',
+      data: data,
+    );
+
+    return ReglaCompatibilidadModel.fromJson(
+        response.data as Map<String, dynamic>);
+  }
+
+  /// Actualiza una regla de compatibilidad
+  ///
+  /// PUT /api/compatibilidad/reglas/:id
+  Future<ReglaCompatibilidadModel> updateReglaCompatibilidad({
+    required String id,
+    required Map<String, dynamic> data,
+  }) async {
+    final response = await _dioClient.put(
+      '/compatibilidad/reglas/$id',
+      data: data,
+    );
+
+    return ReglaCompatibilidadModel.fromJson(
+        response.data as Map<String, dynamic>);
+  }
+
+  /// Elimina una regla de compatibilidad (soft delete)
+  ///
+  /// DELETE /api/compatibilidad/reglas/:id
+  Future<void> deleteReglaCompatibilidad(String id) async {
+    await _dioClient.delete('/compatibilidad/reglas/$id');
+  }
+
+  /// Valida la compatibilidad entre productos
+  ///
+  /// POST /api/compatibilidad/validar
+  Future<ResultadoCompatibilidadModel> validarCompatibilidad(
+      List<Map<String, String?>> productos) async {
+    final response = await _dioClient.post(
+      '/compatibilidad/validar',
+      data: {'productos': productos},
+    );
+
+    return ResultadoCompatibilidadModel.fromJson(
+        response.data as Map<String, dynamic>);
+  }
+
   /// Resuelve una incidencia tomando una acción específica
   ///
   /// POST /transferencias-stock/incidencias/:incidenciaId/resolver
@@ -483,6 +562,47 @@ class ProductoRemoteDataSource {
     final response = await _dioClient.post(
       '/transferencias-stock/incidencias/$incidenciaId/resolver',
       data: request,
+    );
+
+    return response.data as Map<String, dynamic>;
+  }
+
+  // =========================================
+  // CARGA MASIVA DE PRODUCTOS
+  // =========================================
+
+  /// Descarga la plantilla Excel para carga masiva
+  ///
+  /// GET /api/productos/bulk-upload/template
+  Future<List<int>> downloadBulkUploadTemplate() async {
+    final response = await _dioClient.get(
+      ApiConstants.productoBulkUploadTemplate,
+      options: Options(responseType: ResponseType.bytes),
+    );
+
+    return response.data as List<int>;
+  }
+
+  /// Sube archivo Excel para carga masiva de productos
+  ///
+  /// POST /api/productos/bulk-upload (multipart/form-data)
+  Future<Map<String, dynamic>> bulkUploadProductos({
+    required String filePath,
+    required String fileName,
+    List<String>? sedesIds,
+  }) async {
+    final formData = FormData.fromMap({
+      'file': await MultipartFile.fromFile(
+        filePath,
+        filename: fileName,
+      ),
+      if (sedesIds != null && sedesIds.isNotEmpty)
+        'sedesIds': sedesIds,
+    });
+
+    final response = await _dioClient.post(
+      ApiConstants.productoBulkUpload,
+      data: formData,
     );
 
     return response.data as Map<String, dynamic>;

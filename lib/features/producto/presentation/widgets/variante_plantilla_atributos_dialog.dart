@@ -365,7 +365,7 @@ class _VariantePlantillaAtributosDialogState
     return ProductoAtributo(
       id: atributoInfo.id,
       empresaId: widget.empresaId,
-      categoriaId: null,
+      categoriaIds: const [],
       nombre: atributoInfo.nombre,
       clave: atributoInfo.clave,
       tipo: atributoInfo.tipoEnum,

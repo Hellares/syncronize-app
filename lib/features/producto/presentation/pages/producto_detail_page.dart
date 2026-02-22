@@ -79,6 +79,39 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
     }
   }
 
+  /// Obtiene las imágenes para el slider según el contexto:
+  /// - Si hay variante seleccionada: muestra sus imágenes
+  /// - Si tiene variantes sin selección: imágenes del producto + todas las de variantes
+  /// - Si no tiene variantes: solo imágenes del producto
+  List<String> _getImagenesParaSlider(Producto producto) {
+    // Si hay una variante seleccionada, mostrar sus imágenes
+    if (_selectedVariante != null) {
+      final varianteImages = _selectedVariante!.archivos
+              ?.map((a) => a.url)
+              .toList() ??
+          [];
+      // Si la variante no tiene imágenes, mostrar las del producto base
+      if (varianteImages.isNotEmpty) return varianteImages;
+    }
+
+    final productoImages = producto.imagenes ?? [];
+
+    // Si tiene variantes, combinar imágenes del producto + variantes
+    if (producto.tieneVariantes &&
+        producto.variantes != null &&
+        producto.variantes!.isNotEmpty) {
+      final allImages = <String>[...productoImages];
+      for (final variante in producto.variantes!) {
+        if (variante.archivos != null) {
+          allImages.addAll(variante.archivos!.map((a) => a.url));
+        }
+      }
+      return allImages;
+    }
+
+    return productoImages;
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -171,7 +204,7 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
                     children: [
                       // Slider sin padding - ocupa toda la pantalla
                       ProductImageGallery(
-                        images: producto.imagenes ?? [],
+                        images: _getImagenesParaSlider(producto),
                         videoUrl: producto.videoUrl,
                         heroTag: 'product-image-${producto.id}',
                       ),

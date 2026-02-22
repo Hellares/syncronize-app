@@ -26,6 +26,14 @@ class Combo extends Equatable {
   final List<String>? componentesSinStock; // Nombres de componentes sin stock
   final String? imagen; // Imagen principal del combo
 
+  // Campos de oferta
+  final double? precioOferta;
+  final bool enOferta;
+  final DateTime? fechaInicioOferta;
+  final DateTime? fechaFinOferta;
+  final bool? ofertaActiva;
+  final double? precioSinOferta; // Precio sin oferta (solo cuando ofertaActiva=true)
+
   const Combo({
     required this.id,
     required this.nombre,
@@ -42,6 +50,12 @@ class Combo extends Equatable {
     required this.tieneStockSuficiente,
     this.componentesSinStock,
     this.imagen,
+    this.precioOferta,
+    this.enOferta = false,
+    this.fechaInicioOferta,
+    this.fechaFinOferta,
+    this.ofertaActiva,
+    this.precioSinOferta,
   });
 
   @override
@@ -61,10 +75,18 @@ class Combo extends Equatable {
         tieneStockSuficiente,
         componentesSinStock,
         imagen,
+        precioOferta,
+        enOferta,
+        fechaInicioOferta,
+        fechaFinOferta,
+        ofertaActiva,
+        precioSinOferta,
       ];
 
   /// Retorna el precio final del combo según su tipo
+  /// Si hay oferta activa, retorna el precio de oferta
   double get precioFinal {
+    if (ofertaActiva == true && precioOferta != null) return precioOferta!;
     switch (tipoPrecioCombo) {
       case TipoPrecioCombo.fijo:
         return precio;

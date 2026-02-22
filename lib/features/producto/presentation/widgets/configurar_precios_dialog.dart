@@ -10,6 +10,8 @@ import 'package:syncronize/core/widgets/currency/currency_textfield.dart';
 import '../../domain/entities/producto_stock.dart';
 import '../bloc/configurar_precios/configurar_precios_cubit.dart';
 import '../bloc/configurar_precios/configurar_precios_state.dart';
+import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_cubit.dart';
+import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_state.dart';
 
 /// Dialog para configurar precios de un producto en una sede
 class ConfigurarPreciosDialog extends StatefulWidget {
@@ -37,6 +39,11 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
   DateTime? _fechaInicioOferta;
   DateTime? _fechaFinOferta;
 
+  bool _precioIncluyeIGV = false;
+  double _porcentajeIGV = 18.0;
+  String _nombreImpuesto = 'IGV';
+  String _simboloMoneda = 'S/';
+
   @override
   void initState() {
     super.initState();
@@ -58,6 +65,15 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
     _enOferta = widget.stock.enOferta;
     _fechaInicioOferta = widget.stock.fechaInicioOferta;
     _fechaFinOferta = widget.stock.fechaFinOferta;
+    _precioIncluyeIGV = widget.stock.precioIncluyeIgv;
+
+    // Leer configuración de empresa para IGV
+    final configState = context.read<ConfiguracionEmpresaCubit>().state;
+    if (configState is ConfiguracionEmpresaLoaded) {
+      _porcentajeIGV = configState.configuracion.impuestoDefaultPorcentaje;
+      _nombreImpuesto = configState.configuracion.nombreImpuesto;
+      _simboloMoneda = configState.configuracion.simboloMoneda;
+    }
   }
 
   @override
@@ -72,6 +88,12 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
   double _getControllerValue(TextEditingController controller) {
     return double.tryParse(controller.text) ?? 0.0;
   }
+
+  double _calcularPrecioBase(double precioConIGV) =>
+      precioConIGV / (1 + _porcentajeIGV / 100);
+
+  double _calcularMontoIGV(double precioBase) =>
+      precioBase * (_porcentajeIGV / 100);
 
   @override
   Widget build(BuildContext context) {
@@ -148,9 +170,10 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
                       CurrencyTextField(
                         label: 'Precio de Venta',
                         controller: _precioController,
-                        // hintText: '0.00',
                         borderColor: AppColors.blue1,
-                        // enableRealTimeValidation: true,
+                        onChanged: (_) {
+                          if (_precioIncluyeIGV) setState(() {});
+                        },
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
                             return 'El precio es requerido';
@@ -167,6 +190,38 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
                           return null;
                         },
                       ),
+
+                      // Toggle IGV
+                      Row(
+                        children: [
+                          SizedBox(
+                            height: 30,
+                            width: 30,
+                            child: Checkbox(
+                              value: _precioIncluyeIGV,
+                              onChanged: (value) {
+                                setState(() {
+                                  _precioIncluyeIGV = value ?? false;
+                                });
+                              },
+                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                          ),
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => setState(() => _precioIncluyeIGV = !_precioIncluyeIGV),
+                              child: AppSubtitle(
+                                'Precio incluye $_nombreImpuesto (${_porcentajeIGV.toStringAsFixed(_porcentajeIGV.truncateToDouble() == _porcentajeIGV ? 0 : 1)}%)',
+                                fontSize: 10,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      // Desglose de precio (visible solo cuando toggle=ON y precio>0)
+                      if (_precioIncluyeIGV) _buildDesgloseIGV(),
 
                       const SizedBox(height: 16),
                       CurrencyTextField(
@@ -398,6 +453,86 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
     );
   }
 
+  Widget _buildDesgloseIGV() {
+    final precioIngresado = CurrencyUtilsImproved.parseToDouble(
+      _precioController.text,
+    );
+    if (precioIngresado <= 0) return const SizedBox.shrink();
+
+    final precioBase = _calcularPrecioBase(precioIngresado);
+    final montoIGV = _calcularMontoIGV(precioBase);
+
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: AppColors.blue1.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: AppColors.blue1.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AppSubtitle(
+            'Desglose de precio',
+            fontSize: 10,
+            color: AppColors.blue1,
+          ),
+          const SizedBox(height: 6),
+          _buildDesgloseRow(
+            'Precio base (sin $_nombreImpuesto)',
+            '$_simboloMoneda ${precioBase.toStringAsFixed(2)}',
+          ),
+          const SizedBox(height: 4),
+          _buildDesgloseRow(
+            '$_nombreImpuesto (${_porcentajeIGV.toStringAsFixed(_porcentajeIGV.truncateToDouble() == _porcentajeIGV ? 0 : 1)}%)',
+            '$_simboloMoneda ${montoIGV.toStringAsFixed(2)}',
+          ),
+          const Divider(height: 12),
+          _buildDesgloseRow(
+            'Total (precio ingresado)',
+            '$_simboloMoneda ${precioIngresado.toStringAsFixed(2)}',
+            bold: true,
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Icon(Icons.info_outline, size: 12, color: AppColors.blue1),
+              const SizedBox(width: 4),
+              Expanded(
+                child: AppSubtitle(
+                  'Se guardará $_simboloMoneda ${precioIngresado.toStringAsFixed(2)} como precio de venta (incluye $_nombreImpuesto)',
+                  fontSize: 9,
+                  color: AppColors.blue1,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDesgloseRow(String label, String value, {bool bold = false}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        AppSubtitle(
+          label,
+          fontSize: 10,
+          color: bold ? AppColors.textPrimary : Colors.grey[700]!,
+        ),
+        AppSubtitle(
+          value,
+          fontSize: 10,
+          color: bold ? AppColors.textPrimary : Colors.grey[700]!,
+        ),
+      ],
+    );
+  }
+
   void _handleSubmit() {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -416,6 +551,7 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
       enOferta: _enOferta,
       fechaInicioOferta: _enOferta ? _fechaInicioOferta : null,
       fechaFinOferta: _enOferta ? _fechaFinOferta : null,
+      precioIncluyeIgv: _precioIncluyeIGV,
     );
   }
 }

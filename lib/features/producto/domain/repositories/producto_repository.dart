@@ -1,6 +1,9 @@
 import '../../../../core/utils/resource.dart';
+import '../entities/bulk_upload_result.dart';
 import '../entities/producto.dart';
 import '../entities/producto_filtros.dart';
+import '../entities/regla_compatibilidad.dart';
+import '../entities/resultado_compatibilidad.dart';
 import '../entities/transferencia_incidencia.dart';
 
 /// Repository interface para operaciones relacionadas con productos
@@ -130,5 +133,43 @@ abstract class ProductoRepository {
     required String productoId,
     required String empresaId,
     required Map<String, dynamic> data,
+  });
+
+  // ========================================
+  // COMPATIBILIDAD
+  // ========================================
+
+  /// Obtiene las reglas de compatibilidad de la empresa
+  Future<Resource<List<ReglaCompatibilidad>>> getReglasCompatibilidad({
+    String? categoriaId,
+  });
+
+  /// Crea una regla de compatibilidad
+  Future<Resource<ReglaCompatibilidad>> createReglaCompatibilidad(
+      Map<String, dynamic> data);
+
+  /// Actualiza una regla de compatibilidad
+  Future<Resource<ReglaCompatibilidad>> updateReglaCompatibilidad(
+      String id, Map<String, dynamic> data);
+
+  /// Elimina una regla de compatibilidad (soft delete)
+  Future<Resource<void>> deleteReglaCompatibilidad(String id);
+
+  /// Valida la compatibilidad entre productos
+  Future<Resource<ResultadoCompatibilidad>> validarCompatibilidad(
+      List<Map<String, String?>> productos);
+
+  // ========================================
+  // CARGA MASIVA DE PRODUCTOS
+  // ========================================
+
+  /// Descarga la plantilla Excel para carga masiva de productos
+  Future<Resource<List<int>>> downloadBulkUploadTemplate();
+
+  /// Sube archivo Excel para carga masiva de productos
+  Future<Resource<BulkUploadResult>> bulkUploadProductos({
+    required String filePath,
+    required String fileName,
+    List<String>? sedesIds,
   });
 }

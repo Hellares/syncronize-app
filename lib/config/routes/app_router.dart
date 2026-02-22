@@ -15,6 +15,7 @@ import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/register_page.dart';
 import '../../features/empresa/presentation/pages/empresa_dashboard_page.dart';
 import '../../features/empresa/presentation/pages/empresa_selection_page.dart';
+import '../../features/empresa/presentation/pages/configuracion_empresa_page.dart';
 import '../../features/empresa/presentation/pages/personalizacion_page.dart';
 import '../../features/marketplace/presentation/pages/marketplace_page.dart';
 import '../../features/producto/presentation/pages/productos_page.dart';
@@ -31,6 +32,7 @@ import '../../features/producto/presentation/pages/alertas_stock_bajo_page.dart'
 import '../../features/producto/presentation/pages/transferencias_stock_page.dart';
 import '../../features/producto/presentation/pages/crear_transferencia_page.dart';
 import '../../features/producto/presentation/pages/incidencias_transferencias_page.dart';
+import '../../features/producto/presentation/pages/reglas_compatibilidad_page.dart';
 // import '../../features/producto/presentation/pages/crear_transferencia_multiple_page.dart';
 import '../../features/catalogo/presentation/pages/gestion_categorias_page.dart';
 import '../../features/catalogo/presentation/pages/gestion_marcas_page.dart';
@@ -51,6 +53,10 @@ import '../../features/reporte_incidencia/presentation/pages/reportes_incidencia
 import '../../features/reporte_incidencia/presentation/pages/crear_reporte_incidencia_page.dart';
 import '../../features/reporte_incidencia/presentation/pages/reporte_incidencia_detail_page.dart';
 import '../../features/reporte_incidencia/presentation/pages/agregar_item_reporte_page.dart';
+import '../../features/cotizacion/presentation/pages/cotizaciones_page.dart';
+import '../../features/cotizacion/presentation/pages/cotizacion_form_page.dart';
+import '../../features/cotizacion/presentation/pages/cotizacion_detail_page.dart';
+import '../../features/configuracion_documentos/presentation/pages/configuracion_documentos_page.dart';
 
 /// Configuración de rutas de la aplicación
 class AppRouter {
@@ -179,6 +185,16 @@ class AppRouter {
         name: 'empresa-personalizacion',
         builder: (context, state) => const PersonalizacionPage(),
       ),
+      GoRoute(
+        path: '/empresa/configuracion',
+        name: 'empresa-configuracion',
+        builder: (context, state) => const ConfiguracionEmpresaPage(),
+      ),
+      GoRoute(
+        path: '/empresa/configuracion-documentos',
+        name: 'empresa-configuracion-documentos',
+        builder: (context, state) => const ConfiguracionDocumentosPage(),
+      ),
       // Rutas de sedes
       GoRoute(
         path: '/empresa/sedes',
@@ -213,6 +229,11 @@ class AppRouter {
         path: '/empresa/productos/ajuste-masivo',
         name: 'empresa-productos-ajuste-masivo',
         builder: (context, state) => const AjusteMasivoPreciosPage(),
+      ),
+      GoRoute(
+        path: '/empresa/productos/compatibilidad',
+        name: 'empresa-productos-compatibilidad',
+        builder: (context, state) => const ReglasCompatibilidadPage(),
       ),
       GoRoute(
         path: '/empresa/productos/:id',
@@ -427,6 +448,18 @@ class AppRouter {
           );
         },
       ),
+      GoRoute(
+        path: '/empresa/combos/:comboId/historial-precios',
+        name: 'empresa-combo-historial-precios',
+        builder: (context, state) {
+          final comboId = state.pathParameters['comboId']!;
+          final empresaId = state.uri.queryParameters['empresaId'] ?? '';
+          return ComboHistorialPreciosPage(
+            comboId: comboId,
+            empresaId: empresaId,
+          );
+        },
+      ),
       // Ruta de configuraciones de precio
       GoRoute(
         path: '/empresa/configuraciones-precio',
@@ -514,6 +547,25 @@ class AppRouter {
             politicaId: politicaId,
             politicaNombre: politicaNombre,
           );
+        },
+      ),
+      // Rutas de cotizaciones
+      GoRoute(
+        path: '/empresa/cotizaciones',
+        name: 'empresa-cotizaciones',
+        builder: (context, state) => const CotizacionesPage(),
+      ),
+      GoRoute(
+        path: '/empresa/cotizaciones/nueva',
+        name: 'empresa-cotizaciones-nueva',
+        builder: (context, state) => const CotizacionFormPage(),
+      ),
+      GoRoute(
+        path: '/empresa/cotizaciones/:id',
+        name: 'empresa-cotizaciones-detail',
+        builder: (context, state) {
+          final cotizacionId = state.pathParameters['id']!;
+          return CotizacionDetailPage(cotizacionId: cotizacionId);
         },
       ),
       // Ruta placeholder para marketplace (por implementar)

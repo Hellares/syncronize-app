@@ -18,6 +18,12 @@ class ComboModel extends Combo {
     required super.tieneStockSuficiente,
     super.componentesSinStock,
     super.imagen,
+    super.precioOferta,
+    super.enOferta,
+    super.fechaInicioOferta,
+    super.fechaFinOferta,
+    super.ofertaActiva,
+    super.precioSinOferta,
   });
 
   factory ComboModel.fromJson(Map<String, dynamic> json) {
@@ -53,6 +59,20 @@ class ComboModel extends Combo {
           ?.map((e) => e as String)
           .toList(),
       imagen: json['imagen'] as String?,
+      precioOferta: json['precioOferta'] != null
+          ? (json['precioOferta'] as num).toDouble()
+          : null,
+      enOferta: json['enOferta'] as bool? ?? false,
+      fechaInicioOferta: json['fechaInicioOferta'] != null
+          ? DateTime.parse(json['fechaInicioOferta'] as String)
+          : null,
+      fechaFinOferta: json['fechaFinOferta'] != null
+          ? DateTime.parse(json['fechaFinOferta'] as String)
+          : null,
+      ofertaActiva: json['ofertaActiva'] as bool?,
+      precioSinOferta: json['precioSinOferta'] != null
+          ? (json['precioSinOferta'] as num).toDouble()
+          : null,
     );
   }
 
@@ -97,6 +117,12 @@ class ComboModel extends Combo {
       tieneStockSuficiente: tieneStockSuficiente,
       componentesSinStock: componentesSinStock,
       imagen: imagen,
+      precioOferta: precioOferta,
+      enOferta: enOferta,
+      fechaInicioOferta: fechaInicioOferta,
+      fechaFinOferta: fechaFinOferta,
+      ofertaActiva: ofertaActiva,
+      precioSinOferta: precioSinOferta,
     );
   }
 }
