@@ -22,7 +22,7 @@ class ProveedorDetailPage extends StatelessWidget {
             icon: const Icon(Icons.edit),
             onPressed: () {
               context.push(
-                '/empresa/$empresaId/proveedores/${proveedor.id}/editar',
+                '/empresa/proveedores/${proveedor.id}/editar',
                 extra: proveedor,
               );
             },

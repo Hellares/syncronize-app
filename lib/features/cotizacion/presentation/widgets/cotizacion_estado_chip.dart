@@ -22,8 +22,8 @@ class CotizacionEstadoChip extends StatelessWidget {
         estado.label,
         style: TextStyle(
           color: _textColor,
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
+          fontSize: 10,
+          fontWeight: FontWeight.w400,
         ),
       ),
     );

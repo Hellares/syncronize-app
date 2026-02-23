@@ -236,8 +236,8 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               title: 'Proveedores',
               icon: Icons.business,
               iconColor: AppColors.blue2,
-              routeMatch: _RouteMatch.startsWith('/empresa/$empresaId/proveedores'),
-              onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/$empresaId/proveedores')),
+              routeMatch: const _RouteMatch.startsWith('/empresa/proveedores'),
+              onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/proveedores')),
             ),
 
             const _DividerNode(),

@@ -284,10 +284,16 @@ import '../../features/empresa/data/datasources/empresa_local_datasource.dart'
     as _i936;
 import '../../features/empresa/data/datasources/empresa_remote_datasource.dart'
     as _i278;
+import '../../features/empresa/data/datasources/plan_suscripcion_remote_datasource.dart'
+    as _i1016;
 import '../../features/empresa/data/repositories/empresa_repository_impl.dart'
     as _i538;
+import '../../features/empresa/data/repositories/plan_suscripcion_repository_impl.dart'
+    as _i624;
 import '../../features/empresa/domain/repositories/empresa_repository.dart'
     as _i544;
+import '../../features/empresa/domain/repositories/plan_suscripcion_repository.dart'
+    as _i894;
 import '../../features/empresa/domain/usecases/get_empresa_context_usecase.dart'
     as _i1001;
 import '../../features/empresa/domain/usecases/get_personalizacion_usecase.dart'
@@ -302,6 +308,8 @@ import '../../features/empresa/presentation/bloc/configuracion_empresa/configura
     as _i740;
 import '../../features/empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart'
     as _i135;
+import '../../features/empresa/presentation/bloc/plan_suscripcion/plan_suscripcion_cubit.dart'
+    as _i480;
 import '../../features/producto/data/datasources/configuracion_precio_remote_datasource.dart'
     as _i134;
 import '../../features/producto/data/datasources/plantilla_remote_datasource.dart'
@@ -709,6 +717,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i278.EmpresaRemoteDataSource>(
       () => _i278.EmpresaRemoteDataSource(gh<_i667.DioClient>()),
+    );
+    gh.lazySingleton<_i1016.PlanSuscripcionRemoteDataSource>(
+      () => _i1016.PlanSuscripcionRemoteDataSource(gh<_i667.DioClient>()),
     );
     gh.lazySingleton<_i134.ConfiguracionPrecioRemoteDataSource>(
       () => _i134.ConfiguracionPrecioRemoteDataSource(gh<_i667.DioClient>()),
@@ -1127,6 +1138,12 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i744.LocalStorageService>(),
       ),
     );
+    gh.lazySingleton<_i894.PlanSuscripcionRepository>(
+      () => _i624.PlanSuscripcionRepositoryImpl(
+        gh<_i1016.PlanSuscripcionRemoteDataSource>(),
+        gh<_i932.NetworkInfo>(),
+      ),
+    );
     gh.factory<_i1072.ActualizarReporteUsecase>(
       () => _i1072.ActualizarReporteUsecase(
         gh<_i266.ReporteIncidenciaRepository>(),
@@ -1240,6 +1257,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i648.ReportesIncidenciaListCubit>(
       () =>
           _i648.ReportesIncidenciaListCubit(gh<_i624.ListarReportesUsecase>()),
+    );
+    gh.factory<_i480.PlanSuscripcionCubit>(
+      () => _i480.PlanSuscripcionCubit(gh<_i894.PlanSuscripcionRepository>()),
     );
     gh.factory<_i309.GetConfiguracionUseCase>(
       () => _i309.GetConfiguracionUseCase(

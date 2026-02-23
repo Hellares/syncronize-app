@@ -9,6 +9,7 @@ import 'package:syncronize/core/widgets/info_chip.dart';
 import 'package:syncronize/core/services/storage_service.dart';
 import 'package:syncronize/features/producto/presentation/bloc/producto_list/producto_list_cubit.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/widgets/custom_alert_dialog.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../../../core/widgets/custom_dropdown.dart';
@@ -220,25 +221,12 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
       return true; // Permitir salir sin confirmación
     }
 
-    final shouldPop = await showDialog<bool>(
+    final shouldPop = await CustomAlertDialog.show<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('¿Descartar cambios?'),
-        content: const Text(
-          'Tienes cambios sin guardar. ¿Estás seguro de que deseas salir sin guardar?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Descartar'),
-          ),
-        ],
-      ),
+      titleText: '¿Descartar cambios?',
+      contentText: 'Tienes cambios sin guardar. ¿Estás seguro de que deseas salir sin guardar?',
+      confirmText: 'Descartar',
+      confirmColor: Colors.red,
     );
 
     return shouldPop ?? false;

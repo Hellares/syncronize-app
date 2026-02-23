@@ -2,6 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:syncronize/core/fonts/app_text_widgets.dart';
+import 'package:syncronize/core/theme/app_colors.dart';
+import 'package:syncronize/core/theme/app_gradients.dart';
+import 'package:syncronize/core/widgets/custom_filter_chip.dart';
+import 'package:syncronize/core/widgets/custom_search_field.dart';
+import 'package:syncronize/core/widgets/floating_button_text.dart';
+import 'package:syncronize/core/widgets/smart_appbar.dart';
+import '../../../../core/theme/gradient_container.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../domain/entities/cotizacion.dart';
@@ -56,8 +64,10 @@ class _CotizacionesPageState extends State<CotizacionesPage> {
         }
       },
       child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Cotizaciones'),
+        appBar: SmartAppBar(
+          title: 'Cotizaciones',
+          backgroundColor: AppColors.blue1,
+          foregroundColor: AppColors.white,
           actions: [
             IconButton(
               icon: const Icon(Icons.filter_list),
@@ -65,148 +75,164 @@ class _CotizacionesPageState extends State<CotizacionesPage> {
             ),
           ],
         ),
-        body: Column(
-          children: [
-            // Barra de busqueda
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: TextField(
-                controller: _searchController,
-                decoration: InputDecoration(
+        body: GradientContainer(
+          child: Column(
+            children: [
+              // Barra de busqueda
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: CustomSearchField(
+                  controller: _searchController,
+                  borderColor: AppColors.blue1,
                   hintText: 'Buscar por codigo, cliente...',
-                  prefixIcon: const Icon(Icons.search),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  isDense: true,
-                  suffixIcon: _searchController.text.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear),
-                          onPressed: () {
-                            _searchController.clear();
-                            context.read<CotizacionListCubit>().search('');
-                          },
-                        )
-                      : null,
+                  onChanged: (query) {
+                    context.read<CotizacionListCubit>().search(query);
+                  },
+                  onSubmitted: (query) {
+                    context.read<CotizacionListCubit>().search(query);
+                  },
+                  onClear: () {
+                    context.read<CotizacionListCubit>().search('');
+                  },
                 ),
-                onChanged: (value) => setState(() {}),
-                onSubmitted: (query) {
-                  context.read<CotizacionListCubit>().search(query);
-                },
               ),
-            ),
-
-            // Chips de filtro de estado
-            SizedBox(
-              height: 40,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                children: [
-                  _FilterChip(
-                    label: 'Todos',
-                    selected: _filtroEstado == null,
-                    onSelected: () => _filterByEstado(null),
-                  ),
-                  const SizedBox(width: 6),
-                  ...EstadoCotizacion.values.map((e) => Padding(
-                        padding: const EdgeInsets.only(right: 6),
-                        child: _FilterChip(
-                          label: e.label,
-                          selected: _filtroEstado == e,
-                          onSelected: () => _filterByEstado(e),
-                        ),
-                      )),
-                ],
-              ),
-            ),
-            const SizedBox(height: 8),
-
-            // Lista
-            Expanded(
-              child: BlocBuilder<CotizacionListCubit, CotizacionListState>(
-                builder: (context, state) {
-                  if (state is CotizacionListLoading) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-
-                  if (state is CotizacionListError) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.error_outline,
-                              size: 64, color: Colors.red),
-                          const SizedBox(height: 16),
-                          Text(state.message),
-                          const SizedBox(height: 16),
-                          FilledButton.icon(
-                            onPressed: () =>
-                                context.read<CotizacionListCubit>().reload(),
-                            icon: const Icon(Icons.refresh),
-                            label: const Text('Reintentar'),
+          
+              // Chips de filtro de estado
+              SizedBox(
+                height: 30,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  children: [
+                    CustomFilterChip(
+                      label: 'Todos',
+                      selected: _filtroEstado == null,
+                      onSelected: () => _filterByEstado(null),
+                      showCheckmark: true,
+                    ),
+                    const SizedBox(width: 6),
+                    ...EstadoCotizacion.values.map((e) => Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: CustomFilterChip(
+                            showCheckmark: true,
+                            label: e.label,
+                            selected: _filtroEstado == e,
+                            onSelected: () => _filterByEstado(e),
                           ),
-                        ],
+                        )
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              // Contador de resultados
+              BlocBuilder<CotizacionListCubit, CotizacionListState>(
+                builder: (context, state) {
+                  if (state is CotizacionListLoaded) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: AppText(
+                          '${state.cotizaciones.length} cotización${state.cotizaciones.length != 1 ? 'es' : ''}',
+                          fontWeight: FontWeight.w400,
+                          color: Colors.grey.shade600,
+                        ),
                       ),
                     );
                   }
+                  return const SizedBox.shrink();
+                },
+              ),
+              const SizedBox(height: 4),
 
-                  if (state is CotizacionListLoaded) {
-                    if (state.cotizaciones.isEmpty) {
+              // Lista
+              Expanded(
+                child: BlocBuilder<CotizacionListCubit, CotizacionListState>(
+                  builder: (context, state) {
+                    if (state is CotizacionListLoading) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+          
+                    if (state is CotizacionListError) {
                       return Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.description_outlined,
-                                size: 64, color: Colors.grey.shade400),
+                            const Icon(Icons.error_outline,
+                                size: 64, color: Colors.red),
                             const SizedBox(height: 16),
-                            Text(
-                              'No hay cotizaciones',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.grey.shade600,
-                              ),
+                            Text(state.message),
+                            const SizedBox(height: 16),
+                            FilledButton.icon(
+                              onPressed: () =>
+                                  context.read<CotizacionListCubit>().reload(),
+                              icon: const Icon(Icons.refresh),
+                              label: const Text('Reintentar'),
                             ),
                           ],
                         ),
                       );
                     }
-
-                    return RefreshIndicator(
-                      onRefresh: () =>
-                          context.read<CotizacionListCubit>().reload(),
-                      child: ListView.separated(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 4),
-                        itemCount: state.cotizaciones.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 6),
-                        itemBuilder: (context, index) {
-                          final cotizacion = state.cotizaciones[index];
-                          return _CotizacionListTile(
-                            cotizacion: cotizacion,
-                            onTap: () {
-                              context.push(
-                                '/empresa/cotizaciones/${cotizacion.id}',
-                              );
-                            },
-                          );
-                        },
-                      ),
-                    );
-                  }
-
-                  return const SizedBox.shrink();
-                },
+          
+                    if (state is CotizacionListLoaded) {
+                      if (state.cotizaciones.isEmpty) {
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.description_outlined,
+                                  size: 64, color: Colors.grey.shade400),
+                              const SizedBox(height: 16),
+                              Text(
+                                'No hay cotizaciones',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+          
+                      return RefreshIndicator(
+                        onRefresh: () =>
+                            context.read<CotizacionListCubit>().reload(),
+                        child: ListView.separated(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 4),
+                          itemCount: state.cotizaciones.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 6),
+                          itemBuilder: (context, index) {
+                            final cotizacion = state.cotizaciones[index];
+                            return _CotizacionListTile(
+                              cotizacion: cotizacion,
+                              onTap: () {
+                                context.push(
+                                  '/empresa/cotizaciones/${cotizacion.id}',
+                                );
+                              },
+                            );
+                          },
+                        ),
+                      );
+                    }
+          
+                    return const SizedBox.shrink();
+                  },
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-        floatingActionButton: FloatingActionButton.extended(
+        floatingActionButton: FloatingButtonText(
+          label: 'Nueva Cotización',
+          icon: Icons.add,
           onPressed: () {
             context.push('/empresa/cotizaciones/nueva');
           },
-          icon: const Icon(Icons.add),
-          label: const Text('Nueva Cotizacion'),
         ),
       ),
     );
@@ -234,28 +260,6 @@ class _CotizacionesPageState extends State<CotizacionesPage> {
   }
 }
 
-class _FilterChip extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onSelected;
-
-  const _FilterChip({
-    required this.label,
-    required this.selected,
-    required this.onSelected,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return FilterChip(
-      label: Text(label, style: const TextStyle(fontSize: 12)),
-      selected: selected,
-      onSelected: (_) => onSelected(),
-      visualDensity: VisualDensity.compact,
-    );
-  }
-}
-
 class _CotizacionListTile extends StatelessWidget {
   final Cotizacion cotizacion;
   final VoidCallback onTap;
@@ -269,32 +273,28 @@ class _CotizacionListTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final dateFormat = DateFormat('dd/MM/yyyy');
 
-    return Card(
+    return GradientContainer(
+      shadowStyle: ShadowStyle.colorful,
+      borderColor: AppColors.blueborder,
       margin: EdgeInsets.zero,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.only(left: 14, right: 14, top: 8, bottom: 8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  Text(
-                    cotizacion.codigo,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
-                    ),
-                  ),
+                  AppSubtitle(cotizacion.codigo),
                   const SizedBox(width: 8),
                   CotizacionEstadoChip(estado: cotizacion.estado),
-                  const Spacer(),
+                  Spacer(),
                   Text(
                     dateFormat.format(cotizacion.fechaEmision),
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: 10,
                       color: Colors.grey.shade600,
                     ),
                   ),
@@ -303,24 +303,29 @@ class _CotizacionListTile extends StatelessWidget {
               if (cotizacion.nombre != null &&
                   cotizacion.nombre!.isNotEmpty) ...[
                 const SizedBox(height: 4),
-                Text(
-                  cotizacion.nombre!,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
-                ),
+                AppSubtitle(cotizacion.nombre!, fontSize: 13,)
               ],
               const SizedBox(height: 4),
-              Text(
-                cotizacion.nombreCliente,
-                style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+              Row(
+                children: [
+                  SizedBox(width: 70, child: AppText('Cliente:')),
+                  Expanded(child: AppText(cotizacion.nombreCliente, fontWeight: FontWeight.w400)),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  SizedBox(width: 70, child: AppText('Telefono:')),
+                  Expanded(child: AppText(cotizacion.telefonoCliente ?? 'N/A', fontWeight: FontWeight.w400)),
+                ],
               ),
               if (cotizacion.sedeNombre != null) ...[
                 const SizedBox(height: 2),
-                Text(
-                  'Sede: ${cotizacion.sedeNombre}',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                Row(
+                  children: [
+                    SizedBox(width: 70, child: AppText('Sede:')),
+                    Expanded(child: AppText(cotizacion.sedeNombre!, fontWeight: FontWeight.w400)),
+                  ],
                 ),
               ],
               const SizedBox(height: 6),
@@ -336,8 +341,8 @@ class _CotizacionListTile extends StatelessWidget {
                   Text(
                     '${cotizacion.moneda} ${cotizacion.total.toStringAsFixed(2)}',
                     style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      fontSize: 13,
                     ),
                   ),
                 ],

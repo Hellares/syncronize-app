@@ -13,6 +13,7 @@ class EmpresaContext extends Equatable {
   final List<Sede> sedes;
   final EmpresaPermissions permissions;
   final EmpresaStatistics statistics;
+  final PlanLimitsInfo? planLimits;
 
   const EmpresaContext({
     required this.empresa,
@@ -20,6 +21,7 @@ class EmpresaContext extends Equatable {
     required this.sedes,
     required this.permissions,
     required this.statistics,
+    this.planLimits,
   });
 
   /// Obtiene el rol principal del usuario (el primero de la lista)
@@ -48,5 +50,6 @@ class EmpresaContext extends Equatable {
         sedes,
         permissions,
         statistics,
+        planLimits,
       ];
 }

@@ -12,6 +12,7 @@ class EmpresaContextModel extends EmpresaContext {
     required super.sedes,
     required super.permissions,
     required super.statistics,
+    super.planLimits,
   });
 
   factory EmpresaContextModel.fromJson(Map<String, dynamic> json) {
@@ -31,6 +32,10 @@ class EmpresaContextModel extends EmpresaContext {
       statistics: EmpresaStatisticsModel.fromJson(
         json['statistics'] as Map<String, dynamic>,
       ),
+      planLimits: json['planLimits'] != null
+          ? PlanLimitsInfoModel.fromJson(
+              json['planLimits'] as Map<String, dynamic>)
+          : null,
     );
   }
 
@@ -45,6 +50,9 @@ class EmpresaContextModel extends EmpresaContext {
           EmpresaPermissionsModel.fromEntity(permissions).toJson(),
       'statistics':
           EmpresaStatisticsModel.fromEntity(statistics).toJson(),
+      if (planLimits != null)
+        'planLimits':
+            (planLimits as PlanLimitsInfoModel).toJson(),
     };
   }
 
@@ -57,6 +65,7 @@ class EmpresaContextModel extends EmpresaContext {
       sedes: entity.sedes,
       permissions: entity.permissions,
       statistics: entity.statistics,
+      planLimits: entity.planLimits,
     );
   }
 }

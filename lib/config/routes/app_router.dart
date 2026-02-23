@@ -17,6 +17,7 @@ import '../../features/empresa/presentation/pages/empresa_dashboard_page.dart';
 import '../../features/empresa/presentation/pages/empresa_selection_page.dart';
 import '../../features/empresa/presentation/pages/configuracion_empresa_page.dart';
 import '../../features/empresa/presentation/pages/personalizacion_page.dart';
+import '../../features/empresa/presentation/pages/planes_page.dart';
 import '../../features/marketplace/presentation/pages/marketplace_page.dart';
 import '../../features/producto/presentation/pages/productos_page.dart';
 import '../../features/producto/presentation/pages/producto_detail_page.dart';
@@ -191,6 +192,11 @@ class AppRouter {
         builder: (context, state) => const ConfiguracionEmpresaPage(),
       ),
       GoRoute(
+        path: '/empresa/planes',
+        name: 'empresa-planes',
+        builder: (context, state) => const PlanesPage(),
+      ),
+      GoRoute(
         path: '/empresa/configuracion-documentos',
         name: 'empresa-configuracion-documentos',
         builder: (context, state) => const ConfiguracionDocumentosPage(),
@@ -360,26 +366,26 @@ class AppRouter {
       ),
       // Rutas de proveedores
       GoRoute(
-        path: '/empresa/:empresaId/proveedores',
+        path: '/empresa/proveedores',
         name: 'empresa-proveedores',
         builder: (context, state) {
-          final empresaId = state.pathParameters['empresaId']!;
+          final empresaId = locator<LocalStorageService>().getString(StorageConstants.tenantId) ?? '';
           return ProveedoresPage(empresaId: empresaId);
         },
       ),
       GoRoute(
-        path: '/empresa/:empresaId/proveedores/nuevo',
+        path: '/empresa/proveedores/nuevo',
         name: 'empresa-proveedores-nuevo',
         builder: (context, state) {
-          final empresaId = state.pathParameters['empresaId']!;
+          final empresaId = locator<LocalStorageService>().getString(StorageConstants.tenantId) ?? '';
           return ProveedorFormPage(empresaId: empresaId);
         },
       ),
       GoRoute(
-        path: '/empresa/:empresaId/proveedores/:id',
+        path: '/empresa/proveedores/:id',
         name: 'empresa-proveedores-detail',
         builder: (context, state) {
-          final empresaId = state.pathParameters['empresaId']!;
+          final empresaId = locator<LocalStorageService>().getString(StorageConstants.tenantId) ?? '';
           final proveedor = state.extra;
           return ProveedorDetailPage(
             empresaId: empresaId,
@@ -388,10 +394,10 @@ class AppRouter {
         },
       ),
       GoRoute(
-        path: '/empresa/:empresaId/proveedores/:id/editar',
+        path: '/empresa/proveedores/:id/editar',
         name: 'empresa-proveedores-editar',
         builder: (context, state) {
-          final empresaId = state.pathParameters['empresaId']!;
+          final empresaId = locator<LocalStorageService>().getString(StorageConstants.tenantId) ?? '';
           final proveedor = state.extra;
           return ProveedorFormPage(
             empresaId: empresaId,

@@ -16,6 +16,7 @@ import '../widgets/empresa_drawer.dart';
 import '../widgets/plan_suscripcion_card.dart';
 import '../widgets/roles_permisos_section.dart';
 import '../widgets/sedes_section.dart';
+import '../widgets/usage_limit_card.dart';
 
 class EmpresaDashboardPage extends StatefulWidget {
   const EmpresaDashboardPage({super.key});
@@ -188,6 +189,24 @@ class _EmpresaDashboardPageState extends State<EmpresaDashboardPage> {
                       : null,
                 ),
                 StatsCard(
+                  title: 'Cotizaciones',
+                  value: stats.totalCotizaciones.toString(),
+                  icon: Icons.request_quote,
+                  color: Colors.purple,
+                  onTap: permissions.canViewCotizaciones
+                      ? () => context.push('/empresa/cotizaciones')
+                      : null,
+                ),
+                StatsCard(
+                  title: 'Proveedores',
+                  value: stats.totalProveedores.toString(),
+                  icon: Icons.local_shipping,
+                  color: Colors.teal,
+                  onTap: permissions.canViewProveedores
+                      ? () => context.push('/empresa/proveedores')
+                      : null,
+                ),
+                StatsCard(
                   title: 'Órdenes Pendientes',
                   value: stats.ordenesPendientes.toString(),
                   icon: Icons.pending_actions,
@@ -198,6 +217,14 @@ class _EmpresaDashboardPageState extends State<EmpresaDashboardPage> {
                 ),
               ],
             ),
+
+            // Uso del Plan
+            if (empresaContext.planLimits != null) ...[
+              const SizedBox(height: 24),
+              AppSubtitle('Uso del Plan', fontSize: 16),
+              const SizedBox(height: 12),
+              UsageLimitCard(planLimits: empresaContext.planLimits!),
+            ],
 
             const SizedBox(height: 28),
 

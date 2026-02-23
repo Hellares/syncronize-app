@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/utils/date_formatter.dart';
 import 'package:syncronize/core/widgets/info_chip.dart';
@@ -89,12 +90,8 @@ class PlanSuscripcionCard extends StatelessWidget {
               text:  'Cambiar Plan', 
               textColor: AppColors.white,
               onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Cambio de plan - Por implementar'),
-                  ),
-                );
-              }, 
+                context.push('/empresa/planes');
+              },
               icon: Icon(Icons.upgrade, color: AppColors.white),
               // backgroundColor: AppColors.blue,
             ),

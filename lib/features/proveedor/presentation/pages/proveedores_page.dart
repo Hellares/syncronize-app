@@ -150,7 +150,7 @@ class ProveedoresPage extends StatelessWidget {
                               proveedor: proveedor,
                               onTap: () {
                                 context.push(
-                                  '/empresa/$empresaId/proveedores/${proveedor.id}',
+                                  '/empresa/proveedores/${proveedor.id}',
                                   extra: proveedor,
                                 );
                               },
@@ -172,7 +172,7 @@ class ProveedoresPage extends StatelessWidget {
             // Guardar referencia al cubit antes del async gap
             final cubit = context.read<ProveedorListCubit>();
             final result = await context.push(
-              '/empresa/$empresaId/proveedores/nuevo',
+              '/empresa/proveedores/nuevo',
             );
             if (result == true) {
               cubit.reload();
