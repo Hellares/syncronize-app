@@ -171,7 +171,11 @@ class _HomePageState extends State<HomePage> {
                           const SizedBox(height: 16),
                           ElevatedButton(
                             onPressed: () {
-                              context.push('/create-empresa');
+                              if (!state.user.perfilCompleto) {
+                                context.push('/complete-profile');
+                              } else {
+                                context.push('/create-empresa');
+                              }
                             },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.white,

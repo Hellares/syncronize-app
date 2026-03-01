@@ -14,6 +14,7 @@ class ApiConstants {
   static const String verifyEmail = '/auth/verify-email';
   static const String resendVerificationEmail = '/auth/resend-verification-email';
   static const String profile = '/auth/profile';
+  static const String updateProfile = '/auth/profile';
   static const String sessions = '/auth/sessions';
 
   // Multi-method auth
@@ -57,6 +58,10 @@ class ApiConstants {
 
   // Endpoints de configuracion de documentos
   static const String configuracionDocumentos = '/configuracion-documentos';
+
+  // Endpoints de consultas externas (SUNAT/RENIEC)
+  static const String consultaRuc = '/consultas/ruc';
+  static const String consultaDni = '/consultas/dni';
 
   // Headers
   static const String authorization = 'Authorization';

@@ -61,11 +61,15 @@ class ErrorInterceptor extends Interceptor {
     switch (statusCode) {
       case 400:
         // Bad Request - puede incluir errores de validación
+        final backendErrorCode = sanitizedData is Map<String, dynamic>
+            ? sanitizedData['errorCode'] as String?
+            : null;
         if (sanitizedData is Map<String, dynamic> &&
             sanitizedData.containsKey('errors')) {
           final errors = sanitizedData['errors'] as Map<String, dynamic>?;
           throw ValidationException(
             message: sanitizedMessage,
+            errorCode: backendErrorCode,
             errors: errors?.map(
               (key, value) => MapEntry(
                 key,
@@ -74,7 +78,10 @@ class ErrorInterceptor extends Interceptor {
             ),
           );
         }
-        throw ValidationException(message: sanitizedMessage);
+        throw ValidationException(
+          message: sanitizedMessage,
+          errorCode: backendErrorCode,
+        );
 
       case 401:
         if (sanitizedMessage.toLowerCase().contains('token') &&

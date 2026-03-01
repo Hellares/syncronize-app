@@ -48,10 +48,14 @@ import '../../features/auth/domain/usecases/resend_verification_email_usecase.da
 import '../../features/auth/domain/usecases/reset_password_usecase.dart'
     as _i474;
 import '../../features/auth/domain/usecases/set_password_usecase.dart' as _i726;
+import '../../features/auth/domain/usecases/update_profile_usecase.dart'
+    as _i798;
 import '../../features/auth/domain/usecases/verify_email_usecase.dart' as _i30;
 import '../../features/auth/presentation/bloc/account_security/account_security_cubit.dart'
     as _i547;
 import '../../features/auth/presentation/bloc/auth/auth_bloc.dart' as _i469;
+import '../../features/auth/presentation/bloc/complete_profile/complete_profile_cubit.dart'
+    as _i87;
 import '../../features/auth/presentation/bloc/create_empresa/create_empresa_cubit.dart'
     as _i716;
 import '../../features/auth/presentation/bloc/login/login_cubit.dart' as _i65;
@@ -214,6 +218,18 @@ import '../../features/configuracion_documentos/domain/usecases/update_plantilla
     as _i715;
 import '../../features/configuracion_documentos/presentation/bloc/configuracion_documentos_cubit.dart'
     as _i925;
+import '../../features/consultas_externas/data/datasources/consultas_remote_datasource.dart'
+    as _i906;
+import '../../features/consultas_externas/data/repositories/consultas_repository_impl.dart'
+    as _i36;
+import '../../features/consultas_externas/domain/repositories/consultas_repository.dart'
+    as _i112;
+import '../../features/consultas_externas/domain/usecases/consultar_dni_usecase.dart'
+    as _i53;
+import '../../features/consultas_externas/domain/usecases/consultar_ruc_usecase.dart'
+    as _i633;
+import '../../features/consultas_externas/presentation/bloc/consulta_ruc_cubit.dart'
+    as _i193;
 import '../../features/cotizacion/data/datasources/cotizacion_remote_datasource.dart'
     as _i369;
 import '../../features/cotizacion/data/repositories/cotizacion_repository_impl.dart'
@@ -677,6 +693,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i444.CatalogosRemoteDataSource>(
       () => _i444.CatalogosRemoteDataSourceImpl(gh<_i667.DioClient>()),
     );
+    gh.lazySingleton<_i906.ConsultasRemoteDataSource>(
+      () => _i906.ConsultasRemoteDataSourceImpl(gh<_i667.DioClient>()),
+    );
     gh.lazySingleton<_i858.CatalogosRepository>(
       () => _i22.CatalogosRepositoryImpl(
         remoteDataSource: gh<_i444.CatalogosRemoteDataSource>(),
@@ -922,6 +941,13 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i876.ConfiguracionDocumentosRepository>(),
       ),
     );
+    gh.lazySingleton<_i112.ConsultasRepository>(
+      () => _i36.ConsultasRepositoryImpl(
+        remoteDataSource: gh<_i906.ConsultasRemoteDataSource>(),
+        networkInfo: gh<_i932.NetworkInfo>(),
+        errorHandler: gh<_i490.ErrorHandlerService>(),
+      ),
+    );
     gh.lazySingleton<_i262.ProductoStockRepository>(
       () => _i714.ProductoStockRepositoryImpl(
         gh<_i88.ProductoStockRemoteDataSource>(),
@@ -934,6 +960,12 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i324.ReporteIncidenciaRemoteDataSource>(),
         gh<_i932.NetworkInfo>(),
       ),
+    );
+    gh.lazySingleton<_i53.ConsultarDniUseCase>(
+      () => _i53.ConsultarDniUseCase(gh<_i112.ConsultasRepository>()),
+    );
+    gh.lazySingleton<_i633.ConsultarRucUseCase>(
+      () => _i633.ConsultarRucUseCase(gh<_i112.ConsultasRepository>()),
     );
     gh.factory<_i446.ActivarUnidadUseCase>(
       () => _i446.ActivarUnidadUseCase(gh<_i531.UnidadMedidaRepository>()),
@@ -1356,6 +1388,9 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i736.GetCategoriasMaestrasUseCase>(),
       ),
     );
+    gh.factory<_i193.ConsultaRucCubit>(
+      () => _i193.ConsultaRucCubit(gh<_i633.ConsultarRucUseCase>()),
+    );
     gh.lazySingleton<_i787.AuthRepository>(
       () => _i153.AuthRepositoryImpl(
         remoteDataSource: gh<_i161.AuthRemoteDataSource>(),
@@ -1654,6 +1689,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i474.ResetPasswordUseCase>(
       () => _i474.ResetPasswordUseCase(gh<_i787.AuthRepository>()),
     );
+    gh.factory<_i798.UpdateProfileUseCase>(
+      () => _i798.UpdateProfileUseCase(gh<_i787.AuthRepository>()),
+    );
     gh.factory<_i30.VerifyEmailUseCase>(
       () => _i30.VerifyEmailUseCase(gh<_i787.AuthRepository>()),
     );
@@ -1784,6 +1822,11 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i13.ProductoSedeSearchCubit>(
       () => _i13.ProductoSedeSearchCubit(gh<_i202.GetProductosUseCase>()),
+    );
+    gh.factory<_i87.CompleteProfileCubit>(
+      () => _i87.CompleteProfileCubit(
+        updateProfileUseCase: gh<_i798.UpdateProfileUseCase>(),
+      ),
     );
     gh.factory<_i65.LoginCubit>(
       () => _i65.LoginCubit(

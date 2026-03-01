@@ -8,6 +8,8 @@ import '../../core/storage/local_storage_service.dart';
 import '../../core/constants/storage_constants.dart';
 import '../../features/auth/presentation/pages/account_security_page.dart';
 import '../../features/auth/presentation/pages/change_password_page.dart';
+import '../../features/auth/presentation/pages/complete_profile_page.dart';
+import '../../features/auth/presentation/pages/profile_page.dart';
 import '../../features/auth/presentation/pages/create_empresa_page.dart';
 import '../../features/auth/presentation/pages/email_verification_page.dart';
 import '../../features/auth/presentation/pages/home_page.dart';
@@ -16,6 +18,7 @@ import '../../features/auth/presentation/pages/register_page.dart';
 import '../../features/empresa/presentation/pages/empresa_dashboard_page.dart';
 import '../../features/empresa/presentation/pages/empresa_selection_page.dart';
 import '../../features/empresa/presentation/pages/configuracion_empresa_page.dart';
+import '../../features/empresa/presentation/pages/empresa_profile_page.dart';
 import '../../features/empresa/presentation/pages/personalizacion_page.dart';
 import '../../features/empresa/presentation/pages/planes_page.dart';
 import '../../features/marketplace/presentation/pages/marketplace_page.dart';
@@ -166,6 +169,16 @@ class AppRouter {
         builder: (context, state) => const AccountSecurityPage(),
       ),
       GoRoute(
+        path: '/profile',
+        name: 'profile',
+        builder: (context, state) => const ProfilePage(),
+      ),
+      GoRoute(
+        path: '/complete-profile',
+        name: 'complete-profile',
+        builder: (context, state) => const CompleteProfilePage(),
+      ),
+      GoRoute(
         path: '/create-empresa',
         name: 'create-empresa',
         builder: (context, state) => const CreateEmpresaPage(),
@@ -180,6 +193,11 @@ class AppRouter {
         path: '/empresa/dashboard',
         name: 'empresa-dashboard',
         builder: (context, state) => const EmpresaDashboardPage(),
+      ),
+      GoRoute(
+        path: '/empresa/perfil',
+        name: 'empresa-perfil',
+        builder: (context, state) => const EmpresaProfilePage(),
       ),
       GoRoute(
         path: '/empresa/personalizacion',

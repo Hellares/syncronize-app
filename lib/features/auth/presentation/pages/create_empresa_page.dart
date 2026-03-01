@@ -1,13 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:syncronize/core/fonts/app_text_widgets.dart';
+import 'package:syncronize/core/theme/app_colors.dart';
+import 'package:syncronize/core/theme/app_gradients.dart';
+import 'package:syncronize/core/theme/gradient_background.dart';
+import 'package:syncronize/core/theme/gradient_container.dart';
+import 'package:syncronize/core/widgets/container_large.dart';
+import 'package:syncronize/core/widgets/smart_appbar.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/utils/resource.dart';
 import '../../../../core/widgets/snack_bar_helper.dart';
 import '../../domain/entities/rubro_empresa.dart';
 import '../../../catalogo/presentation/bloc/catalogo_preview/catalogo_preview_cubit.dart';
 import '../../../catalogo/presentation/widgets/catalogo_preview_widget.dart';
+import '../../../consultas_externas/presentation/bloc/consulta_ruc_cubit.dart';
 import '../bloc/create_empresa/create_empresa_cubit.dart';
+import '../../../../core/widgets/custom_dropdown.dart';
+import '../../../../core/widgets/floating_button_icon.dart';
+import '../widgets/custom_text.dart' show CustomText, FieldType, TextCase;
 import '../widgets/widgets.dart';
 
 class CreateEmpresaPage extends StatelessWidget {
@@ -19,6 +30,7 @@ class CreateEmpresaPage extends StatelessWidget {
       providers: [
         BlocProvider(create: (_) => locator<CreateEmpresaCubit>()),
         BlocProvider(create: (_) => locator<CatalogoPreviewCubit>()),
+        BlocProvider(create: (_) => locator<ConsultaRucCubit>()),
       ],
       child: const _CreateEmpresaView(),
     );
@@ -34,8 +46,8 @@ class _CreateEmpresaView extends StatefulWidget {
 
 class _CreateEmpresaViewState extends State<_CreateEmpresaView> {
   final _formKey = GlobalKey<FormState>();
-  final _nombreController = TextEditingController();
   final _rucController = TextEditingController();
+  final _nombreController = TextEditingController();
   final _descripcionController = TextEditingController();
   final _telefonoController = TextEditingController();
   final _emailController = TextEditingController();
@@ -46,8 +58,8 @@ class _CreateEmpresaViewState extends State<_CreateEmpresaView> {
 
   @override
   void dispose() {
-    _nombreController.dispose();
     _rucController.dispose();
+    _nombreController.dispose();
     _descripcionController.dispose();
     _telefonoController.dispose();
     _emailController.dispose();
@@ -58,330 +70,477 @@ class _CreateEmpresaViewState extends State<_CreateEmpresaView> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Crear Mi Empresa'),
-      ),
-      body: SafeArea(
-        child: BlocConsumer<CreateEmpresaCubit, CreateEmpresaState>(
-          listener: (context, state) {
-            final response = state.response;
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: Scaffold(
+        appBar: SmartAppBar(
+          title: 'Crear Mi Empresa',
+          backgroundColor: AppColors.blue1,
+          foregroundColor: AppColors.white,
+        ),
+        body: GradientBackground(
+        child: SafeArea(
+          child: BlocConsumer<CreateEmpresaCubit, CreateEmpresaState>(
+            listener: (context, state) {
+              final response = state.response;
+        
+              if (response is Success) {
+                SnackBarHelper.showSuccess(
+                  context,
+                  'Empresa creada exitosamente',
+                );
+                context.pop();
+              } else if (response is Error) {
+                if (response.errorCode == 'PROFILE_INCOMPLETE') {
+                  SnackBarHelper.showError(context, 'Debes completar tu perfil primero');
+                  context.push('/complete-profile');
+                } else {
+                  SnackBarHelper.showError(context, response.message);
+                }
+              }
+            },
+            builder: (context, state) {
+              final isLoading = state.response is Loading;
+              final showForm = state.tieneDatosSunat && state.esHabido;
+        
+              return Column(
+                children: [
+                  // ========== CONTENIDO SCROLLABLE ==========
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(12),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            // Título y descripción
+                            AppSubtitle('INFORMACION DE TU EMPRESA', fontSize: 13,),
+                            const SizedBox(height: 8),
 
-            if (response is Success) {
-              SnackBarHelper.showSuccess(
-                context,
-                'Empresa creada exitosamente',
-              );
-              context.go('/home');
-            } else if (response is Error) {
-              SnackBarHelper.showError(context, response.message);
-            }
-          },
-          builder: (context, state) {
-            final isLoading = state.response is Loading;
+                            AppSubtitle('Ingresa el RUC de tu empresa para obtener los datos de SUNAT automáticamente.', color: AppColors.blueGrey,),
+                            const SizedBox(height: 25),
+        
+                            // ========== PASO 1: CAMPO RUC ==========
+                            _buildRucSection(context, state, isLoading),
+                            const SizedBox(height: 5),
+        
+                            // ========== CARD DATOS SUNAT ==========
+                            _buildSunatDataCard(context, state),
+        
+                            // ========== PASO 2: DATOS ADICIONALES (solo si condición es HABIDO) ==========
+                            if (showForm) ...[
+                              const SizedBox(height: 20),
 
-            return SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Título y descripción
-                    Text(
-                      'Información de tu Empresa',
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Completa los datos de tu empresa. El nombre y rubro son obligatorios.',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.grey.shade600,
-                          ),
-                    ),
-                    const SizedBox(height: 32),
-
-                    // Selector de Rubro (NUEVO - requerido)
-                    DropdownButtonFormField<RubroEmpresa>(
-                      initialValue: _selectedRubro,
-                      decoration: InputDecoration(
-                        labelText: 'Rubro de la Empresa *',
-                        hintText: 'Selecciona el rubro',
-                        prefixIcon: const Icon(Icons.category),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        errorText: state.rubro.error,
-                      ),
-                      items: RubroEmpresa.values.map((rubro) {
-                        return DropdownMenuItem(
-                          value: rubro,
-                          child: Row(
-                            children: [
-                              Text(
-                                rubro.emoji,
-                                style: const TextStyle(fontSize: 20),
+                              AppSubtitle('DATOS ADICIONALES'),
+                              const SizedBox(height: 12),
+        
+                              // Selector de Rubro (requerido)
+                              CustomDropdown<RubroEmpresa>(
+                                label: 'Rubro de la Empresa *',
+                                hintText: 'Selecciona el rubro',
+                                borderColor: AppColors.blue1,
+                                value: _selectedRubro,
+                                enabled: !isLoading,
+                                items: RubroEmpresa.values.map((rubro) {
+                                  return DropdownItem<RubroEmpresa>(
+                                    value: rubro,
+                                    label: rubro.displayName,
+                                    leading: Text(rubro.emoji, style: const TextStyle(fontSize: 16)),
+                                  );
+                                }).toList(),
+                                validator: (_) => state.rubro.error,
+                                onChanged: (value) {
+                                  setState(() => _selectedRubro = value);
+                                  if (value != null) {
+                                    context.read<CreateEmpresaCubit>().rubroChanged(value.value);
+                                    context.read<CatalogoPreviewCubit>().loadPreview(value.value);
+                                  }
+                                },
                               ),
-                              const SizedBox(width: 12),
-                              Text(rubro.displayName),
+                              const SizedBox(height: 12),
+        
+                              // Nombre comercial
+                              CustomText(
+                                controller: _nombreController,
+                                borderColor: AppColors.blue1,
+                                label: 'Nombre Comercial *',
+                                hintText: 'Nombre con el que se conoce tu empresa',
+                                prefixIcon: const Icon(Icons.business),
+                                enabled: false,
+                                externalError: state.nombre.error,
+                                required: true,
+                                onChanged: (value) {
+                                  context.read<CreateEmpresaCubit>().nombreChanged(value);
+                                },
+                              ),
+                              const SizedBox(height: 12),
+        
+                              // Descripción
+                              CustomText(
+                                controller: _descripcionController,
+                                borderColor: AppColors.blue1,
+                                label: 'Descripción (opcional)',
+                                hintText: 'Breve descripción de tu empresa',
+                                maxLines: 3,
+                                height: null,
+                                prefixIcon: const Icon(Icons.description_outlined),
+                                enabled: !isLoading,
+                                externalError: state.descripcion.error,
+                                onChanged: (value) {
+                                  context.read<CreateEmpresaCubit>().descripcionChanged(value);
+                                },
+                              ),
+                              const SizedBox(height: 12),
+        
+                              // Teléfono
+                              CustomText(
+                                controller: _telefonoController,
+                                borderColor: AppColors.blue1,
+                                label: 'Teléfono (opcional)',
+                                hintText: '+51 999 999 999',
+                                keyboardType: TextInputType.phone,
+                                prefixIcon: const Icon(Icons.phone_outlined),
+                                enabled: !isLoading,
+                                externalError: state.telefono.error,
+                                onChanged: (value) {
+                                  context.read<CreateEmpresaCubit>().telefonoChanged(value);
+                                },
+                              ),
+                              const SizedBox(height: 12),
+        
+                              // Email
+                              CustomText(
+                                controller: _emailController,
+                                borderColor: AppColors.blue1,
+                                label: 'Email Empresarial (opcional)',
+                                hintText: 'contacto@empresa.com',
+                                keyboardType: TextInputType.emailAddress,
+                                prefixIcon: const Icon(Icons.email_outlined),
+                                enabled: !isLoading,
+                                externalError: state.email.error,
+                                onChanged: (value) {
+                                  context.read<CreateEmpresaCubit>().emailChanged(value);
+                                },
+                              ),
+                              const SizedBox(height: 12),
+        
+                              // Sitio Web
+                              CustomText(
+                                controller: _webController,
+                                borderColor: AppColors.blue1,
+                                label: 'Sitio Web (opcional)',
+                                hintText: 'https://www.miempresa.com',
+                                keyboardType: TextInputType.url,
+                                prefixIcon: const Icon(Icons.language_outlined),
+                                enabled: !isLoading,
+                                externalError: state.web.error,
+                                onChanged: (value) {
+                                  context.read<CreateEmpresaCubit>().webChanged(value);
+                                },
+                              ),
+                              const SizedBox(height: 12),
+        
+                              // Subdominio
+                              CustomText(
+                                controller: _subdominioController,
+                                borderColor: AppColors.blue1,
+                                label: 'Subdominio (opcional)',
+                                hintText: 'mi-empresa',
+                                textCase: TextCase.lower,
+                                prefixIcon: const Icon(Icons.link_outlined),
+                                enabled: !isLoading,
+                                externalError: state.subdominio.error,
+                                onChanged: (value) {
+                                  context.read<CreateEmpresaCubit>().subdominioChanged(value);
+                                },
+                              ),
+                              const SizedBox(height: 8),
+                              if (_subdominioController.text.isNotEmpty && state.subdominio.error == null)
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 12),
+                                  child: Text(
+                                    'Tu empresa estará disponible en: ${_subdominioController.text}.syncronize.com',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade600,
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                  ),
+                                ),
+                              const SizedBox(height: 24),
+        
+                              // Info trial
+
+                              ContainerLarge(leftIcon: Icons.info_outline, leftText: 'Obtendrás 30 días de prueba gratis del plan Básico',),
+                              const SizedBox(height: 16),
+        
+                              // Preview de catálogos (al final del formulario)
+                              BlocBuilder<CatalogoPreviewCubit, CatalogoPreviewState>(
+                                builder: (context, previewState) {
+                                  if (previewState is CatalogoPreviewLoading) {
+                                    return GradientContainer(
+                                      gradient: AppGradients.blueWhiteBlue(),
+                                      borderColor: AppColors.blue1,
+                                      padding: const EdgeInsets.all(20),
+                                      margin: const EdgeInsets.only(bottom: 16),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          const SizedBox(
+                                            width: 18,
+                                            height: 18,
+                                            child: CircularProgressIndicator(strokeWidth: 1.5, color: AppColors.blue1),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          AppSubtitle('Cargando catálogos...', color: AppColors.blueGrey),
+                                        ],
+                                      ),
+                                    );
+                                  } else if (previewState is CatalogoPreviewLoaded) {
+                                    return CatalogoPreviewWidget(preview: previewState.preview);
+                                  } else if (previewState is CatalogoPreviewError) {
+                                    return GradientContainer(
+                                      gradient: AppGradients.gray(),
+                                      borderColor: Colors.red.shade300,
+                                      padding: const EdgeInsets.all(14),
+                                      margin: const EdgeInsets.only(bottom: 16),
+                                      child: Row(
+                                        children: [
+                                          Icon(Icons.error_outline, color: Colors.red.shade700, size: 18),
+                                          const SizedBox(width: 10),
+                                          Expanded(
+                                            child: Text(
+                                              previewState.message,
+                                              style: TextStyle(color: Colors.red.shade700, fontSize: 11),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  }
+                                  return const SizedBox.shrink();
+                                },
+                              ),
                             ],
-                          ),
-                        );
-                      }).toList(),
-                      onChanged: isLoading
-                          ? null
-                          : (value) {
-                              setState(() {
-                                _selectedRubro = value;
-                              });
-                              if (value != null) {
-                                context
-                                    .read<CreateEmpresaCubit>()
-                                    .rubroChanged(value.value);
-                                // Cargar preview de catálogos
-                                context
-                                    .read<CatalogoPreviewCubit>()
-                                    .loadPreview(value.value);
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+        
+                  // ========== BOTONES FIJOS EN LA PARTE INFERIOR ==========
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(24, 12, 24, 16),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).scaffoldBackgroundColor,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.08),
+                          offset: const Offset(0, -2),
+                          blurRadius: 8,
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (showForm) ...[
+                          CustomButton(
+                            text: 'Crear Empresa',
+                            isLoading: isLoading,
+                            onPressed: () {
+                              if (_formKey.currentState!.validate()) {
+                                context.read<CreateEmpresaCubit>().createEmpresa();
                               }
                             },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Preview de catálogos (NUEVO)
-                    BlocBuilder<CatalogoPreviewCubit, CatalogoPreviewState>(
-                      builder: (context, previewState) {
-                        if (previewState is CatalogoPreviewLoading) {
-                          return Card(
-                            margin: const EdgeInsets.only(bottom: 16),
-                            child: Padding(
-                              padding: const EdgeInsets.all(24),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Text(
-                                    'Cargando catálogos...',
-                                    style: Theme.of(context).textTheme.bodyMedium,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        } else if (previewState is CatalogoPreviewLoaded) {
-                          return CatalogoPreviewWidget(
-                            preview: previewState.preview,
-                          );
-                        } else if (previewState is CatalogoPreviewError) {
-                          return Card(
-                            margin: const EdgeInsets.only(bottom: 16),
-                            color: Colors.red.shade50,
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Row(
-                                children: [
-                                  Icon(Icons.error_outline, color: Colors.red.shade700),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Text(
-                                      previewState.message,
-                                      style: TextStyle(color: Colors.red.shade700),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        }
-                        return const SizedBox.shrink();
-                      },
-                    ),
-
-                    // Nombre de la empresa (requerido)
-                    CustomTextField(
-                      controller: _nombreController,
-                      label: 'Nombre de la Empresa *',
-                      hint: 'Mi Empresa S.A.C.',
-                      textCapitalization: TextCapitalization.words,
-                      prefixIcon: const Icon(Icons.business),
-                      enabled: !isLoading,
-                      errorText: state.nombre.error,
-                      onChanged: (value) {
-                        context.read<CreateEmpresaCubit>().nombreChanged(value);
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // RUC (opcional)
-                    CustomTextField(
-                      controller: _rucController,
-                      label: 'RUC (opcional)',
-                      hint: '20123456789',
-                      keyboardType: TextInputType.number,
-                      prefixIcon: const Icon(Icons.badge_outlined),
-                      enabled: !isLoading,
-                      errorText: state.ruc.error,
-                      onChanged: (value) {
-                        context.read<CreateEmpresaCubit>().rucChanged(value);
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Descripción (opcional)
-                    CustomTextField(
-                      controller: _descripcionController,
-                      label: 'Descripción (opcional)',
-                      hint: 'Breve descripción de tu empresa',
-                      maxLines: 3,
-                      textCapitalization: TextCapitalization.sentences,
-                      prefixIcon: const Icon(Icons.description_outlined),
-                      enabled: !isLoading,
-                      errorText: state.descripcion.error,
-                      onChanged: (value) {
-                        context.read<CreateEmpresaCubit>().descripcionChanged(value);
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Teléfono (opcional)
-                    CustomTextField(
-                      controller: _telefonoController,
-                      label: 'Teléfono (opcional)',
-                      hint: '+51 999 999 999',
-                      keyboardType: TextInputType.phone,
-                      prefixIcon: const Icon(Icons.phone_outlined),
-                      enabled: !isLoading,
-                      errorText: state.telefono.error,
-                      onChanged: (value) {
-                        context.read<CreateEmpresaCubit>().telefonoChanged(value);
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Email (opcional)
-                    CustomTextField(
-                      controller: _emailController,
-                      label: 'Email Empresarial (opcional)',
-                      hint: 'contacto@empresa.com',
-                      keyboardType: TextInputType.emailAddress,
-                      prefixIcon: const Icon(Icons.email_outlined),
-                      enabled: !isLoading,
-                      errorText: state.email.error,
-                      onChanged: (value) {
-                        context.read<CreateEmpresaCubit>().emailChanged(value);
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Sitio Web (opcional)
-                    CustomTextField(
-                      controller: _webController,
-                      label: 'Sitio Web (opcional)',
-                      hint: 'https://www.miempresa.com',
-                      keyboardType: TextInputType.url,
-                      prefixIcon: const Icon(Icons.language_outlined),
-                      enabled: !isLoading,
-                      errorText: state.web.error,
-                      onChanged: (value) {
-                        context.read<CreateEmpresaCubit>().webChanged(value);
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Subdominio (opcional)
-                    CustomTextField(
-                      controller: _subdominioController,
-                      label: 'Subdominio (opcional)',
-                      hint: 'mi-empresa',
-                      prefixIcon: const Icon(Icons.link_outlined),
-                      enabled: !isLoading,
-                      errorText: state.subdominio.error,
-                      onChanged: (value) {
-                        context.read<CreateEmpresaCubit>().subdominioChanged(value);
-                      },
-                    ),
-                    const SizedBox(height: 8),
-                    // Helper text para subdominio
-                    if (_subdominioController.text.isNotEmpty && state.subdominio.error == null)
-                      Padding(
-                        padding: const EdgeInsets.only(left: 12),
-                        child: Text(
-                          'Tu empresa estará disponible en: ${_subdominioController.text}.syncronize.com',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey.shade600,
-                            fontStyle: FontStyle.italic,
                           ),
+                          const SizedBox(height: 10),
+                        ],
+                        CustomButton(
+                          text: 'Cancelar',
+                          isOutlined: true,
+                          onPressed: isLoading ? null : () => context.pop(),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+      ),
+    );
+  }
+
+  /// Sección del campo RUC con botón de búsqueda
+  Widget _buildRucSection(BuildContext context, CreateEmpresaState state, bool isLoading) {
+    return BlocConsumer<ConsultaRucCubit, ConsultaRucState>(
+      listener: (context, rucState) {
+        if (rucState.isSuccess && rucState.data != null) {
+          context.read<CreateEmpresaCubit>().setDatosSunat(rucState.data!);
+          _nombreController.text = rucState.data!.razonSocial;
+        } else if (rucState.isCondicionInvalida && rucState.data != null) {
+          context.read<CreateEmpresaCubit>().setDatosSunat(rucState.data!);
+        } else if (rucState.isError) {
+          SnackBarHelper.showError(context, rucState.errorMessage ?? 'Error al consultar RUC');
+        }
+      },
+      builder: (context, rucState) {
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: CustomText(
+                controller: _rucController,
+                borderColor: AppColors.blue1,
+                label: 'RUC *',
+                hintText: '20123456789',
+                keyboardType: TextInputType.number,
+                fieldType: FieldType.number,
+                maxLength: 11,
+                prefixIcon: const Icon(Icons.badge_outlined),
+                enabled: !isLoading && !rucState.isLoading,
+                externalError: state.ruc.error,
+                required: true,
+                onChanged: (value) {
+                  context.read<CreateEmpresaCubit>().rucChanged(value);
+                  _nombreController.clear();
+                  if (value.length == 11 && RegExp(r'^\d{11}$').hasMatch(value)) {
+                    context.read<ConsultaRucCubit>().consultarRuc(value);
+                  }
+                },
+              ),
+            ),
+            const SizedBox(width: 12),
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: rucState.isLoading
+                  ? const SizedBox(
+                      width: 35,
+                      height: 35,
+                      child: Center(
+                        child: SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 1, color: AppColors.blue1),
                         ),
                       ),
-                    const SizedBox(height: 32),
-
-                    // Información adicional
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.shade50,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.blue.shade200),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.info_outline,
-                            color: Colors.blue.shade700,
-                            size: 24,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              'Obtendrás 30 días de prueba gratis del plan Básico',
-                              style: TextStyle(
-                                color: Colors.blue.shade700,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Botón de crear empresa
-                    CustomButton(
-                      text: 'Crear Empresa',
-                      isLoading: isLoading,
-                      onPressed: () {
-                        if (_formKey.currentState!.validate()) {
-                          context.read<CreateEmpresaCubit>().createEmpresa();
-                        }
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Botón de cancelar
-                    CustomButton(
-                      text: 'Cancelar',
-                      isOutlined: true,
-                      onPressed: isLoading
-                          ? null
+                    )
+                  : FloatingButtonIcon(
+                    size: 35,
+                      icon: Icons.search,
+                      onPressed: (isLoading || _rucController.text.length != 11)
+                          ? () {}
                           : () {
-                              context.pop();
+                              context.read<ConsultaRucCubit>().consultarRuc(_rucController.text);
                             },
                     ),
-                  ],
-                ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// Card con datos de SUNAT
+  Widget _buildSunatDataCard(BuildContext context, CreateEmpresaState state) {
+    if (!state.tieneDatosSunat) return const SizedBox.shrink();
+
+    final esHabido = state.esHabido;
+
+    return GradientContainer(
+      gradient: esHabido ? AppGradients.green() : AppGradients.gray(),
+      borderColor: esHabido ? AppColors.greenBorder : Colors.red.shade300,
+      borderWidth: 0.6,
+      borderRadius: const BorderRadius.all(Radius.circular(12)),
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                esHabido ? Icons.check_circle : Icons.error,
+                color: esHabido ? AppColors.green : Colors.red.shade700,
+                size: 18,
               ),
-            );
-          },
-        ),
+              const SizedBox(width: 8),
+              AppSubtitle('DATOS SUNAT'),
+            ],
+          ),
+          const Divider(height: 18),
+
+          _buildSunatRow('Razón Social', state.razonSocial ?? ''),
+          _buildSunatRow('RUC', state.ruc.value),
+          _buildSunatRow('Tipo', state.tipoContribuyente ?? ''),
+          _buildSunatRow('Estado', state.estadoContribuyente ?? ''),
+          _buildSunatRow('Condición', state.condicionContribuyente ?? '',
+              highlight: true, isValid: esHabido),
+          _buildSunatRow('Dirección', state.direccionFiscal ?? ''),
+          _buildSunatRow(
+            'Ubigeo',
+            [state.departamento, state.provincia, state.distrito]
+                .where((e) => e != null && e.isNotEmpty)
+                .join(' - '),
+          ),
+
+          if (!esHabido) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red.shade100,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.warning_amber_rounded, color: Colors.red.shade700),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'No se puede registrar esta empresa. Solo se permiten empresas con condición HABIDO.',
+                      style: TextStyle(
+                        color: Colors.red.shade800,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSunatRow(String label, String value, {bool highlight = false, bool isValid = true}) {
+    if (value.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 11,
+              ),
+            ),
+          ),
+          Expanded(
+
+            child: AppSubtitle(value, color: highlight ? (isValid ? AppColors.green : AppColors.red) : AppColors.blue1 ,),
+          ),
+        ],
       ),
     );
   }

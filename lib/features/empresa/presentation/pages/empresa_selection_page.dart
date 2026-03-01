@@ -1,13 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:syncronize/core/fonts/app_fonts.dart';
+import 'package:syncronize/core/fonts/app_text_widgets.dart';
+import 'package:syncronize/core/theme/app_colors.dart';
+import 'package:syncronize/core/theme/gradient_background.dart';
+import 'package:syncronize/core/theme/gradient_container.dart';
+import 'package:syncronize/core/widgets/smart_appbar.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/utils/resource.dart';
 import '../../../../core/widgets/snack_bar_helper.dart';
 import '../../../../core/storage/local_storage_service.dart';
 import '../../../../core/constants/storage_constants.dart';
+import '../../../auth/presentation/bloc/auth/auth_bloc.dart';
+import '../../../auth/presentation/widgets/custom_button.dart';
+import '../../../../core/storage/secure_storage_service.dart';
+import '../../../auth/domain/usecases/refresh_token_usecase.dart';
 import '../../domain/entities/empresa_list_item.dart';
 import '../../domain/usecases/get_user_empresas_usecase.dart';
 import '../../domain/usecases/switch_empresa_usecase.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 /// Página inteligente de selección de empresa
 /// Maneja automáticamente los casos:
@@ -24,11 +35,14 @@ class EmpresaSelectionPage extends StatefulWidget {
 class _EmpresaSelectionPageState extends State<EmpresaSelectionPage> {
   final _getUserEmpresasUseCase = locator<GetUserEmpresasUseCase>();
   final _switchEmpresaUseCase = locator<SwitchEmpresaUseCase>();
+  final _refreshTokenUseCase = locator<RefreshTokenUseCase>();
   final _localStorage = locator<LocalStorageService>();
+  final _secureStorage = locator<SecureStorageService>();
 
   bool _isLoading = true;
   List<EmpresaListItem> _empresas = [];
   bool _isSelecting = false;
+  String? _selectingId;
 
   @override
   void initState() {
@@ -53,30 +67,27 @@ class _EmpresaSelectionPageState extends State<EmpresaSelectionPage> {
 
       // Manejar casos automáticamente
       if (empresas.isEmpty) {
-        // No tiene empresas → Redirigir a crear
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
             context.pushReplacement('/create-empresa');
           }
         });
       } else if (empresas.length == 1) {
-        // Tiene solo una → Seleccionar automáticamente
         _selectEmpresa(empresas.first);
       }
-      // Si tiene 2+, mostrar selector (no hacer nada, el build lo muestra)
     } else {
       setState(() => _isLoading = false);
-      SnackBarHelper.showError(
-        context,
-        'Error al cargar empresas',
-      );
+      SnackBarHelper.showError(context, 'Error al cargar empresas');
     }
   }
 
   Future<void> _selectEmpresa(EmpresaListItem empresa) async {
     if (_isSelecting) return;
 
-    setState(() => _isSelecting = true);
+    setState(() {
+      _isSelecting = true;
+      _selectingId = empresa.id;
+    });
 
     final result = await _switchEmpresaUseCase(
       empresaId: empresa.id,
@@ -86,190 +97,362 @@ class _EmpresaSelectionPageState extends State<EmpresaSelectionPage> {
     if (!mounted) return;
 
     if (result is Success) {
-      // Asegurar que el tenantId se guardó correctamente con el nombre
+      // Refrescar JWT para obtener tokens con los roles de la nueva empresa
+      final currentRefreshToken = await _secureStorage.read(
+        key: StorageConstants.refreshToken,
+      );
+      if (currentRefreshToken != null) {
+        final refreshResult = await _refreshTokenUseCase(
+          RefreshTokenParams(refreshToken: currentRefreshToken),
+        );
+        if (refreshResult is Success) {
+          final tokens = (refreshResult as Success).data;
+          await _secureStorage.write(
+            key: StorageConstants.accessToken,
+            value: tokens.accessToken,
+          );
+          await _secureStorage.write(
+            key: StorageConstants.refreshToken,
+            value: tokens.refreshToken,
+          );
+        }
+      }
+
       await _localStorage.setString(StorageConstants.tenantId, empresa.id);
       await _localStorage.setString(StorageConstants.tenantName, empresa.nombre);
       await _localStorage.setString(StorageConstants.loginMode, 'management');
 
-      // Verificar mounted después de las operaciones async
       if (!mounted) return;
-
-      // Navegar al dashboard
       context.go('/empresa/dashboard');
     } else if (result is Error) {
-      setState(() => _isSelecting = false);
-      SnackBarHelper.showError(
-        context,
-        (result).message,
-      );
+      setState(() {
+        _isSelecting = false;
+        _selectingId = null;
+      });
+      SnackBarHelper.showError(context, (result).message);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('Mis Empresas'),
-        ),
-        body: const Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
-    }
-
-    // Si tiene 2+ empresas, mostrar selector
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Selecciona una Empresa'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/marketplace'),
-        ),
-      ),
-      body: Column(
-        children: [
-          // Header informativo
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Theme.of(context).primaryColor.withValues(alpha: 0.1),
-                  Theme.of(context).primaryColor.withValues(alpha: 0.05),
-                ],
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+    return GradientBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: SmartAppBar(title: 'Mis Empresas'),
+        body: _isLoading
+            ? const Center(child: CircularProgressIndicator(color: AppColors.blue2))
+            : RefreshIndicator(
+                onRefresh: _loadEmpresas,
+                color: AppColors.blue2,
+                child: Column(
                   children: [
-                    Icon(
-                      Icons.business_center,
-                      color: Theme.of(context).primaryColor,
-                      size: 32,
+                    // Header informativo
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                      child: GradientContainer(
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: AppColors.blue2.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Icon(
+                                  Icons.business_center,
+                                  color: AppColors.blue2,
+                                  size: 25,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    AppTitle(
+                                      'Tus Empresas',
+                                      font: AppFont.pirulentBold,
+                                      fontSize: 10,
+                                    ),
+                                    const SizedBox(height: 4),
+                                    AppSubtitle(
+                                      'Selecciona la empresa que deseas gestionar',
+                                      fontSize: 10,
+                                      color: AppColors.blueGrey,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              // Badge con cantidad
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: AppColors.blue2.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: AppSubtitle(
+                                  '${_empresas.length}',
+                                  fontSize: 12,
+                                  color: AppColors.blue2,
+                                  font: AppFont.pirulentBold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
-                    const SizedBox(width: 12),
+
+                    const SizedBox(height: 8),
+
+                    // Lista de empresas
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Tus Empresas',
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                          ),
-                          Text(
-                            'Selecciona la empresa que deseas gestionar',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  color: Colors.grey.shade600,
-                                ),
-                          ),
-                        ],
+                      child: ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        itemCount: _empresas.length,
+                        itemBuilder: (context, index) {
+                          final empresa = _empresas[index];
+                          final isThisSelecting = _selectingId == empresa.id;
+                          return _EmpresaCard(
+                            empresa: empresa,
+                            isSelecting: isThisSelecting,
+                            isDisabled: _isSelecting && !isThisSelecting,
+                            onTap: () => _selectEmpresa(empresa),
+                          );
+                        },
+                      ),
+                    ),
+
+                    // Botón crear empresa
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                      child: BlocBuilder<AuthBloc, AuthState>(
+                        builder: (context, state) {
+                          return CustomButton(
+                            text: 'Crear Nueva Empresa',
+                            icon: const Icon(Icons.add_business, color: Colors.white, size: 20),
+                            onPressed: () {
+                              if (state is Authenticated && !state.user.perfilCompleto) {
+                                context.push('/complete-profile');
+                              } else {
+                                context.push('/create-empresa');
+                              }
+                            },
+                          );
+                        },
                       ),
                     ),
                   ],
                 ),
-              ],
-            ),
-          ),
+              ),
+      ),
+    );
+  }
+}
 
-          // Lista de empresas
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _empresas.length,
-              itemBuilder: (context, index) {
-                final empresa = _empresas[index];
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.all(16),
-                    leading: CircleAvatar(
-                      radius: 28,
-                      backgroundColor: Theme.of(context).primaryColor.withValues(alpha: 0.1),
+class _EmpresaCard extends StatelessWidget {
+  final EmpresaListItem empresa;
+  final bool isSelecting;
+  final bool isDisabled;
+  final VoidCallback onTap;
+
+  const _EmpresaCard({
+    required this.empresa,
+    required this.isSelecting,
+    required this.isDisabled,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: GradientContainer(
+        borderColor: isSelecting ? AppColors.blue2 : AppColors.white,
+        borderWidth: isSelecting ? 1.5 : 0.5,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(8),
+            onTap: isDisabled ? null : onTap,
+            child: Opacity(
+              opacity: isDisabled ? 0.5 : 1.0,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    // Logo o inicial
+                    Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        color: AppColors.blue2.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                       child: empresa.logo != null
-                          ? ClipOval(
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
                               child: Image.network(
                                 empresa.logo!,
-                                width: 56,
-                                height: 56,
+                                width: 52,
+                                height: 52,
                                 fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => Icon(
-                                  Icons.business,
-                                  color: Theme.of(context).primaryColor,
-                                  size: 28,
-                                ),
+                                errorBuilder: (_, __, ___) => _buildInitial(),
                               ),
                             )
-                          : Icon(
-                              Icons.business,
-                              color: Theme.of(context).primaryColor,
-                              size: 28,
-                            ),
+                          : _buildInitial(),
                     ),
-                    title: Text(
-                      empresa.nombre,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                    const SizedBox(width: 14),
+
+                    // Info de la empresa
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          AppTitle(
+                            empresa.nombre,
+                            font: AppFont.oxygenBold,
+                            fontSize: 11,
+                          ),
+                          if (empresa.ruc != null) ...[
+                            const SizedBox(height: 2),
+                            AppSubtitle(
+                              'RUC: ${empresa.ruc}',
+                              fontSize: 10,
+                              color: AppColors.blueGrey,
+                            ),
+                          ],
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              // Chip de suscripción
+                              _StatusChip(
+                                label: empresa.estadoSuscripcion,
+                                isActive: empresa.isSubscriptionActive,
+                              ),
+                              if (empresa.planNombre != null) ...[
+                                const SizedBox(width: 8),
+                                _PlanChip(planNombre: empresa.planNombre!),
+                              ],
+                            ],
+                          ),
+                        ],
                       ),
                     ),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 4),
-                        if (empresa.ruc != null)
-                          Text('RUC: ${empresa.ruc}'),
-                        const SizedBox(height: 4),
-                        Chip(
-                          label: Text(
-                            empresa.estadoSuscripcion,
-                            style: const TextStyle(fontSize: 11),
-                          ),
-                          padding: EdgeInsets.zero,
-                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          backgroundColor: empresa.isSubscriptionActive
-                              ? Colors.green.shade100
-                              : Colors.orange.shade100,
-                        ),
-                      ],
-                    ),
-                    trailing: _isSelecting
-                        ? const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.arrow_forward_ios, size: 18),
-                    onTap: _isSelecting ? null : () => _selectEmpresa(empresa),
-                  ),
-                );
-              },
-            ),
-          ),
 
-          // Botón para crear nueva empresa
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: OutlinedButton.icon(
-              onPressed: () {
-                context.push('/create-empresa');
-              },
-              icon: const Icon(Icons.add_business),
-              label: const Text('Crear Nueva Empresa'),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 16,
+                    // Indicador de selección
+                    if (isSelecting)
+                      const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.blue2,
+                        ),
+                      )
+                    else
+                      const Icon(
+                        Icons.arrow_forward_ios,
+                        size: 16,
+                        color: AppColors.blueGrey,
+                      ),
+                  ],
                 ),
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInitial() {
+    final initial = empresa.nombre.isNotEmpty
+        ? empresa.nombre[0].toUpperCase()
+        : '?';
+    return Center(
+      child: Text(
+        initial,
+        style: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+          fontFamily: AppFonts.getFontFamily(AppFont.pirulentBold),
+          color: AppColors.blue2,
+        ),
+      ),
+    );
+  }
+}
+
+class _StatusChip extends StatelessWidget {
+  final String label;
+  final bool isActive;
+
+  const _StatusChip({required this.label, required this.isActive});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: isActive
+            ? AppColors.greenContainer
+            : AppColors.warning.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isActive
+              ? AppColors.greenBorder
+              : AppColors.warning.withValues(alpha: 0.3),
+          width: 0.5,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isActive ? Icons.check_circle : Icons.warning_amber_rounded,
+            size: 12,
+            color: isActive ? AppColors.greendark : AppColors.amberText,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              fontFamily: AppFonts.getFontFamily(AppFont.oxygenBold),
+              color: isActive ? AppColors.greendark : AppColors.amberText,
+            ),
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class _PlanChip extends StatelessWidget {
+  final String planNombre;
+
+  const _PlanChip({required this.planNombre});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: AppColors.bluechip,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        planNombre,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          fontFamily: AppFonts.getFontFamily(AppFont.oxygenBold),
+          color: AppColors.blue2,
+        ),
       ),
     );
   }

@@ -10,6 +10,10 @@ class Usuario extends Equatable {
   final String nombreCompleto;
   final String? email;
   final String? telefono;
+  final String? direccion;
+  final String? distrito;
+  final String? provincia;
+  final String? departamento;
   final String rolEnEmpresa;
   final String? rolGlobal;
   final bool isActive;
@@ -34,6 +38,10 @@ class Usuario extends Equatable {
     required this.nombreCompleto,
     this.email,
     this.telefono,
+    this.direccion,
+    this.distrito,
+    this.provincia,
+    this.departamento,
     required this.rolEnEmpresa,
     this.rolGlobal,
     required this.isActive,
@@ -130,6 +138,10 @@ class Usuario extends Equatable {
         nombreCompleto,
         email,
         telefono,
+        direccion,
+        distrito,
+        provincia,
+        departamento,
         rolEnEmpresa,
         rolGlobal,
         isActive,

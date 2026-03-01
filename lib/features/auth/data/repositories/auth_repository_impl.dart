@@ -392,6 +392,38 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<Resource<User>> updateProfile({
+    String? dni,
+    String? telefono,
+    String? direccion,
+  }) async {
+    if (!await networkInfo.isConnected) {
+      return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
+    }
+
+    try {
+      final result = await remoteDataSource.updateProfile(
+        dni: dni,
+        telefono: telefono,
+        direccion: direccion,
+      );
+
+      final user = result.toEntity();
+
+      // Actualizar datos locales del usuario
+      await localDataSource.saveUserInfo(result);
+
+      return Success(user);
+    } catch (e) {
+      return errorHandler.handleException(
+        e,
+        context: 'UpdateProfile',
+        defaultMessage: 'Error al actualizar perfil',
+      );
+    }
+  }
+
+  @override
   Future<Resource<List<SessionInfo>>> getSessions() async {
     if (!await networkInfo.isConnected) {
       return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
@@ -520,7 +552,16 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<Resource<Empresa>> createEmpresa({
     required String nombre,
     required RubroEmpresa rubro,
-    String? ruc,
+    required String ruc,
+    required String razonSocial,
+    required String condicionContribuyente,
+    String? estadoContribuyente,
+    String? tipoContribuyente,
+    String? direccionFiscal,
+    String? departamento,
+    String? provincia,
+    String? distrito,
+    String? ubigeo,
     String? descripcion,
     String? telefono,
     String? email,
@@ -542,6 +583,15 @@ class AuthRepositoryImpl implements AuthRepository {
         nombre: nombre,
         rubro: rubro,
         ruc: ruc,
+        razonSocial: razonSocial,
+        condicionContribuyente: condicionContribuyente,
+        estadoContribuyente: estadoContribuyente,
+        tipoContribuyente: tipoContribuyente,
+        direccionFiscal: direccionFiscal,
+        departamento: departamento,
+        provincia: provincia,
+        distrito: distrito,
+        ubigeo: ubigeo,
         descripcion: descripcion,
         telefono: telefono,
         email: email,

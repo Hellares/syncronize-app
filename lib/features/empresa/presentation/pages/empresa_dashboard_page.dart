@@ -89,7 +89,7 @@ class _EmpresaDashboardPageState extends State<EmpresaDashboardPage> {
                       Flexible(
                         child: Text(
                           state.context.empresa.nombre,
-                          style: const TextStyle(fontSize: 14),
+                          style: const TextStyle(fontSize: 11),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),

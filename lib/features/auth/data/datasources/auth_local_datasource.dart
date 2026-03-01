@@ -98,17 +98,13 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
   Future<void> saveUserInfo(UserModel user) async {
     try {
       await _localStorage.setString(StorageConstants.userId, user.id);
-      // Guardar email solo si existe, sino guardar string vacío
       await _localStorage.setString(StorageConstants.userEmail, user.email ?? '');
       await _localStorage.setString(StorageConstants.userNombres, user.nombres);
-      await _localStorage.setString(
-        StorageConstants.userApellidos,
-        user.apellidos,
-      );
-      // Guardar DNI si existe
-      if (user.dni != null) {
-        await _localStorage.setString('user_dni', user.dni!);
-      }
+      await _localStorage.setString(StorageConstants.userApellidos, user.apellidos);
+      await _localStorage.setString(StorageConstants.userDni, user.dni ?? '');
+      await _localStorage.setString(StorageConstants.userTelefono, user.telefono ?? '');
+      await _localStorage.setString(StorageConstants.userDireccion, user.direccion ?? '');
+      await _localStorage.setBool(StorageConstants.userEmailVerificado, user.emailVerificado);
     } catch (e) {
       throw CacheException(message: 'Error al guardar info de usuario: $e');
     }
@@ -124,18 +120,24 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
       final nombres = _localStorage.getString(StorageConstants.userNombres);
       final apellidos = _localStorage.getString(StorageConstants.userApellidos);
 
-      if (email == null || nombres == null || apellidos == null) {
+      if (nombres == null || apellidos == null) {
         return null;
       }
 
-      // Retornar un UserModel básico con la info guardada
-      // Los campos completos se obtendrán del servidor
+      final dni = _localStorage.getString(StorageConstants.userDni);
+      final telefono = _localStorage.getString(StorageConstants.userTelefono);
+      final direccion = _localStorage.getString(StorageConstants.userDireccion);
+      final emailVerificado = _localStorage.getBool(StorageConstants.userEmailVerificado) ?? false;
+
       return UserModel(
         id: userId,
         email: email,
+        dni: (dni != null && dni.isNotEmpty) ? dni : null,
         nombres: nombres,
         apellidos: apellidos,
-        emailVerificado: false,
+        telefono: (telefono != null && telefono.isNotEmpty) ? telefono : null,
+        direccion: (direccion != null && direccion.isNotEmpty) ? direccion : null,
+        emailVerificado: emailVerificado,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
@@ -151,6 +153,10 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
       await _localStorage.remove(StorageConstants.userEmail);
       await _localStorage.remove(StorageConstants.userNombres);
       await _localStorage.remove(StorageConstants.userApellidos);
+      await _localStorage.remove(StorageConstants.userDni);
+      await _localStorage.remove(StorageConstants.userTelefono);
+      await _localStorage.remove(StorageConstants.userDireccion);
+      await _localStorage.remove(StorageConstants.userEmailVerificado);
     } catch (e) {
       throw CacheException(message: 'Error al eliminar info de usuario: $e');
     }

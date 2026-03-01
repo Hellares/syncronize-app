@@ -151,10 +151,7 @@ class _EmpresaSwitchBottomSheetState extends State<EmpresaSwitchBottomSheet> {
     await _localStorage.setString(StorageConstants.tenantName, empresa.nombre);
     await _localStorage.setString(StorageConstants.loginMode, 'management');
 
-    // 4. Pequeño delay para asegurar que el storage se actualice
-    await Future.delayed(const Duration(milliseconds: 100));
-
-    // 5. Recargar el contexto de la nueva empresa
+    // 4. Recargar el contexto de la nueva empresa
     if (!mounted) return;
     await context.read<EmpresaContextCubit>().loadEmpresaContextById(empresa.id);
 

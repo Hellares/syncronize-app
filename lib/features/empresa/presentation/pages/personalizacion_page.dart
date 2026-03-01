@@ -1,12 +1,19 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/services/storage_service.dart';
 import '../../../../core/storage/local_storage_service.dart';
 import '../../../../core/constants/storage_constants.dart';
 import '../../../../core/utils/resource.dart';
+import '../../data/datasources/empresa_remote_datasource.dart';
 import '../../domain/entities/personalizacion_empresa.dart';
 import '../../domain/usecases/get_personalizacion_usecase.dart';
 import '../../domain/usecases/update_personalizacion_usecase.dart';
+import '../bloc/empresa_context/empresa_context_cubit.dart';
+import '../bloc/empresa_context/empresa_context_state.dart';
 
 class PersonalizacionPage extends StatefulWidget {
   const PersonalizacionPage({super.key});
@@ -20,12 +27,21 @@ class _PersonalizacionPageState extends State<PersonalizacionPage>
   late TabController _tabController;
   final _getPersonalizacionUseCase = locator<GetPersonalizacionUseCase>();
   final _updatePersonalizacionUseCase = locator<UpdatePersonalizacionUseCase>();
+  final _storageService = locator<StorageService>();
+  final _empresaRemoteDataSource = locator<EmpresaRemoteDataSource>();
   final _localStorage = locator<LocalStorageService>();
+  final _imagePicker = ImagePicker();
 
   bool _isLoading = true;
   bool _isSaving = false;
   PersonalizacionEmpresa? _personalizacion;
   String? _errorMessage;
+
+  // Logo upload state
+  String? _currentLogoUrl;
+  File? _selectedLogoFile;
+  bool _isUploadingLogo = false;
+  double _logoUploadProgress = 0.0;
 
   // Controllers para formularios
   final _bannerUrlController = TextEditingController();
@@ -78,6 +94,12 @@ class _PersonalizacionPageState extends State<PersonalizacionPage>
       return;
     }
 
+    // Cargar logo actual desde el contexto de empresa
+    final empresaState = context.read<EmpresaContextCubit>().state;
+    if (empresaState is EmpresaContextLoaded) {
+      _currentLogoUrl = empresaState.context.empresa.logo;
+    }
+
     final result = await _getPersonalizacionUseCase(empresaId);
 
     if (!mounted) return;
@@ -123,6 +145,128 @@ class _PersonalizacionPageState extends State<PersonalizacionPage>
     final g = ((color.g * 255.0).round() & 0xff).toRadixString(16).padLeft(2, '0');
     final b = ((color.b * 255.0).round() & 0xff).toRadixString(16).padLeft(2, '0');
     return '#$r$g$b'.toUpperCase();
+  }
+
+  Future<void> _pickLogo(ImageSource source) async {
+    try {
+      final picked = await _imagePicker.pickImage(
+        source: source,
+        maxWidth: 512,
+        maxHeight: 512,
+        imageQuality: 85,
+      );
+
+      if (picked == null) return;
+
+      setState(() {
+        _selectedLogoFile = File(picked.path);
+      });
+
+      await _uploadLogo();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al seleccionar imagen: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _uploadLogo() async {
+    if (_selectedLogoFile == null) return;
+
+    final empresaId = _localStorage.getString(StorageConstants.tenantId);
+    if (empresaId == null) return;
+
+    setState(() {
+      _isUploadingLogo = true;
+      _logoUploadProgress = 0.0;
+    });
+
+    try {
+      // 1. Subir archivo al storage
+      final archivoResponse = await _storageService.uploadFile(
+        file: _selectedLogoFile!,
+        empresaId: empresaId,
+        entidadTipo: 'EMPRESA',
+        entidadId: empresaId,
+        categoria: 'LOGO',
+        onProgress: (progress) {
+          if (mounted) {
+            setState(() => _logoUploadProgress = progress);
+          }
+        },
+      );
+
+      // 2. Actualizar la empresa con la URL del logo
+      await _empresaRemoteDataSource.updateEmpresaLogo(
+        empresaId: empresaId,
+        logoUrl: archivoResponse.url,
+      );
+
+      if (!mounted) return;
+
+      // 3. Recargar el contexto de empresa para reflejar el cambio
+      await context.read<EmpresaContextCubit>().reloadContext();
+
+      if (!mounted) return;
+
+      setState(() {
+        _currentLogoUrl = archivoResponse.url;
+        _selectedLogoFile = null;
+        _isUploadingLogo = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Logo actualizado correctamente'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isUploadingLogo = false;
+        _selectedLogoFile = null;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al subir logo: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _showLogoSourceDialog() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Seleccionar de galería'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickLogo(ImageSource.gallery);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('Tomar foto'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickLogo(ImageSource.camera);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _savePersonalizacion() async {
@@ -322,6 +466,19 @@ class _PersonalizacionPageState extends State<PersonalizacionPage>
           style: TextStyle(fontSize: 16, color: Colors.grey),
         ),
         const SizedBox(height: 24),
+
+        // Logo de la empresa
+        _buildLogoSection(),
+        const SizedBox(height: 24),
+        const Divider(),
+        const SizedBox(height: 16),
+
+        // Banner
+        const Text(
+          'Banner Principal',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 16),
         TextField(
           controller: _bannerUrlController,
           decoration: const InputDecoration(
@@ -382,6 +539,153 @@ class _PersonalizacionPageState extends State<PersonalizacionPage>
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildLogoSection() {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Logo de la Empresa',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Se mostrará en el marketplace, drawer y listados',
+              style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 20),
+
+            // Logo preview
+            Center(
+              child: GestureDetector(
+                onTap: _isUploadingLogo ? null : _showLogoSourceDialog,
+                child: Stack(
+                  children: [
+                    Container(
+                      width: 120,
+                      height: 120,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: Colors.grey.shade300,
+                          width: 2,
+                        ),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(14),
+                        child: _buildLogoPreview(),
+                      ),
+                    ),
+                    // Overlay de edición
+                    if (!_isUploadingLogo)
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).primaryColor,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2),
+                          ),
+                          child: const Icon(
+                            Icons.camera_alt,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Barra de progreso
+            if (_isUploadingLogo) ...[
+              const SizedBox(height: 16),
+              LinearProgressIndicator(
+                value: _logoUploadProgress,
+                backgroundColor: Colors.grey.shade200,
+              ),
+              const SizedBox(height: 8),
+              Center(
+                child: Text(
+                  'Subiendo logo... ${(_logoUploadProgress * 100).toInt()}%',
+                  style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 16),
+            Center(
+              child: TextButton.icon(
+                onPressed: _isUploadingLogo ? null : _showLogoSourceDialog,
+                icon: const Icon(Icons.upload),
+                label: Text(
+                  _currentLogoUrl != null ? 'Cambiar logo' : 'Subir logo',
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLogoPreview() {
+    // Si hay un archivo local seleccionado (en proceso de upload)
+    if (_selectedLogoFile != null) {
+      return Image.file(
+        _selectedLogoFile!,
+        width: 120,
+        height: 120,
+        fit: BoxFit.cover,
+      );
+    }
+
+    // Si hay logo actual en el servidor
+    if (_currentLogoUrl != null && _currentLogoUrl!.isNotEmpty) {
+      return Image.network(
+        _currentLogoUrl!,
+        width: 120,
+        height: 120,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _buildLogoPlaceholder(),
+      );
+    }
+
+    // Placeholder
+    return _buildLogoPlaceholder();
+  }
+
+  Widget _buildLogoPlaceholder() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.business,
+            size: 40,
+            color: Colors.grey.shade400,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Sin logo',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey.shade500,
+            ),
+          ),
+        ],
+      ),
     );
   }
 

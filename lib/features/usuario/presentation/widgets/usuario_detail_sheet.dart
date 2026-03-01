@@ -25,9 +25,7 @@ class UsuarioDetailSheet extends StatelessWidget {
   });
 
   /// Verifica si el usuario es un cliente
-  bool get _esCliente =>
-      usuario.rolEnEmpresa == 'CLIENTE' ||
-      usuario.rolEnEmpresa == 'CLIENTE_EMPRESA';
+  bool get _esCliente => usuario.rolEnEmpresa == 'CLIENTE';
 
   @override
   Widget build(BuildContext context) {
@@ -77,6 +75,14 @@ class UsuarioDetailSheet extends StatelessWidget {
                 _buildInfoRow(Icons.badge, 'DNI', usuario.dni),
                 _buildInfoRow(Icons.phone, 'Teléfono', usuario.telefono ?? '-'),
                 _buildInfoRow(Icons.email, 'Email', usuario.email ?? '-'),
+                if (usuario.direccion != null && usuario.direccion!.isNotEmpty)
+                  _buildInfoRow(Icons.home, 'Dirección', usuario.direccion!),
+                if (usuario.distrito != null && usuario.distrito!.isNotEmpty)
+                  _buildInfoRow(Icons.place, 'Distrito', usuario.distrito!),
+                if (usuario.provincia != null && usuario.provincia!.isNotEmpty)
+                  _buildInfoRow(Icons.location_city, 'Provincia', usuario.provincia!),
+                if (usuario.departamento != null && usuario.departamento!.isNotEmpty)
+                  _buildInfoRow(Icons.map, 'Departamento', usuario.departamento!),
                 _buildInfoRow(Icons.info, 'Estado', usuario.estadoFormateado),
                 const SizedBox(height: 16),
                 if (usuario.sedes.isNotEmpty) ...[

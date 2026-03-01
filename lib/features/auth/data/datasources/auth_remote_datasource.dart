@@ -66,6 +66,12 @@ abstract class AuthRemoteDataSource {
 
   Future<UserModel> getProfile();
 
+  Future<UserModel> updateProfile({
+    String? dni,
+    String? telefono,
+    String? direccion,
+  });
+
   Future<List<SessionInfoModel>> getSessions();
 
   Future<void> revokeSession({
@@ -77,7 +83,16 @@ abstract class AuthRemoteDataSource {
   Future<EmpresaModel> createEmpresa({
     required String nombre,
     required RubroEmpresa rubro,
-    String? ruc,
+    required String ruc,
+    required String razonSocial,
+    required String condicionContribuyente,
+    String? estadoContribuyente,
+    String? tipoContribuyente,
+    String? direccionFiscal,
+    String? departamento,
+    String? provincia,
+    String? distrito,
+    String? ubigeo,
     String? descripcion,
     String? telefono,
     String? email,
@@ -301,6 +316,28 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   }
 
   @override
+  Future<UserModel> updateProfile({
+    String? dni,
+    String? telefono,
+    String? direccion,
+  }) async {
+    try {
+      final response = await _client.put(
+        ApiConstants.updateProfile,
+        data: {
+          if (dni != null) 'dni': dni,
+          if (telefono != null) 'telefono': telefono,
+          if (direccion != null) 'direccion': direccion,
+        },
+      );
+
+      return UserModel.fromJson(response.data['user']);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  @override
   Future<List<SessionInfoModel>> getSessions() async {
     try {
       final response = await _client.get(ApiConstants.sessions);
@@ -337,7 +374,16 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   Future<EmpresaModel> createEmpresa({
     required String nombre,
     required RubroEmpresa rubro,
-    String? ruc,
+    required String ruc,
+    required String razonSocial,
+    required String condicionContribuyente,
+    String? estadoContribuyente,
+    String? tipoContribuyente,
+    String? direccionFiscal,
+    String? departamento,
+    String? provincia,
+    String? distrito,
+    String? ubigeo,
     String? descripcion,
     String? telefono,
     String? email,
@@ -353,7 +399,16 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         data: {
           'nombre': nombre,
           'rubro': rubro.value,
-          if (ruc != null && ruc.isNotEmpty) 'ruc': ruc,
+          'ruc': ruc,
+          'razonSocial': razonSocial,
+          'condicionContribuyente': condicionContribuyente,
+          if (estadoContribuyente != null) 'estadoContribuyente': estadoContribuyente,
+          if (tipoContribuyente != null) 'tipoContribuyente': tipoContribuyente,
+          if (direccionFiscal != null) 'direccionFiscal': direccionFiscal,
+          if (departamento != null) 'departamento': departamento,
+          if (provincia != null) 'provincia': provincia,
+          if (distrito != null) 'distrito': distrito,
+          if (ubigeo != null) 'ubigeo': ubigeo,
           if (descripcion != null && descripcion.isNotEmpty) 'descripcion': descripcion,
           if (telefono != null && telefono.isNotEmpty) 'telefono': telefono,
           if (email != null && email.isNotEmpty) 'email': email,

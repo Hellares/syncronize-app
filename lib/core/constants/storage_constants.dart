@@ -12,6 +12,10 @@ class StorageConstants {
   static const String userEmail = 'user_email';
   static const String userNombres = 'user_nombres';
   static const String userApellidos = 'user_apellidos';
+  static const String userDni = 'user_dni';
+  static const String userTelefono = 'user_telefono';
+  static const String userDireccion = 'user_direccion';
+  static const String userEmailVerificado = 'user_email_verificado';
   static const String tenantId = 'tenant_id';
   static const String tenantName = 'tenant_name';
   static const String tenantRole = 'tenant_role';

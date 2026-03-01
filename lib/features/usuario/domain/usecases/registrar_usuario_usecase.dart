@@ -21,6 +21,10 @@ class RegistrarUsuarioUseCase {
     required String telefono,
     required String rol,
     String? email,
+    String? direccion,
+    String? distrito,
+    String? provincia,
+    String? departamento,
     List<String>? sedeIds,
     bool? puedeAbrirCaja,
     bool? puedeCerrarCaja,
@@ -90,6 +94,22 @@ class RegistrarUsuarioUseCase {
 
     if (email != null && email.trim().isNotEmpty) {
       data['email'] = email.trim();
+    }
+
+    if (direccion != null && direccion.trim().isNotEmpty) {
+      data['direccion'] = direccion.trim();
+    }
+
+    if (distrito != null && distrito.trim().isNotEmpty) {
+      data['distrito'] = distrito.trim();
+    }
+
+    if (provincia != null && provincia.trim().isNotEmpty) {
+      data['provincia'] = provincia.trim();
+    }
+
+    if (departamento != null && departamento.trim().isNotEmpty) {
+      data['departamento'] = departamento.trim();
     }
 
     if (sedeIds != null && sedeIds.isNotEmpty) {

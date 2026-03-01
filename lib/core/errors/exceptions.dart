@@ -42,10 +42,12 @@ class AuthenticationException implements Exception {
 class ValidationException implements Exception {
   final String message;
   final Map<String, List<String>>? errors;
+  final String? errorCode;
 
   const ValidationException({
     required this.message,
     this.errors,
+    this.errorCode,
   });
 
   @override

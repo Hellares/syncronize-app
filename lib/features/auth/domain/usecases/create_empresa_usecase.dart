@@ -19,6 +19,15 @@ class CreateEmpresaUseCase implements UseCase<Empresa, CreateEmpresaParams> {
       nombre: params.nombre,
       rubro: params.rubro,
       ruc: params.ruc,
+      razonSocial: params.razonSocial,
+      condicionContribuyente: params.condicionContribuyente,
+      estadoContribuyente: params.estadoContribuyente,
+      tipoContribuyente: params.tipoContribuyente,
+      direccionFiscal: params.direccionFiscal,
+      departamento: params.departamento,
+      provincia: params.provincia,
+      distrito: params.distrito,
+      ubigeo: params.ubigeo,
       descripcion: params.descripcion,
       telefono: params.telefono,
       email: params.email,
@@ -33,7 +42,16 @@ class CreateEmpresaUseCase implements UseCase<Empresa, CreateEmpresaParams> {
 class CreateEmpresaParams extends Equatable {
   final String nombre;
   final RubroEmpresa rubro;
-  final String? ruc;
+  final String ruc;
+  final String razonSocial;
+  final String condicionContribuyente;
+  final String? estadoContribuyente;
+  final String? tipoContribuyente;
+  final String? direccionFiscal;
+  final String? departamento;
+  final String? provincia;
+  final String? distrito;
+  final String? ubigeo;
   final String? descripcion;
   final String? telefono;
   final String? email;
@@ -46,7 +64,16 @@ class CreateEmpresaParams extends Equatable {
   const CreateEmpresaParams({
     required this.nombre,
     required this.rubro,
-    this.ruc,
+    required this.ruc,
+    required this.razonSocial,
+    required this.condicionContribuyente,
+    this.estadoContribuyente,
+    this.tipoContribuyente,
+    this.direccionFiscal,
+    this.departamento,
+    this.provincia,
+    this.distrito,
+    this.ubigeo,
     this.descripcion,
     this.telefono,
     this.email,
@@ -62,6 +89,15 @@ class CreateEmpresaParams extends Equatable {
         nombre,
         rubro,
         ruc,
+        razonSocial,
+        condicionContribuyente,
+        estadoContribuyente,
+        tipoContribuyente,
+        direccionFiscal,
+        departamento,
+        provincia,
+        distrito,
+        ubigeo,
         descripcion,
         telefono,
         email,

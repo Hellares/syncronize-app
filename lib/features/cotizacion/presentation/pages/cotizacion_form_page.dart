@@ -19,6 +19,7 @@ import '../bloc/cotizacion_form/cotizacion_form_state.dart';
 import '../../domain/entities/cotizacion_detalle_input.dart';
 import '../widgets/cotizacion_item_selector.dart';
 import '../widgets/cotizacion_compatibilidad_banner.dart';
+import '../widgets/cliente_selector_bottom_sheet.dart';
 
 class CotizacionFormPage extends StatefulWidget {
   const CotizacionFormPage({super.key});
@@ -40,6 +41,7 @@ class _CotizacionFormPageState extends State<CotizacionFormPage> {
   final _emailController = TextEditingController();
   final _telefonoController = TextEditingController();
   final _direccionController = TextEditingController();
+  String? _clienteId; // EmpresaPersona.id cuando hay cliente vinculado
   String? _sedeId;
   String? _vendedorId;
 
@@ -256,8 +258,12 @@ class _CotizacionFormPageState extends State<CotizacionFormPage> {
 
   // Paso 1: Datos del cliente y vendedor
   Widget _buildStep1() {
+    final bool linked = _clienteId != null;
+
     return Column(
       children: [
+        _buildClienteSelector(),
+        const SizedBox(height: 12),
         CustomText(
           controller: _nombreCotizacionController,
           label: 'Nombre de la cotizacion',
@@ -265,44 +271,212 @@ class _CotizacionFormPageState extends State<CotizacionFormPage> {
           borderColor: AppColors.blue1,
         ),
         const SizedBox(height: 12),
-        CustomText(
-          controller: _nombreClienteController,
-          label: 'Nombre del cliente',
-          borderColor: AppColors.blue1,
-          validator: (v) =>
-              v == null || v.isEmpty ? 'El nombre es requerido' : null,
-        ),
-        const SizedBox(height: 12),
-        CustomText(
-          controller: _documentoController,
-          label: 'Documento (DNI/RUC)',
-          borderColor: AppColors.blue1,
-          validator: (v) =>
-              v == null || v.isEmpty ? 'El documento es requerido' : null,
-        ),
-        const SizedBox(height: 12),
-        CustomText(
-          controller: _direccionController,
-          label: 'Direccion',
-          borderColor: AppColors.blue1,
-        ),
-        const SizedBox(height: 12),
-        CustomText(
-          controller: _emailController,
-          label: 'Email',
-          borderColor: AppColors.blue1,
+        if (linked) ...[
+          _buildClienteInfoCard(),
+          const SizedBox(height: 12),
+          CustomText(
+            controller: _telefonoController,
+            label: 'Telefono',
+            borderColor: AppColors.blue1,
+            keyboardType: TextInputType.phone,
+          ),
+        ] else ...[
+          CustomText(
+            controller: _nombreClienteController,
+            label: 'Nombre del cliente',
+            borderColor: AppColors.blue1,
+            validator: (v) =>
+                v == null || v.isEmpty ? 'El nombre es requerido' : null,
+          ),
+          const SizedBox(height: 12),
+          CustomText(
+            controller: _documentoController,
+            label: 'Documento (DNI/RUC)',
+            borderColor: AppColors.blue1,
+            validator: (v) =>
+                v == null || v.isEmpty ? 'El documento es requerido' : null,
+          ),
+          const SizedBox(height: 12),
+          CustomText(
+            controller: _direccionController,
+            label: 'Direccion',
+            borderColor: AppColors.blue1,
+          ),
+          const SizedBox(height: 12),
+          CustomText(
+            controller: _emailController,
+            label: 'Email',
+            borderColor: AppColors.blue1,
+            keyboardType: TextInputType.emailAddress,
+          ),
+          const SizedBox(height: 12),
+          CustomText(
+            controller: _telefonoController,
+            label: 'Telefono',
+            borderColor: AppColors.blue1,
+            keyboardType: TextInputType.phone,
+          ),
+        ],
+      ],
+    );
+  }
 
-          keyboardType: TextInputType.emailAddress,
+  Widget _buildClienteInfoCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.bluechip.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.blueborder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildInfoRow(Icons.person_outline, 'Cliente', _nombreClienteController.text),
+          if (_documentoController.text.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            _buildInfoRow(Icons.badge_outlined, 'DNI', _documentoController.text),
+          ],
+          if (_emailController.text.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            _buildInfoRow(Icons.email_outlined, 'Email', _emailController.text),
+          ],
+          if (_direccionController.text.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            _buildInfoRow(Icons.location_on_outlined, 'Dirección', _direccionController.text),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(IconData icon, String label, String value) {
+    return Row(
+      children: [
+        Icon(icon, size: 14, color: AppColors.blue1),
+        const SizedBox(width: 6),
+        Text(
+          '$label: ',
+          style: TextStyle(
+            fontSize: 11,
+            color: Colors.grey.shade600,
+            fontWeight: FontWeight.w500,
+          ),
         ),
-        const SizedBox(height: 12),
-        CustomText(
-          controller: _telefonoController,
-          label: 'Telefono',
-          borderColor: AppColors.blue1,
-          keyboardType: TextInputType.phone,
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
       ],
     );
+  }
+
+  Widget _buildClienteSelector() {
+    if (_clienteId != null) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.green.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.green.withValues(alpha: 0.25)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.check_circle, size: 18, color: Colors.green),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Cliente vinculado',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.green.shade700,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    _nombreClienteController.text,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.green.shade800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.close, size: 18, color: Colors.red),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+              tooltip: 'Desvincular cliente',
+              onPressed: _clearLinkedCliente,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: _openClienteSelector,
+        icon: const Icon(Icons.person_search, size: 18),
+        label: const Text('Buscar o registrar cliente'),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.blue1,
+          side: const BorderSide(color: AppColors.blue1),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openClienteSelector() async {
+    String? empresaId;
+    final empresaState = context.read<EmpresaContextCubit>().state;
+    if (empresaState is EmpresaContextLoaded) {
+      empresaId = empresaState.context.empresa.id;
+    }
+    if (empresaId == null) return;
+
+    final result = await ClienteSelectorBottomSheet.show(
+      context: context,
+      empresaId: empresaId,
+    );
+
+    if (result != null && mounted) {
+      setState(() {
+        _clienteId = result.clienteId;
+        _nombreClienteController.text = result.nombreCompleto;
+        _documentoController.text = result.dni;
+        _telefonoController.text = result.telefono;
+        _emailController.text = result.email ?? '';
+        _direccionController.text = result.direccion ?? '';
+      });
+    }
+  }
+
+  void _clearLinkedCliente() {
+    setState(() {
+      _clienteId = null;
+      _nombreClienteController.clear();
+      _documentoController.clear();
+      _telefonoController.clear();
+      _emailController.clear();
+      _direccionController.clear();
+    });
   }
 
   // Paso 2: Items
@@ -585,6 +759,7 @@ class _CotizacionFormPageState extends State<CotizacionFormPage> {
     final data = <String, dynamic>{
       'sedeId': _sedeId ?? '',
       'vendedorId': _vendedorId ?? '',
+      if (_clienteId != null) 'clienteId': _clienteId,
       if (_nombreCotizacionController.text.trim().isNotEmpty)
         'nombre': _nombreCotizacionController.text.trim(),
       'nombreCliente': _nombreClienteController.text.trim(),

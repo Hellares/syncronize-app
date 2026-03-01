@@ -75,6 +75,13 @@ abstract class AuthRepository {
   /// Obtener perfil del usuario
   Future<Resource<User>> getProfile();
 
+  /// Actualizar perfil del usuario (DNI, teléfono, dirección)
+  Future<Resource<User>> updateProfile({
+    String? dni,
+    String? telefono,
+    String? direccion,
+  });
+
   /// Obtener sesiones activas
   Future<Resource<List<SessionInfo>>> getSessions();
 
@@ -105,11 +112,20 @@ abstract class AuthRepository {
   /// Limpiar datos de autenticación locales
   Future<Resource<void>> clearLocalAuth();
 
-  /// Crear una nueva empresa
+  /// Crear una nueva empresa (requiere datos SUNAT)
   Future<Resource<Empresa>> createEmpresa({
     required String nombre,
     required RubroEmpresa rubro,
-    String? ruc,
+    required String ruc,
+    required String razonSocial,
+    required String condicionContribuyente,
+    String? estadoContribuyente,
+    String? tipoContribuyente,
+    String? direccionFiscal,
+    String? departamento,
+    String? provincia,
+    String? distrito,
+    String? ubigeo,
     String? descripcion,
     String? telefono,
     String? email,

@@ -10,6 +10,7 @@ class User extends Equatable {
   final bool emailVerificado;
   final bool? telefonoVerificado;
   final String? telefono;
+  final String? direccion;
   final String? rolGlobal;
   final String? photoUrl; // URL de la foto de perfil (Google, etc.)
   final DateTime? lastLoginAt;
@@ -27,6 +28,7 @@ class User extends Equatable {
     required this.emailVerificado,
     this.telefonoVerificado,
     this.telefono,
+    this.direccion,
     this.rolGlobal,
     this.photoUrl,
     this.lastLoginAt,
@@ -48,6 +50,12 @@ class User extends Equatable {
   /// Identificador para mostrar (email o DNI)
   String get identificador => email ?? dni ?? id;
 
+  /// Verifica si el perfil está completo (DNI + Teléfono + Dirección)
+  bool get perfilCompleto =>
+      dni != null && dni!.isNotEmpty &&
+      telefono != null && telefono!.isNotEmpty &&
+      direccion != null && direccion!.isNotEmpty;
+
   @override
   List<Object?> get props => [
         id,
@@ -58,6 +66,7 @@ class User extends Equatable {
         emailVerificado,
         telefonoVerificado,
         telefono,
+        direccion,
         rolGlobal,
         photoUrl,
         lastLoginAt,

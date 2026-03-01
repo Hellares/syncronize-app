@@ -47,7 +47,7 @@ class PlanSuscripcionCubit extends Cubit<PlanSuscripcionState> {
       emit(const PlanSuscripcionCambiado());
     } else if (result is Error) {
       emit(PlanSuscripcionCambioError(
-        (result as Error).message,
+        (result).message,
         List.from(planes),
       ));
     }

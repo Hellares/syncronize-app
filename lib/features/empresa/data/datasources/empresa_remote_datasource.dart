@@ -83,6 +83,32 @@ class EmpresaRemoteDataSource {
         response.data as Map<String, dynamic>);
   }
 
+  /// Actualiza datos generales de la empresa
+  ///
+  /// PUT /api/empresas/:empresaId
+  Future<void> updateEmpresa({
+    required String empresaId,
+    required Map<String, dynamic> data,
+  }) async {
+    await _dioClient.put(
+      '${ApiConstants.empresas}/$empresaId',
+      data: data,
+    );
+  }
+
+  /// Actualiza el logo de la empresa
+  ///
+  /// PUT /api/empresas/:empresaId
+  Future<void> updateEmpresaLogo({
+    required String empresaId,
+    required String logoUrl,
+  }) async {
+    await _dioClient.put(
+      '${ApiConstants.empresas}/$empresaId',
+      data: {'logo': logoUrl},
+    );
+  }
+
   /// Obtiene la configuración fiscal/operativa de la empresa
   ///
   /// GET /api/empresas/:empresaId/configuracion

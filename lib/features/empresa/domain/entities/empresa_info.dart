@@ -34,6 +34,16 @@ class EmpresaInfo extends Equatable {
   final String? telefono;
   final String? descripcion;
   final String? web;
+  final String? razonSocial;
+  final String? rubro;
+  final String? tipoContribuyente;
+  final String? estadoContribuyente;
+  final String? condicionContribuyente;
+  final String? direccionFiscal;
+  final String? departamento;
+  final String? provincia;
+  final String? distrito;
+  final String? ubigeo;
   final String? planSuscripcionId;
   final String estadoSuscripcion;
   final int usuariosActuales;
@@ -51,6 +61,16 @@ class EmpresaInfo extends Equatable {
     this.telefono,
     this.descripcion,
     this.web,
+    this.razonSocial,
+    this.rubro,
+    this.tipoContribuyente,
+    this.estadoContribuyente,
+    this.condicionContribuyente,
+    this.direccionFiscal,
+    this.departamento,
+    this.provincia,
+    this.distrito,
+    this.ubigeo,
     this.planSuscripcionId,
     required this.estadoSuscripcion,
     required this.usuariosActuales,
@@ -86,6 +106,16 @@ class EmpresaInfo extends Equatable {
         telefono,
         descripcion,
         web,
+        razonSocial,
+        rubro,
+        tipoContribuyente,
+        estadoContribuyente,
+        condicionContribuyente,
+        direccionFiscal,
+        departamento,
+        provincia,
+        distrito,
+        ubigeo,
         planSuscripcionId,
         estadoSuscripcion,
         usuariosActuales,

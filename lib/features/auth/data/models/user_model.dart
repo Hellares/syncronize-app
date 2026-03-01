@@ -13,6 +13,7 @@ class UserModel {
   final bool emailVerificado;
   final bool? telefonoVerificado;
   final String? telefono;
+  final String? direccion;
   final String? rolGlobal;
   final String? photoUrl;
   final DateTime? lastLoginAt;
@@ -30,6 +31,7 @@ class UserModel {
     required this.emailVerificado,
     this.telefonoVerificado,
     this.telefono,
+    this.direccion,
     this.rolGlobal,
     this.photoUrl,
     this.lastLoginAt,
@@ -54,6 +56,7 @@ class UserModel {
       emailVerificado: emailVerificado,
       telefonoVerificado: telefonoVerificado,
       telefono: telefono,
+      direccion: direccion,
       rolGlobal: rolGlobal,
       photoUrl: photoUrl,
       lastLoginAt: lastLoginAt,
@@ -74,6 +77,7 @@ class UserModel {
       emailVerificado: user.emailVerificado,
       telefonoVerificado: user.telefonoVerificado,
       telefono: user.telefono,
+      direccion: user.direccion,
       rolGlobal: user.rolGlobal,
       photoUrl: user.photoUrl,
       lastLoginAt: user.lastLoginAt,

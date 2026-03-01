@@ -40,7 +40,7 @@ class ContainerLarge extends StatelessWidget {
     this.borderRadius = 4.0,
     this.padding = const EdgeInsets.all(8.0),
     this.iconSize = 16.0,
-    this.fontSize = 12.0,
+    this.fontSize = 11.0,
     this.fontSizeRight,
     this.fontLeft,               // ← nuevo
     this.fontRight,              // ← nuevo

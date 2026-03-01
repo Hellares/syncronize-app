@@ -2,6 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/gradient_background.dart';
+import '../../../../core/theme/gradient_container.dart';
+import '../../../../core/utils/resource.dart';
+import '../../../../core/widgets/smart_appbar.dart';
+import '../../../../core/widgets/floating_button_icon.dart';
+import '../../../../core/widgets/snack_bar_helper.dart';
+import '../../../auth/presentation/widgets/custom_button.dart';
+import '../../../auth/presentation/widgets/custom_text.dart'
+    show CustomText, FieldType;
+import '../../../consultas_externas/domain/entities/consulta_dni.dart';
+import '../../../consultas_externas/domain/usecases/consultar_dni_usecase.dart';
 import '../bloc/cliente_form/cliente_form_cubit.dart';
 import '../bloc/cliente_form/cliente_form_state.dart';
 
@@ -18,7 +30,8 @@ class ClienteFormPage extends StatefulWidget {
 }
 
 class _ClienteFormPageState extends State<ClienteFormPage> {
-  final _formKey = GlobalKey<FormState>();
+  final _consultarDniUseCase = locator<ConsultarDniUseCase>();
+
   final _dniController = TextEditingController();
   final _nombresController = TextEditingController();
   final _apellidosController = TextEditingController();
@@ -28,6 +41,11 @@ class _ClienteFormPageState extends State<ClienteFormPage> {
   final _distritoController = TextEditingController();
   final _provinciaController = TextEditingController();
   final _departamentoController = TextEditingController();
+
+  bool _isLookingUpDni = false;
+  bool _dniFieldsFilled = false;
+  String? _dniError;
+  String? _origenDatos;
 
   @override
   void dispose() {
@@ -43,304 +61,444 @@ class _ClienteFormPageState extends State<ClienteFormPage> {
     super.dispose();
   }
 
+  Future<void> _lookupDni() async {
+    final dni = _dniController.text.trim();
+
+    if (dni.length != 8 || !RegExp(r'^\d{8}$').hasMatch(dni)) {
+      setState(() => _dniError = 'Ingresa un DNI válido de 8 dígitos');
+      return;
+    }
+
+    setState(() {
+      _isLookingUpDni = true;
+      _dniError = null;
+    });
+
+    final result = await _consultarDniUseCase(dni);
+
+    if (!mounted) return;
+
+    if (result is Success<ConsultaDni>) {
+      final data = result.data;
+      setState(() {
+        _nombresController.text = data.nombres;
+        _apellidosController.text = data.apellidos;
+        if (data.telefono != null && data.telefono!.isNotEmpty) {
+          _telefonoController.text = data.telefono!;
+        }
+        if (data.email != null && data.email!.isNotEmpty) {
+          _emailController.text = data.email!;
+        }
+        _direccionController.text = data.direccion;
+        _distritoController.text = data.distrito;
+        _provinciaController.text = data.provincia;
+        _departamentoController.text = data.departamento;
+        _dniFieldsFilled = true;
+        _origenDatos = data.origen;
+        _isLookingUpDni = false;
+      });
+      SnackBarHelper.showSuccess(
+          context, 'Datos encontrados: ${data.nombreCompleto}');
+    } else if (result is Error<ConsultaDni>) {
+      setState(() {
+        _dniError = result.message;
+        _isLookingUpDni = false;
+      });
+    }
+  }
+
+  void _onDniChanged(String value) {
+    if (_dniError != null) {
+      setState(() => _dniError = null);
+    }
+    if (_dniFieldsFilled) {
+      setState(() {
+        _nombresController.clear();
+        _apellidosController.clear();
+        _telefonoController.clear();
+        _emailController.clear();
+        _direccionController.clear();
+        _distritoController.clear();
+        _provinciaController.clear();
+        _departamentoController.clear();
+        _dniFieldsFilled = false;
+        _origenDatos = null;
+      });
+    }
+    // Auto-search when 8 digits are entered
+    if (value.length == 8 && RegExp(r'^\d{8}$').hasMatch(value)) {
+      _lookupDni();
+    }
+  }
+
+  bool _validateForm() {
+    final dni = _dniController.text.trim();
+    final nombres = _nombresController.text.trim();
+    final apellidos = _apellidosController.text.trim();
+    final telefono = _telefonoController.text.trim();
+    final email = _emailController.text.trim();
+
+    if (dni.isEmpty || dni.length != 8 || !RegExp(r'^\d{8}$').hasMatch(dni)) {
+      SnackBarHelper.showError(context, 'El DNI debe tener 8 dígitos');
+      return false;
+    }
+    if (nombres.isEmpty) {
+      SnackBarHelper.showError(context, 'Los nombres son obligatorios');
+      return false;
+    }
+    if (apellidos.isEmpty) {
+      SnackBarHelper.showError(context, 'Los apellidos son obligatorios');
+      return false;
+    }
+    if (telefono.isEmpty || !RegExp(r'^\d{9}$').hasMatch(telefono)) {
+      SnackBarHelper.showError(context, 'El teléfono debe tener 9 dígitos');
+      return false;
+    }
+    if (email.isNotEmpty &&
+        !RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
+            .hasMatch(email)) {
+      SnackBarHelper.showError(context, 'Email inválido');
+      return false;
+    }
+    return true;
+  }
+
+  void _submitForm(BuildContext context) {
+    if (!_validateForm()) return;
+
+    context.read<ClienteFormCubit>().registrarCliente(
+          empresaId: widget.empresaId,
+          dni: _dniController.text.trim(),
+          nombres: _nombresController.text.trim(),
+          apellidos: _apellidosController.text.trim(),
+          telefono: _telefonoController.text.trim(),
+          email: _emailController.text.trim().isEmpty
+              ? null
+              : _emailController.text.trim(),
+          direccion: _direccionController.text.trim().isEmpty
+              ? null
+              : _direccionController.text.trim(),
+          distrito: _distritoController.text.trim().isEmpty
+              ? null
+              : _distritoController.text.trim(),
+          provincia: _provinciaController.text.trim().isEmpty
+              ? null
+              : _provinciaController.text.trim(),
+          departamento: _departamentoController.text.trim().isEmpty
+              ? null
+              : _departamentoController.text.trim(),
+        );
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (_) => locator<ClienteFormCubit>(),
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Registrar Cliente'),
-        ),
-        body: BlocConsumer<ClienteFormCubit, ClienteFormState>(
-          listener: (context, state) {
-            if (state is ClienteFormSuccess) {
-              final response = state.response;
-
-              // Mostrar mensaje según el tipo de registro
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(response.mensaje),
-                  backgroundColor: response.yaExistia
-                      ? Colors.orange
-                      : Colors.green,
-                  duration: const Duration(seconds: 3),
-                ),
-              );
-
-              // Si ya existía, mostrar diálogo informativo
-              if (response.yaExistia) {
-                showDialog(
-                  context: context,
-                  builder: (_) => AlertDialog(
-                    title: const Text('Cliente Existente'),
-                    content: Text(
-                      response.yaEraClienteEmpresa
-                          ? 'Este cliente ya está registrado en tu empresa.'
-                          : 'Este cliente ya existe en el sistema y ha sido asociado a tu empresa.',
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () {
-                          Navigator.pop(context); // Cerrar diálogo
-                          context.pop(true); // Volver a lista
-                        },
-                        child: const Text('OK'),
-                      ),
-                    ],
+      child: BlocListener<ClienteFormCubit, ClienteFormState>(
+        listener: (context, state) {
+          if (state is ClienteFormSuccess) {
+            final response = state.response;
+            if (response.yaExistia) {
+              showDialog(
+                context: context,
+                builder: (_) => AlertDialog(
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
+                  title: const Text('Cliente Existente',
+                      style:
+                          TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                  content: Text(
+                    response.yaEraClienteEmpresa
+                        ? 'Este cliente ya está registrado en tu empresa.'
+                        : 'Este cliente ya existe en el sistema y ha sido asociado a tu empresa.',
+                    style: const TextStyle(fontSize: 13),
                   ),
-                );
-              } else {
-                // Cliente nuevo registrado, volver a la lista
-                context.pop(true);
-              }
-            } else if (state is ClienteFormError) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(state.message),
-                  backgroundColor: Colors.red,
-                  duration: const Duration(seconds: 4),
+                  actions: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        context.pop(true);
+                      },
+                      child: const Text('OK'),
+                    ),
+                  ],
                 ),
               );
+            } else {
+              SnackBarHelper.showSuccess(context, response.mensaje);
+              context.pop(true);
             }
-          },
-          builder: (context, state) {
-            final isLoading = state is ClienteFormLoading;
-
-            return Form(
-              key: _formKey,
-              child: ListView(
-                padding: const EdgeInsets.all(16),
+          } else if (state is ClienteFormError) {
+            SnackBarHelper.showError(context, state.message);
+          }
+        },
+        child: GradientBackground(
+          child: Scaffold(
+            backgroundColor: Colors.transparent,
+            appBar: SmartAppBar(title: 'Registrar Cliente'),
+            body: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Column(
                 children: [
-                  const Text(
-                    'Datos Obligatorios',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _dniController,
-                    decoration: const InputDecoration(
-                      labelText: 'DNI *',
-                      hintText: '12345678',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.badge),
-                    ),
-                    keyboardType: TextInputType.number,
-                    maxLength: 8,
-                    enabled: !isLoading,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'El DNI es obligatorio';
-                      }
-                      if (value.length != 8) {
-                        return 'El DNI debe tener 8 dígitos';
-                      }
-                      if (!RegExp(r'^\d{8}$').hasMatch(value)) {
-                        return 'El DNI debe contener solo números';
-                      }
-                      return null;
+                  _buildDniLookupSection(),
+                  const SizedBox(height: 12),
+                  _buildDatosPersonalesSection(),
+                  const SizedBox(height: 12),
+                  _buildContactoSection(),
+                  const SizedBox(height: 12),
+                  _buildUbicacionSection(),
+                  const SizedBox(height: 20),
+                  BlocBuilder<ClienteFormCubit, ClienteFormState>(
+                    builder: (context, state) {
+                      final isLoading = state is ClienteFormLoading;
+                      return CustomButton(
+                        text: 'Registrar Cliente',
+                        isLoading: isLoading,
+                        icon: const Icon(Icons.person_add,
+                            color: Colors.white, size: 18),
+                        onPressed:
+                            isLoading ? null : () => _submitForm(context),
+                      );
                     },
                   ),
                   const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _nombresController,
-                    decoration: const InputDecoration(
-                      labelText: 'Nombres *',
-                      hintText: 'Juan Carlos',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.person),
-                    ),
-                    textCapitalization: TextCapitalization.words,
-                    enabled: !isLoading,
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Los nombres son obligatorios';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _apellidosController,
-                    decoration: const InputDecoration(
-                      labelText: 'Apellidos *',
-                      hintText: 'Pérez García',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.person_outline),
-                    ),
-                    textCapitalization: TextCapitalization.words,
-                    enabled: !isLoading,
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Los apellidos son obligatorios';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _telefonoController,
-                    decoration: const InputDecoration(
-                      labelText: 'Teléfono *',
-                      hintText: '987654321',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.phone),
-                    ),
-                    keyboardType: TextInputType.phone,
-                    maxLength: 9,
-                    enabled: !isLoading,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'El teléfono es obligatorio';
-                      }
-                      if (value.length != 9) {
-                        return 'El teléfono debe tener 9 dígitos';
-                      }
-                      if (!RegExp(r'^\d{9}$').hasMatch(value)) {
-                        return 'El teléfono debe contener solo números';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 24),
-                  const Text(
-                    'Datos Opcionales',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _emailController,
-                    decoration: const InputDecoration(
-                      labelText: 'Email (opcional)',
-                      hintText: 'cliente@example.com',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.email),
-                    ),
-                    keyboardType: TextInputType.emailAddress,
-                    enabled: !isLoading,
-                    validator: (value) {
-                      if (value != null && value.isNotEmpty) {
-                        if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
-                            .hasMatch(value)) {
-                          return 'Email inválido';
-                        }
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _direccionController,
-                    decoration: const InputDecoration(
-                      labelText: 'Dirección (opcional)',
-                      hintText: 'Av. Principal 123',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.home),
-                    ),
-                    textCapitalization: TextCapitalization.words,
-                    enabled: !isLoading,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _distritoController,
-                    decoration: const InputDecoration(
-                      labelText: 'Distrito (opcional)',
-                      hintText: 'Miraflores',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.location_on),
-                    ),
-                    textCapitalization: TextCapitalization.words,
-                    enabled: !isLoading,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _provinciaController,
-                    decoration: const InputDecoration(
-                      labelText: 'Provincia (opcional)',
-                      hintText: 'Lima',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.location_city),
-                    ),
-                    textCapitalization: TextCapitalization.words,
-                    enabled: !isLoading,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _departamentoController,
-                    decoration: const InputDecoration(
-                      labelText: 'Departamento (opcional)',
-                      hintText: 'Lima',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.map),
-                    ),
-                    textCapitalization: TextCapitalization.words,
-                    enabled: !isLoading,
-                  ),
-                  const SizedBox(height: 32),
-                  ElevatedButton(
-                    onPressed: isLoading
-                        ? null
-                        : () {
-                            if (_formKey.currentState!.validate()) {
-                              context
-                                  .read<ClienteFormCubit>()
-                                  .registrarCliente(
-                                    empresaId: widget.empresaId,
-                                    dni: _dniController.text.trim(),
-                                    nombres: _nombresController.text.trim(),
-                                    apellidos: _apellidosController.text.trim(),
-                                    telefono: _telefonoController.text.trim(),
-                                    email: _emailController.text.trim().isEmpty
-                                        ? null
-                                        : _emailController.text.trim(),
-                                    direccion:
-                                        _direccionController.text.trim().isEmpty
-                                            ? null
-                                            : _direccionController.text.trim(),
-                                    distrito:
-                                        _distritoController.text.trim().isEmpty
-                                            ? null
-                                            : _distritoController.text.trim(),
-                                    provincia: _provinciaController.text
-                                            .trim()
-                                            .isEmpty
-                                        ? null
-                                        : _provinciaController.text.trim(),
-                                    departamento: _departamentoController.text
-                                            .trim()
-                                            .isEmpty
-                                        ? null
-                                        : _departamentoController.text.trim(),
-                                  );
-                            }
-                          },
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                    child: isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor:
-                                  AlwaysStoppedAnimation<Color>(Colors.white),
-                            ),
-                          )
-                        : const Text(
-                            'Registrar Cliente',
-                            style: TextStyle(fontSize: 16),
-                          ),
-                  ),
                 ],
               ),
-            );
-          },
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title, IconData icon) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: AppColors.blue2),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.2,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDniLookupSection() {
+    return GradientContainer(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSectionTitle('Buscar por DNI', Icons.search),
+            const SizedBox(height: 6),
+            Text(
+              'Ingresa el DNI para autocompletar los datos del cliente.',
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+            ),
+            const SizedBox(height: 14),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: CustomText(
+                    controller: _dniController,
+                    label: 'DNI',
+                    hintText: '12345678',
+                    fieldType: FieldType.number,
+                    maxLength: 8,
+                    prefixIcon: const Icon(Icons.badge_outlined),
+                    borderColor: AppColors.blue1,
+                    enabled: !_isLookingUpDni,
+                    externalError: _dniError,
+                    onChanged: _onDniChanged,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: _isLookingUpDni
+                      ? const SizedBox(
+                          width: 35,
+                          height: 35,
+                          child: Center(
+                            child: SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 1,
+                                color: AppColors.blue2,
+                              ),
+                            ),
+                          ),
+                        )
+                      : FloatingButtonIcon(
+                          size: 35,
+                          icon: Icons.search,
+                          backgroundColor: AppColors.blue2,
+                          onPressed: _dniController.text.length != 8
+                              ? () {}
+                              : _lookupDni,
+                        ),
+                ),
+              ],
+            ),
+            if (_dniFieldsFilled) ...[
+              const SizedBox(height: 10),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.green.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(8),
+                  border:
+                      Border.all(color: Colors.green.withValues(alpha: 0.25)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.check_circle,
+                        size: 14, color: Colors.green),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        _origenDatos == 'INTERNO'
+                            ? 'Persona encontrada en el sistema'
+                            : 'Datos autocompletados desde RENIEC',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.green.shade700,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDatosPersonalesSection() {
+    return GradientContainer(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSectionTitle('Datos Personales', Icons.person_outline),
+            const SizedBox(height: 14),
+            CustomText(
+              controller: _nombresController,
+              label: 'Nombres',
+              hintText: 'Juan Carlos',
+              prefixIcon: const Icon(Icons.person_outline),
+              borderColor: AppColors.blue1,
+              enabled: !_dniFieldsFilled,
+            ),
+            const SizedBox(height: 14),
+            CustomText(
+              controller: _apellidosController,
+              label: 'Apellidos',
+              hintText: 'Pérez García',
+              prefixIcon: const Icon(Icons.person_outline),
+              borderColor: AppColors.blue1,
+              enabled: !_dniFieldsFilled,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContactoSection() {
+    return GradientContainer(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSectionTitle('Contacto', Icons.contact_mail_outlined),
+            const SizedBox(height: 14),
+            CustomText(
+              controller: _telefonoController,
+              label: 'Teléfono',
+              hintText: '987654321',
+              fieldType: FieldType.number,
+              maxLength: 9,
+              prefixIcon: const Icon(Icons.phone_outlined),
+              borderColor: AppColors.blue1,
+            ),
+            const SizedBox(height: 14),
+            CustomText(
+              controller: _emailController,
+              label: 'Email (opcional)',
+              hintText: 'cliente@example.com',
+              fieldType: FieldType.email,
+              prefixIcon: const Icon(Icons.email_outlined),
+              borderColor: AppColors.blue1,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUbicacionSection() {
+    return GradientContainer(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSectionTitle('Ubicación', Icons.location_on_outlined),
+            if (_dniFieldsFilled) ...[
+              const SizedBox(height: 6),
+              Text(
+                'Dirección obtenida de RENIEC. Puedes editarla si necesitas.',
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+              ),
+            ],
+            const SizedBox(height: 14),
+            CustomText(
+              controller: _direccionController,
+              label: 'Dirección (opcional)',
+              hintText: 'Av. Principal 123',
+              prefixIcon: const Icon(Icons.home_outlined),
+              borderColor: AppColors.blue1,
+            ),
+            const SizedBox(height: 14),
+            CustomText(
+              controller: _distritoController,
+              label: 'Distrito (opcional)',
+              hintText: 'Miraflores',
+              prefixIcon: const Icon(Icons.place_outlined),
+              borderColor: AppColors.blue1,
+            ),
+            const SizedBox(height: 14),
+            CustomText(
+              controller: _provinciaController,
+              label: 'Provincia (opcional)',
+              hintText: 'Lima',
+              prefixIcon: const Icon(Icons.location_city_outlined),
+              borderColor: AppColors.blue1,
+            ),
+            const SizedBox(height: 14),
+            CustomText(
+              controller: _departamentoController,
+              label: 'Departamento (opcional)',
+              hintText: 'Lima',
+              prefixIcon: const Icon(Icons.map_outlined),
+              borderColor: AppColors.blue1,
+            ),
+          ],
         ),
       ),
     );

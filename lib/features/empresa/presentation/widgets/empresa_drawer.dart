@@ -245,6 +245,14 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             const _SectionTitleNode('Administración'),
             _TileNode(
               visible: permissions?.canManageSettings ?? false,
+              title: 'Perfil de Empresa',
+              icon: Icons.business_center,
+              iconColor: AppColors.blue2,
+              routeMatch: const _RouteMatch.startsWith('/empresa/perfil'),
+              onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/perfil')),
+            ),
+            _TileNode(
+              visible: permissions?.canManageSettings ?? false,
               title: 'Configuración Fiscal',
               icon: Icons.settings,
               iconColor: AppColors.blue2,
@@ -274,6 +282,17 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               iconColor: AppColors.blue2,
               routeMatch: const _RouteMatch.startsWith('/empresa/personalizacion'),
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/personalizacion')),
+            ),
+
+            const _DividerNode(),
+
+            const _SectionTitleNode('Mi Cuenta'),
+            _TileNode(
+              title: 'Mi Perfil',
+              icon: Icons.person_outline,
+              iconColor: AppColors.blue2,
+              routeMatch: const _RouteMatch.exact('/profile'),
+              onTap: (ctx) => _tap(ctx, () => ctx.push('/profile')),
             ),
 
             const _DividerNode(),
@@ -444,9 +463,6 @@ class _DrawerHeaderPro extends StatelessWidget {
     // Logo escala de 1 -> 0
     final logoScale = (1.0 - t).clamp(0.0, 1.0);
 
-    // Email opacity de 1 -> 0
-    final emailOpacity = (1.0 - (t * 1.2)).clamp(0.0, 1.0);
-
     return GradientBackground(
       style: GradientStyle.gjayli,
       child: ClipRect(
@@ -483,26 +499,12 @@ class _DrawerHeaderPro extends StatelessWidget {
                   SizedBox(width: lerpDouble(12, 0, t)),
 
                   Expanded(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        AppTitle(
-                          empresa.nombre,
-                          font: AppFont.pirulentBold,
-                          fontSize: lerpDouble(8, 10, t),
-                        ),
-
-                        // Email: no ocupa espacio cuando ya está colapsado
-                        if (emailOpacity > 0.02) ...[
-                          const SizedBox(height: 4),
-                          Opacity(
-                            opacity: emailOpacity,
-                            child: AppTitle(empresa.email ?? 'Sin email'),
-                          ),
-                        ],
-                      ],
+                    child: AppTitle(
+                      empresa.nombre,
+                      font: AppFont.pirulentBold,
+                      fontSize: lerpDouble(8, 10, t),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],

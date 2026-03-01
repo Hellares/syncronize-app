@@ -19,9 +19,7 @@ class UsuarioListTile extends StatelessWidget {
   });
 
   /// Verifica si el usuario es un cliente
-  bool get _esCliente =>
-      usuario.rolEnEmpresa == 'CLIENTE' ||
-      usuario.rolEnEmpresa == 'CLIENTE_EMPRESA';
+  bool get _esCliente => usuario.rolEnEmpresa == 'CLIENTE';
 
   @override
   Widget build(BuildContext context) {

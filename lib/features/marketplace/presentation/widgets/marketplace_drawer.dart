@@ -292,7 +292,7 @@ class _AuthenticatedDrawerContent extends StatelessWidget {
                 ),
                 onTap: () {
                   Navigator.pop(context);
-                  context.push('/home');
+                  context.push('/profile');
                 },
               ),
             ],

@@ -112,7 +112,7 @@ class ErrorHandlerService {
     if (exception is ValidationException) {
       return Error(
         exception.message,
-        errorCode: 'VALIDATION_ERROR',
+        errorCode: exception.errorCode ?? 'VALIDATION_ERROR',
         statusCode: 400,
       );
     }
