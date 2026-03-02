@@ -4,7 +4,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/gradient_background.dart';
+import '../../../../core/theme/gradient_container.dart';
+import '../../../../core/fonts/app_text_widgets.dart';
 import '../../../../core/utils/resource.dart';
+import '../../../../core/widgets/smart_appbar.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_cubit.dart';
@@ -93,65 +98,72 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
             );
           }
         },
-        child: Scaffold(
-          appBar: AppBar(
-            title: Text(_cotizacion?.codigo ?? 'Cotizacion'),
-            actions: [
-              if (_cotizacion != null) ...[
-                IconButton(
-                  icon: const Icon(Icons.picture_as_pdf),
-                  onPressed: () => _mostrarOpcionesPDF(_cotizacion!),
-                  tooltip: 'Generar PDF',
-                ),
-                PopupMenuButton<String>(
-                  onSelected: (value) => _handleMenuAction(context, value),
-                  itemBuilder: (_) => [
-                    const PopupMenuItem(
-                      value: 'pdf_interno',
-                      child: ListTile(
-                        leading: Icon(Icons.picture_as_pdf),
-                        title: Text('PDF Interno'),
-                        subtitle: Text('Con todos los precios',
-                            style: TextStyle(fontSize: 11)),
-                        dense: true,
-                      ),
+        child: GradientBackground(
+          child: Builder(
+            builder: (context) => Scaffold(
+              backgroundColor: Colors.transparent,
+              appBar: SmartAppBar(
+                title: _cotizacion?.codigo ?? 'Cotizacion',
+                backgroundColor: AppColors.blue1,
+                foregroundColor: Colors.white,
+                actions: [
+                  if (_cotizacion != null) ...[
+                    IconButton(
+                      icon: const Icon(Icons.picture_as_pdf),
+                      onPressed: () => _mostrarOpcionesPDF(_cotizacion!),
+                      tooltip: 'Generar PDF',
                     ),
-                    const PopupMenuItem(
-                      value: 'pdf_cliente',
-                      child: ListTile(
-                        leading: Icon(Icons.send),
-                        title: Text('PDF Cliente'),
-                        subtitle: Text('Solo muestra el total',
-                            style: TextStyle(fontSize: 11)),
-                        dense: true,
-                      ),
-                    ),
-                    const PopupMenuDivider(),
-                    const PopupMenuItem(
-                      value: 'duplicar',
-                      child: ListTile(
-                        leading: Icon(Icons.copy),
-                        title: Text('Duplicar'),
-                        dense: true,
-                      ),
-                    ),
-                    if (_cotizacion!.esEditable)
-                      const PopupMenuItem(
-                        value: 'eliminar',
-                        child: ListTile(
-                          leading: Icon(Icons.delete, color: Colors.red),
-                          title: Text('Eliminar',
-                              style: TextStyle(color: Colors.red)),
-                          dense: true,
+                    PopupMenuButton<String>(
+                      onSelected: (value) => _handleMenuAction(context, value),
+                      itemBuilder: (_) => [
+                        const PopupMenuItem(
+                          value: 'pdf_interno',
+                          child: ListTile(
+                            leading: Icon(Icons.picture_as_pdf),
+                            title: Text('PDF Interno'),
+                            subtitle: Text('Con todos los precios',
+                                style: TextStyle(fontSize: 11)),
+                            dense: true,
+                          ),
                         ),
-                      ),
+                        const PopupMenuItem(
+                          value: 'pdf_cliente',
+                          child: ListTile(
+                            leading: Icon(Icons.send),
+                            title: Text('PDF Cliente'),
+                            subtitle: Text('Solo muestra el total',
+                                style: TextStyle(fontSize: 11)),
+                            dense: true,
+                          ),
+                        ),
+                        const PopupMenuDivider(),
+                        const PopupMenuItem(
+                          value: 'duplicar',
+                          child: ListTile(
+                            leading: Icon(Icons.copy),
+                            title: Text('Duplicar'),
+                            dense: true,
+                          ),
+                        ),
+                        if (_cotizacion!.esEditable)
+                          const PopupMenuItem(
+                            value: 'eliminar',
+                            child: ListTile(
+                              leading: Icon(Icons.delete, color: Colors.red),
+                              title: Text('Eliminar',
+                                  style: TextStyle(color: Colors.red)),
+                              dense: true,
+                            ),
+                          ),
+                      ],
+                    ),
                   ],
-                ),
-              ],
-            ],
+                ],
+              ),
+              body: _buildBody(),
+              bottomNavigationBar: _buildBottomActions(context),
+            ),
           ),
-          body: _buildBody(),
-          bottomNavigationBar: _buildBottomActions(context),
         ),
       ),
     );
@@ -164,19 +176,30 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
 
     if (_error != null) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error_outline, size: 64, color: Colors.red),
-            const SizedBox(height: 16),
-            Text(_error!),
-            const SizedBox(height: 16),
-            FilledButton.icon(
-              onPressed: _loadCotizacion,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Reintentar'),
-            ),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, size: 56, color: Colors.red.shade300),
+              const SizedBox(height: 16),
+              Text(
+                _error!,
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                onPressed: _loadCotizacion,
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text('Reintentar'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.blue1,
+                  side: const BorderSide(color: AppColors.blue1),
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -186,182 +209,281 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
 
     return RefreshIndicator(
       onRefresh: _loadCotizacion,
+      color: AppColors.blue1,
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // Header
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        cot.codigo,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      CotizacionEstadoChip(estado: cot.estado),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  _InfoRow('Fecha emision', dateFormat.format(cot.fechaEmision)),
-                  if (cot.fechaVencimiento != null)
-                    _InfoRow('Vencimiento',
-                        dateFormat.format(cot.fechaVencimiento!)),
-                  _InfoRow('Moneda', cot.moneda),
-                  if (cot.sedeNombre != null)
-                    _InfoRow('Sede', cot.sedeNombre!),
-                  if (cot.vendedorNombre != null)
-                    _InfoRow('Vendedor', cot.vendedorNombre!),
-                ],
-              ),
-            ),
-          ),
+          _buildHeaderSection(cot, dateFormat),
           const SizedBox(height: 12),
-
-          // Datos del cliente
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Cliente',
-                      style:
-                          TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
-                  const SizedBox(height: 8),
-                  _InfoRow('Nombre', cot.nombreCliente),
-                  if (cot.documentoCliente != null)
-                    _InfoRow('Documento', cot.documentoCliente!),
-                  if (cot.emailCliente != null)
-                    _InfoRow('Email', cot.emailCliente!),
-                  if (cot.telefonoCliente != null)
-                    _InfoRow('Telefono', cot.telefonoCliente!),
-                  if (cot.direccionCliente != null)
-                    _InfoRow('Direccion', cot.direccionCliente!),
-                ],
-              ),
-            ),
-          ),
+          _buildClienteSection(cot),
           const SizedBox(height: 12),
-
-          // Detalles / Items
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Items (${cot.detalles?.length ?? 0})',
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w600, fontSize: 15),
-                  ),
-                  const SizedBox(height: 8),
-                  if (cot.detalles != null)
-                    ...cot.detalles!.map((d) => Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                flex: 3,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      d.descripcion,
-                                      style: const TextStyle(fontSize: 13),
-                                    ),
-                                    Text(
-                                      '${d.cantidad} x ${cot.moneda} ${d.precioUnitario.toStringAsFixed(2)}',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey.shade600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Text(
-                                '${cot.moneda} ${d.total.toStringAsFixed(2)}',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ],
-                          ),
-                        )),
-                ],
-              ),
-            ),
-          ),
+          _buildItemsSection(cot),
           const SizedBox(height: 12),
-
-          // Totales
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  _TotalRow('Subtotal',
-                      '${cot.moneda} ${cot.subtotal.toStringAsFixed(2)}'),
-                  if (cot.descuento > 0)
-                    _TotalRow('Descuento',
-                        '-${cot.moneda} ${cot.descuento.toStringAsFixed(2)}'),
-                  _TotalRow(_getNombreImpuesto(),
-                      '${cot.moneda} ${cot.impuestos.toStringAsFixed(2)}'),
-                  const Divider(),
-                  _TotalRow(
-                    'Total',
-                    '${cot.moneda} ${cot.total.toStringAsFixed(2)}',
-                    bold: true,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // Observaciones
-          if (cot.observaciones != null || cot.condiciones != null)
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (cot.observaciones != null) ...[
-                      const Text('Observaciones',
-                          style: TextStyle(
-                              fontWeight: FontWeight.w600, fontSize: 13)),
-                      const SizedBox(height: 4),
-                      Text(cot.observaciones!, style: const TextStyle(fontSize: 13)),
-                    ],
-                    if (cot.condiciones != null) ...[
-                      const SizedBox(height: 12),
-                      const Text('Condiciones',
-                          style: TextStyle(
-                              fontWeight: FontWeight.w600, fontSize: 13)),
-                      const SizedBox(height: 4),
-                      Text(cot.condiciones!, style: const TextStyle(fontSize: 13)),
-                    ],
-                  ],
-                ),
-              ),
-            ),
+          _buildTotalesSection(cot),
+          if (cot.observaciones != null || cot.condiciones != null) ...[
+            const SizedBox(height: 12),
+            _buildNotasSection(cot),
+          ],
           const SizedBox(height: 80),
         ],
       ),
     );
   }
+
+  // ─── Header ───
+
+  Widget _buildHeaderSection(Cotizacion cot, DateFormat dateFormat) {
+    return GradientContainer(
+      borderColor: AppColors.blueborder,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.bluechip,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.description_outlined,
+                      color: AppColors.blue1, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      AppSubtitle(cot.codigo, fontSize: 15),
+                      if (cot.nombre != null)
+                        Text(
+                          cot.nombre!,
+                          style: TextStyle(
+                              fontSize: 11, color: Colors.grey.shade600),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                    ],
+                  ),
+                ),
+                CotizacionEstadoChip(estado: cot.estado),
+              ],
+            ),
+            const SizedBox(height: 14),
+            _buildDetailRow(
+                Icons.calendar_today, 'Emision', dateFormat.format(cot.fechaEmision)),
+            if (cot.fechaVencimiento != null)
+              _buildDetailRow(Icons.event, 'Vencimiento',
+                  dateFormat.format(cot.fechaVencimiento!)),
+            _buildDetailRow(
+                Icons.monetization_on_outlined, 'Moneda', cot.moneda),
+            if (cot.sedeNombre != null)
+              _buildDetailRow(Icons.store_outlined, 'Sede', cot.sedeNombre!),
+            if (cot.vendedorNombre != null)
+              _buildDetailRow(
+                  Icons.person_outline, 'Vendedor', cot.vendedorNombre!),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ─── Cliente ───
+
+  Widget _buildClienteSection(Cotizacion cot) {
+    return GradientContainer(
+      borderColor: AppColors.blueborder,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSectionHeader(Icons.person_outline, 'CLIENTE'),
+            const SizedBox(height: 12),
+            _buildDetailRow(Icons.person, 'Nombre', cot.nombreCliente),
+            if (cot.documentoCliente != null)
+              _buildDetailRow(
+                  Icons.badge_outlined, 'Documento', cot.documentoCliente!),
+            if (cot.emailCliente != null)
+              _buildDetailRow(
+                  Icons.email_outlined, 'Email', cot.emailCliente!),
+            if (cot.telefonoCliente != null)
+              _buildDetailRow(
+                  Icons.phone_outlined, 'Telefono', cot.telefonoCliente!),
+            if (cot.direccionCliente != null)
+              _buildDetailRow(Icons.location_on_outlined, 'Direccion',
+                  cot.direccionCliente!),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ─── Items ───
+
+  Widget _buildItemsSection(Cotizacion cot) {
+    final detalles = cot.detalles ?? [];
+
+    return GradientContainer(
+      borderColor: AppColors.blueborder,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSectionHeader(
+                Icons.shopping_cart_outlined, 'ITEMS (${detalles.length})'),
+            const SizedBox(height: 12),
+            ...detalles.asMap().entries.map((entry) {
+              final index = entry.key;
+              final d = entry.value;
+              return Column(
+                children: [
+                  if (index > 0)
+                    Divider(
+                        height: 16,
+                        color: AppColors.blueborder.withValues(alpha: 0.4)),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 24,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          color: AppColors.bluechip,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Center(
+                          child: Text(
+                            '${index + 1}',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.blue1,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              d.descripcion,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '${d.cantidad} x ${cot.moneda} ${d.precioUnitario.toStringAsFixed(2)}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      AppSubtitle(
+                        '${cot.moneda} ${d.total.toStringAsFixed(2)}',
+                        fontSize: 12,
+                        color: AppColors.blue1,
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ─── Totales ───
+
+  Widget _buildTotalesSection(Cotizacion cot) {
+    return GradientContainer(
+      borderColor: AppColors.blueborder,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            _buildTotalRow('Subtotal',
+                '${cot.moneda} ${cot.subtotal.toStringAsFixed(2)}'),
+            if (cot.descuento > 0) ...[
+              const SizedBox(height: 4),
+              _buildTotalRow('Descuento',
+                  '-${cot.moneda} ${cot.descuento.toStringAsFixed(2)}',
+                  color: Colors.red),
+            ],
+            const SizedBox(height: 4),
+            _buildTotalRow(_getNombreImpuesto(),
+                '${cot.moneda} ${cot.impuestos.toStringAsFixed(2)}'),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Divider(
+                  height: 1,
+                  color: AppColors.blueborder.withValues(alpha: 0.5)),
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const AppSubtitle('TOTAL', fontSize: 14),
+                AppSubtitle(
+                  '${cot.moneda} ${cot.total.toStringAsFixed(2)}',
+                  fontSize: 16,
+                  color: AppColors.blue1,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ─── Notas ───
+
+  Widget _buildNotasSection(Cotizacion cot) {
+    return GradientContainer(
+      borderColor: AppColors.blueborder,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (cot.observaciones != null) ...[
+              _buildSectionHeader(Icons.notes, 'OBSERVACIONES'),
+              const SizedBox(height: 8),
+              Text(
+                cot.observaciones!,
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+              ),
+            ],
+            if (cot.observaciones != null && cot.condiciones != null)
+              const SizedBox(height: 14),
+            if (cot.condiciones != null) ...[
+              _buildSectionHeader(Icons.gavel_outlined, 'CONDICIONES'),
+              const SizedBox(height: 8),
+              Text(
+                cot.condiciones!,
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ─── Bottom Actions ───
 
   Widget? _buildBottomActions(BuildContext context) {
     if (_cotizacion == null) return null;
@@ -369,38 +491,69 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
     final cot = _cotizacion!;
     final actions = <Widget>[];
 
-    // Acciones segun estado
     if (cot.estado == EstadoCotizacion.borrador) {
-      actions.add(FilledButton(
-        onPressed: () {
-          context.read<CotizacionFormCubit>().cambiarEstado(
-                cot.id,
-                EstadoCotizacion.pendiente,
-              );
-        },
-        child: const Text('Enviar a Pendiente'),
+      actions.add(Expanded(
+        child: ElevatedButton.icon(
+          onPressed: () {
+            context.read<CotizacionFormCubit>().cambiarEstado(
+                  cot.id,
+                  EstadoCotizacion.pendiente,
+                );
+          },
+          icon: const Icon(Icons.send, size: 18),
+          label: const Text('Enviar a Pendiente'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.blue1,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ),
       ));
     } else if (cot.estado == EstadoCotizacion.pendiente) {
       actions.addAll([
-        OutlinedButton(
-          onPressed: () {
-            context.read<CotizacionFormCubit>().cambiarEstado(
-                  cot.id,
-                  EstadoCotizacion.rechazada,
-                );
-          },
-          style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
-          child: const Text('Rechazar'),
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: () {
+              context.read<CotizacionFormCubit>().cambiarEstado(
+                    cot.id,
+                    EstadoCotizacion.rechazada,
+                  );
+            },
+            icon: const Icon(Icons.close, size: 18),
+            label: const Text('Rechazar'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.red,
+              side: const BorderSide(color: Colors.red),
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
         ),
-        const SizedBox(width: 8),
-        FilledButton(
-          onPressed: () {
-            context.read<CotizacionFormCubit>().cambiarEstado(
-                  cot.id,
-                  EstadoCotizacion.aprobada,
-                );
-          },
-          child: const Text('Aprobar'),
+        const SizedBox(width: 12),
+        Expanded(
+          child: ElevatedButton.icon(
+            onPressed: () {
+              context.read<CotizacionFormCubit>().cambiarEstado(
+                    cot.id,
+                    EstadoCotizacion.aprobada,
+                  );
+            },
+            icon: const Icon(Icons.check, size: 18),
+            label: const Text('Aprobar'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.green,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
         ),
       ]);
     }
@@ -410,21 +563,81 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Theme.of(context).scaffoldBackgroundColor,
+        color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 8,
             offset: const Offset(0, -2),
           ),
         ],
       ),
+      child: Row(children: actions),
+    );
+  }
+
+  // ─── Helpers de UI ───
+
+  Widget _buildSectionHeader(IconData icon, String title) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: AppColors.blue1),
+        const SizedBox(width: 8),
+        AppSubtitle(title, fontSize: 12),
+      ],
+    );
+  }
+
+  Widget _buildDetailRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: actions,
+        children: [
+          Icon(icon, size: 14, color: Colors.grey.shade500),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 85,
+            child: Text(
+              label,
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
       ),
     );
   }
+
+  Widget _buildTotalRow(String label, String value, {Color? color}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: color,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ─── Acciones ───
 
   void _handleMenuAction(BuildContext context, String action) {
     switch (action) {
@@ -445,7 +658,6 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
     }
   }
 
-  /// Muestra un dialog para elegir el tipo de PDF
   void _mostrarOpcionesPDF(Cotizacion cotizacion) {
     FormatoPapel selectedFormato = FormatoPapel.A4;
 
@@ -463,7 +675,6 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
                   style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
                 ),
               ),
-              // Selector de formato de papel
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Column(
@@ -498,7 +709,8 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
               ListTile(
                 leading: const Icon(Icons.picture_as_pdf),
                 title: const Text('PDF Interno'),
-                subtitle: const Text('Incluye precios unitarios, descuentos y subtotales'),
+                subtitle: const Text(
+                    'Incluye precios unitarios, descuentos y subtotales'),
                 onTap: () {
                   Navigator.pop(ctx);
                   _generarDocumentoPDF(cotizacion,
@@ -508,7 +720,8 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
               ListTile(
                 leading: const Icon(Icons.send),
                 title: const Text('PDF para Cliente'),
-                subtitle: const Text('Solo muestra descripcion, cantidad y total final'),
+                subtitle: const Text(
+                    'Solo muestra descripcion, cantidad y total final'),
                 onTap: () {
                   Navigator.pop(ctx);
                   _generarDocumentoPDF(cotizacion,
@@ -524,7 +737,8 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
   }
 
   Future<void> _generarDocumentoPDF(Cotizacion cotizacion,
-      {bool modoCliente = false, FormatoPapel formato = FormatoPapel.A4}) async {
+      {bool modoCliente = false,
+      FormatoPapel formato = FormatoPapel.A4}) async {
     final empresaState = context.read<EmpresaContextCubit>().state;
 
     if (empresaState is! EmpresaContextLoaded) {
@@ -536,16 +750,15 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
 
     final empresa = empresaState.context.empresa;
 
-    // Leer configuracion fiscal
     String nombreImpuesto = 'IGV';
     double porcentajeImpuesto = 18.0;
     final configState = context.read<ConfiguracionEmpresaCubit>().state;
     if (configState is ConfiguracionEmpresaLoaded) {
       nombreImpuesto = configState.configuracion.nombreImpuesto;
-      porcentajeImpuesto = configState.configuracion.impuestoDefaultPorcentaje;
+      porcentajeImpuesto =
+          configState.configuracion.impuestoDefaultPorcentaje;
     }
 
-    // Cargar configuracion de documentos para COTIZACION con formato elegido
     ConfiguracionDocumentoCompleta? documentConfig;
     try {
       final result = await locator<GetConfiguracionCompletaUseCase>()(
@@ -556,11 +769,8 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
       if (result is Success<ConfiguracionDocumentoCompleta>) {
         documentConfig = result.data;
       }
-    } catch (_) {
-      // Si falla, se usaran los defaults del generador
-    }
+    } catch (_) {}
 
-    // Descargar logo si existe URL
     Uint8List? logoBytes;
     final logoUrl = documentConfig?.configuracion.logoUrl ?? empresa.logo;
     if (logoUrl != null && logoUrl.isNotEmpty) {
@@ -569,9 +779,7 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
         if (response.statusCode == 200) {
           logoBytes = response.bodyBytes;
         }
-      } catch (_) {
-        // Si falla la descarga, se genera sin logo
-      }
+      } catch (_) {}
     }
 
     if (!mounted) return;
@@ -605,15 +813,19 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Eliminar cotizacion'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Eliminar cotizacion',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
         content: const Text(
-            'Esta accion no se puede deshacer. ¿Desea continuar?'),
+          'Esta accion no se puede deshacer. ¿Desea continuar?',
+          style: TextStyle(fontSize: 13),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Cancelar'),
           ),
-          FilledButton(
+          ElevatedButton(
             onPressed: () {
               Navigator.pop(ctx);
               context
@@ -621,77 +833,11 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
                   .eliminarCotizacion(_cotizacion!.id);
               Navigator.pop(context);
             },
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
             child: const Text('Eliminar'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _InfoRow(this.label, this.value);
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 110,
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.grey.shade600,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(fontSize: 13),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TotalRow extends StatelessWidget {
-  final String label;
-  final String value;
-  final bool bold;
-
-  const _TotalRow(this.label, this.value, {this.bold = false});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: bold ? 15 : 13,
-              fontWeight: bold ? FontWeight.w700 : FontWeight.normal,
-            ),
-          ),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: bold ? 15 : 13,
-              fontWeight: bold ? FontWeight.w700 : FontWeight.normal,
-            ),
           ),
         ],
       ),

@@ -55,6 +55,11 @@ import 'package:syncronize/features/cotizacion/presentation/bloc/cotizacion_list
 import 'package:syncronize/features/cotizacion/presentation/bloc/cotizacion_form/cotizacion_form_cubit.dart';
 import 'package:syncronize/features/empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_cubit.dart';
 import 'package:syncronize/features/configuracion_documentos/presentation/bloc/configuracion_documentos_cubit.dart';
+import 'package:syncronize/features/compra/presentation/bloc/orden_compra_list/orden_compra_list_cubit.dart';
+import 'package:syncronize/features/compra/presentation/bloc/orden_compra_form/orden_compra_form_cubit.dart';
+import 'package:syncronize/features/compra/presentation/bloc/compra_list/compra_list_cubit.dart';
+import 'package:syncronize/features/compra/presentation/bloc/compra_form/compra_form_cubit.dart';
+import 'package:syncronize/features/compra/presentation/bloc/lote_list/lote_list_cubit.dart';
 
 /// Lista centralizada de todos los BLoCs globales de la aplicación
 List<BlocProvider> blocProviders = [
@@ -404,6 +409,36 @@ List<BlocProvider> blocProviders = [
   // Configuracion Documentos Cubit - Maneja configuracion de documentos PDF
   BlocProvider<ConfiguracionDocumentosCubit>(
     create: (context) => locator<ConfiguracionDocumentosCubit>(),
+    lazy: true,
+  ),
+
+  // Orden Compra List Cubit - Maneja la lista de órdenes de compra
+  BlocProvider<OrdenCompraListCubit>(
+    create: (context) => locator<OrdenCompraListCubit>(),
+    lazy: true,
+  ),
+
+  // Orden Compra Form Cubit - Maneja el formulario de órdenes de compra
+  BlocProvider<OrdenCompraFormCubit>(
+    create: (context) => locator<OrdenCompraFormCubit>(),
+    lazy: true,
+  ),
+
+  // Compra List Cubit - Maneja la lista de compras/recepciones
+  BlocProvider<CompraListCubit>(
+    create: (context) => locator<CompraListCubit>(),
+    lazy: true,
+  ),
+
+  // Compra Form Cubit - Maneja el formulario de compras
+  BlocProvider<CompraFormCubit>(
+    create: (context) => locator<CompraFormCubit>(),
+    lazy: true,
+  ),
+
+  // Lote List Cubit - Maneja la lista de lotes
+  BlocProvider<LoteListCubit>(
+    create: (context) => locator<LoteListCubit>(),
     lazy: true,
   ),
 

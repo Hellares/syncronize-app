@@ -31,7 +31,7 @@ class ProductoFiltros extends Equatable {
 
   const ProductoFiltros({
     this.page = 1,
-    this.limit = 10,
+    this.limit = 50,
     this.search,
     this.empresaCategoriaId,
     this.empresaMarcaId,

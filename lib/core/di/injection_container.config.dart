@@ -176,6 +176,56 @@ import '../../features/combo/domain/usecases/reservar_stock_usecase.dart'
 import '../../features/combo/presentation/bloc/combo_cubit.dart' as _i1039;
 import '../../features/combo/presentation/bloc/producto_selector_cubit.dart'
     as _i466;
+import '../../features/compra/data/datasources/compra_remote_datasource.dart'
+    as _i463;
+import '../../features/compra/data/repositories/compra_repository_impl.dart'
+    as _i544;
+import '../../features/compra/domain/repositories/compra_repository.dart'
+    as _i19;
+import '../../features/compra/domain/usecases/actualizar_orden_compra_usecase.dart'
+    as _i895;
+import '../../features/compra/domain/usecases/anular_compra_usecase.dart'
+    as _i875;
+import '../../features/compra/domain/usecases/cambiar_estado_oc_usecase.dart'
+    as _i254;
+import '../../features/compra/domain/usecases/confirmar_compra_usecase.dart'
+    as _i72;
+import '../../features/compra/domain/usecases/crear_compra_desde_oc_usecase.dart'
+    as _i50;
+import '../../features/compra/domain/usecases/crear_compra_usecase.dart'
+    as _i526;
+import '../../features/compra/domain/usecases/crear_orden_compra_usecase.dart'
+    as _i812;
+import '../../features/compra/domain/usecases/duplicar_orden_compra_usecase.dart'
+    as _i176;
+import '../../features/compra/domain/usecases/eliminar_compra_usecase.dart'
+    as _i205;
+import '../../features/compra/domain/usecases/eliminar_orden_compra_usecase.dart'
+    as _i133;
+import '../../features/compra/domain/usecases/get_compra_usecase.dart' as _i668;
+import '../../features/compra/domain/usecases/get_compras_usecase.dart'
+    as _i770;
+import '../../features/compra/domain/usecases/get_lineas_pendientes_usecase.dart'
+    as _i1006;
+import '../../features/compra/domain/usecases/get_lotes_proximos_vencer_usecase.dart'
+    as _i823;
+import '../../features/compra/domain/usecases/get_lotes_usecase.dart' as _i805;
+import '../../features/compra/domain/usecases/get_orden_compra_usecase.dart'
+    as _i740;
+import '../../features/compra/domain/usecases/get_ordenes_compra_usecase.dart'
+    as _i217;
+import '../../features/compra/domain/usecases/marcar_lotes_vencidos_usecase.dart'
+    as _i396;
+import '../../features/compra/presentation/bloc/compra_form/compra_form_cubit.dart'
+    as _i999;
+import '../../features/compra/presentation/bloc/compra_list/compra_list_cubit.dart'
+    as _i654;
+import '../../features/compra/presentation/bloc/lote_list/lote_list_cubit.dart'
+    as _i906;
+import '../../features/compra/presentation/bloc/orden_compra_form/orden_compra_form_cubit.dart'
+    as _i1000;
+import '../../features/compra/presentation/bloc/orden_compra_list/orden_compra_list_cubit.dart'
+    as _i809;
 import '../../features/configuracion_codigos/data/datasources/configuracion_codigos_remote_datasource.dart'
     as _i719;
 import '../../features/configuracion_codigos/data/repositories/configuracion_codigos_repository_impl.dart'
@@ -721,6 +771,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i532.ComboRemoteDataSource>(
       () => _i532.ComboRemoteDataSource(gh<_i667.DioClient>()),
     );
+    gh.lazySingleton<_i463.CompraRemoteDataSource>(
+      () => _i463.CompraRemoteDataSource(gh<_i667.DioClient>()),
+    );
     gh.lazySingleton<_i719.ConfiguracionCodigosRemoteDataSource>(
       () => _i719.ConfiguracionCodigosRemoteDataSource(gh<_i667.DioClient>()),
     );
@@ -946,6 +999,12 @@ extension GetItInjectableX on _i174.GetIt {
         remoteDataSource: gh<_i906.ConsultasRemoteDataSource>(),
         networkInfo: gh<_i932.NetworkInfo>(),
         errorHandler: gh<_i490.ErrorHandlerService>(),
+      ),
+    );
+    gh.lazySingleton<_i19.CompraRepository>(
+      () => _i544.CompraRepositoryImpl(
+        gh<_i463.CompraRemoteDataSource>(),
+        gh<_i932.NetworkInfo>(),
       ),
     );
     gh.lazySingleton<_i262.ProductoStockRepository>(
@@ -1280,6 +1339,60 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i123.AtributoPlantillaCubit>(
       () => _i123.AtributoPlantillaCubit(gh<_i1006.PlantillaRepository>()),
     );
+    gh.factory<_i895.ActualizarOrdenCompraUseCase>(
+      () => _i895.ActualizarOrdenCompraUseCase(gh<_i19.CompraRepository>()),
+    );
+    gh.factory<_i875.AnularCompraUseCase>(
+      () => _i875.AnularCompraUseCase(gh<_i19.CompraRepository>()),
+    );
+    gh.factory<_i254.CambiarEstadoOcUseCase>(
+      () => _i254.CambiarEstadoOcUseCase(gh<_i19.CompraRepository>()),
+    );
+    gh.factory<_i72.ConfirmarCompraUseCase>(
+      () => _i72.ConfirmarCompraUseCase(gh<_i19.CompraRepository>()),
+    );
+    gh.factory<_i50.CrearCompraDesdeOcUseCase>(
+      () => _i50.CrearCompraDesdeOcUseCase(gh<_i19.CompraRepository>()),
+    );
+    gh.factory<_i526.CrearCompraUseCase>(
+      () => _i526.CrearCompraUseCase(gh<_i19.CompraRepository>()),
+    );
+    gh.factory<_i812.CrearOrdenCompraUseCase>(
+      () => _i812.CrearOrdenCompraUseCase(gh<_i19.CompraRepository>()),
+    );
+    gh.factory<_i176.DuplicarOrdenCompraUseCase>(
+      () => _i176.DuplicarOrdenCompraUseCase(gh<_i19.CompraRepository>()),
+    );
+    gh.factory<_i205.EliminarCompraUseCase>(
+      () => _i205.EliminarCompraUseCase(gh<_i19.CompraRepository>()),
+    );
+    gh.factory<_i133.EliminarOrdenCompraUseCase>(
+      () => _i133.EliminarOrdenCompraUseCase(gh<_i19.CompraRepository>()),
+    );
+    gh.factory<_i668.GetCompraUseCase>(
+      () => _i668.GetCompraUseCase(gh<_i19.CompraRepository>()),
+    );
+    gh.factory<_i770.GetComprasUseCase>(
+      () => _i770.GetComprasUseCase(gh<_i19.CompraRepository>()),
+    );
+    gh.factory<_i1006.GetLineasPendientesUseCase>(
+      () => _i1006.GetLineasPendientesUseCase(gh<_i19.CompraRepository>()),
+    );
+    gh.factory<_i823.GetLotesProximosVencerUseCase>(
+      () => _i823.GetLotesProximosVencerUseCase(gh<_i19.CompraRepository>()),
+    );
+    gh.factory<_i805.GetLotesUseCase>(
+      () => _i805.GetLotesUseCase(gh<_i19.CompraRepository>()),
+    );
+    gh.factory<_i740.GetOrdenCompraUseCase>(
+      () => _i740.GetOrdenCompraUseCase(gh<_i19.CompraRepository>()),
+    );
+    gh.factory<_i217.GetOrdenesCompraUseCase>(
+      () => _i217.GetOrdenesCompraUseCase(gh<_i19.CompraRepository>()),
+    );
+    gh.factory<_i396.MarcarLotesVencidosUseCase>(
+      () => _i396.MarcarLotesVencidosUseCase(gh<_i19.CompraRepository>()),
+    );
     gh.factory<_i102.AjusteMasivoCubit>(
       () => _i102.AjusteMasivoCubit(gh<_i619.AjusteMasivoPreciosUseCase>()),
     );
@@ -1289,6 +1402,14 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i648.ReportesIncidenciaListCubit>(
       () =>
           _i648.ReportesIncidenciaListCubit(gh<_i624.ListarReportesUsecase>()),
+    );
+    gh.factory<_i654.CompraListCubit>(
+      () => _i654.CompraListCubit(
+        gh<_i770.GetComprasUseCase>(),
+        gh<_i72.ConfirmarCompraUseCase>(),
+        gh<_i875.AnularCompraUseCase>(),
+        gh<_i205.EliminarCompraUseCase>(),
+      ),
     );
     gh.factory<_i480.PlanSuscripcionCubit>(
       () => _i480.PlanSuscripcionCubit(gh<_i894.PlanSuscripcionRepository>()),
@@ -1391,6 +1512,12 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i193.ConsultaRucCubit>(
       () => _i193.ConsultaRucCubit(gh<_i633.ConsultarRucUseCase>()),
     );
+    gh.factory<_i1000.OrdenCompraFormCubit>(
+      () => _i1000.OrdenCompraFormCubit(
+        gh<_i812.CrearOrdenCompraUseCase>(),
+        gh<_i895.ActualizarOrdenCompraUseCase>(),
+      ),
+    );
     gh.lazySingleton<_i787.AuthRepository>(
       () => _i153.AuthRepositoryImpl(
         remoteDataSource: gh<_i161.AuthRemoteDataSource>(),
@@ -1419,6 +1546,14 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i880.GetProductosStockUseCase>(
       () =>
           _i880.GetProductosStockUseCase(gh<_i690.ProductosStockRepository>()),
+    );
+    gh.factory<_i809.OrdenCompraListCubit>(
+      () => _i809.OrdenCompraListCubit(
+        gh<_i217.GetOrdenesCompraUseCase>(),
+        gh<_i133.EliminarOrdenCompraUseCase>(),
+        gh<_i254.CambiarEstadoOcUseCase>(),
+        gh<_i176.DuplicarOrdenCompraUseCase>(),
+      ),
     );
     gh.factory<_i620.GestionarReporteCubit>(
       () => _i620.GestionarReporteCubit(
@@ -1491,6 +1626,12 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i457.AsignarProductosCubit(
         gh<_i1012.AsignarProductos>(),
         gh<_i269.AsignarCategorias>(),
+      ),
+    );
+    gh.factory<_i999.CompraFormCubit>(
+      () => _i999.CompraFormCubit(
+        gh<_i526.CrearCompraUseCase>(),
+        gh<_i50.CrearCompraDesdeOcUseCase>(),
       ),
     );
     gh.factory<_i1046.ConfiguracionCodigosCubit>(
@@ -1702,6 +1843,13 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i961.ListarIncidenciasCubit>(
       () => _i961.ListarIncidenciasCubit(gh<_i599.ListarIncidenciasUseCase>()),
+    );
+    gh.factory<_i906.LoteListCubit>(
+      () => _i906.LoteListCubit(
+        gh<_i805.GetLotesUseCase>(),
+        gh<_i823.GetLotesProximosVencerUseCase>(),
+        gh<_i396.MarcarLotesVencidosUseCase>(),
+      ),
     );
     gh.factory<_i370.ActualizarOfertaComboUseCase>(
       () => _i370.ActualizarOfertaComboUseCase(gh<_i200.ComboRepository>()),

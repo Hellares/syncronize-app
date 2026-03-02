@@ -21,7 +21,7 @@ class ClienteFiltros extends Equatable {
 
   const ClienteFiltros({
     this.page = 1,
-    this.limit = 10,
+    this.limit = 50,
     this.search,
     this.isActive,
     this.orden,

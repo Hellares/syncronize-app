@@ -994,6 +994,7 @@ class _ProductosPageState extends State<ProductosPage>
       child: ListView.builder(
         controller: _scrollController,
         padding: const EdgeInsets.symmetric(horizontal: 10),
+        cacheExtent: 500,
         itemCount: productos.length + (hasMore ? 1 : 0),
         itemBuilder: (context, index) {
           if (index >= productos.length) {

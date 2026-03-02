@@ -163,6 +163,7 @@ class _ClientesPageState extends State<ClientesPage> {
       child: ListView.builder(
         controller: _scrollController,
         padding: const EdgeInsets.symmetric(horizontal: 16),
+        cacheExtent: 500,
         itemCount: clientes.length + (hasMore ? 1 : 0),
         itemBuilder: (context, index) {
           if (index >= clientes.length) {

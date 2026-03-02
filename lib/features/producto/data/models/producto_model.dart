@@ -117,9 +117,12 @@ class ProductoModel extends Producto {
               .toList()
           : null,
       stocksPorSede: json['stocksPorSede'] != null
-          ? (json['stocksPorSede'] as List)
-              .map((e) => StockPorSedeInfoModel.fromJson(e as Map<String, dynamic>))
-              .toList()
+          ? _deduplicateStocksPorSede(
+              (json['stocksPorSede'] as List)
+                  .map((e) => StockPorSedeInfoModel.fromJson(
+                      e as Map<String, dynamic>))
+                  .toList(),
+            )
           : null,
     );
   }
@@ -157,6 +160,19 @@ class ProductoModel extends Producto {
       'creadoEn': creadoEn.toIso8601String(),
       'actualizadoEn': actualizadoEn.toIso8601String(),
     };
+  }
+
+  static List<StockPorSedeInfoModel> _deduplicateStocksPorSede(
+    List<StockPorSedeInfoModel> stocks,
+  ) {
+    final map = <String, StockPorSedeInfoModel>{};
+    for (final stock in stocks) {
+      final existing = map[stock.sedeId];
+      if (existing == null || stock.cantidad > existing.cantidad) {
+        map[stock.sedeId] = stock;
+      }
+    }
+    return map.values.toList();
   }
 
   Producto toEntity() => this;

@@ -61,6 +61,17 @@ import '../../features/cotizacion/presentation/pages/cotizaciones_page.dart';
 import '../../features/cotizacion/presentation/pages/cotizacion_form_page.dart';
 import '../../features/cotizacion/presentation/pages/cotizacion_detail_page.dart';
 import '../../features/configuracion_documentos/presentation/pages/configuracion_documentos_page.dart';
+import '../../features/compra/presentation/pages/ordenes_compra_page.dart';
+import '../../features/compra/presentation/pages/orden_compra_detail_page.dart';
+import '../../features/compra/presentation/pages/orden_compra_form_page.dart';
+import '../../features/compra/presentation/pages/compras_page.dart';
+import '../../features/compra/presentation/pages/compra_detail_page.dart';
+import '../../features/compra/presentation/pages/compra_form_page.dart';
+import '../../features/compra/presentation/pages/lotes_page.dart';
+import '../../features/compra/presentation/pages/lote_detail_page.dart';
+import '../../features/compra/domain/entities/orden_compra.dart';
+import '../../features/compra/domain/entities/compra.dart';
+import '../../features/compra/domain/entities/lote.dart';
 
 /// Configuración de rutas de la aplicación
 class AppRouter {
@@ -590,6 +601,94 @@ class AppRouter {
         builder: (context, state) {
           final cotizacionId = state.pathParameters['id']!;
           return CotizacionDetailPage(cotizacionId: cotizacionId);
+        },
+      ),
+      // Rutas de compras - Órdenes de Compra
+      GoRoute(
+        path: '/empresa/compras/ordenes',
+        name: 'empresa-ordenes-compra',
+        builder: (context, state) {
+          final empresaId = locator<LocalStorageService>().getString(StorageConstants.tenantId) ?? '';
+          return OrdenesCompraPage(empresaId: empresaId);
+        },
+      ),
+      GoRoute(
+        path: '/empresa/compras/ordenes/nueva',
+        name: 'empresa-ordenes-compra-nueva',
+        builder: (context, state) {
+          final empresaId = locator<LocalStorageService>().getString(StorageConstants.tenantId) ?? '';
+          return OrdenCompraFormPage(empresaId: empresaId);
+        },
+      ),
+      GoRoute(
+        path: '/empresa/compras/ordenes/:id',
+        name: 'empresa-ordenes-compra-detail',
+        builder: (context, state) {
+          final empresaId = locator<LocalStorageService>().getString(StorageConstants.tenantId) ?? '';
+          final orden = state.extra as OrdenCompra;
+          return OrdenCompraDetailPage(empresaId: empresaId, orden: orden);
+        },
+      ),
+      GoRoute(
+        path: '/empresa/compras/ordenes/:id/editar',
+        name: 'empresa-ordenes-compra-editar',
+        builder: (context, state) {
+          final empresaId = locator<LocalStorageService>().getString(StorageConstants.tenantId) ?? '';
+          final orden = state.extra as OrdenCompra?;
+          return OrdenCompraFormPage(empresaId: empresaId, orden: orden);
+        },
+      ),
+      // Rutas de compras - Recepciones
+      GoRoute(
+        path: '/empresa/compras/recepciones',
+        name: 'empresa-compras-recepciones',
+        builder: (context, state) {
+          final empresaId = locator<LocalStorageService>().getString(StorageConstants.tenantId) ?? '';
+          return ComprasPage(empresaId: empresaId);
+        },
+      ),
+      GoRoute(
+        path: '/empresa/compras/recepciones/nueva',
+        name: 'empresa-compras-recepciones-nueva',
+        builder: (context, state) {
+          final empresaId = locator<LocalStorageService>().getString(StorageConstants.tenantId) ?? '';
+          return CompraFormPage(empresaId: empresaId);
+        },
+      ),
+      GoRoute(
+        path: '/empresa/compras/recepciones/nueva-desde-oc',
+        name: 'empresa-compras-recepciones-desde-oc',
+        builder: (context, state) {
+          final empresaId = locator<LocalStorageService>().getString(StorageConstants.tenantId) ?? '';
+          final ordenCompra = state.extra as OrdenCompra?;
+          return CompraFormPage(empresaId: empresaId, ordenCompra: ordenCompra);
+        },
+      ),
+      GoRoute(
+        path: '/empresa/compras/recepciones/:id',
+        name: 'empresa-compras-recepciones-detail',
+        builder: (context, state) {
+          final empresaId = locator<LocalStorageService>().getString(StorageConstants.tenantId) ?? '';
+          final compra = state.extra as Compra;
+          return CompraDetailPage(empresaId: empresaId, compra: compra);
+        },
+      ),
+      // Rutas de lotes
+      GoRoute(
+        path: '/empresa/compras/lotes',
+        name: 'empresa-lotes',
+        builder: (context, state) {
+          final empresaId = locator<LocalStorageService>().getString(StorageConstants.tenantId) ?? '';
+          return LotesPage(empresaId: empresaId);
+        },
+      ),
+      GoRoute(
+        path: '/empresa/compras/lotes/:id',
+        name: 'empresa-lotes-detail',
+        builder: (context, state) {
+          final empresaId = locator<LocalStorageService>().getString(StorageConstants.tenantId) ?? '';
+          final lote = state.extra as Lote;
+          return LoteDetailPage(empresaId: empresaId, lote: lote);
         },
       ),
       // Ruta placeholder para marketplace (por implementar)

@@ -242,6 +242,35 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
 
             const _DividerNode(),
 
+            const _SectionTitleNode('Compras'),
+            _SectionNode(
+              children: [
+                _TileNode(
+                  title: 'Órdenes de Compra',
+                  icon: Icons.description,
+                  iconColor: AppColors.blue2,
+                  routeMatch: const _RouteMatch.startsWith('/empresa/compras/ordenes'),
+                  onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/compras/ordenes')),
+                ),
+                _TileNode(
+                  title: 'Recepciones',
+                  icon: Icons.local_shipping,
+                  iconColor: AppColors.blue2,
+                  routeMatch: const _RouteMatch.startsWith('/empresa/compras/recepciones'),
+                  onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/compras/recepciones')),
+                ),
+                _TileNode(
+                  title: 'Lotes',
+                  icon: Icons.inventory_2,
+                  iconColor: AppColors.blue2,
+                  routeMatch: const _RouteMatch.startsWith('/empresa/compras/lotes'),
+                  onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/compras/lotes')),
+                ),
+              ],
+            ),
+
+            const _DividerNode(),
+
             const _SectionTitleNode('Administración'),
             _TileNode(
               visible: permissions?.canManageSettings ?? false,

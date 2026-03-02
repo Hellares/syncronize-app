@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:syncronize/core/fonts/app_fonts.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
@@ -101,12 +102,14 @@ class ProductoListTile extends StatelessWidget {
                                 topLeft: Radius.circular(8),
                                 bottomLeft: Radius.circular(8),
                               ),
-                              child: Image.network(
-                                producto.imagenPrincipal!,
+                              child: CachedNetworkImage(
+                                imageUrl: producto.imagenPrincipal!,
                                 fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return _buildPlaceholder();
-                                },
+                                width: 95,
+                                height: 105,
+                                placeholder: (context, url) => _buildPlaceholder(),
+                                errorWidget: (context, url, error) => _buildPlaceholder(),
+                                fadeInDuration: const Duration(milliseconds: 150),
                               ),
                             )
                           : _buildPlaceholder(),
