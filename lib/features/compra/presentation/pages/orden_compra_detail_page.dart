@@ -1,5 +1,8 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/utils/date_formatter.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
@@ -8,11 +11,19 @@ import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/widgets/info_chip.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/utils/resource.dart';
+import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
+import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
+import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_cubit.dart';
+import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_state.dart';
+import '../../../configuracion_documentos/domain/entities/configuracion_documento_completa.dart';
+import '../../../configuracion_documentos/domain/entities/plantilla_documento.dart';
+import '../../../configuracion_documentos/domain/usecases/get_configuracion_completa_usecase.dart';
 import '../../domain/entities/orden_compra.dart';
 import '../../domain/usecases/get_orden_compra_usecase.dart';
 import '../../domain/usecases/cambiar_estado_oc_usecase.dart';
 import '../../domain/usecases/duplicar_orden_compra_usecase.dart';
 import '../../domain/usecases/eliminar_orden_compra_usecase.dart';
+import 'documento_compra_preview_page.dart';
 
 class OrdenCompraDetailPage extends StatefulWidget {
   final String empresaId;
@@ -83,6 +94,11 @@ class _OrdenCompraDetailPageState extends State<OrdenCompraDetailPage> {
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.picture_as_pdf),
+            onPressed: () => _mostrarOpcionesPDF(),
+            tooltip: 'Generar PDF',
+          ),
           if (_orden.puedeEditar)
             IconButton(
               icon: const Icon(Icons.edit, size: 20),
@@ -772,6 +788,131 @@ class _OrdenCompraDetailPageState extends State<OrdenCompraDetailPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // --- PDF ---
+
+  void _mostrarOpcionesPDF() {
+    FormatoPapel selectedFormato = FormatoPapel.A4;
+
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text(
+                  'Generar PDF',
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Formato de papel',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SegmentedButton<FormatoPapel>(
+                      segments: FormatoPapel.values
+                          .map((f) => ButtonSegment(value: f, label: Text(f.label)))
+                          .toList(),
+                      selected: {selectedFormato},
+                      onSelectionChanged: (v) {
+                        setModalState(() => selectedFormato = v.first);
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.picture_as_pdf),
+                title: const Text('Generar documento'),
+                subtitle: const Text('PDF con todos los detalles de la orden de compra'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _generarDocumentoPDF(formato: selectedFormato);
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _generarDocumentoPDF({FormatoPapel formato = FormatoPapel.A4}) async {
+    final empresaState = context.read<EmpresaContextCubit>().state;
+
+    if (empresaState is! EmpresaContextLoaded) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo obtener la empresa')),
+      );
+      return;
+    }
+
+    final empresa = empresaState.context.empresa;
+
+    String nombreImpuesto = 'IGV';
+    double porcentajeImpuesto = 18.0;
+    final configState = context.read<ConfiguracionEmpresaCubit>().state;
+    if (configState is ConfiguracionEmpresaLoaded) {
+      nombreImpuesto = configState.configuracion.nombreImpuesto;
+      porcentajeImpuesto = configState.configuracion.impuestoDefaultPorcentaje;
+    }
+
+    ConfiguracionDocumentoCompleta? documentConfig;
+    try {
+      final result = await locator<GetConfiguracionCompletaUseCase>()(
+        tipo: 'ORDEN_COMPRA',
+        formato: formato.apiValue,
+        sedeId: _orden.sedeId,
+      );
+      if (result is Success<ConfiguracionDocumentoCompleta>) {
+        documentConfig = result.data;
+      }
+    } catch (_) {}
+
+    Uint8List? logoBytes;
+    final logoUrl = documentConfig?.configuracion.logoUrl ?? empresa.logo;
+    if (logoUrl != null && logoUrl.isNotEmpty) {
+      try {
+        final response = await http.get(Uri.parse(logoUrl));
+        if (response.statusCode == 200) {
+          logoBytes = response.bodyBytes;
+        }
+      } catch (_) {}
+    }
+
+    if (!mounted) return;
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => DocumentoCompraPreviewPage(
+          orden: _orden,
+          empresaNombre: empresa.nombre,
+          empresaRuc: empresa.ruc,
+          nombreImpuesto: nombreImpuesto,
+          porcentajeImpuesto: porcentajeImpuesto,
+          documentConfig: documentConfig,
+          formatoPapel: formato,
+          logoEmpresa: logoBytes,
+        ),
       ),
     );
   }

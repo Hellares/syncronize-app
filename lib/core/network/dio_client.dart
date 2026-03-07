@@ -52,11 +52,13 @@ class DioClient {
     String path, {
     Map<String, dynamic>? queryParameters,
     Options? options,
+    void Function(int, int)? onReceiveProgress,
   }) async {
     return await _dio.get(
       path,
       queryParameters: queryParameters,
       options: options,
+      onReceiveProgress: onReceiveProgress,
     );
   }
 

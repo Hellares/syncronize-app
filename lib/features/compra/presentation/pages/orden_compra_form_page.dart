@@ -273,6 +273,7 @@ class _OrdenCompraFormViewState extends State<_OrdenCompraFormView> {
 
                       // Moneda
                       CustomDropdown<String>(
+                        borderColor: AppColors.blue1,
                         label: 'Moneda',
                         value: _moneda,
                         items: const [
@@ -309,6 +310,7 @@ class _OrdenCompraFormViewState extends State<_OrdenCompraFormView> {
 
                       // Observaciones
                       CustomText(
+                        borderColor: AppColors.blue1,
                         controller: _observacionesController,
                         label: 'Observaciones (opcional)',
                         hintText: 'Notas adicionales',
@@ -319,6 +321,7 @@ class _OrdenCompraFormViewState extends State<_OrdenCompraFormView> {
 
                       // Condiciones
                       CustomText(
+                        borderColor: AppColors.blue1,
                         controller: _condicionesController,
                         label: 'Condiciones (opcional)',
                         hintText: 'Condiciones de la orden',
@@ -409,6 +412,7 @@ class _OrdenCompraFormViewState extends State<_OrdenCompraFormView> {
     }
 
     return CustomDropdown<String>(
+      borderColor: AppColors.blue1,
       label: 'Sede',
       value: _sedeId,
       items: sedes.map((sede) {

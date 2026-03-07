@@ -1,11 +1,14 @@
 import 'package:injectable/injectable.dart';
 import '../../../../core/network/network_info.dart';
 import '../../../../core/services/error_handler_service.dart';
+import '../../../../core/utils/cursor_page.dart';
 import '../../../../core/utils/resource.dart';
 import '../../domain/entities/producto_stock.dart';
 import '../../domain/entities/movimiento_stock.dart';
+import '../../domain/entities/precio_historial_sede.dart';
 import '../../domain/repositories/producto_stock_repository.dart';
 import '../datasources/producto_stock_remote_datasource.dart';
+import '../models/precio_historial_sede_model.dart';
 
 @LazySingleton(as: ProductoStockRepository)
 class ProductoStockRepositoryImpl implements ProductoStockRepository {
@@ -361,6 +364,79 @@ class ProductoStockRepositoryImpl implements ProductoStockRepository {
         dto: dto,
       );
       return Success(resultado);
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'ProductoStock');
+    }
+  }
+
+  // ===== HISTORIAL DE PRECIOS GLOBAL =====
+
+  @override
+  Future<Resource<CursorPage<PrecioHistorialSede>>> getHistorialPreciosGlobal({
+    required String empresaId,
+    String? sedeId,
+    String? productoId,
+    String? fechaInicio,
+    String? fechaFin,
+    String? tipoCambio,
+    String? search,
+    String? cursor,
+    int limit = 50,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final response = await _remoteDataSource.getHistorialPreciosGlobal(
+        empresaId: empresaId,
+        sedeId: sedeId,
+        productoId: productoId,
+        fechaInicio: fechaInicio,
+        fechaFin: fechaFin,
+        tipoCambio: tipoCambio,
+        search: search,
+        cursor: cursor,
+        limit: limit,
+      );
+      final dataList = response['data'] as List? ?? [];
+      final meta = response['meta'] as Map<String, dynamic>? ?? {};
+      final items = dataList
+          .map((json) => PrecioHistorialSedeModel.fromJson(json as Map<String, dynamic>))
+          .toList();
+      return Success(CursorPage(
+        items: items,
+        hasNext: meta['hasNext'] as bool? ?? false,
+        nextCursor: meta['nextCursor'] as String?,
+      ));
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'ProductoStock');
+    }
+  }
+
+  @override
+  Future<Resource<List<int>>> exportHistorialPrecios({
+    required String empresaId,
+    required String fechaInicio,
+    required String fechaFin,
+    String? sedeId,
+    String? productoId,
+    String? tipoCambio,
+    void Function(int, int)? onReceiveProgress,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final bytes = await _remoteDataSource.exportHistorialPrecios(
+        empresaId: empresaId,
+        fechaInicio: fechaInicio,
+        fechaFin: fechaFin,
+        sedeId: sedeId,
+        productoId: productoId,
+        tipoCambio: tipoCambio,
+        onReceiveProgress: onReceiveProgress,
+      );
+      return Success(bytes);
     } catch (e) {
       return _errorHandler.handleException(e, context: 'ProductoStock');
     }

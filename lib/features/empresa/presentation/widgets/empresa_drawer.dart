@@ -182,6 +182,13 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               routeMatch: const _RouteMatch.startsWith('/empresa/inventario/alertas'),
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/inventario/alertas')),
             ),
+            _TileNode(
+              title: 'Historial de Precios',
+              icon: Icons.price_change,
+              iconColor: Colors.teal,
+              routeMatch: const _RouteMatch.startsWith('/empresa/inventario/historial-precios'),
+              onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/inventario/historial-precios')),
+            ),
 
             const _DividerNode(),
 

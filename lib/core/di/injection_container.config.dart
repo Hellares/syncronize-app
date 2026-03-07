@@ -202,6 +202,10 @@ import '../../features/compra/domain/usecases/eliminar_compra_usecase.dart'
     as _i205;
 import '../../features/compra/domain/usecases/eliminar_orden_compra_usecase.dart'
     as _i133;
+import '../../features/compra/domain/usecases/export_compra_analytics_usecase.dart'
+    as _i619;
+import '../../features/compra/domain/usecases/get_compra_analytics_usecase.dart'
+    as _i914;
 import '../../features/compra/domain/usecases/get_compra_usecase.dart' as _i668;
 import '../../features/compra/domain/usecases/get_compras_usecase.dart'
     as _i770;
@@ -216,6 +220,8 @@ import '../../features/compra/domain/usecases/get_ordenes_compra_usecase.dart'
     as _i217;
 import '../../features/compra/domain/usecases/marcar_lotes_vencidos_usecase.dart'
     as _i396;
+import '../../features/compra/presentation/bloc/compra_analytics/compra_analytics_cubit.dart'
+    as _i427;
 import '../../features/compra/presentation/bloc/compra_form/compra_form_cubit.dart'
     as _i999;
 import '../../features/compra/presentation/bloc/compra_list/compra_list_cubit.dart'
@@ -450,6 +456,8 @@ import '../../features/producto/domain/usecases/get_alertas_stock_bajo_usecase.d
     as _i752;
 import '../../features/producto/domain/usecases/get_historial_movimientos_usecase.dart'
     as _i861;
+import '../../features/producto/domain/usecases/get_historial_precios_global_usecase.dart'
+    as _i530;
 import '../../features/producto/domain/usecases/get_producto_usecase.dart'
     as _i460;
 import '../../features/producto/domain/usecases/get_productos_disponibles_para_combo_usecase.dart'
@@ -502,6 +510,8 @@ import '../../features/producto/presentation/bloc/crear_transferencia/crear_tran
     as _i238;
 import '../../features/producto/presentation/bloc/gestionar_transferencia/gestionar_transferencia_cubit.dart'
     as _i773;
+import '../../features/producto/presentation/bloc/historial_precios/historial_precios_cubit.dart'
+    as _i737;
 import '../../features/producto/presentation/bloc/listar_incidencias/listar_incidencias_cubit.dart'
     as _i961;
 import '../../features/producto/presentation/bloc/precio_nivel/precio_nivel_cubit.dart'
@@ -1157,6 +1167,16 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i262.ProductoStockRepository>(),
       ),
     );
+    gh.factory<_i530.GetHistorialPreciosGlobalUseCase>(
+      () => _i530.GetHistorialPreciosGlobalUseCase(
+        gh<_i262.ProductoStockRepository>(),
+      ),
+    );
+    gh.factory<_i530.ExportHistorialPreciosUseCase>(
+      () => _i530.ExportHistorialPreciosUseCase(
+        gh<_i262.ProductoStockRepository>(),
+      ),
+    );
     gh.factory<_i394.GetStockPorSedeUseCase>(
       () => _i394.GetStockPorSedeUseCase(gh<_i262.ProductoStockRepository>()),
     );
@@ -1368,6 +1388,15 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i133.EliminarOrdenCompraUseCase>(
       () => _i133.EliminarOrdenCompraUseCase(gh<_i19.CompraRepository>()),
+    );
+    gh.factory<_i619.ExportComprasPorProductoUseCase>(
+      () => _i619.ExportComprasPorProductoUseCase(gh<_i19.CompraRepository>()),
+    );
+    gh.factory<_i619.ExportComprasPorProveedorUseCase>(
+      () => _i619.ExportComprasPorProveedorUseCase(gh<_i19.CompraRepository>()),
+    );
+    gh.factory<_i914.GetCompraAnalyticsUseCase>(
+      () => _i914.GetCompraAnalyticsUseCase(gh<_i19.CompraRepository>()),
     );
     gh.factory<_i668.GetCompraUseCase>(
       () => _i668.GetCompraUseCase(gh<_i19.CompraRepository>()),
@@ -1674,6 +1703,13 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i26.DeletePolitica>(),
       ),
     );
+    gh.factory<_i737.HistorialPreciosCubit>(
+      () => _i737.HistorialPreciosCubit(
+        gh<_i530.GetHistorialPreciosGlobalUseCase>(),
+        gh<_i530.ExportHistorialPreciosUseCase>(),
+        gh<_i873.GetSedesUseCase>(),
+      ),
+    );
     gh.factory<_i68.PrecioNivelCubit>(
       () => _i68.PrecioNivelCubit(gh<_i640.PrecioNivelRepository>()),
     );
@@ -1784,6 +1820,9 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i873.ObtenerUsuariosAsignados>(),
         gh<_i141.LoggerService>(),
       ),
+    );
+    gh.factory<_i427.CompraAnalyticsCubit>(
+      () => _i427.CompraAnalyticsCubit(gh<_i914.GetCompraAnalyticsUseCase>()),
     );
     gh.factory<_i94.ProveedorListCubit>(
       () => _i94.ProveedorListCubit(gh<_i825.GetProveedoresUseCase>()),

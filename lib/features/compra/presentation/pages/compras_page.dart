@@ -30,6 +30,13 @@ class ComprasPage extends StatelessWidget {
             backgroundColor: AppColors.blue1,
             foregroundColor: AppColors.white,
             title: 'Recepciones de Compra',
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.bar_chart, size: 20),
+                onPressed: () => context.push('/empresa/compras/analytics'),
+                tooltip: 'Analytics',
+              ),
+            ],
           ),
           body: GradientContainer(
             child: Column(

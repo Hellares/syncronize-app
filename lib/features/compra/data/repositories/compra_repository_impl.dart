@@ -4,6 +4,7 @@ import '../../../../core/utils/resource.dart';
 import '../../domain/entities/orden_compra.dart';
 import '../../domain/entities/compra.dart';
 import '../../domain/entities/lote.dart';
+import '../../domain/entities/compra_analytics.dart';
 import '../../domain/repositories/compra_repository.dart';
 import '../datasources/compra_remote_datasource.dart';
 
@@ -208,4 +209,123 @@ class CompraRepositoryImpl implements CompraRepository {
     required String empresaId,
   }) => _execute(() => _remoteDataSource.marcarLotesVencidos(
         empresaId: empresaId));
+
+  // ===== ANALYTICS =====
+
+  @override
+  Future<Resource<CompraResumenGeneral>> getAnalyticsResumen({
+    required String empresaId,
+    String? sedeId,
+    String? fechaInicio,
+    String? fechaFin,
+  }) => _execute(() => _remoteDataSource.getAnalyticsResumen(
+        empresaId: empresaId,
+        sedeId: sedeId,
+        fechaInicio: fechaInicio,
+        fechaFin: fechaFin,
+      ));
+
+  @override
+  Future<Resource<List<GastoPeriodo>>> getAnalyticsGastosPeriodo({
+    required String empresaId,
+    String? sedeId,
+    String? fechaInicio,
+    String? fechaFin,
+    String? periodo,
+  }) => _execute(() => _remoteDataSource.getAnalyticsGastosPeriodo(
+        empresaId: empresaId,
+        sedeId: sedeId,
+        fechaInicio: fechaInicio,
+        fechaFin: fechaFin,
+        periodo: periodo,
+      ));
+
+  @override
+  Future<Resource<List<ProductoTop>>> getAnalyticsTopProductos({
+    required String empresaId,
+    String? sedeId,
+    String? fechaInicio,
+    String? fechaFin,
+  }) => _execute(() => _remoteDataSource.getAnalyticsTopProductos(
+        empresaId: empresaId,
+        sedeId: sedeId,
+        fechaInicio: fechaInicio,
+        fechaFin: fechaFin,
+      ));
+
+  @override
+  Future<Resource<List<ProveedorTop>>> getAnalyticsTopProveedores({
+    required String empresaId,
+    String? sedeId,
+    String? fechaInicio,
+    String? fechaFin,
+  }) => _execute(() => _remoteDataSource.getAnalyticsTopProveedores(
+        empresaId: empresaId,
+        sedeId: sedeId,
+        fechaInicio: fechaInicio,
+        fechaFin: fechaFin,
+      ));
+
+  @override
+  Future<Resource<List<HistorialPrecio>>> getAnalyticsHistorialPrecios({
+    required String empresaId,
+    required String productoId,
+    String? sedeId,
+  }) => _execute(() => _remoteDataSource.getAnalyticsHistorialPrecios(
+        empresaId: empresaId,
+        productoId: productoId,
+        sedeId: sedeId,
+      ));
+
+  @override
+  Future<Resource<ComparativoCosto>> getAnalyticsComparativoCostos({
+    required String empresaId,
+    String? sedeId,
+    String? periodo,
+  }) => _execute(() => _remoteDataSource.getAnalyticsComparativoCostos(
+        empresaId: empresaId,
+        sedeId: sedeId,
+        periodo: periodo,
+      ));
+
+  @override
+  Future<Resource<List<AlertaCompra>>> getAnalyticsAlertas({
+    required String empresaId,
+    String? sedeId,
+  }) => _execute(() => _remoteDataSource.getAnalyticsAlertas(
+        empresaId: empresaId,
+        sedeId: sedeId,
+      ));
+
+  // ===== EXPORT EXCEL =====
+
+  @override
+  Future<Resource<List<int>>> exportComprasPorProducto({
+    required String empresaId,
+    required String fechaInicio,
+    required String fechaFin,
+    String? sedeId,
+    void Function(int, int)? onReceiveProgress,
+  }) => _execute(() => _remoteDataSource.exportComprasPorProducto(
+        empresaId: empresaId,
+        fechaInicio: fechaInicio,
+        fechaFin: fechaFin,
+        sedeId: sedeId,
+        onReceiveProgress: onReceiveProgress,
+      ));
+
+  @override
+  Future<Resource<List<int>>> exportComprasPorProveedor({
+    required String empresaId,
+    required String fechaInicio,
+    required String fechaFin,
+    String? sedeId,
+    void Function(int, int)? onReceiveProgress,
+  }) => _execute(() => _remoteDataSource.exportComprasPorProveedor(
+        empresaId: empresaId,
+        fechaInicio: fechaInicio,
+        fechaFin: fechaFin,
+        sedeId: sedeId,
+        onReceiveProgress: onReceiveProgress,
+      ));
 }

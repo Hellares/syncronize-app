@@ -335,6 +335,7 @@ class _CompraFormViewState extends State<_CompraFormView> {
                       const SizedBox(height: 12),
 
                       CustomDropdown<String>(
+                        borderColor: AppColors.blue1,
                         label: 'Moneda',
                         value: _moneda,
                         items: const [

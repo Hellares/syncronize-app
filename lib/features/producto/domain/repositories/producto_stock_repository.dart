@@ -1,6 +1,8 @@
+import '../../../../core/utils/cursor_page.dart';
 import '../../../../core/utils/resource.dart';
 import '../entities/producto_stock.dart';
 import '../entities/movimiento_stock.dart';
+import '../entities/precio_historial_sede.dart';
 
 /// Repository interface para operaciones de stock por sede
 abstract class ProductoStockRepository {
@@ -109,5 +111,29 @@ abstract class ProductoStockRepository {
     required String sedeId,
     required String empresaId,
     required Map<String, dynamic> dto,
+  });
+
+  // ===== HISTORIAL DE PRECIOS GLOBAL =====
+
+  Future<Resource<CursorPage<PrecioHistorialSede>>> getHistorialPreciosGlobal({
+    required String empresaId,
+    String? sedeId,
+    String? productoId,
+    String? fechaInicio,
+    String? fechaFin,
+    String? tipoCambio,
+    String? search,
+    String? cursor,
+    int limit,
+  });
+
+  Future<Resource<List<int>>> exportHistorialPrecios({
+    required String empresaId,
+    required String fechaInicio,
+    required String fechaFin,
+    String? sedeId,
+    String? productoId,
+    String? tipoCambio,
+    void Function(int, int)? onReceiveProgress,
   });
 }

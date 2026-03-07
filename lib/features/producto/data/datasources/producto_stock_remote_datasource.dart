@@ -1,7 +1,9 @@
+import 'package:dio/dio.dart';
 import 'package:injectable/injectable.dart';
 import '../../../../core/network/dio_client.dart';
 import '../models/producto_stock_model.dart';
 import '../models/movimiento_stock_model.dart';
+import '../models/precio_historial_sede_model.dart';
 import '../../domain/entities/movimiento_stock.dart';
 
 /// Data source remoto para operaciones de ProductoStock (inventario por sede)
@@ -274,5 +276,61 @@ class ProductoStockRemoteDataSource {
     );
 
     return response.data as Map<String, dynamic>;
+  }
+
+  // ===== HISTORIAL DE PRECIOS GLOBAL =====
+
+  Future<Map<String, dynamic>> getHistorialPreciosGlobal({
+    required String empresaId,
+    String? sedeId,
+    String? productoId,
+    String? fechaInicio,
+    String? fechaFin,
+    String? tipoCambio,
+    String? search,
+    String? cursor,
+    int limit = 50,
+  }) async {
+    final response = await _dioClient.get(
+      '/producto-stock/historial-precios',
+      queryParameters: {
+        'limit': limit,
+        if (cursor != null) 'cursor': cursor,
+        if (sedeId != null) 'sedeId': sedeId,
+        if (productoId != null) 'productoId': productoId,
+        if (fechaInicio != null) 'fechaInicio': fechaInicio,
+        if (fechaFin != null) 'fechaFin': fechaFin,
+        if (tipoCambio != null) 'tipoCambio': tipoCambio,
+        if (search != null) 'search': search,
+      },
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
+  Future<List<int>> exportHistorialPrecios({
+    required String empresaId,
+    required String fechaInicio,
+    required String fechaFin,
+    String? sedeId,
+    String? productoId,
+    String? tipoCambio,
+    void Function(int, int)? onReceiveProgress,
+  }) async {
+    final response = await _dioClient.get(
+      '/producto-stock/historial-precios/export',
+      queryParameters: {
+        'fechaInicio': fechaInicio,
+        'fechaFin': fechaFin,
+        if (sedeId != null) 'sedeId': sedeId,
+        if (productoId != null) 'productoId': productoId,
+        if (tipoCambio != null) 'tipoCambio': tipoCambio,
+      },
+      options: Options(
+        responseType: ResponseType.bytes,
+        receiveTimeout: const Duration(minutes: 5),
+      ),
+      onReceiveProgress: onReceiveProgress,
+    );
+    return response.data as List<int>;
   }
 }

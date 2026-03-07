@@ -2,6 +2,7 @@ import '../../../../core/utils/resource.dart';
 import '../entities/orden_compra.dart';
 import '../entities/compra.dart';
 import '../entities/lote.dart';
+import '../entities/compra_analytics.dart';
 
 abstract class CompraRepository {
   // ===== ORDENES DE COMPRA =====
@@ -121,5 +122,69 @@ abstract class CompraRepository {
 
   Future<Resource<Map<String, dynamic>>> marcarLotesVencidos({
     required String empresaId,
+  });
+
+  // ===== ANALYTICS =====
+  Future<Resource<CompraResumenGeneral>> getAnalyticsResumen({
+    required String empresaId,
+    String? sedeId,
+    String? fechaInicio,
+    String? fechaFin,
+  });
+
+  Future<Resource<List<GastoPeriodo>>> getAnalyticsGastosPeriodo({
+    required String empresaId,
+    String? sedeId,
+    String? fechaInicio,
+    String? fechaFin,
+    String? periodo,
+  });
+
+  Future<Resource<List<ProductoTop>>> getAnalyticsTopProductos({
+    required String empresaId,
+    String? sedeId,
+    String? fechaInicio,
+    String? fechaFin,
+  });
+
+  Future<Resource<List<ProveedorTop>>> getAnalyticsTopProveedores({
+    required String empresaId,
+    String? sedeId,
+    String? fechaInicio,
+    String? fechaFin,
+  });
+
+  Future<Resource<List<HistorialPrecio>>> getAnalyticsHistorialPrecios({
+    required String empresaId,
+    required String productoId,
+    String? sedeId,
+  });
+
+  Future<Resource<ComparativoCosto>> getAnalyticsComparativoCostos({
+    required String empresaId,
+    String? sedeId,
+    String? periodo,
+  });
+
+  Future<Resource<List<AlertaCompra>>> getAnalyticsAlertas({
+    required String empresaId,
+    String? sedeId,
+  });
+
+  // ===== EXPORT EXCEL =====
+  Future<Resource<List<int>>> exportComprasPorProducto({
+    required String empresaId,
+    required String fechaInicio,
+    required String fechaFin,
+    String? sedeId,
+    void Function(int, int)? onReceiveProgress,
+  });
+
+  Future<Resource<List<int>>> exportComprasPorProveedor({
+    required String empresaId,
+    required String fechaInicio,
+    required String fechaFin,
+    String? sedeId,
+    void Function(int, int)? onReceiveProgress,
   });
 }

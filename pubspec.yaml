@@ -65,6 +65,9 @@ dependencies:
   talker_bloc_logger: ^4.7.1
   flutter_colorpicker: ^1.1.0
 
+  # Charts
+  fl_chart: ^0.69.2
+
   # SVG support
   flutter_svg: ^2.0.10+1
   carousel_slider: ^5.1.1

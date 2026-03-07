@@ -1,8 +1,10 @@
+import 'package:dio/dio.dart';
 import 'package:injectable/injectable.dart';
 import '../../../../core/network/dio_client.dart';
 import '../models/orden_compra_model.dart';
 import '../models/compra_model.dart';
 import '../models/lote_model.dart';
+import '../models/compra_analytics_model.dart';
 
 @lazySingleton
 class CompraRemoteDataSource {
@@ -273,5 +275,189 @@ class CompraRemoteDataSource {
       '/empresas/$empresaId/lotes/marcar-vencidos',
     );
     return response.data as Map<String, dynamic>;
+  }
+
+  // ===== ANALYTICS =====
+
+  Future<CompraResumenGeneralModel> getAnalyticsResumen({
+    required String empresaId,
+    String? sedeId,
+    String? fechaInicio,
+    String? fechaFin,
+  }) async {
+    final response = await _dioClient.get(
+      '/empresas/$empresaId/compra/analytics/resumen',
+      queryParameters: {
+        if (sedeId != null) 'sedeId': sedeId,
+        if (fechaInicio != null) 'fechaInicio': fechaInicio,
+        if (fechaFin != null) 'fechaFin': fechaFin,
+      },
+    );
+    return CompraResumenGeneralModel.fromJson(
+        response.data as Map<String, dynamic>);
+  }
+
+  Future<List<GastoPeriodoModel>> getAnalyticsGastosPeriodo({
+    required String empresaId,
+    String? sedeId,
+    String? fechaInicio,
+    String? fechaFin,
+    String? periodo,
+  }) async {
+    final response = await _dioClient.get(
+      '/empresas/$empresaId/compra/analytics/gastos-periodo',
+      queryParameters: {
+        if (sedeId != null) 'sedeId': sedeId,
+        if (fechaInicio != null) 'fechaInicio': fechaInicio,
+        if (fechaFin != null) 'fechaFin': fechaFin,
+        if (periodo != null) 'periodo': periodo,
+      },
+    );
+    final data = response.data as List;
+    return data
+        .map((json) =>
+            GastoPeriodoModel.fromJson(json as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<List<ProductoTopModel>> getAnalyticsTopProductos({
+    required String empresaId,
+    String? sedeId,
+    String? fechaInicio,
+    String? fechaFin,
+  }) async {
+    final response = await _dioClient.get(
+      '/empresas/$empresaId/compra/analytics/top-productos',
+      queryParameters: {
+        if (sedeId != null) 'sedeId': sedeId,
+        if (fechaInicio != null) 'fechaInicio': fechaInicio,
+        if (fechaFin != null) 'fechaFin': fechaFin,
+      },
+    );
+    final data = response.data as List;
+    return data
+        .map((json) =>
+            ProductoTopModel.fromJson(json as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<List<ProveedorTopModel>> getAnalyticsTopProveedores({
+    required String empresaId,
+    String? sedeId,
+    String? fechaInicio,
+    String? fechaFin,
+  }) async {
+    final response = await _dioClient.get(
+      '/empresas/$empresaId/compra/analytics/top-proveedores',
+      queryParameters: {
+        if (sedeId != null) 'sedeId': sedeId,
+        if (fechaInicio != null) 'fechaInicio': fechaInicio,
+        if (fechaFin != null) 'fechaFin': fechaFin,
+      },
+    );
+    final data = response.data as List;
+    return data
+        .map((json) =>
+            ProveedorTopModel.fromJson(json as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<List<HistorialPrecioModel>> getAnalyticsHistorialPrecios({
+    required String empresaId,
+    required String productoId,
+    String? sedeId,
+  }) async {
+    final response = await _dioClient.get(
+      '/empresas/$empresaId/compra/analytics/historial-precios/$productoId',
+      queryParameters: {
+        if (sedeId != null) 'sedeId': sedeId,
+      },
+    );
+    final data = response.data as List;
+    return data
+        .map((json) =>
+            HistorialPrecioModel.fromJson(json as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<ComparativoCostoModel> getAnalyticsComparativoCostos({
+    required String empresaId,
+    String? sedeId,
+    String? periodo,
+  }) async {
+    final response = await _dioClient.get(
+      '/empresas/$empresaId/compra/analytics/comparativo-costos',
+      queryParameters: {
+        if (sedeId != null) 'sedeId': sedeId,
+        if (periodo != null) 'periodo': periodo,
+      },
+    );
+    return ComparativoCostoModel.fromJson(
+        response.data as Map<String, dynamic>);
+  }
+
+  Future<List<AlertaCompraModel>> getAnalyticsAlertas({
+    required String empresaId,
+    String? sedeId,
+  }) async {
+    final response = await _dioClient.get(
+      '/empresas/$empresaId/compra/analytics/alertas',
+      queryParameters: {
+        if (sedeId != null) 'sedeId': sedeId,
+      },
+    );
+    final data = response.data as List;
+    return data
+        .map((json) =>
+            AlertaCompraModel.fromJson(json as Map<String, dynamic>))
+        .toList();
+  }
+
+  // ===== EXPORT EXCEL =====
+
+  Future<List<int>> exportComprasPorProducto({
+    required String empresaId,
+    required String fechaInicio,
+    required String fechaFin,
+    String? sedeId,
+    void Function(int, int)? onReceiveProgress,
+  }) async {
+    final response = await _dioClient.get(
+      '/empresas/$empresaId/compra/analytics/export/productos',
+      queryParameters: {
+        'fechaInicio': fechaInicio,
+        'fechaFin': fechaFin,
+        if (sedeId != null) 'sedeId': sedeId,
+      },
+      options: Options(
+        responseType: ResponseType.bytes,
+        receiveTimeout: const Duration(minutes: 5),
+      ),
+      onReceiveProgress: onReceiveProgress,
+    );
+    return response.data as List<int>;
+  }
+
+  Future<List<int>> exportComprasPorProveedor({
+    required String empresaId,
+    required String fechaInicio,
+    required String fechaFin,
+    String? sedeId,
+    void Function(int, int)? onReceiveProgress,
+  }) async {
+    final response = await _dioClient.get(
+      '/empresas/$empresaId/compra/analytics/export/proveedores',
+      queryParameters: {
+        'fechaInicio': fechaInicio,
+        'fechaFin': fechaFin,
+        if (sedeId != null) 'sedeId': sedeId,
+      },
+      options: Options(
+        responseType: ResponseType.bytes,
+        receiveTimeout: const Duration(minutes: 5),
+      ),
+      onReceiveProgress: onReceiveProgress,
+    );
+    return response.data as List<int>;
   }
 }

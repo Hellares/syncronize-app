@@ -69,7 +69,10 @@ import '../../features/compra/presentation/pages/compra_detail_page.dart';
 import '../../features/compra/presentation/pages/compra_form_page.dart';
 import '../../features/compra/presentation/pages/lotes_page.dart';
 import '../../features/compra/presentation/pages/lote_detail_page.dart';
+import '../../features/compra/presentation/pages/compra_analytics_page.dart';
+import '../../features/compra/presentation/pages/compra_export_page.dart';
 import '../../features/compra/domain/entities/orden_compra.dart';
+import '../../features/producto/presentation/pages/historial_precios_global_page.dart';
 import '../../features/compra/domain/entities/compra.dart';
 import '../../features/compra/domain/entities/lote.dart';
 
@@ -344,6 +347,14 @@ class AppRouter {
       //   name: 'empresa-transferencias-multiple',
       //   builder: (context, state) => const CrearTransferenciaMultiplePage(),
       // ),
+      GoRoute(
+        path: '/empresa/inventario/historial-precios',
+        name: 'empresa-historial-precios',
+        builder: (context, state) {
+          final empresaId = locator<LocalStorageService>().getString(StorageConstants.tenantId) ?? '';
+          return HistorialPreciosGlobalPage(empresaId: empresaId);
+        },
+      ),
       // Rutas de reportes de incidencia
       GoRoute(
         path: '/empresa/reportes-incidencia',
@@ -671,6 +682,23 @@ class AppRouter {
           final empresaId = locator<LocalStorageService>().getString(StorageConstants.tenantId) ?? '';
           final compra = state.extra as Compra;
           return CompraDetailPage(empresaId: empresaId, compra: compra);
+        },
+      ),
+      // Ruta de analytics de compras
+      GoRoute(
+        path: '/empresa/compras/analytics',
+        name: 'empresa-compras-analytics',
+        builder: (context, state) {
+          final empresaId = locator<LocalStorageService>().getString(StorageConstants.tenantId) ?? '';
+          return CompraAnalyticsPage(empresaId: empresaId);
+        },
+      ),
+      GoRoute(
+        path: '/empresa/compras/export',
+        name: 'empresa-compras-export',
+        builder: (context, state) {
+          final empresaId = locator<LocalStorageService>().getString(StorageConstants.tenantId) ?? '';
+          return CompraExportPage(empresaId: empresaId);
         },
       ),
       // Rutas de lotes
