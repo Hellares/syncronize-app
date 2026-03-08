@@ -9,19 +9,19 @@ class EnvConfig {
   EnvConfig._();
 
   //! Cambiar esto según el entorno actual
-  static const Environment _currentEnvironment = Environment.production;
+  static const Environment _currentEnvironment = Environment.development;
 
   // URLs base según el entorno
   // Nota: 10.0.2.2 es la IP del host desde el emulador Android
   static const Map<Environment, String> _baseUrls = {
-    Environment.development: 'http://192.168.100.50:3000/api',
+    Environment.development: 'http://192.168.100.5:3000/api',
     Environment.staging: 'https://staging-api.syncronize.com/api',
     Environment.production: 'https://saas.syncronize.net.pe/api',
   };
 
   // Frontend URLs según el entorno
   static const Map<Environment, String> _frontendUrls = {
-    Environment.development: 'http://192.168.100.50:3000/api',
+    Environment.development: 'http://192.168.100.5:3000/api',
     Environment.staging: 'https://staging.syncronize.com',
     Environment.production: 'https://saas.syncronize.net.pe/api',
   };
