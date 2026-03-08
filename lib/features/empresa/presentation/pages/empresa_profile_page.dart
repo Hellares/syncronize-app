@@ -11,6 +11,8 @@ import '../../../../core/widgets/smart_appbar.dart';
 import '../../../../core/widgets/snack_bar_helper.dart';
 import '../../../auth/presentation/widgets/custom_button.dart';
 import '../../../auth/presentation/widgets/custom_text.dart' show CustomText, FieldType;
+import '../../../../core/widgets/custom_switch_tile.dart';
+import '../../../../core/widgets/info_chip.dart';
 import '../../data/datasources/empresa_remote_datasource.dart';
 import '../../domain/entities/empresa_info.dart';
 import '../bloc/empresa_context/empresa_context_cubit.dart';
@@ -28,11 +30,14 @@ class _EmpresaProfilePageState extends State<EmpresaProfilePage> {
   final _emailController = TextEditingController();
   final _webController = TextEditingController();
   final _descripcionController = TextEditingController();
+  final _descripcionTercerizacionController = TextEditingController();
   final _datasource = locator<EmpresaRemoteDataSource>();
   final _localStorage = locator<LocalStorageService>();
 
   bool _isSaving = false;
   bool _initialized = false;
+  bool _aceptaTercerizacion = false;
+  List<String> _tiposServicioTercerizacion = [];
 
   @override
   void dispose() {
@@ -40,6 +45,7 @@ class _EmpresaProfilePageState extends State<EmpresaProfilePage> {
     _emailController.dispose();
     _webController.dispose();
     _descripcionController.dispose();
+    _descripcionTercerizacionController.dispose();
     super.dispose();
   }
 
@@ -49,6 +55,9 @@ class _EmpresaProfilePageState extends State<EmpresaProfilePage> {
     _emailController.text = empresa.email ?? '';
     _webController.text = empresa.web ?? '';
     _descripcionController.text = empresa.descripcion ?? '';
+    _aceptaTercerizacion = empresa.aceptaTercerizacion;
+    _descripcionTercerizacionController.text = empresa.descripcionTercerizacion ?? '';
+    _tiposServicioTercerizacion = List.from(empresa.tiposServicioTercerizacion);
     _initialized = true;
   }
 
@@ -71,6 +80,12 @@ class _EmpresaProfilePageState extends State<EmpresaProfilePage> {
           'descripcion': _descripcionController.text.isEmpty
               ? null
               : _descripcionController.text,
+          'aceptaTercerizacion': _aceptaTercerizacion,
+          'descripcionTercerizacion':
+              _descripcionTercerizacionController.text.isEmpty
+                  ? null
+                  : _descripcionTercerizacionController.text,
+          'tiposServicioTercerizacion': _tiposServicioTercerizacion,
         },
       );
 
@@ -117,6 +132,8 @@ class _EmpresaProfilePageState extends State<EmpresaProfilePage> {
                   _buildUbicacionSection(context, empresa),
                   const SizedBox(height: 12),
                   _buildContactSection(context),
+                  const SizedBox(height: 12),
+                  _buildTercerizacionSection(context),
                   const SizedBox(height: 20),
                   CustomButton(
                     text: 'Guardar Cambios',
@@ -437,6 +454,123 @@ class _EmpresaProfilePageState extends State<EmpresaProfilePage> {
               prefixIcon: const Icon(Icons.description_outlined),
               maxLines: 3,
             ),
+          ],
+        ),
+      ),
+    );
+  }
+  Widget _buildTercerizacionSection(BuildContext context) {
+    const tiposDisponibles = [
+      'REPARACION',
+      'MANTENIMIENTO',
+      'INSTALACION',
+      'DIAGNOSTICO',
+      'ACTUALIZACION',
+      'LIMPIEZA',
+      'RECUPERACION_DATOS',
+      'CONFIGURACION',
+      'CONSULTORIA',
+      'FORMACION',
+      'SOPORTE',
+    ];
+
+    const tipoLabels = {
+      'REPARACION': 'Reparación',
+      'MANTENIMIENTO': 'Mantenimiento',
+      'INSTALACION': 'Instalación',
+      'DIAGNOSTICO': 'Diagnóstico',
+      'ACTUALIZACION': 'Actualización',
+      'LIMPIEZA': 'Limpieza',
+      'RECUPERACION_DATOS': 'Recuperación datos',
+      'CONFIGURACION': 'Configuración',
+      'CONSULTORIA': 'Consultoría',
+      'FORMACION': 'Formación',
+      'SOPORTE': 'Soporte',
+    };
+
+    return GradientContainer(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSectionTitle(
+                context, 'Tercerización B2B', Icons.swap_horiz),
+            const SizedBox(height: 6),
+            Text(
+              'Permite que otras empresas te envíen servicios para tercerizar.',
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+            ),
+            const SizedBox(height: 12),
+            CustomSwitchTile(
+              title: 'Acepto tercerización',
+              value: _aceptaTercerizacion,
+              onChanged: (v) => setState(() => _aceptaTercerizacion = v),
+              activeColor: AppColors.blue2,
+            ),
+            if (_aceptaTercerizacion) ...[
+              const SizedBox(height: 14),
+              CustomText(
+                controller: _descripcionTercerizacionController,
+                label: 'Descripción del servicio B2B',
+                hintText: 'Ej: Reparamos laptops, PCs y equipos de red',
+                prefixIcon: const Icon(Icons.description_outlined),
+                maxLines: 3,
+              ),
+              const SizedBox(height: 14),
+              InputDecorator(
+                decoration: InputDecoration(
+                  labelText: 'Tipos de servicio que aceptas',
+                  enabledBorder: OutlineInputBorder(
+                    borderSide:
+                        BorderSide(color: Colors.grey.shade300, width: 0.5),
+                    borderRadius:
+                        const BorderRadius.all(Radius.circular(8)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide:
+                        const BorderSide(color: AppColors.blue2, width: 0.5),
+                    borderRadius:
+                        const BorderRadius.all(Radius.circular(8)),
+                  ),
+                  border: OutlineInputBorder(
+                    borderSide:
+                        BorderSide(color: Colors.grey.shade300, width: 0.5),
+                    borderRadius:
+                        const BorderRadius.all(Radius.circular(8)),
+                  ),
+                  helperText: 'Selecciona los servicios que tu empresa puede atender',
+                ),
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: tiposDisponibles.map((tipo) {
+                    final selected =
+                        _tiposServicioTercerizacion.contains(tipo);
+                    return InfoChip(
+                      borderRadius: 6,
+                      text: tipoLabels[tipo] ?? tipo,
+                      selected: selected,
+                      showCheckmark: true,
+                      borderColor: AppColors.blue2,
+                      borderWidth: 0.5,
+                      selectedBackgroundColor: AppColors.blue2,
+                      selectedTextColor: Colors.white,
+                      selectedBorderColor: AppColors.blue2,
+                      onSelected: (value) {
+                        setState(() {
+                          if (value) {
+                            _tiposServicioTercerizacion.add(tipo);
+                          } else {
+                            _tiposServicioTercerizacion.remove(tipo);
+                          }
+                        });
+                      },
+                    );
+                  }).toList(),
+                ),
+              ),
+            ],
           ],
         ),
       ),

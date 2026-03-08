@@ -5,11 +5,11 @@ class Cliente extends Equatable {
   final String id;
   final String personaId;
   final String? usuarioId;
-  final String dni;
+  final String? dni;
   final String nombres;
   final String apellidos;
   final String nombreCompleto;
-  final String telefono;
+  final String? telefono;
   final String? email;
   final String? direccion;
   final String? distrito;
@@ -31,11 +31,11 @@ class Cliente extends Equatable {
     required this.id,
     required this.personaId,
     this.usuarioId,
-    required this.dni,
+    this.dni,
     required this.nombres,
     required this.apellidos,
     required this.nombreCompleto,
-    required this.telefono,
+    this.telefono,
     this.email,
     this.direccion,
     this.distrito,

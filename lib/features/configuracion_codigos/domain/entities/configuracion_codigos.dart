@@ -8,6 +8,16 @@ class ConfiguracionCodigos extends Equatable {
   final ConfigSeccion variantes;
   final ConfigSeccion servicios;
   final ConfigSeccion ventas;
+  final ConfigSeccion componentes;
+  final ConfigSeccion ordenesServicio;
+  final ConfigSeccion proveedores;
+  final ConfigSeccion transferencias;
+  final ConfigSeccion ordenesCompra;
+  final ConfigSeccion compras;
+  final ConfigSeccion lotes;
+  final ConfigSeccion sedes;
+  final ConfigSeccion reportesIncidencia;
+  final ConfigSeccion inventarios;
   final ConfigDocumentos documentos;
   final RestriccionesCodigo restricciones;
   final DateTime creadoEn;
@@ -20,6 +30,16 @@ class ConfiguracionCodigos extends Equatable {
     required this.variantes,
     required this.servicios,
     required this.ventas,
+    required this.componentes,
+    required this.ordenesServicio,
+    required this.proveedores,
+    required this.transferencias,
+    required this.ordenesCompra,
+    required this.compras,
+    required this.lotes,
+    required this.sedes,
+    required this.reportesIncidencia,
+    required this.inventarios,
     required this.documentos,
     required this.restricciones,
     required this.creadoEn,
@@ -34,6 +54,16 @@ class ConfiguracionCodigos extends Equatable {
         variantes,
         servicios,
         ventas,
+        componentes,
+        ordenesServicio,
+        proveedores,
+        transferencias,
+        ordenesCompra,
+        compras,
+        lotes,
+        sedes,
+        reportesIncidencia,
+        inventarios,
         documentos,
         restricciones,
         creadoEn,

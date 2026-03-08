@@ -20,7 +20,7 @@ class _ConfiguracionCodigosPageState extends State<ConfiguracionCodigosPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: 15, vsync: this);
   }
 
   @override
@@ -64,11 +64,23 @@ class _ConfiguracionCodigosPageState extends State<ConfiguracionCodigosPage>
       indicator: const UnderlineTabIndicator(
         borderSide: BorderSide(width: 2, color: AppColors.white),
       ),
+      isScrollable: true,
+      tabAlignment: TabAlignment.start,
       tabs: const [
         Tab(text: 'PRODUCTOS'),
         Tab(text: 'VARIANTES'),
         Tab(text: 'SERVICIOS'),
         Tab(text: 'VENTAS'),
+        Tab(text: 'COMPONENTES'),
+        Tab(text: 'ORD. SERVICIO'),
+        Tab(text: 'PROVEEDORES'),
+        Tab(text: 'TRANSFERENCIAS'),
+        Tab(text: 'ORD. COMPRA'),
+        Tab(text: 'COMPRAS'),
+        Tab(text: 'LOTES'),
+        Tab(text: 'SEDES'),
+        Tab(text: 'INCIDENCIAS'),
+        Tab(text: 'INVENTARIOS'),
         Tab(text: 'DOCUMENTOS'),
       ],
     );

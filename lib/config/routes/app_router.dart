@@ -75,6 +75,18 @@ import '../../features/compra/domain/entities/orden_compra.dart';
 import '../../features/producto/presentation/pages/historial_precios_global_page.dart';
 import '../../features/compra/domain/entities/compra.dart';
 import '../../features/compra/domain/entities/lote.dart';
+import '../../features/servicio/presentation/pages/configuracion_campos_page.dart';
+import '../../features/servicio/presentation/pages/servicios_page.dart';
+import '../../features/servicio/presentation/pages/servicio_form_page.dart';
+import '../../features/servicio/presentation/pages/ordenes_servicio_page.dart';
+import '../../features/servicio/presentation/pages/orden_servicio_form_page.dart';
+import '../../features/servicio/presentation/pages/orden_servicio_detail_page.dart';
+import '../../features/servicio/presentation/pages/servicio_dashboard_page.dart';
+import '../../features/servicio/presentation/pages/plantillas_servicio_page.dart';
+import '../../features/aviso_mantenimiento/presentation/pages/avisos_mantenimiento_page.dart';
+import '../../features/tercerizacion/presentation/pages/tercerizacion_list_page.dart';
+import '../../features/tercerizacion/presentation/pages/tercerizacion_detail_page.dart';
+import '../../features/tercerizacion/presentation/pages/directorio_empresas_page.dart';
 
 /// Configuración de rutas de la aplicación
 class AppRouter {
@@ -717,6 +729,94 @@ class AppRouter {
           final empresaId = locator<LocalStorageService>().getString(StorageConstants.tenantId) ?? '';
           final lote = state.extra as Lote;
           return LoteDetailPage(empresaId: empresaId, lote: lote);
+        },
+      ),
+      // Rutas de servicios
+      GoRoute(
+        path: '/empresa/servicios',
+        name: 'empresa-servicios',
+        builder: (context, state) => const ServiciosPage(),
+      ),
+      GoRoute(
+        path: '/empresa/servicios/crear',
+        name: 'empresa-servicios-crear',
+        builder: (context, state) => const ServicioFormPage(),
+      ),
+      GoRoute(
+        path: '/empresa/servicios/:id/editar',
+        name: 'empresa-servicios-editar',
+        builder: (context, state) {
+          final servicioId = state.pathParameters['id']!;
+          return ServicioFormPage(servicioId: servicioId);
+        },
+      ),
+      GoRoute(
+        path: '/empresa/configuracion-campos-servicio',
+        name: 'empresa-configuracion-campos-servicio',
+        builder: (context, state) => const ConfiguracionCamposPage(),
+      ),
+      GoRoute(
+        path: '/empresa/plantillas-servicio',
+        name: 'empresa-plantillas-servicio',
+        builder: (context, state) => const PlantillasServicioPage(),
+      ),
+      // Rutas de avisos de mantenimiento
+      GoRoute(
+        path: '/empresa/avisos-mantenimiento',
+        name: 'empresa-avisos-mantenimiento',
+        builder: (context, state) => const AvisosMantenimientoPage(),
+      ),
+      // Rutas de órdenes de servicio
+      GoRoute(
+        path: '/empresa/ordenes',
+        name: 'empresa-ordenes-servicio',
+        builder: (context, state) => const OrdenesServicioPage(),
+      ),
+      GoRoute(
+        path: '/empresa/ordenes/crear',
+        name: 'empresa-ordenes-servicio-crear',
+        builder: (context, state) => const OrdenServicioFormPage(),
+      ),
+      GoRoute(
+        path: '/empresa/ordenes/dashboard',
+        name: 'empresa-ordenes-dashboard',
+        builder: (context, state) => const ServicioDashboardPage(),
+      ),
+      GoRoute(
+        path: '/empresa/ordenes/:id',
+        name: 'empresa-ordenes-servicio-detail',
+        builder: (context, state) {
+          final ordenId = state.pathParameters['id']!;
+          return OrdenServicioDetailPage(ordenId: ordenId);
+        },
+      ),
+      // Rutas de tercerización B2B
+      GoRoute(
+        path: '/empresa/tercerizacion',
+        name: 'empresa-tercerizacion',
+        builder: (context, state) => const TercerizacionListPage(),
+      ),
+      GoRoute(
+        path: '/empresa/tercerizacion/directorio',
+        name: 'empresa-tercerizacion-directorio',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          final empresaId = extra?['empresaId'] as String? ?? '';
+          final ordenOrigenId = extra?['ordenOrigenId'] as String?;
+          final tipoServicioFiltro = extra?['tipoServicioFiltro'] as String?;
+          return DirectorioEmpresasPage(
+            empresaId: empresaId,
+            ordenOrigenId: ordenOrigenId,
+            tipoServicioFiltro: tipoServicioFiltro,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/empresa/tercerizacion/:id',
+        name: 'empresa-tercerizacion-detail',
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return TercerizacionDetailPage(tercerizacionId: id);
         },
       ),
       // Ruta placeholder para marketplace (por implementar)

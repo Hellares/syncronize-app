@@ -57,6 +57,8 @@ dependencies:
   # PDF Generation
   pdf: ^3.11.1
   printing: ^5.13.4
+  barcode: ^2.2.8
+  url_launcher: ^6.2.5
 
   # Logging avanzado
   talker: ^4.7.1

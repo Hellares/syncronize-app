@@ -52,7 +52,12 @@ class ErrorInterceptor extends Interceptor {
 
     // Intentar extraer el mensaje del backend (del data sanitizado)
     if (sanitizedData is Map<String, dynamic>) {
-      message = sanitizedData['message'] ?? message;
+      final rawMessage = sanitizedData['message'];
+      if (rawMessage is String) {
+        message = rawMessage;
+      } else if (rawMessage is List) {
+        message = rawMessage.join('. ');
+      }
     }
 
     // Sanitizar el mensaje de error

@@ -46,6 +46,10 @@ class EmpresaInfo extends Equatable {
   final String? ubigeo;
   final String? planSuscripcionId;
   final String estadoSuscripcion;
+  // Tercerización B2B
+  final bool aceptaTercerizacion;
+  final String? descripcionTercerizacion;
+  final List<String> tiposServicioTercerizacion;
   final int usuariosActuales;
   final DateTime? fechaInicioSuscripcion;
   final DateTime? fechaVencimiento;
@@ -73,6 +77,9 @@ class EmpresaInfo extends Equatable {
     this.ubigeo,
     this.planSuscripcionId,
     required this.estadoSuscripcion,
+    this.aceptaTercerizacion = false,
+    this.descripcionTercerizacion,
+    this.tiposServicioTercerizacion = const [],
     required this.usuariosActuales,
     this.fechaInicioSuscripcion,
     this.fechaVencimiento,
@@ -122,5 +129,8 @@ class EmpresaInfo extends Equatable {
         fechaInicioSuscripcion,
         fechaVencimiento,
         planSuscripcion,
+        aceptaTercerizacion,
+        descripcionTercerizacion,
+        tiposServicioTercerizacion,
       ];
 }

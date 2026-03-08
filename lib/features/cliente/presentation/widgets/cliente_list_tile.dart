@@ -44,7 +44,7 @@ class ClienteListTile extends StatelessWidget {
                 Icon(Icons.badge, size: 12, color: Colors.grey[600]),
                 const SizedBox(width: 4),
                 Text(
-                  'DNI: ${cliente.dni}',
+                  'DNI: ${cliente.dni ?? 'Sin DNI'}',
                   style: TextStyle(fontSize: 10, color: Colors.grey[600]),
                 ),
               ],
@@ -55,7 +55,7 @@ class ClienteListTile extends StatelessWidget {
                 Icon(Icons.phone, size: 12, color: Colors.grey[600]),
                 const SizedBox(width: 4),
                 Text(
-                  cliente.telefono,
+                  cliente.telefono ?? 'Sin teléfono',
                   style: TextStyle(fontSize: 10, color: Colors.grey[600]),
                 ),
                 if (cliente.email != null) ...[

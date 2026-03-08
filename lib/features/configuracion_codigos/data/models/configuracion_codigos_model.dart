@@ -9,6 +9,16 @@ class ConfiguracionCodigosModel extends ConfiguracionCodigos {
     required super.variantes,
     required super.servicios,
     required super.ventas,
+    required super.componentes,
+    required super.ordenesServicio,
+    required super.proveedores,
+    required super.transferencias,
+    required super.ordenesCompra,
+    required super.compras,
+    required super.lotes,
+    required super.sedes,
+    required super.reportesIncidencia,
+    required super.inventarios,
     required super.documentos,
     required super.restricciones,
     required super.creadoEn,
@@ -31,6 +41,36 @@ class ConfiguracionCodigosModel extends ConfiguracionCodigos {
       ventas: ConfigSeccionModel.fromJson(
         json['ventas'] as Map<String, dynamic>,
       ),
+      componentes: ConfigSeccionModel.fromJson(
+        json['componentes'] as Map<String, dynamic>,
+      ),
+      ordenesServicio: ConfigSeccionModel.fromJson(
+        json['ordenesServicio'] as Map<String, dynamic>,
+      ),
+      proveedores: ConfigSeccionModel.fromJson(
+        json['proveedores'] as Map<String, dynamic>,
+      ),
+      transferencias: ConfigSeccionModel.fromJson(
+        json['transferencias'] as Map<String, dynamic>,
+      ),
+      ordenesCompra: ConfigSeccionModel.fromJson(
+        json['ordenesCompra'] as Map<String, dynamic>,
+      ),
+      compras: ConfigSeccionModel.fromJson(
+        json['compras'] as Map<String, dynamic>,
+      ),
+      lotes: ConfigSeccionModel.fromJson(
+        json['lotes'] as Map<String, dynamic>,
+      ),
+      sedes: ConfigSeccionModel.fromJson(
+        json['sedes'] as Map<String, dynamic>,
+      ),
+      reportesIncidencia: ConfigSeccionModel.fromJson(
+        json['reportesIncidencia'] as Map<String, dynamic>,
+      ),
+      inventarios: ConfigSeccionModel.fromJson(
+        json['inventarios'] as Map<String, dynamic>,
+      ),
       documentos: ConfigDocumentosModel.fromJson(
         json['documentos'] as Map<String, dynamic>,
       ),
@@ -50,6 +90,17 @@ class ConfiguracionCodigosModel extends ConfiguracionCodigos {
       'variantes': (variantes as ConfigSeccionModel).toJson(),
       'servicios': (servicios as ConfigSeccionModel).toJson(),
       'ventas': (ventas as ConfigSeccionModel).toJson(),
+      'componentes': (componentes as ConfigSeccionModel).toJson(),
+      'ordenesServicio': (ordenesServicio as ConfigSeccionModel).toJson(),
+      'proveedores': (proveedores as ConfigSeccionModel).toJson(),
+      'transferencias': (transferencias as ConfigSeccionModel).toJson(),
+      'ordenesCompra': (ordenesCompra as ConfigSeccionModel).toJson(),
+      'compras': (compras as ConfigSeccionModel).toJson(),
+      'lotes': (lotes as ConfigSeccionModel).toJson(),
+      'sedes': (sedes as ConfigSeccionModel).toJson(),
+      'reportesIncidencia':
+          (reportesIncidencia as ConfigSeccionModel).toJson(),
+      'inventarios': (inventarios as ConfigSeccionModel).toJson(),
       'documentos': (documentos as ConfigDocumentosModel).toJson(),
       'restricciones': (restricciones as RestriccionesCodigoModel).toJson(),
       'creadoEn': creadoEn.toIso8601String(),

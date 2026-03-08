@@ -69,6 +69,9 @@ class EmpresaInfoModel extends EmpresaInfo {
     super.fechaInicioSuscripcion,
     super.fechaVencimiento,
     super.planSuscripcion,
+    super.aceptaTercerizacion,
+    super.descripcionTercerizacion,
+    super.tiposServicioTercerizacion,
   });
 
   factory EmpresaInfoModel.fromJson(Map<String, dynamic> json) {
@@ -105,6 +108,11 @@ class EmpresaInfoModel extends EmpresaInfo {
           ? PlanSuscripcionModel.fromJson(
               json['planSuscripcion'] as Map<String, dynamic>)
           : null,
+      aceptaTercerizacion: json['aceptaTercerizacion'] as bool? ?? false,
+      descripcionTercerizacion: json['descripcionTercerizacion'] as String?,
+      tiposServicioTercerizacion: json['tiposServicioTercerizacion'] != null
+          ? List<String>.from(json['tiposServicioTercerizacion'] as List)
+          : const [],
     );
   }
 
@@ -139,6 +147,11 @@ class EmpresaInfoModel extends EmpresaInfo {
       if (planSuscripcion != null)
         'planSuscripcion':
             PlanSuscripcionModel.fromEntity(planSuscripcion!).toJson(),
+      'aceptaTercerizacion': aceptaTercerizacion,
+      if (descripcionTercerizacion != null)
+        'descripcionTercerizacion': descripcionTercerizacion,
+      if (tiposServicioTercerizacion.isNotEmpty)
+        'tiposServicioTercerizacion': tiposServicioTercerizacion,
     };
   }
 
@@ -179,6 +192,9 @@ class EmpresaInfoModel extends EmpresaInfo {
               periodo: entity.planSuscripcion!.periodo,
             )
           : null,
+      aceptaTercerizacion: entity.aceptaTercerizacion,
+      descripcionTercerizacion: entity.descripcionTercerizacion,
+      tiposServicioTercerizacion: entity.tiposServicioTercerizacion,
     );
   }
 }

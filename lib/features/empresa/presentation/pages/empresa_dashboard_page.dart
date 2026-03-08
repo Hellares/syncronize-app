@@ -6,7 +6,11 @@ import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/widgets/custom_loading.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/gradient_background.dart';
+import '../../../../core/di/injection_container.dart';
+import '../../../../core/utils/resource.dart';
 import '../../../auth/presentation/bloc/auth/auth_bloc.dart';
+import '../../../tercerizacion/domain/entities/tercerizacion.dart';
+import '../../../tercerizacion/domain/usecases/get_pendientes_usecase.dart';
 import '../bloc/empresa_context/empresa_context_cubit.dart';
 import '../bloc/empresa_context/empresa_context_state.dart';
 import '../../domain/entities/empresa_context.dart';
@@ -26,11 +30,23 @@ class EmpresaDashboardPage extends StatefulWidget {
 }
 
 class _EmpresaDashboardPageState extends State<EmpresaDashboardPage> {
+  int _pendientesCount = 0;
+
   @override
   void initState() {
     super.initState();
     // Cargar el contexto de la empresa al iniciar
     context.read<EmpresaContextCubit>().loadEmpresaContext();
+    _loadPendientes();
+  }
+
+  Future<void> _loadPendientes() async {
+    final useCase = locator<GetPendientesUseCase>();
+    final result = await useCase();
+    if (!mounted) return;
+    if (result is Success<List<TercerizacionServicio>>) {
+      setState(() => _pendientesCount = result.data.length);
+    }
   }
 
   @override
@@ -113,10 +129,42 @@ class _EmpresaDashboardPageState extends State<EmpresaDashboardPage> {
         },
       ),
       actions: [
+        if (_pendientesCount > 0)
+          Stack(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.swap_horiz, size: 20),
+                onPressed: () => context.push('/empresa/tercerizacion'),
+                tooltip: 'Tercerizaciones pendientes',
+              ),
+              Positioned(
+                right: 6,
+                top: 6,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: const BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                  ),
+                  constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                  child: Text(
+                    '$_pendientesCount',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+            ],
+          ),
         IconButton(
           icon: const Icon(Icons.refresh, size: 18),
           onPressed: () {
             context.read<EmpresaContextCubit>().reloadContext();
+            _loadPendientes();
           },
           tooltip: 'Actualizar',
         ),
@@ -138,6 +186,7 @@ class _EmpresaDashboardPageState extends State<EmpresaDashboardPage> {
     return RefreshIndicator(
       onRefresh: () async {
         await context.read<EmpresaContextCubit>().reloadContext();
+        _loadPendientes();
       },
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -213,6 +262,24 @@ class _EmpresaDashboardPageState extends State<EmpresaDashboardPage> {
                   color: stats.ordenesPendientes > 0 ? Colors.red : Colors.grey,
                   onTap: permissions.canManageOrders
                       ? () => context.push('/empresa/ordenes')
+                      : null,
+                ),
+                StatsCard(
+                  title: 'Avisos Mantenimiento',
+                  value: '',
+                  icon: Icons.notifications_active_outlined,
+                  color: Colors.orange,
+                  onTap: permissions.canManageOrders
+                      ? () => context.push('/empresa/avisos-mantenimiento')
+                      : null,
+                ),
+                StatsCard(
+                  title: 'Tercerización',
+                  value: _pendientesCount > 0 ? '$_pendientesCount' : '',
+                  icon: Icons.swap_horiz,
+                  color: _pendientesCount > 0 ? Colors.deepPurple : Colors.grey,
+                  onTap: permissions.canManageOrders
+                      ? () => context.push('/empresa/tercerizacion')
                       : null,
                 ),
               ],

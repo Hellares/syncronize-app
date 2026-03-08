@@ -220,6 +220,141 @@ class _ConfiguracionCodigosBodyState extends State<ConfiguracionCodigosBody> {
                     isLoading: isLoading,
                   ),
 
+                  // Tab Componentes
+                  ConfigSeccionCard(
+                    titulo: 'Componentes',
+                    descripcion:
+                        'Configura cómo se generan los códigos de componentes',
+                    seccion: config.componentes,
+                    restriccion: config.restricciones,
+                    tipo: 'componente',
+                    onUpdate: null,
+                    onPreview: () => _showPreviewDialog(context, 'COMPONENTE'),
+                    isLoading: isLoading,
+                  ),
+
+                  // Tab Órdenes de Servicio
+                  ConfigSeccionCard(
+                    titulo: 'Órdenes de Servicio',
+                    descripcion:
+                        'Configura cómo se generan los códigos de órdenes de servicio',
+                    seccion: config.ordenesServicio,
+                    restriccion: config.restricciones,
+                    tipo: 'ordenServicio',
+                    onUpdate: null,
+                    onPreview: () =>
+                        _showPreviewDialog(context, 'ORDEN_SERVICIO'),
+                    isLoading: isLoading,
+                  ),
+
+                  // Tab Proveedores
+                  ConfigSeccionCard(
+                    titulo: 'Proveedores',
+                    descripcion:
+                        'Configura cómo se generan los códigos de proveedores',
+                    seccion: config.proveedores,
+                    restriccion: config.restricciones,
+                    tipo: 'proveedor',
+                    onUpdate: null,
+                    onPreview: () => _showPreviewDialog(context, 'PROVEEDOR'),
+                    isLoading: isLoading,
+                  ),
+
+                  // Tab Transferencias
+                  ConfigSeccionCard(
+                    titulo: 'Transferencias',
+                    descripcion:
+                        'Configura cómo se generan los códigos de transferencias de stock',
+                    seccion: config.transferencias,
+                    restriccion: config.restricciones,
+                    tipo: 'transferencia',
+                    onUpdate: null,
+                    onPreview: () =>
+                        _showPreviewDialog(context, 'TRANSFERENCIA'),
+                    isLoading: isLoading,
+                  ),
+
+                  // Tab Órdenes de Compra
+                  ConfigSeccionCard(
+                    titulo: 'Órdenes de Compra',
+                    descripcion:
+                        'Configura cómo se generan los códigos de órdenes de compra',
+                    seccion: config.ordenesCompra,
+                    restriccion: config.restricciones,
+                    tipo: 'ordenCompra',
+                    onUpdate: null,
+                    onPreview: () =>
+                        _showPreviewDialog(context, 'ORDEN_COMPRA'),
+                    isLoading: isLoading,
+                  ),
+
+                  // Tab Compras
+                  ConfigSeccionCard(
+                    titulo: 'Compras',
+                    descripcion:
+                        'Configura cómo se generan los códigos de compras (recepciones)',
+                    seccion: config.compras,
+                    restriccion: config.restricciones,
+                    tipo: 'compra',
+                    onUpdate: null,
+                    onPreview: () => _showPreviewDialog(context, 'COMPRA'),
+                    isLoading: isLoading,
+                  ),
+
+                  // Tab Lotes
+                  ConfigSeccionCard(
+                    titulo: 'Lotes',
+                    descripcion:
+                        'Configura cómo se generan los códigos de lotes',
+                    seccion: config.lotes,
+                    restriccion: config.restricciones,
+                    tipo: 'lote',
+                    onUpdate: null,
+                    onPreview: () => _showPreviewDialog(context, 'LOTE'),
+                    isLoading: isLoading,
+                  ),
+
+                  // Tab Sedes
+                  ConfigSeccionCard(
+                    titulo: 'Sedes',
+                    descripcion:
+                        'Configura cómo se generan los códigos de sedes',
+                    seccion: config.sedes,
+                    restriccion: config.restricciones,
+                    tipo: 'sede',
+                    onUpdate: null,
+                    onPreview: () => _showPreviewDialog(context, 'SEDE'),
+                    isLoading: isLoading,
+                  ),
+
+                  // Tab Reportes de Incidencia
+                  ConfigSeccionCard(
+                    titulo: 'Reportes de Incidencia',
+                    descripcion:
+                        'Configura cómo se generan los códigos de reportes de incidencia',
+                    seccion: config.reportesIncidencia,
+                    restriccion: config.restricciones,
+                    tipo: 'reporteIncidencia',
+                    onUpdate: null,
+                    onPreview: () =>
+                        _showPreviewDialog(context, 'REPORTE_INCIDENCIA'),
+                    isLoading: isLoading,
+                  ),
+
+                  // Tab Inventarios
+                  ConfigSeccionCard(
+                    titulo: 'Inventarios',
+                    descripcion:
+                        'Configura cómo se generan los códigos de inventarios',
+                    seccion: config.inventarios,
+                    restriccion: config.restricciones,
+                    tipo: 'inventario',
+                    onUpdate: null,
+                    onPreview: () =>
+                        _showPreviewDialog(context, 'INVENTARIO'),
+                    isLoading: isLoading,
+                  ),
+
                   // Tab Documentos
                   ConfigDocumentosCard(
                     documentos: config.documentos,

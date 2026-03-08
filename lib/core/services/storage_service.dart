@@ -12,6 +12,7 @@ class ArchivoResponse {
   final String nombreOriginal;
   final String mimeType;
   final int tamanoBytes;
+  final String? categoria;
 
   ArchivoResponse({
     required this.id,
@@ -20,6 +21,7 @@ class ArchivoResponse {
     required this.nombreOriginal,
     required this.mimeType,
     required this.tamanoBytes,
+    this.categoria,
   });
 
   factory ArchivoResponse.fromJson(Map<String, dynamic> json) {
@@ -30,6 +32,7 @@ class ArchivoResponse {
       nombreOriginal: json['nombreOriginal'] as String,
       mimeType: json['mimeType'] as String? ?? 'application/octet-stream',
       tamanoBytes: json['tamanoBytes'] as int,
+      categoria: json['categoria'] as String?,
     );
   }
 }

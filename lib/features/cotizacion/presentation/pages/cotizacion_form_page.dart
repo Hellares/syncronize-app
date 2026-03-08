@@ -460,8 +460,8 @@ class _CotizacionFormPageState extends State<CotizacionFormPage> {
       setState(() {
         _clienteId = result.clienteId;
         _nombreClienteController.text = result.nombreCompleto;
-        _documentoController.text = result.dni;
-        _telefonoController.text = result.telefono;
+        _documentoController.text = result.dni ?? '';
+        _telefonoController.text = result.telefono ?? '';
         _emailController.text = result.email ?? '';
         _direccionController.text = result.direccion ?? '';
       });

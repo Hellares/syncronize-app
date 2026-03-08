@@ -22,16 +22,16 @@ import '../../../../core/widgets/floating_button_icon.dart';
 class ClienteSelectionResult {
   final String clienteId;
   final String nombreCompleto;
-  final String dni;
-  final String telefono;
+  final String? dni;
+  final String? telefono;
   final String? email;
   final String? direccion;
 
   const ClienteSelectionResult({
     required this.clienteId,
     required this.nombreCompleto,
-    required this.dni,
-    required this.telefono,
+    this.dni,
+    this.telefono,
     this.email,
     this.direccion,
   });
@@ -482,7 +482,7 @@ class _ClienteSelectorBottomSheetState
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'DNI: ${cliente.dni}  •  ${cliente.telefono}',
+                    'DNI: ${cliente.dni ?? '-'}  •  ${cliente.telefono ?? '-'}',
                     style: TextStyle(
                       fontSize: 11,
                       color: Colors.grey[600],

@@ -61,8 +61,8 @@ class ClienteDetailSheet extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 16),
-                _buildInfoRow(Icons.badge, 'DNI', cliente.dni),
-                _buildInfoRow(Icons.phone, 'Teléfono', cliente.telefono),
+                _buildInfoRow(Icons.badge, 'DNI', cliente.dni ?? '-'),
+                _buildInfoRow(Icons.phone, 'Teléfono', cliente.telefono ?? '-'),
                 _buildInfoRow(Icons.email, 'Email', cliente.email ?? '-'),
                 if (cliente.direccion != null && cliente.direccion!.isNotEmpty)
                   _buildInfoRow(Icons.home, 'Dirección', cliente.direccion!),

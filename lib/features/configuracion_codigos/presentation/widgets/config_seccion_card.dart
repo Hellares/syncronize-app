@@ -18,7 +18,7 @@ class ConfigSeccionCard extends StatefulWidget {
   final ConfigSeccion seccion;
   final RestriccionesCodigo restriccion;
   final String tipo; // 'producto', 'variante', 'servicio'
-  final Function(String? codigo, String? separador, int? longitud, bool? incluirSede)
+  final Function(String? codigo, String? separador, int? longitud, bool? incluirSede)?
       onUpdate;
   final VoidCallback onPreview;
   final bool isLoading;
@@ -30,7 +30,7 @@ class ConfigSeccionCard extends StatefulWidget {
     required this.seccion,
     required this.restriccion,
     required this.tipo,
-    required this.onUpdate,
+    this.onUpdate,
     required this.onPreview,
     this.isLoading = false,
   });
@@ -78,6 +78,7 @@ class _ConfigSeccionCardState extends State<ConfigSeccionCard> {
   }
 
   bool get _puedeModificar {
+    if (widget.onUpdate == null) return false;
     if (widget.tipo == 'producto') {
       return widget.restriccion.puedeModificarProductoCodigo;
     } else if (widget.tipo == 'variante') {
@@ -268,15 +269,17 @@ class _ConfigSeccionCardState extends State<ConfigSeccionCard> {
                 ),
                
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: CustomButton(
-                  backgroundColor: AppColors.blue1,
-                  icon: Icon(Icons.save),
-                  text: 'Guardar',
-                  onPressed: widget.isLoading ? null : _guardarCambios,
+              if (widget.onUpdate != null) ...[
+                const SizedBox(width: 12),
+                Expanded(
+                  child: CustomButton(
+                    backgroundColor: AppColors.blue1,
+                    icon: Icon(Icons.save),
+                    text: 'Guardar',
+                    onPressed: widget.isLoading ? null : _guardarCambios,
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
         ],
@@ -320,7 +323,7 @@ class _ConfigSeccionCardState extends State<ConfigSeccionCard> {
     }
 
     // Llamar al callback
-    widget.onUpdate(
+    widget.onUpdate?.call(
       codigo,
       _separador,
       _longitud,

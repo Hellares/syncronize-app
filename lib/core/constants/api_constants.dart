@@ -59,6 +59,22 @@ class ApiConstants {
   // Endpoints de configuracion de documentos
   static const String configuracionDocumentos = '/configuracion-documentos';
 
+  // Endpoints de servicios
+  static const String servicios = '/servicios';
+  static const String configuracionCamposServicio = '/configuracion-campos-servicio';
+  static const String ordenesServicio = '/ordenes-servicio';
+  static const String plantillasServicio = '/plantillas-servicio';
+
+  // Endpoints de avisos de mantenimiento
+  static const String avisosMantenimiento = '/avisos-mantenimiento';
+
+  // Endpoints de componentes
+  static const String componentes = '/componentes';
+  static const String tiposComponente = '/tipos-componente';
+
+  // Endpoints de tercerización B2B
+  static const String tercerizacion = '/tercerizacion';
+
   // Endpoints de consultas externas (SUNAT/RENIEC)
   static const String consultaRuc = '/consultas/ruc';
   static const String consultaDni = '/consultas/dni';
