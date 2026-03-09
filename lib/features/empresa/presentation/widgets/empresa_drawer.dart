@@ -224,22 +224,24 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               routeMatch: const _RouteMatch.startsWith('/empresa/ordenes'),
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/ordenes')),
             ),
-            _TileNode(
-              visible: permissions?.canManageServices ?? false,
-              title: 'Plantillas de Servicio',
-              icon: Icons.view_list,
-              iconColor: AppColors.blue2,
-              routeMatch: const _RouteMatch.startsWith('/empresa/plantillas-servicio'),
-              onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/plantillas-servicio')),
-            ),
-            _TileNode(
-              visible: permissions?.canManageServices ?? false,
-              title: 'Campos de Servicio',
-              icon: Icons.dashboard_customize,
-              iconColor: AppColors.blue2,
-              routeMatch: const _RouteMatch.startsWith('/empresa/configuracion-campos-servicio'),
-              onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/configuracion-campos-servicio')),
-            ),
+            // Plantillas de Servicio oculto del drawer — se gestionan desde el form de servicio
+            // _TileNode(
+            //   visible: permissions?.canManageServices ?? false,
+            //   title: 'Plantillas de Servicio',
+            //   icon: Icons.view_list,
+            //   iconColor: AppColors.blue2,
+            //   routeMatch: const _RouteMatch.startsWith('/empresa/plantillas-servicio'),
+            //   onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/plantillas-servicio')),
+            // ),
+            // Campos de Servicio oculto del drawer — se gestionan desde plantillas
+            // _TileNode(
+            //   visible: permissions?.canManageServices ?? false,
+            //   title: 'Campos de Servicio',
+            //   icon: Icons.dashboard_customize,
+            //   iconColor: AppColors.blue2,
+            //   routeMatch: const _RouteMatch.startsWith('/empresa/configuracion-campos-servicio'),
+            //   onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/configuracion-campos-servicio')),
+            // ),
             _TileNode(
               visible: permissions?.canManageOrders ?? false,
               title: 'Tercerización B2B',

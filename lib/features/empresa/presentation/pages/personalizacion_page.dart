@@ -4,10 +4,21 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/fonts/app_fonts.dart';
+import '../../../../core/fonts/app_text_widgets.dart';
 import '../../../../core/services/storage_service.dart';
 import '../../../../core/storage/local_storage_service.dart';
 import '../../../../core/constants/storage_constants.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_gradients.dart';
+import '../../../../core/theme/gradient_background.dart';
+import '../../../../core/theme/gradient_container.dart';
 import '../../../../core/utils/resource.dart';
+import '../../../../core/widgets/custom_button.dart';
+import '../../../../core/widgets/custom_loading.dart';
+import '../../../../core/widgets/custom_switch_tile.dart';
+import '../../../../core/widgets/smart_appbar.dart';
+import '../../../auth/presentation/widgets/custom_text.dart';
 import '../../data/datasources/empresa_remote_datasource.dart';
 import '../../domain/entities/personalizacion_empresa.dart';
 import '../../domain/usecases/get_personalizacion_usecase.dart';
@@ -22,9 +33,7 @@ class PersonalizacionPage extends StatefulWidget {
   State<PersonalizacionPage> createState() => _PersonalizacionPageState();
 }
 
-class _PersonalizacionPageState extends State<PersonalizacionPage>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _PersonalizacionPageState extends State<PersonalizacionPage> {
   final _getPersonalizacionUseCase = locator<GetPersonalizacionUseCase>();
   final _updatePersonalizacionUseCase = locator<UpdatePersonalizacionUseCase>();
   final _storageService = locator<StorageService>();
@@ -43,13 +52,13 @@ class _PersonalizacionPageState extends State<PersonalizacionPage>
   bool _isUploadingLogo = false;
   double _logoUploadProgress = 0.0;
 
-  // Controllers para formularios
+  // Controllers
   final _bannerUrlController = TextEditingController();
   final _bannerTextoController = TextEditingController();
   final _splashUrlController = TextEditingController();
   final _dominioController = TextEditingController();
 
-  // Valores de colores
+  // Colores
   Color _bannerColor = const Color(0xFF000000);
   Color _colorPrimario = const Color(0xFF007bff);
   Color _colorSecundario = const Color(0xFF6c757d);
@@ -65,13 +74,11 @@ class _PersonalizacionPageState extends State<PersonalizacionPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
     _loadPersonalizacion();
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
     _bannerUrlController.dispose();
     _bannerTextoController.dispose();
     _splashUrlController.dispose();
@@ -94,7 +101,6 @@ class _PersonalizacionPageState extends State<PersonalizacionPage>
       return;
     }
 
-    // Cargar logo actual desde el contexto de empresa
     final empresaState = context.read<EmpresaContextCubit>().state;
     if (empresaState is EmpresaContextLoaded) {
       _currentLogoUrl = empresaState.context.empresa.logo;
@@ -140,7 +146,6 @@ class _PersonalizacionPageState extends State<PersonalizacionPage>
   }
 
   String _colorToHex(Color color) {
-    // Extract RGB components using the new color space API
     final r = ((color.r * 255.0).round() & 0xff).toRadixString(16).padLeft(2, '0');
     final g = ((color.g * 255.0).round() & 0xff).toRadixString(16).padLeft(2, '0');
     final b = ((color.b * 255.0).round() & 0xff).toRadixString(16).padLeft(2, '0');
@@ -155,28 +160,19 @@ class _PersonalizacionPageState extends State<PersonalizacionPage>
         maxHeight: 512,
         imageQuality: 85,
       );
-
       if (picked == null) return;
-
-      setState(() {
-        _selectedLogoFile = File(picked.path);
-      });
-
+      setState(() => _selectedLogoFile = File(picked.path));
       await _uploadLogo();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error al seleccionar imagen: $e'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text('Error al seleccionar imagen: $e'), backgroundColor: Colors.red),
       );
     }
   }
 
   Future<void> _uploadLogo() async {
     if (_selectedLogoFile == null) return;
-
     final empresaId = _localStorage.getString(StorageConstants.tenantId);
     if (empresaId == null) return;
 
@@ -186,7 +182,6 @@ class _PersonalizacionPageState extends State<PersonalizacionPage>
     });
 
     try {
-      // 1. Subir archivo al storage
       final archivoResponse = await _storageService.uploadFile(
         file: _selectedLogoFile!,
         empresaId: empresaId,
@@ -194,23 +189,17 @@ class _PersonalizacionPageState extends State<PersonalizacionPage>
         entidadId: empresaId,
         categoria: 'LOGO',
         onProgress: (progress) {
-          if (mounted) {
-            setState(() => _logoUploadProgress = progress);
-          }
+          if (mounted) setState(() => _logoUploadProgress = progress);
         },
       );
 
-      // 2. Actualizar la empresa con la URL del logo
       await _empresaRemoteDataSource.updateEmpresaLogo(
         empresaId: empresaId,
         logoUrl: archivoResponse.url,
       );
 
       if (!mounted) return;
-
-      // 3. Recargar el contexto de empresa para reflejar el cambio
       await context.read<EmpresaContextCubit>().reloadContext();
-
       if (!mounted) return;
 
       setState(() {
@@ -220,10 +209,7 @@ class _PersonalizacionPageState extends State<PersonalizacionPage>
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Logo actualizado correctamente'),
-          backgroundColor: Colors.green,
-        ),
+        const SnackBar(content: Text('Logo actualizado'), backgroundColor: Colors.green),
       );
     } catch (e) {
       if (!mounted) return;
@@ -232,10 +218,7 @@ class _PersonalizacionPageState extends State<PersonalizacionPage>
         _selectedLogoFile = null;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error al subir logo: $e'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text('Error al subir logo: $e'), backgroundColor: Colors.red),
       );
     }
   }
@@ -243,26 +226,69 @@ class _PersonalizacionPageState extends State<PersonalizacionPage>
   void _showLogoSourceDialog() {
     showModalBottomSheet(
       context: context,
-      builder: (context) => SafeArea(
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.all(16),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(
-              leading: const Icon(Icons.photo_library),
-              title: const Text('Seleccionar de galería'),
-              onTap: () {
-                Navigator.pop(context);
-                _pickLogo(ImageSource.gallery);
-              },
+            Center(
+              child: Container(
+                width: 40, height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
             ),
-            ListTile(
-              leading: const Icon(Icons.camera_alt),
-              title: const Text('Tomar foto'),
-              onTap: () {
-                Navigator.pop(context);
-                _pickLogo(ImageSource.camera);
-              },
+            const SizedBox(height: 16),
+            InkWell(
+              onTap: () { Navigator.pop(ctx); _pickLogo(ImageSource.gallery); },
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.blue1.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.photo_library_outlined, color: AppColors.blue1, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    const AppSubtitle('Seleccionar de galeria', fontSize: 12),
+                  ],
+                ),
+              ),
             ),
+            InkWell(
+              onTap: () { Navigator.pop(ctx); _pickLogo(ImageSource.camera); },
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.blue1.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.camera_alt_outlined, color: AppColors.blue1, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    const AppSubtitle('Tomar foto', fontSize: 12),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
           ],
         ),
       ),
@@ -272,19 +298,13 @@ class _PersonalizacionPageState extends State<PersonalizacionPage>
   Future<void> _savePersonalizacion() async {
     if (_personalizacion == null) return;
 
-    setState(() {
-      _isSaving = true;
-    });
+    setState(() => _isSaving = true);
 
     final empresaId = _localStorage.getString(StorageConstants.tenantId)!;
 
     final updatedPersonalizacion = _personalizacion!.copyWith(
-      bannerPrincipalUrl: _bannerUrlController.text.isEmpty
-          ? null
-          : _bannerUrlController.text,
-      bannerPrincipalTexto: _bannerTextoController.text.isEmpty
-          ? null
-          : _bannerTextoController.text,
+      bannerPrincipalUrl: _bannerUrlController.text.isEmpty ? null : _bannerUrlController.text,
+      bannerPrincipalTexto: _bannerTextoController.text.isEmpty ? null : _bannerTextoController.text,
       bannerColor: _colorToHex(_bannerColor),
       colorPrimario: _colorToHex(_colorPrimario),
       colorSecundario: _colorToHex(_colorSecundario),
@@ -293,11 +313,9 @@ class _PersonalizacionPageState extends State<PersonalizacionPage>
       mostrarContacto: _mostrarContacto,
       mostrarRedesSociales: _mostrarRedesSociales,
       permitirRegistro: _permitirRegistro,
-      appSplashScreenUrl:
-          _splashUrlController.text.isEmpty ? null : _splashUrlController.text,
+      appSplashScreenUrl: _splashUrlController.text.isEmpty ? null : _splashUrlController.text,
       appColorTema: _colorToHex(_appColorTema),
-      dominioPersonalizado:
-          _dominioController.text.isEmpty ? null : _dominioController.text,
+      dominioPersonalizado: _dominioController.text.isEmpty ? null : _dominioController.text,
     );
 
     final result = await _updatePersonalizacionUseCase(
@@ -307,73 +325,65 @@ class _PersonalizacionPageState extends State<PersonalizacionPage>
 
     if (!mounted) return;
 
-    setState(() {
-      _isSaving = false;
-    });
+    setState(() => _isSaving = false);
 
     if (result is Success<PersonalizacionEmpresa>) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Personalización guardada exitosamente'),
-          backgroundColor: Colors.green,
-        ),
+        const SnackBar(content: Text('Personalización guardada'), backgroundColor: Colors.green),
       );
-      setState(() {
-        _personalizacion = result.data;
-      });
+      setState(() => _personalizacion = result.data);
     } else if (result is Error) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text((result as Error).message),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text((result as Error).message), backgroundColor: Colors.red),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Personalización de Marketplace'),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(icon: Icon(Icons.palette), text: 'Colores y Tema'),
-            Tab(icon: Icon(Icons.image), text: 'Multimedia'),
-            Tab(icon: Icon(Icons.settings), text: 'Configuración'),
-          ],
+    return GradientBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: SmartAppBar(
+          title: 'Personalización',
+          backgroundColor: AppColors.blue1,
+          foregroundColor: Colors.white,
         ),
-        actions: [
-          if (!_isLoading && _personalizacion != null)
-            IconButton(
-              icon: _isSaving
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Icon(Icons.save),
-              onPressed: _isSaving ? null : _savePersonalizacion,
-              tooltip: 'Guardar cambios',
-            ),
+        body: _isLoading
+            ? const Center(child: CustomLoading())
+            : _errorMessage != null
+                ? _buildErrorView()
+                : _buildContent(),
+        bottomNavigationBar: (!_isLoading && _personalizacion != null)
+            ? _buildBottomBar()
+            : null,
+      ),
+    );
+  }
+
+  Widget _buildBottomBar() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 8,
+            offset: const Offset(0, -2),
+          ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _errorMessage != null
-              ? _buildErrorView()
-              : TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _buildColoresTab(),
-                    _buildMultimediaTab(),
-                    _buildConfiguracionTab(),
-                  ],
-                ),
+      child: CustomButton(
+        text: 'Guardar cambios',
+        icon: const Icon(Icons.save_outlined, size: 16, color: Colors.white),
+        backgroundColor: AppColors.blue1,
+        height: 40,
+        borderRadius: 8,
+        isLoading: _isSaving,
+        loadingText: 'Guardando...',
+        onPressed: _isSaving ? null : _savePersonalizacion,
+      ),
     );
   }
 
@@ -384,18 +394,21 @@ class _PersonalizacionPageState extends State<PersonalizacionPage>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline, size: 64, color: Colors.red),
-            const SizedBox(height: 16),
+            Icon(Icons.error_outline, size: 48, color: Colors.grey.shade400),
+            const SizedBox(height: 12),
             Text(
               _errorMessage!,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 16),
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
             ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
+            const SizedBox(height: 16),
+            CustomButton(
+              text: 'Reintentar',
+              icon: const Icon(Icons.refresh, size: 14, color: Colors.white),
+              backgroundColor: AppColors.blue1,
+              height: 36,
+              borderRadius: 8,
               onPressed: _loadPersonalizacion,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Reintentar'),
             ),
           ],
         ),
@@ -403,164 +416,50 @@ class _PersonalizacionPageState extends State<PersonalizacionPage>
     );
   }
 
-  Widget _buildColoresTab() {
+  Widget _buildContent() {
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       children: [
-        const Text(
-          'Personaliza los colores de tu perfil en el marketplace',
-          style: TextStyle(fontSize: 16, color: Colors.grey),
-        ),
-        const SizedBox(height: 24),
-        _buildColorPicker(
-          'Color Primario',
-          'Color principal de tu marca',
-          _colorPrimario,
-          (color) => setState(() => _colorPrimario = color),
-        ),
-        const SizedBox(height: 16),
-        _buildColorPicker(
-          'Color Secundario',
-          'Color secundario complementario',
-          _colorSecundario,
-          (color) => setState(() => _colorSecundario = color),
-        ),
-        const SizedBox(height: 16),
-        _buildColorPicker(
-          'Color de Acento',
-          'Color para resaltar elementos importantes',
-          _colorAcento,
-          (color) => setState(() => _colorAcento = color),
-        ),
-        const SizedBox(height: 16),
-        _buildColorPicker(
-          'Color del Banner',
-          'Color de fondo del banner principal',
-          _bannerColor,
-          (color) => setState(() => _bannerColor = color),
-        ),
-        const SizedBox(height: 24),
-        const Divider(),
-        const SizedBox(height: 16),
-        const Text(
-          'Color de la App Móvil',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 16),
-        _buildColorPicker(
-          'Color del Tema App',
-          'Color principal en la app móvil',
-          _appColorTema,
-          (color) => setState(() => _appColorTema = color),
-        ),
+        // ─── Logo ───
+        _buildLogoCard(),
+        const SizedBox(height: 12),
+
+        // ─── Colores + Banner (card unificada) ───
+        _buildColoresCard(),
+        const SizedBox(height: 12),
+
+        // ─── Multimedia ───
+        _buildMultimediaCard(),
+        const SizedBox(height: 12),
+
+        // ─── Configuración ───
+        _buildConfiguracionCard(),
+        const SizedBox(height: 80),
       ],
     );
   }
 
-  Widget _buildMultimediaTab() {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        const Text(
-          'Imágenes y multimedia para tu perfil',
-          style: TextStyle(fontSize: 16, color: Colors.grey),
-        ),
-        const SizedBox(height: 24),
+  // ─── Logo Card ───
 
-        // Logo de la empresa
-        _buildLogoSection(),
-        const SizedBox(height: 24),
-        const Divider(),
-        const SizedBox(height: 16),
-
-        // Banner
-        const Text(
-          'Banner Principal',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 16),
-        TextField(
-          controller: _bannerUrlController,
-          decoration: const InputDecoration(
-            labelText: 'URL del Banner Principal',
-            hintText: 'https://ejemplo.com/banner.jpg',
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.image),
-          ),
-        ),
-        const SizedBox(height: 16),
-        TextField(
-          controller: _bannerTextoController,
-          decoration: const InputDecoration(
-            labelText: 'Texto del Banner',
-            hintText: '¡Bienvenidos a nuestra empresa!',
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.text_fields),
-          ),
-          maxLines: 2,
-        ),
-        const SizedBox(height: 24),
-        const Divider(),
-        const SizedBox(height: 16),
-        const Text(
-          'App Móvil',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 16),
-        TextField(
-          controller: _splashUrlController,
-          decoration: const InputDecoration(
-            labelText: 'URL del Splash Screen',
-            hintText: 'https://ejemplo.com/splash.jpg',
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.phone_android),
-          ),
-        ),
-        const SizedBox(height: 24),
-        const Divider(),
-        const SizedBox(height: 16),
-        const Text(
-          'Dominio Personalizado',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          'Solo disponible en planes premium',
-          style: TextStyle(fontSize: 12, color: Colors.grey),
-        ),
-        const SizedBox(height: 16),
-        TextField(
-          controller: _dominioController,
-          decoration: const InputDecoration(
-            labelText: 'Dominio Personalizado',
-            hintText: 'www.miempresa.com',
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.language),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildLogoSection() {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+  Widget _buildLogoCard() {
+    return GradientContainer(
+      gradient: AppGradients.blueWhiteBlue(),
+      shadowStyle: ShadowStyle.glow,
+      borderColor: AppColors.blueborder,
+      borderWidth: 0.6,
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Logo de la Empresa',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
+            _sectionHeader('Logo de la empresa', Icons.business_outlined),
             const SizedBox(height: 4),
-            Text(
-              'Se mostrará en el marketplace, drawer y listados',
-              style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+            AppLabelText(
+              'Se muestra en el marketplace, drawer y listados',
+              fontSize: 10,
+              color: Colors.grey.shade500,
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 14),
 
             // Logo preview
             Center(
@@ -569,38 +468,30 @@ class _PersonalizacionPageState extends State<PersonalizacionPage>
                 child: Stack(
                   children: [
                     Container(
-                      width: 120,
-                      height: 120,
+                      width: 100,
+                      height: 100,
                       decoration: BoxDecoration(
-                        color: Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: Colors.grey.shade300,
-                          width: 2,
-                        ),
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: AppColors.blueborder, width: 1),
                       ),
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(13),
                         child: _buildLogoPreview(),
                       ),
                     ),
-                    // Overlay de edición
                     if (!_isUploadingLogo)
                       Positioned(
                         bottom: 0,
                         right: 0,
                         child: Container(
-                          padding: const EdgeInsets.all(6),
+                          padding: const EdgeInsets.all(5),
                           decoration: BoxDecoration(
-                            color: Theme.of(context).primaryColor,
+                            color: AppColors.blue1,
                             shape: BoxShape.circle,
                             border: Border.all(color: Colors.white, width: 2),
                           ),
-                          child: const Icon(
-                            Icons.camera_alt,
-                            color: Colors.white,
-                            size: 18,
-                          ),
+                          child: const Icon(Icons.camera_alt, color: Colors.white, size: 14),
                         ),
                       ),
                   ],
@@ -608,32 +499,26 @@ class _PersonalizacionPageState extends State<PersonalizacionPage>
               ),
             ),
 
-            // Barra de progreso
             if (_isUploadingLogo) ...[
-              const SizedBox(height: 16),
-              LinearProgressIndicator(
-                value: _logoUploadProgress,
-                backgroundColor: Colors.grey.shade200,
+              const SizedBox(height: 12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: _logoUploadProgress,
+                  backgroundColor: Colors.grey.shade200,
+                  color: AppColors.blue1,
+                  minHeight: 4,
+                ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
               Center(
-                child: Text(
-                  'Subiendo logo... ${(_logoUploadProgress * 100).toInt()}%',
-                  style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                child: AppLabelText(
+                  'Subiendo... ${(_logoUploadProgress * 100).toInt()}%',
+                  fontSize: 10,
+                  color: Colors.grey.shade500,
                 ),
               ),
             ],
-
-            const SizedBox(height: 16),
-            Center(
-              child: TextButton.icon(
-                onPressed: _isUploadingLogo ? null : _showLogoSourceDialog,
-                icon: const Icon(Icons.upload),
-                label: Text(
-                  _currentLogoUrl != null ? 'Cambiar logo' : 'Subir logo',
-                ),
-              ),
-            ),
           ],
         ),
       ),
@@ -641,28 +526,16 @@ class _PersonalizacionPageState extends State<PersonalizacionPage>
   }
 
   Widget _buildLogoPreview() {
-    // Si hay un archivo local seleccionado (en proceso de upload)
     if (_selectedLogoFile != null) {
-      return Image.file(
-        _selectedLogoFile!,
-        width: 120,
-        height: 120,
-        fit: BoxFit.cover,
-      );
+      return Image.file(_selectedLogoFile!, width: 100, height: 100, fit: BoxFit.cover);
     }
-
-    // Si hay logo actual en el servidor
     if (_currentLogoUrl != null && _currentLogoUrl!.isNotEmpty) {
       return Image.network(
         _currentLogoUrl!,
-        width: 120,
-        height: 120,
-        fit: BoxFit.cover,
+        width: 100, height: 100, fit: BoxFit.cover,
         errorBuilder: (_, __, ___) => _buildLogoPlaceholder(),
       );
     }
-
-    // Placeholder
     return _buildLogoPlaceholder();
   }
 
@@ -671,17 +544,14 @@ class _PersonalizacionPageState extends State<PersonalizacionPage>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.business,
-            size: 40,
-            color: Colors.grey.shade400,
-          ),
+          Icon(Icons.business, size: 32, color: Colors.grey.shade300),
           const SizedBox(height: 4),
           Text(
             'Sin logo',
             style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey.shade500,
+              fontSize: 10,
+              color: Colors.grey.shade400,
+              fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
             ),
           ),
         ],
@@ -689,99 +559,321 @@ class _PersonalizacionPageState extends State<PersonalizacionPage>
     );
   }
 
-  Widget _buildConfiguracionTab() {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        const Text(
-          'Configura qué elementos mostrar en tu perfil público',
-          style: TextStyle(fontSize: 16, color: Colors.grey),
-        ),
-        const SizedBox(height: 24),
-        SwitchListTile(
-          title: const Text('Mostrar Precios'),
-          subtitle: const Text('Mostrar precios de productos públicamente'),
-          value: _mostrarPrecios,
-          onChanged: (value) => setState(() => _mostrarPrecios = value),
-        ),
-        const Divider(),
-        SwitchListTile(
-          title: const Text('Mostrar Información de Contacto'),
-          subtitle: const Text('Teléfono, email y dirección visibles'),
-          value: _mostrarContacto,
-          onChanged: (value) => setState(() => _mostrarContacto = value),
-        ),
-        const Divider(),
-        SwitchListTile(
-          title: const Text('Mostrar Redes Sociales'),
-          subtitle: const Text('Mostrar links a redes sociales'),
-          value: _mostrarRedesSociales,
-          onChanged: (value) => setState(() => _mostrarRedesSociales = value),
-        ),
-        const Divider(),
-        SwitchListTile(
-          title: const Text('Permitir Registro de Usuarios'),
-          subtitle: const Text('Los clientes pueden crear cuentas'),
-          value: _permitirRegistro,
-          onChanged: (value) => setState(() => _permitirRegistro = value),
-        ),
-        const SizedBox(height: 32),
-        Card(
-          color: Colors.blue.shade50,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+  // ─── Colores Card ───
+
+  Widget _buildColoresCard() {
+    return GradientContainer(
+      gradient: AppGradients.blueWhiteBlue(),
+      shadowStyle: ShadowStyle.glow,
+      borderColor: AppColors.blueborder,
+      borderWidth: 0.6,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _sectionHeader('Colores y tema', Icons.palette_outlined),
+            const SizedBox(height: 4),
+            AppLabelText(
+              'Personaliza los colores de tu perfil en el marketplace',
+              fontSize: 10,
+              color: Colors.grey.shade500,
+            ),
+            const SizedBox(height: 14),
+
+            // Color grid
+            _buildColorRow('Primario', _colorPrimario, (c) => setState(() => _colorPrimario = c)),
+            _buildColorRow('Secundario', _colorSecundario, (c) => setState(() => _colorSecundario = c)),
+            _buildColorRow('Acento', _colorAcento, (c) => setState(() => _colorAcento = c)),
+            _buildColorRow('Banner', _bannerColor, (c) => setState(() => _bannerColor = c)),
+
+            _sectionDivider(),
+
+            Row(
               children: [
-                Row(
-                  children: [
-                    Icon(Icons.info, color: Colors.blue.shade700),
-                    const SizedBox(width: 12),
-                    const Text(
-                      'Información',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Estos cambios afectarán cómo se ve tu empresa en el marketplace web y en la app móvil. Los cambios se aplicarán inmediatamente después de guardar.',
-                  style: TextStyle(fontSize: 14),
+                Icon(Icons.phone_android, size: 13, color: AppColors.blue1),
+                const SizedBox(width: 6),
+                Text(
+                  'Color tema app movil',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade700,
+                    fontFamily: AppFonts.getFontFamily(AppFont.oxygenBold),
+                  ),
                 ),
               ],
             ),
-          ),
+            const SizedBox(height: 8),
+            _buildColorRow('Tema App', _appColorTema, (c) => setState(() => _appColorTema = c)),
+          ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildColorRow(String label, Color color, Function(Color) onChanged) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: InkWell(
+        onTap: () => _showColorPickerDialog(label, color, onChanged),
+        borderRadius: BorderRadius.circular(8),
+        child: Row(
+          children: [
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.grey.shade300, width: 1),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
+                ),
+              ),
+            ),
+            Text(
+              _colorToHex(color),
+              style: TextStyle(
+                fontSize: 10,
+                color: Colors.grey.shade500,
+                fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(Icons.edit_outlined, size: 14, color: Colors.grey.shade400),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ─── Multimedia Card ───
+
+  Widget _buildMultimediaCard() {
+    return GradientContainer(
+      gradient: AppGradients.blueWhiteBlue(),
+      shadowStyle: ShadowStyle.glow,
+      borderColor: AppColors.blueborder,
+      borderWidth: 0.6,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _sectionHeader('Multimedia', Icons.image_outlined),
+            const SizedBox(height: 12),
+
+            // Banner
+            CustomText(
+              controller: _bannerUrlController,
+              label: 'URL del banner principal',
+              hintText: 'https://ejemplo.com/banner.jpg',
+              prefixIcon: const Icon(Icons.image_outlined, size: 16),
+              borderColor: AppColors.blueborder,
+            ),
+            const SizedBox(height: 10),
+            CustomText(
+              controller: _bannerTextoController,
+              label: 'Texto del banner',
+              hintText: 'Bienvenidos a nuestra empresa',
+              prefixIcon: const Icon(Icons.text_fields, size: 16),
+              borderColor: AppColors.blueborder,
+            ),
+
+            _sectionDivider(),
+
+            // App
+            Row(
+              children: [
+                Icon(Icons.phone_android, size: 13, color: AppColors.blue1),
+                const SizedBox(width: 6),
+                Text(
+                  'App movil',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade700,
+                    fontFamily: AppFonts.getFontFamily(AppFont.oxygenBold),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            CustomText(
+              controller: _splashUrlController,
+              label: 'URL del splash screen',
+              hintText: 'https://ejemplo.com/splash.jpg',
+              prefixIcon: const Icon(Icons.screenshot_outlined, size: 16),
+              borderColor: AppColors.blueborder,
+            ),
+
+            _sectionDivider(),
+
+            // Dominio
+            Row(
+              children: [
+                Icon(Icons.language, size: 13, color: AppColors.blue1),
+                const SizedBox(width: 6),
+                Text(
+                  'Dominio personalizado',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade700,
+                    fontFamily: AppFonts.getFontFamily(AppFont.oxygenBold),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    'PREMIUM',
+                    style: TextStyle(
+                      fontSize: 8,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.orange.shade700,
+                      fontFamily: AppFonts.getFontFamily(AppFont.oxygenBold),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            CustomText(
+              controller: _dominioController,
+              label: 'Dominio',
+              hintText: 'www.miempresa.com',
+              prefixIcon: const Icon(Icons.link, size: 16),
+              borderColor: AppColors.blueborder,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ─── Configuración Card ───
+
+  Widget _buildConfiguracionCard() {
+    return GradientContainer(
+      gradient: AppGradients.blueWhiteBlue(),
+      shadowStyle: ShadowStyle.glow,
+      borderColor: AppColors.blueborder,
+      borderWidth: 0.6,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _sectionHeader('Configuracion', Icons.tune_outlined),
+            const SizedBox(height: 4),
+            AppLabelText(
+              'Configura que elementos mostrar en tu perfil publico',
+              fontSize: 10,
+              color: Colors.grey.shade500,
+            ),
+            const SizedBox(height: 12),
+
+            CustomSwitchTile(
+              title: 'Mostrar precios',
+              subtitle: 'Mostrar precios de productos publicamente',
+              value: _mostrarPrecios,
+              onChanged: (v) => setState(() => _mostrarPrecios = v),
+            ),
+            const SizedBox(height: 6),
+            CustomSwitchTile(
+              title: 'Mostrar contacto',
+              subtitle: 'Telefono, email y direccion visibles',
+              value: _mostrarContacto,
+              onChanged: (v) => setState(() => _mostrarContacto = v),
+            ),
+            const SizedBox(height: 6),
+            CustomSwitchTile(
+              title: 'Mostrar redes sociales',
+              subtitle: 'Mostrar links a redes sociales',
+              value: _mostrarRedesSociales,
+              onChanged: (v) => setState(() => _mostrarRedesSociales = v),
+            ),
+            const SizedBox(height: 6),
+            CustomSwitchTile(
+              title: 'Permitir registro',
+              subtitle: 'Los clientes pueden crear cuentas',
+              value: _permitirRegistro,
+              onChanged: (v) => setState(() => _permitirRegistro = v),
+            ),
+
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.blue1.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.blueborder, width: 0.6),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.info_outline, size: 14, color: AppColors.blue1),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Los cambios se aplicaran en el marketplace web y la app movil despues de guardar.',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey.shade600,
+                        height: 1.4,
+                        fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ─── Helpers ───
+
+  Widget _sectionHeader(String title, IconData icon) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: AppColors.blue1.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Icon(icon, color: AppColors.blue1, size: 16),
+        ),
+        const SizedBox(width: 10),
+        AppTitle(title, fontSize: 13, color: AppColors.blue2),
       ],
     );
   }
 
-  Widget _buildColorPicker(
-    String title,
-    String subtitle,
-    Color currentColor,
-    Function(Color) onColorChanged,
-  ) {
-    return Card(
-      child: ListTile(
-        title: Text(title),
-        subtitle: Text(subtitle),
-        trailing: Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: currentColor,
-            shape: BoxShape.circle,
-            border: Border.all(color: Colors.grey.shade300, width: 2),
-          ),
-        ),
-        onTap: () => _showColorPickerDialog(title, currentColor, onColorChanged),
-      ),
+  Widget _sectionDivider() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Divider(height: 1, color: Colors.grey.shade200),
     );
   }
+
+  // ─── Color Picker Dialog ───
 
   Future<void> _showColorPickerDialog(
     String title,
@@ -792,8 +884,22 @@ class _PersonalizacionPageState extends State<PersonalizacionPage>
 
     await showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Selecciona $title'),
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: AppColors.blue1.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.palette, color: AppColors.blue1, size: 18),
+            ),
+            const SizedBox(width: 10),
+            AppTitle(title, fontSize: 14, color: AppColors.blue2),
+          ],
+        ),
         content: SingleChildScrollView(
           child: ColorPicker(
             pickerColor: pickerColor,
@@ -804,15 +910,18 @@ class _PersonalizacionPageState extends State<PersonalizacionPage>
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Cancelar', style: TextStyle(color: Colors.grey.shade600)),
           ),
-          ElevatedButton(
+          CustomButton(
+            text: 'Aplicar',
+            backgroundColor: AppColors.blue1,
+            height: 34,
+            borderRadius: 8,
             onPressed: () {
               onColorChanged(pickerColor);
-              Navigator.pop(context);
+              Navigator.pop(ctx);
             },
-            child: const Text('Seleccionar'),
           ),
         ],
       ),

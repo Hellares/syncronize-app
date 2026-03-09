@@ -199,8 +199,8 @@ class _EmpresaDashboardPageState extends State<EmpresaDashboardPage> {
             const SizedBox(height: 24),
 
             // Título
-            AppSubtitle('Resumen', fontSize: 16),
-            const SizedBox(height: 16),
+            AppSubtitle('Resumen', fontSize: 12),
+            const SizedBox(height: 5),
 
             // Grid de estadísticas
             GridView.count(
@@ -288,8 +288,8 @@ class _EmpresaDashboardPageState extends State<EmpresaDashboardPage> {
             // Uso del Plan
             if (empresaContext.planLimits != null) ...[
               const SizedBox(height: 24),
-              AppSubtitle('Uso del Plan', fontSize: 16),
-              const SizedBox(height: 12),
+              AppSubtitle('Uso del Plan', fontSize: 12),
+              const SizedBox(height: 5),
               UsageLimitCard(planLimits: empresaContext.planLimits!),
             ],
 

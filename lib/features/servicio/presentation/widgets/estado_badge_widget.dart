@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/fonts/app_fonts.dart';
+
 class EstadoBadgeWidget extends StatelessWidget {
   final String estado;
   const EstadoBadgeWidget({super.key, required this.estado});
@@ -10,14 +12,14 @@ class EstadoBadgeWidget extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: _color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _color.withValues(alpha: 0.3)),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: _color.withValues(alpha: 0.3), width: 0.6),
       ),
       child: Text(
         _label,
         style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.bold,
+          fontSize: 10,
+          fontFamily: AppFonts.getFontFamily(AppFont.oxygenBold),
           color: _color,
         ),
       ),

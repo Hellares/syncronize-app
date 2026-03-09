@@ -1,7 +1,12 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import '../../../../core/fonts/app_fonts.dart';
+import '../../../../core/fonts/app_text_widgets.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_gradients.dart';
+import '../../../../core/theme/gradient_container.dart';
+import '../../../../core/widgets/custom_button.dart';
 
 class FirmaDigitalSheet extends StatefulWidget {
   const FirmaDigitalSheet({super.key});
@@ -20,11 +25,15 @@ class _FirmaDigitalSheetState extends State<FirmaDigitalSheet> {
   @override
   Widget build(BuildContext context) {
     return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(16),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -39,116 +48,174 @@ class _FirmaDigitalSheetState extends State<FirmaDigitalSheet> {
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
 
-            // Title
-            const Row(
+            // Header
+            Row(
               children: [
-                Icon(Icons.draw, color: AppColors.blue1, size: 20),
-                SizedBox(width: 8),
-                Text(
-                  'Firma del cliente',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.blue1.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.draw_outlined, color: AppColors.blue1, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const AppTitle('Firma del cliente', fontSize: 15, color: AppColors.blue1),
+                      AppLabelText(
+                        'Dibuje la firma en el recuadro',
+                        fontSize: 10,
+                        color: Colors.grey.shade500,
+                      ),
+                    ],
+                  ),
+                ),
+                if (_hasSignature)
+                  InkWell(
+                    onTap: () {
+                      setState(() {
+                        _strokes.clear();
+                        _currentStroke = [];
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(6),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.refresh, size: 13, color: Colors.red.shade400),
+                          const SizedBox(width: 4),
+                          Text('Limpiar',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.red.shade400,
+                              fontWeight: FontWeight.w600,
+                              fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                const SizedBox(width: 8),
+                InkWell(
+                  onTap: () => Navigator.pop(context),
+                  borderRadius: BorderRadius.circular(20),
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: Icon(Icons.close, size: 20, color: Colors.grey.shade400),
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 16),
 
             // Canvas
-            RepaintBoundary(
-              key: _canvasKey,
-              child: Container(
-                height: 200,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border.all(color: Colors.grey.shade300),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: GestureDetector(
-                  onPanStart: (details) {
-                    setState(() {
-                      _currentStroke = [details.localPosition];
-                    });
-                  },
-                  onPanUpdate: (details) {
-                    setState(() {
-                      _currentStroke = [..._currentStroke, details.localPosition];
-                    });
-                  },
-                  onPanEnd: (details) {
-                    setState(() {
-                      _strokes.add(_currentStroke);
-                      _currentStroke = [];
-                    });
-                  },
-                  child: CustomPaint(
-                    painter: _SignaturePainter(
-                      strokes: _strokes,
-                      currentStroke: _currentStroke,
+            GradientContainer(
+              gradient: AppGradients.blueWhiteBlue(),
+              shadowStyle: ShadowStyle.none,
+              borderColor: _hasSignature ? AppColors.blue1 : AppColors.blueborder,
+              borderWidth: _hasSignature ? 1.0 : 0.6,
+              child: RepaintBoundary(
+                key: _canvasKey,
+                child: SizedBox(
+                  height: 180,
+                  width: double.infinity,
+                  child: GestureDetector(
+                    onPanStart: (details) {
+                      setState(() {
+                        _currentStroke = [details.localPosition];
+                      });
+                    },
+                    onPanUpdate: (details) {
+                      setState(() {
+                        _currentStroke = [..._currentStroke, details.localPosition];
+                      });
+                    },
+                    onPanEnd: (details) {
+                      setState(() {
+                        _strokes.add(_currentStroke);
+                        _currentStroke = [];
+                      });
+                    },
+                    child: CustomPaint(
+                      painter: _SignaturePainter(
+                        strokes: _strokes,
+                        currentStroke: _currentStroke,
+                      ),
+                      size: Size.infinite,
                     ),
-                    size: Size.infinite,
                   ),
                 ),
               ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Firme en el recuadro',
-              style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
-            ),
+
+            if (!_hasSignature) ...[
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.touch_app_outlined, size: 12, color: Colors.grey.shade400),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Toque y arrastre para firmar',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.grey.shade400,
+                      fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+
             const SizedBox(height: 16),
 
             // Buttons
             Row(
               children: [
                 Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      setState(() {
-                        _strokes.clear();
-                        _currentStroke = [];
-                      });
-                    },
-                    icon: const Icon(Icons.refresh, size: 18),
-                    label: const Text('Limpiar'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.grey.shade700,
-                      side: BorderSide(color: Colors.grey.shade400),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8)),
+                  child: InkWell(
+                    onTap: () => Navigator.pop(context),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade300, width: 0.6),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Center(
+                        child: Text(
+                          'Cancelar',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                            fontWeight: FontWeight.w500,
+                            fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.grey.shade700,
-                      side: BorderSide(color: Colors.grey.shade400),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8)),
-                    ),
-                    child: const Text('Cancelar'),
-                  ),
-                ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 10),
                 Expanded(
                   flex: 2,
-                  child: ElevatedButton.icon(
+                  child: CustomButton(
+                    backgroundColor: AppColors.blue1,
+                    text: 'Guardar firma',
+                    icon: const Icon(Icons.save_outlined, size: 16, color: Colors.white,),
                     onPressed: _hasSignature ? _guardarFirma : null,
-                    icon: const Icon(Icons.save, size: 18),
-                    label: const Text('Guardar'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.blue1,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8)),
-                    ),
                   ),
                 ),
               ],

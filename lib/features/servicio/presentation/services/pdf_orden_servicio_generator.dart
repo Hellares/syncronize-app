@@ -182,10 +182,10 @@ class PdfOrdenServicioGenerator {
                       fontWeight: pw.FontWeight.bold,
                       color: primaryColor)),
               pw.SizedBox(height: 3),
-              ...orden.datosPersonalizados!.entries.map((entry) {
-                final value = entry.value is List
-                    ? (entry.value as List).join(', ')
-                    : entry.value?.toString() ?? '';
+              ...orden.datosPersonalizados!.entries
+                  .where((entry) => _isRelevantField(entry.value))
+                  .map((entry) {
+                final value = _formatFieldValue(entry.value);
                 if (value.isEmpty) return pw.SizedBox.shrink();
                 return _infoRow(entry.key, value, fs: fsSmall);
               }),
@@ -331,32 +331,31 @@ class PdfOrdenServicioGenerator {
                         color: primaryColor)),
                 pw.SizedBox(height: 3),
                 if (totalMO > 0)
-                  _infoRow('Mano de obra', 'S/ ${totalMO.toStringAsFixed(2)}', fs: fsSmall),
+                  _costRow('Mano de obra', 'S/ ${totalMO.toStringAsFixed(2)}', fs: fsSmall),
                 if (totalRep > 0)
-                  _infoRow('Repuestos', 'S/ ${totalRep.toStringAsFixed(2)}', fs: fsSmall),
+                  _costRow('Repuestos', 'S/ ${totalRep.toStringAsFixed(2)}', fs: fsSmall),
                 if (totalMO > 0 && totalRep > 0)
-                  _infoRow('Subtotal componentes', 'S/ ${subtotalComp.toStringAsFixed(2)}', fs: fsSmall),
+                  _costRow('Subtotal componentes', 'S/ ${subtotalComp.toStringAsFixed(2)}', fs: fsSmall),
                 if (orden.costoTotal != null)
-                  _infoRow('Costo del servicio', 'S/ ${orden.costoTotal!.toStringAsFixed(2)}', fs: fsSmall),
+                  _costRow('Costo del servicio', 'S/ ${orden.costoTotal!.toStringAsFixed(2)}', fs: fsSmall),
                 if (orden.costoTotal != null && subtotalComp > 0)
-                  _costRow('Subtotal:', 'S/ ${orden.subtotal!.toStringAsFixed(2)}', fs: fsSmall, bold: true),
+                  _costRow('Subtotal', 'S/ ${orden.subtotal!.toStringAsFixed(2)}', fs: fsSmall, bold: true),
                 if (orden.descuento != null && orden.descuento! > 0)
-                  _infoRow('Descuento', '- S/ ${orden.descuento!.toStringAsFixed(2)}', fs: fsSmall),
+                  _costRow('Descuento', '- S/ ${orden.descuento!.toStringAsFixed(2)}', fs: fsSmall),
                 if (costoFinal != null)
-                  _costRow('Costo final:', 'S/ ${costoFinal.toStringAsFixed(2)}', fs: fsSmall, bold: true),
-                if (orden.adelanto != null && orden.adelanto! > 0) ...[
-                  _infoRow('Adelanto${orden.metodoPagoAdelanto != null ? " (${orden.metodoPagoAdelanto})" : ""}',
+                  _costRow('Costo final', 'S/ ${costoFinal.toStringAsFixed(2)}', fs: fsSmall, bold: true),
+                if (orden.adelanto != null && orden.adelanto! > 0)
+                  _costRow('Adelanto${orden.metodoPagoAdelanto != null ? " (${orden.metodoPagoAdelanto})" : ""}',
                       'S/ ${orden.adelanto!.toStringAsFixed(2)}', fs: fsSmall),
-                ],
                 if (saldoPendiente != null)
                   _costRow(
-                    saldoPendiente <= 0 ? 'PAGADO:' : 'SALDO PENDIENTE:',
+                    saldoPendiente <= 0 ? 'PAGADO' : 'SALDO PENDIENTE',
                     'S/ ${saldoPendiente <= 0 ? "0.00" : saldoPendiente.toStringAsFixed(2)}',
                     fs: fsSmall,
                     bold: true,
                   )
                 else if (orden.costoTotal == null && subtotalComp > 0)
-                  _costRow('TOTAL:', 'S/ ${subtotalComp.toStringAsFixed(2)}', fs: fsSmall, bold: true),
+                  _costRow('TOTAL', 'S/ ${subtotalComp.toStringAsFixed(2)}', fs: fsSmall, bold: true),
               ];
             }(),
 
@@ -457,8 +456,8 @@ class PdfOrdenServicioGenerator {
         if (logo != null)
           pw.Image(
             pw.MemoryImage(logo),
-            height: 35,
-            width: 80,
+            height: 50,
+            width: 120,
             fit: pw.BoxFit.contain,
           ),
         pw.SizedBox(height: logo != null ? 4 : 0),
@@ -506,11 +505,10 @@ class PdfOrdenServicioGenerator {
   static pw.Widget _divider() {
     return pw.Container(
       width: double.infinity,
-      child: pw.Text(
-        '- ' * 40,
-        style: const pw.TextStyle(fontSize: 6),
-        maxLines: 1,
-        overflow: pw.TextOverflow.clip,
+      decoration: const pw.BoxDecoration(
+        border: pw.Border(
+          bottom: pw.BorderSide(width: 0.5, style: pw.BorderStyle.dashed),
+        ),
       ),
     );
   }
@@ -568,6 +566,32 @@ class PdfOrdenServicioGenerator {
       'SOPORTE': 'Soporte',
     };
     return labels[tipo] ?? tipo;
+  }
+
+  /// Filtra campos no relevantes para el ticket (imágenes, booleanos)
+  static bool _isRelevantField(dynamic value) {
+    if (value == null) return false;
+    if (value is bool) return false;
+    if (value is String) {
+      final lower = value.toLowerCase();
+      if (lower == 'true' || lower == 'false') return false;
+    }
+    return true;
+  }
+
+  /// Formatea valores de campos personalizados para lectura legible
+  static String _formatFieldValue(dynamic value) {
+    if (value == null) return '';
+    if (value is Map) {
+      return value.entries
+          .where((e) => e.value != null && e.value.toString().isNotEmpty)
+          .map((e) => '${e.key}: ${e.value}')
+          .join(' | ');
+    }
+    if (value is List) {
+      return value.map((e) => _formatFieldValue(e)).join(', ');
+    }
+    return value.toString();
   }
 
   static String _estadoLabel(String estado) {

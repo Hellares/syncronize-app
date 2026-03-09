@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:syncronize/core/fonts/app_fonts.dart';
+import 'package:syncronize/core/fonts/app_text_widgets.dart';
+import 'package:syncronize/core/theme/app_colors.dart';
+import 'package:syncronize/core/widgets/custom_search_field.dart';
 import '../../../../core/di/injection_container.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/resource.dart';
 import '../../../usuario/domain/entities/registro_usuario_response.dart';
 import '../../../usuario/domain/entities/usuario.dart';
@@ -26,18 +29,11 @@ class _AsignarTecnicoSheetState extends State<AsignarTecnicoSheet> {
   List<Usuario> _filteredTecnicos = [];
   bool _isLoading = true;
   String? _error;
-  final _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _loadTecnicos();
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
   }
 
   Future<void> _loadTecnicos() async {
@@ -90,8 +86,12 @@ class _AsignarTecnicoSheetState extends State<AsignarTecnicoSheet> {
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(16),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -107,113 +107,77 @@ class _AsignarTecnicoSheetState extends State<AsignarTecnicoSheet> {
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
 
-            // Title
-            const Row(
+            // Header
+            Row(
               children: [
-                Icon(Icons.engineering, color: AppColors.blue1, size: 20),
-                SizedBox(width: 8),
-                Text(
-                  'Asignar tecnico',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.blue1.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.engineering, color: AppColors.blue1, size: 20),
                 ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Search
-            TextFormField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Buscar tecnico...',
-                prefixIcon: const Icon(Icons.search, size: 20),
-                border:
-                    OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: AppColors.blue1),
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 12),
-              ),
-              onChanged: _filterTecnicos,
-            ),
-            const SizedBox(height: 12),
-
-            // List
-            if (_isLoading)
-              const Padding(
-                padding: EdgeInsets.all(32),
-                child: Center(
-                    child: CircularProgressIndicator(color: AppColors.blue1)),
-              )
-            else if (_error != null)
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Center(
+                const SizedBox(width: 12),
+                Expanded(
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(_error!,
-                          style: TextStyle(color: Colors.grey.shade600)),
-                      const SizedBox(height: 8),
-                      TextButton(
-                          onPressed: _loadTecnicos,
-                          child: const Text('Reintentar')),
+                      const AppTitle('Asignar tecnico', fontSize: 15, color: AppColors.blue1),
+                      AppLabelText(
+                        '${_tecnicos.length} tecnicos disponibles',
+                        fontSize: 10,
+                        color: Colors.grey.shade500,
+                      ),
                     ],
                   ),
                 ),
-              )
-            else if (_filteredTecnicos.isEmpty)
-              Padding(
-                padding: const EdgeInsets.all(24),
-                child: Center(
-                  child: Text(
-                    _searchController.text.isEmpty
-                        ? 'No hay tecnicos registrados'
-                        : 'Sin resultados',
-                    style: TextStyle(color: Colors.grey.shade500),
+                InkWell(
+                  onTap: () => Navigator.pop(context),
+                  borderRadius: BorderRadius.circular(20),
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: Icon(Icons.close, size: 20, color: Colors.grey.shade400),
                   ),
                 ),
+              ],
+            ),
+            const SizedBox(height: 14),
+
+            // Search
+            CustomSearchField(
+              hintText: 'Buscar tecnico...',
+              borderColor: AppColors.blue1,
+              onChanged: _filterTecnicos,
+            ),
+            const SizedBox(height: 10),
+
+            // Content
+            if (_isLoading)
+              const Padding(
+                padding: EdgeInsets.all(32),
+                child: Center(child: CircularProgressIndicator(color: AppColors.blue1)),
               )
+            else if (_error != null)
+              _buildErrorState()
+            else if (_filteredTecnicos.isEmpty)
+              _buildEmptyState()
             else
               Flexible(
                 child: ListView.separated(
                   shrinkWrap: true,
+                  padding: const EdgeInsets.only(top: 4),
                   itemCount: _filteredTecnicos.length,
-                  separatorBuilder: (_, __) =>
-                      Divider(height: 1, color: Colors.grey.shade200),
+                  separatorBuilder: (_, __) => Divider(
+                    height: 1,
+                    color: Colors.grey.shade200,
+                  ),
                   itemBuilder: (context, index) {
                     final tecnico = _filteredTecnicos[index];
                     final isSelected = tecnico.id == widget.tecnicoActualId;
-
-                    return ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor:
-                            isSelected ? AppColors.blue1 : AppColors.bluechip,
-                        child: Icon(
-                          Icons.person,
-                          color: isSelected ? Colors.white : AppColors.blue1,
-                          size: 20,
-                        ),
-                      ),
-                      title: Text(
-                        tecnico.nombreCompleto,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight:
-                              isSelected ? FontWeight.w700 : FontWeight.w500,
-                        ),
-                      ),
-                      trailing: isSelected
-                          ? const Icon(Icons.check_circle,
-                              color: AppColors.blue1, size: 20)
-                          : null,
-                      onTap: () => Navigator.pop(context, tecnico),
-                      dense: true,
-                      contentPadding:
-                          const EdgeInsets.symmetric(horizontal: 8),
-                    );
+                    return _buildTecnicoTile(tecnico, isSelected);
                   },
                 ),
               ),
@@ -221,5 +185,149 @@ class _AsignarTecnicoSheetState extends State<AsignarTecnicoSheet> {
         ),
       ),
     );
+  }
+
+  Widget _buildTecnicoTile(Usuario tecnico, bool isSelected) {
+    return InkWell(
+      onTap: () => Navigator.pop(context, tecnico),
+      child: Container(
+        color: isSelected ? AppColors.blue1.withValues(alpha: 0.05) : null,
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+        child: Row(
+          children: [
+            // Avatar
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? AppColors.blue1
+                    : AppColors.blue1.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Center(
+                child: Text(
+                  _getInitials(tecnico.nombreCompleto),
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: isSelected ? Colors.white : AppColors.blue1,
+                    fontFamily: AppFonts.getFontFamily(AppFont.oxygenBold),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+
+            // Info
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    tecnico.nombreCompleto,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                      color: isSelected ? AppColors.blue1 : Colors.grey.shade800,
+                      fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
+                    ),
+                  ),
+                  if (tecnico.email != null) ...[
+                    const SizedBox(height: 1),
+                    Text(
+                      tecnico.email!,
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey.shade500,
+                        fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+
+            // Selected indicator
+            if (isSelected)
+              const Icon(Icons.check_circle, color: AppColors.blue1, size: 16)
+            else
+              Icon(Icons.chevron_right, size: 16, color: Colors.grey.shade300),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Center(
+        child: Column(
+          children: [
+            Icon(Icons.person_off_outlined, size: 40, color: Colors.grey.shade400),
+            const SizedBox(height: 10),
+            Text(
+              'No hay tecnicos disponibles',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey.shade500,
+                fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Center(
+        child: Column(
+          children: [
+            Icon(Icons.error_outline, size: 36, color: Colors.red.shade300),
+            const SizedBox(height: 8),
+            Text(
+              _error!,
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 10),
+            InkWell(
+              onTap: _loadTecnicos,
+              borderRadius: BorderRadius.circular(6),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppColors.bluechip,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.refresh, size: 14, color: AppColors.blue1),
+                    SizedBox(width: 4),
+                    Text('Reintentar',
+                        style: TextStyle(fontSize: 11, color: AppColors.blue1, fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _getInitials(String name) {
+    final parts = name.trim().split(' ');
+    if (parts.length >= 2) {
+      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    }
+    return parts.isNotEmpty && parts[0].isNotEmpty ? parts[0][0].toUpperCase() : '?';
   }
 }

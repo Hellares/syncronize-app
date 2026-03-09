@@ -4,11 +4,15 @@ import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/services/bluetooth_printer_service.dart';
 import '../../../../core/services/storage_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../domain/entities/orden_servicio.dart';
 import '../services/pdf_orden_servicio_generator.dart';
+import '../services/ticket_esc_pos_generator.dart';
+import '../widgets/bluetooth_printer_sheet.dart';
 
 class DocumentoOrdenServicioPreviewPage extends StatefulWidget {
   final OrdenServicio orden;
@@ -111,13 +115,11 @@ class _DocumentoOrdenServicioPreviewPageState
         foregroundColor: Colors.white,
         actions: [
           if (_pdfBytes != null) ...[
-            // Share via native share sheet
             IconButton(
               icon: const Icon(Icons.share),
               onPressed: _shareDocument,
               tooltip: 'Compartir',
             ),
-            // Direct WhatsApp share
             if (widget.orden.cliente?.telefono != null)
               IconButton(
                 icon: const Icon(Icons.chat),
@@ -162,14 +164,13 @@ class _DocumentoOrdenServicioPreviewPageState
               const SizedBox(height: 16),
               Text(_error!, textAlign: TextAlign.center, style: const TextStyle(fontSize: 13)),
               const SizedBox(height: 24),
-              ElevatedButton.icon(
+              CustomButton(
+                text: 'Reintentar',
+                icon: const Icon(Icons.refresh, size: 16, color: Colors.white),
+                backgroundColor: AppColors.blue1,
+                height: 40,
+                borderRadius: 8,
                 onPressed: _generatePdf,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Reintentar'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.blue1,
-                  foregroundColor: Colors.white,
-                ),
               ),
             ],
           ),
@@ -197,7 +198,7 @@ class _DocumentoOrdenServicioPreviewPageState
     final hasPhone = widget.orden.cliente?.telefono != null;
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -208,43 +209,61 @@ class _DocumentoOrdenServicioPreviewPageState
           ),
         ],
       ),
-      child: Row(
-        children: [
-          // Share general
-          Expanded(
-            child: OutlinedButton.icon(
-              onPressed: _shareDocument,
-              icon: const Icon(Icons.share, size: 18),
-              label: const Text('Compartir'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.blue1,
-                side: const BorderSide(color: AppColors.blue1),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-            ),
-          ),
-          if (hasPhone) ...[
-            const SizedBox(width: 12),
-            // WhatsApp button
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: _shareToWhatsApp,
-                icon: const Icon(Icons.chat, size: 18),
-                label: const Text('WhatsApp'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF25D366),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      child: SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Primera fila: Compartir + WhatsApp
+            Row(
+              children: [
+                Expanded(
+                  child: CustomButton(
+                    text: 'Compartir',
+                    icon: const Icon(Icons.share, size: 14, color: AppColors.blue1),
+                    isOutlined: true,
+                    borderColor: AppColors.blue1,
+                    textColor: AppColors.blue1,
+                    enableShadows: false,
+                    height: 38,
+                    borderRadius: 8,
+                    onPressed: _shareDocument,
+                  ),
                 ),
+                if (hasPhone) ...[
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: CustomButton(
+                      text: 'WhatsApp',
+                      icon: const Icon(Icons.chat, size: 14, color: Colors.white),
+                      backgroundColor: const Color(0xFF25D366),
+                      height: 38,
+                      borderRadius: 8,
+                      onPressed: _shareToWhatsApp,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            const SizedBox(height: 8),
+            // Segunda fila: Imprimir BT
+            SizedBox(
+              width: double.infinity,
+              child: CustomButton(
+                text: 'Imprimir Bluetooth',
+                icon: const Icon(Icons.bluetooth, size: 16, color: Colors.white),
+                backgroundColor: AppColors.blue1,
+                height: 42,
+                borderRadius: 8,
+                onPressed: _printBluetooth,
               ),
             ),
           ],
-        ],
+        ),
       ),
     );
   }
+
+  // ── Actions ──
 
   String _getFileName() {
     return 'Orden_${widget.orden.codigo}_${DateTime.now().millisecondsSinceEpoch}.pdf';
@@ -265,12 +284,9 @@ class _DocumentoOrdenServicioPreviewPageState
     final telefono = widget.orden.cliente?.telefono;
     if (telefono == null) return;
 
-    // First share the PDF (user picks WhatsApp from share sheet)
-    // Then open WhatsApp chat with the client's number
     try {
       await Printing.sharePdf(bytes: _pdfBytes!, filename: _getFileName());
 
-      // Build WhatsApp message
       final mensaje = Uri.encodeComponent(
         'Hola ${widget.orden.cliente?.nombre ?? ""}! '
         'Le compartimos el ticket de su orden de servicio '
@@ -279,10 +295,8 @@ class _DocumentoOrdenServicioPreviewPageState
         'Gracias por su confianza.',
       );
 
-      // Normalize phone number (remove spaces, dashes)
       var phone = telefono.replaceAll(RegExp(r'[\s\-\(\)]'), '');
       if (!phone.startsWith('+')) {
-        // Default to Peru country code if no prefix
         if (phone.startsWith('9') && phone.length == 9) {
           phone = '51$phone';
         }
@@ -308,6 +322,34 @@ class _DocumentoOrdenServicioPreviewPageState
       );
     } catch (e) {
       if (mounted) _showError('Error al imprimir: $e');
+    }
+  }
+
+  Future<void> _printBluetooth() async {
+    try {
+      final paperSize = await BluetoothPrinterService.getPaperSize();
+
+      final ticketBytes = await TicketEscPosGenerator.generarTicket(
+        orden: widget.orden,
+        empresaNombre: widget.empresaNombre,
+        empresaRuc: widget.empresaRuc,
+        empresaDireccion: widget.empresaDireccion,
+        empresaTelefono: widget.empresaTelefono,
+        sedeNombre: widget.sedeNombre,
+        logoEmpresa: widget.logoEmpresa,
+        paperWidth: paperSize,
+      );
+
+      if (!mounted) return;
+
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => BluetoothPrinterSheet(ticketBytes: ticketBytes),
+      );
+    } catch (e) {
+      if (mounted) _showError('Error al generar ticket: $e');
     }
   }
 

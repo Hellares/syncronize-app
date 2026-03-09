@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/fonts/app_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_gradients.dart';
 import '../../../../core/theme/gradient_background.dart';
+import '../../../../core/theme/gradient_container.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../../../core/widgets/custom_loading.dart';
 import '../../../../core/utils/date_formatter.dart';
@@ -179,32 +182,33 @@ class _TercerizacionCard extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: Material(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        elevation: 0,
+      child: GradientContainer(
+        gradient: AppGradients.blueWhiteBlue(),
+        shadowStyle: ShadowStyle.glow,
+        borderColor: AppColors.blueborder,
+        borderWidth: 0.6,
         child: InkWell(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(8),
           onTap: () => context.push('/empresa/tercerizacion/${item.id}'),
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: Colors.grey.shade200,
-                width: 0.8,
-              ),
-            ),
+          child: Padding(
             padding: const EdgeInsets.all(12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ─── Fila superior: Dirección + Estado ───
+                // ─── Header: Dirección + Empresa + Estado ───
                 Row(
                   children: [
-                    Icon(
-                      isEnviada ? Icons.call_made : Icons.call_received,
-                      size: 18,
-                      color: dirColor,
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: dirColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        isEnviada ? Icons.call_made : Icons.call_received,
+                        size: 16,
+                        color: dirColor,
+                      ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
@@ -213,10 +217,11 @@ class _TercerizacionCard extends StatelessWidget {
                         children: [
                           Text(
                             empresaNombre,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
                               color: AppColors.blue2,
+                              fontFamily: AppFonts.getFontFamily(AppFont.oxygenBold),
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -225,9 +230,9 @@ class _TercerizacionCard extends StatelessWidget {
                           Text(
                             isEnviada ? 'Enviada' : 'Recibida',
                             style: TextStyle(
-                              fontSize: 11,
+                              fontSize: 10,
                               color: Colors.grey.shade500,
-                              fontWeight: FontWeight.w500,
+                              fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
                             ),
                           ),
                         ],
@@ -237,24 +242,24 @@ class _TercerizacionCard extends StatelessWidget {
                   ],
                 ),
 
-                const SizedBox(height: 10),
-                Divider(height: 1, color: Colors.grey.shade100),
-                const SizedBox(height: 10),
+                const SizedBox(height: 6),
+                Divider(height: 1, color: Colors.grey.shade200),
+                const SizedBox(height: 6),
 
-                // ─── Info del equipo ───
-                if (equipoLabel.isNotEmpty)
+                // ─── Equipo ───
+                if (equipoLabel.isNotEmpty) ...[
                   Row(
                     children: [
-                      Icon(Icons.devices_outlined,
-                          size: 15, color: Colors.grey.shade500),
+                      Icon(Icons.devices_outlined, size: 14, color: Colors.grey.shade500),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
                           equipoLabel,
-                          style: const TextStyle(
-                            fontSize: 13,
+                          style: TextStyle(
+                            fontSize: 11,
                             fontWeight: FontWeight.w600,
                             color: AppColors.blue2,
+                            fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -262,70 +267,46 @@ class _TercerizacionCard extends StatelessWidget {
                       ),
                     ],
                   ),
-
-                if (equipoLabel.isNotEmpty)
                   const SizedBox(height: 8),
+                ],
 
-                // ─── Fila inferior: Fecha, orden, componentes, precio ───
-                Row(
+                // ─── Chips de info ───
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
                   children: [
-                    Icon(Icons.calendar_today_outlined,
-                        size: 13, color: Colors.grey.shade400),
-                    const SizedBox(width: 4),
-                    Text(
+                    _infoChip(
+                      Icons.calendar_today_outlined,
                       DateFormatter.formatDate(item.fechaSolicitud),
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey.shade500,
-                      ),
                     ),
-                    if (item.ordenOrigen != null) ...[
-                      const SizedBox(width: 12),
-                      Icon(Icons.receipt_long,
-                          size: 13, color: Colors.grey.shade400),
-                      const SizedBox(width: 4),
-                      Text(
+                    if (item.ordenOrigen != null)
+                      _infoChip(
+                        Icons.receipt_long,
                         item.ordenOrigen!.codigo,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey.shade500,
-                        ),
                       ),
-                    ],
-                    const Spacer(),
-                    // Componentes badge
-                    if (item.componentesData != null && item.componentesData is List && (item.componentesData as List).isNotEmpty)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.indigo.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          '${(item.componentesData as List).length} comp.',
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.indigo,
-                          ),
-                        ),
+                    if (item.componentesData != null &&
+                        item.componentesData is List &&
+                        (item.componentesData as List).isNotEmpty)
+                      _infoChip(
+                        Icons.build_outlined,
+                        '${(item.componentesData as List).length} comp.',
+                        bgColor: Colors.indigo.withValues(alpha: 0.08),
+                        iconColor: Colors.indigo,
+                        textColor: Colors.indigo,
                       ),
-                    if (item.precioB2B != null) ...[
-                      const SizedBox(width: 8),
-                      Text(
+                    if (item.precioB2B != null)
+                      _infoChip(
+                        Icons.payments_outlined,
                         'S/ ${item.precioB2B!.toStringAsFixed(2)}',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.blue1,
-                        ),
+                        bgColor: AppColors.blue1.withValues(alpha: 0.08),
+                        iconColor: AppColors.blue1,
+                        textColor: AppColors.blue1,
+                        bold: true,
                       ),
-                    ],
                   ],
                 ),
 
-                // ─── Descripción del problema (si existe) ───
+                // ─── Descripción del problema ───
                 if (item.datosEquipo['descripcionProblema'] is String &&
                     (item.datosEquipo['descripcionProblema'] as String).isNotEmpty) ...[
                   const SizedBox(height: 8),
@@ -333,7 +314,7 @@ class _TercerizacionCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Icon(Icons.description_outlined,
-                          size: 13, color: Colors.grey.shade400),
+                          size: 12, color: Colors.grey.shade400),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
@@ -341,9 +322,10 @@ class _TercerizacionCard extends StatelessWidget {
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 11,
+                            fontSize: 10,
                             color: Colors.grey.shade500,
                             height: 1.3,
+                            fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
                           ),
                         ),
                       ),
@@ -354,6 +336,37 @@ class _TercerizacionCard extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _infoChip(IconData icon, String text, {
+    Color? bgColor,
+    Color? iconColor,
+    Color? textColor,
+    bool bold = false,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: bgColor ?? Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 11, color: iconColor ?? Colors.grey.shade500),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
+              color: textColor ?? Colors.grey.shade600,
+              fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -371,8 +384,8 @@ class _EstadoBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: (config['color'] as Color).withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(12),
+        color: (config['color'] as Color).withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
         config['label'] as String,
@@ -380,6 +393,7 @@ class _EstadoBadge extends StatelessWidget {
           fontSize: 9,
           fontWeight: FontWeight.w700,
           color: config['color'] as Color,
+          fontFamily: AppFonts.getFontFamily(AppFont.oxygenBold),
         ),
       ),
     );

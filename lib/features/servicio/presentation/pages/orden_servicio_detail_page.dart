@@ -2,14 +2,19 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:syncronize/core/widgets/info_chip.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/services/storage_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_gradients.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/theme/gradient_container.dart';
 import '../../../../core/fonts/app_text_widgets.dart';
+import '../../../../core/widgets/custom_button.dart';
+import '../../../../core/widgets/custom_dropdown.dart';
 import '../../../../core/widgets/smart_appbar.dart';
+import '../../../auth/presentation/widgets/custom_text.dart';
 import '../../../../core/utils/resource.dart';
 import '../../domain/entities/orden_servicio.dart';
 import '../../domain/repositories/orden_servicio_repository.dart';
@@ -137,7 +142,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
           actions: [
             if (_orden != null)
               IconButton(
-                icon: const Icon(Icons.receipt_long, color: Colors.white),
+                icon: const Icon(Icons.receipt_long, color: Colors.white, size: 19,),
                 onPressed: _generarTicket,
                 tooltip: 'Generar ticket',
               ),
@@ -190,51 +195,36 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
       onRefresh: _loadAll,
       color: AppColors.blue1,
       child: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(14),
         children: [
-          _buildHeaderSection(),
+          // ─── Card principal: Info general ───
+          _buildInfoCard(),
           if (!_orden!.isClienteFinal) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             _buildTercerizacionBanner(),
           ],
-          const SizedBox(height: 12),
-          if (_orden!.cliente != null) ...[
-            _buildClienteSection(),
-            const SizedBox(height: 12),
-          ],
-          if (_orden!.tipoEquipo != null || _orden!.marcaEquipo != null) ...[
-            _buildEquipoSection(),
-            const SizedBox(height: 12),
-          ],
-          if (_orden!.descripcionProblema != null ||
-              _orden!.sintomas != null ||
-              _orden!.diagnostico != null) ...[
-            _buildProblemaSection(),
-            const SizedBox(height: 12),
-          ],
-          if (_orden!.accesorios != null) ...[
-            _buildAccesoriosSection(),
-            const SizedBox(height: 12),
-          ],
-          if (_orden!.datosPersonalizados != null &&
-              _orden!.datosPersonalizados!.isNotEmpty) ...[
-            _buildDatosPersonalizadosSection(),
-            const SizedBox(height: 12),
-          ],
+          const SizedBox(height: 10),
+          // ─── Card interactiva: Componentes ───
+          _buildComponentesSection(),
+          const SizedBox(height: 10),
+          // ─── Card interactiva: Costos ───
+          _buildResumenCostosSection(),
+          const SizedBox(height: 10),
+          // ─── Card interactiva: Imagenes ───
           if (_shouldShowImagenes()) ...[
             _buildImagenesSection(),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
           ],
-          _buildComponentesSection(),
-          const SizedBox(height: 12),
-          _buildResumenCostosSection(),
-          const SizedBox(height: 12),
+          // ─── Card: Cronometro ───
           _buildCronometroSection(),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
+          // ─── Card: Aviso de mantenimiento ───
           _buildAvisoMantenimientoSection(),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
+          // ─── Card: Historial ───
           _buildHistorialSection(),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
+          // ─── Card interactiva: Firma ───
           _buildFirmaSection(),
           const SizedBox(height: 80),
         ],
@@ -242,359 +232,324 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     );
   }
 
-  // ─── Header ───
+  // ─── Info Card consolidada ───
 
-  Widget _buildHeaderSection() {
+  Widget _buildInfoCard() {
+    final prioridadColor = _prioridadColorHelper(_orden!.prioridad);
+
     return GradientContainer(
+      gradient: AppGradients.blueWhiteBlue(),
+      shadowStyle: ShadowStyle.glow,
       borderColor: AppColors.blueborder,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppColors.bluechip,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(Icons.build_outlined,
-                      color: AppColors.blue1, size: 20),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      AppSubtitle(_orden!.codigo, fontSize: 15),
-                      Text(
-                        _tipoServicioLabel(_orden!.tipoServicio),
-                        style: TextStyle(
-                            fontSize: 11, color: Colors.grey.shade600),
-                      ),
-                    ],
-                  ),
-                ),
-                EstadoBadgeWidget(estado: _orden!.estado),
-                if (_orden!.cantidadReingresos > 0) ...[
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.orange.withValues(alpha: 0.4)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.replay, size: 12, color: Colors.orange),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Reingreso x${_orden!.cantidadReingresos}',
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.orange,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ],
-            ),
-            if (_orden!.motivoReingreso != null) ...[
-              const SizedBox(height: 8),
+      borderWidth: 0.6,
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Header: Código + Estado ──
+          Row(
+            children: [
               Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.orange.withValues(alpha: 0.08),
+                  color: prioridadColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.orange.withValues(alpha: 0.2)),
                 ),
-                child: Row(
+                child: Icon(Icons.build_outlined,
+                    color: prioridadColor, size: 16),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.info_outline, size: 16, color: Colors.orange),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Motivo ultimo reingreso:',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.orange,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            _orden!.motivoReingreso!,
-                            style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
-                          ),
-                        ],
-                      ),
+                    AppSubtitle(_orden!.codigo, fontSize: 12),
+                    Text(
+                      _tipoServicioLabel(_orden!.tipoServicio),
+                      style: TextStyle(
+                          fontSize: 10, color: Colors.grey.shade600),
                     ),
                   ],
                 ),
               ),
-            ],
-            const SizedBox(height: 14),
-            _buildDetailRow(
-                Icons.flag_outlined, 'Prioridad', _orden!.prioridad),
-            if (_orden!.costoFinal != null)
-              _buildDetailRow(Icons.monetization_on_outlined, 'Costo total',
-                  'S/ ${_orden!.costoFinal!.toStringAsFixed(2)}'),
-            _buildDetailRow(Icons.calendar_today, 'Creada',
-                DateFormatter.formatDateTime(_orden!.creadoEn)),
-            if (_orden!.fechaEntrega != null)
-              _buildDetailRow(Icons.event_available, 'Entregada',
-                  DateFormatter.formatDateTime(_orden!.fechaEntrega!)),
-            _buildDetailRow(Icons.medical_information_outlined, 'Diagnostico',
-                _estadoDiagnosticoLabel(_orden!.estadoDiagnostico)),
-            Row(
-              children: [
-                Expanded(
-                  child: _orden!.tecnico != null
-                      ? _buildDetailRow(Icons.engineering_outlined, 'Tecnico',
-                          _orden!.tecnico!.nombre ?? 'Sin nombre')
-                      : _buildDetailRow(Icons.engineering_outlined, 'Tecnico',
-                          'Sin asignar'),
+              EstadoBadgeWidget(estado: _orden!.estado),
+              if (_orden!.cantidadReingresos > 0) ...[
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: Colors.orange.withValues(alpha: 0.4), width: 0.6),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.replay, size: 10, color: Colors.orange),
+                      const SizedBox(width: 3),
+                      Text(
+                        'x${_orden!.cantidadReingresos}',
+                        style: const TextStyle(
+                          fontSize: 9, fontWeight: FontWeight.w600, color: Colors.orange,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                InkWell(
-                  onTap: _showAsignarTecnicoSheet,
-                  borderRadius: BorderRadius.circular(8),
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              ],
+            ],
+          ),
+
+          // Reingreso motivo
+          if (_orden!.motivoReingreso != null) ...[
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.orange.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.orange.withValues(alpha: 0.15), width: 0.6),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.info_outline, size: 13, color: Colors.orange),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      _orden!.motivoReingreso!,
+                      style: TextStyle(fontSize: 10, color: Colors.grey.shade700),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 10),
+
+          // ── Chips: Prioridad, Fecha, Diagnóstico ──
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              _infoChip(Icons.flag_outlined, _orden!.prioridad, color: prioridadColor),
+              _infoChip(Icons.calendar_today, DateFormatter.formatDate(_orden!.creadoEn)),
+              _infoChip(Icons.access_time, DateFormatter.formatTime(_orden!.creadoEn)),
+              _infoChip(Icons.medical_information_outlined,
+                  _estadoDiagnosticoLabel(_orden!.estadoDiagnostico)),
+              if (_orden!.costoFinal != null)
+                _infoChip(Icons.monetization_on_outlined,
+                    'S/ ${_orden!.costoFinal!.toStringAsFixed(2)}',
+                    color: AppColors.blue1),
+              if (_orden!.fechaEntrega != null)
+                _infoChip(Icons.event_available,
+                    DateFormatter.formatDate(_orden!.fechaEntrega!),
+                    color: AppColors.green),
+            ],
+          ),
+
+          _sectionDivider(),
+
+          // ── Técnico ──
+          Row(
+            children: [
+              Icon(Icons.engineering_outlined, size: 13, color: Colors.grey.shade500),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  _orden!.tecnico != null
+                      ? _orden!.tecnico!.nombreCompleto
+                      : 'Sin tecnico asignado',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: _orden!.tecnico != null ? Colors.grey.shade700 : Colors.grey.shade500,
+                    fontStyle: _orden!.tecnico != null ? FontStyle.normal : FontStyle.italic,
+                  ),
+                ),
+              ),
+              InkWell(
+                onTap: _showAsignarTecnicoSheet,
+                child: InfoChip(
+                  height: 25,
+                  borderColor: AppColors.blue1,
+                  borderRadius: 4,
+                  icon: _orden!.tecnico != null ? Icons.swap_horiz : Icons.person_add,
+                  text: _orden!.tecnico != null ? 'Cambiar' : 'Asignar',
+                  textColor: AppColors.blue1,
+
+                ),
+              ),
+            ],
+          ),
+
+          // ── Cliente ──
+          if (_orden!.cliente != null) ...[
+            _sectionDivider(),
+            _inlineSection(Icons.person_outline, 'CLIENTE', [
+              _buildDetailRow(Icons.person, 'Nombre', _orden!.cliente!.nombreCompleto),
+              if (_orden!.cliente!.documentoNumero != null)
+                _buildDetailRow(Icons.badge_outlined, 'Documento', _orden!.cliente!.documentoNumero!),
+              if (_orden!.cliente!.email != null)
+                _buildDetailRow(Icons.email_outlined, 'Email', _orden!.cliente!.email!),
+              if (_orden!.cliente!.telefono != null)
+                _buildDetailRow(Icons.phone_outlined, 'Telefono', _orden!.cliente!.telefono!),
+            ]),
+          ],
+
+          // ── Equipo ──
+          if (_orden!.tipoEquipo != null || _orden!.marcaEquipo != null || _orden!.modeloEquipo != null) ...[
+            _sectionDivider(),
+            _inlineSection(Icons.devices_outlined, 'EQUIPO', [
+              if (_orden!.modeloEquipo != null)
+                _buildDetailRow(Icons.devices, 'Modelo', _orden!.modeloEquipo!.nombreCompleto),
+              if (_orden!.modeloEquipo == null && _orden!.marcaEquipo != null)
+                _buildDetailRow(Icons.branding_watermark_outlined, 'Marca', _orden!.marcaEquipo!),
+              if (_orden!.tipoEquipo != null)
+                _buildDetailRow(Icons.category_outlined, 'Tipo', _orden!.tipoEquipo!),
+              if (_orden!.numeroSerie != null)
+                _buildDetailRow(Icons.qr_code_outlined, 'Serie', _orden!.numeroSerie!),
+              if (_orden!.condicionEquipo != null)
+                _buildDetailRow(Icons.info_outline, 'Condicion', _orden!.condicionEquipo!),
+            ]),
+          ],
+
+          // ── Problema / Diagnóstico ──
+          if (_orden!.descripcionProblema != null ||
+              _orden!.sintomas != null ||
+              _orden!.diagnostico != null) ...[
+            _sectionDivider(),
+            _inlineSection(Icons.report_problem_outlined, 'PROBLEMA', [
+              if (_orden!.descripcionProblema != null)
+                _buildDetailRow(Icons.description_outlined, 'Descripcion', _orden!.descripcionProblema!),
+              if (_orden!.sintomas != null)
+                _buildDetailRow(Icons.healing_outlined, 'Sintomas', _formatDynamicField(_orden!.sintomas)),
+              if (_orden!.diagnostico != null)
+                _buildDetailRow(Icons.biotech_outlined, 'Diagnostico', _formatDynamicField(_orden!.diagnostico)),
+            ]),
+          ],
+
+          // ── Accesorios ──
+          if (_orden!.accesorios != null) ...[
+            _sectionDivider(),
+            _inlineSection(Icons.inventory_2_outlined, 'ACCESORIOS', [
+              if (_orden!.accesorios is List)
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  children: (_orden!.accesorios as List).map<Widget>((item) => Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: AppColors.bluechip,
-                      borderRadius: BorderRadius.circular(8),
+                      color: AppColors.green.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: AppColors.green.withValues(alpha: 0.2), width: 0.6),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          _orden!.tecnico != null
-                              ? Icons.swap_horiz
-                              : Icons.person_add,
-                          size: 14,
-                          color: AppColors.blue1,
-                        ),
+                        Icon(Icons.check_circle_outline, size: 10, color: AppColors.green),
                         const SizedBox(width: 4),
-                        Text(
-                          _orden!.tecnico != null ? 'Cambiar' : 'Asignar',
-                          style: const TextStyle(
-                              fontSize: 11,
-                              color: AppColors.blue1,
-                              fontWeight: FontWeight.w600),
-                        ),
+                        Text(item.toString(), style: TextStyle(fontSize: 10, color: Colors.grey.shade700)),
                       ],
                     ),
-                  ),
+                  )).toList(),
+                )
+              else
+                Text(
+                  _orden!.accesorios.toString(),
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
                 ),
-              ],
-            ),
+            ]),
           ],
-        ),
-      ),
-    );
-  }
 
-  // ─── Cliente ───
-
-  Widget _buildClienteSection() {
-    final cliente = _orden!.cliente!;
-    return GradientContainer(
-      borderColor: AppColors.blueborder,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildSectionHeader(Icons.person_outline, 'CLIENTE'),
-            const SizedBox(height: 12),
-            _buildDetailRow(
-                Icons.person, 'Nombre', cliente.nombreCompleto),
-            if (cliente.documentoNumero != null)
-              _buildDetailRow(
-                  Icons.badge_outlined, 'Documento', cliente.documentoNumero!),
-            if (cliente.email != null)
-              _buildDetailRow(
-                  Icons.email_outlined, 'Email', cliente.email!),
-            if (cliente.telefono != null)
-              _buildDetailRow(
-                  Icons.phone_outlined, 'Telefono', cliente.telefono!),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ─── Equipo ───
-
-  Widget _buildEquipoSection() {
-    return GradientContainer(
-      borderColor: AppColors.blueborder,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildSectionHeader(Icons.devices_outlined, 'EQUIPO'),
-            const SizedBox(height: 12),
-            if (_orden!.tipoEquipo != null)
-              _buildDetailRow(
-                  Icons.category_outlined, 'Tipo', _orden!.tipoEquipo!),
-            if (_orden!.marcaEquipo != null)
-              _buildDetailRow(
-                  Icons.branding_watermark_outlined, 'Marca', _orden!.marcaEquipo!),
-            if (_orden!.numeroSerie != null)
-              _buildDetailRow(
-                  Icons.qr_code_outlined, 'Serie', _orden!.numeroSerie!),
-            if (_orden!.condicionEquipo != null)
-              _buildDetailRow(Icons.info_outline, 'Condicion',
-                  _orden!.condicionEquipo!),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ─── Problema ───
-
-  Widget _buildProblemaSection() {
-    return GradientContainer(
-      borderColor: AppColors.blueborder,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildSectionHeader(Icons.report_problem_outlined, 'PROBLEMA / DIAGNOSTICO'),
-            const SizedBox(height: 8),
-            if (_orden!.descripcionProblema != null)
-              _buildDetailRow(Icons.description_outlined, 'Problema',
-                  _orden!.descripcionProblema!),
-            if (_orden!.sintomas != null) ...[
-              const SizedBox(height: 4),
-              Row(
+          // ── Datos Personalizados ──
+          if (_orden!.datosPersonalizados != null &&
+              _orden!.datosPersonalizados!.isNotEmpty) ...[
+            () {
+              final displayEntries = _orden!.datosPersonalizados!.entries.where((e) {
+                if (e.value == null) return false;
+                if (e.value is String && (e.value as String).isEmpty) return false;
+                if (e.value is List && (e.value as List).isEmpty) return false;
+                return true;
+              }).toList();
+              if (displayEntries.isEmpty) return const SizedBox.shrink();
+              return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.healing_outlined, size: 14, color: Colors.grey.shade500),
-                  const SizedBox(width: 8),
-                  SizedBox(
-                    width: 85,
-                    child: Text('Sintomas',
-                        style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
-                  ),
-                  Expanded(
-                    child: Text(
-                      _formatDynamicField(_orden!.sintomas),
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-                    ),
+                  _sectionDivider(),
+                  _inlineSection(Icons.tune_outlined, 'DATOS ADICIONALES',
+                    displayEntries.map((e) => _buildDatoPersonalizado(e.key, e.value)).toList(),
                   ),
                 ],
-              ),
-            ],
-            if (_orden!.diagnostico != null) ...[
-              const SizedBox(height: 4),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Icons.biotech_outlined, size: 14, color: Colors.grey.shade500),
-                  const SizedBox(width: 8),
-                  SizedBox(
-                    width: 85,
-                    child: Text('Diagnostico',
-                        style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
-                  ),
-                  Expanded(
-                    child: Text(
-                      _formatDynamicField(_orden!.diagnostico),
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+              );
+            }(),
           ],
-        ),
+        ],
       ),
     );
   }
 
-  Widget _buildAccesoriosSection() {
-    return GradientContainer(
-      borderColor: AppColors.blueborder,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildSectionHeader(Icons.inventory_2_outlined, 'ACCESORIOS ENTREGADOS'),
-            const SizedBox(height: 8),
-            if (_orden!.accesorios is List)
-              ...(_orden!.accesorios as List).map((item) => Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: Row(
-                      children: [
-                        Icon(Icons.check_circle_outline,
-                            size: 14, color: AppColors.green),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(item.toString(),
-                              style: const TextStyle(fontSize: 12)),
-                        ),
-                      ],
-                    ),
-                  ))
-            else
-              Text(
-                _orden!.accesorios.toString(),
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
-              ),
-          ],
-        ),
+  Widget _infoChip(IconData icon, String text, {Color? color}) {
+    final chipColor = color ?? AppColors.blue1;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      decoration: BoxDecoration(
+        color: chipColor.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 10, color: chipColor),
+          const SizedBox(width: 3),
+          Text(
+            text,
+            style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: chipColor),
+          ),
+        ],
       ),
     );
   }
 
-  // ─── Datos Personalizados ───
+  Widget _sectionDivider() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Container(height: 1, color: Colors.grey.shade200),
+    );
+  }
 
-  Widget _buildDatosPersonalizadosSection() {
-    final datos = _orden!.datosPersonalizados!;
-
-    // Filter out null/empty values only
-    final displayEntries = datos.entries.where((e) {
-      if (e.value == null) return false;
-      if (e.value is String && (e.value as String).isEmpty) return false;
-      if (e.value is List && (e.value as List).isEmpty) return false;
-      return true;
-    }).toList();
-
-    if (displayEntries.isEmpty) return const SizedBox.shrink();
-
-    return GradientContainer(
-      borderColor: AppColors.blueborder,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _inlineSection(IconData icon, String title, List<Widget> children) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
           children: [
-            _buildSectionHeader(Icons.tune_outlined, 'DATOS ADICIONALES'),
-            const SizedBox(height: 12),
-            ...displayEntries.map((e) => _buildDatoPersonalizado(e.key, e.value)),
+            Icon(icon, size: 13, color: AppColors.blue1),
+            const SizedBox(width: 6),
+            AppSubtitle(title, fontSize: 10, color: AppColors.blue1),
           ],
         ),
-      ),
+        const SizedBox(height: 8),
+        ...children,
+      ],
     );
+  }
+
+  Color _prioridadColorHelper(String prioridad) {
+    switch (prioridad) {
+      case 'URGENTE':
+      case 'EMERGENCIA':
+        return Colors.red;
+      case 'ALTA':
+        return Colors.orange;
+      case 'NORMAL':
+        return AppColors.blue1;
+      case 'BAJA':
+        return Colors.grey;
+      default:
+        return Colors.grey;
+    }
   }
 
   Widget _buildDatoPersonalizado(String key, dynamic value) {
@@ -670,7 +625,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                   const SizedBox(width: 6),
                   Text(
                     key,
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w500),
                   ),
                 ],
               ),
@@ -1336,12 +1291,9 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheetState) {
-          // Cálculo en vivo (incluye componentes)
           final costo = double.tryParse(costoTotalCtrl.text) ?? 0;
           final desc = double.tryParse(descuentoCtrl.text) ?? 0;
           final adel = double.tryParse(adelantoCtrl.text) ?? 0;
@@ -1350,156 +1302,174 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
           final costoFinalCalc = subtotalCalc - desc;
           final saldoCalc = costoFinalCalc - adel;
 
-          return Padding(
+          return Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
             padding: EdgeInsets.only(
               bottom: MediaQuery.of(ctx).viewInsets.bottom,
-              left: 20, right: 20, top: 20,
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40, height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    const Icon(Icons.monetization_on_outlined, color: AppColors.blue1, size: 20),
-                    const SizedBox(width: 8),
-                    const Text('Costos del servicio',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                // Costo total
-                TextFormField(
-                  controller: costoTotalCtrl,
-                  decoration: InputDecoration(
-                    labelText: 'Costo total del servicio (S/)',
-                    hintText: 'Precio final acordado',
-                    prefixText: 'S/ ',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: AppColors.blue1),
-                    ),
-                  ),
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  onChanged: (_) => setSheetState(() {}),
-                ),
-                const SizedBox(height: 10),
-                // Descuento
-                TextFormField(
-                  controller: descuentoCtrl,
-                  decoration: InputDecoration(
-                    labelText: 'Descuento (S/)',
-                    hintText: 'Opcional',
-                    prefixText: 'S/ ',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: AppColors.blue1),
-                    ),
-                  ),
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  onChanged: (_) => setSheetState(() {}),
-                ),
-                const SizedBox(height: 10),
-                // Adelanto + método de pago
-                Row(
-                  children: [
-                    Expanded(
-                      flex: 3,
-                      child: TextFormField(
-                        controller: adelantoCtrl,
-                        decoration: InputDecoration(
-                          labelText: 'Adelanto (S/)',
-                          prefixText: 'S/ ',
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: const BorderSide(color: AppColors.blue1),
-                          ),
-                        ),
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        onChanged: (_) => setSheetState(() {}),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Handle
+                  Center(
+                    child: Container(
+                      width: 40, height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      flex: 2,
-                      child: DropdownButtonFormField<String>(
-                        value: metodoPago,
-                        decoration: InputDecoration(
-                          labelText: 'Medio',
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: const BorderSide(color: AppColors.blue1),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
-                        ),
-                        isExpanded: true,
-                        items: const [
-                          DropdownMenuItem(value: 'EFECTIVO', child: Text('Efectivo', style: TextStyle(fontSize: 12))),
-                          DropdownMenuItem(value: 'YAPE', child: Text('Yape', style: TextStyle(fontSize: 12))),
-                          DropdownMenuItem(value: 'PLIN', child: Text('Plin', style: TextStyle(fontSize: 12))),
-                          DropdownMenuItem(value: 'TARJETA', child: Text('Tarjeta', style: TextStyle(fontSize: 12))),
-                          DropdownMenuItem(value: 'TRANSFERENCIA', child: Text('Transf.', style: TextStyle(fontSize: 12))),
-                          DropdownMenuItem(value: 'MIXTO', child: Text('Mixto', style: TextStyle(fontSize: 12))),
-                        ],
-                        onChanged: (v) => setSheetState(() => metodoPago = v),
-                      ),
-                    ),
-                  ],
-                ),
-
-                // Resumen en vivo
-                if (costo > 0 || compCost > 0) ...[
+                  ),
                   const SizedBox(height: 14),
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: AppColors.bluechip,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Column(
-                      children: [
-                        if (compCost > 0 && costo > 0)
-                          _buildCostoRow('Componentes', compCost),
-                        if (compCost > 0 && costo > 0)
-                          _buildCostoRow('Servicio', costo),
-                        if (compCost > 0 && costo > 0)
-                          _buildCostoRow('Subtotal', subtotalCalc, bold: true),
-                        if (desc > 0)
-                          _buildCostoRow('Descuento', -desc, color: Colors.green.shade700, showSign: true),
-                        _buildCostoRow('Costo final', costoFinalCalc, bold: true,
-                            color: AppColors.blue1),
-                        if (adel > 0)
-                          _buildCostoRow('Adelanto', adel, color: Colors.green.shade700),
-                        _buildCostoRow(
-                          saldoCalc <= 0 ? 'PAGADO' : 'Saldo pendiente',
-                          saldoCalc <= 0 ? 0 : saldoCalc,
-                          bold: true,
-                          fontSize: 13,
-                          color: saldoCalc <= 0 ? Colors.green.shade700 : Colors.orange.shade700,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
 
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
+                  // Header
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppColors.blue1.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.payments_outlined, color: AppColors.blue1, size: 20),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const AppTitle('Costos del servicio', fontSize: 15, color: AppColors.blue1),
+                            AppLabelText(
+                              'Editar precios y pagos',
+                              fontSize: 10,
+                              color: Colors.grey.shade500,
+                            ),
+                          ],
+                        ),
+                      ),
+                      InkWell(
+                        onTap: () => Navigator.pop(ctx),
+                        borderRadius: BorderRadius.circular(20),
+                        child: Padding(
+                          padding: const EdgeInsets.all(4),
+                          child: Icon(Icons.close, size: 20, color: Colors.grey.shade400),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Costo total
+                  CustomText(
+                    controller: costoTotalCtrl,
+                    label: 'Costo del servicio',
+                    hintText: '0.00',
+                    prefixText: 'S/ ',
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    borderColor: AppColors.blue1,
+                    onChanged: (_) => setSheetState(() {}),
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Descuento
+                  CustomText(
+                    controller: descuentoCtrl,
+                    label: 'Descuento',
+                    hintText: '0.00',
+                    prefixText: 'S/ ',
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    borderColor: AppColors.blue1,
+                    onChanged: (_) => setSheetState(() {}),
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Adelanto + método de pago
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        flex: 3,
+                        child: CustomText(
+                          controller: adelantoCtrl,
+                          label: 'Adelanto',
+                          hintText: '0.00',
+                          prefixText: 'S/ ',
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          borderColor: AppColors.blue1,
+                          onChanged: (_) => setSheetState(() {}),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        flex: 2,
+                        child: CustomDropdown<String>(
+                          label: 'Medio pago',
+                          hintText: 'Seleccionar',
+                          value: metodoPago,
+                          borderColor: AppColors.blue1,
+                          items: const [
+                            DropdownItem<String>(value: 'EFECTIVO', label: 'Efectivo'),
+                            DropdownItem<String>(value: 'YAPE', label: 'Yape'),
+                            DropdownItem<String>(value: 'PLIN', label: 'Plin'),
+                            DropdownItem<String>(value: 'TARJETA', label: 'Tarjeta'),
+                            DropdownItem<String>(value: 'TRANSFERENCIA', label: 'Transf.'),
+                            DropdownItem<String>(value: 'MIXTO', label: 'Mixto'),
+                          ],
+                          onChanged: (v) => setSheetState(() => metodoPago = v),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // Resumen en vivo
+                  if (costo > 0 || compCost > 0) ...[
+                    const SizedBox(height: 16),
+                    GradientContainer(
+                      gradient: AppGradients.blueWhiteBlue(),
+                      shadowStyle: ShadowStyle.none,
+                      borderColor: AppColors.blue1,
+                      borderWidth: 0.6,
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          children: [
+                            if (compCost > 0 && costo > 0) ...[
+                              _buildCostoRow('Componentes', compCost),
+                              _buildCostoRow('Servicio', costo),
+                              Divider(height: 12, color: Colors.grey.shade200),
+                              _buildCostoRow('Subtotal', subtotalCalc, bold: true),
+                            ],
+                            if (desc > 0)
+                              _buildCostoRow('Descuento', -desc, color: Colors.green.shade700, showSign: true),
+                            _buildCostoRow('Costo final', costoFinalCalc, bold: true,
+                                color: AppColors.blue1),
+                            if (adel > 0)
+                              _buildCostoRow('Adelanto', adel, color: Colors.green.shade700),
+                            Divider(height: 12, color: Colors.grey.shade200),
+                            _buildCostoRow(
+                              saldoCalc <= 0 ? 'PAGADO' : 'Saldo pendiente',
+                              saldoCalc <= 0 ? 0 : saldoCalc,
+                              bold: true,
+                              fontSize: 13,
+                              color: saldoCalc <= 0 ? Colors.green.shade700 : Colors.orange.shade700,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 16),
+                  CustomButton(
+                    backgroundColor: AppColors.blue1,
+                    text: 'Guardar costos',
+                    icon: const Icon(Icons.save_outlined, size: 16),
                     onPressed: () {
                       Navigator.pop(ctx);
                       _guardarCostos(
@@ -1515,18 +1485,10 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                         metodoPagoAdelanto: metodoPago,
                       );
                     },
-                    icon: const Icon(Icons.save_outlined, size: 18),
-                    label: const Text('Guardar costos'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.blue1,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
                   ),
-                ),
-                const SizedBox(height: 16),
-              ],
+                  const SizedBox(height: 16),
+                ],
+              ),
             ),
           );
         },
@@ -2373,7 +2335,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     if (validTransitions.isEmpty) return null;
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -2386,62 +2348,55 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
       ),
       child: Row(
         children: [
-          // Cancel button (if available)
+          // Cancelar
           if (validTransitions.contains('CANCELADO')) ...[
-            OutlinedButton.icon(
+            CustomButton(
+              text: 'Cancelar',
+              icon: const Icon(Icons.close, size: 14, color: Colors.red),
+              isOutlined: true,
+              borderColor: Colors.red,
+              textColor: Colors.red,
+              enableShadows: false,
+              height: 35,
+              borderRadius: 8,
               onPressed: () => _showTransitionDialog('CANCELADO'),
-              icon: const Icon(Icons.close, size: 18),
-              label: const Text('Cancelar'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.red,
-                side: const BorderSide(color: Colors.red),
-                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8)),
-              ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
           ],
-          // Main transition button
+          // Transiciones principales
           ...validTransitions
               .where((e) => e != 'CANCELADO' && e != 'TERCERIZADO')
               .map((estado) {
             final isReingresoBtn = estado == 'EN_DIAGNOSTICO' &&
                 (_orden!.estado == 'ENTREGADO' || _orden!.estado == 'FINALIZADO');
             return Expanded(
-              child: ElevatedButton.icon(
-                onPressed: () => _showTransitionDialog(estado),
+              child: CustomButton(
+                text: isReingresoBtn ? 'Reingreso' : _estadoTimelineLabel(estado),
                 icon: Icon(
                   isReingresoBtn ? Icons.replay : _transitionIcon(estado),
-                  size: 18,
+                  size: 14,
+                  color: Colors.white,
                 ),
-                label: Text(isReingresoBtn ? 'Reingreso' : _estadoTimelineLabel(estado)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: isReingresoBtn ? Colors.orange : AppColors.blue1,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8)),
-                ),
+                backgroundColor: isReingresoBtn ? Colors.orange : AppColors.blue1,
+                height: 35,
+                borderRadius: 8,
+                onPressed: () => _showTransitionDialog(estado),
               ),
             );
           }),
-          // Tercerizar button
+          // Tercerizar B2B
           if (validTransitions.contains('TERCERIZADO') && _orden!.isClienteFinal) ...[
-            const SizedBox(width: 8),
-            SizedBox(
-              child: OutlinedButton.icon(
-                onPressed: () => _iniciarTercerizacion(),
-                icon: const Icon(Icons.swap_horiz, size: 16),
-                label: const Text('B2B', style: TextStyle(fontSize: 11)),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.deepPurple,
-                  side: const BorderSide(color: Colors.deepPurple),
-                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8)),
-                ),
-              ),
+            const SizedBox(width: 10),
+            CustomButton(
+              text: 'B2B',
+              icon: const Icon(Icons.swap_horiz, size: 14, color: Colors.deepPurple),
+              isOutlined: true,
+              borderColor: Colors.deepPurple,
+              textColor: Colors.deepPurple,
+              enableShadows: false,
+              height: 35,
+              borderRadius: 8,
+              onPressed: () => _iniciarTercerizacion(),
             ),
           ],
         ],
@@ -2699,7 +2654,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                         Expanded(
                           flex: 2,
                           child: DropdownButtonFormField<String>(
-                            value: metodoPagoAdelanto,
+                            initialValue: metodoPagoAdelanto,
                             decoration: InputDecoration(
                               labelText: 'Medio',
                               border: OutlineInputBorder(
@@ -2741,7 +2696,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                           'Registrar que este cambio fue notificado',
                           style: TextStyle(fontSize: 11)),
                       value: comunicarCliente,
-                      activeColor: AppColors.blue1,
+                      activeThumbColor: AppColors.blue1,
                       onChanged: (v) =>
                           setDialogState(() => comunicarCliente = v),
                       contentPadding:
@@ -3079,7 +3034,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w400),
               overflow: TextOverflow.ellipsis,
             ),
           ),

@@ -1,7 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:syncronize/core/fonts/app_fonts.dart';
+import 'package:syncronize/core/fonts/app_text_widgets.dart';
+import 'package:syncronize/core/theme/app_colors.dart';
+import 'package:syncronize/core/theme/app_gradients.dart';
+import 'package:syncronize/core/theme/gradient_container.dart';
+import 'package:syncronize/core/widgets/custom_search_field.dart';
+import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
+import 'package:syncronize/core/widgets/animated_confirm_dialog.dart';
+import 'package:syncronize/core/widgets/animated_container.dart';
+import 'package:syncronize/core/widgets/custom_button.dart';
+import 'package:syncronize/core/widgets/custom_dropdown.dart';
+import 'package:syncronize/core/widgets/custom_switch_tile.dart';
+import 'package:syncronize/core/widgets/floating_button_text.dart';
+import 'package:syncronize/core/widgets/popup_item.dart';
+import 'package:syncronize/core/widgets/smart_appbar.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/utils/resource.dart';
-import '../../../empresa/presentation/widgets/empresa_drawer.dart';
 import '../../domain/entities/plantilla_servicio.dart';
 import '../../domain/repositories/plantilla_servicio_repository.dart';
 
@@ -14,8 +28,10 @@ class PlantillasServicioPage extends StatefulWidget {
 
 class _PlantillasServicioPageState extends State<PlantillasServicioPage> {
   List<PlantillaServicio> _plantillas = [];
+  List<PlantillaServicio> _filtered = [];
   bool _isLoading = true;
   String? _error;
+  String _searchQuery = '';
 
   @override
   void initState() {
@@ -35,22 +51,59 @@ class _PlantillasServicioPageState extends State<PlantillasServicioPage> {
       _isLoading = false;
       if (result is Success<List<PlantillaServicio>>) {
         _plantillas = result.data;
+        _applySearch();
       } else if (result is Error) {
         _error = (result as Error).message;
       }
     });
   }
 
+  void _applySearch() {
+    if (_searchQuery.isEmpty) {
+      _filtered = _plantillas;
+    } else {
+      final q = _searchQuery.toLowerCase();
+      _filtered = _plantillas.where((p) {
+        return p.nombre.toLowerCase().contains(q) ||
+            (p.descripcion?.toLowerCase().contains(q) ?? false);
+      }).toList();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Plantillas de Servicio')),
-      drawer: const EmpresaDrawer(),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showPlantillaDialog(),
-        child: const Icon(Icons.add),
+      appBar: SmartAppBar(
+        backgroundColor: AppColors.blue1,
+        foregroundColor: AppColors.white,
+        title: 'Plantillas de Servicio',
       ),
-      body: _buildBody(),
+      body: GradientContainer(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: CustomSearchField(
+                borderColor: AppColors.blue1,
+                hintText: 'Buscar por nombre o descripcion',
+                onChanged: (value) {
+                  setState(() {
+                    _searchQuery = value;
+                    _applySearch();
+                  });
+                },
+              ),
+            ),
+            Expanded(child: _buildBody()),
+          ],
+        ),
+      ),
+      floatingActionButton: FloatingButtonText(
+        width: 140,
+        onPressed: () => _showPlantillaDialog(),
+        icon: Icons.add,
+        label: 'Nueva Plantilla',
+      ),
     );
   }
 
@@ -64,7 +117,9 @@ class _PlantillasServicioPageState extends State<PlantillasServicioPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(_error!),
+            const Icon(Icons.error_outline, size: 64, color: Colors.red),
+            const SizedBox(height: 16),
+            Text(_error!, style: const TextStyle(fontSize: 16)),
             const SizedBox(height: 16),
             ElevatedButton(onPressed: _load, child: const Text('Reintentar')),
           ],
@@ -72,21 +127,25 @@ class _PlantillasServicioPageState extends State<PlantillasServicioPage> {
       );
     }
 
-    if (_plantillas.isEmpty) {
-      return const Center(
+    if (_filtered.isEmpty) {
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.view_list, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
-            Text('No hay plantillas creadas',
-                style: TextStyle(fontSize: 16, color: Colors.grey)),
-            SizedBox(height: 8),
+            const Icon(Icons.view_list_outlined, size: 64, color: Colors.grey),
+            const SizedBox(height: 16),
             Text(
-              'Crea plantillas con campos personalizados\npara asignarlas a tus servicios',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey),
+              _searchQuery.isNotEmpty
+                  ? 'No se encontraron plantillas'
+                  : 'No hay plantillas creadas',
+              style: const TextStyle(fontSize: 16, color: Colors.grey),
             ),
+            const SizedBox(height: 8),
+            if (_searchQuery.isEmpty)
+              const Text(
+                'Presiona el boton + para crear una',
+                style: TextStyle(fontSize: 14, color: Colors.grey),
+              ),
           ],
         ),
       );
@@ -95,74 +154,15 @@ class _PlantillasServicioPageState extends State<PlantillasServicioPage> {
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: _plantillas.length,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        itemCount: _filtered.length,
         itemBuilder: (context, index) {
-          final p = _plantillas[index];
-          return Card(
-            child: ExpansionTile(
-              leading: const Icon(Icons.view_list, color: Colors.blue),
-              title: Text(p.nombre, style: const TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: Text(
-                [
-                  '${p.campos.length} campos',
-                  if (p.serviciosCount != null && p.serviciosCount! > 0)
-                    '${p.serviciosCount} servicios',
-                  if (p.descripcion != null) p.descripcion!,
-                ].join(' · '),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              trailing: PopupMenuButton<String>(
-                onSelected: (v) {
-                  if (v == 'edit') _showPlantillaDialog(plantilla: p);
-                  if (v == 'delete') _confirmDelete(p);
-                  if (v == 'add_campo') _showAddCampoDialog(p);
-                },
-                itemBuilder: (_) => [
-                  const PopupMenuItem(value: 'add_campo', child: Text('Agregar campo')),
-                  const PopupMenuItem(value: 'edit', child: Text('Editar')),
-                  const PopupMenuItem(value: 'delete', child: Text('Eliminar')),
-                ],
-              ),
-              children: [
-                if (p.campos.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Text('Sin campos. Agrega campos a esta plantilla.',
-                        style: TextStyle(color: Colors.grey)),
-                  )
-                else
-                  ...p.campos.map((c) => ListTile(
-                        dense: true,
-                        leading: Icon(
-                          _tipoCampoIcons[c.tipoCampo] ?? Icons.text_fields,
-                          size: 20,
-                          color: Colors.blue.shade700,
-                        ),
-                        title: Text(c.nombre, style: const TextStyle(fontSize: 14)),
-                        subtitle: Text(
-                          [
-                            _tipoCampoLabels[c.tipoCampo] ?? c.tipoCampo,
-                            if (c.categoria != null)
-                              _categoriaLabels[c.categoria] ?? c.categoria!,
-                          ].join(' · '),
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                        trailing: c.esRequerido
-                            ? Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: Colors.red.shade50,
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text('Requerido',
-                                    style: TextStyle(fontSize: 10, color: Colors.red.shade700)),
-                              )
-                            : null,
-                      )),
-              ],
-            ),
+          final p = _filtered[index];
+          return _PlantillaListTile(
+            plantilla: p,
+            onEdit: () => _showPlantillaDialog(plantilla: p),
+            onDelete: () => _confirmDelete(p),
+            onAddCampo: () => _showAddCampoDialog(p),
           );
         },
       ),
@@ -172,113 +172,188 @@ class _PlantillasServicioPageState extends State<PlantillasServicioPage> {
   void _showPlantillaDialog({PlantillaServicio? plantilla}) {
     final nombreCtrl = TextEditingController(text: plantilla?.nombre ?? '');
     final descripcionCtrl = TextEditingController(text: plantilla?.descripcion ?? '');
+    final isEditing = plantilla != null;
 
     showDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(plantilla != null ? 'Editar Plantilla' : 'Nueva Plantilla'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nombreCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Nombre *',
-                  hintText: 'Ej: Reparación de PC',
+      barrierColor: const Color(0x1A000000),
+      builder: (dialogContext) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          child: AnimatedNeonBorder(
+            borderRadius: 14,
+            borderWidth: 1.5,
+            padding: const EdgeInsets.all(1.5),
+            enableHighlight: true,
+            highlightWidth: 0.12,
+            highlightOpacity: 0.85,
+            duration: const Duration(seconds: 5),
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 420),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              padding: const EdgeInsets.all(20),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header con icono
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppColors.blue1.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            isEditing ? Icons.edit_outlined : Icons.view_list,
+                            color: AppColors.blue1,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: AppTitle(
+                            isEditing ? 'Editar Plantilla' : 'Nueva Plantilla',
+                            fontSize: 14,
+                            color: AppColors.blue1,
+                          ),
+                        ),
+                        InkWell(
+                          onTap: () => Navigator.pop(dialogContext),
+                          borderRadius: BorderRadius.circular(20),
+                          child: Padding(
+                            padding: const EdgeInsets.all(4),
+                            child: Icon(Icons.close, size: 18, color: Colors.grey.shade400),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // Campo nombre
+                    CustomText(
+                      controller: nombreCtrl,
+                      label: 'Nombre',
+                      hintText: 'Ej: Reparacion de PC',
+                      required: true,
+                      prefixIcon: const Icon(Icons.label_outline, size: 18),
+                      borderColor: AppColors.blue1,
+                      colorIcon: AppColors.blue1,
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Campo descripcion
+                    CustomText(
+                      controller: descripcionCtrl,
+                      label: 'Descripcion (opcional)',
+                      hintText: 'Describe el proposito de esta plantilla',
+                      maxLines: 3,
+                      height: null,
+                      prefixIcon: const Icon(Icons.description_outlined, size: 18),
+                      borderColor: AppColors.blue1,
+                      colorIcon: AppColors.blue1,
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // Botones
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        CustomButton(
+                          text: 'Cancelar',
+                          onPressed: () => Navigator.pop(dialogContext),
+                          backgroundColor: Colors.transparent,
+                          borderColor: AppColors.blue3,
+                          borderWidth: 0.6,
+                          textColor: AppColors.blue3,
+                          enableShadows: false,
+                        ),
+                        const SizedBox(width: 8),
+                        CustomButton(
+                          text: isEditing ? 'Guardar' : 'Crear',
+                          onPressed: () async {
+                            if (nombreCtrl.text.trim().isEmpty) return;
+                            Navigator.pop(dialogContext);
+                            final repo = locator<PlantillaServicioRepository>();
+                            final result = isEditing
+                                ? await repo.actualizar(
+                                    id: plantilla.id,
+                                    nombre: nombreCtrl.text.trim(),
+                                    descripcion: descripcionCtrl.text.trim().isEmpty
+                                        ? null
+                                        : descripcionCtrl.text.trim(),
+                                  )
+                                : await repo.crear(
+                                    nombre: nombreCtrl.text.trim(),
+                                    descripcion: descripcionCtrl.text.trim().isEmpty
+                                        ? null
+                                        : descripcionCtrl.text.trim(),
+                                  );
+                            if (!mounted) return;
+                            if (result is Success) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(isEditing
+                                      ? 'Plantilla actualizada'
+                                      : 'Plantilla creada'),
+                                ),
+                              );
+                              _load();
+                            } else if (result is Error) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text((result as Error).message)),
+                              );
+                            }
+                          },
+                          backgroundColor: AppColors.blue1,
+                          borderColor: AppColors.blue1,
+                          borderWidth: 0.6,
+                          textColor: Colors.white,
+                          enableShadows: false,
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: descripcionCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Descripción (opcional)',
-                ),
-                maxLines: 2,
-              ),
-            ],
+            ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (nombreCtrl.text.trim().isEmpty) return;
-              Navigator.pop(dialogContext);
-              final repo = locator<PlantillaServicioRepository>();
-              final result = plantilla != null
-                  ? await repo.actualizar(
-                      id: plantilla.id,
-                      nombre: nombreCtrl.text.trim(),
-                      descripcion: descripcionCtrl.text.trim().isEmpty
-                          ? null
-                          : descripcionCtrl.text.trim(),
-                    )
-                  : await repo.crear(
-                      nombre: nombreCtrl.text.trim(),
-                      descripcion: descripcionCtrl.text.trim().isEmpty
-                          ? null
-                          : descripcionCtrl.text.trim(),
-                    );
-              if (!mounted) return;
-              if (result is Success) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(plantilla != null
-                        ? 'Plantilla actualizada'
-                        : 'Plantilla creada'),
-                  ),
-                );
-                _load();
-              } else if (result is Error) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text((result as Error).message)),
-                );
-              }
-            },
-            child: Text(plantilla != null ? 'Guardar' : 'Crear'),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
   void _confirmDelete(PlantillaServicio plantilla) {
-    showDialog(
+    AnimatedConfirmDialog.show(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Eliminar plantilla'),
-        content: Text('¿Eliminar "${plantilla.nombre}"? Los servicios vinculados perderán esta plantilla.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () async {
-              Navigator.pop(dialogContext);
-              final repo = locator<PlantillaServicioRepository>();
-              final result = await repo.eliminar(plantilla.id);
-              if (!mounted) return;
-              if (result is Success) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Plantilla eliminada')),
-                );
-                _load();
-              } else if (result is Error) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text((result).message)),
-                );
-              }
-            },
-            child: const Text('Eliminar'),
-          ),
-        ],
-      ),
+      title: 'Eliminar plantilla',
+      message: 'Eliminar "${plantilla.nombre}"? Los servicios vinculados perderan esta plantilla.',
+      confirmText: 'Eliminar',
+      cancelText: 'Cancelar',
+      confirmButtonColor: Colors.red,
+      onConfirm: () async {
+        final repo = locator<PlantillaServicioRepository>();
+        final result = await repo.eliminar(plantilla.id);
+        if (!mounted) return;
+        if (result is Success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Plantilla eliminada')),
+          );
+          _load();
+        } else if (result is Error) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text((result).message)),
+          );
+        }
+      },
     );
   }
 
@@ -293,238 +368,376 @@ class _PlantillasServicioPageState extends State<PlantillasServicioPage> {
 
     showDialog(
       context: context,
+      barrierColor: const Color(0x1A000000),
       builder: (dialogContext) => StatefulBuilder(
-        builder: (_, setDialogState) => AlertDialog(
-          title: Text('Agregar campo a "${plantilla.nombre}"'),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: nombreCtrl,
-                    decoration: const InputDecoration(labelText: 'Nombre del campo *'),
-                  ),
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    value: tipoCampo,
-                    decoration: const InputDecoration(labelText: 'Tipo de campo'),
-                    items: _tipoCampoLabels.entries
-                        .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
-                        .toList(),
-                    onChanged: (v) => setDialogState(() {
-                      tipoCampo = v!;
-                      if (v != 'OBJETO') subCampos.clear();
-                    }),
-                  ),
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    value: categoria,
-                    decoration: const InputDecoration(labelText: 'Categoría (opcional)'),
-                    items: [
-                      const DropdownMenuItem(value: null, child: Text('Sin categoría')),
-                      ..._categoriaLabels.entries
-                          .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value))),
-                    ],
-                    onChanged: (v) => setDialogState(() => categoria = v),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: placeholderCtrl,
-                    decoration: const InputDecoration(labelText: 'Placeholder (opcional)'),
-                  ),
-                  if (tipoCampo == 'OPCION_SIMPLES' || tipoCampo == 'OPCION_MULTIPLE') ...[
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: opcionesCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Opciones (separadas por coma)',
-                        hintText: 'Opción 1, Opción 2, Opción 3',
-                      ),
-                    ),
-                  ],
-                  // Sub-campos para tipo OBJETO
-                  if (tipoCampo == 'OBJETO') ...[
-                    const Divider(height: 24),
+        builder: (_, setDialogState) => Dialog(
+          backgroundColor: Colors.transparent,
+          child: AnimatedNeonBorder(
+            borderRadius: 14,
+            borderWidth: 1.5,
+            padding: const EdgeInsets.all(1.5),
+            enableHighlight: true,
+            highlightWidth: 0.12,
+            highlightOpacity: 0.85,
+            duration: const Duration(seconds: 5),
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 420),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              padding: const EdgeInsets.all(20),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header
                     Row(
                       children: [
-                        const Icon(Icons.account_tree_outlined, size: 16),
-                        const SizedBox(width: 8),
-                        const Expanded(
-                          child: Text('Sub-campos',
-                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppColors.blue1.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.add_circle_outline,
+                            color: AppColors.blue1,
+                            size: 20,
+                          ),
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.add_circle_outline, size: 20),
-                          onPressed: () => setDialogState(() {
-                            subCampos.add({'nombre': '', 'tipo': 'TEXTO'});
-                          }),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const AppTitle(
+                                'Agregar campo',
+                                fontSize: 14,
+                                color: AppColors.blue1,
+                              ),
+                              AppSubtitle(
+                                plantilla.nombre,
+                                fontSize: 10,
+                                color: Colors.grey.shade600,
+                              ),
+                            ],
+                          ),
+                        ),
+                        InkWell(
+                          onTap: () => Navigator.pop(dialogContext),
+                          borderRadius: BorderRadius.circular(20),
+                          child: Padding(
+                            padding: const EdgeInsets.all(4),
+                            child: Icon(Icons.close, size: 18, color: Colors.grey.shade400),
+                          ),
                         ),
                       ],
                     ),
-                    ...subCampos.asMap().entries.map((entry) {
-                      final i = entry.key;
-                      final sub = entry.value;
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
+
+                    const SizedBox(height: 20),
+
+                    // Nombre del campo
+                    CustomText(
+                      controller: nombreCtrl,
+                      textCase: TextCase.upper,
+                      label: 'Nombre del campo',
+                      hintText: 'Ej: Numero de serie',
+                      required: true,
+                      prefixIcon: const Icon(Icons.label_outline, size: 18),
+                      borderColor: AppColors.blue1,
+                      colorIcon: AppColors.blue1,
+                    ),
+
+                    const SizedBox(height: 14),
+
+                    // Tipo de campo
+                    CustomDropdown<String>(
+                      label: 'Tipo de campo',
+                      hintText: 'Selecciona un tipo',
+                      value: tipoCampo,
+                      items: _tipoCampoLabels.entries
+                          .map((e) => DropdownItem(
+                                value: e.key,
+                                label: e.value,
+                                leading: Icon(
+                                  _tipoCampoIcons[e.key] ?? Icons.text_fields,
+                                  size: 16,
+                                  color: AppColors.blue1,
+                                ),
+                              ))
+                          .toList(),
+                      onChanged: (v) => setDialogState(() {
+                        tipoCampo = v ?? 'TEXTO';
+                        if (v != 'OBJETO') subCampos.clear();
+                      }),
+                      borderColor: AppColors.blue1,
+                    ),
+
+                    // Opciones para seleccion simple/multiple
+                    if (tipoCampo == 'OPCION_SIMPLES' || tipoCampo == 'OPCION_MULTIPLE') ...[
+                      const SizedBox(height: 14),
+                      CustomText(
+                        controller: opcionesCtrl,
+                        textCase: TextCase.upper,
+                        label: 'Opciones (separadas por coma)',
+                        hintText: 'Opcion 1, Opcion 2, Opcion 3',
+                        prefixIcon: const Icon(Icons.list, size: 18),
+                        borderColor: AppColors.blue1,
+                        colorIcon: AppColors.blue1,
+                      ),
+                    ],
+
+                    const SizedBox(height: 14),
+
+                    // Categoria
+                    CustomDropdown<String?>(
+                      label: 'Categoria (opcional)',
+                      hintText: 'Sin categoria',
+                      value: categoria,
+                      items: [
+                        const DropdownItem(value: null, label: 'Sin categoria'),
+                        ..._categoriaLabels.entries.map(
+                          (e) => DropdownItem(value: e.key, label: e.value),
+                        ),
+                      ],
+                      onChanged: (v) => setDialogState(() => categoria = v),
+                      borderColor: AppColors.blue1,
+                    ),
+
+                    const SizedBox(height: 14),
+
+                    // Placeholder
+                    CustomText(
+                      controller: placeholderCtrl,
+                      textCase: TextCase.upper,
+                      label: 'Placeholder (opcional)',
+                      hintText: 'Texto de ayuda para el campo',
+                      prefixIcon: const Icon(Icons.short_text, size: 18),
+                      borderColor: AppColors.blue1,
+                      colorIcon: AppColors.blue1,
+                    ),
+
+                    // Sub-campos para tipo OBJETO
+                    if (tipoCampo == 'OBJETO') ...[
+                      const SizedBox(height: 14),
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppColors.blue1.withValues(alpha: 0.04),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: AppColors.blue1.withValues(alpha: 0.15),
+                            width: 0.8,
+                          ),
+                        ),
                         child: Column(
                           children: [
                             Row(
                               children: [
-                                Expanded(
-                                  flex: 3,
-                                  child: TextField(
-                                    decoration: const InputDecoration(
-                                      hintText: 'Nombre',
-                                      hintStyle: TextStyle(fontSize: 12),
-                                      isDense: true,
-                                      contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-                                      border: OutlineInputBorder(),
-                                    ),
-                                    style: const TextStyle(fontSize: 13),
-                                    controller: TextEditingController(text: sub['nombre'] as String? ?? ''),
-                                    onChanged: (v) => sub['nombre'] = v,
-                                  ),
-                                ),
+                                const Icon(Icons.account_tree_outlined, size: 16, color: AppColors.blue1),
                                 const SizedBox(width: 8),
-                                Expanded(
-                                  flex: 2,
-                                  child: DropdownButtonFormField<String>(
-                                    value: sub['tipo'] as String? ?? 'TEXTO',
-                                    isDense: true,
-                                    decoration: const InputDecoration(
-                                      isDense: true,
-                                      contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                                      border: OutlineInputBorder(),
-                                    ),
-                                    style: const TextStyle(fontSize: 12, color: Colors.black87),
-                                    items: _subCampoTipos.entries
-                                        .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
-                                        .toList(),
-                                    onChanged: (v) => setDialogState(() {
-                                      sub['tipo'] = v!;
-                                      if (v != 'OPCION_SIMPLES') sub.remove('opciones');
-                                    }),
-                                  ),
+                                const Expanded(
+                                  child: AppSubtitle('Sub-campos', fontSize: 11, color: AppColors.blue1),
                                 ),
-                                IconButton(
-                                  icon: Icon(Icons.remove_circle_outline,
-                                      size: 18, color: Colors.red.shade400),
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(),
-                                  onPressed: () => setDialogState(() => subCampos.removeAt(i)),
+                                InkWell(
+                                  onTap: () => setDialogState(() {
+                                    subCampos.add({'nombre': '', 'tipo': 'TEXTO'});
+                                  }),
+                                  borderRadius: BorderRadius.circular(20),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.blue1.withValues(alpha: 0.1),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(Icons.add, size: 16, color: AppColors.blue1),
+                                  ),
                                 ),
                               ],
                             ),
-                            if (sub['tipo'] == 'OPCION_SIMPLES')
+                            if (subCampos.isNotEmpty) const SizedBox(height: 10),
+                            ...subCampos.asMap().entries.map((entry) {
+                              final i = entry.key;
+                              final sub = entry.value;
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 8),
+                                child: Column(
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          flex: 3,
+                                          child: CustomText(
+                                            controller: TextEditingController(text: sub['nombre'] as String? ?? ''),
+                                            textCase: TextCase.upper,
+                                            hintText: 'Nombre',
+                                            height: 33,
+                                            borderColor: AppColors.blue1,
+                                            onChanged: (v) => sub['nombre'] = v,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          flex: 2,
+                                          child: CustomDropdown<String>(
+                                            value: sub['tipo'] as String? ?? 'TEXTO',
+                                            hintText: 'Tipo',
+                                            items: _subCampoTipos.entries
+                                                .map((e) => DropdownItem(value: e.key, label: e.value))
+                                                .toList(),
+                                            onChanged: (v) => setDialogState(() {
+                                              sub['tipo'] = v ?? 'TEXTO';
+                                              if (v != 'OPCION_SIMPLES') sub.remove('opciones');
+                                            }),
+                                            borderColor: AppColors.blue1,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        InkWell(
+                                          onTap: () => setDialogState(() => subCampos.removeAt(i)),
+                                          borderRadius: BorderRadius.circular(20),
+                                          child: Padding(
+                                            padding: const EdgeInsets.all(4),
+                                            child: Icon(Icons.remove_circle_outline,
+                                                size: 16, color: Colors.red.shade400),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    if (sub['tipo'] == 'OPCION_SIMPLES')
+                                      Padding(
+                                        padding: const EdgeInsets.only(left: 8, top: 6),
+                                        child: CustomText(
+                                          controller: TextEditingController(
+                                            text: sub['opciones'] is List ? (sub['opciones'] as List).join(', ') : '',
+                                          ),
+                                          textCase: TextCase.upper,
+                                          hintText: 'Opciones separadas por coma',
+                                          height: 33,
+                                          prefixIcon: const Icon(Icons.list, size: 14),
+                                          borderColor: AppColors.blue1,
+                                          colorIcon: AppColors.blue1,
+                                          onChanged: (v) {
+                                            sub['opciones'] = v.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+                                          },
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              );
+                            }),
+                            if (subCampos.isEmpty)
                               Padding(
-                                padding: const EdgeInsets.only(left: 8, top: 6),
-                                child: TextField(
-                                  decoration: InputDecoration(
-                                    hintText: 'Opciones separadas por coma (ej: AM5, AM4, LGA1851)',
-                                    hintStyle: TextStyle(fontSize: 10, color: Colors.grey.shade400),
-                                    isDense: true,
-                                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                                    border: const OutlineInputBorder(),
-                                    prefixIcon: const Icon(Icons.list, size: 16),
-                                    prefixIconConstraints: const BoxConstraints(minWidth: 32),
-                                  ),
-                                  style: const TextStyle(fontSize: 12),
-                                  controller: TextEditingController(
-                                    text: sub['opciones'] is List ? (sub['opciones'] as List).join(', ') : '',
-                                  ),
-                                  onChanged: (v) {
-                                    sub['opciones'] = v.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
-                                  },
+                                padding: const EdgeInsets.only(top: 6),
+                                child: AppLabelText(
+                                  'Agrega sub-campos con el boton +',
+                                  fontSize: 10,
+                                  color: Colors.grey.shade500,
                                 ),
                               ),
                           ],
                         ),
-                      );
-                    }),
-                    if (subCampos.isEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Text('Agrega sub-campos con el botón +',
-                            style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
                       ),
+                    ],
+
+                    const SizedBox(height: 14),
+
+                    // Switch requerido
+                    CustomSwitchTile(
+                      title: 'Campo requerido',
+                      value: esRequerido,
+                      onChanged: (v) => setDialogState(() => esRequerido = v),
+                      activeTrackColor: AppColors.blue1,
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // Botones
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        CustomButton(
+                          text: 'Cancelar',
+                          onPressed: () => Navigator.pop(dialogContext),
+                          backgroundColor: Colors.transparent,
+                          borderColor: AppColors.blue3,
+                          borderWidth: 0.6,
+                          textColor: AppColors.blue3,
+                          enableShadows: false,
+                        ),
+                        const SizedBox(width: 8),
+                        CustomButton(
+                          text: 'Agregar',
+                          onPressed: () async {
+                            if (nombreCtrl.text.trim().isEmpty) return;
+                            if (tipoCampo == 'OBJETO' && subCampos.isEmpty) return;
+                            Navigator.pop(dialogContext);
+
+                            List<dynamic>? opcionesData;
+                            if (tipoCampo == 'OBJETO') {
+                              opcionesData = subCampos
+                                  .where((s) => (s['nombre'] as String?)?.isNotEmpty == true)
+                                  .map((s) {
+                                    final entry = <String, dynamic>{
+                                      'nombre': s['nombre'],
+                                      'tipo': s['tipo'],
+                                    };
+                                    if (s['tipo'] == 'OPCION_SIMPLES' && s['opciones'] is List) {
+                                      entry['opciones'] = s['opciones'];
+                                    }
+                                    return entry;
+                                  })
+                                  .toList();
+                            } else if (opcionesCtrl.text.trim().isNotEmpty) {
+                              opcionesData = opcionesCtrl.text
+                                  .split(',')
+                                  .map((e) => e.trim())
+                                  .where((e) => e.isNotEmpty)
+                                  .toList();
+                            }
+
+                            final campoData = <String, dynamic>{
+                              'nombre': nombreCtrl.text.trim(),
+                              'tipoCampo': tipoCampo,
+                              'esRequerido': esRequerido,
+                              if (categoria != null) 'categoria': categoria,
+                              if (placeholderCtrl.text.trim().isNotEmpty)
+                                'placeholder': placeholderCtrl.text.trim(),
+                              if (opcionesData != null) 'opciones': opcionesData,
+                            };
+
+                            final repo = locator<PlantillaServicioRepository>();
+                            final result = await repo.addCampo(
+                              plantillaId: plantilla.id,
+                              campoData: campoData,
+                            );
+                            if (!mounted) return;
+                            if (result is Success) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Campo agregado')),
+                              );
+                              _load();
+                            } else if (result is Error) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text((result as Error).message)),
+                              );
+                            }
+                          },
+                          backgroundColor: AppColors.blue1,
+                          borderColor: AppColors.blue1,
+                          borderWidth: 0.6,
+                          textColor: Colors.white,
+                          enableShadows: false,
+                        ),
+                      ],
+                    ),
                   ],
-                  const SizedBox(height: 16),
-                  SwitchListTile(
-                    title: const Text('Campo requerido'),
-                    value: esRequerido,
-                    onChanged: (v) => setDialogState(() => esRequerido = v),
-                  ),
-                ],
+                ),
               ),
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                if (nombreCtrl.text.trim().isEmpty) return;
-                if (tipoCampo == 'OBJETO' && subCampos.isEmpty) return;
-                Navigator.pop(dialogContext);
-
-                // Build opciones
-                List<dynamic>? opcionesData;
-                if (tipoCampo == 'OBJETO') {
-                  opcionesData = subCampos
-                      .where((s) => (s['nombre'] as String?)?.isNotEmpty == true)
-                      .map((s) {
-                        final entry = <String, dynamic>{
-                          'nombre': s['nombre'],
-                          'tipo': s['tipo'],
-                        };
-                        if (s['tipo'] == 'OPCION_SIMPLES' && s['opciones'] is List) {
-                          entry['opciones'] = s['opciones'];
-                        }
-                        return entry;
-                      })
-                      .toList();
-                } else if (opcionesCtrl.text.trim().isNotEmpty) {
-                  opcionesData = opcionesCtrl.text
-                      .split(',')
-                      .map((e) => e.trim())
-                      .where((e) => e.isNotEmpty)
-                      .toList();
-                }
-
-                final campoData = <String, dynamic>{
-                  'nombre': nombreCtrl.text.trim(),
-                  'tipoCampo': tipoCampo,
-                  'esRequerido': esRequerido,
-                  if (categoria != null) 'categoria': categoria,
-                  if (placeholderCtrl.text.trim().isNotEmpty)
-                    'placeholder': placeholderCtrl.text.trim(),
-                  if (opcionesData != null) 'opciones': opcionesData,
-                };
-
-                final repo = locator<PlantillaServicioRepository>();
-                final result = await repo.addCampo(
-                  plantillaId: plantilla.id,
-                  campoData: campoData,
-                );
-                if (!mounted) return;
-                if (result is Success) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Campo agregado')),
-                  );
-                  _load();
-                } else if (result is Error) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text((result as Error).message)),
-                  );
-                }
-              },
-              child: const Text('Agregar'),
-            ),
-          ],
         ),
       ),
     );
@@ -532,26 +745,26 @@ class _PlantillasServicioPageState extends State<PlantillasServicioPage> {
 
   static const _tipoCampoLabels = {
     'TEXTO': 'Texto',
-    'NUMERO': 'Número',
+    'NUMERO': 'Numero',
     'EMAIL': 'Email',
     'FECHA': 'Fecha',
     'HORA': 'Hora',
     'TEXTO_AREA': 'Texto largo',
-    'OPCION_SIMPLES': 'Selección simple',
-    'OPCION_MULTIPLE': 'Selección múltiple',
+    'OPCION_SIMPLES': 'Seleccion simple',
+    'OPCION_MULTIPLE': 'Seleccion multiple',
     'CHECKBOX': 'Checkbox',
-    'CHECKBOX_MULTIPLE': 'Checkbox múltiple',
+    'CHECKBOX_MULTIPLE': 'Checkbox multiple',
     'ARCHIVO': 'Archivo',
-    'TELEFONO': 'Teléfono',
+    'TELEFONO': 'Telefono',
     'URL': 'URL',
     'OBJETO': 'Objeto (sub-campos)',
   };
 
   static const _subCampoTipos = {
     'TEXTO': 'Texto',
-    'NUMERO': 'Número',
-    'CHECKBOX': 'Sí/No',
-    'OPCION_SIMPLES': 'Selección',
+    'NUMERO': 'Numero',
+    'CHECKBOX': 'Si/No',
+    'OPCION_SIMPLES': 'Seleccion',
   };
 
   static const _tipoCampoIcons = {
@@ -572,12 +785,253 @@ class _PlantillasServicioPageState extends State<PlantillasServicioPage> {
   };
 
   static const _categoriaLabels = {
-    'DIAGNOSTICO': 'Diagnóstico',
+    'DIAGNOSTICO': 'Diagnostico',
     'CLIENTE': 'Cliente',
-    'TECNICO': 'Técnico',
+    'TECNICO': 'Tecnico',
     'COMPONENTE': 'Componente',
     'COSTOS': 'Costos',
     'TIEMPOS': 'Tiempos',
     'EQUIPO_CLIENTE': 'Equipo del Cliente',
   };
+}
+
+// ─────────────────────────────────────────────────────────────
+// Card tile con el mismo estilo que OrdenCompraListTile
+// ─────────────────────────────────────────────────────────────
+class _PlantillaListTile extends StatelessWidget {
+  final PlantillaServicio plantilla;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+  final VoidCallback onAddCampo;
+
+  const _PlantillaListTile({
+    required this.plantilla,
+    required this.onEdit,
+    required this.onDelete,
+    required this.onAddCampo,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: GradientContainer(
+        gradient: AppGradients.blueWhiteBlue(),
+        shadowStyle: ShadowStyle.glow,
+        borderColor: AppColors.blueborder,
+        borderWidth: 0.8,
+        child: InkWell(
+          onTap: onEdit,
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildHeader(),
+                const SizedBox(height: 8),
+                Container(height: 1, color: Colors.grey.shade200),
+                const SizedBox(height: 8),
+                _buildCamposPreview(),
+                const SizedBox(height: 8),
+                _buildFooter(),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: AppColors.blue1.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: const Icon(
+            Icons.view_list,
+            color: AppColors.blue1,
+            size: 20,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                plantilla.nombre,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              if (plantilla.descripcion != null && plantilla.descripcion!.isNotEmpty) ...[
+                const SizedBox(height: 3),
+                Text(
+                  plantilla.descripcion!,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.grey.shade700,
+                    fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ],
+          ),
+        ),
+        CustomActionMenu(
+          items: [
+            ActionMenuItem(
+              type: ActionMenuType.addField,
+              label: 'Agregar campo',
+              icon: Icons.add_circle_outline,
+              color: AppColors.blue1,
+              onTap: onAddCampo,
+            ),
+            ActionMenuItem(
+              type: ActionMenuType.edit,
+              label: 'Editar',
+              icon: Icons.edit_outlined,
+              color: AppColors.blue1,
+              onTap: onEdit,
+            ),
+            ActionMenuItem(
+              type: ActionMenuType.delete,
+              label: 'Eliminar',
+              icon: Icons.delete_outline,
+              color: Colors.red,
+              onTap: onDelete,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCamposPreview() {
+    if (plantilla.campos.isEmpty) {
+      return Text(
+        'Sin campos configurados',
+        style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+      );
+    }
+
+    return Wrap(
+      spacing: 6,
+      runSpacing: 4,
+      children: plantilla.campos.take(5).map((c) {
+        final icon = _PlantillasServicioPageState._tipoCampoIcons[c.tipoCampo] ?? Icons.text_fields;
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+          decoration: BoxDecoration(
+            color: AppColors.bluechip,
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 10, color: AppColors.blue1),
+              const SizedBox(width: 3),
+              Text(
+                c.nombre,
+                style: TextStyle(
+                  fontSize: 9,
+                  color: AppColors.blue1,
+                  fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
+                ),
+              ),
+              if (c.esRequerido) ...[
+                const SizedBox(width: 2),
+                const Text('*', style: TextStyle(fontSize: 9, color: Colors.red)),
+              ],
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildFooter() {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+          decoration: BoxDecoration(
+            color: AppColors.bluechip,
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.dashboard_customize_outlined, size: 10, color: AppColors.blue1),
+              const SizedBox(width: 3),
+              AppSubtitle(
+                '${plantilla.campos.length} campos',
+                fontSize: 9,
+                color: AppColors.blue1,
+              ),
+            ],
+          ),
+        ),
+        if (plantilla.serviciosCount != null && plantilla.serviciosCount! > 0) ...[
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+            decoration: BoxDecoration(
+              color: AppColors.bluechip,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.room_service_outlined, size: 10, color: AppColors.blue1),
+                const SizedBox(width: 3),
+                AppSubtitle(
+                  '${plantilla.serviciosCount} servicios',
+                  fontSize: 9,
+                  color: AppColors.blue1,
+                ),
+              ],
+            ),
+          ),
+        ],
+        const Spacer(),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: (plantilla.isActive ? AppColors.green : Colors.grey).withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(
+              color: (plantilla.isActive ? AppColors.green : Colors.grey).withValues(alpha: 0.4),
+              width: 0.6,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                plantilla.isActive ? Icons.check_circle : Icons.cancel,
+                size: 10,
+                color: plantilla.isActive ? AppColors.green : Colors.grey,
+              ),
+              const SizedBox(width: 4),
+              AppSubtitle(
+                plantilla.isActive ? 'ACTIVA' : 'INACTIVA',
+                fontSize: 9,
+                color: plantilla.isActive ? AppColors.green : Colors.grey,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 }

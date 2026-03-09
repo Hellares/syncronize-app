@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/constants/storage_constants.dart';
+import '../../../../core/fonts/app_text_widgets.dart';
 import '../../../../core/storage/local_storage_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/gradient_background.dart';
@@ -287,7 +288,7 @@ class _EmpresaProfilePageState extends State<EmpresaProfilePage> {
         Text(
           title,
           style: const TextStyle(
-            fontSize: 13,
+            fontSize: 12,
             fontWeight: FontWeight.w700,
             letterSpacing: 0.2,
           ),
@@ -426,6 +427,7 @@ class _EmpresaProfilePageState extends State<EmpresaProfilePage> {
             const SizedBox(height: 16),
             CustomText(
               controller: _telefonoController,
+              borderColor: AppColors.blue1,
               label: 'Teléfono',
               hintText: 'Ej: +51 999 888 777',
               fieldType: FieldType.number,
@@ -434,6 +436,7 @@ class _EmpresaProfilePageState extends State<EmpresaProfilePage> {
             const SizedBox(height: 14),
             CustomText(
               controller: _emailController,
+              borderColor: AppColors.blue1,
               label: 'Email',
               hintText: 'contacto@miempresa.com',
               fieldType: FieldType.email,
@@ -442,6 +445,7 @@ class _EmpresaProfilePageState extends State<EmpresaProfilePage> {
             const SizedBox(height: 14),
             CustomText(
               controller: _webController,
+              borderColor: AppColors.blue1,
               label: 'Sitio Web',
               hintText: 'https://miempresa.com',
               prefixIcon: const Icon(Icons.language),
@@ -449,6 +453,7 @@ class _EmpresaProfilePageState extends State<EmpresaProfilePage> {
             const SizedBox(height: 14),
             CustomText(
               controller: _descripcionController,
+              borderColor: AppColors.blue1,
               label: 'Descripción',
               hintText: 'Describe tu empresa...',
               prefixIcon: const Icon(Icons.description_outlined),
@@ -613,13 +618,7 @@ class _InfoRow extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 1),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
+              AppSubtitle(value),
             ],
           ),
         ),

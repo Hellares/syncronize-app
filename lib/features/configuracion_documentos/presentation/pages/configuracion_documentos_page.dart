@@ -5,7 +5,19 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:printing/printing.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/fonts/app_fonts.dart';
+import '../../../../core/fonts/app_text_widgets.dart';
 import '../../../../core/services/storage_service.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_gradients.dart';
+import '../../../../core/theme/gradient_background.dart';
+import '../../../../core/theme/gradient_container.dart';
+import '../../../../core/widgets/custom_button.dart';
+import '../../../../core/widgets/custom_dropdown.dart';
+import '../../../../core/widgets/custom_loading.dart';
+import '../../../../core/widgets/custom_switch_tile.dart';
+import '../../../../core/widgets/smart_appbar.dart';
+import '../../../auth/presentation/widgets/custom_text.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../domain/entities/configuracion_documentos.dart';
@@ -26,11 +38,8 @@ class ConfiguracionDocumentosPage extends StatefulWidget {
 }
 
 class _ConfiguracionDocumentosPageState
-    extends State<ConfiguracionDocumentosPage>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-
-  // Form controllers for identity section
+    extends State<ConfiguracionDocumentosPage> {
+  // Identity controllers
   final _nombreComercialCtrl = TextEditingController();
   final _rucCtrl = TextEditingController();
   final _direccionCtrl = TextEditingController();
@@ -46,11 +55,11 @@ class _ConfiguracionDocumentosPageState
   String? _logoUrl;
   bool _isUploadingLogo = false;
 
-  // Template section
+  // Template
   TipoDocumento _selectedTipo = TipoDocumento.COTIZACION;
   FormatoPapel _selectedFormato = FormatoPapel.A4;
 
-  // Margin controllers
+  // Margins
   final _margenSuperiorCtrl = TextEditingController(text: '10');
   final _margenInferiorCtrl = TextEditingController(text: '10');
   final _margenIzquierdoCtrl = TextEditingController(text: '10');
@@ -71,13 +80,11 @@ class _ConfiguracionDocumentosPageState
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     context.read<ConfiguracionDocumentosCubit>().cargarConfiguracion();
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
     _nombreComercialCtrl.dispose();
     _rucCtrl.dispose();
     _direccionCtrl.dispose();
@@ -105,7 +112,15 @@ class _ConfiguracionDocumentosPageState
     _colorTextoCtrl.text = config.colorTexto;
     _textoPieCtrl.text = config.textoPiePagina;
     _mostrarPaginacion = config.mostrarPaginacion;
+
+    // Fallback: si no hay logoUrl en configuración, usar el logo de la empresa
     _logoUrl = config.logoUrl;
+    if (_logoUrl == null || _logoUrl!.isEmpty) {
+      final empresaState = context.read<EmpresaContextCubit>().state;
+      if (empresaState is EmpresaContextLoaded) {
+        _logoUrl = empresaState.context.empresa.logo;
+      }
+    }
   }
 
   void _populatePlantillaFields(PlantillaDocumento plantilla) {
@@ -127,527 +142,638 @@ class _ConfiguracionDocumentosPageState
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Configuracion de Documentos'),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: 'Identidad'),
-            Tab(text: 'Plantillas'),
+    return GradientBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: SmartAppBar(
+          title: 'Configuracion de documentos',
+          backgroundColor: AppColors.blue1,
+          foregroundColor: Colors.white,
+        ),
+        body: BlocConsumer<ConfiguracionDocumentosCubit, ConfiguracionDocumentosState>(
+          listener: (context, state) {
+            if (state is ConfiguracionDocumentosLoaded) {
+              _populateConfigFields(state.configuracion);
+              final plantilla = state.plantillas.where(
+                (p) => p.tipoDocumento == _selectedTipo && p.formatoPapel == _selectedFormato,
+              );
+              if (plantilla.isNotEmpty) {
+                _populatePlantillaFields(plantilla.first);
+              } else {
+                context.read<ConfiguracionDocumentosCubit>().cargarPlantilla(
+                  _selectedTipo.apiValue,
+                  formato: _selectedFormato.apiValue,
+                );
+              }
+            }
+            if (state is PlantillaCargada) {
+              _populatePlantillaFields(state.plantilla);
+              setState(() {});
+            }
+            if (state is ConfiguracionDocumentosUpdated) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Configuracion actualizada'), backgroundColor: Colors.green),
+              );
+              context.read<ConfiguracionDocumentosCubit>().cargarConfiguracion();
+            }
+            if (state is PlantillaDocumentoUpdated) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Plantilla actualizada'), backgroundColor: Colors.green),
+              );
+              context.read<ConfiguracionDocumentosCubit>().cargarConfiguracion();
+            }
+            if (state is ConfiguracionDocumentosError) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(state.message), backgroundColor: Colors.red),
+              );
+            }
+          },
+          builder: (context, state) {
+            if (state is ConfiguracionDocumentosLoading) {
+              return const Center(child: CustomLoading());
+            }
+            return _buildContent();
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContent() {
+    return ListView(
+      padding: const EdgeInsets.all(14),
+      children: [
+        // ─── Logo ───
+        _buildLogoCard(),
+        const SizedBox(height: 12),
+
+        // ─── Datos de empresa ───
+        _buildDatosEmpresaCard(),
+        const SizedBox(height: 12),
+
+        // ─── Colores + Pie de página ───
+        _buildColoresCard(),
+        const SizedBox(height: 12),
+
+        // Guardar identidad
+        CustomButton(
+          text: 'Guardar configuracion',
+          icon: const Icon(Icons.save_outlined, size: 14, color: Colors.white),
+          backgroundColor: AppColors.blue1,
+          height: 38,
+          borderRadius: 8,
+          onPressed: _guardarConfiguracion,
+        ),
+        const SizedBox(height: 20),
+
+        // ─── Separador plantillas ───
+        Row(
+          children: [
+            Expanded(child: Divider(color: Colors.grey.shade300)),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Text(
+                'PLANTILLAS',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.grey.shade400,
+                  letterSpacing: 1.2,
+                  fontFamily: AppFonts.getFontFamily(AppFont.oxygenBold),
+                ),
+              ),
+            ),
+            Expanded(child: Divider(color: Colors.grey.shade300)),
+          ],
+        ),
+        const SizedBox(height: 12),
+
+        // ─── Selector de plantilla ───
+        _buildPlantillaSelector(),
+        const SizedBox(height: 12),
+
+        // ─── Márgenes ───
+        _buildMargenesCard(),
+        const SizedBox(height: 12),
+
+        // ─── Secciones visibles ───
+        _buildSeccionesCard(),
+        const SizedBox(height: 14),
+
+        // Acciones de plantilla
+        Row(
+          children: [
+            Expanded(
+              child: CustomButton(
+                text: 'Vista previa',
+                icon: const Icon(Icons.visibility_outlined, size: 14, color: AppColors.blue1),
+                isOutlined: true,
+                borderColor: AppColors.blue1,
+                textColor: AppColors.blue1,
+                enableShadows: false,
+                height: 38,
+                borderRadius: 8,
+                onPressed: _mostrarVistaPrevia,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: CustomButton(
+                text: 'Guardar plantilla',
+                icon: const Icon(Icons.save_outlined, size: 14, color: Colors.white),
+                backgroundColor: AppColors.blue1,
+                height: 38,
+                borderRadius: 8,
+                onPressed: _guardarPlantilla,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 30),
+      ],
+    );
+  }
+
+  // ─── Logo Card ───
+
+  Widget _buildLogoCard() {
+    return GradientContainer(
+      gradient: AppGradients.blueWhiteBlue(),
+      shadowStyle: ShadowStyle.glow,
+      borderColor: AppColors.blueborder,
+      borderWidth: 0.6,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _sectionHeader('Logo del documento', Icons.image_outlined),
+            const SizedBox(height: 4),
+            AppLabelText(
+              'Se mostrara en el encabezado de los documentos',
+              fontSize: 10,
+              color: Colors.grey.shade500,
+            ),
+            const SizedBox(height: 14),
+            Center(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 120,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      border: Border.all(color: AppColors.blueborder),
+                      borderRadius: BorderRadius.circular(8),
+                      color: Colors.grey.shade50,
+                    ),
+                    child: _logoUrl != null && _logoUrl!.isNotEmpty
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(7),
+                            child: Image.network(
+                              _logoUrl!,
+                              fit: BoxFit.contain,
+                              errorBuilder: (_, __, ___) => Icon(Icons.broken_image, size: 28, color: Colors.grey.shade300),
+                            ),
+                          )
+                        : Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.business, size: 24, color: Colors.grey.shade300),
+                              Text('Sin logo', style: TextStyle(fontSize: 8, color: Colors.grey.shade400)),
+                            ],
+                          ),
+                  ),
+                  const SizedBox(width: 14),
+                  if (_isUploadingLogo)
+                    const SizedBox(
+                      width: 20, height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.blue1),
+                    )
+                  else
+                    Column(
+                      children: [
+                        InkWell(
+                          onTap: _seleccionarLogo,
+                          borderRadius: BorderRadius.circular(6),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: AppColors.bluechip,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.upload_outlined, size: 13, color: AppColors.blue1),
+                                const SizedBox(width: 4),
+                                Text(
+                                  _logoUrl != null ? 'Cambiar' : 'Subir',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.blue1,
+                                    fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        if (_logoUrl != null) ...[
+                          const SizedBox(height: 6),
+                          InkWell(
+                            onTap: _eliminarLogo,
+                            borderRadius: BorderRadius.circular(6),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: Colors.red.shade50,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.delete_outline, size: 13, color: Colors.red.shade400),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Eliminar',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.red.shade400,
+                                      fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
-      body: BlocConsumer<ConfiguracionDocumentosCubit,
-          ConfiguracionDocumentosState>(
-        listener: (context, state) {
-          if (state is ConfiguracionDocumentosLoaded) {
-            _populateConfigFields(state.configuracion);
-            final plantilla = state.plantillas.where(
-              (p) =>
-                  p.tipoDocumento == _selectedTipo &&
-                  p.formatoPapel == _selectedFormato,
-            );
-            if (plantilla.isNotEmpty) {
-              _populatePlantillaFields(plantilla.first);
-            } else {
-              // No existe para este formato, cargar del backend
-              context.read<ConfiguracionDocumentosCubit>().cargarPlantilla(
-                    _selectedTipo.apiValue,
-                    formato: _selectedFormato.apiValue,
-                  );
-            }
-          }
-          if (state is PlantillaCargada) {
-            _populatePlantillaFields(state.plantilla);
-            setState(() {});
-          }
-          if (state is ConfiguracionDocumentosUpdated) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Configuracion actualizada')),
-            );
-            context.read<ConfiguracionDocumentosCubit>().cargarConfiguracion();
-          }
-          if (state is PlantillaDocumentoUpdated) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Plantilla actualizada')),
-            );
-            context.read<ConfiguracionDocumentosCubit>().cargarConfiguracion();
-          }
-          if (state is ConfiguracionDocumentosError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-        },
-        builder: (context, state) {
-          if (state is ConfiguracionDocumentosLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
+    );
+  }
 
-          return TabBarView(
-            controller: _tabController,
-            children: [
-              _buildIdentidadTab(),
-              _buildPlantillasTab(),
-            ],
-          );
-        },
+  // ─── Datos Empresa Card ───
+
+  Widget _buildDatosEmpresaCard() {
+    return GradientContainer(
+      gradient: AppGradients.blueWhiteBlue(),
+      shadowStyle: ShadowStyle.glow,
+      borderColor: AppColors.blue1,
+      borderWidth: 0.6,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _sectionHeader('Datos de la empresa', Icons.business_outlined),
+            const SizedBox(height: 12),
+            CustomText(
+              controller: _nombreComercialCtrl,
+              label: 'Nombre comercial',
+              borderColor: AppColors.blue1,
+            ),
+            const SizedBox(height: 8),
+            CustomText(
+              controller: _rucCtrl,
+              label: 'RUC',
+              borderColor: AppColors.blue1,
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 8),
+            CustomText(
+              controller: _direccionCtrl,
+              label: 'Direccion',
+              borderColor: AppColors.blue1,
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: CustomText(
+                    controller: _telefonoCtrl,
+                    label: 'Telefono',
+                    borderColor: AppColors.blue1,
+                    keyboardType: TextInputType.phone,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: CustomText(
+                    controller: _emailCtrl,
+                    label: 'Email',
+                    borderColor: AppColors.blue1,
+                    keyboardType: TextInputType.emailAddress,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildIdentidadTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Logo de empresa
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Logo de la empresa',
-                      style: Theme.of(context).textTheme.titleMedium),
-                  const SizedBox(height: 16),
-                  Center(
-                    child: Column(
-                      children: [
-                        Container(
-                          width: 160,
-                          height: 80,
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey.shade300),
-                            borderRadius: BorderRadius.circular(8),
-                            color: Colors.grey.shade50,
-                          ),
-                          child: _logoUrl != null && _logoUrl!.isNotEmpty
-                              ? ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Image.network(
-                                    _logoUrl!,
-                                    fit: BoxFit.contain,
-                                    errorBuilder: (_, __, ___) => const Icon(
-                                      Icons.broken_image,
-                                      size: 40,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                                )
-                              : const Icon(
-                                  Icons.business,
-                                  size: 40,
-                                  color: Colors.grey,
-                                ),
-                        ),
-                        const SizedBox(height: 12),
-                        if (_isUploadingLogo)
-                          const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        else
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              OutlinedButton.icon(
-                                onPressed: _seleccionarLogo,
-                                icon: const Icon(Icons.upload, size: 18),
-                                label: Text(
-                                    _logoUrl != null ? 'Cambiar' : 'Subir logo'),
-                              ),
-                              if (_logoUrl != null) ...[
-                                const SizedBox(width: 8),
-                                OutlinedButton.icon(
-                                  onPressed: _eliminarLogo,
-                                  icon: const Icon(Icons.delete_outline,
-                                      size: 18, color: Colors.red),
-                                  label: const Text('Eliminar',
-                                      style: TextStyle(color: Colors.red)),
-                                ),
-                              ],
-                            ],
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
+  // ─── Colores Card ───
 
-          // Datos de empresa
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Datos de la empresa',
-                      style: Theme.of(context).textTheme.titleMedium),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: _nombreComercialCtrl,
-                    decoration:
-                        const InputDecoration(labelText: 'Nombre comercial'),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _rucCtrl,
-                    decoration: const InputDecoration(labelText: 'RUC'),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _direccionCtrl,
-                    decoration: const InputDecoration(labelText: 'Direccion'),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _telefonoCtrl,
-                          decoration:
-                              const InputDecoration(labelText: 'Telefono'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextField(
-                          controller: _emailCtrl,
-                          decoration:
-                              const InputDecoration(labelText: 'Email'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+  Widget _buildColoresCard() {
+    return GradientContainer(
+      gradient: AppGradients.blueWhiteBlue(),
+      shadowStyle: ShadowStyle.glow,
+      borderColor: AppColors.blueborder,
+      borderWidth: 0.6,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _sectionHeader('Colores y pie de pagina', Icons.palette_outlined),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(child: _buildColorField(_colorPrimarioCtrl, 'Primario')),
+                const SizedBox(width: 8),
+                Expanded(child: _buildColorField(_colorSecundarioCtrl, 'Secundario')),
+                const SizedBox(width: 8),
+                Expanded(child: _buildColorField(_colorTextoCtrl, 'Texto')),
+              ],
             ),
-          ),
-          const SizedBox(height: 16),
 
-          // Colores
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Colores del documento',
-                      style: Theme.of(context).textTheme.titleMedium),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildColorField(
-                          controller: _colorPrimarioCtrl,
-                          label: 'Color primario',
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildColorField(
-                          controller: _colorSecundarioCtrl,
-                          label: 'Color secundario',
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildColorField(
-                          controller: _colorTextoCtrl,
-                          label: 'Color texto',
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
+            _sectionDivider(),
 
-          // Pie de pagina
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Pie de pagina',
-                      style: Theme.of(context).textTheme.titleMedium),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: _textoPieCtrl,
-                    decoration:
-                        const InputDecoration(labelText: 'Texto pie de pagina'),
-                    maxLines: 2,
-                  ),
-                  const SizedBox(height: 12),
-                  SwitchListTile(
-                    title: const Text('Mostrar paginacion'),
-                    subtitle: const Text('Pagina X de Y'),
-                    value: _mostrarPaginacion,
-                    onChanged: (v) => setState(() => _mostrarPaginacion = v),
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                ],
-              ),
+            CustomText(
+              controller: _textoPieCtrl,
+              label: 'Texto pie de pagina',
+              borderColor: AppColors.blue1,
+              maxLines: 2,
             ),
-          ),
-          const SizedBox(height: 24),
-
-          // Save button
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              onPressed: _guardarConfiguracion,
-              child: const Text('Guardar configuracion'),
+            const SizedBox(height: 8),
+            CustomSwitchTile(
+              title: 'Mostrar paginacion',
+              subtitle: 'Pagina X de Y',
+              value: _mostrarPaginacion,
+              onChanged: (v) => setState(() => _mostrarPaginacion = v),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildPlantillasTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Tipo selector
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Tipo de documento',
-                      style: Theme.of(context).textTheme.titleMedium),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<TipoDocumento>(
-                    initialValue: _selectedTipo,
-                    items: TipoDocumento.values
-                        .map((t) => DropdownMenuItem(
-                              value: t,
-                              child: Text(t.label),
-                            ))
-                        .toList(),
-                    onChanged: (v) {
-                      if (v != null) {
-                        setState(() => _selectedTipo = v);
-                        _cargarPlantillaSeleccionada();
-                      }
-                    },
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text('Formato de papel',
-                      style: Theme.of(context).textTheme.titleMedium),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<FormatoPapel>(
-                    initialValue: _selectedFormato,
-                    items: FormatoPapel.values
-                        .map((f) => DropdownMenuItem(
-                              value: f,
-                              child: Text(f.label),
-                            ))
-                        .toList(),
-                    onChanged: (v) {
-                      if (v != null) {
-                        setState(() => _selectedFormato = v);
-                        _cargarPlantillaSeleccionada();
-                      }
-                    },
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Margenes
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Margenes (mm)',
-                      style: Theme.of(context).textTheme.titleMedium),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _margenSuperiorCtrl,
-                          keyboardType: TextInputType.number,
-                          decoration:
-                              const InputDecoration(labelText: 'Superior'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextField(
-                          controller: _margenInferiorCtrl,
-                          keyboardType: TextInputType.number,
-                          decoration:
-                              const InputDecoration(labelText: 'Inferior'),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _margenIzquierdoCtrl,
-                          keyboardType: TextInputType.number,
-                          decoration:
-                              const InputDecoration(labelText: 'Izquierdo'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextField(
-                          controller: _margenDerechoCtrl,
-                          keyboardType: TextInputType.number,
-                          decoration:
-                              const InputDecoration(labelText: 'Derecho'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Secciones visibles
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Secciones visibles',
-                      style: Theme.of(context).textTheme.titleMedium),
-                  const SizedBox(height: 8),
-                  _buildToggle('Logo', _mostrarLogo,
-                      (v) => setState(() => _mostrarLogo = v)),
-                  _buildToggle('Datos de empresa', _mostrarDatosEmpresa,
-                      (v) => setState(() => _mostrarDatosEmpresa = v)),
-                  _buildToggle('Datos del cliente', _mostrarDatosCliente,
-                      (v) => setState(() => _mostrarDatosCliente = v)),
-                  _buildToggle('Detalles/Items', _mostrarDetalles,
-                      (v) => setState(() => _mostrarDetalles = v)),
-                  _buildToggle('Totales', _mostrarTotales,
-                      (v) => setState(() => _mostrarTotales = v)),
-                  _buildToggle('Observaciones', _mostrarObservaciones,
-                      (v) => setState(() => _mostrarObservaciones = v)),
-                  _buildToggle('Condiciones', _mostrarCondiciones,
-                      (v) => setState(() => _mostrarCondiciones = v)),
-                  _buildToggle('Firma', _mostrarFirma,
-                      (v) => setState(() => _mostrarFirma = v)),
-                  _buildToggle('Codigo QR', _mostrarCodigoQR,
-                      (v) => setState(() => _mostrarCodigoQR = v)),
-                  _buildToggle('Pie de pagina', _mostrarPiePagina,
-                      (v) => setState(() => _mostrarPiePagina = v)),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Save button
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              onPressed: _guardarPlantilla,
-              child: const Text('Guardar plantilla'),
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // Preview button
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: _mostrarVistaPrevia,
-              icon: const Icon(Icons.visibility),
-              label: const Text('Vista previa'),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildColorField({
-    required TextEditingController controller,
-    required String label,
-  }) {
+  Widget _buildColorField(TextEditingController controller, String label) {
     Color? previewColor;
     try {
       final hex = controller.text.replaceFirst('#', '');
-      if (hex.length == 6) {
-        previewColor = Color(int.parse('FF$hex', radix: 16));
-      }
+      if (hex.length == 6) previewColor = Color(int.parse('FF$hex', radix: 16));
     } catch (_) {}
 
-    return TextField(
-      controller: controller,
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: '#RRGGBB',
-        prefixIcon: Container(
-          margin: const EdgeInsets.all(10),
-          width: 24,
-          height: 24,
-          decoration: BoxDecoration(
-            color: previewColor ?? Colors.grey,
-            border: Border.all(color: Colors.grey.shade300),
-            borderRadius: BorderRadius.circular(4),
-          ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                color: previewColor ?? Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: Colors.grey.shade300, width: 0.5),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                color: Colors.grey.shade600,
+                fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
+              ),
+            ),
+          ],
         ),
-      ),
-      onChanged: (_) => setState(() {}),
+        const SizedBox(height: 4),
+        CustomText(
+          controller: controller,
+          hintText: '#RRGGBB',
+          borderColor: AppColors.blue1,
+          onChanged: (_) => setState(() {}),
+        ),
+      ],
     );
   }
 
-  Widget _buildToggle(String label, bool value, ValueChanged<bool> onChanged) {
-    return SwitchListTile(
-      title: Text(label),
-      value: value,
-      onChanged: onChanged,
-      contentPadding: EdgeInsets.zero,
-      dense: true,
+  // ─── Plantilla Selector ───
+
+  Widget _buildPlantillaSelector() {
+    return GradientContainer(
+      gradient: AppGradients.blueWhiteBlue(),
+      shadowStyle: ShadowStyle.glow,
+      borderColor: AppColors.blueborder,
+      borderWidth: 0.6,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _sectionHeader('Tipo de documento', Icons.description_outlined),
+            const SizedBox(height: 12),
+            CustomDropdown<String>(
+              label: 'Documento',
+              value: _selectedTipo.apiValue,
+              borderColor: AppColors.blue1,
+              items: TipoDocumento.values
+                  .map((t) => DropdownItem<String>(value: t.apiValue, label: t.label))
+                  .toList(),
+              onChanged: (v) {
+                if (v != null) {
+                  setState(() => _selectedTipo = TipoDocumento.fromString(v));
+                  _cargarPlantillaSeleccionada();
+                }
+              },
+            ),
+            const SizedBox(height: 8),
+            CustomDropdown<String>(
+              label: 'Formato de papel',
+              value: _selectedFormato.apiValue,
+              borderColor: AppColors.blue1,
+              items: FormatoPapel.values
+                  .map((f) => DropdownItem<String>(value: f.apiValue, label: f.label))
+                  .toList(),
+              onChanged: (v) {
+                if (v != null) {
+                  setState(() => _selectedFormato = FormatoPapel.fromString(v));
+                  _cargarPlantillaSeleccionada();
+                }
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
+
+  // ─── Márgenes Card ───
+
+  Widget _buildMargenesCard() {
+    return GradientContainer(
+      gradient: AppGradients.blueWhiteBlue(),
+      shadowStyle: ShadowStyle.glow,
+      borderColor: AppColors.blueborder,
+      borderWidth: 0.6,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _sectionHeader('Margenes (mm)', Icons.crop_outlined),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: CustomText(
+                    controller: _margenSuperiorCtrl,
+                    label: 'Superior',
+                    borderColor: AppColors.blue1,
+                    keyboardType: TextInputType.number,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: CustomText(
+                    controller: _margenInferiorCtrl,
+                    label: 'Inferior',
+                    borderColor: AppColors.blue1,
+                    keyboardType: TextInputType.number,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: CustomText(
+                    controller: _margenIzquierdoCtrl,
+                    label: 'Izquierdo',
+                    borderColor: AppColors.blue1,
+                    keyboardType: TextInputType.number,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: CustomText(
+                    controller: _margenDerechoCtrl,
+                    label: 'Derecho',
+                    borderColor: AppColors.blue1,
+                    keyboardType: TextInputType.number,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ─── Secciones Card ───
+
+  Widget _buildSeccionesCard() {
+    return GradientContainer(
+      gradient: AppGradients.blueWhiteBlue(),
+      shadowStyle: ShadowStyle.glow,
+      borderColor: AppColors.blueborder,
+      borderWidth: 0.6,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _sectionHeader('Secciones visibles', Icons.visibility_outlined),
+            const SizedBox(height: 4),
+            AppLabelText(
+              'Selecciona que secciones mostrar en el documento',
+              fontSize: 10,
+              color: Colors.grey.shade500,
+            ),
+            const SizedBox(height: 10),
+            CustomSwitchTile(title: 'Logo', value: _mostrarLogo,
+                onChanged: (v) => setState(() => _mostrarLogo = v)),
+            const SizedBox(height: 4),
+            CustomSwitchTile(title: 'Datos de empresa', value: _mostrarDatosEmpresa,
+                onChanged: (v) => setState(() => _mostrarDatosEmpresa = v)),
+            const SizedBox(height: 4),
+            CustomSwitchTile(title: 'Datos del cliente', value: _mostrarDatosCliente,
+                onChanged: (v) => setState(() => _mostrarDatosCliente = v)),
+            const SizedBox(height: 4),
+            CustomSwitchTile(title: 'Detalles / Items', value: _mostrarDetalles,
+                onChanged: (v) => setState(() => _mostrarDetalles = v)),
+            const SizedBox(height: 4),
+            CustomSwitchTile(title: 'Totales', value: _mostrarTotales,
+                onChanged: (v) => setState(() => _mostrarTotales = v)),
+            const SizedBox(height: 4),
+            CustomSwitchTile(title: 'Observaciones', value: _mostrarObservaciones,
+                onChanged: (v) => setState(() => _mostrarObservaciones = v)),
+            const SizedBox(height: 4),
+            CustomSwitchTile(title: 'Condiciones', value: _mostrarCondiciones,
+                onChanged: (v) => setState(() => _mostrarCondiciones = v)),
+            const SizedBox(height: 4),
+            CustomSwitchTile(title: 'Firma', value: _mostrarFirma,
+                onChanged: (v) => setState(() => _mostrarFirma = v)),
+            const SizedBox(height: 4),
+            CustomSwitchTile(title: 'Codigo QR', value: _mostrarCodigoQR,
+                onChanged: (v) => setState(() => _mostrarCodigoQR = v)),
+            const SizedBox(height: 4),
+            CustomSwitchTile(title: 'Pie de pagina', value: _mostrarPiePagina,
+                onChanged: (v) => setState(() => _mostrarPiePagina = v)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ─── Helpers ───
+
+  Widget _sectionHeader(String title, IconData icon) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: AppColors.blue1,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Icon(icon, color: AppColors.blue1, size: 16),
+        ),
+        const SizedBox(width: 10),
+        AppTitle(title, fontSize: 12, color: AppColors.blue1),
+      ],
+    );
+  }
+
+  Widget _sectionDivider() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Divider(height: 1, color: Colors.grey.shade200),
+    );
+  }
+
+  // ─── Actions ───
 
   void _cargarPlantillaSeleccionada() {
     final state = context.read<ConfiguracionDocumentosCubit>().state;
     if (state is ConfiguracionDocumentosLoaded) {
       final plantilla = state.plantillas.where(
-        (p) =>
-            p.tipoDocumento == _selectedTipo &&
-            p.formatoPapel == _selectedFormato,
+        (p) => p.tipoDocumento == _selectedTipo && p.formatoPapel == _selectedFormato,
       );
       if (plantilla.isNotEmpty) {
         _populatePlantillaFields(plantilla.first);
@@ -655,11 +781,10 @@ class _ConfiguracionDocumentosPageState
         return;
       }
     }
-    // Not in local list — fetch from backend (creates with defaults if needed)
     context.read<ConfiguracionDocumentosCubit>().cargarPlantilla(
-          _selectedTipo.apiValue,
-          formato: _selectedFormato.apiValue,
-        );
+      _selectedTipo.apiValue,
+      formato: _selectedFormato.apiValue,
+    );
   }
 
   Future<void> _seleccionarLogo() async {
@@ -689,7 +814,6 @@ class _ConfiguracionDocumentosPageState
         categoria: 'LOGO',
       );
 
-      // Guardar la URL del logo en la configuración
       cubit.actualizarConfiguracion({'logoUrl': response.url});
 
       if (mounted) {
@@ -702,54 +826,56 @@ class _ConfiguracionDocumentosPageState
       if (mounted) {
         setState(() => _isUploadingLogo = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al subir logo: $e'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('Error al subir logo: $e'), backgroundColor: Colors.red),
         );
       }
     }
   }
 
   void _eliminarLogo() {
-    context.read<ConfiguracionDocumentosCubit>().actualizarConfiguracion({
-      'logoUrl': null,
-    });
+    context.read<ConfiguracionDocumentosCubit>().actualizarConfiguracion({'logoUrl': null});
     setState(() => _logoUrl = null);
   }
 
   void _guardarConfiguracion() {
     final data = <String, dynamic>{};
-    if (_nombreComercialCtrl.text.isNotEmpty) {
-      data['nombreComercial'] = _nombreComercialCtrl.text;
-    }
+    if (_nombreComercialCtrl.text.isNotEmpty) data['nombreComercial'] = _nombreComercialCtrl.text;
     if (_rucCtrl.text.isNotEmpty) data['ruc'] = _rucCtrl.text;
-    if (_direccionCtrl.text.isNotEmpty) {
-      data['direccion'] = _direccionCtrl.text;
-    }
-    if (_telefonoCtrl.text.isNotEmpty) {
-      data['telefono'] = _telefonoCtrl.text;
-    }
+    if (_direccionCtrl.text.isNotEmpty) data['direccion'] = _direccionCtrl.text;
+    if (_telefonoCtrl.text.isNotEmpty) data['telefono'] = _telefonoCtrl.text;
     if (_emailCtrl.text.isNotEmpty) data['email'] = _emailCtrl.text;
-    if (_colorPrimarioCtrl.text.isNotEmpty) {
-      data['colorPrimario'] = _colorPrimarioCtrl.text;
-    }
-    if (_colorSecundarioCtrl.text.isNotEmpty) {
-      data['colorSecundario'] = _colorSecundarioCtrl.text;
-    }
-    if (_colorTextoCtrl.text.isNotEmpty) {
-      data['colorTexto'] = _colorTextoCtrl.text;
-    }
-    if (_textoPieCtrl.text.isNotEmpty) {
-      data['textoPiePagina'] = _textoPieCtrl.text;
-    }
+    if (_colorPrimarioCtrl.text.isNotEmpty) data['colorPrimario'] = _colorPrimarioCtrl.text;
+    if (_colorSecundarioCtrl.text.isNotEmpty) data['colorSecundario'] = _colorSecundarioCtrl.text;
+    if (_colorTextoCtrl.text.isNotEmpty) data['colorTexto'] = _colorTextoCtrl.text;
+    if (_textoPieCtrl.text.isNotEmpty) data['textoPiePagina'] = _textoPieCtrl.text;
     data['mostrarPaginacion'] = _mostrarPaginacion;
 
     context.read<ConfiguracionDocumentosCubit>().actualizarConfiguracion(data);
   }
 
+  void _guardarPlantilla() {
+    final data = <String, dynamic>{
+      'formatoPapel': _selectedFormato.apiValue,
+      'margenSuperior': double.tryParse(_margenSuperiorCtrl.text) ?? 10.0,
+      'margenInferior': double.tryParse(_margenInferiorCtrl.text) ?? 10.0,
+      'margenIzquierdo': double.tryParse(_margenIzquierdoCtrl.text) ?? 10.0,
+      'margenDerecho': double.tryParse(_margenDerechoCtrl.text) ?? 10.0,
+      'mostrarLogo': _mostrarLogo,
+      'mostrarDatosEmpresa': _mostrarDatosEmpresa,
+      'mostrarDatosCliente': _mostrarDatosCliente,
+      'mostrarDetalles': _mostrarDetalles,
+      'mostrarTotales': _mostrarTotales,
+      'mostrarObservaciones': _mostrarObservaciones,
+      'mostrarCondiciones': _mostrarCondiciones,
+      'mostrarFirma': _mostrarFirma,
+      'mostrarCodigoQR': _mostrarCodigoQR,
+      'mostrarPiePagina': _mostrarPiePagina,
+    };
+
+    context.read<ConfiguracionDocumentosCubit>().actualizarPlantilla(_selectedTipo.apiValue, data);
+  }
+
   Future<void> _mostrarVistaPrevia() async {
-    // Build a PlantillaDocumento from current form values
     final plantilla = PlantillaDocumento(
       id: 'preview',
       empresaId: 'preview',
@@ -770,40 +896,21 @@ class _ConfiguracionDocumentosPageState
       mostrarFirma: _mostrarFirma,
       mostrarCodigoQR: _mostrarCodigoQR,
       mostrarPiePagina: _mostrarPiePagina,
-      colorEncabezado: _colorPrimarioCtrl.text.isNotEmpty
-          ? _colorPrimarioCtrl.text
-          : null,
+      colorEncabezado: _colorPrimarioCtrl.text.isNotEmpty ? _colorPrimarioCtrl.text : null,
     );
 
-    // Build ConfiguracionDocumentos from form values
     final config = ConfiguracionDocumentos(
       id: 'preview',
       empresaId: 'preview',
-      nombreComercial: _nombreComercialCtrl.text.isNotEmpty
-          ? _nombreComercialCtrl.text
-          : 'Mi Empresa S.A.C.',
+      nombreComercial: _nombreComercialCtrl.text.isNotEmpty ? _nombreComercialCtrl.text : 'Mi Empresa S.A.C.',
       ruc: _rucCtrl.text.isNotEmpty ? _rucCtrl.text : '20123456789',
-      direccion: _direccionCtrl.text.isNotEmpty
-          ? _direccionCtrl.text
-          : 'Av. Ejemplo 123, Lima',
-      telefono: _telefonoCtrl.text.isNotEmpty
-          ? _telefonoCtrl.text
-          : '(01) 234-5678',
-      email: _emailCtrl.text.isNotEmpty
-          ? _emailCtrl.text
-          : 'contacto@miempresa.com',
-      colorPrimario: _colorPrimarioCtrl.text.isNotEmpty
-          ? _colorPrimarioCtrl.text
-          : '#1565C0',
-      colorSecundario: _colorSecundarioCtrl.text.isNotEmpty
-          ? _colorSecundarioCtrl.text
-          : '#1E88E5',
-      colorTexto: _colorTextoCtrl.text.isNotEmpty
-          ? _colorTextoCtrl.text
-          : '#333333',
-      textoPiePagina: _textoPieCtrl.text.isNotEmpty
-          ? _textoPieCtrl.text
-          : 'Gracias por su preferencia',
+      direccion: _direccionCtrl.text.isNotEmpty ? _direccionCtrl.text : 'Av. Ejemplo 123, Lima',
+      telefono: _telefonoCtrl.text.isNotEmpty ? _telefonoCtrl.text : '(01) 234-5678',
+      email: _emailCtrl.text.isNotEmpty ? _emailCtrl.text : 'contacto@miempresa.com',
+      colorPrimario: _colorPrimarioCtrl.text.isNotEmpty ? _colorPrimarioCtrl.text : '#1565C0',
+      colorSecundario: _colorSecundarioCtrl.text.isNotEmpty ? _colorSecundarioCtrl.text : '#1E88E5',
+      colorTexto: _colorTextoCtrl.text.isNotEmpty ? _colorTextoCtrl.text : '#333333',
+      textoPiePagina: _textoPieCtrl.text.isNotEmpty ? _textoPieCtrl.text : 'Gracias por su preferencia',
       mostrarPaginacion: _mostrarPaginacion,
     );
 
@@ -812,7 +919,6 @@ class _ConfiguracionDocumentosPageState
       plantilla: plantilla,
     );
 
-    // Dummy cotizacion data
     final now = DateTime.now();
     final dummyCotizacion = Cotizacion(
       id: 'preview',
@@ -840,38 +946,12 @@ class _ConfiguracionDocumentosPageState
       observaciones: 'Esta es una cotizacion de ejemplo para vista previa.',
       condiciones: 'Validez: 30 dias. Forma de pago: 50% adelanto.',
       detalles: [
-        CotizacionDetalle(
-          id: 'd1',
-          cotizacionId: 'preview',
-          descripcion: 'Servicio de consultoria',
-          cantidad: 2,
-          precioUnitario: 500.00,
-          subtotal: 1000.00,
-          total: 1000.00,
-        ),
-        CotizacionDetalle(
-          id: 'd2',
-          cotizacionId: 'preview',
-          descripcion: 'Licencia de software anual',
-          cantidad: 1,
-          precioUnitario: 350.00,
-          subtotal: 350.00,
-          total: 350.00,
-        ),
-        CotizacionDetalle(
-          id: 'd3',
-          cotizacionId: 'preview',
-          descripcion: 'Soporte tecnico mensual',
-          cantidad: 3,
-          precioUnitario: 50.00,
-          descuento: 0,
-          subtotal: 150.00,
-          total: 150.00,
-        ),
+        CotizacionDetalle(id: 'd1', cotizacionId: 'preview', descripcion: 'Servicio de consultoria', cantidad: 2, precioUnitario: 500.00, subtotal: 1000.00, total: 1000.00),
+        CotizacionDetalle(id: 'd2', cotizacionId: 'preview', descripcion: 'Licencia de software anual', cantidad: 1, precioUnitario: 350.00, subtotal: 350.00, total: 350.00),
+        CotizacionDetalle(id: 'd3', cotizacionId: 'preview', descripcion: 'Soporte tecnico mensual', cantidad: 3, precioUnitario: 50.00, descuento: 0, subtotal: 150.00, total: 150.00),
       ],
     );
 
-    // Generate PDF
     Uint8List pdfBytes;
     try {
       pdfBytes = await PdfCotizacionGenerator.generarDocumento(
@@ -885,10 +965,7 @@ class _ConfiguracionDocumentosPageState
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al generar vista previa: $e'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('Error al generar vista previa: $e'), backgroundColor: Colors.red),
         );
       }
       return;
@@ -896,13 +973,10 @@ class _ConfiguracionDocumentosPageState
 
     if (!mounted) return;
 
-    // Show preview in a full-screen dialog
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => Scaffold(
-          appBar: AppBar(
-            title: Text('Vista previa - ${_selectedFormato.label}'),
-          ),
+          appBar: AppBar(title: Text('Vista previa - ${_selectedFormato.label}')),
           body: PdfPreview(
             build: (format) => pdfBytes,
             allowSharing: false,
@@ -916,33 +990,5 @@ class _ConfiguracionDocumentosPageState
         ),
       ),
     );
-  }
-
-  void _guardarPlantilla() {
-    final data = <String, dynamic>{
-      'formatoPapel': _selectedFormato.apiValue,
-      'margenSuperior':
-          double.tryParse(_margenSuperiorCtrl.text) ?? 10.0,
-      'margenInferior':
-          double.tryParse(_margenInferiorCtrl.text) ?? 10.0,
-      'margenIzquierdo':
-          double.tryParse(_margenIzquierdoCtrl.text) ?? 10.0,
-      'margenDerecho':
-          double.tryParse(_margenDerechoCtrl.text) ?? 10.0,
-      'mostrarLogo': _mostrarLogo,
-      'mostrarDatosEmpresa': _mostrarDatosEmpresa,
-      'mostrarDatosCliente': _mostrarDatosCliente,
-      'mostrarDetalles': _mostrarDetalles,
-      'mostrarTotales': _mostrarTotales,
-      'mostrarObservaciones': _mostrarObservaciones,
-      'mostrarCondiciones': _mostrarCondiciones,
-      'mostrarFirma': _mostrarFirma,
-      'mostrarCodigoQR': _mostrarCodigoQR,
-      'mostrarPiePagina': _mostrarPiePagina,
-    };
-
-    context
-        .read<ConfiguracionDocumentosCubit>()
-        .actualizarPlantilla(_selectedTipo.apiValue, data);
   }
 }

@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:syncronize/core/fonts/app_fonts.dart';
+import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_gradients.dart';
 import '../../../../core/theme/gradient_background.dart';
+import '../../../../core/theme/gradient_container.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../../../core/widgets/custom_search_field.dart';
 import '../../../../core/widgets/custom_loading.dart';
@@ -275,20 +279,55 @@ class _OrdenesContentState extends State<_OrdenesContent> {
 
         if (ordenes.isEmpty) {
           return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.assignment_outlined,
-                    size: 64, color: Colors.grey.shade400),
-                const SizedBox(height: 16),
-                Text('No hay órdenes de servicio',
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.assignment_outlined,
+                      size: 64, color: Colors.grey.shade400),
+                  const SizedBox(height: 16),
+                  Text('No hay ordenes de servicio',
+                      style: TextStyle(
+                          fontSize: 15, color: Colors.grey.shade500)),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Para crear una orden necesitas tener al menos un servicio registrado',
+                    textAlign: TextAlign.center,
                     style: TextStyle(
-                        fontSize: 15, color: Colors.grey.shade500)),
-                const SizedBox(height: 8),
-                Text('Crea una nueva orden para comenzar',
-                    style: TextStyle(
-                        fontSize: 12, color: Colors.grey.shade400)),
-              ],
+                        fontSize: 12, color: Colors.grey.shade400),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: () => context.push('/empresa/servicios'),
+                        icon: const Icon(Icons.room_service, size: 16),
+                        label: const Text('Ir a Servicios'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.blue1,
+                          side: const BorderSide(color: AppColors.blue1, width: 0.8),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      FilledButton.icon(
+                        onPressed: () async {
+                          final cubit = context.read<OrdenServicioListCubit>();
+                          await context.push('/empresa/ordenes/crear');
+                          if (!context.mounted) return;
+                          cubit.refresh();
+                        },
+                        icon: const Icon(Icons.add, size: 16),
+                        label: const Text('Nueva Orden'),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.blue1,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           );
         }
@@ -375,179 +414,40 @@ class _OrdenServicioCard extends StatelessWidget {
     final prioridadColor = _prioridadColor(orden.prioridad);
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Material(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        elevation: 0,
+      padding: const EdgeInsets.only(bottom: 10),
+      child: GradientContainer(
+        gradient: AppGradients.blueWhiteBlue(),
+        shadowStyle: ShadowStyle.glow,
+        borderColor: AppColors.blueborder,
+        borderWidth: 0.6,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(10),
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: Colors.grey.shade200,
-                width: 0.8,
-              ),
-            ),
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
             padding: const EdgeInsets.all(12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ─── Fila superior: Código + Estado ───
-                Row(
-                  children: [
-                    // Icono de prioridad
-                    Container(
-                      width: 4,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: prioridadColor,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    // Código y tipo servicio
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            orden.codigo,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.blue2,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            _tipoServicioLabel(orden.tipoServicio),
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.grey.shade500,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    EstadoBadgeWidget(estado: orden.estado),
-                  ],
-                ),
-
-                const SizedBox(height: 10),
-                // Divider sutil
-                Divider(height: 1, color: Colors.grey.shade100),
-                const SizedBox(height: 10),
-
-                // ─── Info del cliente ───
-                Row(
-                  children: [
-                    Icon(Icons.person_outline,
-                        size: 15, color: Colors.grey.shade500),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        clienteNombre,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.blue2,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-
+                // ─── Header: Icono prioridad + Código + Estado ───
+                _buildHeader(prioridadColor),
+                const SizedBox(height: 6),
+                Container(height: 1, color: Colors.grey.shade200),
+                const SizedBox(height: 6),
+                // ─── Cliente ───
+                _buildClienteRow(clienteNombre),
+                // ─── Equipo ───
+                if (_hasEquipoInfo) ...[
+                  const SizedBox(height: 6),
+                  _buildEquipoRow(),
+                ],
                 const SizedBox(height: 8),
-
-                // ─── Fila inferior: Fecha, hora, prioridad, costo ───
-                Row(
-                  children: [
-                    // Fecha
-                    Icon(Icons.calendar_today_outlined,
-                        size: 13, color: Colors.grey.shade400),
-                    const SizedBox(width: 4),
-                    Text(
-                      DateFormatter.formatDate(orden.creadoEn),
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey.shade500,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    // Hora
-                    Icon(Icons.access_time,
-                        size: 13, color: Colors.grey.shade400),
-                    const SizedBox(width: 4),
-                    Text(
-                      DateFormatter.formatTime(orden.creadoEn),
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey.shade500,
-                      ),
-                    ),
-                    const Spacer(),
-                    // Prioridad
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: prioridadColor.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        _prioridadLabel(orden.prioridad),
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: prioridadColor,
-                        ),
-                      ),
-                    ),
-                    // Costo total
-                    if (orden.costoFinal != null) ...[
-                      const SizedBox(width: 8),
-                      Text(
-                        'S/ ${orden.costoFinal!.toStringAsFixed(2)}',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.blue1,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-
-                // ─── Descripción del problema (si existe) ───
+                // ─── Footer: Fecha, prioridad, costo ───
+                _buildFooter(prioridadColor),
+                // ─── Descripción del problema ───
                 if (orden.descripcionProblema != null &&
                     orden.descripcionProblema!.isNotEmpty) ...[
                   const SizedBox(height: 8),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(Icons.description_outlined,
-                          size: 13, color: Colors.grey.shade400),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          orden.descripcionProblema!,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey.shade500,
-                            height: 1.3,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                  _buildDescripcion(),
                 ],
               ],
             ),
@@ -555,6 +455,300 @@ class _OrdenServicioCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Widget _buildHeader(Color prioridadColor) {
+    return Row(
+      children: [
+        // Barra de prioridad + icono
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: prioridadColor.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(
+            _tipoServicioIcon(orden.tipoServicio),
+            color: prioridadColor,
+            size: 14,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                orden.codigo,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Row(
+                children: [
+                  Icon(Icons.build_outlined,
+                      size: 10, color: Colors.grey.shade600),
+                  const SizedBox(width: 4),
+                  Text(
+                    _tipoServicioLabel(orden.tipoServicio),
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.grey.shade700,
+                      fontFamily:
+                          AppFonts.getFontFamily(AppFont.oxygenRegular),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        EstadoBadgeWidget(estado: orden.estado),
+      ],
+    );
+  }
+
+  Widget _buildClienteRow(String clienteNombre) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(5),
+          decoration: BoxDecoration(
+            color: AppColors.blue1.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: const Icon(Icons.person_outline,
+              size: 12, color: AppColors.blue1),
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            clienteNombre,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: AppColors.blue2,
+              fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
+
+  bool get _hasEquipoInfo =>
+      orden.modeloEquipo != null ||
+      (orden.tipoEquipo != null && orden.tipoEquipo!.isNotEmpty) ||
+      (orden.marcaEquipo != null && orden.marcaEquipo!.isNotEmpty);
+
+  String get _equipoLabel {
+    if (orden.modeloEquipo != null) {
+      return orden.modeloEquipo!.nombreCompleto;
+    }
+    final parts = <String>[];
+    if (orden.marcaEquipo != null && orden.marcaEquipo!.isNotEmpty) {
+      parts.add(orden.marcaEquipo!);
+    }
+    if (orden.tipoEquipo != null && orden.tipoEquipo!.isNotEmpty) {
+      parts.add(orden.tipoEquipo!);
+    }
+    return parts.join(' · ');
+  }
+
+  Widget _buildEquipoRow() {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(5),
+          decoration: BoxDecoration(
+            color: AppColors.blue1.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: const Icon(Icons.devices_outlined,
+              size: 12, color: AppColors.blue1),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            _equipoLabel,
+            style: TextStyle(
+              fontSize: 10,
+              color: Colors.grey.shade700,
+              fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        if (orden.numeroSerie != null && orden.numeroSerie!.isNotEmpty) ...[
+          Icon(Icons.qr_code_2, size: 10, color: Colors.grey.shade500),
+          const SizedBox(width: 3),
+          Text(
+            orden.numeroSerie!,
+            style: TextStyle(
+              fontSize: 9,
+              color: Colors.grey.shade500,
+              fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildFooter(Color prioridadColor) {
+    return Row(
+      children: [
+        // Fecha + hora chip
+        Container(
+          padding:
+              const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+          decoration: BoxDecoration(
+            color: AppColors.bluechip,
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.calendar_today_outlined,
+                  size: 10, color: AppColors.blue1),
+              const SizedBox(width: 3),
+              AppSubtitle(
+                DateFormatter.formatDate(orden.creadoEn),
+                fontSize: 9,
+                color: AppColors.blue1,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 6),
+        Container(
+          padding:
+              const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+          decoration: BoxDecoration(
+            color: AppColors.bluechip,
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.access_time,
+                  size: 10, color: AppColors.blue1),
+              const SizedBox(width: 3),
+              AppSubtitle(
+                DateFormatter.formatTime(orden.creadoEn),
+                fontSize: 9,
+                color: AppColors.blue1,
+              ),
+            ],
+          ),
+        ),
+
+        const Spacer(),
+
+        // Prioridad badge
+        Container(
+          padding: const EdgeInsets.symmetric(
+              horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: prioridadColor.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(
+              color: prioridadColor.withValues(alpha: 0.4),
+              width: 0.6,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                _prioridadIcon(orden.prioridad),
+                size: 10,
+                color: prioridadColor,
+              ),
+              const SizedBox(width: 4),
+              AppSubtitle(
+                _prioridadLabel(orden.prioridad),
+                fontSize: 9,
+                color: prioridadColor,
+              ),
+            ],
+          ),
+        ),
+
+        // Costo total
+        if (orden.costoFinal != null) ...[
+          const SizedBox(width: 8),
+          Text(
+            'S/ ${orden.costoFinal!.toStringAsFixed(2)}',
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: AppColors.blue1,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildDescripcion() {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: AppColors.blue1.withValues(alpha: 0.03),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: AppColors.blue1.withValues(alpha: 0.08),
+          width: 0.6,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.description_outlined,
+              size: 12, color: Colors.grey.shade400),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              orden.descripcionProblema!,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 10,
+                color: Colors.grey.shade600,
+                fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
+                height: 1.3,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  IconData _tipoServicioIcon(String tipo) {
+    switch (tipo) {
+      case 'REPARACION':
+        return Icons.build;
+      case 'MANTENIMIENTO':
+        return Icons.settings;
+      case 'DIAGNOSTICO':
+        return Icons.search;
+      case 'INSTALACION':
+        return Icons.install_desktop;
+      case 'CONFIGURACION':
+        return Icons.tune;
+      case 'ACTUALIZACION':
+        return Icons.system_update;
+      default:
+        return Icons.assignment;
+    }
   }
 
   String _tipoServicioLabel(String tipo) {
@@ -579,6 +773,22 @@ class _OrdenServicioCard extends StatelessWidget {
       'EMERGENCIA': 'Emergencia',
     };
     return labels[prioridad] ?? prioridad;
+  }
+
+  IconData _prioridadIcon(String prioridad) {
+    switch (prioridad) {
+      case 'URGENTE':
+      case 'EMERGENCIA':
+        return Icons.warning_amber;
+      case 'ALTA':
+        return Icons.priority_high;
+      case 'NORMAL':
+        return Icons.remove;
+      case 'BAJA':
+        return Icons.arrow_downward;
+      default:
+        return Icons.remove;
+    }
   }
 
   Color _prioridadColor(String prioridad) {

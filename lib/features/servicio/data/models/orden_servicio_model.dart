@@ -41,6 +41,7 @@ class OrdenServicioModel extends OrdenServicio {
     required super.actualizadoEn,
     super.cliente,
     super.tecnico,
+    super.modeloEquipo,
     super.componentes,
     super.tercerizacionOrigen,
     super.tercerizacionDestino,
@@ -92,6 +93,9 @@ class OrdenServicioModel extends OrdenServicio {
           : null,
       tecnico: json['tecnico'] != null
           ? OrdenTecnicoModel.fromJson(json['tecnico'] as Map<String, dynamic>)
+          : null,
+      modeloEquipo: json['modeloEquipo'] != null
+          ? OrdenModeloEquipoModel.fromJson(json['modeloEquipo'] as Map<String, dynamic>)
           : null,
       componentes: json['componentes'] != null
           ? (json['componentes'] as List)
@@ -195,6 +199,22 @@ class OrdenTecnicoModel extends OrdenTecnico {
       nombre: persona?['nombres'] as String? ?? json['nombre'] as String?,
       apellido: persona?['apellidos'] as String? ?? json['apellido'] as String?,
       email: json['email'] as String?,
+    );
+  }
+}
+
+class OrdenModeloEquipoModel extends OrdenModeloEquipo {
+  const OrdenModeloEquipoModel({
+    required super.id,
+    required super.marca,
+    required super.modelo,
+  });
+
+  factory OrdenModeloEquipoModel.fromJson(Map<String, dynamic> json) {
+    return OrdenModeloEquipoModel(
+      id: json['id'] as String,
+      marca: json['marca'] as String? ?? '',
+      modelo: json['modelo'] as String? ?? '',
     );
   }
 }

@@ -41,6 +41,7 @@ class OrdenServicio extends Equatable {
   // Related
   final OrdenCliente? cliente;
   final OrdenTecnico? tecnico;
+  final OrdenModeloEquipo? modeloEquipo;
   final List<OrdenComponente>? componentes;
 
   // Tercerización vinculada
@@ -85,6 +86,7 @@ class OrdenServicio extends Equatable {
     required this.actualizadoEn,
     this.cliente,
     this.tecnico,
+    this.modeloEquipo,
     this.componentes,
     this.tercerizacionOrigen,
     this.tercerizacionDestino,
@@ -171,6 +173,23 @@ class OrdenTecnico extends Equatable {
 
   @override
   List<Object?> get props => [id, nombre];
+}
+
+class OrdenModeloEquipo extends Equatable {
+  final String id;
+  final String marca;
+  final String modelo;
+
+  const OrdenModeloEquipo({
+    required this.id,
+    required this.marca,
+    required this.modelo,
+  });
+
+  String get nombreCompleto => '$marca $modelo';
+
+  @override
+  List<Object?> get props => [id, marca, modelo];
 }
 
 class OrdenComponente extends Equatable {

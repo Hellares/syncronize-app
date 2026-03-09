@@ -24,7 +24,7 @@ class RolesPermisosSection extends StatelessWidget {
         //   'Tus Roles y Permisos',
         //   style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
         // ),
-        AppSubtitle('Tus Roles y Permisos', fontSize: 14),
+        AppSubtitle('Tus Roles y Permisos', fontSize: 12),
         const SizedBox(height: 3),
         GradientContainer(
           borderColor: AppColors.blueborder,
