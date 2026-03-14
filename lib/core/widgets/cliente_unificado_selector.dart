@@ -1,27 +1,29 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../../core/di/injection_container.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/fonts/app_text_widgets.dart';
-import '../../../../core/utils/resource.dart';
-import '../../../../core/widgets/custom_search_field.dart';
-import '../../../../core/widgets/snack_bar_helper.dart';
-import '../../../../core/widgets/floating_button_icon.dart';
-import '../../../auth/presentation/widgets/custom_button.dart';
-import '../../../auth/presentation/widgets/custom_text.dart'
+import '../di/injection_container.dart';
+import '../theme/app_colors.dart';
+import '../fonts/app_text_widgets.dart';
+import '../utils/resource.dart';
+import 'custom_search_field.dart';
+import 'snack_bar_helper.dart';
+import 'floating_button_icon.dart';
+import '../../features/auth/presentation/widgets/custom_button.dart';
+import '../../features/auth/presentation/widgets/custom_text.dart'
     show CustomText, FieldType;
-import '../../../cliente/domain/entities/cliente.dart';
-import '../../../cliente/presentation/bloc/cliente_list/cliente_list_cubit.dart';
-import '../../../cliente/presentation/bloc/cliente_list/cliente_list_state.dart';
-import '../../../cliente/presentation/bloc/cliente_form/cliente_form_cubit.dart';
-import '../../../cliente/presentation/bloc/cliente_form/cliente_form_state.dart';
-import '../../../consultas_externas/domain/entities/consulta_dni.dart';
-import '../../../consultas_externas/domain/entities/consulta_ruc.dart';
-import '../../../consultas_externas/domain/usecases/consultar_dni_usecase.dart';
-import '../../../consultas_externas/domain/usecases/consultar_ruc_usecase.dart';
-import '../../../cliente_empresa/domain/entities/cliente_empresa.dart';
-import '../../../cliente_empresa/domain/repositories/cliente_empresa_repository.dart';
+import '../../features/cliente/domain/entities/cliente.dart';
+import '../../features/cliente/domain/entities/cliente_filtros.dart';
+import '../../features/cliente/presentation/bloc/cliente_list/cliente_list_cubit.dart';
+import '../../features/cliente/presentation/bloc/cliente_list/cliente_list_state.dart';
+import '../../features/cliente/presentation/bloc/cliente_form/cliente_form_cubit.dart';
+import '../../features/cliente/presentation/bloc/cliente_form/cliente_form_state.dart';
+import '../../features/consultas_externas/domain/entities/consulta_dni.dart';
+import '../../features/consultas_externas/domain/entities/consulta_ruc.dart';
+import '../../features/consultas_externas/domain/usecases/consultar_dni_usecase.dart';
+import '../../features/consultas_externas/domain/usecases/consultar_ruc_usecase.dart';
+import '../../features/cliente_empresa/domain/entities/cliente_empresa.dart';
+import '../../features/cliente_empresa/domain/repositories/cliente_empresa_repository.dart';
+import '../../features/vinculacion/presentation/bloc/vinculacion_action/vinculacion_action_cubit.dart';
 
 /// Tipo de cliente seleccionado
 enum TipoClienteSeleccion { persona, empresa }
@@ -92,23 +94,32 @@ class ClienteUnificadoResult {
 
 /// Bottom sheet unificado para seleccionar cliente persona o empresa.
 /// Ambos tabs funcionan inline: búsqueda + registro sin abrir otro sheet.
+///
+/// [tipoPermitido] permite restringir la selección a solo persona o solo empresa.
+/// Si es null, muestra ambos tabs.
 class ClienteUnificadoSelector extends StatefulWidget {
   final String empresaId;
+  final TipoClienteSeleccion? tipoPermitido;
 
   const ClienteUnificadoSelector({
     super.key,
     required this.empresaId,
+    this.tipoPermitido,
   });
 
   static Future<ClienteUnificadoResult?> show({
     required BuildContext context,
     required String empresaId,
+    TipoClienteSeleccion? tipoPermitido,
   }) {
     return showModalBottomSheet<ClienteUnificadoResult>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => ClienteUnificadoSelector(empresaId: empresaId),
+      builder: (_) => ClienteUnificadoSelector(
+        empresaId: empresaId,
+        tipoPermitido: tipoPermitido,
+      ),
     );
   }
 
@@ -119,17 +130,21 @@ class ClienteUnificadoSelector extends StatefulWidget {
 
 class _ClienteUnificadoSelectorState extends State<ClienteUnificadoSelector>
     with SingleTickerProviderStateMixin {
-  late final TabController _tabController;
+  TabController? _tabController;
+
+  bool get _showTabs => widget.tipoPermitido == null;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    if (_showTabs) {
+      _tabController = TabController(length: 2, vsync: this);
+    }
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
+    _tabController?.dispose();
     super.dispose();
   }
 
@@ -148,7 +163,7 @@ class _ClienteUnificadoSelectorState extends State<ClienteUnificadoSelector>
         children: [
           // Handle bar
           Container(
-            margin: const EdgeInsets.only(top: 12),
+            margin: const EdgeInsets.only(top: 8),
             width: 40,
             height: 4,
             decoration: BoxDecoration(
@@ -170,68 +185,76 @@ class _ClienteUnificadoSelectorState extends State<ClienteUnificadoSelector>
                   child: const Icon(
                     Icons.person_search,
                     color: AppColors.blue1,
-                    size: 20,
+                    size: 18,
                   ),
                 ),
-                const SizedBox(width: 12),
-                AppSubtitle('SELECCIONAR CLIENTE', fontSize: 12),
+                const SizedBox(width: 8),
+                AppSubtitle('SELECCIONAR CLIENTE', fontSize: 11),
               ],
             ),
           ),
-          // Tabs
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: TabBar(
-              controller: _tabController,
-              indicator: BoxDecoration(
-                color: AppColors.blue1,
+          // Tabs (only if both types allowed)
+          if (_showTabs) ...[
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
                 borderRadius: BorderRadius.circular(8),
               ),
-              labelColor: Colors.white,
-              unselectedLabelColor: Colors.grey[700],
-              labelStyle:
-                  const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-              unselectedLabelStyle: const TextStyle(fontSize: 12),
-              dividerHeight: 0,
-              tabs: const [
-                Tab(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.person, size: 16),
-                      SizedBox(width: 6),
-                      Text('Persona'),
-                    ],
-                  ),
+              child: TabBar(
+                controller: _tabController,
+                indicator: BoxDecoration(
+                  color: AppColors.blue1,
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                Tab(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.business, size: 16),
-                      SizedBox(width: 6),
-                      Text('Empresa'),
-                    ],
+                labelColor: Colors.white,
+                unselectedLabelColor: Colors.grey[700],
+                labelStyle:
+                    const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                unselectedLabelStyle: const TextStyle(fontSize: 12),
+                dividerHeight: 0,
+                tabs: const [
+                  Tab(
+                    height: 35,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.person, size: 16),
+                        SizedBox(width: 6),
+                        Text('Persona'),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                  Tab(
+                    height: 35,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.business, size: 16),
+                        SizedBox(width: 6),
+                        Text('Empresa'),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          const Divider(height: 1),
+            const SizedBox(height: 8),
+            const Divider(height: 1),
+          ],
           // Body
           Flexible(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _PersonaTab(empresaId: widget.empresaId),
-                _EmpresaTab(empresaId: widget.empresaId),
-              ],
-            ),
+            child: _showTabs
+                ? TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _PersonaTab(empresaId: widget.empresaId),
+                      _EmpresaTab(empresaId: widget.empresaId),
+                    ],
+                  )
+                : widget.tipoPermitido == TipoClienteSeleccion.persona
+                    ? _PersonaTab(empresaId: widget.empresaId)
+                    : _EmpresaTab(empresaId: widget.empresaId),
           ),
         ],
       ),
@@ -260,6 +283,7 @@ class _PersonaTabState extends State<_PersonaTab>
 
   // Search
   final _searchController = TextEditingController();
+  final _scrollController = ScrollController();
   Timer? _debounceTimer;
   late final ClienteListCubit _listCubit;
 
@@ -285,12 +309,25 @@ class _PersonaTabState extends State<_PersonaTab>
     super.initState();
     _listCubit = locator<ClienteListCubit>();
     _formCubit = locator<ClienteFormCubit>();
-    _listCubit.loadClientes(empresaId: widget.empresaId);
+    _scrollController.addListener(_onScroll);
+    _listCubit.loadClientes(
+      empresaId: widget.empresaId,
+      filtros: const ClienteFiltros(limit: 50),
+    );
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 100 &&
+        _listCubit.state is ClienteListLoaded) {
+      _listCubit.loadMore();
+    }
   }
 
   @override
   void dispose() {
     _debounceTimer?.cancel();
+    _scrollController.dispose();
     _searchController.dispose();
     _dniController.dispose();
     _nombresController.dispose();
@@ -459,20 +496,39 @@ class _PersonaTabState extends State<_PersonaTab>
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: CustomSearchField(
-            controller: _searchController,
-            hintText: 'Buscar por nombre, DNI o teléfono...',
-            onChanged: (query) {
-              _debounceTimer?.cancel();
-              _debounceTimer = Timer(const Duration(milliseconds: 400), () {
-                if (!mounted) return;
-                if (query.isEmpty) {
-                  _listCubit.loadClientes(empresaId: widget.empresaId);
-                } else {
-                  _listCubit.search(query);
-                }
-              });
-            },
+          child: Row(
+            children: [
+              Expanded(
+                child: CustomSearchField(
+                  controller: _searchController,
+                  borderColor: AppColors.blue1,
+                  hintText: 'Buscar por nombre, DNI o teléfono...',
+                  onChanged: (query) {
+                    _debounceTimer?.cancel();
+                    _debounceTimer =
+                        Timer(const Duration(milliseconds: 400), () {
+                      if (!mounted) return;
+                      if (query.isEmpty) {
+                        _listCubit.loadClientes(
+                          empresaId: widget.empresaId,
+                          filtros: const ClienteFiltros(limit: 50),
+                        );
+                      } else {
+                        _listCubit.search(query);
+                      }
+                    });
+                  },
+                ),
+              ),
+              const SizedBox(width: 10),
+              FloatingButtonIcon(
+                size: 35,
+                icon: Icons.person_add,
+                backgroundColor: AppColors.blue1,
+                onPressed: () =>
+                    setState(() => _mode = _PersonaMode.register),
+              ),
+            ],
           ),
         ),
         Flexible(
@@ -498,63 +554,72 @@ class _PersonaTabState extends State<_PersonaTab>
                   ),
                 );
               }
+
+              // Extraer lista y flags de paginación
+              final List<Cliente> clientes;
+              final bool hasMore;
+              final bool isLoadingMore;
+
               if (state is ClienteListLoaded) {
-                if (state.clientes.isEmpty) {
-                  return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(32),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.person_off_outlined,
-                              size: 48, color: Colors.grey[400]),
-                          const SizedBox(height: 12),
-                          Text(
-                            'No se encontraron clientes',
-                            style: TextStyle(
-                                color: Colors.grey[600], fontSize: 13),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Puedes registrar uno nuevo',
-                            style: TextStyle(
-                                color: Colors.grey[500], fontSize: 11),
-                          ),
-                        ],
-                      ),
+                clientes = state.clientes;
+                hasMore = state.hasMore;
+                isLoadingMore = false;
+              } else if (state is ClienteListLoadingMore) {
+                clientes = state.currentClientes;
+                hasMore = true;
+                isLoadingMore = true;
+              } else {
+                return const SizedBox.shrink();
+              }
+
+              if (clientes.isEmpty) {
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.person_off_outlined,
+                            size: 48, color: Colors.grey[400]),
+                        const SizedBox(height: 12),
+                        Text(
+                          'No se encontraron clientes',
+                          style: TextStyle(
+                              color: Colors.grey[600], fontSize: 13),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Puedes registrar uno nuevo',
+                          style: TextStyle(
+                              color: Colors.grey[500], fontSize: 11),
+                        ),
+                      ],
                     ),
-                  );
-                }
-                return ListView.builder(
-                  shrinkWrap: true,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: state.clientes.length,
-                  itemBuilder: (context, index) {
-                    final cliente = state.clientes[index];
-                    return _buildClienteTile(cliente);
-                  },
+                  ),
                 );
               }
-              return const SizedBox.shrink();
+
+              return ListView.builder(
+                controller: _scrollController,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: clientes.length + (hasMore || isLoadingMore ? 1 : 0),
+                itemBuilder: (context, index) {
+                  if (index >= clientes.length) {
+                    return const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Center(
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ),
+                    );
+                  }
+                  return _buildClienteTile(clientes[index]);
+                },
+              );
             },
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: () => setState(() => _mode = _PersonaMode.register),
-              icon: const Icon(Icons.person_add, size: 18),
-              label: const Text('Registrar nuevo cliente'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.blue1,
-                side: const BorderSide(color: AppColors.blue1),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8)),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-              ),
-            ),
           ),
         ),
       ],
@@ -566,17 +631,12 @@ class _PersonaTabState extends State<_PersonaTab>
       onTap: () => Navigator.pop(context, _resultFromCliente(cliente)),
       borderRadius: BorderRadius.circular(8),
       child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          border: Border.all(color: AppColors.blueborder),
-          borderRadius: BorderRadius.circular(8),
-        ),
+        margin: const EdgeInsets.only(bottom: 8, top: 8),
         child: Row(
           children: [
             Container(
-              width: 40,
-              height: 40,
+              width: 30,
+              height: 30,
               decoration: BoxDecoration(
                 color: AppColors.bluechip,
                 borderRadius: BorderRadius.circular(20),
@@ -587,7 +647,7 @@ class _PersonaTabState extends State<_PersonaTab>
                   style: const TextStyle(
                     color: AppColors.blue1,
                     fontWeight: FontWeight.bold,
-                    fontSize: 14,
+                    fontSize: 10,
                   ),
                 ),
               ),
@@ -600,14 +660,14 @@ class _PersonaTabState extends State<_PersonaTab>
                   Text(
                     cliente.nombreCompleto,
                     style: const TextStyle(
-                        fontSize: 13, fontWeight: FontWeight.w600),
+                        fontSize: 11, fontWeight: FontWeight.w600),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 2),
                   Text(
                     'DNI: ${cliente.dni ?? '-'}  ·  ${cliente.telefono ?? '-'}',
-                    style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                    style: TextStyle(fontSize: 10, color: Colors.grey[600]),
                   ),
                 ],
               ),
@@ -844,6 +904,7 @@ class _EmpresaTabState extends State<_EmpresaTab>
   bool _rucFieldsFilled = false;
   String? _rucError;
   bool _isRegistering = false;
+  ClienteEmpresa? _empresaExistente;
 
   // SUNAT snapshot fields
   String? _estadoContribuyente;
@@ -947,15 +1008,41 @@ class _EmpresaTabState extends State<_EmpresaTab>
     setState(() {
       _isLookingUpRuc = true;
       _rucError = null;
+      _empresaExistente = null;
     });
 
     try {
-      final useCase = locator<ConsultarRucUseCase>();
-      final result = await useCase(ruc);
+      // Consultar SUNAT y verificar existencia en paralelo
+      final results = await Future.wait([
+        locator<ConsultarRucUseCase>()(ruc),
+        _repo.getClientesEmpresa(
+          empresaId: widget.empresaId,
+          search: ruc,
+          limit: 1,
+        ),
+      ]);
+
       if (!mounted) return;
 
-      if (result is Success<ConsultaRuc>) {
-        final data = result.data;
+      // Verificar si ya existe como ClienteEmpresa
+      final searchResult = results[1];
+      if (searchResult is Success<ClientesEmpresaPaginados>) {
+        final match = searchResult.data.data
+            .where((e) => e.numeroDocumento == ruc)
+            .firstOrNull;
+        if (match != null) {
+          setState(() {
+            _empresaExistente = match;
+            _isLookingUpRuc = false;
+          });
+          return;
+        }
+      }
+
+      // Procesar resultado SUNAT
+      final rucResult = results[0];
+      if (rucResult is Success<ConsultaRuc>) {
+        final data = (rucResult).data;
         setState(() {
           _razonSocialController.text = data.razonSocial;
           _direccionController.text = data.direccionCompleta;
@@ -968,16 +1055,16 @@ class _EmpresaTabState extends State<_EmpresaTab>
           _rucFieldsFilled = true;
           _isLookingUpRuc = false;
         });
-      } else if (result is Error<ConsultaRuc>) {
+      } else if (rucResult is Error<ConsultaRuc>) {
         setState(() {
-          _rucError = result.message;
+          _rucError = (rucResult).message;
           _isLookingUpRuc = false;
         });
       }
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _rucError = 'Error al consultar SUNAT';
+        _rucError = 'Error al consultar';
         _isLookingUpRuc = false;
       });
     }
@@ -985,11 +1072,12 @@ class _EmpresaTabState extends State<_EmpresaTab>
 
   void _onRucChanged(String value) {
     if (_rucError != null) setState(() => _rucError = null);
-    if (_rucFieldsFilled) {
+    if (_rucFieldsFilled || _empresaExistente != null) {
       setState(() {
         _razonSocialController.clear();
         _direccionController.clear();
         _rucFieldsFilled = false;
+        _empresaExistente = null;
         _estadoContribuyente = null;
         _condicionContribuyente = null;
         _ubigeo = null;
@@ -1205,9 +1293,55 @@ class _EmpresaTabState extends State<_EmpresaTab>
     if (!mounted) return;
     setState(() => _isRegistering = false);
 
-    if (result is Success<ClienteEmpresa>) {
-      final empresa = result.data;
+    if (result is Success<ClienteEmpresaCreado>) {
+      final creado = result.data;
+      final empresa = creado.clienteEmpresa;
       final contacto = empresa.contactoPrincipal;
+
+      // Si hay empresa vinculable, mostrar dialog de vinculación
+      if (creado.empresaVinculable != null && mounted) {
+        final vinculable = creado.empresaVinculable!;
+        final vincular = await showDialog<bool>(
+          context: context,
+          builder: (dialogCtx) => AlertDialog(
+            title: const Text('Empresa encontrada', style: TextStyle(fontSize: 14)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${vinculable.nombre} usa nuestra plataforma.',
+                  style: const TextStyle(fontSize: 13),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  '¿Deseas enviar una solicitud de vinculacion B2B?',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogCtx, false),
+                child: const Text('Ahora no'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(dialogCtx, true),
+                child: const Text('Vincular'),
+              ),
+            ],
+          ),
+        );
+
+        if (vincular == true && mounted) {
+          context.read<VinculacionActionCubit>().crear(
+            clienteEmpresaId: empresa.id,
+          );
+          SnackBarHelper.showSuccess(context, 'Solicitud de vinculacion enviada');
+        }
+      }
+
+      if (!mounted) return;
       Navigator.pop(
         context,
         ClienteUnificadoResult.empresa(
@@ -1222,7 +1356,7 @@ class _EmpresaTabState extends State<_EmpresaTab>
           email: empresa.email,
         ),
       );
-    } else if (result is Error<ClienteEmpresa>) {
+    } else if (result is Error<ClienteEmpresaCreado>) {
       if (!mounted) return;
       SnackBarHelper.showError(context, result.message);
     }
@@ -1243,20 +1377,36 @@ class _EmpresaTabState extends State<_EmpresaTab>
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: CustomSearchField(
-            controller: _searchController,
-            hintText: 'Buscar por razón social, RUC...',
-            onChanged: (query) {
-              _debounceTimer?.cancel();
-              _debounceTimer = Timer(const Duration(milliseconds: 400), () {
-                if (!mounted) return;
-                if (query.isEmpty) {
-                  _loadEmpresas();
-                } else {
-                  _loadEmpresas(search: query);
-                }
-              });
-            },
+          child: Row(
+            children: [
+              Expanded(
+                child: CustomSearchField(
+                  controller: _searchController,
+                  borderColor: AppColors.blue1,
+                  hintText: 'Buscar por razón social, RUC...',
+                  onChanged: (query) {
+                    _debounceTimer?.cancel();
+                    _debounceTimer =
+                        Timer(const Duration(milliseconds: 400), () {
+                      if (!mounted) return;
+                      if (query.isEmpty) {
+                        _loadEmpresas();
+                      } else {
+                        _loadEmpresas(search: query);
+                      }
+                    });
+                  },
+                ),
+              ),
+              const SizedBox(width: 10),
+              FloatingButtonIcon(
+                size: 35,
+                icon: Icons.add_business,
+                backgroundColor: AppColors.blue1,
+                onPressed: () =>
+                    setState(() => _mode = _EmpresaMode.register),
+              ),
+            ],
           ),
         ),
         Flexible(
@@ -1316,24 +1466,6 @@ class _EmpresaTabState extends State<_EmpresaTab>
                       },
                     ),
         ),
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: () => setState(() => _mode = _EmpresaMode.register),
-              icon: const Icon(Icons.add_business, size: 18),
-              label: const Text('Registrar nueva empresa'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.blue1,
-                side: const BorderSide(color: AppColors.blue1),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8)),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-              ),
-            ),
-          ),
-        ),
       ],
     );
   }
@@ -1343,17 +1475,17 @@ class _EmpresaTabState extends State<_EmpresaTab>
       onTap: () => _selectEmpresa(empresa),
       borderRadius: BorderRadius.circular(8),
       child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          border: Border.all(color: AppColors.blueborder),
-          borderRadius: BorderRadius.circular(8),
-        ),
+        margin: const EdgeInsets.only(bottom: 8, top: 8),
+        // padding: const EdgeInsets.all(12),
+        // decoration: BoxDecoration(
+        //   border: Border.all(color: AppColors.blueborder),
+        //   borderRadius: BorderRadius.circular(8),
+        // ),
         child: Row(
           children: [
             Container(
-              width: 40,
-              height: 40,
+              width: 30,
+              height: 30,
               decoration: BoxDecoration(
                 color: AppColors.bluechip,
                 borderRadius: BorderRadius.circular(20),
@@ -1364,7 +1496,7 @@ class _EmpresaTabState extends State<_EmpresaTab>
                   style: const TextStyle(
                     color: AppColors.blue1,
                     fontWeight: FontWeight.bold,
-                    fontSize: 14,
+                    fontSize: 10,
                   ),
                 ),
               ),
@@ -1377,14 +1509,14 @@ class _EmpresaTabState extends State<_EmpresaTab>
                   Text(
                     empresa.nombreDisplay,
                     style: const TextStyle(
-                        fontSize: 13, fontWeight: FontWeight.w600),
+                        fontSize: 11, fontWeight: FontWeight.w600),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 2),
                   Text(
                     'RUC: ${empresa.numeroDocumento}${empresa.contactos != null && empresa.contactos!.isNotEmpty ? "  ·  ${empresa.contactos!.length} contacto(s)" : ""}',
-                    style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                    style: TextStyle(fontSize: 10, color: Colors.grey[600]),
                   ),
                 ],
               ),
@@ -1475,6 +1607,108 @@ class _EmpresaTabState extends State<_EmpresaTab>
                     ),
                   ],
                 ),
+                // Empresa ya registrada
+                if (_empresaExistente != null) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                          color: Colors.orange.withValues(alpha: 0.3)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.info_outline,
+                                size: 14, color: Colors.orange),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Esta empresa ya está registrada',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.orange.shade800,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        InkWell(
+                          onTap: () =>
+                              _selectEmpresa(_empresaExistente!),
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                  color: AppColors.blueborder),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 30,
+                                  height: 30,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.bluechip,
+                                    borderRadius:
+                                        BorderRadius.circular(20),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      _empresaExistente!.iniciales,
+                                      style: const TextStyle(
+                                        color: AppColors.blue1,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 10,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        _empresaExistente!
+                                            .nombreDisplay,
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                        maxLines: 1,
+                                        overflow:
+                                            TextOverflow.ellipsis,
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'RUC: ${_empresaExistente!.numeroDocumento}',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const Icon(Icons.chevron_right,
+                                    size: 20, color: Colors.grey),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+
                 if (_rucFieldsFilled) ...[
                   const SizedBox(height: 10),
                   Container(
@@ -1507,6 +1741,7 @@ class _EmpresaTabState extends State<_EmpresaTab>
                     ),
                   ),
                 ],
+                if (_empresaExistente == null) ...[
                 const SizedBox(height: 14),
                 CustomText(
                   controller: _razonSocialController,
@@ -1620,6 +1855,7 @@ class _EmpresaTabState extends State<_EmpresaTab>
                   onPressed: _isRegistering ? null : _submitRegister,
                 ),
                 const SizedBox(height: 16),
+                ], // fin if _empresaExistente == null
               ],
             ),
           ),

@@ -20,6 +20,16 @@ class ClienteListLoading extends ClienteListState {
   const ClienteListLoading();
 }
 
+/// Estado de carga de más elementos (paginación)
+class ClienteListLoadingMore extends ClienteListState {
+  final List<Cliente> currentClientes;
+
+  const ClienteListLoadingMore(this.currentClientes);
+
+  @override
+  List<Object?> get props => [currentClientes];
+}
+
 /// Estado con datos cargados
 class ClienteListLoaded extends ClienteListState {
   final List<Cliente> clientes;

@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/fonts/app_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/gradient_container.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../../../core/widgets/custom_loading.dart';
 import '../../../../core/utils/resource.dart';
+import '../../data/datasources/tercerizacion_remote_datasource.dart';
+import '../../data/models/directorio_empresa_model.dart';
 import '../../domain/entities/directorio_empresa.dart';
 import '../../domain/usecases/buscar_empresas_usecase.dart';
 
@@ -28,13 +31,14 @@ class DirectorioEmpresasPage extends StatefulWidget {
 class _DirectorioEmpresasPageState extends State<DirectorioEmpresasPage> {
   final _searchController = TextEditingController();
   List<DirectorioEmpresa> _empresas = [];
+  List<DirectorioEmpresa> _vinculadas = [];
   bool _isLoading = true;
   String? _error;
 
   @override
   void initState() {
     super.initState();
-    _buscar();
+    _loadAll();
   }
 
   @override
@@ -43,11 +47,34 @@ class _DirectorioEmpresasPageState extends State<DirectorioEmpresasPage> {
     super.dispose();
   }
 
+  Future<void> _loadAll() async {
+    setState(() { _isLoading = true; _error = null; });
+
+    // Cargar vinculadas y directorio en paralelo
+    await Future.wait([
+      _loadVinculadas(),
+      _buscar(),
+    ]);
+
+    if (mounted) setState(() => _isLoading = false);
+  }
+
+  Future<void> _loadVinculadas() async {
+    try {
+      final ds = locator<TercerizacionRemoteDataSource>();
+      final rawList = await ds.getEmpresasVinculadas();
+      if (!mounted) return;
+      _vinculadas = rawList
+          .map((e) => DirectorioEmpresaModel.fromJson(e))
+          .toList();
+    } catch (_) {
+      // Silently fail - vinculadas is optional
+      _vinculadas = [];
+    }
+  }
+
   Future<void> _buscar({String? search}) async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
+    if (!_isLoading) setState(() { _isLoading = true; _error = null; });
 
     final useCase = locator<BuscarEmpresasUseCase>();
     final result = await useCase(
@@ -58,18 +85,18 @@ class _DirectorioEmpresasPageState extends State<DirectorioEmpresasPage> {
 
     if (!mounted) return;
 
-    setState(() {
-      _isLoading = false;
-      if (result is Success<DirectorioPaginado>) {
-        _empresas = result.data.data;
-      } else if (result is Error<DirectorioPaginado>) {
-        _error = result.message;
-      }
-    });
+    if (result is Success<DirectorioPaginado>) {
+      _empresas = result.data.data;
+    } else if (result is Error<DirectorioPaginado>) {
+      _error = result.message;
+    }
+
+    setState(() => _isLoading = false);
   }
 
   @override
   Widget build(BuildContext context) {
+    
     return Scaffold(
       appBar: SmartAppBar(
         title: 'Directorio de Empresas',
@@ -123,7 +150,7 @@ class _DirectorioEmpresasPageState extends State<DirectorioEmpresasPage> {
                           child: Text(_error!,
                               style: TextStyle(color: Colors.grey.shade500)),
                         )
-                      : _empresas.isEmpty
+                      : _vinculadas.isEmpty && _empresas.isEmpty
                           ? Center(
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
@@ -143,18 +170,64 @@ class _DirectorioEmpresasPageState extends State<DirectorioEmpresasPage> {
                               ),
                             )
                           : RefreshIndicator(
-                              onRefresh: () => _buscar(
-                                  search: _searchController.text.trim().isNotEmpty
-                                      ? _searchController.text.trim()
-                                      : null),
-                              child: ListView.builder(
+                              onRefresh: _loadAll,
+                              child: ListView(
                                 padding: const EdgeInsets.symmetric(horizontal: 12),
-                                itemCount: _empresas.length,
-                                itemBuilder: (context, index) =>
-                                    _EmpresaDirectorioCard(
-                                  empresa: _empresas[index],
-                                  ordenOrigenId: widget.ordenOrigenId,
-                                ),
+                                children: [
+                                  // ─── Sección vinculadas ───
+                                  if (_vinculadas.isNotEmpty && _searchController.text.isEmpty) ...[
+                                    Padding(
+                                      padding: const EdgeInsets.only(bottom: 8, top: 4),
+                                      child: Row(
+                                        children: [
+                                          Icon(Icons.link, size: 16, color: Colors.teal.shade400),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            'Empresas Vinculadas',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700,
+                                              color: Colors.teal.shade700,
+                                              fontFamily: AppFonts.getFontFamily(AppFont.oxygenBold),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    ..._vinculadas.map((e) => _EmpresaDirectorioCard(
+                                      empresa: e,
+                                      ordenOrigenId: widget.ordenOrigenId,
+                                      isVinculada: true,
+                                    )),
+                                    if (_empresas.isNotEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(vertical: 8),
+                                        child: Row(
+                                          children: [
+                                            Expanded(child: Divider(color: Colors.grey.shade300)),
+                                            Padding(
+                                              padding: const EdgeInsets.symmetric(horizontal: 10),
+                                              child: Text(
+                                                'Directorio General',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: Colors.grey.shade500,
+                                                  fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
+                                                ),
+                                              ),
+                                            ),
+                                            Expanded(child: Divider(color: Colors.grey.shade300)),
+                                          ],
+                                        ),
+                                      ),
+                                  ],
+
+                                  // ─── Directorio general ───
+                                  ..._empresas.map((e) => _EmpresaDirectorioCard(
+                                    empresa: e,
+                                    ordenOrigenId: widget.ordenOrigenId,
+                                  )),
+                                ],
                               ),
                             ),
             ),
@@ -168,10 +241,12 @@ class _DirectorioEmpresasPageState extends State<DirectorioEmpresasPage> {
 class _EmpresaDirectorioCard extends StatelessWidget {
   final DirectorioEmpresa empresa;
   final String? ordenOrigenId;
+  final bool isVinculada;
 
   const _EmpresaDirectorioCard({
     required this.empresa,
     this.ordenOrigenId,
+    this.isVinculada = false,
   });
 
   @override
@@ -179,18 +254,24 @@ class _EmpresaDirectorioCard extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
       elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: isVinculada
+            ? BorderSide(color: Colors.teal.shade200, width: 1)
+            : BorderSide.none,
+      ),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header: logo + nombre
+            // Header: logo + nombre + vinculada badge
             Row(
               children: [
                 CircleAvatar(
                   radius: 20,
-                  backgroundColor: AppColors.blue1.withValues(alpha: 0.1),
+                  backgroundColor: (isVinculada ? Colors.teal : AppColors.blue1)
+                      .withValues(alpha: 0.1),
                   backgroundImage:
                       empresa.logo != null ? NetworkImage(empresa.logo!) : null,
                   child: empresa.logo == null
@@ -198,9 +279,9 @@ class _EmpresaDirectorioCard extends StatelessWidget {
                           empresa.nombre.isNotEmpty
                               ? empresa.nombre[0].toUpperCase()
                               : '?',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.w700,
-                            color: AppColors.blue1,
+                            color: isVinculada ? Colors.teal : AppColors.blue1,
                           ),
                         )
                       : null,
@@ -225,6 +306,29 @@ class _EmpresaDirectorioCard extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (isVinculada)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.teal.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.link, size: 10, color: Colors.teal.shade700),
+                        const SizedBox(width: 3),
+                        Text(
+                          'Vinculada',
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.teal.shade700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
               ],
             ),
 
@@ -297,7 +401,7 @@ class _EmpresaDirectorioCard extends StatelessWidget {
               ),
             ],
 
-            // Botón de tercerizar
+            // Botón de seleccionar
             if (ordenOrigenId != null) ...[
               const SizedBox(height: 10),
               SizedBox(
@@ -305,9 +409,12 @@ class _EmpresaDirectorioCard extends StatelessWidget {
                 child: ElevatedButton.icon(
                   onPressed: () => context.pop(empresa),
                   icon: const Icon(Icons.swap_horiz, size: 16),
-                  label: const Text('Seleccionar empresa', style: TextStyle(fontSize: 12)),
+                  label: Text(
+                    isVinculada ? 'Tercerizar a empresa vinculada' : 'Seleccionar empresa',
+                    style: const TextStyle(fontSize: 12),
+                  ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.blue1,
+                    backgroundColor: isVinculada ? Colors.teal : AppColors.blue1,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     shape: RoundedRectangleBorder(

@@ -23,6 +23,8 @@ class ConfiguracionCamposPage extends StatelessWidget {
     'TELEFONO': 'Teléfono',
     'URL': 'URL',
     'OBJETO': 'Objeto (sub-campos)',
+    'PATRON_DESBLOQUEO': 'Patrón desbloqueo',
+    'INSPECCION_VISUAL': 'Inspección visual',
   };
 
   static const _tipoCampoIcons = {
@@ -40,6 +42,8 @@ class ConfiguracionCamposPage extends StatelessWidget {
     'TELEFONO': Icons.phone,
     'URL': Icons.link,
     'OBJETO': Icons.account_tree_outlined,
+    'PATRON_DESBLOQUEO': Icons.pattern,
+    'INSPECCION_VISUAL': Icons.car_crash_outlined,
   };
 
   static const _categoriaLabels = {

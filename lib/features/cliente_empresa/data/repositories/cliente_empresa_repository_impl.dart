@@ -53,7 +53,7 @@ class ClienteEmpresaRepositoryImpl implements ClienteEmpresaRepository {
   }
 
   @override
-  Future<Resource<ClienteEmpresa>> crearClienteEmpresa({
+  Future<Resource<ClienteEmpresaCreado>> crearClienteEmpresa({
     required String empresaId,
     required String razonSocial,
     required String numeroDocumento,
@@ -90,8 +90,24 @@ class ClienteEmpresaRepositoryImpl implements ClienteEmpresaRepository {
         if (distrito != null) 'distrito': distrito,
         if (contactos != null && contactos.isNotEmpty) 'contactos': contactos,
       };
-      final result = await _remoteDataSource.crearClienteEmpresa(empresaId, data);
-      return Success(result);
+      final rawJson = await _remoteDataSource.crearClienteEmpresaRaw(empresaId, data);
+      final clienteEmpresa = ClienteEmpresaModel.fromJson(rawJson);
+
+      EmpresaVinculableInfo? empresaVinculable;
+      if (rawJson['empresaVinculable'] != null) {
+        final ev = rawJson['empresaVinculable'] as Map<String, dynamic>;
+        empresaVinculable = EmpresaVinculableInfo(
+          id: ev['id'] as String,
+          nombre: ev['nombre'] as String? ?? '',
+          logo: ev['logo'] as String?,
+          rubro: ev['rubro'] as String?,
+        );
+      }
+
+      return Success(ClienteEmpresaCreado(
+        clienteEmpresa: clienteEmpresa,
+        empresaVinculable: empresaVinculable,
+      ));
     } catch (e) {
       return _errorHandler.handleException(e, context: 'ClienteEmpresa');
     }

@@ -62,6 +62,8 @@ import 'package:syncronize/features/compra/presentation/bloc/compra_form/compra_
 import 'package:syncronize/features/compra/presentation/bloc/lote_list/lote_list_cubit.dart';
 import 'package:syncronize/features/aviso_mantenimiento/presentation/bloc/aviso_list/aviso_list_cubit.dart';
 import 'package:syncronize/features/aviso_mantenimiento/presentation/bloc/aviso_configuracion/aviso_configuracion_cubit.dart';
+import 'package:syncronize/features/vinculacion/presentation/bloc/vinculacion_list/vinculacion_list_cubit.dart';
+import 'package:syncronize/features/vinculacion/presentation/bloc/vinculacion_action/vinculacion_action_cubit.dart';
 
 /// Lista centralizada de todos los BLoCs globales de la aplicación
 List<BlocProvider> blocProviders = [
@@ -453,6 +455,18 @@ List<BlocProvider> blocProviders = [
   // Aviso Configuracion Cubit - Maneja la configuración de avisos
   BlocProvider<AvisoConfiguracionCubit>(
     create: (context) => locator<AvisoConfiguracionCubit>(),
+    lazy: true,
+  ),
+
+  // Vinculacion List Cubit - Maneja la lista de vinculaciones B2B
+  BlocProvider<VinculacionListCubit>(
+    create: (context) => locator<VinculacionListCubit>(),
+    lazy: true,
+  ),
+
+  // Vinculacion Action Cubit - Maneja acciones de vinculación (crear, aceptar, rechazar, etc.)
+  BlocProvider<VinculacionActionCubit>(
+    create: (context) => locator<VinculacionActionCubit>(),
     lazy: true,
   ),
 

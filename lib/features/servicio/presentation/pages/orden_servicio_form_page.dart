@@ -15,7 +15,7 @@ import '../../../auth/presentation/widgets/custom_text.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../../cliente_empresa/data/datasources/cliente_empresa_remote_datasource.dart';
-import '../widgets/cliente_unificado_selector.dart';
+import '../../../../core/widgets/cliente_unificado_selector.dart';
 import '../../domain/entities/configuracion_campo.dart';
 import '../../domain/entities/servicio.dart';
 import '../../domain/entities/servicio_filtros.dart';

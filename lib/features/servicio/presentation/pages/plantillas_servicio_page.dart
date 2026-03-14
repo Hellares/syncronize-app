@@ -758,6 +758,8 @@ class _PlantillasServicioPageState extends State<PlantillasServicioPage> {
     'TELEFONO': 'Telefono',
     'URL': 'URL',
     'OBJETO': 'Objeto (sub-campos)',
+    'PATRON_DESBLOQUEO': 'Patron desbloqueo',
+    'INSPECCION_VISUAL': 'Inspeccion visual',
   };
 
   static const _subCampoTipos = {
@@ -782,6 +784,8 @@ class _PlantillasServicioPageState extends State<PlantillasServicioPage> {
     'TELEFONO': Icons.phone,
     'URL': Icons.link,
     'OBJETO': Icons.account_tree_outlined,
+    'PATRON_DESBLOQUEO': Icons.pattern,
+    'INSPECCION_VISUAL': Icons.car_crash_outlined,
   };
 
   static const _categoriaLabels = {

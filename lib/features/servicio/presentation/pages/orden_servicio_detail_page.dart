@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -28,6 +29,8 @@ import '../widgets/add_componente_sheet.dart';
 import '../widgets/asignar_tecnico_sheet.dart';
 import '../widgets/cronometro_servicio_widget.dart';
 import '../widgets/firma_digital_sheet.dart';
+import '../widgets/patron_animado_dialog.dart';
+import '../widgets/inspeccion_visual_dialog.dart';
 import '../services/whatsapp_notification_service.dart';
 import 'documento_orden_servicio_preview_page.dart';
 import 'package:go_router/go_router.dart';
@@ -674,11 +677,169 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
       );
     }
 
+    // Inspección visual → preview con imagen
+    if (value is String && _isInspeccionVisual(value)) {
+      return _buildInspeccionPreview(key, value);
+    }
+
+    // Patrón de desbloqueo → preview visual
+    if (value is String && _isPatronDesbloqueo(value)) {
+      return _buildPatronPreview(key, value);
+    }
+
     // Default: number, string, etc.
     return _buildDetailRow(
       Icons.label_outline,
       key,
       value.toString(),
+    );
+  }
+
+  bool _isInspeccionVisual(String value) {
+    try {
+      final data = jsonDecode(value);
+      return data is Map && data.containsKey('silueta') && data.containsKey('puntos');
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Widget _buildInspeccionPreview(String key, String jsonStr) {
+    int puntosCount = 0;
+    try {
+      final data = jsonDecode(jsonStr);
+      if (data is Map && data['puntos'] is List) {
+        puntosCount = (data['puntos'] as List).length;
+      }
+    } catch (_) {}
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: InkWell(
+        onTap: () => InspeccionVisualDialog.show(context, jsonStr),
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: AppColors.blue1.withValues(alpha: 0.04),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AppColors.blue1.withValues(alpha: 0.15)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.blue1.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.car_crash_outlined, size: 20, color: AppColors.blue1),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      key,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.blue1,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '$puntosCount punto${puntosCount != 1 ? 's' : ''} de dano registrado${puntosCount != 1 ? 's' : ''}',
+                      style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Toque para ver inspeccion',
+                      style: TextStyle(fontSize: 9, color: AppColors.blue1.withValues(alpha: 0.6)),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.visibility_outlined, size: 16, color: AppColors.blue1.withValues(alpha: 0.6)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  bool _isPatronDesbloqueo(String value) {
+    if (value.isEmpty) return false;
+    final parts = value.split('-');
+    if (parts.length < 2 || parts.length > 9) return false;
+    return parts.every((p) {
+      final n = int.tryParse(p);
+      return n != null && n >= 0 && n <= 8;
+    });
+  }
+
+  Widget _buildPatronPreview(String key, String patronStr) {
+    final nodos = patronStr
+        .split('-')
+        .map((s) => int.tryParse(s))
+        .where((n) => n != null && n >= 0 && n <= 8)
+        .cast<int>()
+        .toList();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: InkWell(
+        onTap: () => PatronAnimadoDialog.show(context, patronStr),
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: AppColors.blue1.withValues(alpha: 0.04),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppColors.blue1.withValues(alpha: 0.15)),
+        ),
+        child: Row(
+          children: [
+            // Mini grilla del patrón
+            SizedBox(
+              width: 60,
+              height: 60,
+              child: CustomPaint(
+                painter: _PatronMiniPainter(patron: nodos, color: AppColors.blue1),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.pattern, size: 14, color: AppColors.blue1),
+                      const SizedBox(width: 6),
+                      Text(
+                        key,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.blue1,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Patron de ${nodos.length} puntos',
+                    style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+      ),
     );
   }
 
@@ -3597,4 +3758,61 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
         return Colors.grey;
     }
   }
+}
+
+class _PatronMiniPainter extends CustomPainter {
+  final List<int> patron;
+  final Color color;
+
+  _PatronMiniPainter({required this.patron, required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final spacing = size.width / 3;
+
+    Offset center(int index) {
+      final row = index ~/ 3;
+      final col = index % 3;
+      return Offset(spacing * col + spacing / 2, spacing * row + spacing / 2);
+    }
+
+    // Líneas
+    if (patron.length >= 2) {
+      final paint = Paint()
+        ..color = color.withValues(alpha: 0.4)
+        ..strokeWidth = 2.5
+        ..strokeCap = StrokeCap.round;
+      for (int i = 0; i < patron.length - 1; i++) {
+        canvas.drawLine(center(patron[i]), center(patron[i + 1]), paint);
+      }
+    }
+
+    // Nodos
+    for (int i = 0; i < 9; i++) {
+      final c = center(i);
+      final selected = patron.contains(i);
+      if (selected) {
+        canvas.drawCircle(c, 6, Paint()..color = color.withValues(alpha: 0.2));
+        canvas.drawCircle(
+          c, 6,
+          Paint()..color = color..strokeWidth = 1.5..style = PaintingStyle.stroke,
+        );
+        final tp = TextPainter(
+          text: TextSpan(
+            text: '${patron.indexOf(i) + 1}',
+            style: TextStyle(fontSize: 7, fontWeight: FontWeight.w700, color: color),
+          ),
+          textDirection: TextDirection.ltr,
+        );
+        tp.layout();
+        tp.paint(canvas, Offset(c.dx - tp.width / 2, c.dy - tp.height / 2));
+      } else {
+        canvas.drawCircle(c, 2.5, Paint()..color = Colors.grey.shade400);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _PatronMiniPainter oldDelegate) =>
+      oldDelegate.patron != patron;
 }

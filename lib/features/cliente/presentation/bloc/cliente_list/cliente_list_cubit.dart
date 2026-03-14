@@ -67,6 +67,8 @@ class ClienteListCubit extends Cubit<ClienteListState> {
     if (currentState is! ClienteListLoaded) return;
     if (!currentState.hasMore) return;
 
+    emit(ClienteListLoadingMore(_allClientes));
+
     final nextPage = currentState.currentPage + 1;
     final newFiltros = _currentFiltros.copyWith(page: nextPage);
 

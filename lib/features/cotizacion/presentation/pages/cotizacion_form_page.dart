@@ -19,7 +19,7 @@ import '../bloc/cotizacion_form/cotizacion_form_state.dart';
 import '../../domain/entities/cotizacion_detalle_input.dart';
 import '../widgets/cotizacion_item_selector.dart';
 import '../widgets/cotizacion_compatibilidad_banner.dart';
-import '../widgets/cliente_selector_bottom_sheet.dart';
+import '../../../../core/widgets/cliente_unificado_selector.dart';
 
 class CotizacionFormPage extends StatefulWidget {
   const CotizacionFormPage({super.key});
@@ -451,19 +451,20 @@ class _CotizacionFormPageState extends State<CotizacionFormPage> {
     }
     if (empresaId == null) return;
 
-    final result = await ClienteSelectorBottomSheet.show(
+    final result = await ClienteUnificadoSelector.show(
       context: context,
       empresaId: empresaId,
+      tipoPermitido: TipoClienteSeleccion.persona,
     );
 
     if (result != null && mounted) {
       setState(() {
         _clienteId = result.clienteId;
-        _nombreClienteController.text = result.nombreCompleto;
+        _nombreClienteController.text = result.nombreCompleto ?? '';
         _documentoController.text = result.dni ?? '';
         _telefonoController.text = result.telefono ?? '';
         _emailController.text = result.email ?? '';
-        _direccionController.text = result.direccion ?? '';
+        _direccionController.text = '';
       });
     }
   }

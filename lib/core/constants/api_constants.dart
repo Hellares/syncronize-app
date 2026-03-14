@@ -76,6 +76,9 @@ class ApiConstants {
   // Endpoints de tercerización B2B
   static const String tercerizacion = '/tercerizacion';
 
+  // Endpoints de vinculación B2B
+  static const String vinculacion = '/vinculacion';
+
   // Endpoints de consultas externas (SUNAT/RENIEC)
   static const String consultaRuc = '/consultas/ruc';
   static const String consultaDni = '/consultas/dni';

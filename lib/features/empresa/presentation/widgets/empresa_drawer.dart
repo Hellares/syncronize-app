@@ -251,6 +251,13 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/tercerizacion')),
             ),
             _TileNode(
+              title: 'Vinculaciones B2B',
+              icon: Icons.link,
+              iconColor: Colors.teal,
+              routeMatch: const _RouteMatch.startsWith('/empresa/vinculacion'),
+              onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/vinculacion')),
+            ),
+            _TileNode(
               visible: permissions?.canManageSedes ?? false,
               title: 'Sedes',
               icon: Icons.store,

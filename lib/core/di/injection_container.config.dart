@@ -759,6 +759,30 @@ import '../../features/usuario/presentation/bloc/usuario_form/usuario_form_cubit
     as _i59;
 import '../../features/usuario/presentation/bloc/usuario_list/usuario_list_cubit.dart'
     as _i71;
+import '../../features/vinculacion/data/datasources/vinculacion_remote_datasource.dart'
+    as _i33;
+import '../../features/vinculacion/data/repositories/vinculacion_repository_impl.dart'
+    as _i953;
+import '../../features/vinculacion/domain/repositories/vinculacion_repository.dart'
+    as _i604;
+import '../../features/vinculacion/domain/usecases/cancelar_vinculacion_usecase.dart'
+    as _i1064;
+import '../../features/vinculacion/domain/usecases/check_ruc_usecase.dart'
+    as _i506;
+import '../../features/vinculacion/domain/usecases/crear_vinculacion_usecase.dart'
+    as _i649;
+import '../../features/vinculacion/domain/usecases/desvincular_usecase.dart'
+    as _i667;
+import '../../features/vinculacion/domain/usecases/get_pendientes_vinculacion_usecase.dart'
+    as _i215;
+import '../../features/vinculacion/domain/usecases/listar_vinculaciones_usecase.dart'
+    as _i639;
+import '../../features/vinculacion/domain/usecases/responder_vinculacion_usecase.dart'
+    as _i1053;
+import '../../features/vinculacion/presentation/bloc/vinculacion_action/vinculacion_action_cubit.dart'
+    as _i894;
+import '../../features/vinculacion/presentation/bloc/vinculacion_list/vinculacion_list_cubit.dart'
+    as _i1059;
 import '../network/dio_client.dart' as _i667;
 import '../network/interceptors/auth_interceptor.dart' as _i745;
 import '../network/interceptors/error_interceptor.dart' as _i511;
@@ -967,6 +991,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i32.UsuarioRemoteDataSource>(
       () => _i32.UsuarioRemoteDataSource(gh<_i667.DioClient>()),
+    );
+    gh.lazySingleton<_i33.VinculacionRemoteDataSource>(
+      () => _i33.VinculacionRemoteDataSource(gh<_i667.DioClient>()),
     );
     gh.factory<_i942.ProductosStockRemoteDatasource>(
       () => _i942.ProductosStockRemoteDatasource(gh<_i667.DioClient>()),
@@ -1270,6 +1297,13 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i640.PrecioNivelRepository>(
       () => _i92.PrecioNivelRepositoryImpl(
         gh<_i872.PrecioNivelRemoteDataSource>(),
+        gh<_i932.NetworkInfo>(),
+        gh<_i490.ErrorHandlerService>(),
+      ),
+    );
+    gh.lazySingleton<_i604.VinculacionRepository>(
+      () => _i953.VinculacionRepositoryImpl(
+        gh<_i33.VinculacionRemoteDataSource>(),
         gh<_i932.NetworkInfo>(),
         gh<_i490.ErrorHandlerService>(),
       ),
@@ -2004,6 +2038,31 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i607.UpdateConfiguracionAvisoUseCase>(),
       ),
     );
+    gh.factory<_i1064.CancelarVinculacionUseCase>(
+      () =>
+          _i1064.CancelarVinculacionUseCase(gh<_i604.VinculacionRepository>()),
+    );
+    gh.factory<_i506.CheckRucUseCase>(
+      () => _i506.CheckRucUseCase(gh<_i604.VinculacionRepository>()),
+    );
+    gh.factory<_i649.CrearVinculacionUseCase>(
+      () => _i649.CrearVinculacionUseCase(gh<_i604.VinculacionRepository>()),
+    );
+    gh.factory<_i667.DesvincularUseCase>(
+      () => _i667.DesvincularUseCase(gh<_i604.VinculacionRepository>()),
+    );
+    gh.factory<_i215.GetPendientesVinculacionUseCase>(
+      () => _i215.GetPendientesVinculacionUseCase(
+        gh<_i604.VinculacionRepository>(),
+      ),
+    );
+    gh.factory<_i639.ListarVinculacionesUseCase>(
+      () => _i639.ListarVinculacionesUseCase(gh<_i604.VinculacionRepository>()),
+    );
+    gh.factory<_i1053.ResponderVinculacionUseCase>(
+      () =>
+          _i1053.ResponderVinculacionUseCase(gh<_i604.VinculacionRepository>()),
+    );
     gh.factory<_i68.PrecioNivelCubit>(
       () => _i68.PrecioNivelCubit(gh<_i640.PrecioNivelRepository>()),
     );
@@ -2104,6 +2163,15 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i175.ServicioDashboardCubit>(
       () => _i175.ServicioDashboardCubit(
         gh<_i742.EstadisticasServicioRepository>(),
+      ),
+    );
+    gh.factory<_i894.VinculacionActionCubit>(
+      () => _i894.VinculacionActionCubit(
+        gh<_i506.CheckRucUseCase>(),
+        gh<_i649.CrearVinculacionUseCase>(),
+        gh<_i1053.ResponderVinculacionUseCase>(),
+        gh<_i1064.CancelarVinculacionUseCase>(),
+        gh<_i667.DesvincularUseCase>(),
       ),
     );
     gh.factory<_i1021.AjustarStockCubit>(
@@ -2243,6 +2311,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i743.ProductoDetailCubit>(
       () => _i743.ProductoDetailCubit(gh<_i460.GetProductoUseCase>()),
+    );
+    gh.factory<_i1059.VinculacionListCubit>(
+      () => _i1059.VinculacionListCubit(gh<_i639.ListarVinculacionesUseCase>()),
     );
     gh.factory<_i410.TransferenciasListCubit>(
       () => _i410.TransferenciasListCubit(

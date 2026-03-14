@@ -9,7 +9,7 @@ abstract class ClienteEmpresaRepository {
     int limit = 20,
   });
 
-  Future<Resource<ClienteEmpresa>> crearClienteEmpresa({
+  Future<Resource<ClienteEmpresaCreado>> crearClienteEmpresa({
     required String empresaId,
     required String razonSocial,
     required String numeroDocumento,

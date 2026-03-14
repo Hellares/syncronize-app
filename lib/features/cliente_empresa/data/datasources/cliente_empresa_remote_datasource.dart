@@ -36,7 +36,7 @@ class ClienteEmpresaRemoteDataSource {
     return ClienteEmpresaModel.fromJson(response.data as Map<String, dynamic>);
   }
 
-  Future<ClienteEmpresaModel> crearClienteEmpresa(
+  Future<Map<String, dynamic>> crearClienteEmpresaRaw(
     String empresaId,
     Map<String, dynamic> data,
   ) async {
@@ -44,7 +44,7 @@ class ClienteEmpresaRemoteDataSource {
       '${ApiConstants.empresas}/$empresaId${ApiConstants.clientesEmpresa}',
       data: data,
     );
-    return ClienteEmpresaModel.fromJson(response.data as Map<String, dynamic>);
+    return response.data as Map<String, dynamic>;
   }
 
   Future<ClienteEmpresaContactoModel> agregarContacto(

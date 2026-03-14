@@ -87,6 +87,8 @@ import '../../features/aviso_mantenimiento/presentation/pages/avisos_mantenimien
 import '../../features/tercerizacion/presentation/pages/tercerizacion_list_page.dart';
 import '../../features/tercerizacion/presentation/pages/tercerizacion_detail_page.dart';
 import '../../features/tercerizacion/presentation/pages/directorio_empresas_page.dart';
+import '../../features/vinculacion/presentation/pages/vinculacion_list_page.dart';
+import '../../features/vinculacion/presentation/pages/vinculacion_detail_page.dart';
 
 /// Configuración de rutas de la aplicación
 class AppRouter {
@@ -817,6 +819,20 @@ class AppRouter {
         builder: (context, state) {
           final id = state.pathParameters['id']!;
           return TercerizacionDetailPage(tercerizacionId: id);
+        },
+      ),
+      // Rutas de vinculacion B2B
+      GoRoute(
+        path: '/empresa/vinculacion',
+        name: 'empresa-vinculacion',
+        builder: (context, state) => const VinculacionListPage(),
+      ),
+      GoRoute(
+        path: '/empresa/vinculacion/:id',
+        name: 'empresa-vinculacion-detail',
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return VinculacionDetailPage(vinculacionId: id);
         },
       ),
       // Ruta placeholder para marketplace (por implementar)

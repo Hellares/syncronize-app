@@ -9,6 +9,17 @@ class TercerizacionRemoteDataSource {
 
   TercerizacionRemoteDataSource(this._dioClient);
 
+  // ─── Empresas vinculadas ───
+
+  Future<List<Map<String, dynamic>>> getEmpresasVinculadas() async {
+    final response = await _dioClient.get(
+      '${ApiConstants.tercerizacion}/vinculadas',
+    );
+    return (response.data as List)
+        .map((e) => e as Map<String, dynamic>)
+        .toList();
+  }
+
   // ─── Directorio ───
 
   Future<Map<String, dynamic>> buscarEmpresas({

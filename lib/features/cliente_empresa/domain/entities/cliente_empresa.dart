@@ -75,6 +75,30 @@ class ClienteEmpresaContacto extends Equatable {
   List<Object?> get props => [id, nombre];
 }
 
+class ClienteEmpresaCreado {
+  final ClienteEmpresa clienteEmpresa;
+  final EmpresaVinculableInfo? empresaVinculable;
+
+  const ClienteEmpresaCreado({
+    required this.clienteEmpresa,
+    this.empresaVinculable,
+  });
+}
+
+class EmpresaVinculableInfo {
+  final String id;
+  final String nombre;
+  final String? logo;
+  final String? rubro;
+
+  const EmpresaVinculableInfo({
+    required this.id,
+    required this.nombre,
+    this.logo,
+    this.rubro,
+  });
+}
+
 class ClientesEmpresaPaginados {
   final List<ClienteEmpresa> data;
   final int total;
