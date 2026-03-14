@@ -106,4 +106,46 @@ class CitaRemoteDataSource {
     );
     return response.data as Map<String, dynamic>;
   }
+
+  // ─── Items ───
+
+  /// GET /citas/:id/items
+  Future<Map<String, dynamic>> getItems(String citaId) async {
+    final response = await _dioClient.get(
+      '${ApiConstants.citas}/$citaId/items',
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
+  /// POST /citas/:id/items
+  Future<Map<String, dynamic>> addItem(
+    String citaId,
+    Map<String, dynamic> data,
+  ) async {
+    final response = await _dioClient.post(
+      '${ApiConstants.citas}/$citaId/items',
+      data: data,
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
+  /// PUT /citas/:id/items/:itemId
+  Future<Map<String, dynamic>> updateItem(
+    String citaId,
+    String itemId,
+    Map<String, dynamic> data,
+  ) async {
+    final response = await _dioClient.put(
+      '${ApiConstants.citas}/$citaId/items/$itemId',
+      data: data,
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
+  /// DELETE /citas/:id/items/:itemId
+  Future<void> removeItem(String citaId, String itemId) async {
+    await _dioClient.delete(
+      '${ApiConstants.citas}/$citaId/items/$itemId',
+    );
+  }
 }

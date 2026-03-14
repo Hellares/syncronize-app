@@ -1,8 +1,10 @@
+import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:syncronize/core/fonts/app_fonts.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
+import '../../../auth/presentation/widgets/custom_text.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_gradients.dart';
 import '../../../../core/theme/gradient_background.dart';
@@ -12,11 +14,19 @@ import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/utils/resource.dart';
+import '../../data/datasources/cita_remote_datasource.dart';
+import '../../data/models/cita_model.dart';
 import '../../domain/entities/cita.dart';
 import '../../domain/repositories/cita_repository.dart';
 import '../bloc/cita_form/cita_form_cubit.dart';
 import '../bloc/cita_form/cita_form_state.dart';
+import '../../../servicio/domain/entities/configuracion_campo.dart';
+import '../../../servicio/domain/repositories/plantilla_servicio_repository.dart';
+import '../../../servicio/presentation/widgets/dynamic_form_renderer.dart';
+import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
+import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../widgets/cita_estado_badge.dart';
+import '../widgets/add_cita_item_sheet.dart';
 
 class CitaDetailPage extends StatefulWidget {
   final String citaId;
@@ -28,30 +38,96 @@ class CitaDetailPage extends StatefulWidget {
 
 class _CitaDetailPageState extends State<CitaDetailPage> {
   Cita? _cita;
+  List<CitaItem> _items = [];
+  double _totalItems = 0;
+  List<ConfiguracionCampo> _camposPersonalizados = [];
+  Map<String, dynamic> _datosPersonalizados = {};
   bool _loading = true;
   String? _error;
 
   @override
   void initState() {
     super.initState();
-    _loadCita();
+    _loadAll();
   }
 
-  Future<void> _loadCita() async {
+  String get _empresaId {
+    final state = context.read<EmpresaContextCubit>().state;
+    return state is EmpresaContextLoaded ? state.context.empresa.id : '';
+  }
+
+  Future<void> _loadAll() async {
     setState(() {
       _loading = true;
       _error = null;
     });
+    await Future.wait([_loadCita(), _loadItems()]);
+    // Cargar campos personalizados después de tener la cita (necesitamos servicioId)
+    if (_cita != null) {
+      await _loadCamposPersonalizados();
+    }
+    if (mounted) setState(() => _loading = false);
+  }
+
+  Future<void> _loadCita() async {
     final result = await locator<CitaRepository>().findOne(widget.citaId);
     if (!mounted) return;
     setState(() {
-      _loading = false;
       if (result is Success<Cita>) {
         _cita = result.data;
       } else if (result is Error<Cita>) {
         _error = result.message;
       }
     });
+  }
+
+  Future<void> _loadItems() async {
+    try {
+      final ds = locator<CitaRemoteDataSource>();
+      final data = await ds.getItems(widget.citaId);
+      if (!mounted) return;
+      final itemsList = (data['items'] as List?)?.map((e) =>
+          CitaModel.parseCitaItem(e as Map<String, dynamic>)).toList() ?? [];
+      setState(() {
+        _items = itemsList;
+        _totalItems = (data['total'] as num?)?.toDouble() ?? 0;
+      });
+    } catch (_) {
+      // Items son opcionales, no bloquear la vista
+    }
+  }
+
+  Future<void> _loadCamposPersonalizados() async {
+    if (_cita == null) return;
+    try {
+      final repo = locator<PlantillaServicioRepository>();
+      final result = await repo.getCamposByServicioId(_cita!.servicioId);
+      if (!mounted) return;
+      if (result is Success<List<ConfiguracionCampo>>) {
+        setState(() {
+          _camposPersonalizados = result.data;
+          _datosPersonalizados = _cita!.datosPersonalizados != null
+              ? Map<String, dynamic>.from(_cita!.datosPersonalizados!)
+              : {};
+        });
+      }
+    } catch (_) {
+      // Campos opcionales
+    }
+  }
+
+  Future<void> _guardarDatosPersonalizados(Map<String, dynamic> datos) async {
+    try {
+      final repo = locator<CitaRepository>();
+      await repo.update(_cita!.id, {'datosPersonalizados': datos});
+      setState(() => _datosPersonalizados = datos);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al guardar: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   @override
@@ -122,7 +198,7 @@ class _CitaDetailPageState extends State<CitaDetailPage> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(state.mensaje), backgroundColor: Colors.green),
           );
-          _loadCita();
+          _loadAll();
         } else if (state is CitaFormError) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(state.message), backgroundColor: Colors.red),
@@ -130,7 +206,7 @@ class _CitaDetailPageState extends State<CitaDetailPage> {
         }
       },
       child: RefreshIndicator(
-        onRefresh: _loadCita,
+        onRefresh: _loadAll,
         color: AppColors.blue1,
         child: ListView(
           padding: const EdgeInsets.all(14),
@@ -140,6 +216,14 @@ class _CitaDetailPageState extends State<CitaDetailPage> {
             _buildClienteCard(),
             const SizedBox(height: 10),
             _buildServicioCard(),
+            const SizedBox(height: 10),
+            _buildItemsCard(),
+            const SizedBox(height: 10),
+            _buildCostosCard(),
+            if (_camposPersonalizados.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              _buildCamposPersonalizadosCard(),
+            ],
             if (_cita!.notas != null && _cita!.notas!.isNotEmpty) ...[
               const SizedBox(height: 10),
               _buildNotasCard(),
@@ -151,6 +235,14 @@ class _CitaDetailPageState extends State<CitaDetailPage> {
             if (_cita!.ordenServicio != null) ...[
               const SizedBox(height: 10),
               _buildOrdenServicioCard(),
+            ],
+            if (_cita!.citaAnterior != null) ...[
+              const SizedBox(height: 10),
+              _buildCitaVinculoCard(_cita!.citaAnterior!, 'Cita anterior', Icons.arrow_back),
+            ],
+            if (_cita!.siguienteCita != null) ...[
+              const SizedBox(height: 10),
+              _buildCitaVinculoCard(_cita!.siguienteCita!, 'Siguiente cita', Icons.arrow_forward),
             ],
             const SizedBox(height: 80),
           ],
@@ -466,6 +558,458 @@ class _CitaDetailPageState extends State<CitaDetailPage> {
     );
   }
 
+  // ─── Campos Personalizados ───
+
+  Widget _buildCamposPersonalizadosCard() {
+    return GradientContainer(
+      gradient: AppGradients.blueWhiteBlue(),
+      borderColor: AppColors.blueborder,
+      borderWidth: 0.6,
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionHeader(Icons.tune, 'Campos del Servicio'),
+          const SizedBox(height: 10),
+          DynamicFormRenderer(
+            campos: _camposPersonalizados,
+            values: _datosPersonalizados,
+            empresaId: _empresaId,
+            onChanged: (datos) {
+              if (!_cita!.esTerminal) {
+                _guardarDatosPersonalizados(datos);
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── Resumen de Costos ───
+
+  Widget _buildCostosCard() {
+    final costoServicio = _cita!.costoServicio ?? 0;
+    final costoProductos = _cita!.costoProductos ?? 0;
+    final descuento = _cita!.descuento ?? 0;
+    final costoTotal = _cita!.costoTotal ?? 0;
+    final adelanto = _cita!.adelanto ?? 0;
+    final saldo = _cita!.saldo;
+
+    return GradientContainer(
+      gradient: AppGradients.blueWhiteBlue(),
+      borderColor: AppColors.blueborder,
+      borderWidth: 0.6,
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _sectionHeader(Icons.monetization_on, 'Resumen de Costos'),
+              const Spacer(),
+              if (!_cita!.esTerminal)
+                InkWell(
+                  onTap: _showEditCostosDialog,
+                  borderRadius: BorderRadius.circular(6),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.bluechip,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.edit, size: 12, color: AppColors.blue1),
+                        SizedBox(width: 4),
+                        Text('Editar',
+                            style: TextStyle(
+                                fontSize: 10,
+                                color: AppColors.blue1,
+                                fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          _costoRow('Mano de obra', costoServicio),
+          _costoRow('Productos/Insumos', costoProductos),
+          if (descuento > 0) _costoRow('Descuento', -descuento, color: Colors.red),
+          const Divider(height: 16),
+          _costoRow('TOTAL', costoTotal, bold: true, fontSize: 14),
+          if (adelanto > 0) ...[
+            const SizedBox(height: 4),
+            _costoRow('Adelanto', adelanto, color: AppColors.green),
+            if (_cita!.metodoPagoAdelanto != null)
+              Padding(
+                padding: const EdgeInsets.only(left: 80),
+                child: Text(
+                  _cita!.metodoPagoAdelanto!,
+                  style: TextStyle(fontSize: 9, color: Colors.grey.shade500),
+                ),
+              ),
+            _costoRow('Saldo pendiente', saldo,
+                bold: true, color: saldo > 0 ? Colors.orange : AppColors.green),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _costoRow(String label, double value,
+      {bool bold = false, double fontSize = 11, Color? color}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: fontSize - 1,
+                fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
+                color: color ?? Colors.grey.shade600,
+                fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
+              ),
+            ),
+          ),
+          Text(
+            '${value < 0 ? '-' : ''}S/ ${value.abs().toStringAsFixed(2)}',
+            style: TextStyle(
+              fontSize: fontSize,
+              fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
+              color: color ?? (bold ? AppColors.blue1 : AppColors.blue2),
+              fontFamily: AppFonts.getFontFamily(bold ? AppFont.oxygenBold : AppFont.oxygenRegular),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditCostosDialog() {
+    final costoCtrl = TextEditingController(
+        text: (_cita!.costoServicio ?? 0).toStringAsFixed(2));
+    final descuentoCtrl = TextEditingController(
+        text: (_cita!.descuento ?? 0).toStringAsFixed(2));
+    final adelantoCtrl = TextEditingController(
+        text: (_cita!.adelanto ?? 0).toStringAsFixed(2));
+    final metodoCtrl = TextEditingController(
+        text: _cita!.metodoPagoAdelanto ?? '');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Editar costos'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CustomText(
+                controller: costoCtrl,
+                label: 'Mano de obra (S/)',
+                hintText: '0.00',
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                borderColor: AppColors.blue1,
+              ),
+              const SizedBox(height: 10),
+              CustomText(
+                controller: descuentoCtrl,
+                label: 'Descuento (S/)',
+                hintText: '0.00',
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                borderColor: AppColors.blue1,
+              ),
+              const SizedBox(height: 10),
+              CustomText(
+                controller: adelantoCtrl,
+                label: 'Adelanto (S/)',
+                hintText: '0.00',
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                borderColor: AppColors.blue1,
+              ),
+              const SizedBox(height: 10),
+              CustomText(
+                controller: metodoCtrl,
+                label: 'Método de pago adelanto',
+                hintText: 'EFECTIVO, YAPE, PLIN...',
+                borderColor: AppColors.blue1,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          CustomButton(
+            text: 'Guardar',
+            backgroundColor: AppColors.blue1,
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                final repo = locator<CitaRepository>();
+                await repo.update(_cita!.id, {
+                  'costoServicio': double.tryParse(costoCtrl.text) ?? 0,
+                  'descuento': double.tryParse(descuentoCtrl.text) ?? 0,
+                  'adelanto': double.tryParse(adelantoCtrl.text) ?? 0,
+                  if (metodoCtrl.text.trim().isNotEmpty)
+                    'metodoPagoAdelanto': metodoCtrl.text.trim(),
+                });
+                _loadAll();
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+                  );
+                }
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── Items / Productos ───
+
+  Widget _buildItemsCard() {
+    return GradientContainer(
+      gradient: AppGradients.blueWhiteBlue(),
+      borderColor: AppColors.blueborder,
+      borderWidth: 0.6,
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _sectionHeader(Icons.shopping_bag, 'Productos / Insumos'),
+              const Spacer(),
+              if (!_cita!.esTerminal)
+                InkWell(
+                  onTap: () => _showAddItemDialog(),
+                  borderRadius: BorderRadius.circular(6),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.bluechip,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.add, size: 14, color: AppColors.blue1),
+                        SizedBox(width: 4),
+                        Text('Agregar',
+                            style: TextStyle(
+                                fontSize: 10,
+                                color: AppColors.blue1,
+                                fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          if (_items.isEmpty)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Text(
+                  'Sin productos agregados',
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
+                ),
+              ),
+            )
+          else ...[
+            ..._items.map((item) => _buildItemRow(item)),
+            const Divider(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                const AppSubtitle('Total:', fontSize: 12, color: AppColors.blue2),
+                const SizedBox(width: 8),
+                Text(
+                  'S/ ${_totalItems.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.blue1,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildItemRow(CitaItem item) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(5),
+            decoration: BoxDecoration(
+              color: AppColors.blue1.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: const Icon(Icons.inventory_2_outlined,
+                size: 12, color: AppColors.blue1),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.nombre,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.blue2,
+                    fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
+                  ),
+                ),
+                if (item.descripcion != null && item.descripcion!.isNotEmpty)
+                  Text(
+                    item.descripcion!,
+                    style: TextStyle(fontSize: 9, color: Colors.grey.shade500),
+                  ),
+              ],
+            ),
+          ),
+          Text(
+            '${item.cantidad} x S/${item.precioUnitario.toStringAsFixed(2)}',
+            style: TextStyle(
+              fontSize: 10,
+              color: Colors.grey.shade600,
+              fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'S/${item.subtotal.toStringAsFixed(2)}',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: AppColors.blue1,
+              fontFamily: AppFonts.getFontFamily(AppFont.oxygenBold),
+            ),
+          ),
+          if (!_cita!.esTerminal) ...[
+            const SizedBox(width: 4),
+            InkWell(
+              onTap: () => _removeItem(item.id),
+              borderRadius: BorderRadius.circular(4),
+              child: Padding(
+                padding: const EdgeInsets.all(4),
+                child: Icon(Icons.close, size: 14, color: Colors.red.shade300),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  void _showAddItemDialog() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => AddCitaItemSheet(
+        onItemAdded: (item) async {
+          try {
+            final ds = locator<CitaRemoteDataSource>();
+            await ds.addItem(widget.citaId, {
+              'nombre': item.nombre,
+              if (item.productoId != null) 'productoId': item.productoId,
+              if (item.descripcion != null) 'descripcion': item.descripcion,
+              'cantidad': item.cantidad,
+              'precioUnitario': item.precioUnitario,
+            });
+            _loadItems();
+          } catch (e) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+              );
+            }
+          }
+        },
+      ),
+    );
+  }
+
+  Future<void> _removeItem(String itemId) async {
+    try {
+      final ds = locator<CitaRemoteDataSource>();
+      await ds.removeItem(widget.citaId, itemId);
+      _loadItems();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  // ─── Cita vinculada (anterior/siguiente) ───
+
+  Widget _buildCitaVinculoCard(CitaVinculoResumen vinculo, String label, IconData icon) {
+    return InkWell(
+      onTap: () => context.push('/empresa/citas/${vinculo.id}'),
+      borderRadius: BorderRadius.circular(8),
+      child: GradientContainer(
+        gradient: AppGradients.blueWhiteBlue(),
+        borderColor: AppColors.blue1.withValues(alpha: 0.3),
+        borderWidth: 0.8,
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.blue1.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, size: 16, color: AppColors.blue1),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  AppLabelText(label, fontSize: 9, color: AppColors.blue1),
+                  const SizedBox(height: 2),
+                  AppSubtitle(
+                    '${vinculo.codigo} — ${DateFormatter.formatDate(vinculo.fecha)} ${vinculo.horaInicio}',
+                    fontSize: 11,
+                  ),
+                ],
+              ),
+            ),
+            CitaEstadoBadge(estado: vinculo.estado),
+            const SizedBox(width: 6),
+            const Icon(Icons.chevron_right, size: 18, color: AppColors.blue1),
+          ],
+        ),
+      ),
+    );
+  }
+
   // ─── Bottom Actions ───
 
   Widget _buildBottomActions() {
@@ -596,33 +1140,214 @@ class _CitaDetailPageState extends State<CitaDetailPage> {
 
   void _showCompleteDialog() {
     bool generarOrden = false;
+    bool programarSiguiente = false;
+    DateTime? siguienteFecha;
+    String? siguienteHoraInicio;
+    String? siguienteHoraFin;
+    final siguienteNotasCtrl = TextEditingController();
+
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
           title: const Text('Completar cita'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              GradientContainer(
-                gradient: AppGradients.blueWhiteBlue(),
-                borderColor: AppColors.blueborder,
-                borderWidth: 0.6,
-                child: CheckboxListTile(
-                  title: const Text('Generar orden de servicio',
-                      style: TextStyle(fontSize: 12)),
-                  subtitle: const Text(
-                    'Se creará una orden con los datos de esta cita',
-                    style: TextStyle(fontSize: 10),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                GradientContainer(
+                  gradient: AppGradients.blueWhiteBlue(),
+                  borderColor: AppColors.blueborder,
+                  borderWidth: 0.6,
+                  child: CheckboxListTile(
+                    title: const Text('Generar orden de servicio',
+                        style: TextStyle(fontSize: 12)),
+                    subtitle: const Text(
+                      'Se creará una orden con los datos de esta cita',
+                      style: TextStyle(fontSize: 10),
+                    ),
+                    value: generarOrden,
+                    onChanged: (v) => setDialogState(() => generarOrden = v ?? false),
+                    controlAffinity: ListTileControlAffinity.leading,
+                    activeColor: AppColors.blue1,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 4),
                   ),
-                  value: generarOrden,
-                  onChanged: (v) => setDialogState(() => generarOrden = v ?? false),
-                  controlAffinity: ListTileControlAffinity.leading,
-                  activeColor: AppColors.blue1,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 4),
                 ),
-              ),
-            ],
+                const SizedBox(height: 8),
+                GradientContainer(
+                  gradient: AppGradients.blueWhiteBlue(),
+                  borderColor: programarSiguiente
+                      ? AppColors.blue1.withValues(alpha: 0.4)
+                      : AppColors.blueborder,
+                  borderWidth: 0.6,
+                  child: Column(
+                    children: [
+                      CheckboxListTile(
+                        title: const Text('Programar siguiente cita',
+                            style: TextStyle(fontSize: 12)),
+                        subtitle: const Text(
+                          'Agenda la próxima visita del cliente',
+                          style: TextStyle(fontSize: 10),
+                        ),
+                        value: programarSiguiente,
+                        onChanged: (v) =>
+                            setDialogState(() => programarSiguiente = v ?? false),
+                        controlAffinity: ListTileControlAffinity.leading,
+                        activeColor: AppColors.blue1,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                      ),
+                      if (programarSiguiente) ...[
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                          child: Column(
+                            children: [
+                              // Fecha
+                              InkWell(
+                                onTap: () async {
+                                  final picked = await showDatePicker(
+                                    context: ctx,
+                                    initialDate: DateTime.now().add(const Duration(days: 7)),
+                                    firstDate: DateTime.now().add(const Duration(days: 1)),
+                                    lastDate: DateTime.now().add(const Duration(days: 365)),
+                                  );
+                                  if (picked != null) {
+                                    setDialogState(() => siguienteFecha = picked);
+                                  }
+                                },
+                                child: Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 10),
+                                  decoration: BoxDecoration(
+                                    border: Border.all(
+                                        color: AppColors.blue1.withValues(alpha: 0.3)),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.calendar_today,
+                                          size: 14, color: AppColors.blue1),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        siguienteFecha != null
+                                            ? DateFormatter.formatDate(siguienteFecha!)
+                                            : 'Seleccionar fecha',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: siguienteFecha != null
+                                              ? AppColors.blue2
+                                              : Colors.grey.shade500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              // Horas
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: InkWell(
+                                      onTap: () async {
+                                        final picked = await showTimePicker(
+                                          context: ctx,
+                                          initialTime: const TimeOfDay(hour: 9, minute: 0),
+                                          builder: (c, child) => MediaQuery(
+                                            data: MediaQuery.of(c)
+                                                .copyWith(alwaysUse24HourFormat: true),
+                                            child: child!,
+                                          ),
+                                        );
+                                        if (picked != null) {
+                                          setDialogState(() {
+                                            siguienteHoraInicio =
+                                                '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
+                                          });
+                                        }
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 10, vertical: 8),
+                                        decoration: BoxDecoration(
+                                          border: Border.all(
+                                              color: AppColors.blue1.withValues(alpha: 0.3)),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Text(
+                                          siguienteHoraInicio ?? 'Inicio',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: siguienteHoraInicio != null
+                                                ? AppColors.blue2
+                                                : Colors.grey.shade500,
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const Padding(
+                                    padding: EdgeInsets.symmetric(horizontal: 6),
+                                    child: Text('—'),
+                                  ),
+                                  Expanded(
+                                    child: InkWell(
+                                      onTap: () async {
+                                        final picked = await showTimePicker(
+                                          context: ctx,
+                                          initialTime: const TimeOfDay(hour: 10, minute: 0),
+                                          builder: (c, child) => MediaQuery(
+                                            data: MediaQuery.of(c)
+                                                .copyWith(alwaysUse24HourFormat: true),
+                                            child: child!,
+                                          ),
+                                        );
+                                        if (picked != null) {
+                                          setDialogState(() {
+                                            siguienteHoraFin =
+                                                '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
+                                          });
+                                        }
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 10, vertical: 8),
+                                        decoration: BoxDecoration(
+                                          border: Border.all(
+                                              color: AppColors.blue1.withValues(alpha: 0.3)),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Text(
+                                          siguienteHoraFin ?? 'Fin',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: siguienteHoraFin != null
+                                                ? AppColors.blue2
+                                                : Colors.grey.shade500,
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              CustomText(
+                                controller: siguienteNotasCtrl,
+                                label: 'Notas (opcional)',
+                                borderColor: AppColors.blue1,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -632,12 +1357,56 @@ class _CitaDetailPageState extends State<CitaDetailPage> {
               text: 'Completar',
               backgroundColor: AppColors.green,
               onPressed: () {
-                Navigator.pop(ctx);
-                context.read<CitaFormCubit>().cambiarEstado(
-                      id: _cita!.id,
-                      nuevoEstado: 'COMPLETADA',
-                      generarOrden: generarOrden,
+                // Validar siguiente cita si se marca
+                if (programarSiguiente) {
+                  if (siguienteFecha == null ||
+                      siguienteHoraInicio == null ||
+                      siguienteHoraFin == null) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                      const SnackBar(
+                          content: Text('Complete fecha y hora de la siguiente cita')),
                     );
+                    return;
+                  }
+                }
+
+                Navigator.pop(ctx);
+
+                final data = <String, dynamic>{
+                  'nuevoEstado': 'COMPLETADA',
+                  if (generarOrden) 'generarOrden': true,
+                };
+
+                if (programarSiguiente && siguienteFecha != null) {
+                  data['siguienteCita'] = {
+                    'fecha': DateFormat('yyyy-MM-dd').format(siguienteFecha!),
+                    'horaInicio': siguienteHoraInicio,
+                    'horaFin': siguienteHoraFin,
+                    if (siguienteNotasCtrl.text.trim().isNotEmpty)
+                      'notas': siguienteNotasCtrl.text.trim(),
+                  };
+                }
+
+                // Usar transitionEstado directamente via repository
+                locator<CitaRepository>()
+                    .transitionEstado(_cita!.id, data)
+                    .then((result) {
+                  if (!mounted) return;
+                  if (result is Success) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content: Text('Cita completada'),
+                          backgroundColor: Colors.green),
+                    );
+                    _loadAll();
+                  } else if (result is Error) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                          content: Text((result as Error).message),
+                          backgroundColor: Colors.red),
+                    );
+                  }
+                });
               },
             ),
           ],

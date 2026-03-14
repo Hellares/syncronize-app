@@ -14,8 +14,16 @@ class CitaModel extends Cita {
     required super.horaInicio,
     required super.horaFin,
     required super.estado,
+    super.costoServicio,
+    super.costoProductos,
+    super.descuento,
+    super.adelanto,
+    super.costoTotal,
+    super.metodoPagoAdelanto,
+    super.datosPersonalizados,
     super.notas,
     super.ordenServicioId,
+    super.siguienteCitaId,
     super.creadoPor,
     super.canceladoPor,
     super.motivoCancelacion,
@@ -27,6 +35,8 @@ class CitaModel extends Cita {
     super.clienteEmpresa,
     super.sede,
     super.ordenServicio,
+    super.siguienteCita,
+    super.citaAnterior,
   });
 
   factory CitaModel.fromJson(Map<String, dynamic> json) {
@@ -43,8 +53,18 @@ class CitaModel extends Cita {
       horaInicio: json['horaInicio'] as String,
       horaFin: json['horaFin'] as String,
       estado: json['estado'] as String,
+      costoServicio: json['costoServicio'] != null ? double.tryParse(json['costoServicio'].toString()) : null,
+      costoProductos: json['costoProductos'] != null ? double.tryParse(json['costoProductos'].toString()) : null,
+      descuento: json['descuento'] != null ? double.tryParse(json['descuento'].toString()) : null,
+      adelanto: json['adelanto'] != null ? double.tryParse(json['adelanto'].toString()) : null,
+      costoTotal: json['costoTotal'] != null ? double.tryParse(json['costoTotal'].toString()) : null,
+      metodoPagoAdelanto: json['metodoPagoAdelanto'] as String?,
+      datosPersonalizados: json['datosPersonalizados'] != null
+          ? Map<String, dynamic>.from(json['datosPersonalizados'] as Map)
+          : null,
       notas: json['notas'] as String?,
       ordenServicioId: json['ordenServicioId'] as String?,
+      siguienteCitaId: json['siguienteCitaId'] as String?,
       creadoPor: json['creadoPor'] as String?,
       canceladoPor: json['canceladoPor'] as String?,
       motivoCancelacion: json['motivoCancelacion'] as String?,
@@ -67,6 +87,12 @@ class CitaModel extends Cita {
           : null,
       ordenServicio: json['ordenServicio'] != null
           ? _parseOrdenServicio(json['ordenServicio'] as Map<String, dynamic>)
+          : null,
+      siguienteCita: json['siguienteCita'] != null
+          ? _parseCitaVinculo(json['siguienteCita'] as Map<String, dynamic>)
+          : null,
+      citaAnterior: json['citaAnterior'] != null
+          ? _parseCitaVinculo(json['citaAnterior'] as Map<String, dynamic>)
           : null,
     );
   }
@@ -125,6 +151,37 @@ class CitaModel extends Cita {
       id: json['id'] as String,
       codigo: json['codigo'] as String,
       estado: json['estado'] as String,
+    );
+  }
+
+  static CitaVinculoResumen _parseCitaVinculo(Map<String, dynamic> json) {
+    return CitaVinculoResumen(
+      id: json['id'] as String,
+      codigo: json['codigo'] as String,
+      fecha: DateTime.parse(json['fecha'] as String),
+      horaInicio: json['horaInicio'] as String,
+      estado: json['estado'] as String,
+    );
+  }
+
+  static CitaItem parseCitaItem(Map<String, dynamic> json) {
+    final producto = json['producto'] as Map<String, dynamic>?;
+    return CitaItem(
+      id: json['id'] as String,
+      citaId: json['citaId'] as String,
+      productoId: json['productoId'] as String?,
+      nombre: json['nombre'] as String,
+      descripcion: json['descripcion'] as String?,
+      cantidad: json['cantidad'] as int? ?? 1,
+      precioUnitario: double.tryParse(json['precioUnitario'].toString()) ?? 0,
+      subtotal: double.tryParse(json['subtotal'].toString()) ?? 0,
+      producto: producto != null
+          ? CitaItemProducto(
+              id: producto['id'] as String,
+              nombre: producto['nombre'] as String,
+              codigoEmpresa: producto['codigoEmpresa'] as String? ?? '',
+            )
+          : null,
     );
   }
 
