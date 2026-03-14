@@ -89,6 +89,9 @@ import '../../features/tercerizacion/presentation/pages/tercerizacion_detail_pag
 import '../../features/tercerizacion/presentation/pages/directorio_empresas_page.dart';
 import '../../features/vinculacion/presentation/pages/vinculacion_list_page.dart';
 import '../../features/vinculacion/presentation/pages/vinculacion_detail_page.dart';
+import '../../features/cita/presentation/pages/citas_page.dart';
+import '../../features/cita/presentation/pages/cita_detail_page.dart';
+import '../../features/cita/presentation/pages/nueva_cita_sheet.dart';
 
 /// Configuración de rutas de la aplicación
 class AppRouter {
@@ -819,6 +822,25 @@ class AppRouter {
         builder: (context, state) {
           final id = state.pathParameters['id']!;
           return TercerizacionDetailPage(tercerizacionId: id);
+        },
+      ),
+      // Rutas de citas
+      GoRoute(
+        path: '/empresa/citas',
+        name: 'empresa-citas',
+        builder: (context, state) => const CitasPage(),
+      ),
+      GoRoute(
+        path: '/empresa/citas/nueva',
+        name: 'empresa-citas-nueva',
+        builder: (context, state) => const NuevaCitaSheet(),
+      ),
+      GoRoute(
+        path: '/empresa/citas/:id',
+        name: 'empresa-citas-detail',
+        builder: (context, state) {
+          final citaId = state.pathParameters['id']!;
+          return CitaDetailPage(citaId: citaId);
         },
       ),
       // Rutas de vinculacion B2B

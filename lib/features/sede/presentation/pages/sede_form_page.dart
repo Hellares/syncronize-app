@@ -69,6 +69,7 @@ class _SedeFormViewState extends State<_SedeFormView> {
 
   TipoSede _selectedTipoSede = TipoSede.operativaCompleta;
   bool _isActive = true;
+  Map<String, dynamic> _horarioAtencion = {};
 
   String? _currentEmpresaId;
   bool _hasUnsavedChanges = false;
@@ -162,6 +163,9 @@ class _SedeFormViewState extends State<_SedeFormView> {
     setState(() {
       _selectedTipoSede = sede.tipoSede;
       _isActive = sede.isActive;
+      _horarioAtencion = sede.horarioAtencion != null
+          ? Map<String, dynamic>.from(sede.horarioAtencion!)
+          : {};
       _hasUnsavedChanges = false;
     });
   }
@@ -229,6 +233,8 @@ class _SedeFormViewState extends State<_SedeFormView> {
       if (_departamentoController.text.trim().isNotEmpty)
         'departamento': _departamentoController.text.trim(),
       'pais': 'PERU',
+      if (_horarioAtencion.isNotEmpty)
+        'horarioAtencion': _horarioAtencion,
       // Solo incluir series si el usuario las proporcionó (no vacías)
       // Si están vacías, el backend las generará automáticamente
       if (_serieFacturaController.text.trim().isNotEmpty)
@@ -389,6 +395,13 @@ class _SedeFormViewState extends State<_SedeFormView> {
                             onIsActiveChanged: (value) {
                               setState(() {
                                 _isActive = value;
+                                _markAsChanged();
+                              });
+                            },
+                            horarioAtencion: _horarioAtencion,
+                            onHorarioChanged: (horario) {
+                              setState(() {
+                                _horarioAtencion = horario;
                                 _markAsChanged();
                               });
                             },

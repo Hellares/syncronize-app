@@ -224,6 +224,14 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               routeMatch: const _RouteMatch.startsWith('/empresa/ordenes'),
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/ordenes')),
             ),
+            _TileNode(
+              visible: permissions?.canManageOrders ?? false,
+              title: 'Citas',
+              icon: Icons.calendar_month,
+              iconColor: AppColors.blue2,
+              routeMatch: const _RouteMatch.startsWith('/empresa/citas'),
+              onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/citas')),
+            ),
             // Plantillas de Servicio oculto del drawer — se gestionan desde el form de servicio
             // _TileNode(
             //   visible: permissions?.canManageServices ?? false,

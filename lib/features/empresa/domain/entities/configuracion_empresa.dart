@@ -12,6 +12,14 @@ class ConfiguracionEmpresa extends Equatable {
   final int diasVigenciaCotizacion;
   final String? condicionesDefault;
 
+  // Etiquetas personalizables para sección equipo
+  final String? etiquetaSeccionEquipo;
+  final String? etiquetaTipoEquipo;
+  final String? etiquetaMarcaEquipo;
+  final String? etiquetaNumeroSerie;
+  final String? etiquetaCondicionEquipo;
+  final bool mostrarSeccionEquipo;
+
   const ConfiguracionEmpresa({
     required this.id,
     required this.empresaId,
@@ -22,19 +30,28 @@ class ConfiguracionEmpresa extends Equatable {
     this.monedasPermitidas = const ['PEN', 'USD'],
     this.diasVigenciaCotizacion = 30,
     this.condicionesDefault,
+    this.etiquetaSeccionEquipo,
+    this.etiquetaTipoEquipo,
+    this.etiquetaMarcaEquipo,
+    this.etiquetaNumeroSerie,
+    this.etiquetaCondicionEquipo,
+    this.mostrarSeccionEquipo = true,
   });
+
+  // Getters con defaults
+  String get labelSeccionEquipo => etiquetaSeccionEquipo ?? 'EQUIPO';
+  String get labelTipoEquipo => etiquetaTipoEquipo ?? 'Tipo de equipo';
+  String get labelMarcaEquipo => etiquetaMarcaEquipo ?? 'Marca';
+  String get labelNumeroSerie => etiquetaNumeroSerie ?? 'Número de serie';
+  String get labelCondicionEquipo => etiquetaCondicionEquipo ?? 'Condición del equipo';
 
   @override
   List<Object?> get props => [
-        id,
-        empresaId,
-        impuestoDefaultPorcentaje,
-        nombreImpuesto,
-        monedaPrincipal,
-        simboloMoneda,
-        monedasPermitidas,
-        diasVigenciaCotizacion,
-        condicionesDefault,
+        id, empresaId, impuestoDefaultPorcentaje, nombreImpuesto,
+        monedaPrincipal, simboloMoneda, monedasPermitidas,
+        diasVigenciaCotizacion, condicionesDefault,
+        etiquetaSeccionEquipo, etiquetaTipoEquipo, etiquetaMarcaEquipo,
+        etiquetaNumeroSerie, etiquetaCondicionEquipo, mostrarSeccionEquipo,
       ];
 
   ConfiguracionEmpresa copyWith({
@@ -47,19 +64,29 @@ class ConfiguracionEmpresa extends Equatable {
     List<String>? monedasPermitidas,
     int? diasVigenciaCotizacion,
     String? condicionesDefault,
+    String? etiquetaSeccionEquipo,
+    String? etiquetaTipoEquipo,
+    String? etiquetaMarcaEquipo,
+    String? etiquetaNumeroSerie,
+    String? etiquetaCondicionEquipo,
+    bool? mostrarSeccionEquipo,
   }) {
     return ConfiguracionEmpresa(
       id: id ?? this.id,
       empresaId: empresaId ?? this.empresaId,
-      impuestoDefaultPorcentaje:
-          impuestoDefaultPorcentaje ?? this.impuestoDefaultPorcentaje,
+      impuestoDefaultPorcentaje: impuestoDefaultPorcentaje ?? this.impuestoDefaultPorcentaje,
       nombreImpuesto: nombreImpuesto ?? this.nombreImpuesto,
       monedaPrincipal: monedaPrincipal ?? this.monedaPrincipal,
       simboloMoneda: simboloMoneda ?? this.simboloMoneda,
       monedasPermitidas: monedasPermitidas ?? this.monedasPermitidas,
-      diasVigenciaCotizacion:
-          diasVigenciaCotizacion ?? this.diasVigenciaCotizacion,
+      diasVigenciaCotizacion: diasVigenciaCotizacion ?? this.diasVigenciaCotizacion,
       condicionesDefault: condicionesDefault ?? this.condicionesDefault,
+      etiquetaSeccionEquipo: etiquetaSeccionEquipo ?? this.etiquetaSeccionEquipo,
+      etiquetaTipoEquipo: etiquetaTipoEquipo ?? this.etiquetaTipoEquipo,
+      etiquetaMarcaEquipo: etiquetaMarcaEquipo ?? this.etiquetaMarcaEquipo,
+      etiquetaNumeroSerie: etiquetaNumeroSerie ?? this.etiquetaNumeroSerie,
+      etiquetaCondicionEquipo: etiquetaCondicionEquipo ?? this.etiquetaCondicionEquipo,
+      mostrarSeccionEquipo: mostrarSeccionEquipo ?? this.mostrarSeccionEquipo,
     );
   }
 }

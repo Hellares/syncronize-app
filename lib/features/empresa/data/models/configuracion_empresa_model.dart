@@ -11,6 +11,12 @@ class ConfiguracionEmpresaModel extends ConfiguracionEmpresa {
     super.monedasPermitidas,
     super.diasVigenciaCotizacion,
     super.condicionesDefault,
+    super.etiquetaSeccionEquipo,
+    super.etiquetaTipoEquipo,
+    super.etiquetaMarcaEquipo,
+    super.etiquetaNumeroSerie,
+    super.etiquetaCondicionEquipo,
+    super.mostrarSeccionEquipo,
   });
 
   factory ConfiguracionEmpresaModel.fromJson(Map<String, dynamic> json) {
@@ -29,6 +35,12 @@ class ConfiguracionEmpresaModel extends ConfiguracionEmpresa {
       diasVigenciaCotizacion:
           json['diasVigenciaCotizacion'] as int? ?? 30,
       condicionesDefault: json['condicionesDefault'] as String?,
+      etiquetaSeccionEquipo: json['etiquetaSeccionEquipo'] as String?,
+      etiquetaTipoEquipo: json['etiquetaTipoEquipo'] as String?,
+      etiquetaMarcaEquipo: json['etiquetaMarcaEquipo'] as String?,
+      etiquetaNumeroSerie: json['etiquetaNumeroSerie'] as String?,
+      etiquetaCondicionEquipo: json['etiquetaCondicionEquipo'] as String?,
+      mostrarSeccionEquipo: json['mostrarSeccionEquipo'] as bool? ?? true,
     );
   }
 
@@ -41,6 +53,12 @@ class ConfiguracionEmpresaModel extends ConfiguracionEmpresa {
       'monedasPermitidas': monedasPermitidas,
       'diasVigenciaCotizacion': diasVigenciaCotizacion,
       if (condicionesDefault != null) 'condicionesDefault': condicionesDefault,
+      if (etiquetaSeccionEquipo != null) 'etiquetaSeccionEquipo': etiquetaSeccionEquipo,
+      if (etiquetaTipoEquipo != null) 'etiquetaTipoEquipo': etiquetaTipoEquipo,
+      if (etiquetaMarcaEquipo != null) 'etiquetaMarcaEquipo': etiquetaMarcaEquipo,
+      if (etiquetaNumeroSerie != null) 'etiquetaNumeroSerie': etiquetaNumeroSerie,
+      if (etiquetaCondicionEquipo != null) 'etiquetaCondicionEquipo': etiquetaCondicionEquipo,
+      'mostrarSeccionEquipo': mostrarSeccionEquipo,
     };
   }
 
@@ -57,6 +75,12 @@ class ConfiguracionEmpresaModel extends ConfiguracionEmpresa {
       monedasPermitidas: entity.monedasPermitidas,
       diasVigenciaCotizacion: entity.diasVigenciaCotizacion,
       condicionesDefault: entity.condicionesDefault,
+      etiquetaSeccionEquipo: entity.etiquetaSeccionEquipo,
+      etiquetaTipoEquipo: entity.etiquetaTipoEquipo,
+      etiquetaMarcaEquipo: entity.etiquetaMarcaEquipo,
+      etiquetaNumeroSerie: entity.etiquetaNumeroSerie,
+      etiquetaCondicionEquipo: entity.etiquetaCondicionEquipo,
+      mostrarSeccionEquipo: entity.mostrarSeccionEquipo,
     );
   }
 }

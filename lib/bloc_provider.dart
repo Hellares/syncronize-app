@@ -64,6 +64,9 @@ import 'package:syncronize/features/aviso_mantenimiento/presentation/bloc/aviso_
 import 'package:syncronize/features/aviso_mantenimiento/presentation/bloc/aviso_configuracion/aviso_configuracion_cubit.dart';
 import 'package:syncronize/features/vinculacion/presentation/bloc/vinculacion_list/vinculacion_list_cubit.dart';
 import 'package:syncronize/features/vinculacion/presentation/bloc/vinculacion_action/vinculacion_action_cubit.dart';
+import 'package:syncronize/features/cita/presentation/bloc/cita_list/cita_list_cubit.dart';
+import 'package:syncronize/features/cita/presentation/bloc/cita_form/cita_form_cubit.dart';
+import 'package:syncronize/features/cita/presentation/bloc/disponibilidad/disponibilidad_cubit.dart';
 
 /// Lista centralizada de todos los BLoCs globales de la aplicación
 List<BlocProvider> blocProviders = [
@@ -467,6 +470,24 @@ List<BlocProvider> blocProviders = [
   // Vinculacion Action Cubit - Maneja acciones de vinculación (crear, aceptar, rechazar, etc.)
   BlocProvider<VinculacionActionCubit>(
     create: (context) => locator<VinculacionActionCubit>(),
+    lazy: true,
+  ),
+
+  // Cita List Cubit - Maneja la lista de citas
+  BlocProvider<CitaListCubit>(
+    create: (context) => locator<CitaListCubit>(),
+    lazy: true,
+  ),
+
+  // Cita Form Cubit - Maneja crear/editar/cambiar estado de citas
+  BlocProvider<CitaFormCubit>(
+    create: (context) => locator<CitaFormCubit>(),
+    lazy: true,
+  ),
+
+  // Disponibilidad Cubit - Maneja la consulta de slots disponibles
+  BlocProvider<DisponibilidadCubit>(
+    create: (context) => locator<DisponibilidadCubit>(),
     lazy: true,
   ),
 

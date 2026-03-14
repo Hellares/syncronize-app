@@ -31,10 +31,19 @@ class _ConfiguracionEmpresaPageState extends State<ConfiguracionEmpresaPage> {
   final _diasVigenciaController = TextEditingController();
   final _condicionesController = TextEditingController();
 
+  // Etiquetas equipo
+  final _etiquetaSeccionController = TextEditingController();
+  final _etiquetaTipoController = TextEditingController();
+  final _etiquetaMarcaController = TextEditingController();
+  final _etiquetaSerieController = TextEditingController();
+  final _etiquetaCondicionController = TextEditingController();
+  bool _mostrarSeccionEquipo = true;
+
   String _monedaPrincipal = 'PEN';
   List<String> _monedasPermitidas = ['PEN', 'USD'];
 
   String? _empresaId;
+  String? _rubro;
   bool _hasChanges = false;
 
   @override
@@ -43,6 +52,7 @@ class _ConfiguracionEmpresaPageState extends State<ConfiguracionEmpresaPage> {
     final empresaState = context.read<EmpresaContextCubit>().state;
     if (empresaState is EmpresaContextLoaded) {
       _empresaId = empresaState.context.empresa.id;
+      _rubro = empresaState.context.empresa.rubro;
       context.read<ConfiguracionEmpresaCubit>().cargar(_empresaId!);
     }
   }
@@ -54,6 +64,11 @@ class _ConfiguracionEmpresaPageState extends State<ConfiguracionEmpresaPage> {
     _simboloMonedaController.dispose();
     _diasVigenciaController.dispose();
     _condicionesController.dispose();
+    _etiquetaSeccionController.dispose();
+    _etiquetaTipoController.dispose();
+    _etiquetaMarcaController.dispose();
+    _etiquetaSerieController.dispose();
+    _etiquetaCondicionController.dispose();
     super.dispose();
   }
 
@@ -65,6 +80,66 @@ class _ConfiguracionEmpresaPageState extends State<ConfiguracionEmpresaPage> {
     _condicionesController.text = config.condicionesDefault ?? '';
     _monedaPrincipal = config.monedaPrincipal;
     _monedasPermitidas = List.from(config.monedasPermitidas);
+
+    // Etiquetas equipo: usar las guardadas o defaults por rubro
+    final defaults = _defaultsPorRubro(_rubro);
+    _etiquetaSeccionController.text = config.etiquetaSeccionEquipo ?? defaults['etiquetaSeccionEquipo'] ?? 'EQUIPO';
+    _etiquetaTipoController.text = config.etiquetaTipoEquipo ?? defaults['etiquetaTipoEquipo'] ?? 'Tipo de equipo';
+    _etiquetaMarcaController.text = config.etiquetaMarcaEquipo ?? defaults['etiquetaMarcaEquipo'] ?? 'Marca';
+    _etiquetaSerieController.text = config.etiquetaNumeroSerie ?? defaults['etiquetaNumeroSerie'] ?? 'Número de serie';
+    _etiquetaCondicionController.text = config.etiquetaCondicionEquipo ?? defaults['etiquetaCondicionEquipo'] ?? 'Condición del equipo';
+    _mostrarSeccionEquipo = config.mostrarSeccionEquipo;
+  }
+
+  Map<String, dynamic> _defaultsPorRubro(String? rubro) {
+    const defaults = {
+      'TECNOLOGIA': {
+        'etiquetaSeccionEquipo': 'EQUIPO',
+        'etiquetaTipoEquipo': 'Tipo de equipo',
+        'etiquetaMarcaEquipo': 'Marca',
+        'etiquetaNumeroSerie': 'Número de serie',
+        'etiquetaCondicionEquipo': 'Condición del equipo',
+        'mostrarSeccionEquipo': true,
+      },
+      'AUTOMOTRIZ': {
+        'etiquetaSeccionEquipo': 'VEHÍCULO',
+        'etiquetaTipoEquipo': 'Tipo de vehículo',
+        'etiquetaMarcaEquipo': 'Marca / Modelo',
+        'etiquetaNumeroSerie': 'Placa',
+        'etiquetaCondicionEquipo': 'Estado del vehículo',
+        'mostrarSeccionEquipo': true,
+      },
+      'HOGAR': {
+        'etiquetaSeccionEquipo': 'ELECTRODOMÉSTICO',
+        'etiquetaTipoEquipo': 'Tipo de electrodoméstico',
+        'etiquetaMarcaEquipo': 'Marca / Modelo',
+        'etiquetaNumeroSerie': 'Número de serie',
+        'etiquetaCondicionEquipo': 'Estado del equipo',
+        'mostrarSeccionEquipo': true,
+      },
+      'CONSTRUCCION': {
+        'etiquetaSeccionEquipo': 'MAQUINARIA',
+        'etiquetaTipoEquipo': 'Tipo de maquinaria',
+        'etiquetaMarcaEquipo': 'Marca / Modelo',
+        'etiquetaNumeroSerie': 'N° serie / Placa',
+        'etiquetaCondicionEquipo': 'Estado de la maquinaria',
+        'mostrarSeccionEquipo': true,
+      },
+      'DEPORTES': {
+        'etiquetaSeccionEquipo': 'ARTÍCULO',
+        'etiquetaTipoEquipo': 'Tipo de artículo',
+        'etiquetaMarcaEquipo': 'Marca',
+        'etiquetaNumeroSerie': 'Referencia',
+        'etiquetaCondicionEquipo': 'Estado del artículo',
+        'mostrarSeccionEquipo': true,
+      },
+    };
+    // Rubros sin sección equipo
+    const sinEquipo = ['GASTRONOMIA', 'MODA', 'EDUCACION'];
+    if (sinEquipo.contains(rubro)) {
+      return {'mostrarSeccionEquipo': false};
+    }
+    return defaults[rubro] ?? defaults['TECNOLOGIA']!;
   }
 
   void _onChanged() {
@@ -90,6 +165,12 @@ class _ConfiguracionEmpresaPageState extends State<ConfiguracionEmpresaPage> {
       condicionesDefault: _condicionesController.text.trim().isEmpty
           ? null
           : _condicionesController.text.trim(),
+      etiquetaSeccionEquipo: _etiquetaSeccionController.text.trim(),
+      etiquetaTipoEquipo: _etiquetaTipoController.text.trim(),
+      etiquetaMarcaEquipo: _etiquetaMarcaController.text.trim(),
+      etiquetaNumeroSerie: _etiquetaSerieController.text.trim(),
+      etiquetaCondicionEquipo: _etiquetaCondicionController.text.trim(),
+      mostrarSeccionEquipo: _mostrarSeccionEquipo,
     );
 
     await context
@@ -348,6 +429,131 @@ class _ConfiguracionEmpresaPageState extends State<ConfiguracionEmpresaPage> {
                         minLines: 2,
                         onChanged: (_) => _onChanged(),
                       ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // Sección: Etiquetas de Servicio
+              _SectionHeader(
+                icon: Icons.label_outline,
+                title: 'Etiquetas de Servicio',
+                subtitle: 'Personaliza los nombres de campos en ordenes de servicio',
+              ),
+              const SizedBox(height: 12),
+              GradientContainer(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      // Switch mostrar/ocultar
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const AppSubtitle('Seccion de equipo', fontSize: 12),
+                                AppText(
+                                  'Mostrar campos de equipo en ordenes de servicio',
+                                  color: Colors.grey.shade600,
+                                  size: 10,
+                                ),
+                              ],
+                            ),
+                          ),
+                          Switch(
+                            value: _mostrarSeccionEquipo,
+                            activeColor: AppColors.blue1,
+                            onChanged: (v) {
+                              setState(() => _mostrarSeccionEquipo = v);
+                              _onChanged();
+                            },
+                          ),
+                        ],
+                      ),
+                      if (_mostrarSeccionEquipo) ...[
+                        const Divider(height: 20),
+                        // Botón para restaurar defaults del rubro
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: InkWell(
+                            onTap: () {
+                              final defaults = _defaultsPorRubro(_rubro);
+                              setState(() {
+                                _etiquetaSeccionController.text = defaults['etiquetaSeccionEquipo'] ?? 'EQUIPO';
+                                _etiquetaTipoController.text = defaults['etiquetaTipoEquipo'] ?? 'Tipo de equipo';
+                                _etiquetaMarcaController.text = defaults['etiquetaMarcaEquipo'] ?? 'Marca';
+                                _etiquetaSerieController.text = defaults['etiquetaNumeroSerie'] ?? 'Número de serie';
+                                _etiquetaCondicionController.text = defaults['etiquetaCondicionEquipo'] ?? 'Condición del equipo';
+                              });
+                              _onChanged();
+                            },
+                            borderRadius: BorderRadius.circular(6),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.refresh, size: 13, color: AppColors.blue1),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Restaurar defaults del rubro',
+                                    style: TextStyle(fontSize: 10, color: AppColors.blue1, fontWeight: FontWeight.w600),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        CustomText(
+                          controller: _etiquetaSeccionController,
+                          borderColor: AppColors.blue1,
+                          label: 'Nombre de la seccion',
+                          hintText: 'Ej: EQUIPO, VEHICULO, MAQUINARIA',
+                          prefixIcon: const Icon(Icons.title),
+                          onChanged: (_) => _onChanged(),
+                        ),
+                        const SizedBox(height: 12),
+                        CustomText(
+                          controller: _etiquetaTipoController,
+                          borderColor: AppColors.blue1,
+                          label: 'Etiqueta "Tipo"',
+                          hintText: 'Ej: Tipo de equipo, Tipo de vehiculo',
+                          prefixIcon: const Icon(Icons.category_outlined),
+                          onChanged: (_) => _onChanged(),
+                        ),
+                        const SizedBox(height: 12),
+                        CustomText(
+                          controller: _etiquetaMarcaController,
+                          borderColor: AppColors.blue1,
+                          label: 'Etiqueta "Marca"',
+                          hintText: 'Ej: Marca, Marca / Modelo',
+                          prefixIcon: const Icon(Icons.branding_watermark_outlined),
+                          onChanged: (_) => _onChanged(),
+                        ),
+                        const SizedBox(height: 12),
+                        CustomText(
+                          controller: _etiquetaSerieController,
+                          borderColor: AppColors.blue1,
+                          label: 'Etiqueta "Serie/Identificacion"',
+                          hintText: 'Ej: N° de serie, Placa, Referencia',
+                          prefixIcon: const Icon(Icons.qr_code_outlined),
+                          onChanged: (_) => _onChanged(),
+                        ),
+                        const SizedBox(height: 12),
+                        CustomText(
+                          controller: _etiquetaCondicionController,
+                          borderColor: AppColors.blue1,
+                          label: 'Etiqueta "Condicion"',
+                          hintText: 'Ej: Condicion del equipo, Estado del vehiculo',
+                          prefixIcon: const Icon(Icons.info_outline),
+                          onChanged: (_) => _onChanged(),
+                        ),
+                      ],
                     ],
                   ),
                 ),

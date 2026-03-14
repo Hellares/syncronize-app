@@ -14,6 +14,9 @@ import '../../../../core/widgets/date/custom_date.dart';
 import '../../../auth/presentation/widgets/custom_text.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
+import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_cubit.dart';
+import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_state.dart';
+import '../../../empresa/domain/entities/configuracion_empresa.dart';
 import '../../../cliente_empresa/data/datasources/cliente_empresa_remote_datasource.dart';
 import '../../../../core/widgets/cliente_unificado_selector.dart';
 import '../../domain/entities/configuracion_campo.dart';
@@ -373,7 +376,7 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
 
                       // ── Step 1: Equipo ──
                       Step(
-                        title: AppSubtitle('EQUIPO'),
+                        title: AppSubtitle(_config?.labelSeccionEquipo ?? 'EQUIPO'),
                         subtitle: _tipoEquipoController.text.trim().isNotEmpty
                             ? Text([
                                 _tipoEquipoController.text.trim(),
@@ -668,39 +671,52 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
     );
   }
 
+  // ─── Helper: obtener config de etiquetas ───
+
+  ConfiguracionEmpresa? get _config {
+    final state = context.read<ConfiguracionEmpresaCubit>().state;
+    return state is ConfiguracionEmpresaLoaded ? state.configuracion : null;
+  }
+
   // ─── Step 1: Equipo ───
 
   Widget _buildEquipoStep() {
+    final config = _config;
+    final labelTipo = config?.labelTipoEquipo ?? 'Tipo de equipo';
+    final labelMarca = config?.labelMarcaEquipo ?? 'Marca';
+    final labelSerie = config?.labelNumeroSerie ?? 'Número de serie';
+    final labelCondicion = config?.labelCondicionEquipo ?? 'Condición del equipo';
+
     return Column(
       children: [
         CustomText(
           controller: _tipoEquipoController,
-          label: 'Tipo de equipo *',
-          hintText: 'Ej: Laptop, PC, Impresora, Celular',
+          label: '$labelTipo *',
+          hintText: 'Ingrese $labelTipo',
           borderColor: AppColors.blue1,
           prefixIcon: const Icon(Icons.devices_outlined),
         ),
         const SizedBox(height: 12),
         CustomText(
           controller: _marcaEquipoController,
-          label: 'Marca',
-          hintText: 'Ej: HP, Lenovo, Samsung',
+          label: labelMarca,
+          hintText: 'Ingrese $labelMarca',
           borderColor: AppColors.blue1,
           prefixIcon: const Icon(Icons.branding_watermark_outlined),
         ),
         const SizedBox(height: 12),
         CustomText(
           controller: _numeroSerieController,
-          label: 'Número de serie',
-          hintText: 'Ej: SN12345678',
+          label: labelSerie,
+          hintText: 'Ingrese $labelSerie',
           borderColor: AppColors.blue1,
           prefixIcon: const Icon(Icons.qr_code_outlined),
         ),
         const SizedBox(height: 12),
         CustomText(
           controller: _condicionEquipoController,
-          label: 'Condición del equipo',
-          hintText: 'Estado físico al recibir',
+          label: labelCondicion,
+          hintText: 'Describa el estado al recibir',
           borderColor: AppColors.blue1,
           prefixIcon: const Icon(Icons.info_outline),
           maxLines: null,

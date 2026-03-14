@@ -143,6 +143,17 @@ import '../../features/catalogo/presentation/bloc/marcas_maestras/marcas_maestra
     as _i291;
 import '../../features/catalogo/presentation/bloc/unidades_medida/unidades_medida_cubit.dart'
     as _i121;
+import '../../features/cita/data/datasources/cita_remote_datasource.dart'
+    as _i224;
+import '../../features/cita/data/repositories/cita_repository_impl.dart'
+    as _i642;
+import '../../features/cita/domain/repositories/cita_repository.dart' as _i20;
+import '../../features/cita/presentation/bloc/cita_form/cita_form_cubit.dart'
+    as _i1017;
+import '../../features/cita/presentation/bloc/cita_list/cita_list_cubit.dart'
+    as _i980;
+import '../../features/cita/presentation/bloc/disponibilidad/disponibilidad_cubit.dart'
+    as _i856;
 import '../../features/cliente/data/datasources/cliente_remote_datasource.dart'
     as _i189;
 import '../../features/cliente/data/repositories/cliente_repository_impl.dart'
@@ -910,6 +921,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i791.UnidadMedidaRemoteDataSource>(
       () => _i791.UnidadMedidaRemoteDataSource(gh<_i667.DioClient>()),
     );
+    gh.lazySingleton<_i224.CitaRemoteDataSource>(
+      () => _i224.CitaRemoteDataSource(gh<_i667.DioClient>()),
+    );
     gh.lazySingleton<_i189.ClienteRemoteDataSource>(
       () => _i189.ClienteRemoteDataSource(gh<_i667.DioClient>()),
     );
@@ -1030,6 +1044,12 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i195.UpdateSedeUseCase>(
       () => _i195.UpdateSedeUseCase(gh<_i419.SedeRepository>()),
+    );
+    gh.lazySingleton<_i20.CitaRepository>(
+      () => _i642.CitaRepositoryImpl(
+        gh<_i224.CitaRemoteDataSource>(),
+        gh<_i932.NetworkInfo>(),
+      ),
     );
     gh.lazySingleton<_i37.ClienteRepository>(
       () => _i797.ClienteRepositoryImpl(
@@ -1516,6 +1536,15 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i605.ResolverItemUsecase>(
       () => _i605.ResolverItemUsecase(gh<_i266.ReporteIncidenciaRepository>()),
+    );
+    gh.factory<_i1017.CitaFormCubit>(
+      () => _i1017.CitaFormCubit(gh<_i20.CitaRepository>()),
+    );
+    gh.factory<_i980.CitaListCubit>(
+      () => _i980.CitaListCubit(gh<_i20.CitaRepository>()),
+    );
+    gh.factory<_i856.DisponibilidadCubit>(
+      () => _i856.DisponibilidadCubit(gh<_i20.CitaRepository>()),
     );
     gh.factory<_i59.UsuarioFormCubit>(
       () => _i59.UsuarioFormCubit(gh<_i715.RegistrarUsuarioUseCase>()),

@@ -5,6 +5,7 @@ import 'package:syncronize/core/widgets/custom_switch_tile.dart';
 import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import '../../../../core/widgets/custom_dropdown.dart';
 import '../../../empresa/domain/entities/sede.dart';
+import 'horario_atencion_editor.dart';
 
 class SedeFormFields extends StatelessWidget {
   final TextEditingController nombreController;
@@ -26,6 +27,8 @@ class SedeFormFields extends StatelessWidget {
   final bool isEditing;
   final ValueChanged<TipoSede> onTipoSedeChanged;
   final ValueChanged<bool> onIsActiveChanged;
+  final Map<String, dynamic>? horarioAtencion;
+  final ValueChanged<Map<String, dynamic>>? onHorarioChanged;
 
   const SedeFormFields({
     super.key,
@@ -48,6 +51,8 @@ class SedeFormFields extends StatelessWidget {
     required this.isEditing,
     required this.onTipoSedeChanged,
     required this.onIsActiveChanged,
+    this.horarioAtencion,
+    this.onHorarioChanged,
   });
 
   /// Determina si el tipo de sede requiere emisión de comprobantes
@@ -225,6 +230,14 @@ class SedeFormFields extends StatelessWidget {
           prefixIcon: Icon(Icons.map),
           borderColor: AppColors.blue1,
         ),
+
+        // Horario de Atención
+        const SizedBox(height: 24),
+        if (onHorarioChanged != null)
+          HorarioAtencionEditor(
+            horarioInicial: horarioAtencion,
+            onChanged: onHorarioChanged!,
+          ),
 
         // Series de Comprobantes - Solo mostrar cuando se está editando
         if (isEditing) ...[

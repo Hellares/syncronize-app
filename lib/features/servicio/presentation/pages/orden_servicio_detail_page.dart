@@ -31,6 +31,9 @@ import '../widgets/cronometro_servicio_widget.dart';
 import '../widgets/firma_digital_sheet.dart';
 import '../widgets/patron_animado_dialog.dart';
 import '../widgets/inspeccion_visual_dialog.dart';
+import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_cubit.dart';
+import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_state.dart';
+import '../../../empresa/domain/entities/configuracion_empresa.dart';
 import '../services/whatsapp_notification_service.dart';
 import 'documento_orden_servicio_preview_page.dart';
 import 'package:go_router/go_router.dart';
@@ -426,19 +429,27 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
 
           // ── Equipo ──
           if (_orden!.tipoEquipo != null || _orden!.marcaEquipo != null || _orden!.modeloEquipo != null) ...[
-            _sectionDivider(),
-            _inlineSection(Icons.devices_outlined, 'EQUIPO', [
-              if (_orden!.modeloEquipo != null)
-                _buildDetailRow(Icons.devices, 'Modelo', _orden!.modeloEquipo!.nombreCompleto),
-              if (_orden!.modeloEquipo == null && _orden!.marcaEquipo != null)
-                _buildDetailRow(Icons.branding_watermark_outlined, 'Marca', _orden!.marcaEquipo!),
-              if (_orden!.tipoEquipo != null)
-                _buildDetailRow(Icons.category_outlined, 'Tipo', _orden!.tipoEquipo!),
-              if (_orden!.numeroSerie != null)
-                _buildDetailRow(Icons.qr_code_outlined, 'Serie', _orden!.numeroSerie!),
-              if (_orden!.condicionEquipo != null)
-                _buildDetailRow(Icons.info_outline, 'Condicion', _orden!.condicionEquipo!),
-            ]),
+            () {
+              final configState = context.read<ConfiguracionEmpresaCubit>().state;
+              final config = configState is ConfiguracionEmpresaLoaded ? configState.configuracion : null;
+              return Column(
+                children: [
+                  _sectionDivider(),
+                  _inlineSection(Icons.devices_outlined, config?.labelSeccionEquipo ?? 'EQUIPO', [
+                    if (_orden!.modeloEquipo != null)
+                      _buildDetailRow(Icons.devices, 'Modelo', _orden!.modeloEquipo!.nombreCompleto),
+                    if (_orden!.modeloEquipo == null && _orden!.marcaEquipo != null)
+                      _buildDetailRow(Icons.branding_watermark_outlined, config?.labelMarcaEquipo ?? 'Marca', _orden!.marcaEquipo!),
+                    if (_orden!.tipoEquipo != null)
+                      _buildDetailRow(Icons.category_outlined, config?.labelTipoEquipo ?? 'Tipo', _orden!.tipoEquipo!),
+                    if (_orden!.numeroSerie != null)
+                      _buildDetailRow(Icons.qr_code_outlined, config?.labelNumeroSerie ?? 'Serie', _orden!.numeroSerie!),
+                    if (_orden!.condicionEquipo != null)
+                      _buildDetailRow(Icons.info_outline, config?.labelCondicionEquipo ?? 'Condicion', _orden!.condicionEquipo!),
+                  ]),
+                ],
+              );
+            }(),
           ],
 
           // ── Problema / Diagnóstico ──
