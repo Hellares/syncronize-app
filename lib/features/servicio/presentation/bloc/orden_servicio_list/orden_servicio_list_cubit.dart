@@ -85,7 +85,14 @@ class OrdenServicioListCubit extends Cubit<OrdenServicioListState> {
         filtros: _currentFiltros,
       ));
     } else if (result is Error<OrdenesServicioPaginadas>) {
-      emit(OrdenServicioListError(result.message, errorCode: result.errorCode));
+      // F3 FIX: No destruir data cargada en error de loadMore — restaurar estado previo
+      emit(OrdenServicioListLoaded(
+        ordenes: _allOrdenes,
+        total: currentState.total,
+        hasMore: currentState.hasMore,
+        nextCursor: currentState.nextCursor,
+        filtros: _currentFiltros,
+      ));
     }
   }
 

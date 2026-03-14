@@ -14,7 +14,8 @@ import '../../../../core/widgets/date/custom_date.dart';
 import '../../../auth/presentation/widgets/custom_text.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
-import '../../../cotizacion/presentation/widgets/cliente_selector_bottom_sheet.dart';
+import '../../../cliente_empresa/data/datasources/cliente_empresa_remote_datasource.dart';
+import '../widgets/cliente_unificado_selector.dart';
 import '../../domain/entities/configuracion_campo.dart';
 import '../../domain/entities/servicio.dart';
 import '../../domain/entities/servicio_filtros.dart';
@@ -36,11 +37,21 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
   late final String _empresaId;
 
   // Step 0: Cliente (via bottom sheet)
+  ClienteUnificadoResult? _clienteResult;
   String? _clienteId;
+  String? _clienteEmpresaId;
+  String? _contactoClienteEmpresaId;
   String _clienteNombre = '';
-  String _clienteDni = '';
+  String _clienteDocumento = '';
   String _clienteTelefono = '';
   String? _clienteEmail;
+
+  // Step 0: Contacto empresa (solo visible si cliente es empresa)
+  final _contactoNombreController = TextEditingController();
+  final _contactoTelefonoController = TextEditingController();
+  final _contactoCargoController = TextEditingController();
+  final _contactoDniController = TextEditingController();
+  final _contactoEmailController = TextEditingController();
 
   // Step 1: Equipo
   final _tipoEquipoController = TextEditingController();
@@ -83,6 +94,11 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
 
   @override
   void dispose() {
+    _contactoNombreController.dispose();
+    _contactoTelefonoController.dispose();
+    _contactoCargoController.dispose();
+    _contactoDniController.dispose();
+    _contactoEmailController.dispose();
     _tipoEquipoController.dispose();
     _marcaEquipoController.dispose();
     _numeroSerieController.dispose();
@@ -131,16 +147,47 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
   // ─── Cliente selector ───
 
   Future<void> _openClienteSelector() async {
-    final result = await ClienteSelectorBottomSheet.show(
+    final result = await ClienteUnificadoSelector.show(
       context: context,
       empresaId: _empresaId,
     );
 
     if (result != null && mounted) {
       setState(() {
-        _clienteId = result.clienteId;
-        _clienteNombre = result.nombreCompleto;
-        _clienteDni = result.dni ?? '';
+        _clienteResult = result;
+        if (result.isPersona) {
+          _clienteId = result.clienteId;
+          _clienteEmpresaId = null;
+          _contactoClienteEmpresaId = null;
+          _clienteNombre = result.nombreCompleto ?? '';
+          _clienteDocumento = result.dni ?? '';
+          // Limpiar campos de contacto empresa
+          _contactoNombreController.clear();
+          _contactoTelefonoController.clear();
+          _contactoCargoController.clear();
+          _contactoDniController.clear();
+          _contactoEmailController.clear();
+        } else {
+          _clienteId = null;
+          _clienteEmpresaId = result.clienteEmpresaId;
+          _contactoClienteEmpresaId = result.contactoId;
+          _clienteNombre = result.displayName;
+          _clienteDocumento = result.ruc ?? '';
+          // Pre-llenar contacto si fue seleccionado
+          if (result.contactoNombre != null) {
+            _contactoNombreController.text = result.contactoNombre!;
+            _contactoCargoController.text = result.contactoCargo ?? '';
+            // Usar telefono/email del contacto, no de la empresa
+            _contactoTelefonoController.text = result.telefono ?? '';
+            _contactoEmailController.text = result.email ?? '';
+          } else {
+            _contactoNombreController.clear();
+            _contactoTelefonoController.clear();
+            _contactoCargoController.clear();
+            _contactoDniController.clear();
+            _contactoEmailController.clear();
+          }
+        }
         _clienteTelefono = result.telefono ?? '';
         _clienteEmail = result.email;
       });
@@ -149,20 +196,36 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
 
   void _clearCliente() {
     setState(() {
+      _clienteResult = null;
       _clienteId = null;
+      _clienteEmpresaId = null;
+      _contactoClienteEmpresaId = null;
       _clienteNombre = '';
-      _clienteDni = '';
+      _clienteDocumento = '';
       _clienteTelefono = '';
       _clienteEmail = null;
+      _contactoNombreController.clear();
+      _contactoTelefonoController.clear();
+      _contactoCargoController.clear();
+      _contactoDniController.clear();
+      _contactoEmailController.clear();
     });
   }
+
+  bool get _hasCliente => _clienteId != null || _clienteEmpresaId != null;
 
   // ─── Step validation ───
 
   bool _isStepValid(int step) {
     switch (step) {
       case 0:
-        return _clienteId != null;
+        if (!_hasCliente) return false;
+        // Si es empresa, el contacto es obligatorio
+        if (_clienteEmpresaId != null) {
+          if (_contactoNombreController.text.trim().isEmpty) return false;
+          if (_contactoTelefonoController.text.trim().isEmpty) return false;
+        }
+        return true;
       case 1:
         return _tipoEquipoController.text.trim().isNotEmpty;
       case 2:
@@ -173,8 +236,20 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
   }
 
   void _showStepError(int step) {
+    String? errorMsg;
+    if (step == 0) {
+      if (!_hasCliente) {
+        errorMsg = 'Selecciona un cliente';
+      } else if (_clienteEmpresaId != null &&
+          _contactoNombreController.text.trim().isEmpty) {
+        errorMsg = 'Ingresa el nombre del contacto de la empresa';
+      } else if (_clienteEmpresaId != null &&
+          _contactoTelefonoController.text.trim().isEmpty) {
+        errorMsg = 'Ingresa el teléfono del contacto';
+      }
+    }
     final messages = {
-      0: 'Selecciona un cliente',
+      0: errorMsg ?? 'Selecciona un cliente',
       1: 'Indica el tipo de equipo',
       2: 'Selecciona el tipo de servicio',
     };
@@ -290,7 +365,7 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
                             ? Text(_clienteNombre)
                             : null,
                         isActive: _currentStep >= 0,
-                        state: _clienteId != null
+                        state: _hasCliente
                             ? StepState.complete
                             : StepState.indexed,
                         content: _buildClienteStep(),
@@ -364,10 +439,16 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
   // ─── Step 0: Cliente ───
 
   Widget _buildClienteStep() {
-    if (_clienteId != null) {
+    if (_hasCliente) {
+      final isEmpresa = _clienteResult?.isEmpresa ?? false;
+      final tipoLabel = isEmpresa ? 'Empresa vinculada' : 'Cliente vinculado';
+      final docLabel = isEmpresa ? 'RUC' : 'DNI';
+      final docIcon = isEmpresa ? Icons.business : Icons.badge_outlined;
+      final clienteIcon = isEmpresa ? Icons.business : Icons.person_outline;
+
       return Column(
         children: [
-          // Cliente vinculado card (same style as cotizacion)
+          // Cliente vinculado card
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
@@ -377,14 +458,18 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
             ),
             child: Row(
               children: [
-                const Icon(Icons.check_circle, size: 18, color: Colors.green),
+                Icon(
+                  isEmpresa ? Icons.business : Icons.check_circle,
+                  size: 18,
+                  color: Colors.green,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Cliente vinculado',
+                        tipoLabel,
                         style: TextStyle(
                           fontSize: 11,
                           color: Colors.green.shade700,
@@ -424,22 +509,27 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildInfoRow(Icons.person_outline, 'Cliente', _clienteNombre),
-                if (_clienteDni.isNotEmpty) ...[
+                _buildInfoRow(clienteIcon, isEmpresa ? 'Empresa' : 'Cliente', _clienteNombre),
+                if (_clienteDocumento.isNotEmpty) ...[
                   const SizedBox(height: 6),
-                  _buildInfoRow(Icons.badge_outlined, 'DNI', _clienteDni),
+                  _buildInfoRow(docIcon, docLabel, _clienteDocumento),
                 ],
-                if (_clienteTelefono.isNotEmpty) ...[
+                if (!isEmpresa && _clienteTelefono.isNotEmpty) ...[
                   const SizedBox(height: 6),
                   _buildInfoRow(Icons.phone_outlined, 'Teléfono', _clienteTelefono),
                 ],
-                if (_clienteEmail != null && _clienteEmail!.isNotEmpty) ...[
+                if (!isEmpresa && _clienteEmail != null && _clienteEmail!.isNotEmpty) ...[
                   const SizedBox(height: 6),
                   _buildInfoRow(Icons.email_outlined, 'Email', _clienteEmail!),
                 ],
               ],
             ),
           ),
+          // Sección contacto empresa (solo visible para empresas)
+          if (isEmpresa) ...[
+            const SizedBox(height: 16),
+            _buildContactoEmpresaSection(),
+          ],
         ],
       );
     }
@@ -483,6 +573,98 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
           ),
         ),
       ],
+    );
+  }
+
+  // ─── Contacto empresa (dentro de Step 0) ───
+
+  Widget _buildContactoEmpresaSection() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.orange.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.orange.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.person_pin, size: 16, color: Colors.orange.shade700),
+              const SizedBox(width: 6),
+              Text(
+                'PERSONA DE CONTACTO',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.orange.shade700,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Las notificaciones y comunicaciones se enviarán a esta persona.',
+            style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+          ),
+          const SizedBox(height: 12),
+          CustomText(
+            controller: _contactoNombreController,
+            label: 'Nombre del contacto *',
+            hintText: 'Juan Pérez',
+            prefixIcon: const Icon(Icons.person_outline),
+            borderColor: Colors.orange.shade300,
+          ),
+          const SizedBox(height: 10),
+          CustomText(
+            controller: _contactoTelefonoController,
+            label: 'Teléfono *',
+            hintText: '987654321',
+            fieldType: FieldType.number,
+            maxLength: 9,
+            prefixIcon: const Icon(Icons.phone_outlined),
+            borderColor: Colors.orange.shade300,
+          ),
+          const SizedBox(height: 10),
+          CustomText(
+            controller: _contactoCargoController,
+            label: 'Cargo (opcional)',
+            hintText: 'Gerente de TI',
+            prefixIcon: const Icon(Icons.work_outline),
+            borderColor: Colors.orange.shade300,
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: CustomText(
+                  controller: _contactoDniController,
+                  label: 'DNI (opcional)',
+                  hintText: '12345678',
+                  fieldType: FieldType.number,
+                  maxLength: 8,
+                  prefixIcon: const Icon(Icons.badge_outlined),
+                  borderColor: Colors.orange.shade300,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: CustomText(
+                  controller: _contactoEmailController,
+                  label: 'Email (opcional)',
+                  hintText: 'contacto@empresa.com',
+                  fieldType: FieldType.email,
+                  prefixIcon: const Icon(Icons.email_outlined),
+                  borderColor: Colors.orange.shade300,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -731,9 +913,20 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
   // ─── Submit ───
 
   void _submit() async {
-    if (_clienteId == null) {
+    if (!_hasCliente) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Debes seleccionar un cliente')),
+      );
+      setState(() => _currentStep = 0);
+      return;
+    }
+
+    // Validar contacto obligatorio para empresa
+    if (_clienteEmpresaId != null &&
+        _contactoNombreController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Ingresa el nombre del contacto de la empresa')),
       );
       setState(() => _currentStep = 0);
       return;
@@ -742,12 +935,48 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
     final repo = locator<OrdenServicioRepository>();
     setState(() => _isLoading = true);
 
+    // Si es empresa y no hay contacto existente seleccionado, crear uno
+    String? contactoId = _contactoClienteEmpresaId;
+    if (_clienteEmpresaId != null &&
+        contactoId == null &&
+        _contactoNombreController.text.trim().isNotEmpty) {
+      try {
+        final dsContacto = locator<ClienteEmpresaRemoteDataSource>();
+        final contactoResult = await dsContacto.agregarContacto(
+          _empresaId,
+          _clienteEmpresaId!,
+          {
+            'nombre': _contactoNombreController.text.trim(),
+            if (_contactoTelefonoController.text.trim().isNotEmpty)
+              'telefono': _contactoTelefonoController.text.trim(),
+            if (_contactoCargoController.text.trim().isNotEmpty)
+              'cargo': _contactoCargoController.text.trim(),
+            if (_contactoDniController.text.trim().isNotEmpty)
+              'dni': _contactoDniController.text.trim(),
+            if (_contactoEmailController.text.trim().isNotEmpty)
+              'email': _contactoEmailController.text.trim(),
+            'esPrincipal': false,
+          },
+        );
+        contactoId = contactoResult.id;
+      } catch (e) {
+        if (!mounted) return;
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al registrar el contacto. Intenta de nuevo.')),
+        );
+        return;
+      }
+    }
+
     final datosFinales = Map<String, dynamic>.from(_datosPersonalizados)
       ..removeWhere((_, v) => v == null || (v is String && v.isEmpty));
 
     final result = await repo.crear(
       empresaId: _empresaId,
-      clienteId: _clienteId!,
+      clienteId: _clienteId,
+      clienteEmpresaId: _clienteEmpresaId,
+      contactoClienteEmpresaId: contactoId,
       tipoServicio: _tipoServicio,
       prioridad: _prioridad,
       tipoEquipo: _tipoEquipoController.text.trim().isEmpty

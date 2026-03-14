@@ -125,24 +125,33 @@ class _TercerizacionContent extends StatelessWidget {
                     );
                   }
 
+                  // F6 FIX: Usar NotificationListener para loadMore en vez de llamarlo en itemBuilder
                   return RefreshIndicator(
                     onRefresh: () => context.read<TercerizacionListCubit>().refresh(),
-                    child: ListView.builder(
-                      padding: const EdgeInsets.all(12),
-                      itemCount: state.items.length + (state.hasMore ? 1 : 0),
-                      itemBuilder: (context, index) {
-                        if (index == state.items.length) {
+                    child: NotificationListener<ScrollNotification>(
+                      onNotification: (scrollInfo) {
+                        if (scrollInfo.metrics.pixels >=
+                            scrollInfo.metrics.maxScrollExtent - 200) {
                           context.read<TercerizacionListCubit>().loadMore();
-                          return const Padding(
-                            padding: EdgeInsets.all(16),
-                            child: Center(child: CircularProgressIndicator()),
-                          );
                         }
-                        return _TercerizacionCard(
-                          item: state.items[index],
-                          empresaId: empresaId,
-                        );
+                        return false;
                       },
+                      child: ListView.builder(
+                        padding: const EdgeInsets.all(12),
+                        itemCount: state.items.length + (state.hasMore ? 1 : 0),
+                        itemBuilder: (context, index) {
+                          if (index == state.items.length) {
+                            return const Padding(
+                              padding: EdgeInsets.all(16),
+                              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                            );
+                          }
+                          return _TercerizacionCard(
+                            item: state.items[index],
+                            empresaId: empresaId,
+                          );
+                        },
+                      ),
                     ),
                   );
                 }
@@ -189,7 +198,12 @@ class _TercerizacionCard extends StatelessWidget {
         borderWidth: 0.6,
         child: InkWell(
           borderRadius: BorderRadius.circular(8),
-          onTap: () => context.push('/empresa/tercerizacion/${item.id}'),
+          // F7 FIX: Refrescar lista al volver del detalle
+          onTap: () async {
+            await context.push('/empresa/tercerizacion/${item.id}');
+            if (!context.mounted) return;
+            context.read<TercerizacionListCubit>().refresh();
+          },
           child: Padding(
             padding: const EdgeInsets.all(12),
             child: Column(

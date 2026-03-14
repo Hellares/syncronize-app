@@ -16,6 +16,7 @@ class TercerizacionListCubit extends Cubit<TercerizacionListState> {
   String? _tipo;
   String? _estado;
   List<TercerizacionServicio> _allItems = [];
+  bool _isLoadingMore = false; // F6 FIX: Guard contra llamadas concurrentes
 
   Future<void> load({
     required String empresaId,
@@ -54,10 +55,13 @@ class TercerizacionListCubit extends Cubit<TercerizacionListState> {
     }
   }
 
+  // F6 FIX: Guard contra llamadas concurrentes de loadMore
   Future<void> loadMore() async {
     final currentState = state;
     if (currentState is! TercerizacionListLoaded) return;
     if (!currentState.hasMore || _empresaId == null) return;
+    if (_isLoadingMore) return;
+    _isLoadingMore = true;
 
     final nextPage = currentState.page + 1;
     final result = await _listarUseCase(
@@ -67,7 +71,11 @@ class TercerizacionListCubit extends Cubit<TercerizacionListState> {
       page: nextPage,
     );
 
-    if (isClosed) return;
+    if (isClosed) {
+      _isLoadingMore = false;
+      return;
+    }
+    _isLoadingMore = false;
 
     if (result is Success<TercerizacionesPaginadas>) {
       final data = result.data;
@@ -81,6 +89,7 @@ class TercerizacionListCubit extends Cubit<TercerizacionListState> {
         estado: _estado,
       ));
     }
+    // En caso de error, mantener estado actual (no destruir data)
   }
 
   Future<void> filterByTipo(String? tipo) async {

@@ -6,7 +6,9 @@ class OrdenServicioModel extends OrdenServicio {
   OrdenServicioModel({
     required super.id,
     required super.empresaId,
-    required super.clienteId,
+    super.clienteId,
+    super.clienteEmpresaId,
+    super.contactoClienteEmpresaId,
     super.tecnicoId,
     super.sedeId,
     required super.codigo,
@@ -40,6 +42,8 @@ class OrdenServicioModel extends OrdenServicio {
     required super.creadoEn,
     required super.actualizadoEn,
     super.cliente,
+    super.clienteEmpresa,
+    super.contactoClienteEmpresa,
     super.tecnico,
     super.modeloEquipo,
     super.componentes,
@@ -51,7 +55,9 @@ class OrdenServicioModel extends OrdenServicio {
     return OrdenServicioModel(
       id: json['id'] as String,
       empresaId: json['empresaId'] as String,
-      clienteId: json['clienteId'] as String,
+      clienteId: json['clienteId'] as String?,
+      clienteEmpresaId: json['clienteEmpresaId'] as String?,
+      contactoClienteEmpresaId: json['contactoClienteEmpresaId'] as String?,
       tecnicoId: json['tecnicoId'] as String?,
       sedeId: json['sedeId'] as String?,
       codigo: json['codigo'] as String,
@@ -90,6 +96,12 @@ class OrdenServicioModel extends OrdenServicio {
       actualizadoEn: DateTime.parse(json['actualizadoEn'] as String),
       cliente: json['cliente'] != null
           ? OrdenClienteModel.fromJson(json['cliente'] as Map<String, dynamic>)
+          : null,
+      clienteEmpresa: json['clienteEmpresa'] != null
+          ? OrdenClienteEmpresaModel.fromJson(json['clienteEmpresa'] as Map<String, dynamic>)
+          : null,
+      contactoClienteEmpresa: json['contactoClienteEmpresa'] != null
+          ? OrdenClienteEmpresaContactoModel.fromJson(json['contactoClienteEmpresa'] as Map<String, dynamic>)
           : null,
       tecnico: json['tecnico'] != null
           ? OrdenTecnicoModel.fromJson(json['tecnico'] as Map<String, dynamic>)
@@ -259,6 +271,65 @@ class OrdenComponenteModel extends OrdenComponente {
   }
 }
 
+class OrdenClienteEmpresaModel extends OrdenClienteEmpresa {
+  const OrdenClienteEmpresaModel({
+    required super.id,
+    required super.razonSocial,
+    super.nombreComercial,
+    required super.numeroDocumento,
+    super.tipoDocumento,
+    super.email,
+    super.telefono,
+    super.direccion,
+    super.contactos,
+  });
+
+  factory OrdenClienteEmpresaModel.fromJson(Map<String, dynamic> json) {
+    return OrdenClienteEmpresaModel(
+      id: json['id'] as String,
+      razonSocial: json['razonSocial'] as String? ?? '',
+      nombreComercial: json['nombreComercial'] as String?,
+      numeroDocumento: json['numeroDocumento'] as String? ?? '',
+      tipoDocumento: json['tipoDocumento'] as String?,
+      email: json['email'] as String?,
+      telefono: json['telefono'] as String?,
+      direccion: json['direccion'] as String?,
+      contactos: json['contactos'] != null
+          ? (json['contactos'] as List)
+              .map((e) => OrdenClienteEmpresaContactoModel.fromJson(
+                  e as Map<String, dynamic>))
+              .toList()
+          : null,
+    );
+  }
+}
+
+class OrdenClienteEmpresaContactoModel extends OrdenClienteEmpresaContacto {
+  const OrdenClienteEmpresaContactoModel({
+    required super.id,
+    required super.nombre,
+    super.cargo,
+    super.dni,
+    super.email,
+    super.telefono,
+    super.telefonoMovil,
+    super.esPrincipal,
+  });
+
+  factory OrdenClienteEmpresaContactoModel.fromJson(Map<String, dynamic> json) {
+    return OrdenClienteEmpresaContactoModel(
+      id: json['id'] as String,
+      nombre: json['nombre'] as String? ?? '',
+      cargo: json['cargo'] as String?,
+      dni: json['dni'] as String?,
+      email: json['email'] as String?,
+      telefono: json['telefono'] as String?,
+      telefonoMovil: json['telefonoMovil'] as String?,
+      esPrincipal: json['esPrincipal'] as bool? ?? false,
+    );
+  }
+}
+
 class HistorialOrdenServicioModel extends HistorialOrdenServicio {
   const HistorialOrdenServicioModel({
     required super.id,
@@ -276,8 +347,9 @@ class HistorialOrdenServicioModel extends HistorialOrdenServicio {
     return HistorialOrdenServicioModel(
       id: json['id'] as String,
       ordenServicioId: json['ordenServicioId'] as String,
-      estadoAnterior: json['estadoAnterior'] as String,
-      estadoNuevo: json['estadoNuevo'] as String,
+      // F4 FIX: estadoAnterior puede ser null en la primera entrada del historial
+      estadoAnterior: json['estadoAnterior'] as String? ?? '',
+      estadoNuevo: json['estadoNuevo'] as String? ?? '',
       notas: json['notas'] as String?,
       diagnostico: json['diagnostico'],
       comunicarCliente: json['comunicarCliente'] as bool? ?? false,

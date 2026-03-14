@@ -159,6 +159,12 @@ import '../../features/cliente/presentation/bloc/cliente_form/cliente_form_cubit
     as _i795;
 import '../../features/cliente/presentation/bloc/cliente_list/cliente_list_cubit.dart'
     as _i210;
+import '../../features/cliente_empresa/data/datasources/cliente_empresa_remote_datasource.dart'
+    as _i794;
+import '../../features/cliente_empresa/data/repositories/cliente_empresa_repository_impl.dart'
+    as _i606;
+import '../../features/cliente_empresa/domain/repositories/cliente_empresa_repository.dart'
+    as _i212;
 import '../../features/combo/data/datasources/combo_remote_datasource.dart'
     as _i532;
 import '../../features/combo/data/repositories/combo_repository_impl.dart'
@@ -883,6 +889,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i189.ClienteRemoteDataSource>(
       () => _i189.ClienteRemoteDataSource(gh<_i667.DioClient>()),
     );
+    gh.lazySingleton<_i794.ClienteEmpresaRemoteDataSource>(
+      () => _i794.ClienteEmpresaRemoteDataSource(gh<_i667.DioClient>()),
+    );
     gh.lazySingleton<_i532.ComboRemoteDataSource>(
       () => _i532.ComboRemoteDataSource(gh<_i667.DioClient>()),
     );
@@ -1348,6 +1357,13 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i449.StockTodasSedesCubit>(
       () => _i449.StockTodasSedesCubit(gh<_i858.GetStockTodasSedesUseCase>()),
+    );
+    gh.lazySingleton<_i212.ClienteEmpresaRepository>(
+      () => _i606.ClienteEmpresaRepositoryImpl(
+        gh<_i794.ClienteEmpresaRemoteDataSource>(),
+        gh<_i932.NetworkInfo>(),
+        gh<_i490.ErrorHandlerService>(),
+      ),
     );
     gh.factory<_i656.StockPorSedeCubit>(
       () => _i656.StockPorSedeCubit(gh<_i394.GetStockPorSedeUseCase>()),

@@ -23,7 +23,9 @@ class OrdenServicioRepositoryImpl implements OrdenServicioRepository {
   @override
   Future<Resource<OrdenServicio>> crear({
     required String empresaId,
-    required String clienteId,
+    String? clienteId,
+    String? clienteEmpresaId,
+    String? contactoClienteEmpresaId,
     required String tipoServicio,
     String? tecnicoId,
     String? sedeId,
@@ -48,7 +50,9 @@ class OrdenServicioRepositoryImpl implements OrdenServicioRepository {
     try {
       final data = <String, dynamic>{
         'empresaId': empresaId,
-        'clienteId': clienteId,
+        if (clienteId != null) 'clienteId': clienteId,
+        if (clienteEmpresaId != null) 'clienteEmpresaId': clienteEmpresaId,
+        if (contactoClienteEmpresaId != null) 'contactoClienteEmpresaId': contactoClienteEmpresaId,
         'tipoServicio': tipoServicio,
         if (tecnicoId != null) 'tecnicoId': tecnicoId,
         if (sedeId != null) 'sedeId': sedeId,

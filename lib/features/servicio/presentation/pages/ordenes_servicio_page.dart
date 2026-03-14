@@ -61,6 +61,7 @@ class _OrdenesContentState extends State<_OrdenesContent> {
     super.dispose();
   }
 
+  // F8 FIX: Agregado tab TERCERIZADO
   static const _estadoTabs = [
     null,
     'RECIBIDO',
@@ -72,6 +73,7 @@ class _OrdenesContentState extends State<_OrdenesContent> {
     'LISTO_ENTREGA',
     'ENTREGADO',
     'FINALIZADO',
+    'TERCERIZADO',
     'CANCELADO',
   ];
 
@@ -86,6 +88,7 @@ class _OrdenesContentState extends State<_OrdenesContent> {
     'ENTREGA',
     'ENTREGADO',
     'FINALIZADO',
+    'B2B',
     'CANCELADO',
   ];
 
@@ -197,19 +200,30 @@ class _OrdenesContentState extends State<_OrdenesContent> {
                     controller: _searchController,
                     hintText: 'Buscar por código o descripción...',
                     borderColor: AppColors.blue1,
+                    // F5 FIX: Preservar filtros actuales al buscar
                     onSubmitted: (value) {
-                      context.read<OrdenServicioListCubit>().applyFiltros(
-                            OrdenServicioFiltros(
-                              search: value.trim().isEmpty
-                                  ? null
-                                  : value.trim(),
-                            ),
-                          );
+                      final cubit = context.read<OrdenServicioListCubit>();
+                      final currentState = cubit.state;
+                      final currentFiltros = currentState is OrdenServicioListLoaded
+                          ? currentState.filtros
+                          : const OrdenServicioFiltros();
+                      cubit.applyFiltros(
+                        currentFiltros.copyWith(
+                          search: value.trim().isEmpty ? null : value.trim(),
+                          clearSearch: value.trim().isEmpty,
+                          clearCursor: true,
+                        ),
+                      );
                     },
                     onClear: () {
-                      context.read<OrdenServicioListCubit>().applyFiltros(
-                            const OrdenServicioFiltros(),
-                          );
+                      final cubit = context.read<OrdenServicioListCubit>();
+                      final currentState = cubit.state;
+                      final currentFiltros = currentState is OrdenServicioListLoaded
+                          ? currentState.filtros
+                          : const OrdenServicioFiltros();
+                      cubit.applyFiltros(
+                        currentFiltros.copyWith(clearSearch: true, clearCursor: true),
+                      );
                     },
                   ),
                 ),
@@ -409,8 +423,9 @@ class _OrdenServicioCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final clienteNombre =
-        orden.cliente?.nombreCompleto ?? 'Sin cliente';
+    final clienteNombre = orden.nombreClienteUnificado.isNotEmpty
+        ? orden.nombreClienteUnificado
+        : 'Sin cliente';
     final prioridadColor = _prioridadColor(orden.prioridad);
 
     return Padding(

@@ -81,6 +81,7 @@ class OrdenServicioFiltros extends Equatable {
     this.fechaHasta,
   });
 
+  // F9 FIX: Agregar clear flags para todos los filtros avanzados
   OrdenServicioFiltros copyWith({
     int? limit,
     String? cursor,
@@ -95,18 +96,24 @@ class OrdenServicioFiltros extends Equatable {
     bool clearSearch = false,
     bool clearEstado = false,
     bool clearCursor = false,
+    bool clearTipoServicio = false,
+    bool clearPrioridad = false,
+    bool clearClienteId = false,
+    bool clearTecnicoId = false,
+    bool clearFechaDesde = false,
+    bool clearFechaHasta = false,
   }) {
     return OrdenServicioFiltros(
       limit: limit ?? this.limit,
       cursor: clearCursor ? null : (cursor ?? this.cursor),
       search: clearSearch ? null : (search ?? this.search),
       estado: clearEstado ? null : (estado ?? this.estado),
-      tipoServicio: tipoServicio ?? this.tipoServicio,
-      prioridad: prioridad ?? this.prioridad,
-      clienteId: clienteId ?? this.clienteId,
-      tecnicoId: tecnicoId ?? this.tecnicoId,
-      fechaDesde: fechaDesde ?? this.fechaDesde,
-      fechaHasta: fechaHasta ?? this.fechaHasta,
+      tipoServicio: clearTipoServicio ? null : (tipoServicio ?? this.tipoServicio),
+      prioridad: clearPrioridad ? null : (prioridad ?? this.prioridad),
+      clienteId: clearClienteId ? null : (clienteId ?? this.clienteId),
+      tecnicoId: clearTecnicoId ? null : (tecnicoId ?? this.tecnicoId),
+      fechaDesde: clearFechaDesde ? null : (fechaDesde ?? this.fechaDesde),
+      fechaHasta: clearFechaHasta ? null : (fechaHasta ?? this.fechaHasta),
     );
   }
 

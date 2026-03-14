@@ -118,7 +118,46 @@ class PdfOrdenServicioGenerator {
             pw.SizedBox(height: 6),
 
             // ── Cliente ──
-            if (orden.cliente != null) ...[
+            if (orden.clienteEmpresa != null) ...[
+              pw.Text('CLIENTE EMPRESA',
+                  style: pw.TextStyle(
+                      fontSize: fsSmall,
+                      fontWeight: pw.FontWeight.bold,
+                      color: primaryColor)),
+              pw.SizedBox(height: 3),
+              _infoRow('Razon Social', orden.clienteEmpresa!.razonSocial, fs: fsSmall),
+              if (orden.clienteEmpresa!.nombreComercial != null)
+                _infoRow('Nombre Com.', orden.clienteEmpresa!.nombreComercial!, fs: fsSmall),
+              _infoRow('RUC', orden.clienteEmpresa!.numeroDocumento, fs: fsSmall),
+              if (orden.clienteEmpresa!.direccion != null)
+                _infoRow('Direccion', orden.clienteEmpresa!.direccion!, fs: fsSmall),
+              if (orden.clienteEmpresa!.telefono != null)
+                _infoRow('Telefono', orden.clienteEmpresa!.telefono!, fs: fsSmall),
+              if (orden.clienteEmpresa!.email != null)
+                _infoRow('Email', orden.clienteEmpresa!.email!, fs: fsSmall),
+              // Contacto de la empresa
+              if (orden.contactoClienteEmpresa != null) ...[
+                pw.SizedBox(height: 4),
+                pw.Text('CONTACTO',
+                    style: pw.TextStyle(
+                        fontSize: fsSmall,
+                        fontWeight: pw.FontWeight.bold,
+                        color: primaryColor)),
+                pw.SizedBox(height: 3),
+                _infoRow('Nombre', orden.contactoClienteEmpresa!.nombre, fs: fsSmall),
+                if (orden.contactoClienteEmpresa!.cargo != null)
+                  _infoRow('Cargo', orden.contactoClienteEmpresa!.cargo!, fs: fsSmall),
+                if (orden.contactoClienteEmpresa!.dni != null)
+                  _infoRow('DNI', orden.contactoClienteEmpresa!.dni!, fs: fsSmall),
+                if (orden.contactoClienteEmpresa!.telefono != null)
+                  _infoRow('Telefono', orden.contactoClienteEmpresa!.telefono!, fs: fsSmall),
+                if (orden.contactoClienteEmpresa!.email != null)
+                  _infoRow('Email', orden.contactoClienteEmpresa!.email!, fs: fsSmall),
+              ],
+              pw.SizedBox(height: 6),
+              _divider(),
+              pw.SizedBox(height: 6),
+            ] else if (orden.cliente != null) ...[
               pw.Text('CLIENTE',
                   style: pw.TextStyle(
                       fontSize: fsSmall,

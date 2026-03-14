@@ -40,6 +40,8 @@ class ClienteListCubit extends Cubit<ClienteListState> {
       filtros: _currentFiltros,
     );
 
+    if (isClosed) return;
+
     if (result is Success<ClientesPaginados>) {
       final data = result.data;
       _allClientes = data.data;
@@ -72,6 +74,8 @@ class ClienteListCubit extends Cubit<ClienteListState> {
       empresaId: _currentEmpresaId!,
       filtros: newFiltros,
     );
+
+    if (isClosed) return;
 
     if (result is Success<ClientesPaginados>) {
       final data = result.data;

@@ -384,18 +384,41 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
             ],
           ),
 
-          // ── Cliente ──
-          if (_orden!.cliente != null) ...[
+          // ── Cliente (persona o empresa) ──
+          if (_orden!.cliente != null || _orden!.clienteEmpresa != null) ...[
             _sectionDivider(),
-            _inlineSection(Icons.person_outline, 'CLIENTE', [
-              _buildDetailRow(Icons.person, 'Nombre', _orden!.cliente!.nombreCompleto),
-              if (_orden!.cliente!.documentoNumero != null)
-                _buildDetailRow(Icons.badge_outlined, 'Documento', _orden!.cliente!.documentoNumero!),
-              if (_orden!.cliente!.email != null)
-                _buildDetailRow(Icons.email_outlined, 'Email', _orden!.cliente!.email!),
-              if (_orden!.cliente!.telefono != null)
-                _buildDetailRow(Icons.phone_outlined, 'Telefono', _orden!.cliente!.telefono!),
-            ]),
+            if (_orden!.clienteEmpresa != null)
+              _inlineSection(Icons.business_outlined, 'CLIENTE EMPRESA', [
+                _buildDetailRow(Icons.business, 'Razón Social', _orden!.clienteEmpresa!.razonSocial),
+                if (_orden!.clienteEmpresa!.nombreComercial != null)
+                  _buildDetailRow(Icons.store, 'Nombre Comercial', _orden!.clienteEmpresa!.nombreComercial!),
+                _buildDetailRow(Icons.badge_outlined, 'RUC', _orden!.clienteEmpresa!.numeroDocumento),
+                if (_orden!.clienteEmpresa!.email != null)
+                  _buildDetailRow(Icons.email_outlined, 'Email', _orden!.clienteEmpresa!.email!),
+                if (_orden!.clienteEmpresa!.telefono != null)
+                  _buildDetailRow(Icons.phone_outlined, 'Teléfono', _orden!.clienteEmpresa!.telefono!),
+                if (_orden!.contactoClienteEmpresa != null) ...[
+                  _buildDetailRow(Icons.person, 'Contacto', _orden!.contactoClienteEmpresa!.nombre),
+                  if (_orden!.contactoClienteEmpresa!.cargo != null)
+                    _buildDetailRow(Icons.work_outline, 'Cargo', _orden!.contactoClienteEmpresa!.cargo!),
+                  if (_orden!.contactoClienteEmpresa!.dni != null)
+                    _buildDetailRow(Icons.badge_outlined, 'DNI Contacto', _orden!.contactoClienteEmpresa!.dni!),
+                  if (_orden!.contactoClienteEmpresa!.telefono != null)
+                    _buildDetailRow(Icons.phone_outlined, 'Tel. Contacto', _orden!.contactoClienteEmpresa!.telefono!),
+                  if (_orden!.contactoClienteEmpresa!.email != null)
+                    _buildDetailRow(Icons.email_outlined, 'Email Contacto', _orden!.contactoClienteEmpresa!.email!),
+                ],
+              ])
+            else if (_orden!.cliente != null)
+              _inlineSection(Icons.person_outline, 'CLIENTE', [
+                _buildDetailRow(Icons.person, 'Nombre', _orden!.cliente!.nombreCompleto),
+                if (_orden!.cliente!.documentoNumero != null)
+                  _buildDetailRow(Icons.badge_outlined, 'Documento', _orden!.cliente!.documentoNumero!),
+                if (_orden!.cliente!.email != null)
+                  _buildDetailRow(Icons.email_outlined, 'Email', _orden!.cliente!.email!),
+                if (_orden!.cliente!.telefono != null)
+                  _buildDetailRow(Icons.phone_outlined, 'Teléfono', _orden!.cliente!.telefono!),
+              ]),
           ],
 
           // ── Equipo ──
@@ -2653,8 +2676,9 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                         const SizedBox(width: 8),
                         Expanded(
                           flex: 2,
+                          // F1 FIX: DropdownButtonFormField usa 'value' no 'initialValue'
                           child: DropdownButtonFormField<String>(
-                            initialValue: metodoPagoAdelanto,
+                            value: metodoPagoAdelanto,
                             decoration: InputDecoration(
                               labelText: 'Medio',
                               border: OutlineInputBorder(

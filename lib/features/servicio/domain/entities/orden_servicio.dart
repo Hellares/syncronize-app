@@ -4,7 +4,9 @@ import 'componente.dart';
 class OrdenServicio extends Equatable {
   final String id;
   final String empresaId;
-  final String clienteId;
+  final String? clienteId;
+  final String? clienteEmpresaId;
+  final String? contactoClienteEmpresaId;
   final String? tecnicoId;
   final String? sedeId;
   final String codigo;
@@ -40,6 +42,8 @@ class OrdenServicio extends Equatable {
 
   // Related
   final OrdenCliente? cliente;
+  final OrdenClienteEmpresa? clienteEmpresa;
+  final OrdenClienteEmpresaContacto? contactoClienteEmpresa;
   final OrdenTecnico? tecnico;
   final OrdenModeloEquipo? modeloEquipo;
   final List<OrdenComponente>? componentes;
@@ -51,7 +55,9 @@ class OrdenServicio extends Equatable {
   const OrdenServicio({
     required this.id,
     required this.empresaId,
-    required this.clienteId,
+    this.clienteId,
+    this.clienteEmpresaId,
+    this.contactoClienteEmpresaId,
     this.tecnicoId,
     this.sedeId,
     required this.codigo,
@@ -85,6 +91,8 @@ class OrdenServicio extends Equatable {
     required this.creadoEn,
     required this.actualizadoEn,
     this.cliente,
+    this.clienteEmpresa,
+    this.contactoClienteEmpresa,
     this.tecnico,
     this.modeloEquipo,
     this.componentes,
@@ -128,6 +136,21 @@ class OrdenServicio extends Equatable {
   bool get isB2BRecibido => origenOrden == 'B2B_RECIBIDO';
   bool get isB2BEnviado => origenOrden == 'B2B_ENVIADO';
   bool get isClienteFinal => origenOrden == 'CLIENTE_FINAL';
+  bool get isClienteEmpresa => clienteEmpresaId != null;
+
+  /// Nombre unificado del cliente (persona o empresa)
+  String get nombreClienteUnificado {
+    if (clienteEmpresa != null) {
+      return clienteEmpresa!.nombreComercial ?? clienteEmpresa!.razonSocial;
+    }
+    return cliente?.nombreCompleto ?? '';
+  }
+
+  /// Documento del cliente (DNI o RUC)
+  String? get documentoClienteUnificado {
+    if (clienteEmpresa != null) return clienteEmpresa!.numeroDocumento;
+    return cliente?.documentoNumero;
+  }
 
   @override
   List<Object?> get props => [id, codigo, estado, tipoServicio];
@@ -294,6 +317,60 @@ class EmpresaB2BResumen extends Equatable {
 
   @override
   List<Object?> get props => [id];
+}
+
+class OrdenClienteEmpresa extends Equatable {
+  final String id;
+  final String razonSocial;
+  final String? nombreComercial;
+  final String numeroDocumento;
+  final String? tipoDocumento;
+  final String? email;
+  final String? telefono;
+  final String? direccion;
+  final List<OrdenClienteEmpresaContacto>? contactos;
+
+  const OrdenClienteEmpresa({
+    required this.id,
+    required this.razonSocial,
+    this.nombreComercial,
+    required this.numeroDocumento,
+    this.tipoDocumento,
+    this.email,
+    this.telefono,
+    this.direccion,
+    this.contactos,
+  });
+
+  String get nombreDisplay => nombreComercial ?? razonSocial;
+
+  @override
+  List<Object?> get props => [id, razonSocial, numeroDocumento];
+}
+
+class OrdenClienteEmpresaContacto extends Equatable {
+  final String id;
+  final String nombre;
+  final String? cargo;
+  final String? dni;
+  final String? email;
+  final String? telefono;
+  final String? telefonoMovil;
+  final bool esPrincipal;
+
+  const OrdenClienteEmpresaContacto({
+    required this.id,
+    required this.nombre,
+    this.cargo,
+    this.dni,
+    this.email,
+    this.telefono,
+    this.telefonoMovil,
+    this.esPrincipal = false,
+  });
+
+  @override
+  List<Object?> get props => [id, nombre];
 }
 
 class OrdenesServicioPaginadas {

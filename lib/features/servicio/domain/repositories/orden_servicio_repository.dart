@@ -5,7 +5,9 @@ import '../entities/servicio_filtros.dart';
 abstract class OrdenServicioRepository {
   Future<Resource<OrdenServicio>> crear({
     required String empresaId,
-    required String clienteId,
+    String? clienteId,
+    String? clienteEmpresaId,
+    String? contactoClienteEmpresaId,
     required String tipoServicio,
     String? tecnicoId,
     String? sedeId,
