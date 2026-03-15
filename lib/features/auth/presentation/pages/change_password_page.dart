@@ -6,6 +6,8 @@ import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/gradient_background.dart';
 
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/storage/secure_storage_service.dart';
+import '../../../../core/constants/storage_constants.dart';
 import '../../../../core/utils/resource.dart';
 import '../../../../core/widgets/snack_bar_helper.dart';
 import '../bloc/account_security/account_security_cubit.dart';
@@ -67,7 +69,7 @@ class _ChangePasswordViewState extends State<_ChangePasswordView> {
           style: _gradientStyle,
           child: SafeArea(
             child: BlocConsumer<AccountSecurityCubit, AccountSecurityState>(
-              listener: (context, state) {
+              listener: (context, state) async {
                 if (state.submitAttempt) _fireSubmitSignal();
 
                 final response = state.setPasswordResponse;
@@ -77,13 +79,19 @@ class _ChangePasswordViewState extends State<_ChangePasswordView> {
 
                   SnackBarHelper.showSuccess(
                     context,
-                    'Contraseña actualizada correctamente',
+                    'Contraseña actualizada. Inicia sesión con tu nueva contraseña.',
                   );
 
-                  // Redirigir al marketplace después de cambiar la contraseña
+                  // Limpiar tokens temporales antes de redirigir al login
+                  final secureStorage = locator<SecureStorageService>();
+                  await secureStorage.delete(key: StorageConstants.accessToken);
+                  await secureStorage.delete(key: StorageConstants.refreshToken);
+
+                  // Redirigir al login para que el usuario haga login fresco
+                  // con tokens correctos y flujo completo (selección de modo/empresa)
                   Future.delayed(const Duration(milliseconds: 500), () {
                     if (context.mounted) {
-                      context.go('/marketplace');
+                      context.go('/login');
                     }
                   });
                 } else if (response is Error) {

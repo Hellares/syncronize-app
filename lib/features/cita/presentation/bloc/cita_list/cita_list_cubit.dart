@@ -16,6 +16,7 @@ class CitaListCubit extends Cubit<CitaListState> {
   String? _filtroTecnicoId;
   String? _filtroSedeId;
   int _page = 1;
+  bool _isClienteMode = false;
 
   Future<void> loadCitas({
     String? fecha,
@@ -25,12 +26,14 @@ class CitaListCubit extends Cubit<CitaListState> {
     String? tecnicoId,
     String? sedeId,
     int page = 1,
+    bool asCliente = false,
   }) async {
     _filtroFecha = fecha;
     _filtroEstado = estado;
     _filtroTecnicoId = tecnicoId;
     _filtroSedeId = sedeId;
     _page = page;
+    _isClienteMode = asCliente;
 
     emit(const CitaListLoading());
 
@@ -42,7 +45,9 @@ class CitaListCubit extends Cubit<CitaListState> {
     if (tecnicoId != null) params['tecnicoId'] = tecnicoId;
     if (sedeId != null) params['sedeId'] = sedeId;
 
-    final result = await _repository.findAll(params);
+    final result = asCliente
+        ? await _repository.findMisCitas(params)
+        : await _repository.findAll(params);
     if (isClosed) return;
 
     if (result is Success<CitasPaginadas>) {
@@ -65,6 +70,7 @@ class CitaListCubit extends Cubit<CitaListState> {
       tecnicoId: _filtroTecnicoId,
       sedeId: _filtroSedeId,
       page: _page,
+      asCliente: _isClienteMode,
     );
   }
 
@@ -74,6 +80,8 @@ class CitaListCubit extends Cubit<CitaListState> {
       estado: _filtroEstado,
       tecnicoId: _filtroTecnicoId,
       sedeId: _filtroSedeId,
+      page: 1,
+      asCliente: _isClienteMode,
     );
   }
 
@@ -83,6 +91,8 @@ class CitaListCubit extends Cubit<CitaListState> {
       estado: estado,
       tecnicoId: _filtroTecnicoId,
       sedeId: _filtroSedeId,
+      page: 1,
+      asCliente: _isClienteMode,
     );
   }
 }

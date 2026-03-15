@@ -419,6 +419,10 @@ import '../../features/empresa/presentation/bloc/empresa_context/empresa_context
     as _i135;
 import '../../features/empresa/presentation/bloc/plan_suscripcion/plan_suscripcion_cubit.dart'
     as _i480;
+import '../../features/marketplace/data/datasources/marketplace_remote_datasource.dart'
+    as _i221;
+import '../../features/marketplace/presentation/bloc/marketplace_search_cubit.dart'
+    as _i40;
 import '../../features/producto/data/datasources/configuracion_precio_remote_datasource.dart'
     as _i134;
 import '../../features/producto/data/datasources/plantilla_remote_datasource.dart'
@@ -955,6 +959,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i1016.PlanSuscripcionRemoteDataSource>(
       () => _i1016.PlanSuscripcionRemoteDataSource(gh<_i667.DioClient>()),
     );
+    gh.lazySingleton<_i221.MarketplaceRemoteDataSource>(
+      () => _i221.MarketplaceRemoteDataSource(gh<_i667.DioClient>()),
+    );
     gh.lazySingleton<_i134.ConfiguracionPrecioRemoteDataSource>(
       () => _i134.ConfiguracionPrecioRemoteDataSource(gh<_i667.DioClient>()),
     );
@@ -1134,6 +1141,10 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i475.ProductoImagesCubit>(
       () => _i475.ProductoImagesCubit(gh<_i306.StorageService>()),
+    );
+    gh.factory<_i40.MarketplaceSearchCubit>(
+      () =>
+          _i40.MarketplaceSearchCubit(gh<_i221.MarketplaceRemoteDataSource>()),
     );
     gh.factory<_i717.GetPersonalizacionUseCase>(
       () => _i717.GetPersonalizacionUseCase(gh<_i544.EmpresaRepository>()),
@@ -2349,6 +2360,13 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i875.ListarTransferenciasUseCase>(),
       ),
     );
+    gh.factory<_i87.CompleteProfileCubit>(
+      () => _i87.CompleteProfileCubit(
+        updateProfileUseCase: gh<_i798.UpdateProfileUseCase>(),
+        consultarDniUseCase: gh<_i53.ConsultarDniUseCase>(),
+        authRepository: gh<_i787.AuthRepository>(),
+      ),
+    );
     gh.factory<_i773.GestionarTransferenciaCubit>(
       () => _i773.GestionarTransferenciaCubit(
         gh<_i917.AprobarTransferenciaUseCase>(),
@@ -2430,11 +2448,6 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i239.ServicioListCubit>(
       () => _i239.ServicioListCubit(gh<_i123.GetServiciosUseCase>()),
-    );
-    gh.factory<_i87.CompleteProfileCubit>(
-      () => _i87.CompleteProfileCubit(
-        updateProfileUseCase: gh<_i798.UpdateProfileUseCase>(),
-      ),
     );
     gh.factory<_i65.LoginCubit>(
       () => _i65.LoginCubit(

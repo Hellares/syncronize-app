@@ -17,20 +17,24 @@ class OrdenServicioListCubit extends Cubit<OrdenServicioListState> {
   OrdenServicioFiltros _currentFiltros = const OrdenServicioFiltros();
   List<OrdenServicio> _allOrdenes = [];
   bool _isLoadingMore = false;
+  bool _isClienteMode = false;
 
   Future<void> loadOrdenes({
     required String empresaId,
     OrdenServicioFiltros? filtros,
+    bool asCliente = false,
   }) async {
     _currentEmpresaId = empresaId;
     _currentFiltros = filtros ?? const OrdenServicioFiltros();
     _allOrdenes = [];
+    _isClienteMode = asCliente;
 
     emit(const OrdenServicioListLoading());
 
     final result = await _getOrdenesUseCase(
       empresaId: empresaId,
       filtros: _currentFiltros,
+      asCliente: asCliente,
     );
 
     if (isClosed) return;
@@ -65,6 +69,7 @@ class OrdenServicioListCubit extends Cubit<OrdenServicioListState> {
     final result = await _getOrdenesUseCase(
       empresaId: _currentEmpresaId!,
       filtros: nextFiltros,
+      asCliente: _isClienteMode,
     );
 
     if (isClosed) {
@@ -85,7 +90,6 @@ class OrdenServicioListCubit extends Cubit<OrdenServicioListState> {
         filtros: _currentFiltros,
       ));
     } else if (result is Error<OrdenesServicioPaginadas>) {
-      // F3 FIX: No destruir data cargada en error de loadMore — restaurar estado previo
       emit(OrdenServicioListLoaded(
         ordenes: _allOrdenes,
         total: currentState.total,
@@ -98,7 +102,11 @@ class OrdenServicioListCubit extends Cubit<OrdenServicioListState> {
 
   Future<void> applyFiltros(OrdenServicioFiltros filtros) async {
     if (_currentEmpresaId == null) return;
-    await loadOrdenes(empresaId: _currentEmpresaId!, filtros: filtros.copyWith(clearCursor: true));
+    await loadOrdenes(
+      empresaId: _currentEmpresaId!,
+      filtros: filtros.copyWith(clearCursor: true),
+      asCliente: _isClienteMode,
+    );
   }
 
   Future<void> filterByEstado(String? estado) async {
@@ -106,11 +114,19 @@ class OrdenServicioListCubit extends Cubit<OrdenServicioListState> {
     final filtros = estado != null
         ? _currentFiltros.copyWith(estado: estado, clearCursor: true)
         : _currentFiltros.copyWith(clearEstado: true, clearCursor: true);
-    await loadOrdenes(empresaId: _currentEmpresaId!, filtros: filtros);
+    await loadOrdenes(
+      empresaId: _currentEmpresaId!,
+      filtros: filtros,
+      asCliente: _isClienteMode,
+    );
   }
 
   Future<void> refresh() async {
     if (_currentEmpresaId == null) return;
-    await loadOrdenes(empresaId: _currentEmpresaId!, filtros: _currentFiltros.copyWith(clearCursor: true));
+    await loadOrdenes(
+      empresaId: _currentEmpresaId!,
+      filtros: _currentFiltros.copyWith(clearCursor: true),
+      asCliente: _isClienteMode,
+    );
   }
 }

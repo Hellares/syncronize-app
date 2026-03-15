@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
-import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/widgets/floating_button_text.dart';
 import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import '../../../../core/widgets/producto_sede_selector/producto_sede_selector_exports.dart';
@@ -50,7 +49,6 @@ class _AddCitaItemSheetState extends State<AddCitaItemSheet> {
   String? _sedeId;
 
   ProductoListItem? _productoSeleccionado;
-  ProductoVariante? _varianteSeleccionada;
 
   @override
   void initState() {
@@ -250,7 +248,6 @@ class _AddCitaItemSheetState extends State<AddCitaItemSheet> {
       }) {
         setState(() {
           _productoSeleccionado = producto;
-          _varianteSeleccionada = variante;
           _sedeId = sedeId;
 
           if (variante != null) {
@@ -325,6 +322,5 @@ class _AddCitaItemSheetState extends State<AddCitaItemSheet> {
     _cantidadController.text = '1';
     _precioController.clear();
     _productoSeleccionado = null;
-    _varianteSeleccionada = null;
   }
 }

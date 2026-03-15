@@ -3161,15 +3161,23 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     final empresa = empresaState.context.empresa;
     final empresaContext = empresaState.context;
 
-    // Resolve sede name: match by orden.sedeId or fallback to sedePrincipal
+    // Resolve sede: match by orden.sedeId or fallback to sedePrincipal
     String? sedeNombre;
+    String? sedeDireccion;
     if (_orden!.sedeId != null) {
       final matched = empresaContext.sedes
           .where((s) => s.id == _orden!.sedeId)
           .firstOrNull;
       sedeNombre = matched?.nombre;
+      sedeDireccion = matched?.direccionCompleta;
     }
     sedeNombre ??= empresaContext.sedePrincipal?.nombre;
+    sedeDireccion ??= empresaContext.sedePrincipal?.direccionCompleta;
+
+    // Usar dirección de sede, si no tiene usar dirección de empresa como fallback
+    final direccionFinal = (sedeDireccion != null && sedeDireccion.isNotEmpty)
+        ? sedeDireccion
+        : empresa.direccionFiscal;
 
     // Try to load logo
     Uint8List? logoBytes;
@@ -3191,7 +3199,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
           orden: _orden!,
           empresaNombre: empresa.nombre,
           empresaRuc: empresa.ruc,
-          empresaDireccion: empresa.direccionFiscal,
+          empresaDireccion: direccionFinal,
           empresaTelefono: empresa.telefono,
           sedeNombre: sedeNombre,
           logoEmpresa: logoBytes,

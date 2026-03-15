@@ -68,8 +68,18 @@ abstract class AuthRemoteDataSource {
 
   Future<UserModel> updateProfile({
     String? dni,
+    String? nombres,
+    String? apellidos,
     String? telefono,
     String? direccion,
+    String? departamento,
+    String? provincia,
+    String? distrito,
+  });
+
+  Future<AuthResponseModel> linkAccount({
+    required String dni,
+    required String targetPersonaId,
   });
 
   Future<List<SessionInfoModel>> getSessions();
@@ -318,16 +328,26 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   @override
   Future<UserModel> updateProfile({
     String? dni,
+    String? nombres,
+    String? apellidos,
     String? telefono,
     String? direccion,
+    String? departamento,
+    String? provincia,
+    String? distrito,
   }) async {
     try {
       final response = await _client.put(
         ApiConstants.updateProfile,
         data: {
           if (dni != null) 'dni': dni,
+          if (nombres != null) 'nombres': nombres,
+          if (apellidos != null) 'apellidos': apellidos,
           if (telefono != null) 'telefono': telefono,
           if (direccion != null) 'direccion': direccion,
+          if (departamento != null) 'departamento': departamento,
+          if (provincia != null) 'provincia': provincia,
+          if (distrito != null) 'distrito': distrito,
         },
       );
 
@@ -335,6 +355,21 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     } catch (e) {
       rethrow;
     }
+  }
+
+  @override
+  Future<AuthResponseModel> linkAccount({
+    required String dni,
+    required String targetPersonaId,
+  }) async {
+    final response = await _client.post(
+      '/auth/link-account',
+      data: {
+        'dni': dni,
+        'targetPersonaId': targetPersonaId,
+      },
+    );
+    return AuthResponseModel.fromJson(response.data as Map<String, dynamic>);
   }
 
   @override

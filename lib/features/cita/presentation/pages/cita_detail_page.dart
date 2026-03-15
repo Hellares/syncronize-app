@@ -14,8 +14,6 @@ import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/utils/resource.dart';
-import '../../data/datasources/cita_remote_datasource.dart';
-import '../../data/models/cita_model.dart';
 import '../../domain/entities/cita.dart';
 import '../../domain/repositories/cita_repository.dart';
 import '../bloc/cita_form/cita_form_cubit.dart';
@@ -83,17 +81,17 @@ class _CitaDetailPageState extends State<CitaDetailPage> {
 
   Future<void> _loadItems() async {
     try {
-      final ds = locator<CitaRemoteDataSource>();
-      final data = await ds.getItems(widget.citaId);
+      final repo = locator<CitaRepository>();
+      final result = await repo.getItems(widget.citaId);
       if (!mounted) return;
-      final itemsList = (data['items'] as List?)?.map((e) =>
-          CitaModel.parseCitaItem(e as Map<String, dynamic>)).toList() ?? [];
-      setState(() {
-        _items = itemsList;
-        _totalItems = (data['total'] as num?)?.toDouble() ?? 0;
-      });
-    } catch (_) {
-      // Items son opcionales, no bloquear la vista
+      if (result is Success<({List<CitaItem> items, double total})>) {
+        setState(() {
+          _items = result.data.items;
+          _totalItems = result.data.total;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error cargando items de cita: $e');
     }
   }
 
@@ -111,8 +109,8 @@ class _CitaDetailPageState extends State<CitaDetailPage> {
               : {};
         });
       }
-    } catch (_) {
-      // Campos opcionales
+    } catch (e) {
+      debugPrint('Error cargando campos personalizados: $e');
     }
   }
 
@@ -372,6 +370,36 @@ class _CitaDetailPageState extends State<CitaDetailPage> {
             _detailRow('Email', _cita!.cliente!.email!),
           if (_cita!.clienteEmpresa?.telefono != null)
             _detailRow('Teléfono', _cita!.clienteEmpresa!.telefono!),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () {
+                context.push(
+                  '/empresa/citas/historial-cliente',
+                  extra: {
+                    'clienteId': isEmpresa
+                        ? (_cita!.clienteEmpresaId ?? '')
+                        : (_cita!.clienteId ?? ''),
+                    if (isEmpresa)
+                      'clienteEmpresaId': _cita!.clienteEmpresaId,
+                    'clienteNombre': _cita!.clienteNombre,
+                  },
+                );
+              },
+              icon: const Icon(Icons.history, size: 14),
+              label: const Text('Ver historial de citas',
+                  style: TextStyle(fontSize: 10)),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.blue1,
+                side: const BorderSide(color: AppColors.blue1, width: 0.6),
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(6),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -930,22 +958,24 @@ class _CitaDetailPageState extends State<CitaDetailPage> {
       backgroundColor: Colors.transparent,
       builder: (_) => AddCitaItemSheet(
         onItemAdded: (item) async {
-          try {
-            final ds = locator<CitaRemoteDataSource>();
-            await ds.addItem(widget.citaId, {
-              'nombre': item.nombre,
-              if (item.productoId != null) 'productoId': item.productoId,
-              if (item.descripcion != null) 'descripcion': item.descripcion,
-              'cantidad': item.cantidad,
-              'precioUnitario': item.precioUnitario,
-            });
+          final repo = locator<CitaRepository>();
+          final result = await repo.addItem(widget.citaId, {
+            'nombre': item.nombre,
+            if (item.productoId != null) 'productoId': item.productoId,
+            if (item.descripcion != null) 'descripcion': item.descripcion,
+            'cantidad': item.cantidad,
+            'precioUnitario': item.precioUnitario,
+          });
+          if (!mounted) return;
+          if (result is Success) {
             _loadItems();
-          } catch (e) {
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-              );
-            }
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Item agregado'), backgroundColor: Colors.green),
+            );
+          } else if (result is Error) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text((result).message), backgroundColor: Colors.red),
+            );
           }
         },
       ),
@@ -953,16 +983,18 @@ class _CitaDetailPageState extends State<CitaDetailPage> {
   }
 
   Future<void> _removeItem(String itemId) async {
-    try {
-      final ds = locator<CitaRemoteDataSource>();
-      await ds.removeItem(widget.citaId, itemId);
+    final repo = locator<CitaRepository>();
+    final result = await repo.removeItem(widget.citaId, itemId);
+    if (!mounted) return;
+    if (result is Success) {
       _loadItems();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Item eliminado'), backgroundColor: Colors.green),
+      );
+    } else if (result is Error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text((result).message), backgroundColor: Colors.red),
+      );
     }
   }
 
@@ -1372,13 +1404,9 @@ class _CitaDetailPageState extends State<CitaDetailPage> {
 
                 Navigator.pop(ctx);
 
-                final data = <String, dynamic>{
-                  'nuevoEstado': 'COMPLETADA',
-                  if (generarOrden) 'generarOrden': true,
-                };
-
+                Map<String, dynamic>? siguienteCitaData;
                 if (programarSiguiente && siguienteFecha != null) {
-                  data['siguienteCita'] = {
+                  siguienteCitaData = {
                     'fecha': DateFormat('yyyy-MM-dd').format(siguienteFecha!),
                     'horaInicio': siguienteHoraInicio,
                     'horaFin': siguienteHoraFin,
@@ -1387,26 +1415,12 @@ class _CitaDetailPageState extends State<CitaDetailPage> {
                   };
                 }
 
-                // Usar transitionEstado directamente via repository
-                locator<CitaRepository>()
-                    .transitionEstado(_cita!.id, data)
-                    .then((result) {
-                  if (!mounted) return;
-                  if (result is Success) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text('Cita completada'),
-                          backgroundColor: Colors.green),
-                    );
-                    _loadAll();
-                  } else if (result is Error) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                          content: Text((result as Error).message),
-                          backgroundColor: Colors.red),
-                    );
-                  }
-                });
+                context.read<CitaFormCubit>().cambiarEstado(
+                  id: _cita!.id,
+                  nuevoEstado: 'COMPLETADA',
+                  generarOrden: generarOrden,
+                  siguienteCita: siguienteCitaData,
+                );
               },
             ),
           ],

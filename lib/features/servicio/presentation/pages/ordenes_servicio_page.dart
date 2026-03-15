@@ -24,7 +24,9 @@ import '../widgets/estado_badge_widget.dart';
 import '../widgets/orden_servicio_filter_sheet.dart';
 
 class OrdenesServicioPage extends StatelessWidget {
-  const OrdenesServicioPage({super.key});
+  final bool asCliente;
+
+  const OrdenesServicioPage({super.key, this.asCliente = false});
 
   @override
   Widget build(BuildContext context) {
@@ -36,8 +38,8 @@ class OrdenesServicioPage extends StatelessWidget {
 
         return BlocProvider(
           create: (_) => locator<OrdenServicioListCubit>()
-            ..loadOrdenes(empresaId: empresaId),
-          child: _OrdenesContent(empresaId: empresaId),
+            ..loadOrdenes(empresaId: empresaId, asCliente: asCliente),
+          child: _OrdenesContent(empresaId: empresaId, asCliente: asCliente),
         );
       },
     );
@@ -46,7 +48,8 @@ class OrdenesServicioPage extends StatelessWidget {
 
 class _OrdenesContent extends StatefulWidget {
   final String empresaId;
-  const _OrdenesContent({required this.empresaId});
+  final bool asCliente;
+  const _OrdenesContent({required this.empresaId, this.asCliente = false});
 
   @override
   State<_OrdenesContent> createState() => _OrdenesContentState();

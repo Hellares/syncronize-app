@@ -14,7 +14,12 @@ abstract class EmpresaRepository {
   Future<Resource<EmpresaContext>> getEmpresaContext(String empresaId);
 
   /// Cambia la empresa activa del usuario (switch tenant)
-  Future<Resource<void>> switchEmpresa(String empresaId, String? subdominio);
+  Future<Resource<void>> switchEmpresa(
+    String empresaId,
+    String? subdominio, {
+    String? empresaNombre,
+    String? empresaRole,
+  });
 
   /// Obtiene la personalización de la empresa
   Future<Resource<PersonalizacionEmpresa>> getPersonalizacion(String empresaId);

@@ -213,7 +213,20 @@ class Cita extends Equatable {
   double get saldo => (costoTotal ?? 0) - (adelanto ?? 0);
 
   @override
-  List<Object?> get props => [id, estado, actualizadoEn];
+  List<Object?> get props => [
+        id,
+        estado,
+        costoServicio,
+        costoProductos,
+        descuento,
+        adelanto,
+        costoTotal,
+        notas,
+        ordenServicioId,
+        siguienteCitaId,
+        motivoCancelacion,
+        actualizadoEn,
+      ];
 }
 
 /// Item/producto agregado a una cita

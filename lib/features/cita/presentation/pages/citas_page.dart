@@ -19,7 +19,9 @@ import '../../domain/entities/cita.dart';
 import '../widgets/cita_estado_badge.dart';
 
 class CitasPage extends StatefulWidget {
-  const CitasPage({super.key});
+  final bool asCliente;
+
+  const CitasPage({super.key, this.asCliente = false});
 
   @override
   State<CitasPage> createState() => _CitasPageState();
@@ -59,6 +61,7 @@ class _CitasPageState extends State<CitasPage> {
     context.read<CitaListCubit>().loadCitas(
           fecha: DateFormat('yyyy-MM-dd').format(_selectedDate),
           estado: _filtroEstado,
+          asCliente: widget.asCliente,
         );
   }
 

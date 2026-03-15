@@ -16,6 +16,7 @@ import '../datasources/auth_local_datasource.dart';
 import '../datasources/auth_remote_datasource.dart';
 import '../models/auth_tokens_model.dart';
 import '../models/user_model.dart';
+import '../../../../core/services/push_notification_service.dart';
 
 @LazySingleton(as: AuthRepository)
 class AuthRepositoryImpl implements AuthRepository {
@@ -205,8 +206,14 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<Resource<void>> logout() async {
     try {
-      // Intentar cerrar sesión en el servidor (si hay conexión)
       if (await networkInfo.isConnected) {
+        // Desregistrar FCM token ANTES de borrar credenciales
+        // (necesita el JWT que aún está en secure storage)
+        try {
+          await PushNotificationService().unregisterTokenFromBackend();
+        } catch (_) {}
+
+        // Cerrar sesión en el servidor
         try {
           await remoteDataSource.logout();
         } catch (e) {
@@ -214,7 +221,7 @@ class AuthRepositoryImpl implements AuthRepository {
         }
       }
 
-      // Limpiar datos locales siempre
+      // Limpiar datos locales (borra tokens JWT)
       await localDataSource.clearAll();
 
       return Success(null);
@@ -392,10 +399,53 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<Resource<AuthResponse>> linkAccount({
+    required String dni,
+    required String targetPersonaId,
+  }) async {
+    if (!await networkInfo.isConnected) {
+      return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
+    }
+
+    try {
+      final result = await remoteDataSource.linkAccount(
+        dni: dni,
+        targetPersonaId: targetPersonaId,
+      );
+
+      final authResponse = result.toEntity();
+
+      // Guardar nuevos tokens del usuario vinculado
+      if (authResponse.hasTokens && authResponse.tokens != null) {
+        await localDataSource.saveTokens(
+          AuthTokensModel.fromEntity(authResponse.tokens!),
+        );
+        await localDataSource.saveUserInfo(
+          UserModel.fromEntity(authResponse.user),
+        );
+        await localDataSource.setLoggedIn(true);
+      }
+
+      return Success(authResponse);
+    } catch (e) {
+      return errorHandler.handleException(
+        e,
+        context: 'LinkAccount',
+        defaultMessage: 'Error al vincular cuentas',
+      );
+    }
+  }
+
+  @override
   Future<Resource<User>> updateProfile({
     String? dni,
+    String? nombres,
+    String? apellidos,
     String? telefono,
     String? direccion,
+    String? departamento,
+    String? provincia,
+    String? distrito,
   }) async {
     if (!await networkInfo.isConnected) {
       return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
@@ -404,8 +454,13 @@ class AuthRepositoryImpl implements AuthRepository {
     try {
       final result = await remoteDataSource.updateProfile(
         dni: dni,
+        nombres: nombres,
+        apellidos: apellidos,
         telefono: telefono,
         direccion: direccion,
+        departamento: departamento,
+        provincia: provincia,
+        distrito: distrito,
       );
 
       final user = result.toEntity();

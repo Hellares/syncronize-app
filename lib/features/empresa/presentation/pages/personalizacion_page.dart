@@ -20,6 +20,7 @@ import '../../../../core/widgets/custom_switch_tile.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../../auth/presentation/widgets/custom_text.dart';
 import '../../data/datasources/empresa_remote_datasource.dart';
+import 'package:go_router/go_router.dart';
 import '../../domain/entities/personalizacion_empresa.dart';
 import '../../domain/usecases/get_personalizacion_usecase.dart';
 import '../../domain/usecases/update_personalizacion_usecase.dart';
@@ -50,6 +51,11 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
   String? _currentLogoUrl;
   File? _selectedLogoFile;
   bool _isUploadingLogo = false;
+
+  // Banner upload state
+  String? _currentBannerUrl;
+  File? _selectedBannerFile;
+  bool _isUploadingBanner = false;
   double _logoUploadProgress = 0.0;
 
   // Controllers
@@ -114,6 +120,7 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
       final p = result.data;
       setState(() {
         _personalizacion = p;
+        _currentBannerUrl = p.bannerPrincipalUrl;
         _bannerUrlController.text = p.bannerPrincipalUrl ?? '';
         _bannerTextoController.text = p.bannerPrincipalTexto ?? '';
         _splashUrlController.text = p.appSplashScreenUrl ?? '';
@@ -221,6 +228,123 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
         SnackBar(content: Text('Error al subir logo: $e'), backgroundColor: Colors.red),
       );
     }
+  }
+
+  Future<void> _pickBanner(ImageSource source) async {
+    try {
+      final picked = await _imagePicker.pickImage(
+        source: source,
+        imageQuality: 85,
+      );
+      if (picked == null) return;
+
+      // Validar dimensiones
+      final bytes = await picked.readAsBytes();
+      final decoded = await decodeImageFromList(bytes);
+      final width = decoded.width;
+      final height = decoded.height;
+
+      if (width < 800) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('El banner debe tener al menos 800px de ancho. Recomendado: 1080x360px'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
+      final ratio = width / height;
+      if (ratio < 2.0 || ratio > 4.0) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Proporción no válida (${ratio.toStringAsFixed(1)}:1). Use entre 2:1 y 4:1. Recomendado: 1080x360px'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
+      setState(() => _selectedBannerFile = File(picked.path));
+      await _uploadBanner();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al seleccionar imagen: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  Future<void> _uploadBanner() async {
+    if (_selectedBannerFile == null) return;
+    final empresaId = _localStorage.getString(StorageConstants.tenantId);
+    if (empresaId == null) return;
+
+    setState(() => _isUploadingBanner = true);
+
+    try {
+      final archivoResponse = await _storageService.uploadFile(
+        file: _selectedBannerFile!,
+        empresaId: empresaId,
+        entidadTipo: 'EMPRESA',
+        entidadId: empresaId,
+        categoria: 'BANNER',
+      );
+
+      setState(() {
+        _currentBannerUrl = archivoResponse.url;
+        _bannerUrlController.text = archivoResponse.url;
+        _selectedBannerFile = null;
+        _isUploadingBanner = false;
+      });
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Banner subido. Guarda para aplicar cambios.'), backgroundColor: Colors.green),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isUploadingBanner = false;
+        _selectedBannerFile = null;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al subir banner: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  void _showBannerSourceDialog() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Subir Banner', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Galería'),
+              onTap: () { Navigator.pop(ctx); _pickBanner(ImageSource.gallery); },
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('Cámara'),
+              onTap: () { Navigator.pop(ctx); _pickBanner(ImageSource.camera); },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _showLogoSourceDialog() {
@@ -434,6 +558,10 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
 
         // ─── Configuración ───
         _buildConfiguracionCard(),
+        const SizedBox(height: 12),
+
+        // ─── Notificaciones ───
+        _buildNotificacionesCard(),
         const SizedBox(height: 80),
       ],
     );
@@ -672,12 +800,43 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
             const SizedBox(height: 12),
 
             // Banner
-            CustomText(
-              controller: _bannerUrlController,
-              label: 'URL del banner principal',
-              hintText: 'https://ejemplo.com/banner.jpg',
-              prefixIcon: const Icon(Icons.image_outlined, size: 16),
-              borderColor: AppColors.blueborder,
+            const Text('Banner principal', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            GestureDetector(
+              onTap: _isUploadingBanner ? null : _showBannerSourceDialog,
+              child: Container(
+                width: double.infinity,
+                height: 120,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.blueborder),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: _isUploadingBanner
+                    ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+                    : _currentBannerUrl != null && _currentBannerUrl!.isNotEmpty
+                        ? Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              Image.network(_currentBannerUrl!, fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => _bannerPlaceholder()),
+                              Positioned(
+                                bottom: 6,
+                                right: 6,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black54,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: const Text('Cambiar', style: TextStyle(color: Colors.white, fontSize: 10)),
+                                ),
+                              ),
+                            ],
+                          )
+                        : _bannerPlaceholder(),
+              ),
             ),
             const SizedBox(height: 10),
             CustomText(
@@ -847,6 +1006,57 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
     );
   }
 
+  // ─── Notificaciones Card ───
+
+  Widget _buildNotificacionesCard() {
+    return GradientContainer(
+      gradient: AppGradients.blueWhiteBlue(),
+      shadowStyle: ShadowStyle.glow,
+      borderColor: AppColors.blueborder,
+      borderWidth: 0.6,
+      child: InkWell(
+        onTap: () => context.push('/empresa/notificaciones/preferencias'),
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.blue1.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.notifications_outlined,
+                    color: AppColors.blue1, size: 18),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const AppTitle(
+                      'Preferencias de notificaciones',
+                      fontSize: 13,
+                      color: AppColors.blue2,
+                    ),
+                    const SizedBox(height: 2),
+                    AppLabelText(
+                      'Elige qué notificaciones push quieres recibir',
+                      fontSize: 10,
+                      color: Colors.grey.shade500,
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, size: 20, color: Colors.grey.shade400),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   // ─── Helpers ───
 
   Widget _sectionHeader(String title, IconData icon) {
@@ -923,6 +1133,19 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
               Navigator.pop(ctx);
             },
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _bannerPlaceholder() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.panorama, size: 32, color: Colors.grey.shade400),
+          const SizedBox(height: 4),
+          Text('Toca para subir banner', style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
         ],
       ),
     );

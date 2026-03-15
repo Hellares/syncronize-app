@@ -32,6 +32,10 @@ abstract class OrdenServicioRepository {
     required OrdenServicioFiltros filtros,
   });
 
+  Future<Resource<OrdenesServicioPaginadas>> getMisOrdenes({
+    required OrdenServicioFiltros filtros,
+  });
+
   Future<Resource<OrdenServicio>> getOrden({
     required String id,
     required String empresaId,

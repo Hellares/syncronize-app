@@ -103,8 +103,10 @@ class EmpresaRepositoryImpl implements EmpresaRepository {
   @override
   Future<Resource<void>> switchEmpresa(
     String empresaId,
-    String? subdominio,
-  ) async {
+    String? subdominio, {
+    String? empresaNombre,
+    String? empresaRole,
+  }) async {
     if (!await _networkInfo.isConnected) {
       return Error(
         'No hay conexión a internet',
@@ -118,7 +120,14 @@ class EmpresaRepositoryImpl implements EmpresaRepository {
         subdominioEmpresa: subdominio,
       );
 
-      // Limpiar el contexto anterior
+      // Actualizar tenant en localStorage ANTES de limpiar caché
+      // para que el interceptor envíe el x-tenant-id correcto en requests posteriores
+      await _localDataSource.saveSelectedEmpresa(
+        empresaId: empresaId,
+        empresaNombre: empresaNombre ?? '',
+      );
+
+      // Limpiar el caché del contexto anterior (sin borrar tenantId)
       await _localDataSource.clearEmpresaContext();
 
       return Success(null);

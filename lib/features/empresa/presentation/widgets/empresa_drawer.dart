@@ -229,8 +229,16 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               title: 'Citas',
               icon: Icons.calendar_month,
               iconColor: AppColors.blue2,
-              routeMatch: const _RouteMatch.startsWith('/empresa/citas'),
+              routeMatch: const _RouteMatch.exact('/empresa/citas'),
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/citas')),
+            ),
+            _TileNode(
+              visible: permissions?.canManageOrders ?? false,
+              title: 'Historial por Cliente',
+              icon: Icons.people_alt_outlined,
+              iconColor: AppColors.blue2,
+              routeMatch: const _RouteMatch.startsWith('/empresa/citas/clientes'),
+              onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/citas/clientes')),
             ),
             // Plantillas de Servicio oculto del drawer — se gestionan desde el form de servicio
             // _TileNode(

@@ -5,6 +5,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import '../../../../core/storage/local_storage_service.dart';
 import '../../../../core/constants/storage_constants.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/utils/role_navigation_helper.dart';
 import '../bloc/auth/auth_bloc.dart';
 
 class HomePage extends StatefulWidget {
@@ -33,7 +34,7 @@ class _HomePageState extends State<HomePage> {
 
       if (loginMode == 'management' && tenantId != null && tenantId.isNotEmpty) {
         // Usuario en modo Management → Dashboard de empresa
-        context.go('/empresa/dashboard');
+        context.go(RoleNavigationHelper.getEmpresaRoute());
       } else if (loginMode == 'marketplace') {
         // Usuario en modo Marketplace → Marketplace
         context.go('/marketplace');

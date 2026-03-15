@@ -78,6 +78,17 @@ class CitaRemoteDataSource {
     return response.data as Map<String, dynamic>;
   }
 
+  /// GET /citas/mis-citas (para clientes)
+  Future<Map<String, dynamic>> findMisCitas({
+    required Map<String, dynamic> queryParams,
+  }) async {
+    final response = await _dioClient.get(
+      '${ApiConstants.citas}/mis-citas',
+      queryParameters: queryParams,
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
   /// GET /citas/:id
   Future<CitaModel> findOne(String id) async {
     final response = await _dioClient.get(
@@ -103,6 +114,33 @@ class CitaRemoteDataSource {
     final response = await _dioClient.patch(
       '${ApiConstants.citas}/$id/estado',
       data: data,
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
+  /// GET /citas/clientes-con-citas
+  Future<Map<String, dynamic>> getClientesConCitas({String? search}) async {
+    final params = <String, dynamic>{};
+    if (search != null && search.isNotEmpty) params['search'] = search;
+
+    final response = await _dioClient.get(
+      '${ApiConstants.citas}/clientes-con-citas',
+      queryParameters: params,
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
+  /// GET /citas/historial-cliente/:clienteId
+  Future<Map<String, dynamic>> getHistorialCliente(
+    String clienteId, {
+    String? clienteEmpresaId,
+  }) async {
+    final params = <String, dynamic>{};
+    if (clienteEmpresaId != null) params['clienteEmpresaId'] = clienteEmpresaId;
+
+    final response = await _dioClient.get(
+      '${ApiConstants.citas}/historial-cliente/$clienteId',
+      queryParameters: params,
     );
     return response.data as Map<String, dynamic>;
   }

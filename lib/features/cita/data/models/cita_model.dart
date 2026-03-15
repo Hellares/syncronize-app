@@ -39,6 +39,11 @@ class CitaModel extends Cita {
     super.citaAnterior,
   });
 
+  static DateTime _safeParse(String? value) {
+    if (value == null || value.isEmpty) return DateTime.fromMillisecondsSinceEpoch(0);
+    return DateTime.tryParse(value) ?? DateTime.fromMillisecondsSinceEpoch(0);
+  }
+
   factory CitaModel.fromJson(Map<String, dynamic> json) {
     return CitaModel(
       id: json['id'] as String,
@@ -49,7 +54,7 @@ class CitaModel extends Cita {
       clienteId: json['clienteId'] as String?,
       clienteEmpresaId: json['clienteEmpresaId'] as String?,
       codigo: json['codigo'] as String,
-      fecha: DateTime.parse(json['fecha'] as String),
+      fecha: _safeParse(json['fecha'] as String?),
       horaInicio: json['horaInicio'] as String,
       horaFin: json['horaFin'] as String,
       estado: json['estado'] as String,
@@ -68,8 +73,8 @@ class CitaModel extends Cita {
       creadoPor: json['creadoPor'] as String?,
       canceladoPor: json['canceladoPor'] as String?,
       motivoCancelacion: json['motivoCancelacion'] as String?,
-      creadoEn: DateTime.parse(json['creadoEn'] as String),
-      actualizadoEn: DateTime.parse(json['actualizadoEn'] as String),
+      creadoEn: _safeParse(json['creadoEn'] as String?),
+      actualizadoEn: _safeParse(json['actualizadoEn'] as String?),
       servicio: json['servicio'] != null
           ? _parseServicio(json['servicio'] as Map<String, dynamic>)
           : null,
@@ -158,7 +163,7 @@ class CitaModel extends Cita {
     return CitaVinculoResumen(
       id: json['id'] as String,
       codigo: json['codigo'] as String,
-      fecha: DateTime.parse(json['fecha'] as String),
+      fecha: _safeParse(json['fecha'] as String?),
       horaInicio: json['horaInicio'] as String,
       estado: json['estado'] as String,
     );

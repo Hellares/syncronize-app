@@ -75,11 +75,22 @@ abstract class AuthRepository {
   /// Obtener perfil del usuario
   Future<Resource<User>> getProfile();
 
-  /// Actualizar perfil del usuario (DNI, teléfono, dirección)
+  /// Vincular cuenta actual (Google) con cuenta existente (DNI)
+  Future<Resource<AuthResponse>> linkAccount({
+    required String dni,
+    required String targetPersonaId,
+  });
+
+  /// Actualizar perfil del usuario
   Future<Resource<User>> updateProfile({
     String? dni,
+    String? nombres,
+    String? apellidos,
     String? telefono,
     String? direccion,
+    String? departamento,
+    String? provincia,
+    String? distrito,
   });
 
   /// Obtener sesiones activas

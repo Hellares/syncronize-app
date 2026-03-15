@@ -13,7 +13,11 @@ class GetOrdenesServicioUseCase {
   Future<Resource<OrdenesServicioPaginadas>> call({
     required String empresaId,
     required OrdenServicioFiltros filtros,
+    bool asCliente = false,
   }) async {
+    if (asCliente) {
+      return await _repository.getMisOrdenes(filtros: filtros);
+    }
     return await _repository.getOrdenes(
       empresaId: empresaId,
       filtros: filtros,

@@ -15,6 +15,7 @@ import '../../../auth/presentation/bloc/auth/auth_bloc.dart';
 import '../../../auth/presentation/widgets/custom_button.dart';
 import '../../../../core/storage/secure_storage_service.dart';
 import '../../../auth/domain/usecases/refresh_token_usecase.dart';
+import '../../../../core/utils/role_navigation_helper.dart';
 import '../../domain/entities/empresa_list_item.dart';
 import '../../domain/usecases/get_user_empresas_usecase.dart';
 import '../../domain/usecases/switch_empresa_usecase.dart';
@@ -92,6 +93,8 @@ class _EmpresaSelectionPageState extends State<EmpresaSelectionPage> {
     final result = await _switchEmpresaUseCase(
       empresaId: empresa.id,
       subdominio: empresa.subdominio,
+      empresaNombre: empresa.nombre,
+      empresaRole: empresa.primaryRole,
     );
 
     if (!mounted) return;
@@ -118,12 +121,14 @@ class _EmpresaSelectionPageState extends State<EmpresaSelectionPage> {
         }
       }
 
-      await _localStorage.setString(StorageConstants.tenantId, empresa.id);
-      await _localStorage.setString(StorageConstants.tenantName, empresa.nombre);
+      // tenantId y tenantName ya fueron guardados por el repository
+      if (empresa.primaryRole != null) {
+        await _localStorage.setString(StorageConstants.tenantRole, empresa.primaryRole!);
+      }
       await _localStorage.setString(StorageConstants.loginMode, 'management');
 
       if (!mounted) return;
-      context.go('/empresa/dashboard');
+      context.go(RoleNavigationHelper.getEmpresaRoute());
     } else if (result is Error) {
       setState(() {
         _isSelecting = false;
@@ -207,19 +212,56 @@ class _EmpresaSelectionPageState extends State<EmpresaSelectionPage> {
 
                     const SizedBox(height: 8),
 
-                    // Lista de empresas
+                    // Lista de empresas agrupadas por tipo
                     Expanded(
-                      child: ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        itemCount: _empresas.length,
-                        itemBuilder: (context, index) {
-                          final empresa = _empresas[index];
-                          final isThisSelecting = _selectingId == empresa.id;
-                          return _EmpresaCard(
-                            empresa: empresa,
-                            isSelecting: isThisSelecting,
-                            isDisabled: _isSelecting && !isThisSelecting,
-                            onTap: () => _selectEmpresa(empresa),
+                      child: Builder(
+                        builder: (context) {
+                          final misEmpresas = _empresas.where((e) => !e.isOnlyCliente).toList();
+                          final clienteEn = _empresas.where((e) => e.isOnlyCliente).toList();
+
+                          return ListView(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            children: [
+                              // Sección: Mis empresas (admin, empleado)
+                              if (misEmpresas.isNotEmpty) ...[
+                                _SectionHeader(
+                                  icon: Icons.business,
+                                  title: 'Mis Empresas',
+                                  count: misEmpresas.length,
+                                ),
+                                ...misEmpresas.map((empresa) {
+                                  final isThisSelecting = _selectingId == empresa.id;
+                                  return _EmpresaCard(
+                                    empresa: empresa,
+                                    isSelecting: isThisSelecting,
+                                    isDisabled: _isSelecting && !isThisSelecting,
+                                    onTap: () => _selectEmpresa(empresa),
+                                  );
+                                }),
+                              ],
+
+                              // Separador
+                              if (misEmpresas.isNotEmpty && clienteEn.isNotEmpty)
+                                const SizedBox(height: 8),
+
+                              // Sección: Soy cliente en
+                              if (clienteEn.isNotEmpty) ...[
+                                _SectionHeader(
+                                  icon: Icons.person_outline,
+                                  title: 'Soy cliente en',
+                                  count: clienteEn.length,
+                                ),
+                                ...clienteEn.map((empresa) {
+                                  final isThisSelecting = _selectingId == empresa.id;
+                                  return _EmpresaCard(
+                                    empresa: empresa,
+                                    isSelecting: isThisSelecting,
+                                    isDisabled: _isSelecting && !isThisSelecting,
+                                    onTap: () => _selectEmpresa(empresa),
+                                  );
+                                }),
+                              ],
+                            ],
                           );
                         },
                       ),
@@ -247,6 +289,61 @@ class _EmpresaSelectionPageState extends State<EmpresaSelectionPage> {
                   ],
                 ),
               ),
+      ),
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final int count;
+
+  const _SectionHeader({
+    required this.icon,
+    required this.title,
+    required this.count,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8, top: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: AppColors.blue2),
+          const SizedBox(width: 8),
+          AppSubtitle(
+            title,
+            fontSize: 11,
+            color: AppColors.blue2,
+            font: AppFont.oxygenBold,
+          ),
+          const SizedBox(width: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: AppColors.blue2.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              '$count',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                fontFamily: AppFonts.getFontFamily(AppFont.oxygenBold),
+                color: AppColors.blue2,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Divider(
+              color: AppColors.blue2.withValues(alpha: 0.2),
+              thickness: 1,
+            ),
+          ),
+        ],
       ),
     );
   }

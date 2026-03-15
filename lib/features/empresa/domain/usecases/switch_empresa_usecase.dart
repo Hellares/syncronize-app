@@ -19,7 +19,14 @@ class SwitchEmpresaUseCase {
   Future<Resource<void>> call({
     required String empresaId,
     String? subdominio,
+    String? empresaNombre,
+    String? empresaRole,
   }) async {
-    return await _repository.switchEmpresa(empresaId, subdominio);
+    return await _repository.switchEmpresa(
+      empresaId,
+      subdominio,
+      empresaNombre: empresaNombre,
+      empresaRole: empresaRole,
+    );
   }
 }

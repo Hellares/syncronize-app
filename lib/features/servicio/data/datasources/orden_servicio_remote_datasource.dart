@@ -29,6 +29,16 @@ class OrdenServicioRemoteDataSource {
     return response.data as Map<String, dynamic>;
   }
 
+  Future<Map<String, dynamic>> getMisOrdenes({
+    required OrdenServicioFiltros filtros,
+  }) async {
+    final response = await _dioClient.get(
+      '${ApiConstants.ordenesServicio}/mis-ordenes',
+      queryParameters: filtros.toQueryParams(),
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
   Future<OrdenServicioModel> getOrden(String id) async {
     final response = await _dioClient.get('${ApiConstants.ordenesServicio}/$id');
     return OrdenServicioModel.fromJson(response.data as Map<String, dynamic>);

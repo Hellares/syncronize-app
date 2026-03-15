@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/app_gradients.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
@@ -77,6 +78,32 @@ class ClienteDetailSheet extends StatelessWidget {
                       Icons.map, 'Departamento', cliente.departamento!),
                 _buildInfoRow(Icons.info, 'Estado',
                     cliente.isActive ? 'Activo' : 'Inactivo'),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      context.push(
+                        '/empresa/citas/historial-cliente',
+                        extra: {
+                          'clienteId': cliente.id,
+                          'clienteNombre': cliente.nombreCompleto,
+                        },
+                      );
+                    },
+                    icon: const Icon(Icons.calendar_month, size: 16),
+                    label: const Text('Ver historial de citas', style: TextStyle(fontSize: 12)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.blue1,
+                      side: const BorderSide(color: AppColors.blue1, width: 0.8),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ),
                 if (cliente.registradoPorNombre != null) ...[
                   const SizedBox(height: 16),
                   const Text(

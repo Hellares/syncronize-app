@@ -330,7 +330,12 @@ class _AuthenticatedDrawerContent extends StatelessWidget {
                 ),
                 onTap: () {
                   Navigator.pop(context);
-                  context.push('/create-empresa');
+                  final authState = context.read<AuthBloc>().state;
+                  if (authState is Authenticated && !authState.user.perfilCompleto) {
+                    context.push('/complete-profile');
+                  } else {
+                    context.push('/create-empresa');
+                  }
                 },
               ),
             ],

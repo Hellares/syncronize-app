@@ -15,13 +15,17 @@ import '../../features/auth/presentation/pages/email_verification_page.dart';
 import '../../features/auth/presentation/pages/home_page.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/register_page.dart';
+import '../../features/empresa/presentation/pages/cliente_portal_page.dart';
 import '../../features/empresa/presentation/pages/empresa_dashboard_page.dart';
+import '../../core/utils/role_navigation_helper.dart';
 import '../../features/empresa/presentation/pages/empresa_selection_page.dart';
 import '../../features/empresa/presentation/pages/configuracion_empresa_page.dart';
 import '../../features/empresa/presentation/pages/empresa_profile_page.dart';
 import '../../features/empresa/presentation/pages/personalizacion_page.dart';
 import '../../features/empresa/presentation/pages/planes_page.dart';
 import '../../features/marketplace/presentation/pages/marketplace_page.dart';
+import '../../features/marketplace/presentation/pages/producto_marketplace_detail_page.dart';
+import '../../features/marketplace/presentation/pages/empresa_public_profile_page.dart';
 import '../../features/producto/presentation/pages/productos_page.dart';
 import '../../features/producto/presentation/pages/producto_detail_page.dart';
 import '../../features/producto/presentation/pages/producto_form_page.dart';
@@ -89,9 +93,13 @@ import '../../features/tercerizacion/presentation/pages/tercerizacion_detail_pag
 import '../../features/tercerizacion/presentation/pages/directorio_empresas_page.dart';
 import '../../features/vinculacion/presentation/pages/vinculacion_list_page.dart';
 import '../../features/vinculacion/presentation/pages/vinculacion_detail_page.dart';
+import '../../features/notificacion/presentation/pages/notificaciones_page.dart';
+import '../../features/notificacion/presentation/pages/preferencias_notificacion_page.dart';
 import '../../features/cita/presentation/pages/citas_page.dart';
 import '../../features/cita/presentation/pages/cita_detail_page.dart';
 import '../../features/cita/presentation/pages/nueva_cita_sheet.dart';
+import '../../features/cita/presentation/pages/historial_citas_cliente_page.dart';
+import '../../features/cita/presentation/pages/clientes_citas_page.dart';
 
 /// Configuración de rutas de la aplicación
 class AppRouter {
@@ -127,7 +135,7 @@ class AppRouter {
         final tenantId = localStorage.getString(StorageConstants.tenantId);
 
         if (loginMode == 'management' && tenantId != null && tenantId.isNotEmpty) {
-          return '/empresa/dashboard';
+          return RoleNavigationHelper.getEmpresaRoute();
         }
 
         return '/marketplace';
@@ -135,10 +143,12 @@ class AppRouter {
 
       // Rutas públicas (no requieren autenticación)
       final publicRoutes = ['/login', '/register', '/verify-email', '/change-password', '/marketplace'];
+      final isPublicDynamic = state.matchedLocation.startsWith('/producto-detalle/') ||
+          state.matchedLocation.startsWith('/vendedor/');
       final isPublicRoute = publicRoutes.contains(state.matchedLocation);
 
       // Si no está autenticado y va a una ruta protegida, redirigir a marketplace
-      if (!isAuthenticated && !isPublicRoute && !isLoading) {
+      if (!isAuthenticated && !isPublicRoute && !isPublicDynamic && !isLoading) {
         return '/marketplace';
       }
 
@@ -224,6 +234,11 @@ class AppRouter {
         path: '/empresa/dashboard',
         name: 'empresa-dashboard',
         builder: (context, state) => const EmpresaDashboardPage(),
+      ),
+      GoRoute(
+        path: '/empresa/cliente',
+        name: 'empresa-cliente',
+        builder: (context, state) => const ClientePortalPage(),
       ),
       GoRoute(
         path: '/empresa/perfil',
@@ -778,6 +793,11 @@ class AppRouter {
         builder: (context, state) => const OrdenesServicioPage(),
       ),
       GoRoute(
+        path: '/empresa/mis-ordenes',
+        name: 'empresa-mis-ordenes',
+        builder: (context, state) => const OrdenesServicioPage(asCliente: true),
+      ),
+      GoRoute(
         path: '/empresa/ordenes/crear',
         name: 'empresa-ordenes-servicio-crear',
         builder: (context, state) => const OrdenServicioFormPage(),
@@ -824,6 +844,17 @@ class AppRouter {
           return TercerizacionDetailPage(tercerizacionId: id);
         },
       ),
+      // Ruta de notificaciones
+      GoRoute(
+        path: '/empresa/notificaciones',
+        name: 'empresa-notificaciones',
+        builder: (context, state) => const NotificacionesPage(),
+      ),
+      GoRoute(
+        path: '/empresa/notificaciones/preferencias',
+        name: 'empresa-notificaciones-preferencias',
+        builder: (context, state) => const PreferenciasNotificacionPage(),
+      ),
       // Rutas de citas
       GoRoute(
         path: '/empresa/citas',
@@ -831,9 +862,31 @@ class AppRouter {
         builder: (context, state) => const CitasPage(),
       ),
       GoRoute(
+        path: '/empresa/mis-citas',
+        name: 'empresa-mis-citas',
+        builder: (context, state) => const CitasPage(asCliente: true),
+      ),
+      GoRoute(
         path: '/empresa/citas/nueva',
         name: 'empresa-citas-nueva',
         builder: (context, state) => const NuevaCitaSheet(),
+      ),
+      GoRoute(
+        path: '/empresa/citas/clientes',
+        name: 'empresa-citas-clientes',
+        builder: (context, state) => const ClientesCitasPage(),
+      ),
+      GoRoute(
+        path: '/empresa/citas/historial-cliente',
+        name: 'empresa-citas-historial-cliente',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>;
+          return HistorialCitasClientePage(
+            clienteId: extra['clienteId'] as String,
+            clienteEmpresaId: extra['clienteEmpresaId'] as String?,
+            clienteNombre: extra['clienteNombre'] as String,
+          );
+        },
       ),
       GoRoute(
         path: '/empresa/citas/:id',
@@ -862,6 +915,22 @@ class AppRouter {
         path: '/marketplace',
         name: 'marketplace',
         builder: (context, state) => const MarketplacePage(),
+      ),
+      GoRoute(
+        path: '/producto-detalle/:id',
+        name: 'marketplace-producto-detail',
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return ProductoMarketplaceDetailPage(productoId: id);
+        },
+      ),
+      GoRoute(
+        path: '/vendedor/:subdominio',
+        name: 'vendedor-profile',
+        builder: (context, state) {
+          final subdominio = state.pathParameters['subdominio']!;
+          return EmpresaPublicProfilePage(subdominio: subdominio);
+        },
       ),
     ],
   );

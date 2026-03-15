@@ -90,6 +90,11 @@ dependencies:
   mobile_scanner: ^7.1.4
   cached_network_image: ^3.4.1
 
+  # Firebase & Push Notifications
+  firebase_core: ^4.5.0
+  firebase_messaging: ^16.1.2
+  flutter_local_notifications: ^18.0.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -147,6 +152,7 @@ flutter:
   # see https://flutter.dev/to/font-from-package
   assets:
     - assets/img/
+    - assets/banner/
     - assets/animations/
     - assets/icons/vehicle_marker.png
 

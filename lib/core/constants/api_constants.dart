@@ -82,6 +82,14 @@ class ApiConstants {
   // Endpoints de citas
   static const String citas = '/citas';
 
+  // Endpoints de notificaciones
+  static const String notificaciones = '/notificaciones';
+
+  // Endpoints de marketplace (público)
+  static const String marketplaceProductos = '/marketplace/productos';
+  static const String marketplaceCategorias = '/marketplace/categorias';
+  static const String marketplaceEmpresas = '/marketplace/empresas';
+
   // Endpoints de consultas externas (SUNAT/RENIEC)
   static const String consultaRuc = '/consultas/ruc';
   static const String consultaDni = '/consultas/dni';

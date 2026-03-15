@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 import '../../di/injection_container.dart';
 import '../../observers/smart_bloc_observer.dart';
 import '../../services/logger_service.dart';
+import '../../services/push_notification_service.dart';
 import '../screens/splash_screen.dart';
 
 /// Widget que maneja la inicialización asíncrona de la aplicación
@@ -42,12 +44,18 @@ class _AppInitializerState extends State<AppInitializer> {
       final splashStartTime = DateTime.now();
       const minSplashDuration = Duration(milliseconds: 1500); // 1.5 segundos
 
+      // Inicializar Firebase
+      await Firebase.initializeApp();
+
       // Configurar inyección de dependencias
       await configureDependencies();
 
       // Configurar observador inteligente de BLoC
       final loggerService = locator<LoggerService>();
       Bloc.observer = SmartBlocObserver(loggerService.talker);
+
+      // Inicializar push notifications
+      await PushNotificationService().initialize();
 
       // Asegurar que el splash se muestre por el tiempo mínimo
       final elapsedTime = DateTime.now().difference(splashStartTime);

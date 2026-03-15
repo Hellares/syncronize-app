@@ -85,6 +85,7 @@ class CitaFormCubit extends Cubit<CitaFormState> {
     String? notas,
     String? motivoCancelacion,
     bool generarOrden = false,
+    Map<String, dynamic>? siguienteCita,
   }) async {
     emit(const CitaFormLoading());
 
@@ -94,6 +95,7 @@ class CitaFormCubit extends Cubit<CitaFormState> {
     if (notas != null) data['notas'] = notas;
     if (motivoCancelacion != null) data['motivoCancelacion'] = motivoCancelacion;
     if (generarOrden) data['generarOrden'] = true;
+    if (siguienteCita != null) data['siguienteCita'] = siguienteCita;
 
     final result = await _repository.transitionEstado(id, data);
     if (isClosed) return;

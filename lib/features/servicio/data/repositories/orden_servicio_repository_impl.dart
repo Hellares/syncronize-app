@@ -110,6 +110,33 @@ class OrdenServicioRepositoryImpl implements OrdenServicioRepository {
   }
 
   @override
+  Future<Resource<OrdenesServicioPaginadas>> getMisOrdenes({
+    required OrdenServicioFiltros filtros,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final response = await _remoteDataSource.getMisOrdenes(filtros: filtros);
+
+      final rawData = response['data'];
+      final items = (rawData is List ? rawData : <dynamic>[])
+          .map((e) => OrdenServicioModel.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+      final meta = response['meta'] as Map<String, dynamic>? ?? {};
+      return Success(OrdenesServicioPaginadas(
+        data: items,
+        total: meta['total'] as int? ?? 0,
+        hasNext: meta['hasNext'] as bool? ?? false,
+        nextCursor: meta['nextCursor'] as String?,
+      ));
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'MisOrdenes');
+    }
+  }
+
+  @override
   Future<Resource<OrdenServicio>> getOrden({
     required String id,
     required String empresaId,

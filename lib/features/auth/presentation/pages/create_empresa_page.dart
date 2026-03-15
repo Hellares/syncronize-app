@@ -11,6 +11,7 @@ import 'package:syncronize/core/widgets/smart_appbar.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/utils/resource.dart';
 import '../../../../core/widgets/snack_bar_helper.dart';
+import '../bloc/auth/auth_bloc.dart';
 import '../../domain/entities/rubro_empresa.dart';
 import '../../../catalogo/presentation/bloc/catalogo_preview/catalogo_preview_cubit.dart';
 import '../../../catalogo/presentation/widgets/catalogo_preview_widget.dart';
@@ -57,6 +58,22 @@ class _CreateEmpresaViewState extends State<_CreateEmpresaView> {
   RubroEmpresa? _selectedRubro;
 
   @override
+  void initState() {
+    super.initState();
+    // Validar perfil completo antes de mostrar el formulario
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final authState = context.read<AuthBloc>().state;
+      if (authState is Authenticated && !authState.user.perfilCompleto) {
+        SnackBarHelper.showInfo(
+          context,
+          'Debes completar tu perfil antes de crear una empresa',
+        );
+        context.pushReplacement('/complete-profile');
+      }
+    });
+  }
+
+  @override
   void dispose() {
     _rucController.dispose();
     _nombreController.dispose();
@@ -83,19 +100,20 @@ class _CreateEmpresaViewState extends State<_CreateEmpresaView> {
           child: BlocConsumer<CreateEmpresaCubit, CreateEmpresaState>(
             listener: (context, state) {
               final response = state.response;
-        
+
               if (response is Success) {
                 SnackBarHelper.showSuccess(
                   context,
                   'Empresa creada exitosamente',
                 );
-                context.pop();
+                context.go('/empresa/select');
               } else if (response is Error) {
-                if (response.errorCode == 'PROFILE_INCOMPLETE') {
+                final errorResponse = response;
+                if (errorResponse.errorCode == 'PROFILE_INCOMPLETE') {
                   SnackBarHelper.showError(context, 'Debes completar tu perfil primero');
                   context.push('/complete-profile');
                 } else {
-                  SnackBarHelper.showError(context, response.message);
+                  SnackBarHelper.showError(context, errorResponse.message);
                 }
               }
             },

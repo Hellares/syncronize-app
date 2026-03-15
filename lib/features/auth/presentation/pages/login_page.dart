@@ -12,7 +12,9 @@ import '../../../../core/widgets/snack_bar_helper.dart';
 import '../../../../core/storage/local_storage_service.dart';
 import '../../../../core/constants/storage_constants.dart';
 
+import '../../../../core/utils/role_navigation_helper.dart';
 import '../../domain/entities/auth_response.dart';
+import '../../../empresa/domain/usecases/switch_empresa_usecase.dart';
 import '../bloc/auth/auth_bloc.dart';
 import '../bloc/login/login_cubit.dart';
 
@@ -158,29 +160,67 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
 
                 // Verificar si requiere selección de modo
                 if (authResponse.requiresSelection == true && authResponse.options != null) {
+                  // Tokens ya fueron guardados por el repository (login #1)
+                  // Notificar AuthBloc del login exitoso
+                  if (context.mounted) {
+                    context.read<AuthBloc>().add(UserLoggedInEvent(user: user));
+                  }
+
                   // Mostrar selector de modo (Marketplace vs Management)
                   ModeSelectionBottomSheet.show(
                     context: context,
                     modeOptions: authResponse.options!,
-                    onModeSelected: (modeType, subdominioEmpresa) {
+                    onModeSelected: (modeType, subdominioEmpresa) async {
                       // Cerrar el bottom sheet
                       Navigator.pop(context);
 
-                      // Hacer segundo login con el modo seleccionado
+                      final localStorage = locator<LocalStorageService>();
+
                       if (modeType == 'marketplace') {
-                        context.read<LoginCubit>().loginWithMode(
-                          email: state.email.value.trim(),
-                          password: state.password.value,
-                          loginMode: 'marketplace',
-                        );
+                        // Marketplace: no necesita switch-tenant, navegar directo
+                        await localStorage.setString(StorageConstants.loginMode, 'marketplace');
+                        if (context.mounted) {
+                          context.go('/marketplace');
+                        }
                       } else {
-                        // Modo management
-                        context.read<LoginCubit>().loginWithMode(
-                          email: state.email.value.trim(),
-                          password: state.password.value,
-                          loginMode: 'management',
-                          subdominioEmpresa: subdominioEmpresa,
+                        // Management: usar switch-tenant (sin re-autenticar)
+                        final switchUseCase = locator<SwitchEmpresaUseCase>();
+
+                        // Buscar empresa seleccionada en las opciones
+                        String empresaId = '';
+                        String empresaNombre = '';
+                        String? empresaRole;
+                        for (final option in authResponse.options!) {
+                          if (option.availableCompanies != null) {
+                            for (final company in option.availableCompanies!) {
+                              if (company.subdominio == subdominioEmpresa) {
+                                empresaId = company.id;
+                                empresaNombre = company.nombre;
+                                empresaRole = company.roles.isNotEmpty ? company.roles.first : null;
+                                break;
+                              }
+                            }
+                          }
+                        }
+
+                        final switchResult = await switchUseCase(
+                          empresaId: empresaId,
+                          subdominio: subdominioEmpresa,
+                          empresaNombre: empresaNombre,
+                          empresaRole: empresaRole,
                         );
+
+                        if (switchResult is Error) {
+                          if (context.mounted) {
+                            SnackBarHelper.showError(context, switchResult.message);
+                          }
+                          return;
+                        }
+
+                        await localStorage.setString(StorageConstants.loginMode, 'management');
+                        if (context.mounted) {
+                          context.go(RoleNavigationHelper.getEmpresaRoute());
+                        }
                       }
                     },
                   );
@@ -204,7 +244,7 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                 } else {
                   // Navegar según el modo de login
                   if (loginMode == 'management') {
-                    context.go('/empresa/dashboard');
+                    context.go(RoleNavigationHelper.getEmpresaRoute());
                   } else {
                     context.go('/marketplace');
                   }

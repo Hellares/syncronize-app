@@ -80,6 +80,8 @@ class _EmpresaSwitchBottomSheetState extends State<EmpresaSwitchBottomSheet> {
     final switchResult = await _switchEmpresaUseCase(
       empresaId: empresa.id,
       subdominio: empresa.subdominio,
+      empresaNombre: empresa.nombre,
+      empresaRole: empresa.primaryRole,
     );
 
     if (switchResult is Error) {
@@ -146,9 +148,10 @@ class _EmpresaSwitchBottomSheetState extends State<EmpresaSwitchBottomSheet> {
       );
     }
 
-    // 3. Actualizar el storage local
-    await _localStorage.setString(StorageConstants.tenantId, empresa.id);
-    await _localStorage.setString(StorageConstants.tenantName, empresa.nombre);
+    // 3. Actualizar el storage local (tenantId y tenantName ya fueron guardados por el repository)
+    if (empresa.primaryRole != null) {
+      await _localStorage.setString(StorageConstants.tenantRole, empresa.primaryRole!);
+    }
     await _localStorage.setString(StorageConstants.loginMode, 'management');
 
     // 4. Recargar el contexto de la nueva empresa

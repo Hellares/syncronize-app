@@ -21,6 +21,7 @@ import '../widgets/plan_suscripcion_card.dart';
 import '../widgets/roles_permisos_section.dart';
 import '../widgets/sedes_section.dart';
 import '../widgets/usage_limit_card.dart';
+import '../../../../core/widgets/notification_bell.dart';
 
 class EmpresaDashboardPage extends StatefulWidget {
   const EmpresaDashboardPage({super.key});
@@ -160,6 +161,7 @@ class _EmpresaDashboardPageState extends State<EmpresaDashboardPage> {
               ),
             ],
           ),
+        const NotificationBell(),
         IconButton(
           icon: const Icon(Icons.refresh, size: 18),
           onPressed: () {

@@ -56,6 +56,11 @@ class EmpresaListItem extends Equatable {
     return roles.contains('SUPER_ADMIN') || roles.contains('EMPRESA_ADMIN');
   }
 
+  /// Verifica si el usuario solo es cliente en esta empresa
+  bool get isOnlyCliente {
+    return roles.length == 1 && roles.contains('CLIENTE');
+  }
+
   /// Verifica si la suscripción está activa
   bool get isSubscriptionActive {
     return estadoSuscripcion == 'ACTIVA';
