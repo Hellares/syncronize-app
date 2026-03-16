@@ -108,6 +108,15 @@ dev_dependencies:
   build_runner: ^2.4.13
   injectable_generator: ^2.6.2
   json_serializable: ^6.9.2
+  flutter_launcher_icons: ^0.14.3
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/iconapp/iconapp.png"
+  remove_alpha_ios: false
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/iconapp/iconapp.png"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -155,6 +164,7 @@ flutter:
     - assets/banner/
     - assets/animations/
     - assets/icons/vehicle_marker.png
+    - assets/iconapp/iconapp.png
 
   fonts:
     - family: Airstrike3D

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:syncronize/core/fonts/app_fonts.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
@@ -11,7 +12,6 @@ import 'package:syncronize/core/widgets/animated_container.dart';
 import 'package:syncronize/core/widgets/custom_button.dart';
 import 'package:syncronize/core/widgets/custom_dropdown.dart';
 import 'package:syncronize/core/widgets/custom_switch_tile.dart';
-import 'package:syncronize/core/widgets/floating_button_text.dart';
 import 'package:syncronize/core/widgets/popup_item.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import '../../../../core/di/injection_container.dart';
@@ -98,11 +98,12 @@ class _PlantillasServicioPageState extends State<PlantillasServicioPage> {
           ],
         ),
       ),
-      floatingActionButton: FloatingButtonText(
-        width: 140,
-        onPressed: () => _showPlantillaDialog(),
-        icon: Icons.add,
-        label: 'Nueva Plantilla',
+      floatingActionButton: _PlantillaSpeedDial(
+        onNuevaPlantilla: () => _showPlantillaDialog(),
+        onCatalogo: () async {
+          final result = await context.push('/empresa/catalogo-plantillas-servicio');
+          if (result == true) _load();
+        },
       ),
     );
   }
@@ -141,11 +142,28 @@ class _PlantillasServicioPageState extends State<PlantillasServicioPage> {
               style: const TextStyle(fontSize: 16, color: Colors.grey),
             ),
             const SizedBox(height: 8),
-            if (_searchQuery.isEmpty)
+            if (_searchQuery.isEmpty) ...[
               const Text(
                 'Presiona el boton + para crear una',
                 style: TextStyle(fontSize: 14, color: Colors.grey),
               ),
+              const SizedBox(height: 12),
+              TextButton.icon(
+                onPressed: () async {
+                  final result = await context.push('/empresa/catalogo-plantillas-servicio');
+                  if (result == true) _load();
+                },
+                icon: const Icon(Icons.auto_awesome, size: 16, color: AppColors.blue2),
+                label: Text(
+                  'O usa una plantilla del catálogo',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.blue2,
+                    fontFamily: AppFonts.getFontFamily(AppFont.oxygenBold),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       );
@@ -1034,6 +1052,184 @@ class _PlantillaListTile extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Speed Dial FAB con opciones de Nueva Plantilla y Catálogo
+class _PlantillaSpeedDial extends StatefulWidget {
+  final VoidCallback onNuevaPlantilla;
+  final VoidCallback onCatalogo;
+
+  const _PlantillaSpeedDial({
+    required this.onNuevaPlantilla,
+    required this.onCatalogo,
+  });
+
+  @override
+  State<_PlantillaSpeedDial> createState() => _PlantillaSpeedDialState();
+}
+
+class _PlantillaSpeedDialState extends State<_PlantillaSpeedDial>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _expandAnimation;
+  bool _isOpen = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 250),
+    );
+    _expandAnimation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOut,
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _toggle() {
+    setState(() {
+      _isOpen = !_isOpen;
+      if (_isOpen) {
+        _controller.forward();
+      } else {
+        _controller.reverse();
+      }
+    });
+  }
+
+  void _close() {
+    if (_isOpen) {
+      setState(() => _isOpen = false);
+      _controller.reverse();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 200,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          // Opciones del dial
+          SizeTransition(
+            sizeFactor: _expandAnimation,
+            axisAlignment: -1,
+            child: FadeTransition(
+              opacity: _expandAnimation,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _SpeedDialItem(
+                      label: 'Catálogo de plantillas',
+                      icon: Icons.auto_awesome,
+                      color: AppColors.blue1,
+                      onTap: () {
+                        _close();
+                        widget.onCatalogo();
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    _SpeedDialItem(
+                      label: 'Nueva plantilla',
+                      icon: Icons.add,
+                      color: AppColors.blue2,
+                      onTap: () {
+                        _close();
+                        widget.onNuevaPlantilla();
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // FAB principal
+          FloatingActionButton.small(
+            heroTag: 'plantilla_dial',
+            onPressed: _toggle,
+            backgroundColor: _isOpen ? Colors.grey.shade700 : AppColors.blue2,
+            child: AnimatedRotation(
+              turns: _isOpen ? 0.125 : 0,
+              duration: const Duration(milliseconds: 250),
+              child: Icon(
+                _isOpen ? Icons.close : Icons.add,
+                color: Colors.white,
+                size: 20,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SpeedDialItem extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _SpeedDialItem({
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Label
+        Material(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(6),
+          elevation: 2,
+          shadowColor: Colors.black26,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(6),
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.blue1,
+                  fontFamily: AppFonts.getFontFamily(AppFont.oxygenBold),
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        // Mini FAB
+        FloatingActionButton.small(
+          heroTag: 'dial_$label',
+          onPressed: onTap,
+          backgroundColor: color,
+          elevation: 2,
+          child: Icon(icon, color: Colors.white, size: 18),
         ),
       ],
     );

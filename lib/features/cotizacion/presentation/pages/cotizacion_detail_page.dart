@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
 import '../../../../core/di/injection_container.dart';
@@ -504,6 +505,56 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
           label: const Text('Enviar a Pendiente'),
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.blue1,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ),
+      ));
+    } else if (cot.estado == EstadoCotizacion.aprobada) {
+      actions.add(Expanded(
+        child: ElevatedButton.icon(
+          onPressed: () {
+            showDialog(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
+                title: const Text('Convertir a Venta',
+                    style:
+                        TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                content: const Text(
+                  'Se creara una venta con los datos de esta cotizacion. ¿Desea continuar?',
+                  style: TextStyle(fontSize: 13),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Cancelar'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      context.push(
+                        '/empresa/ventas/desde-cotizacion/${cot.id}',
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Convertir'),
+                  ),
+                ],
+              ),
+            );
+          },
+          icon: const Icon(Icons.point_of_sale, size: 18),
+          label: const Text('Convertir a Venta'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.green,
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 12),
             shape: RoundedRectangleBorder(

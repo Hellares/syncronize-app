@@ -193,7 +193,7 @@ class _GuestDrawerContent extends StatelessWidget {
                 ),
                 onTap: () {
                   Navigator.pop(context);
-                  // TODO: Navegar a acerca de
+                  context.push('/about');
                 },
               ),
             ],

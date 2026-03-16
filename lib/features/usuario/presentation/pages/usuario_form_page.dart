@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:syncronize/core/theme/app_gradients.dart';
@@ -12,7 +13,7 @@ import '../../../../core/theme/gradient_container.dart';
 import '../../../../core/utils/resource.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../../../core/widgets/custom_dropdown.dart';
-import '../../../../core/widgets/floating_button_icon.dart';
+import '../../../../core/widgets/custom_search_field.dart';
 import '../../../../core/widgets/snack_bar_helper.dart';
 import '../../../auth/presentation/widgets/custom_button.dart';
 import '../../../auth/presentation/widgets/custom_text.dart'
@@ -311,52 +312,60 @@ class _UsuarioFormPageState extends State<UsuarioFormPage> {
               style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
             ),
             const SizedBox(height: 14),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: CustomText(
-                    controller: _dniController,
-                    label: 'DNI',
-                    hintText: '12345678',
-                    fieldType: FieldType.number,
-                    maxLength: 8,
-                    prefixIcon: const Icon(Icons.badge_outlined),
-                    borderColor: AppColors.blue1,
-                    enabled: !_isLookingUpDni,
-                    externalError: _dniError,
-                    onChanged: _onDniChanged,
+            CustomSearchField(
+              controller: _dniController,
+              label: 'DNI',
+              hintText: '12345678',
+              borderColor: AppColors.blue1,
+              enabled: !_isLookingUpDni,
+              maxLength: 8,
+              searchIcon: Icons.badge_outlined,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              debounceDelay: Duration.zero,
+              onChanged: _onDniChanged,
+              onSubmitted: (_) => _lookupDni(),
+              showClearButton: !_isLookingUpDni && _dniController.text.isNotEmpty,
+              onClear: () => _onDniChanged(''),
+              actionButtons: [
+                if (_isLookingUpDni)
+                  const Padding(
+                    padding: EdgeInsets.only(right: 8),
+                    child: SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 1.5,
+                        color: AppColors.blue2,
+                      ),
+                    ),
+                  )
+                else
+                  IconButton(
+                    icon: const Icon(Icons.search, size: 20),
+                    color: AppColors.blue2,
+                    onPressed: _dniController.text.length == 8
+                        ? _lookupDni
+                        : null,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 32,
+                      minHeight: 32,
+                    ),
+                    splashRadius: 16,
                   ),
-                ),
-                const SizedBox(width: 12),
-                Padding(
-                  padding: const EdgeInsets.only(top: 12),
-                  child: _isLookingUpDni
-                      ? const SizedBox(
-                          width: 35,
-                          height: 35,
-                          child: Center(
-                            child: SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 1,
-                                color: AppColors.blue2,
-                              ),
-                            ),
-                          ),
-                        )
-                      : FloatingButtonIcon(
-                          size: 35,
-                          icon: Icons.search,
-                          backgroundColor: AppColors.blue2,
-                          onPressed: _dniController.text.length != 8
-                              ? () {}
-                              : _lookupDni,
-                        ),
-                ),
               ],
             ),
+            if (_dniError != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                _dniError!,
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: Colors.red,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
             if (_dniFieldsFilled) ...[
               const SizedBox(height: 10),
               Container(

@@ -201,6 +201,27 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/cotizaciones')),
             ),
             _TileNode(
+              title: 'Ventas',
+              icon: Icons.point_of_sale,
+              iconColor: AppColors.blue2,
+              routeMatch: const _RouteMatch.startsWith('/empresa/ventas'),
+              onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/ventas')),
+            ),
+            _TileNode(
+              title: 'Devoluciones',
+              icon: Icons.assignment_return,
+              iconColor: AppColors.blue2,
+              routeMatch: const _RouteMatch.startsWith('/empresa/devoluciones'),
+              onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/devoluciones')),
+            ),
+            _TileNode(
+              title: 'Reportes Ventas',
+              icon: Icons.bar_chart,
+              iconColor: AppColors.blue2,
+              routeMatch: const _RouteMatch.startsWith('/empresa/ventas/analytics'),
+              onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/ventas/analytics')),
+            ),
+            _TileNode(
               visible: permissions?.canViewDiscounts ?? false,
               title: 'Políticas de Descuento',
               icon: Icons.discount,
@@ -240,15 +261,14 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               routeMatch: const _RouteMatch.startsWith('/empresa/citas/clientes'),
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/citas/clientes')),
             ),
-            // Plantillas de Servicio oculto del drawer — se gestionan desde el form de servicio
-            // _TileNode(
-            //   visible: permissions?.canManageServices ?? false,
-            //   title: 'Plantillas de Servicio',
-            //   icon: Icons.view_list,
-            //   iconColor: AppColors.blue2,
-            //   routeMatch: const _RouteMatch.startsWith('/empresa/plantillas-servicio'),
-            //   onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/plantillas-servicio')),
-            // ),
+            _TileNode(
+              visible: permissions?.canManageServices ?? false,
+              title: 'Plantillas de Servicio',
+              icon: Icons.view_list,
+              iconColor: AppColors.blue2,
+              routeMatch: const _RouteMatch.startsWith('/empresa/plantillas-servicio'),
+              onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/plantillas-servicio')),
+            ),
             // Campos de Servicio oculto del drawer — se gestionan desde plantillas
             // _TileNode(
             //   visible: permissions?.canManageServices ?? false,

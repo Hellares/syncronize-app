@@ -53,6 +53,11 @@ import 'package:syncronize/features/reporte_incidencia/presentation/bloc/sedes_s
 import 'package:syncronize/features/producto/presentation/bloc/compatibilidad/compatibilidad_cubit.dart';
 import 'package:syncronize/features/cotizacion/presentation/bloc/cotizacion_list/cotizacion_list_cubit.dart';
 import 'package:syncronize/features/cotizacion/presentation/bloc/cotizacion_form/cotizacion_form_cubit.dart';
+import 'package:syncronize/features/venta/presentation/bloc/venta_list/venta_list_cubit.dart';
+import 'package:syncronize/features/venta/presentation/bloc/venta_form/venta_form_cubit.dart';
+import 'package:syncronize/features/venta/presentation/bloc/venta_analytics/venta_analytics_cubit.dart';
+import 'package:syncronize/features/devolucion_venta/presentation/bloc/devolucion_list/devolucion_list_cubit.dart';
+import 'package:syncronize/features/devolucion_venta/presentation/bloc/devolucion_form/devolucion_form_cubit.dart';
 import 'package:syncronize/features/empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_cubit.dart';
 import 'package:syncronize/features/configuracion_documentos/presentation/bloc/configuracion_documentos_cubit.dart';
 import 'package:syncronize/features/compra/presentation/bloc/orden_compra_list/orden_compra_list_cubit.dart';
@@ -410,6 +415,36 @@ List<BlocProvider> blocProviders = [
   // Cotizacion Form Cubit - Maneja el formulario de cotizaciones
   BlocProvider<CotizacionFormCubit>(
     create: (context) => locator<CotizacionFormCubit>(),
+    lazy: true,
+  ),
+
+  // Venta List Cubit - Maneja la lista de ventas
+  BlocProvider<VentaListCubit>(
+    create: (context) => locator<VentaListCubit>(),
+    lazy: true,
+  ),
+
+  // Venta Form Cubit - Maneja el formulario de ventas
+  BlocProvider<VentaFormCubit>(
+    create: (context) => locator<VentaFormCubit>(),
+    lazy: true,
+  ),
+
+  // Venta Analytics Cubit
+  BlocProvider<VentaAnalyticsCubit>(
+    create: (context) => locator<VentaAnalyticsCubit>(),
+    lazy: true,
+  ),
+
+  // Devolucion List Cubit
+  BlocProvider<DevolucionListCubit>(
+    create: (context) => locator<DevolucionListCubit>(),
+    lazy: true,
+  ),
+
+  // Devolucion Form Cubit
+  BlocProvider<DevolucionFormCubit>(
+    create: (context) => locator<DevolucionFormCubit>(),
     lazy: true,
   ),
 

@@ -1,0 +1,148 @@
+import '../../domain/entities/venta.dart';
+import '../../domain/entities/venta_detalle.dart';
+import '../../domain/entities/pago_venta.dart';
+import 'venta_detalle_model.dart';
+import 'pago_venta_model.dart';
+
+class VentaModel extends Venta {
+  const VentaModel({
+    required super.id,
+    required super.empresaId,
+    required super.sedeId,
+    super.clienteId,
+    super.clienteEmpresaId,
+    required super.vendedorId,
+    super.cotizacionId,
+    required super.codigo,
+    required super.nombreCliente,
+    super.documentoCliente,
+    super.emailCliente,
+    super.telefonoCliente,
+    super.direccionCliente,
+    super.moneda,
+    super.tipoCambio,
+    required super.subtotal,
+    super.descuento,
+    super.impuestos,
+    required super.total,
+    required super.estado,
+    super.metodoPago,
+    super.montoRecibido,
+    super.montoCambio,
+    super.esCredito,
+    super.plazoCredito,
+    super.fechaVencimientoPago,
+    required super.fechaVenta,
+    super.observaciones,
+    required super.creadoEn,
+    required super.actualizadoEn,
+    super.sedeNombre,
+    super.vendedorNombre,
+    super.clienteNombreCompleto,
+    super.cotizacionCodigo,
+    super.detalles,
+    super.pagos,
+    super.cantidadDetalles,
+    super.cantidadPagos,
+  });
+
+  factory VentaModel.fromJson(Map<String, dynamic> json) {
+    final sede = json['sede'] as Map<String, dynamic>?;
+    final vendedor = json['vendedor'] as Map<String, dynamic>?;
+    final cliente = json['cliente'] as Map<String, dynamic>?;
+    final cotizacion = json['cotizacion'] as Map<String, dynamic>?;
+    final count = json['_count'] as Map<String, dynamic>?;
+
+    String? vendedorNombre;
+    if (vendedor != null) {
+      final persona = vendedor['persona'] as Map<String, dynamic>?;
+      if (persona != null) {
+        vendedorNombre =
+            '${persona['nombres'] ?? ''} ${persona['apellidos'] ?? ''}'.trim();
+      }
+    }
+
+    String? clienteNombreCompleto;
+    if (cliente != null) {
+      final persona = cliente['persona'] as Map<String, dynamic>?;
+      if (persona != null) {
+        clienteNombreCompleto =
+            '${persona['nombres'] ?? ''} ${persona['apellidos'] ?? ''}'.trim();
+      }
+    }
+
+    List<VentaDetalle>? detalles;
+    if (json['detalles'] != null) {
+      detalles = (json['detalles'] as List)
+          .map((e) => VentaDetalleModel.fromJson(e as Map<String, dynamic>))
+          .toList();
+    }
+
+    List<PagoVenta>? pagos;
+    if (json['pagos'] != null) {
+      pagos = (json['pagos'] as List)
+          .map((e) => PagoVentaModel.fromJson(e as Map<String, dynamic>))
+          .toList();
+    }
+
+    return VentaModel(
+      id: json['id'] as String,
+      empresaId: json['empresaId'] as String,
+      sedeId: json['sedeId'] as String,
+      clienteId: json['clienteId'] as String?,
+      clienteEmpresaId: json['clienteEmpresaId'] as String?,
+      vendedorId: json['vendedorId'] as String,
+      cotizacionId: json['cotizacionId'] as String?,
+      codigo: json['codigo'] as String,
+      nombreCliente: json['nombreCliente'] as String,
+      documentoCliente: json['documentoCliente'] as String?,
+      emailCliente: json['emailCliente'] as String?,
+      telefonoCliente: json['telefonoCliente'] as String?,
+      direccionCliente: json['direccionCliente'] as String?,
+      moneda: json['moneda'] as String? ?? 'PEN',
+      tipoCambio: _toDoubleNullable(json['tipoCambio']),
+      subtotal: _toDouble(json['subtotal']),
+      descuento: _toDouble(json['descuento'] ?? 0),
+      impuestos: _toDouble(json['impuestos'] ?? 0),
+      total: _toDouble(json['total']),
+      estado: EstadoVenta.fromString(json['estado'] as String),
+      metodoPago: json['metodoPago'] != null
+          ? MetodoPago.fromString(json['metodoPago'] as String)
+          : null,
+      montoRecibido: _toDoubleNullable(json['montoRecibido']),
+      montoCambio: _toDoubleNullable(json['montoCambio']),
+      esCredito: json['esCredito'] as bool? ?? false,
+      plazoCredito: json['plazoCredito'] as int?,
+      fechaVencimientoPago: json['fechaVencimientoPago'] != null
+          ? DateTime.parse(json['fechaVencimientoPago'] as String)
+          : null,
+      fechaVenta: DateTime.parse(json['fechaVenta'] as String),
+      observaciones: json['observaciones'] as String?,
+      creadoEn: DateTime.parse(json['creadoEn'] as String),
+      actualizadoEn: DateTime.parse(json['actualizadoEn'] as String),
+      sedeNombre: sede?['nombre'] as String?,
+      vendedorNombre: vendedorNombre,
+      clienteNombreCompleto: clienteNombreCompleto,
+      cotizacionCodigo: cotizacion?['codigo'] as String?,
+      detalles: detalles,
+      pagos: pagos,
+      cantidadDetalles: count?['detalles'] as int?,
+      cantidadPagos: count?['pagos'] as int?,
+    );
+  }
+
+  Venta toEntity() => this;
+
+  static double _toDouble(dynamic value) {
+    if (value == null) return 0;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? 0;
+    return 0;
+  }
+
+  static double? _toDoubleNullable(dynamic value) {
+    if (value == null) return null;
+    return _toDouble(value);
+  }
+}

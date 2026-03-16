@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/presentation/screens/about_page.dart';
 import '../../core/presentation/screens/splash_screen.dart';
 import '../../features/auth/presentation/bloc/auth/auth_bloc.dart';
 import '../../core/di/injection_container.dart';
@@ -64,6 +65,14 @@ import '../../features/reporte_incidencia/presentation/pages/agregar_item_report
 import '../../features/cotizacion/presentation/pages/cotizaciones_page.dart';
 import '../../features/cotizacion/presentation/pages/cotizacion_form_page.dart';
 import '../../features/cotizacion/presentation/pages/cotizacion_detail_page.dart';
+import '../../features/venta/presentation/pages/ventas_page.dart';
+import '../../features/venta/presentation/pages/venta_form_page.dart';
+import '../../features/venta/presentation/pages/venta_detail_page.dart';
+import '../../features/venta/presentation/pages/venta_ticket_preview_page.dart';
+import '../../features/venta/presentation/pages/venta_analytics_page.dart';
+import '../../features/devolucion_venta/presentation/pages/devoluciones_venta_page.dart';
+import '../../features/devolucion_venta/presentation/pages/devolucion_venta_form_page.dart';
+import '../../features/devolucion_venta/presentation/pages/devolucion_venta_detail_page.dart';
 import '../../features/configuracion_documentos/presentation/pages/configuracion_documentos_page.dart';
 import '../../features/compra/presentation/pages/ordenes_compra_page.dart';
 import '../../features/compra/presentation/pages/orden_compra_detail_page.dart';
@@ -86,6 +95,7 @@ import '../../features/servicio/presentation/pages/ordenes_servicio_page.dart';
 import '../../features/servicio/presentation/pages/orden_servicio_form_page.dart';
 import '../../features/servicio/presentation/pages/orden_servicio_detail_page.dart';
 import '../../features/servicio/presentation/pages/servicio_dashboard_page.dart';
+import '../../features/servicio/presentation/pages/catalogo_plantillas_page.dart';
 import '../../features/servicio/presentation/pages/plantillas_servicio_page.dart';
 import '../../features/aviso_mantenimiento/presentation/pages/avisos_mantenimiento_page.dart';
 import '../../features/tercerizacion/presentation/pages/tercerizacion_list_page.dart';
@@ -142,7 +152,7 @@ class AppRouter {
       }
 
       // Rutas públicas (no requieren autenticación)
-      final publicRoutes = ['/login', '/register', '/verify-email', '/change-password', '/marketplace'];
+      final publicRoutes = ['/login', '/register', '/verify-email', '/change-password', '/marketplace', '/about'];
       final isPublicDynamic = state.matchedLocation.startsWith('/producto-detalle/') ||
           state.matchedLocation.startsWith('/vendedor/');
       final isPublicRoute = publicRoutes.contains(state.matchedLocation);
@@ -646,6 +656,74 @@ class AppRouter {
           return CotizacionDetailPage(cotizacionId: cotizacionId);
         },
       ),
+      // Rutas de ventas
+      GoRoute(
+        path: '/empresa/ventas',
+        name: 'empresa-ventas',
+        builder: (context, state) => const VentasPage(),
+      ),
+      GoRoute(
+        path: '/empresa/ventas/nueva',
+        name: 'empresa-ventas-nueva',
+        builder: (context, state) => const VentaFormPage(),
+      ),
+      GoRoute(
+        path: '/empresa/ventas/desde-cotizacion/:id',
+        name: 'empresa-ventas-desde-cotizacion',
+        builder: (context, state) {
+          final cotizacionId = state.pathParameters['id']!;
+          return VentaFormPage(cotizacionId: cotizacionId);
+        },
+      ),
+      GoRoute(
+        path: '/empresa/ventas/:id',
+        name: 'empresa-ventas-detail',
+        builder: (context, state) {
+          final ventaId = state.pathParameters['id']!;
+          return VentaDetailPage(ventaId: ventaId);
+        },
+      ),
+      GoRoute(
+        path: '/empresa/ventas/:id/ticket',
+        name: 'empresa-ventas-ticket',
+        builder: (context, state) {
+          final ventaId = state.pathParameters['id']!;
+          return VentaTicketPreviewPage(ventaId: ventaId);
+        },
+      ),
+      // Rutas de analytics de ventas
+      GoRoute(
+        path: '/empresa/ventas/analytics',
+        name: 'empresa-ventas-analytics',
+        builder: (context, state) => const VentaAnalyticsPage(),
+      ),
+      // Rutas de devoluciones
+      GoRoute(
+        path: '/empresa/devoluciones',
+        name: 'empresa-devoluciones',
+        builder: (context, state) => const DevolucionesVentaPage(),
+      ),
+      GoRoute(
+        path: '/empresa/devoluciones/nueva',
+        name: 'empresa-devoluciones-nueva',
+        builder: (context, state) => const DevolucionVentaFormPage(),
+      ),
+      GoRoute(
+        path: '/empresa/devoluciones/desde-venta/:ventaId',
+        name: 'empresa-devoluciones-desde-venta',
+        builder: (context, state) {
+          final ventaId = state.pathParameters['ventaId']!;
+          return DevolucionVentaFormPage(ventaId: ventaId);
+        },
+      ),
+      GoRoute(
+        path: '/empresa/devoluciones/:id',
+        name: 'empresa-devoluciones-detail',
+        builder: (context, state) {
+          final devolucionId = state.pathParameters['id']!;
+          return DevolucionVentaDetailPage(devolucionId: devolucionId);
+        },
+      ),
       // Rutas de compras - Órdenes de Compra
       GoRoute(
         path: '/empresa/compras/ordenes',
@@ -780,6 +858,11 @@ class AppRouter {
         name: 'empresa-plantillas-servicio',
         builder: (context, state) => const PlantillasServicioPage(),
       ),
+      GoRoute(
+        path: '/empresa/catalogo-plantillas-servicio',
+        name: 'empresa-catalogo-plantillas-servicio',
+        builder: (context, state) => const CatalogoPlantillasPage(),
+      ),
       // Rutas de avisos de mantenimiento
       GoRoute(
         path: '/empresa/avisos-mantenimiento',
@@ -909,6 +992,12 @@ class AppRouter {
           final id = state.pathParameters['id']!;
           return VinculacionDetailPage(vinculacionId: id);
         },
+      ),
+      // Ruta de Acerca de
+      GoRoute(
+        path: '/about',
+        name: 'about',
+        builder: (context, state) => const AboutPage(),
       ),
       // Ruta placeholder para marketplace (por implementar)
       GoRoute(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
@@ -7,6 +8,7 @@ import 'package:syncronize/core/theme/app_gradients.dart';
 import 'package:syncronize/core/theme/gradient_background.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/widgets/container_large.dart';
+import 'package:syncronize/core/widgets/custom_search_field.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/utils/resource.dart';
@@ -18,8 +20,7 @@ import '../../../catalogo/presentation/widgets/catalogo_preview_widget.dart';
 import '../../../consultas_externas/presentation/bloc/consulta_ruc_cubit.dart';
 import '../bloc/create_empresa/create_empresa_cubit.dart';
 import '../../../../core/widgets/custom_dropdown.dart';
-import '../../../../core/widgets/floating_button_icon.dart';
-import '../widgets/custom_text.dart' show CustomText, FieldType, TextCase;
+import '../widgets/custom_text.dart' show CustomText, TextCase;
 import '../widgets/widgets.dart';
 
 class CreateEmpresaPage extends StatelessWidget {
@@ -408,56 +409,78 @@ class _CreateEmpresaViewState extends State<_CreateEmpresaView> {
         }
       },
       builder: (context, rucState) {
-        return Row(
+        return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: CustomText(
-                controller: _rucController,
-                borderColor: AppColors.blue1,
-                label: 'RUC *',
-                hintText: '20123456789',
-                keyboardType: TextInputType.number,
-                fieldType: FieldType.number,
-                maxLength: 11,
-                prefixIcon: const Icon(Icons.badge_outlined),
-                enabled: !isLoading && !rucState.isLoading,
-                externalError: state.ruc.error,
-                required: true,
-                onChanged: (value) {
-                  context.read<CreateEmpresaCubit>().rucChanged(value);
-                  _nombreController.clear();
-                  if (value.length == 11 && RegExp(r'^\d{11}$').hasMatch(value)) {
-                    context.read<ConsultaRucCubit>().consultarRuc(value);
-                  }
-                },
-              ),
-            ),
-            const SizedBox(width: 12),
-            Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: rucState.isLoading
-                  ? const SizedBox(
-                      width: 35,
-                      height: 35,
-                      child: Center(
-                        child: SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 1, color: AppColors.blue1),
-                        ),
+            CustomSearchField(
+              controller: _rucController,
+              borderColor: AppColors.blue1,
+              label: 'RUC *',
+              hintText: '20123456789',
+              maxLength: 11,
+              searchIcon: Icons.badge_outlined,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              debounceDelay: Duration.zero,
+              enabled: !isLoading && !rucState.isLoading,
+              showClearButton: !rucState.isLoading && _rucController.text.isNotEmpty,
+              onClear: () {
+                context.read<CreateEmpresaCubit>().rucChanged('');
+                _nombreController.clear();
+              },
+              onChanged: (value) {
+                context.read<CreateEmpresaCubit>().rucChanged(value);
+                _nombreController.clear();
+                if (value.length == 11 && RegExp(r'^\d{11}$').hasMatch(value)) {
+                  context.read<ConsultaRucCubit>().consultarRuc(value);
+                }
+              },
+              onSubmitted: (_) {
+                if (_rucController.text.length == 11) {
+                  context.read<ConsultaRucCubit>().consultarRuc(_rucController.text);
+                }
+              },
+              actionButtons: [
+                if (rucState.isLoading)
+                  const Padding(
+                    padding: EdgeInsets.only(right: 8),
+                    child: SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 1.5,
+                        color: AppColors.blue1,
                       ),
-                    )
-                  : FloatingButtonIcon(
-                    size: 35,
-                      icon: Icons.search,
-                      onPressed: (isLoading || _rucController.text.length != 11)
-                          ? () {}
-                          : () {
-                              context.read<ConsultaRucCubit>().consultarRuc(_rucController.text);
-                            },
                     ),
+                  )
+                else
+                  IconButton(
+                    icon: const Icon(Icons.search, size: 20),
+                    color: AppColors.blue1,
+                    onPressed: (isLoading || _rucController.text.length != 11)
+                        ? null
+                        : () {
+                            context.read<ConsultaRucCubit>().consultarRuc(_rucController.text);
+                          },
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 32,
+                      minHeight: 32,
+                    ),
+                    splashRadius: 16,
+                  ),
+              ],
             ),
+            if (state.ruc.error != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                state.ruc.error!,
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: Colors.red,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
           ],
         );
       },

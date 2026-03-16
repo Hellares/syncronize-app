@@ -249,6 +249,13 @@ class _EmpresaDashboardPageState extends State<EmpresaDashboardPage> {
                       : null,
                 ),
                 StatsCard(
+                  title: 'Ventas',
+                  value: '-',
+                  icon: Icons.point_of_sale,
+                  color: Colors.green,
+                  onTap: () => context.push('/empresa/ventas'),
+                ),
+                StatsCard(
                   title: 'Proveedores',
                   value: stats.totalProveedores.toString(),
                   icon: Icons.local_shipping,
