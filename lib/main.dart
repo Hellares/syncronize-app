@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
 import 'bloc_provider.dart';
 import 'config/routes/app_router.dart';
@@ -8,6 +9,7 @@ import 'config/theme/app_theme.dart';
 import 'core/presentation/widgets/app_initializer.dart';
 import 'core/services/push_notification_service.dart';
 import 'features/auth/presentation/bloc/auth/auth_bloc.dart';
+import 'features/servicio/presentation/widgets/mensajes_orden_widget.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -53,11 +55,33 @@ class _MyAppState extends State<MyApp> {
         PushNotificationService().registerTokenWithBackend();
       } else if (state is Unauthenticated && _wasAuthenticated) {
         _wasAuthenticated = false;
-        // No llamar unregisterTokenFromBackend aquí:
-        // ya se hace en auth_repository.logout() ANTES de revocar la sesión.
-        // Llamarlo aquí causaría un segundo DELETE sin JWT válido.
       }
     });
+  }
+
+  void _setupPushDeepLinking(GoRouter router) {
+    PushNotificationService().onNotificationTapped = (data) {
+      final citaId = data['citaId'] as String?;
+      final ordenId = data['ordenId'] as String?;
+      final tipo = data['tipo'] as String?;
+
+      if (citaId != null) {
+        router.push('/empresa/citas/$citaId');
+      } else if (ordenId != null) {
+        router.push('/empresa/ordenes/$ordenId');
+      } else if (tipo == 'CITA') {
+        router.push('/empresa/citas');
+      } else if (tipo == 'ORDEN_SERVICIO') {
+        router.push('/empresa/ordenes');
+      } else {
+        router.push('/empresa/notificaciones');
+      }
+    };
+
+    // Refrescar mensajes cuando llega push de tipo MENSAJE en foreground
+    PushNotificationService().onMensajeReceived = () {
+      MensajesOrdenWidget.triggerRefresh();
+    };
   }
 
   @override
@@ -70,6 +94,7 @@ class _MyAppState extends State<MyApp> {
           final appRouter = AppRouter(authBloc: authBloc);
 
           _listenAuthChanges(authBloc);
+          _setupPushDeepLinking(appRouter.router);
 
           return MaterialApp.router(
             title: 'Syncronize',

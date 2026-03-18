@@ -34,11 +34,13 @@ class Sede extends Equatable {
   // Ubicación completa
   final String? direccion;
   final String? referencia;
+  final String? stand;
   final String? distrito;
   final String? provincia;
   final String? departamento;
   final String? pais;
   final Map<String, dynamic>? coordenadas;
+  final List<String> imagenes;
 
   // Configuración operativa
   final Map<String, dynamic>? horarioAtencion;
@@ -83,11 +85,13 @@ class Sede extends Equatable {
     required this.tipoSede,
     this.direccion,
     this.referencia,
+    this.stand,
     this.distrito,
     this.provincia,
     this.departamento,
     this.pais,
     this.coordenadas,
+    this.imagenes = const [],
     this.horarioAtencion,
     this.configuracion,
     required this.serieFactura,

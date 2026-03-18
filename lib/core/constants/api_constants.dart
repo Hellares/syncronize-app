@@ -85,6 +85,15 @@ class ApiConstants {
   // Endpoints de notificaciones
   static const String notificaciones = '/notificaciones';
 
+  // Endpoints de promociones
+  static const String promociones = '/promociones';
+
+  // Endpoints de direcciones
+  static const String misDirecciones = '/mis-direcciones';
+
+  // Endpoints de marketplace usuario
+  static const String marketplaceUsuario = '/marketplace/usuario';
+
   // Endpoints de marketplace (público)
   static const String marketplaceProductos = '/marketplace/productos';
   static const String marketplaceCategorias = '/marketplace/categorias';

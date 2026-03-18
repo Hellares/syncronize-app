@@ -27,6 +27,12 @@ import '../../features/empresa/presentation/pages/planes_page.dart';
 import '../../features/marketplace/presentation/pages/marketplace_page.dart';
 import '../../features/marketplace/presentation/pages/producto_marketplace_detail_page.dart';
 import '../../features/marketplace/presentation/pages/empresa_public_profile_page.dart';
+import '../../features/marketplace/presentation/pages/preguntas_producto_page.dart';
+import '../../features/marketplace/presentation/pages/gestion_preguntas_page.dart';
+import '../../features/marketplace/presentation/pages/opiniones_producto_page.dart';
+import '../../features/marketplace/presentation/pages/gestion_opiniones_page.dart';
+import '../../features/marketplace/presentation/pages/favoritos_page.dart';
+import '../../features/direccion/presentation/pages/mis_direcciones_page.dart';
 import '../../features/producto/presentation/pages/productos_page.dart';
 import '../../features/producto/presentation/pages/producto_detail_page.dart';
 import '../../features/producto/presentation/pages/producto_form_page.dart';
@@ -94,6 +100,7 @@ import '../../features/servicio/presentation/pages/servicio_form_page.dart';
 import '../../features/servicio/presentation/pages/ordenes_servicio_page.dart';
 import '../../features/servicio/presentation/pages/orden_servicio_form_page.dart';
 import '../../features/servicio/presentation/pages/orden_servicio_detail_page.dart';
+import '../../features/servicio/presentation/pages/orden_cliente_detail_page.dart';
 import '../../features/servicio/presentation/pages/servicio_dashboard_page.dart';
 import '../../features/servicio/presentation/pages/catalogo_plantillas_page.dart';
 import '../../features/servicio/presentation/pages/plantillas_servicio_page.dart';
@@ -105,8 +112,11 @@ import '../../features/vinculacion/presentation/pages/vinculacion_list_page.dart
 import '../../features/vinculacion/presentation/pages/vinculacion_detail_page.dart';
 import '../../features/notificacion/presentation/pages/notificaciones_page.dart';
 import '../../features/notificacion/presentation/pages/preferencias_notificacion_page.dart';
+import '../../features/promocion/presentation/pages/campanas_page.dart';
+import '../../features/promocion/presentation/pages/crear_campana_page.dart';
 import '../../features/cita/presentation/pages/citas_page.dart';
 import '../../features/cita/presentation/pages/cita_detail_page.dart';
+import '../../features/cita/presentation/pages/cita_cliente_detail_page.dart';
 import '../../features/cita/presentation/pages/nueva_cita_sheet.dart';
 import '../../features/cita/presentation/pages/historial_citas_cliente_page.dart';
 import '../../features/cita/presentation/pages/clientes_citas_page.dart';
@@ -218,6 +228,16 @@ class AppRouter {
         path: '/account-security',
         name: 'account-security',
         builder: (context, state) => const AccountSecurityPage(),
+      ),
+      GoRoute(
+        path: '/mis-direcciones',
+        name: 'mis-direcciones',
+        builder: (context, state) => const MisDireccionesPage(),
+      ),
+      GoRoute(
+        path: '/mis-favoritos',
+        name: 'mis-favoritos',
+        builder: (context, state) => const FavoritosPage(),
       ),
       GoRoute(
         path: '/profile',
@@ -881,6 +901,14 @@ class AppRouter {
         builder: (context, state) => const OrdenesServicioPage(asCliente: true),
       ),
       GoRoute(
+        path: '/empresa/mis-ordenes/:id',
+        name: 'empresa-mis-ordenes-detail',
+        builder: (context, state) {
+          final ordenId = state.pathParameters['id']!;
+          return OrdenClienteDetailPage(ordenId: ordenId);
+        },
+      ),
+      GoRoute(
         path: '/empresa/ordenes/crear',
         name: 'empresa-ordenes-servicio-crear',
         builder: (context, state) => const OrdenServicioFormPage(),
@@ -938,6 +966,27 @@ class AppRouter {
         name: 'empresa-notificaciones-preferencias',
         builder: (context, state) => const PreferenciasNotificacionPage(),
       ),
+      // Rutas de promociones
+      GoRoute(
+        path: '/empresa/promociones',
+        name: 'empresa-promociones',
+        builder: (context, state) => const CampanasPage(),
+      ),
+      GoRoute(
+        path: '/empresa/promociones/nueva',
+        name: 'empresa-promociones-nueva',
+        builder: (context, state) => const CrearCampanaPage(),
+      ),
+      GoRoute(
+        path: '/empresa/preguntas-producto',
+        name: 'empresa-preguntas-producto',
+        builder: (context, state) => const GestionPreguntasPage(),
+      ),
+      GoRoute(
+        path: '/empresa/opiniones-producto',
+        name: 'empresa-opiniones-producto',
+        builder: (context, state) => const GestionOpinionesPage(),
+      ),
       // Rutas de citas
       GoRoute(
         path: '/empresa/citas',
@@ -948,6 +997,14 @@ class AppRouter {
         path: '/empresa/mis-citas',
         name: 'empresa-mis-citas',
         builder: (context, state) => const CitasPage(asCliente: true),
+      ),
+      GoRoute(
+        path: '/empresa/mis-citas/:id',
+        name: 'empresa-mis-citas-detail',
+        builder: (context, state) {
+          final citaId = state.pathParameters['id']!;
+          return CitaClienteDetailPage(citaId: citaId);
+        },
       ),
       GoRoute(
         path: '/empresa/citas/nueva',
@@ -1011,6 +1068,22 @@ class AppRouter {
         builder: (context, state) {
           final id = state.pathParameters['id']!;
           return ProductoMarketplaceDetailPage(productoId: id);
+        },
+      ),
+      GoRoute(
+        path: '/producto-detalle/:id/preguntas',
+        name: 'marketplace-producto-preguntas',
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return PreguntasProductoPage(productoId: id);
+        },
+      ),
+      GoRoute(
+        path: '/producto-detalle/:id/opiniones',
+        name: 'marketplace-producto-opiniones',
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return OpinionesProductoPage(productoId: id);
         },
       ),
       GoRoute(

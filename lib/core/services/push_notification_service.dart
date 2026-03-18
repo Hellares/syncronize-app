@@ -30,14 +30,28 @@ class PushNotificationService {
   String? _fcmToken;
   String? get fcmToken => _fcmToken;
 
+  /// Mensaje pendiente de cuando la app se abrió desde una notificación (terminated)
+  Map<String, dynamic>? _pendingNotificationData;
+
   /// Callback para cuando se obtiene/refresca el token
   void Function(String token)? onTokenRefresh;
 
   /// Callback para cuando el usuario toca una notificación
-  void Function(Map<String, dynamic> data)? onNotificationTapped;
+  void Function(Map<String, dynamic> data)? _onNotificationTapped;
+  set onNotificationTapped(void Function(Map<String, dynamic> data)? callback) {
+    _onNotificationTapped = callback;
+    // Si hay un mensaje pendiente (app abierta desde terminated), procesarlo ahora
+    if (callback != null && _pendingNotificationData != null) {
+      callback(_pendingNotificationData!);
+      _pendingNotificationData = null;
+    }
+  }
 
   /// Callback para cuando se recibe una notificación (foreground)
   void Function()? onNotificationReceived;
+
+  /// Callback para cuando se recibe un mensaje de servicio/cita (foreground)
+  void Function()? onMensajeReceived;
 
   /// Canal de notificaciones Android
   static const AndroidNotificationChannel _channel = AndroidNotificationChannel(
@@ -144,6 +158,11 @@ class PushNotificationService {
     // Notificar a la campana para actualizar badge
     onNotificationReceived?.call();
 
+    // Si es un mensaje, refrescar el widget de mensajes
+    if (message.data['tipo'] == 'MENSAJE') {
+      onMensajeReceived?.call();
+    }
+
     final notification = message.notification;
     if (notification == null) return;
 
@@ -175,7 +194,12 @@ class PushNotificationService {
   /// Manejar tap en notificación
   void _handleMessageTap(RemoteMessage message) {
     debugPrint('[FCM] Notification tapped: ${message.data}');
-    onNotificationTapped?.call(message.data);
+    if (_onNotificationTapped != null) {
+      _onNotificationTapped!(message.data);
+    } else {
+      // Guardar para cuando se conecte el callback (app terminated)
+      _pendingNotificationData = Map<String, dynamic>.from(message.data);
+    }
   }
 
   /// Manejar tap en local notification
@@ -183,7 +207,11 @@ class PushNotificationService {
     if (response.payload != null) {
       try {
         final data = jsonDecode(response.payload!) as Map<String, dynamic>;
-        onNotificationTapped?.call(data);
+        if (_onNotificationTapped != null) {
+          _onNotificationTapped!(data);
+        } else {
+          _pendingNotificationData = data;
+        }
       } catch (e) {
         debugPrint('[FCM] Error parsing notification payload: $e');
       }

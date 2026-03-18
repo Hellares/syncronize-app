@@ -31,6 +31,7 @@ import '../widgets/cronometro_servicio_widget.dart';
 import '../widgets/firma_digital_sheet.dart';
 import '../widgets/patron_animado_dialog.dart';
 import '../widgets/inspeccion_visual_dialog.dart';
+import '../widgets/mensajes_orden_widget.dart';
 import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_cubit.dart';
 import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_state.dart';
 import '../services/whatsapp_notification_service.dart';
@@ -228,6 +229,12 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
           const SizedBox(height: 10),
           // ─── Card: Historial ───
           _buildHistorialSection(),
+          const SizedBox(height: 10),
+          // ─── Card: Mensajes ───
+          MensajesOrdenWidget(
+            ordenId: widget.ordenId,
+            esCliente: false,
+          ),
           const SizedBox(height: 10),
           // ─── Card interactiva: Firma ───
           _buildFirmaSection(),

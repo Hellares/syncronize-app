@@ -296,7 +296,10 @@ class _CitasPageState extends State<CitasPage> {
                 return _CitaCard(
                   cita: citas[index],
                   onTap: () async {
-                    await context.push('/empresa/citas/${citas[index].id}');
+                    final route = widget.asCliente
+                        ? '/empresa/mis-citas/${citas[index].id}'
+                        : '/empresa/citas/${citas[index].id}';
+                    await context.push(route);
                     if (!mounted) return;
                     _loadCitas();
                   },

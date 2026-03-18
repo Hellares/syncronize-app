@@ -295,6 +295,32 @@ class _AuthenticatedDrawerContent extends StatelessWidget {
                   context.push('/profile');
                 },
               ),
+              _DrawerItem(
+                icon: Icons.favorite_outline,
+                title: 'Mis Favoritos',
+                textStyle: TextStyle(
+                  fontFamily: AppFonts.getFontFamily(AppFont.oxygenBold),
+                  fontSize: 10,
+                  color: AppColors.blue,
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  context.push('/mis-favoritos');
+                },
+              ),
+              _DrawerItem(
+                icon: Icons.location_on_outlined,
+                title: 'Mis Direcciones',
+                textStyle: TextStyle(
+                  fontFamily: AppFonts.getFontFamily(AppFont.oxygenBold),
+                  fontSize: 10,
+                  color: AppColors.blue,
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  context.push('/mis-direcciones');
+                },
+              ),
             ],
           ),
 

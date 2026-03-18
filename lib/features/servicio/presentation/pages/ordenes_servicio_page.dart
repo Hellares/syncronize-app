@@ -378,7 +378,10 @@ class _OrdenesContentState extends State<_OrdenesContent> {
                 return _OrdenServicioCard(
                   orden: ordenes[index],
                   onTap: () async {
-                    await context.push('/empresa/ordenes/${ordenes[index].id}');
+                    final route = widget.asCliente
+                        ? '/empresa/mis-ordenes/${ordenes[index].id}'
+                        : '/empresa/ordenes/${ordenes[index].id}';
+                    await context.push(route);
                     if (!mounted) return;
                     cubit.refresh();
                   },

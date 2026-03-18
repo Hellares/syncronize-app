@@ -4,6 +4,7 @@ import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/widgets/custom_switch_tile.dart';
 import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import '../../../../core/widgets/custom_dropdown.dart';
+import '../../../../core/widgets/map_location_picker.dart';
 import '../../../empresa/domain/entities/sede.dart';
 import 'horario_atencion_editor.dart';
 
@@ -14,6 +15,7 @@ class SedeFormFields extends StatelessWidget {
   final TextEditingController emailController;
   final TextEditingController direccionController;
   final TextEditingController referenciaController;
+  final TextEditingController standController;
   final TextEditingController distritoController;
   final TextEditingController provinciaController;
   final TextEditingController departamentoController;
@@ -29,6 +31,12 @@ class SedeFormFields extends StatelessWidget {
   final ValueChanged<bool> onIsActiveChanged;
   final Map<String, dynamic>? horarioAtencion;
   final ValueChanged<Map<String, dynamic>>? onHorarioChanged;
+  final Map<String, dynamic>? coordenadas;
+  final ValueChanged<Map<String, dynamic>>? onCoordenadasChanged;
+  final List<String> imagenes;
+  final VoidCallback? onAddImagenes;
+  final ValueChanged<int>? onRemoveImagen;
+  final double? uploadProgress;
 
   const SedeFormFields({
     super.key,
@@ -38,6 +46,7 @@ class SedeFormFields extends StatelessWidget {
     required this.emailController,
     required this.direccionController,
     required this.referenciaController,
+    required this.standController,
     required this.distritoController,
     required this.provinciaController,
     required this.departamentoController,
@@ -53,6 +62,12 @@ class SedeFormFields extends StatelessWidget {
     required this.onIsActiveChanged,
     this.horarioAtencion,
     this.onHorarioChanged,
+    this.coordenadas,
+    this.onCoordenadasChanged,
+    this.imagenes = const [],
+    this.onAddImagenes,
+    this.onRemoveImagen,
+    this.uploadProgress,
   });
 
   /// Determina si el tipo de sede requiere emisión de comprobantes
@@ -203,6 +218,16 @@ class SedeFormFields extends StatelessWidget {
 
         const SizedBox(height: 12),
 
+        CustomText(
+          borderColor: AppColors.blue1,
+          prefixIcon: Icon(Icons.storefront),
+          controller: standController,
+          label: 'Stand / Puesto',
+          hintText: 'Ej: Stand 45, Puesto A-12',
+        ),
+
+        const SizedBox(height: 12),
+
         Row(
           children: [
             Expanded(
@@ -230,6 +255,16 @@ class SedeFormFields extends StatelessWidget {
           prefixIcon: Icon(Icons.map),
           borderColor: AppColors.blue1,
         ),
+
+        const SizedBox(height: 16),
+
+        // Ubicación en mapa
+        _buildMapSection(context),
+
+        const SizedBox(height: 16),
+
+        // Imágenes referenciales
+        _buildImagenesSection(),
 
         // Horario de Atención
         const SizedBox(height: 24),
@@ -452,5 +487,178 @@ class SedeFormFields extends StatelessWidget {
       case TipoSede.tallerLaboratorio:
         return 0xFF00BCD4; // Cian
     }
+  }
+
+  Widget _buildImagenesSection() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.photo_library, size: 18, color: AppColors.blue1),
+              const SizedBox(width: 6),
+              const Text('Imágenes referenciales',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+              const Spacer(),
+              if (onAddImagenes != null)
+                TextButton.icon(
+                  onPressed: onAddImagenes,
+                  icon: const Icon(Icons.add_a_photo, size: 16),
+                  label: const Text('Agregar', style: TextStyle(fontSize: 12)),
+                ),
+            ],
+          ),
+          if (uploadProgress != null && uploadProgress! < 1.0) ...[
+            const SizedBox(height: 8),
+            LinearProgressIndicator(
+              value: uploadProgress,
+              backgroundColor: Colors.grey[200],
+              color: AppColors.blue1,
+              minHeight: 4,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ],
+          if (imagenes.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Center(
+                child: Text('Sin imágenes',
+                    style: TextStyle(fontSize: 13, color: Colors.grey[400])),
+              ),
+            )
+          else ...[
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 80,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: imagenes.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (_, index) {
+                  return Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.network(
+                          imagenes[index],
+                          width: 80,
+                          height: 80,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            width: 80, height: 80,
+                            color: Colors.grey[200],
+                            child: const Icon(Icons.image, size: 24),
+                          ),
+                        ),
+                      ),
+                      if (onRemoveImagen != null)
+                        Positioned(
+                          top: 2,
+                          right: 2,
+                          child: GestureDetector(
+                            onTap: () => onRemoveImagen!(index),
+                            child: Container(
+                              padding: const EdgeInsets.all(2),
+                              decoration: const BoxDecoration(
+                                color: Colors.red,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.close, size: 14, color: Colors.white),
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMapSection(BuildContext context) {
+    final hasCoords = coordenadas != null &&
+        coordenadas!['lat'] != null &&
+        coordenadas!['lng'] != null;
+
+    // También soportar formato {lat, lon} del backend
+    final lat = coordenadas?['lat'] as num?;
+    final lng = (coordenadas?['lng'] ?? coordenadas?['lon']) as num?;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.map_outlined, size: 18, color: AppColors.blue1),
+              const SizedBox(width: 6),
+              const Text('Ubicación en mapa',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+              const Spacer(),
+              if (hasCoords)
+                Icon(Icons.check_circle, size: 18, color: Colors.green[600]),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (lat != null && lng != null) ...[
+            Text(
+              '${lat.toDouble().toStringAsFixed(6)}, ${lng.toDouble().toStringAsFixed(6)}',
+              style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+            ),
+            const SizedBox(height: 8),
+          ],
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () async {
+                final result = await Navigator.push<Map<String, dynamic>>(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => MapLocationPicker(
+                      initialLat: lat?.toDouble(),
+                      initialLng: lng?.toDouble(),
+                    ),
+                  ),
+                );
+                if (result != null && onCoordenadasChanged != null) {
+                  onCoordenadasChanged!(result);
+                }
+              },
+              icon: Icon(
+                hasCoords ? Icons.edit_location_alt : Icons.add_location_alt,
+                size: 18,
+              ),
+              label: Text(
+                hasCoords ? 'Cambiar ubicación' : 'Seleccionar en mapa',
+                style: const TextStyle(fontSize: 13),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.blue1,
+                side: BorderSide(color: AppColors.blue1),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

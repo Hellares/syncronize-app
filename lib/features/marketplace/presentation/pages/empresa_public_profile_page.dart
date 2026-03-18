@@ -7,6 +7,7 @@ import 'package:syncronize/core/widgets/custom_loading.dart';
 import 'package:syncronize/core/widgets/custom_search_field.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/widgets/floating_button_text.dart';
 import '../../data/datasources/marketplace_remote_datasource.dart';
 import '../widgets/producto_marketplace_card.dart';
 
@@ -175,7 +176,7 @@ class _EmpresaPublicProfilePageState extends State<EmpresaPublicProfilePage> {
         slivers: [
           // AppBar con header de empresa
           SliverAppBar(
-            expandedHeight: bannerUrl != null ? 220 : 150,
+            expandedHeight: bannerUrl != null ? 170 : 150,
             pinned: true,
             backgroundColor: AppColors.blue1,
             foregroundColor: Colors.white,
@@ -224,64 +225,62 @@ class _EmpresaPublicProfilePageState extends State<EmpresaPublicProfilePage> {
                     ),
                   ),
                   // Contenido
-                  Container(
-                child: SafeArea(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 50, 20, 16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            // Logo
-                            CircleAvatar(
-                              radius: 32,
-                              backgroundColor: Colors.white,
-                              child: logo != null
-                                  ? ClipOval(child: Image.network(logo, width: 58, height: 58, fit: BoxFit.cover,
-                                      errorBuilder: (_, __, ___) => _initial(nombre)))
-                                  : _initial(nombre),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(nombre, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
-                                  const SizedBox(height: 4),
-                                  if (rubro.isNotEmpty)
-                                    Text(rubro, style: const TextStyle(fontSize: 12, color: Colors.white70)),
-                                  if (ubicacion.isNotEmpty)
-                                    Row(
-                                      children: [
-                                        const Icon(Icons.location_on, size: 13, color: Colors.white54),
-                                        const SizedBox(width: 3),
-                                        Expanded(child: Text(ubicacion, style: const TextStyle(fontSize: 11, color: Colors.white60), maxLines: 1, overflow: TextOverflow.ellipsis)),
-                                      ],
-                                    ),
-                                ],
+                  SafeArea(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 50, 20, 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              // Logo
+                              CircleAvatar(
+                                radius: 32,
+                                backgroundColor: Colors.white,
+                                child: logo != null
+                                    ? ClipOval(child: Image.network(logo, width: 58, height: 58, fit: BoxFit.cover,
+                                        errorBuilder: (_, __, ___) => _initial(nombre)))
+                                    : _initial(nombre),
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 14),
-                        // Stats
-                        Row(
-                          children: [
-                            _statChip(Icons.inventory_2, '$totalProductos productos'),
-                            const SizedBox(width: 8),
-                            _statChip(Icons.build_circle, '$totalServicios servicios'),
-                            if (miembroDesde != null) ...[
-                              const SizedBox(width: 8),
-                              _statChip(Icons.verified, 'Desde ${_formatDate(miembroDesde)}'),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(nombre, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                                    const SizedBox(height: 4),
+                                    if (rubro.isNotEmpty)
+                                      Text(rubro, style: const TextStyle(fontSize: 12, color: Colors.white70)),
+                                    if (ubicacion.isNotEmpty)
+                                      Row(
+                                        children: [
+                                          const Icon(Icons.location_on, size: 13, color: Colors.white54),
+                                          const SizedBox(width: 3),
+                                          Expanded(child: Text(ubicacion, style: const TextStyle(fontSize: 11, color: Colors.white60), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                                        ],
+                                      ),
+                                  ],
+                                ),
+                              ),
                             ],
-                          ],
-                        ),
-                      ],
+                          ),
+                          const SizedBox(height: 14),
+                          // Stats
+                          Row(
+                            children: [
+                              _statChip(Icons.inventory_2, '$totalProductos productos'),
+                              const SizedBox(width: 8),
+                              _statChip(Icons.build_circle, '$totalServicios servicios'),
+                              if (miembroDesde != null) ...[
+                                const SizedBox(width: 8),
+                                _statChip(Icons.verified, 'Desde ${_formatDate(miembroDesde)}'),
+                              ],
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ),
                 ],
               ),
               ),
@@ -356,6 +355,9 @@ class _EmpresaPublicProfilePageState extends State<EmpresaPublicProfilePage> {
                 ),
               ),
             ),
+
+          // Sedes / Ubicaciones
+          ..._buildSedesSection(),
 
           // Productos destacados (scroll horizontal)
           if (destacados.isNotEmpty) ...[
@@ -618,6 +620,220 @@ class _EmpresaPublicProfilePageState extends State<EmpresaPublicProfilePage> {
     } catch (_) {
       return '';
     }
+  }
+
+  List<Widget> _buildSedesSection() {
+    final sedes = (_empresa?['sedes'] as List?) ?? [];
+    if (sedes.isEmpty) return [];
+
+    return [
+      SliverToBoxAdapter(
+        child: Container(
+          color: Colors.white,
+          margin: const EdgeInsets.only(top: 8),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Nuestras ubicaciones',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+              const SizedBox(height: 12),
+              ...sedes.map((sede) => _buildSedeCard(sede)),
+            ],
+          ),
+        ),
+      ),
+    ];
+  }
+
+  Widget _buildSedeCard(dynamic sede) {
+    final nombre = sede['nombre'] as String? ?? '';
+    final direccion = sede['direccion'] as String?;
+    final stand = sede['stand'] as String?;
+    final distrito = sede['distrito'] as String?;
+    final provincia = sede['provincia'] as String?;
+    final horario = sede['horarioAtencion'] as Map<String, dynamic>?;
+    final imagenes = (sede['imagenes'] as List?)?.cast<String>() ?? [];
+    final coordenadas = sede['coordenadas'] as Map<String, dynamic>?;
+    final esPrincipal = sede['esPrincipal'] == true;
+    final telefono = sede['telefono'] as String?;
+
+    final coordLat = (coordenadas?['lat'] as num?)?.toDouble();
+    final coordLng = ((coordenadas?['lng'] ?? coordenadas?['lon']) as num?)?.toDouble();
+
+    final ubicacionTexto = [direccion, distrito, provincia]
+        .where((e) => e != null && e.isNotEmpty)
+        .join(', ');
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: esPrincipal ? AppColors.blue1.withValues(alpha: 0.3) : Colors.grey.shade200),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: ExpansionTile(
+        tilePadding: const EdgeInsets.symmetric(horizontal: 14),
+        childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+        leading: Icon(Icons.store, size: 18, color: AppColors.blue1),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(nombre, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+            ),
+            if (esPrincipal)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.blue1.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text('Principal',
+                    style: TextStyle(fontSize: 9, color: AppColors.blue1, fontWeight: FontWeight.w600)),
+              ),
+          ],
+        ),
+        subtitle: ubicacionTexto.isNotEmpty
+            ? Text(ubicacionTexto, style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                maxLines: 1, overflow: TextOverflow.ellipsis)
+            : null,
+        children: [
+          // Stand
+          if (stand != null && stand.isNotEmpty)
+            _sedeInfoRow(Icons.storefront, stand),
+
+          // Teléfono
+          if (telefono != null && telefono.isNotEmpty)
+            _sedeInfoRow(Icons.phone, telefono),
+
+          // Horario
+          if (horario != null && horario.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Icon(Icons.schedule, size: 14, color: AppColors.blue1),
+                const SizedBox(width: 4),
+                const Text('Horario', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+              ],
+            ),
+            const SizedBox(height: 4),
+            ...horario.entries.map((e) {
+              if (e.value is! Map) return const SizedBox.shrink();
+              final datos = e.value as Map;
+              return Padding(
+                padding: const EdgeInsets.only(left: 18, bottom: 1),
+                child: Row(
+                  children: [
+                    SizedBox(width: 70, child: Text(_capitalizeDia(e.key),
+                        style: TextStyle(fontSize: 11, color: Colors.grey[600]))),
+                    Text('${datos['inicio'] ?? ''} - ${datos['fin'] ?? ''}',
+                        style: TextStyle(fontSize: 11, color: Colors.grey[700], fontWeight: FontWeight.w500)),
+                  ],
+                ),
+              );
+            }),
+          ],
+
+          // Imágenes referenciales
+          if (imagenes.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Icon(Icons.photo_library, size: 14, color: AppColors.blue1),
+                const SizedBox(width: 4),
+                const Text('Referencias', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+              ],
+            ),
+            const SizedBox(height: 6),
+            SizedBox(
+              height: 70,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: imagenes.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 6),
+                itemBuilder: (_, i) => GestureDetector(
+                  onTap: () => _showFullScreenImage(context, imagenes, i),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: Image.network(imagenes[i], width: 90, height: 70, fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(width: 90, height: 70, color: Colors.grey[200],
+                        child: const Icon(Icons.image, size: 20))),
+                  ),
+                ),
+              ),
+            ),
+          ],
+
+          // Cómo llegar
+          if (coordLat != null && coordLng != null) ...[
+            const SizedBox(height: 10),
+            FloatingButtonText(
+              onPressed: () {
+                final url = Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$coordLat,$coordLng');
+                launchUrl(url, mode: LaunchMode.externalApplication);
+              },
+              label: 'Cómo llegar',
+              icon: Icons.directions,
+              width: double.infinity,
+              backgroundColor: Colors.white,
+              foregroundColor: Colors.green.shade600,
+              borderColor: Colors.green.shade400,
+              heroTag: 'btn_llegar_${sede['id']}',
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _sedeInfoRow(IconData icon, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 14, color: Colors.grey[500]),
+          const SizedBox(width: 4),
+          Text(text, style: TextStyle(fontSize: 12, color: Colors.grey[700])),
+        ],
+      ),
+    );
+  }
+
+  void _showFullScreenImage(BuildContext context, List<String> imagenes, int initialIndex) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => Scaffold(
+          backgroundColor: Colors.black,
+          appBar: AppBar(
+            backgroundColor: Colors.black,
+            iconTheme: const IconThemeData(color: Colors.white),
+            title: Text('${initialIndex + 1} / ${imagenes.length}',
+                style: const TextStyle(color: Colors.white, fontSize: 14)),
+          ),
+          body: PageView.builder(
+            controller: PageController(initialPage: initialIndex),
+            itemCount: imagenes.length,
+            itemBuilder: (_, i) => InteractiveViewer(
+              minScale: 0.5,
+              maxScale: 4.0,
+              child: Center(
+                child: Image.network(
+                  imagenes[i],
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => const Icon(Icons.image, size: 48, color: Colors.grey),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _capitalizeDia(String dia) {
+    if (dia.isEmpty) return dia;
+    return dia[0].toUpperCase() + dia.substring(1);
   }
 
   void _openWhatsApp(String telefono, String empresa) {

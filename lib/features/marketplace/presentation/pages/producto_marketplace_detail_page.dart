@@ -6,8 +6,16 @@ import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/widgets/custom_loading.dart';
 import 'package:url_launcher/url_launcher.dart';
 // import 'package:share_plus/share_plus.dart'; // TODO: agregar dependencia
+import '../../../../core/constants/api_constants.dart';
+import '../../../../core/constants/storage_constants.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/network/dio_client.dart';
+import '../../../../core/storage/local_storage_service.dart';
 import '../../data/datasources/marketplace_remote_datasource.dart';
+import '../widgets/favorito_button.dart';
+import '../widgets/preguntas_producto_section.dart';
+import '../widgets/opiniones_producto_section.dart';
+import '../../../../core/widgets/floating_button_text.dart';
 
 class ProductoMarketplaceDetailPage extends StatefulWidget {
   final String productoId;
@@ -30,6 +38,20 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
   void initState() {
     super.initState();
     _loadProducto();
+    _registrarVisto();
+  }
+
+  void _registrarVisto() {
+    Future(() async {
+      try {
+        final storage = locator<LocalStorageService>();
+        final token = await storage.getString(StorageConstants.accessToken);
+        if (token == null || token.isEmpty) return;
+        locator<DioClient>().post(
+          '${ApiConstants.marketplaceUsuario}/vistos/${widget.productoId}',
+        );
+      } catch (_) {}
+    });
   }
 
   @override
@@ -66,13 +88,18 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
               )
             : null,
         actions: [
-          if (_producto != null)
+          if (_producto != null) ...[
+            FavoritoButton(
+              productoId: widget.productoId,
+              size: 22,
+            ),
             IconButton(
               icon: const Icon(Icons.share_outlined, size: 20),
               onPressed: () {
                 // TODO: implementar share cuando se agregue share_plus
               },
             ),
+          ],
         ],
       ),
       body: _isLoading
@@ -322,6 +349,14 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
 
             if (atributos.isNotEmpty) const SizedBox(height: 8),
 
+            // Opiniones
+            OpinionesProductoSection(productoId: widget.productoId),
+            const SizedBox(height: 8),
+
+            // Preguntas y respuestas
+            PreguntasProductoSection(productoId: widget.productoId),
+            const SizedBox(height: 8),
+
             // Vendido por
             _buildEmpresaCard(empresa),
 
@@ -518,23 +553,66 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
             ),
           ),
           const SizedBox(height: 12),
-          SizedBox(
+          FloatingButtonText(
+            onPressed: () {
+              final subdominio = (_producto?['empresa'] as Map<String, dynamic>?)?['subdominio'] as String?;
+              if (subdominio != null) context.push('/vendedor/$subdominio');
+            },
+            label: 'Ver página del vendedor',
+            icon: Icons.storefront,
             width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: () {
-                final subdominio = (_producto?['empresa'] as Map<String, dynamic>?)?['subdominio'] as String?;
-                if (subdominio != null) context.push('/vendedor/$subdominio');
-              },
-              icon: const Icon(Icons.storefront, size: 18),
-              label: const Text('Ver página del vendedor', style: TextStyle(fontSize: 13)),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.blue2,
-                side: const BorderSide(color: AppColors.blue2),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-            ),
+            backgroundColor: Colors.white,
+            foregroundColor: AppColors.blue2,
+            borderColor: AppColors.blue2,
+            heroTag: 'btn_vendedor',
           ),
+          // Botón Cómo llegar
+          if (_producto?['sede'] != null &&
+              (_producto!['sede'] as Map<String, dynamic>?)?['coordenadas'] != null &&
+              ((_producto!['sede'] as Map<String, dynamic>)['coordenadas'] as Map?)?.containsKey('lat') == true) ...[
+            const SizedBox(height: 8),
+            FloatingButtonText(
+              onPressed: () {
+                final sede = _producto!['sede'] as Map<String, dynamic>;
+                final coords = sede['coordenadas'];
+                if (coords == null) return;
+                final coordsMap = coords is Map<String, dynamic> ? coords : Map<String, dynamic>.from(coords as Map);
+                final lat = coordsMap['lat'];
+                final lng = coordsMap['lng'] ?? coordsMap['lon'];
+                if (lat != null && lng != null) {
+                  final url = Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$lat,$lng');
+                  launchUrl(url, mode: LaunchMode.externalApplication);
+                }
+              },
+              label: 'Cómo llegar',
+              icon: Icons.directions,
+              width: double.infinity,
+              backgroundColor: Colors.white,
+              foregroundColor: Colors.green.shade600,
+              borderColor: Colors.green.shade400,
+              heroTag: 'btn_como_llegar',
+            ),
+            // Dirección de la sede
+            if ((_producto!['sede'] as Map<String, dynamic>)['direccion'] != null) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(Icons.store, size: 14, color: Colors.grey.shade400),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      [
+                        (_producto!['sede'] as Map<String, dynamic>)['direccion'],
+                        (_producto!['sede'] as Map<String, dynamic>)['distrito'],
+                        (_producto!['sede'] as Map<String, dynamic>)['provincia'],
+                      ].where((e) => e != null && e.toString().isNotEmpty).join(', '),
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
         ],
       ),
     );

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:syncronize/core/fonts/app_fonts.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'favorito_button.dart';
 
 /// Card de producto estilo MercadoLibre para el marketplace
 class ProductoMarketplaceCard extends StatelessWidget {
@@ -31,6 +32,9 @@ class ProductoMarketplaceCard extends StatelessWidget {
     final ubicacion = empresa['ubicacion'] as String? ?? '';
     final hayStock = producto['hayStock'] as bool? ?? false;
     final creadoEn = producto['creadoEn'] as String?;
+    final calificacion = (producto['calificacion'] as num?)?.toDouble();
+    final totalOpiniones = producto['totalOpiniones'] as int? ?? 0;
+    final distancia = (producto['distancia'] as num?)?.toDouble();
 
     final precioFinal = enOferta && precioOferta != null ? precioOferta : precio;
     final tieneDescuento = enOferta && precioOferta != null && precio != null;
@@ -158,6 +162,23 @@ class ProductoMarketplaceCard extends StatelessWidget {
                       ),
                     ),
                   ),
+                // Favorito
+                if (FavoritoButton.isLoaded)
+                  Positioned(
+                    top: 4,
+                    right: 4,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.85),
+                        shape: BoxShape.circle,
+                      ),
+                      padding: const EdgeInsets.all(4),
+                      child: FavoritoButton(
+                        productoId: producto['id'] as String? ?? '',
+                        size: 16,
+                      ),
+                    ),
+                  ),
               ],
             ),
 
@@ -220,6 +241,28 @@ class ProductoMarketplaceCard extends StatelessWidget {
                         ),
                       ),
 
+                    // Calificación
+                    if (calificacion != null && totalOpiniones > 0)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 3),
+                        child: Row(
+                          children: [
+                            ...List.generate(5, (i) => Icon(
+                                  i < calificacion.floor()
+                                      ? Icons.star
+                                      : (i < calificacion ? Icons.star_half : Icons.star_border),
+                                  size: 11,
+                                  color: i < calificacion ? Colors.amber : Colors.grey.shade300,
+                                )),
+                            const SizedBox(width: 3),
+                            Text(
+                              '($totalOpiniones)',
+                              style: TextStyle(fontSize: 9, color: Colors.grey.shade500),
+                            ),
+                          ],
+                        ),
+                      ),
+
                     // Nombre
                     Expanded(
                       child: Text(
@@ -273,12 +316,24 @@ class ProductoMarketplaceCard extends StatelessWidget {
                       ],
                     ),
 
-                    if (ubicacion.isNotEmpty) ...[
+                    if (ubicacion.isNotEmpty || distancia != null) ...[
                       const SizedBox(height: 2),
                       Row(
                         children: [
                           Icon(Icons.location_on, size: 10, color: Colors.grey.shade400),
                           const SizedBox(width: 3),
+                          if (distancia != null) ...[
+                            Text(
+                              _formatDistance(distancia),
+                              style: TextStyle(
+                                fontSize: 8,
+                                color: Colors.green.shade600,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            if (ubicacion.isNotEmpty)
+                              Text(' · ', style: TextStyle(fontSize: 8, color: Colors.grey.shade400)),
+                          ],
                           Expanded(
                             child: Text(
                               ubicacion,
@@ -362,6 +417,12 @@ class ProductoMarketplaceCard extends StatelessWidget {
 
     final url = Uri.parse('https://wa.me/$numero?text=$mensaje');
     launchUrl(url, mode: LaunchMode.externalApplication);
+  }
+
+  String _formatDistance(double km) {
+    if (km < 1) return '${(km * 1000).round()} m';
+    if (km < 10) return '${km.toStringAsFixed(1)} km';
+    return '${km.round()} km';
   }
 
   Widget _buildPlaceholder() {

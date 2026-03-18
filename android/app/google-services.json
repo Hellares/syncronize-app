@@ -7,9 +7,9 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:795845528796:android:0dbc6bf9ec386e90853819",
+        "mobilesdk_app_id": "1:795845528796:android:18a3c951aca45107853819",
         "android_client_info": {
-          "package_name": "com.example.syncronize"
+          "package_name": "com.syncronize.app"
         }
       },
       "oauth_client": [],

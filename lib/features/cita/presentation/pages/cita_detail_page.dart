@@ -25,6 +25,7 @@ import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../widgets/cita_estado_badge.dart';
 import '../widgets/add_cita_item_sheet.dart';
+import '../../../servicio/presentation/widgets/mensajes_orden_widget.dart';
 
 class CitaDetailPage extends StatefulWidget {
   final String citaId;
@@ -242,6 +243,12 @@ class _CitaDetailPageState extends State<CitaDetailPage> {
               const SizedBox(height: 10),
               _buildCitaVinculoCard(_cita!.siguienteCita!, 'Siguiente cita', Icons.arrow_forward),
             ],
+            const SizedBox(height: 10),
+            // ─── Mensajes ───
+            MensajesOrdenWidget(
+              citaId: widget.citaId,
+              esCliente: false,
+            ),
             const SizedBox(height: 80),
           ],
         ),

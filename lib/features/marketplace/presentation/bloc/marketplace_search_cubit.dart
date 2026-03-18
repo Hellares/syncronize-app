@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
+import '../../../../core/services/location_service.dart';
 import '../../data/datasources/marketplace_remote_datasource.dart';
 
 part 'marketplace_search_state.dart';
@@ -14,8 +15,20 @@ class MarketplaceSearchCubit extends Cubit<MarketplaceSearchState> {
   String? _currentSearch;
   String? _currentCategoriaId;
   String? _currentOrden;
+  double? _currentLat;
+  double? _currentLng;
   int _currentPage = 1;
   List<dynamic>? _categorias;
+
+  void setUbicacion(double? lat, double? lng) {
+    _currentLat = lat;
+    _currentLng = lng;
+    searchProductos(
+      search: _currentSearch,
+      categoriaId: _currentCategoriaId,
+      orden: _currentOrden,
+    );
+  }
 
   Future<void> searchProductos({
     String? search,
@@ -33,10 +46,25 @@ class MarketplaceSearchCubit extends Cubit<MarketplaceSearchState> {
     }
 
     try {
+      // Usar ubicación manual si la hay, si no última posición GPS conocida
+      double? lat = _currentLat;
+      double? lng = _currentLng;
+      if (lat == null || lng == null) {
+        final lastPos = LocationService.lastPosition;
+        lat = lastPos?.latitude;
+        lng = lastPos?.longitude;
+        // Obtener GPS en background para la próxima búsqueda
+        if (lastPos == null) {
+          LocationService.getCurrentLocation();
+        }
+      }
+
       final result = await _dataSource.searchProductos(
         search: search,
         categoriaId: categoriaId,
         orden: orden,
+        lat: lat,
+        lng: lng,
         page: page,
         limit: 20,
       );

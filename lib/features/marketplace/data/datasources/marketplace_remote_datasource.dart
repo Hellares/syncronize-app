@@ -17,6 +17,8 @@ class MarketplaceRemoteDataSource {
     double? precioMax,
     String? departamento,
     String? orden,
+    double? lat,
+    double? lng,
     int page = 1,
     int limit = 20,
   }) async {
@@ -30,6 +32,8 @@ class MarketplaceRemoteDataSource {
       if (precioMax != null) 'precioMax': precioMax,
       if (departamento != null) 'departamento': departamento,
       if (orden != null) 'orden': orden,
+      if (lat != null) 'lat': lat,
+      if (lng != null) 'lng': lng,
     };
 
     final response = await _dioClient.get(

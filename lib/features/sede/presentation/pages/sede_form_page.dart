@@ -1,8 +1,11 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/services/storage_service.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../../auth/presentation/widgets/custom_button.dart';
@@ -58,6 +61,7 @@ class _SedeFormViewState extends State<_SedeFormView> {
   final _emailController = TextEditingController();
   final _direccionController = TextEditingController();
   final _referenciaController = TextEditingController();
+  final _standController = TextEditingController();
   final _distritoController = TextEditingController();
   final _provinciaController = TextEditingController();
   final _departamentoController = TextEditingController();
@@ -70,6 +74,9 @@ class _SedeFormViewState extends State<_SedeFormView> {
   TipoSede _selectedTipoSede = TipoSede.operativaCompleta;
   bool _isActive = true;
   Map<String, dynamic> _horarioAtencion = {};
+  Map<String, dynamic>? _coordenadas;
+  List<String> _imagenes = [];
+  double? _uploadProgress;
 
   String? _currentEmpresaId;
   bool _hasUnsavedChanges = false;
@@ -151,6 +158,7 @@ class _SedeFormViewState extends State<_SedeFormView> {
     _emailController.text = sede.email ?? '';
     _direccionController.text = sede.direccion ?? '';
     _referenciaController.text = sede.referencia ?? '';
+    _standController.text = sede.stand ?? '';
     _distritoController.text = sede.distrito ?? '';
     _provinciaController.text = sede.provincia ?? '';
     _departamentoController.text = sede.departamento ?? '';
@@ -166,6 +174,10 @@ class _SedeFormViewState extends State<_SedeFormView> {
       _horarioAtencion = sede.horarioAtencion != null
           ? Map<String, dynamic>.from(sede.horarioAtencion!)
           : {};
+      _coordenadas = sede.coordenadas != null
+          ? Map<String, dynamic>.from(sede.coordenadas!)
+          : null;
+      _imagenes = List<String>.from(sede.imagenes);
       _hasUnsavedChanges = false;
     });
   }
@@ -199,6 +211,63 @@ class _SedeFormViewState extends State<_SedeFormView> {
     return shouldPop ?? false;
   }
 
+  Future<void> _pickAndUploadImages() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Galería'),
+              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('Cámara'),
+              onTap: () => Navigator.pop(ctx, ImageSource.camera),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null || _currentEmpresaId == null) return;
+
+    final picker = ImagePicker();
+    List<XFile> files = [];
+
+    if (source == ImageSource.gallery) {
+      files = await picker.pickMultiImage(imageQuality: 85);
+    } else {
+      final photo = await picker.pickImage(source: source, imageQuality: 85);
+      if (photo != null) files = [photo];
+    }
+    if (files.isEmpty) return;
+
+    final storageService = locator<StorageService>();
+    for (int i = 0; i < files.length; i++) {
+      try {
+        setState(() => _uploadProgress = i / files.length);
+        final result = await storageService.uploadFile(
+          file: File(files[i].path),
+          empresaId: _currentEmpresaId!,
+          entidadTipo: 'SEDE',
+          onProgress: (p) {
+            setState(() => _uploadProgress = (i + p) / files.length);
+          },
+        );
+        setState(() {
+          _imagenes.add(result.url);
+          _markAsChanged();
+        });
+      } catch (e) {
+        // Continuar con las siguientes
+      }
+    }
+    setState(() => _uploadProgress = null);
+  }
+
   void _handleSubmit() {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -226,6 +295,8 @@ class _SedeFormViewState extends State<_SedeFormView> {
         'direccion': _direccionController.text.trim(),
       if (_referenciaController.text.trim().isNotEmpty)
         'referencia': _referenciaController.text.trim(),
+      if (_standController.text.trim().isNotEmpty)
+        'stand': _standController.text.trim(),
       if (_distritoController.text.trim().isNotEmpty)
         'distrito': _distritoController.text.trim(),
       if (_provinciaController.text.trim().isNotEmpty)
@@ -235,6 +306,12 @@ class _SedeFormViewState extends State<_SedeFormView> {
       'pais': 'PERU',
       if (_horarioAtencion.isNotEmpty)
         'horarioAtencion': _horarioAtencion,
+      if (_coordenadas != null)
+        'coordenadas': {
+          'lat': _coordenadas!['lat'],
+          'lon': _coordenadas!['lng'] ?? _coordenadas!['lon'],
+        },
+      'imagenes': _imagenes,
       // Solo incluir series si el usuario las proporcionó (no vacías)
       // Si están vacías, el backend las generará automáticamente
       if (_serieFacturaController.text.trim().isNotEmpty)
@@ -377,6 +454,7 @@ class _SedeFormViewState extends State<_SedeFormView> {
                             emailController: _emailController,
                             direccionController: _direccionController,
                             referenciaController: _referenciaController,
+                            standController: _standController,
                             distritoController: _distritoController,
                             provinciaController: _provinciaController,
                             departamentoController: _departamentoController,
@@ -395,6 +473,22 @@ class _SedeFormViewState extends State<_SedeFormView> {
                             onIsActiveChanged: (value) {
                               setState(() {
                                 _isActive = value;
+                                _markAsChanged();
+                              });
+                            },
+                            imagenes: _imagenes,
+                            uploadProgress: _uploadProgress,
+                            onAddImagenes: () => _pickAndUploadImages(),
+                            onRemoveImagen: (index) {
+                              setState(() {
+                                _imagenes.removeAt(index);
+                                _markAsChanged();
+                              });
+                            },
+                            coordenadas: _coordenadas,
+                            onCoordenadasChanged: (coords) {
+                              setState(() {
+                                _coordenadas = coords;
                                 _markAsChanged();
                               });
                             },

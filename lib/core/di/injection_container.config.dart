@@ -409,6 +409,14 @@ import '../../features/devolucion_venta/presentation/bloc/devolucion_form/devolu
     as _i867;
 import '../../features/devolucion_venta/presentation/bloc/devolucion_list/devolucion_list_cubit.dart'
     as _i712;
+import '../../features/direccion/data/datasources/direccion_remote_datasource.dart'
+    as _i572;
+import '../../features/direccion/data/repositories/direccion_repository_impl.dart'
+    as _i866;
+import '../../features/direccion/domain/repositories/direccion_repository.dart'
+    as _i95;
+import '../../features/direccion/presentation/bloc/direccion_list/direccion_list_cubit.dart'
+    as _i593;
 import '../../features/empresa/data/datasources/empresa_local_datasource.dart'
     as _i936;
 import '../../features/empresa/data/datasources/empresa_remote_datasource.dart'
@@ -605,6 +613,16 @@ import '../../features/producto/presentation/bloc/transferencias_list/transferen
     as _i410;
 import '../../features/producto/presentation/bloc/variante_atributo/variante_atributo_cubit.dart'
     as _i911;
+import '../../features/promocion/data/datasources/promocion_remote_datasource.dart'
+    as _i793;
+import '../../features/promocion/data/repositories/promocion_repository_impl.dart'
+    as _i160;
+import '../../features/promocion/domain/repositories/promocion_repository.dart'
+    as _i179;
+import '../../features/promocion/presentation/bloc/campana_form/campana_form_cubit.dart'
+    as _i295;
+import '../../features/promocion/presentation/bloc/campana_list/campana_list_cubit.dart'
+    as _i399;
 import '../../features/proveedor/data/datasources/proveedor_remote_datasource.dart'
     as _i478;
 import '../../features/proveedor/data/repositories/proveedor_repository_impl.dart'
@@ -1002,6 +1020,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i381.DevolucionVentaRemoteDataSource>(
       () => _i381.DevolucionVentaRemoteDataSource(gh<_i667.DioClient>()),
     );
+    gh.lazySingleton<_i572.DireccionRemoteDataSource>(
+      () => _i572.DireccionRemoteDataSource(gh<_i667.DioClient>()),
+    );
     gh.lazySingleton<_i278.EmpresaRemoteDataSource>(
       () => _i278.EmpresaRemoteDataSource(gh<_i667.DioClient>()),
     );
@@ -1028,6 +1049,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i815.TransferenciaStockRemoteDataSource>(
       () => _i815.TransferenciaStockRemoteDataSource(gh<_i667.DioClient>()),
+    );
+    gh.lazySingleton<_i793.PromocionRemoteDataSource>(
+      () => _i793.PromocionRemoteDataSource(gh<_i667.DioClient>()),
     );
     gh.lazySingleton<_i478.ProveedorRemoteDataSource>(
       () => _i478.ProveedorRemoteDataSource(gh<_i667.DioClient>()),
@@ -1090,6 +1114,12 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i840.ConfiguracionPrecioCubit>(
       () => _i840.ConfiguracionPrecioCubit(
         gh<_i27.ConfiguracionPrecioRepository>(),
+      ),
+    );
+    gh.lazySingleton<_i95.DireccionRepository>(
+      () => _i866.DireccionRepositoryImpl(
+        gh<_i572.DireccionRemoteDataSource>(),
+        gh<_i932.NetworkInfo>(),
       ),
     );
     gh.factory<_i1062.CreateSedeUseCase>(
@@ -1168,6 +1198,12 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i605.DescuentoRepository>(
       () =>
           _i571.DescuentoRepositoryImpl(gh<_i1036.DescuentoRemoteDataSource>()),
+    );
+    gh.lazySingleton<_i179.PromocionRepository>(
+      () => _i160.PromocionRepositoryImpl(
+        gh<_i793.PromocionRemoteDataSource>(),
+        gh<_i932.NetworkInfo>(),
+      ),
     );
     gh.factory<_i935.ProductoAtributoCubit>(
       () => _i935.ProductoAtributoCubit(gh<_i1047.ProductoRemoteDataSource>()),
@@ -1386,6 +1422,9 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i932.NetworkInfo>(),
         gh<_i490.ErrorHandlerService>(),
       ),
+    );
+    gh.factory<_i593.DireccionListCubit>(
+      () => _i593.DireccionListCubit(gh<_i95.DireccionRepository>()),
     );
     gh.lazySingleton<_i640.PrecioNivelRepository>(
       () => _i92.PrecioNivelRepositoryImpl(
@@ -1852,6 +1891,12 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i648.ReportesIncidenciaListCubit>(
       () =>
           _i648.ReportesIncidenciaListCubit(gh<_i624.ListarReportesUsecase>()),
+    );
+    gh.factory<_i295.CampanaFormCubit>(
+      () => _i295.CampanaFormCubit(gh<_i179.PromocionRepository>()),
+    );
+    gh.factory<_i399.CampanaListCubit>(
+      () => _i399.CampanaListCubit(gh<_i179.PromocionRepository>()),
     );
     gh.factory<_i654.CompraListCubit>(
       () => _i654.CompraListCubit(

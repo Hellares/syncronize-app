@@ -8,6 +8,12 @@ import '../../../../core/widgets/custom_search_field.dart';
 import '../bloc/marketplace_search_cubit.dart';
 import '../widgets/marketplace_drawer.dart';
 import '../widgets/producto_marketplace_card.dart';
+import '../../../../core/constants/api_constants.dart';
+import '../../../../core/constants/storage_constants.dart';
+import '../../../../core/network/dio_client.dart';
+import '../../../../core/storage/local_storage_service.dart';
+import '../widgets/favorito_button.dart';
+import '../widgets/ubicacion_selector.dart';
 
 class MarketplacePage extends StatelessWidget {
   const MarketplacePage({super.key});
@@ -34,11 +40,16 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
   final _searchController = TextEditingController();
   final _scrollController = ScrollController();
   String? _selectedCategoriaId;
+  double? _ubicacionLat;
+  double? _ubicacionLng;
+  String? _ubicacionLabel;
+  List<dynamic> _vistos = [];
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    _loadUserData();
   }
 
   @override
@@ -60,6 +71,22 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
           search: query.isEmpty ? null : query,
           categoriaId: _selectedCategoriaId,
         );
+  }
+
+  Future<void> _loadUserData() async {
+    final storage = locator<LocalStorageService>();
+    final token = await storage.getString(StorageConstants.accessToken);
+    if (token == null || token.isEmpty) return;
+
+    FavoritoButton.loadFavoritos();
+    try {
+      final dio = locator<DioClient>();
+      final response = await dio.get(
+        '${ApiConstants.marketplaceUsuario}/vistos',
+        queryParameters: {'limit': '10'},
+      );
+      if (mounted) setState(() => _vistos = response.data as List);
+    } catch (_) {}
   }
 
   void _onCategoriaSelected(String? categoriaId) {
@@ -100,11 +127,32 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
         ],
         body: Column(
           children: [
+            // Ubicación
+            UbicacionSelector(
+              lat: _ubicacionLat,
+              lng: _ubicacionLng,
+              label: _ubicacionLabel,
+              onChanged: (result) {
+                setState(() {
+                  _ubicacionLat = result.lat;
+                  _ubicacionLng = result.lng;
+                  _ubicacionLabel = result.label;
+                });
+                context.read<MarketplaceSearchCubit>().setUbicacion(
+                  result.lat,
+                  result.lng,
+                );
+              },
+            ),
+
             // Banner carrusel
             _buildBannerCarousel(),
 
             // Categorías chips
             _buildCategoriaChips(),
+
+            // Visto recientemente
+            if (_vistos.isNotEmpty) _buildVistosSection(),
 
             // Grid de productos
             Expanded(
@@ -284,6 +332,90 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildVistosSection() {
+    return Container(
+      color: Colors.white,
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(top: 12, bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text('Visto recientemente',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey[700])),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 140,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              itemCount: _vistos.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: (_, index) {
+                final v = _vistos[index];
+                final nombre = v['nombre'] as String? ?? '';
+                final imagen = v['imagen'] as String?;
+                final precio = v['precio'] as num?;
+                final precioOferta = v['precioOferta'] as num?;
+                final enOferta = v['enOferta'] as bool? ?? false;
+                final precioFinal = enOferta && precioOferta != null ? precioOferta : precio;
+
+                return GestureDetector(
+                  onTap: () async {
+                    await context.push('/producto-detalle/${v['id']}');
+                    _loadUserData();
+                  },
+                  child: Container(
+                    width: 105,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          height: 80,
+                          width: double.infinity,
+                          color: Colors.grey.shade50,
+                          child: imagen != null
+                              ? Image.network(imagen, fit: BoxFit.contain,
+                                  errorBuilder: (_, __, ___) => const Icon(Icons.inventory_2_outlined, color: Colors.grey))
+                              : const Icon(Icons.inventory_2_outlined, color: Colors.grey),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(6),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (precioFinal != null)
+                                Text('S/ ${precioFinal.toStringAsFixed(2)}',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: enOferta ? Colors.green.shade600 : Colors.black87,
+                                    )),
+                              Text(nombre, maxLines: 2, overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(fontSize: 9, color: Colors.grey.shade700, height: 1.2)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
