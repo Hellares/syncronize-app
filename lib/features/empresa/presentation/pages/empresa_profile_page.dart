@@ -27,6 +27,7 @@ class EmpresaProfilePage extends StatefulWidget {
 }
 
 class _EmpresaProfilePageState extends State<EmpresaProfilePage> {
+  final _subdominioController = TextEditingController();
   final _telefonoController = TextEditingController();
   final _emailController = TextEditingController();
   final _webController = TextEditingController();
@@ -42,6 +43,7 @@ class _EmpresaProfilePageState extends State<EmpresaProfilePage> {
 
   @override
   void dispose() {
+    _subdominioController.dispose();
     _telefonoController.dispose();
     _emailController.dispose();
     _webController.dispose();
@@ -52,6 +54,7 @@ class _EmpresaProfilePageState extends State<EmpresaProfilePage> {
 
   void _initControllers(EmpresaInfo empresa) {
     if (_initialized) return;
+    _subdominioController.text = empresa.subdominio ?? '';
     _telefonoController.text = empresa.telefono ?? '';
     _emailController.text = empresa.email ?? '';
     _webController.text = empresa.web ?? '';
@@ -72,6 +75,8 @@ class _EmpresaProfilePageState extends State<EmpresaProfilePage> {
       await _datasource.updateEmpresa(
         empresaId: empresaId,
         data: {
+          if (_subdominioController.text.isNotEmpty)
+            'subdominio': _subdominioController.text.trim().toLowerCase().replaceAll(RegExp(r'[^a-z0-9-]'), ''),
           'telefono': _telefonoController.text.isEmpty
               ? null
               : _telefonoController.text,
@@ -425,6 +430,22 @@ class _EmpresaProfilePageState extends State<EmpresaProfilePage> {
               ),
             ),
             const SizedBox(height: 16),
+            CustomText(
+              controller: _subdominioController,
+              borderColor: AppColors.blue1,
+              label: 'Subdominio (URL de tu tienda web)',
+              hintText: 'Ej: mi-tienda',
+              prefixIcon: const Icon(Icons.link),
+            ),
+            if (_subdominioController.text.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 4, left: 4),
+                child: Text(
+                  'tienda.syncronize.net.pe/${_subdominioController.text}',
+                  style: TextStyle(fontSize: 11, color: AppColors.blue1),
+                ),
+              ),
+            const SizedBox(height: 14),
             CustomText(
               controller: _telefonoController,
               borderColor: AppColors.blue1,

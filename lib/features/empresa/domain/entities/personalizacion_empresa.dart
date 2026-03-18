@@ -7,6 +7,7 @@ class PersonalizacionEmpresa extends Equatable {
   final Map<String, dynamic>? webConfig;
   final String? bannerPrincipalUrl;
   final String? bannerPrincipalTexto;
+  final List<dynamic>? banners;
   final String bannerColor;
   final String colorPrimario;
   final String colorSecundario;
@@ -28,6 +29,7 @@ class PersonalizacionEmpresa extends Equatable {
     this.webConfig,
     this.bannerPrincipalUrl,
     this.bannerPrincipalTexto,
+    this.banners,
     this.bannerColor = '#000000',
     this.colorPrimario = '#007bff',
     this.colorSecundario = '#6c757d',
@@ -73,6 +75,7 @@ class PersonalizacionEmpresa extends Equatable {
     Map<String, dynamic>? webConfig,
     String? bannerPrincipalUrl,
     String? bannerPrincipalTexto,
+    List<dynamic>? banners,
     String? bannerColor,
     String? colorPrimario,
     String? colorSecundario,
@@ -94,6 +97,7 @@ class PersonalizacionEmpresa extends Equatable {
       webConfig: webConfig ?? this.webConfig,
       bannerPrincipalUrl: bannerPrincipalUrl ?? this.bannerPrincipalUrl,
       bannerPrincipalTexto: bannerPrincipalTexto ?? this.bannerPrincipalTexto,
+      banners: banners ?? this.banners,
       bannerColor: bannerColor ?? this.bannerColor,
       colorPrimario: colorPrimario ?? this.colorPrimario,
       colorSecundario: colorSecundario ?? this.colorSecundario,

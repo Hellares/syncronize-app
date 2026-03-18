@@ -2564,9 +2564,26 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
             ),
             const SizedBox(width: 10),
           ],
+          // Botón de cobrar (para estados REPARADO y LISTO_ENTREGA)
+          if (_orden!.estado == 'REPARADO' || _orden!.estado == 'LISTO_ENTREGA') ...[
+            Expanded(
+              child: CustomButton(
+                text: 'Cobrar',
+                icon: const Icon(Icons.point_of_sale, size: 14, color: Colors.white),
+                backgroundColor: Colors.green[600]!,
+                height: 35,
+                borderRadius: 8,
+                onPressed: () async {
+                  final result = await context.push<bool>('/empresa/ordenes/${_orden!.id}/cobrar');
+                  if (result == true) _loadAll();
+                },
+              ),
+            ),
+            const SizedBox(width: 10),
+          ],
           // Transiciones principales
           ...validTransitions
-              .where((e) => e != 'CANCELADO' && e != 'TERCERIZADO')
+              .where((e) => e != 'CANCELADO' && e != 'TERCERIZADO' && e != 'ENTREGADO')
               .map((estado) {
             final isReingresoBtn = estado == 'EN_DIAGNOSTICO' &&
                 (_orden!.estado == 'ENTREGADO' || _orden!.estado == 'FINALIZADO');

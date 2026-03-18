@@ -208,6 +208,13 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/ventas')),
             ),
             _TileNode(
+              title: 'Cola POS',
+              icon: Icons.queue,
+              iconColor: Colors.teal,
+              routeMatch: const _RouteMatch.startsWith('/empresa/cola-pos'),
+              onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/cola-pos')),
+            ),
+            _TileNode(
               title: 'Devoluciones',
               icon: Icons.assignment_return,
               iconColor: AppColors.blue2,

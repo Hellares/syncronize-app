@@ -17,6 +17,7 @@ class StockPorSedeInfoModel extends StockPorSedeInfo {
     super.fechaInicioOferta,
     super.fechaFinOferta,
     super.precioConfigurado = false,
+    super.precioIncluyeIgv = false,
   });
 
   factory StockPorSedeInfoModel.fromJson(Map<String, dynamic> json) {
@@ -63,6 +64,7 @@ class StockPorSedeInfoModel extends StockPorSedeInfo {
           ? DateTime.parse(json['fechaFinOferta'] as String)
           : null,
       precioConfigurado: json['precioConfigurado'] as bool? ?? false,
+      precioIncluyeIgv: json['precioIncluyeIgv'] as bool? ?? false,
     );
   }
 
@@ -83,6 +85,7 @@ class StockPorSedeInfoModel extends StockPorSedeInfo {
       if (fechaInicioOferta != null) 'fechaInicioOferta': fechaInicioOferta!.toIso8601String(),
       if (fechaFinOferta != null) 'fechaFinOferta': fechaFinOferta!.toIso8601String(),
       'precioConfigurado': precioConfigurado,
+      'precioIncluyeIgv': precioIncluyeIgv,
     };
   }
 
@@ -102,6 +105,7 @@ class StockPorSedeInfoModel extends StockPorSedeInfo {
       fechaInicioOferta: entity.fechaInicioOferta,
       fechaFinOferta: entity.fechaFinOferta,
       precioConfigurado: entity.precioConfigurado,
+      precioIncluyeIgv: entity.precioIncluyeIgv,
     );
   }
 

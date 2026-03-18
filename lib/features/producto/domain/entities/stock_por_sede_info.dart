@@ -23,7 +23,8 @@ class StockPorSedeInfo extends Equatable {
   final DateTime? fechaFinOferta;
 
   // Estado de configuración de precio
-  final bool precioConfigurado; // true cuando se ha establecido al menos el precio de venta
+  final bool precioConfigurado;
+  final bool precioIncluyeIgv;
 
   const StockPorSedeInfo({
     required this.sedeId,
@@ -40,6 +41,7 @@ class StockPorSedeInfo extends Equatable {
     this.fechaInicioOferta,
     this.fechaFinOferta,
     this.precioConfigurado = false,
+    this.precioIncluyeIgv = false,
   });
 
   /// Verifica si el stock está bajo el mínimo
@@ -104,5 +106,6 @@ class StockPorSedeInfo extends Equatable {
         fechaInicioOferta,
         fechaFinOferta,
         precioConfigurado,
+        precioIncluyeIgv,
       ];
 }

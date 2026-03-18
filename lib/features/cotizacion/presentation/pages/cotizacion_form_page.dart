@@ -606,11 +606,9 @@ class _CotizacionFormPageState extends State<CotizacionFormPage> {
 
   // Paso 4: Resumen
   Widget _buildStep4() {
-    final subtotal = _items.fold<double>(0, (sum, item) {
-      return sum + item.subtotal;
-    });
-    final igv = subtotal * (_impuestoPorcentaje / 100);
-    final total = subtotal + igv;
+    final subtotal = _items.fold<double>(0, (sum, item) => sum + item.subtotal);
+    final igv = _items.fold<double>(0, (sum, item) => sum + item.igv);
+    final total = _items.fold<double>(0, (sum, item) => sum + item.total);
 
     return GradientContainer(
       width: double.infinity,

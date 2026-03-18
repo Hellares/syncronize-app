@@ -451,6 +451,12 @@ import '../../features/marketplace/data/datasources/marketplace_remote_datasourc
     as _i221;
 import '../../features/marketplace/presentation/bloc/marketplace_search_cubit.dart'
     as _i40;
+import '../../features/pos/data/datasources/pos_remote_datasource.dart'
+    as _i449;
+import '../../features/pos/data/repositories/pos_repository_impl.dart' as _i84;
+import '../../features/pos/domain/repositories/pos_repository.dart' as _i511;
+import '../../features/pos/presentation/bloc/cola_pos/cola_pos_cubit.dart'
+    as _i5;
 import '../../features/producto/data/datasources/configuracion_precio_remote_datasource.dart'
     as _i134;
 import '../../features/producto/data/datasources/plantilla_remote_datasource.dart'
@@ -1032,6 +1038,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i221.MarketplaceRemoteDataSource>(
       () => _i221.MarketplaceRemoteDataSource(gh<_i667.DioClient>()),
     );
+    gh.lazySingleton<_i449.PosRemoteDataSource>(
+      () => _i449.PosRemoteDataSource(gh<_i667.DioClient>()),
+    );
     gh.lazySingleton<_i134.ConfiguracionPrecioRemoteDataSource>(
       () => _i134.ConfiguracionPrecioRemoteDataSource(gh<_i667.DioClient>()),
     );
@@ -1243,6 +1252,12 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i40.MarketplaceSearchCubit>(
       () =>
           _i40.MarketplaceSearchCubit(gh<_i221.MarketplaceRemoteDataSource>()),
+    );
+    gh.lazySingleton<_i511.PosRepository>(
+      () => _i84.PosRepositoryImpl(
+        gh<_i449.PosRemoteDataSource>(),
+        gh<_i932.NetworkInfo>(),
+      ),
     );
     gh.factory<_i717.GetPersonalizacionUseCase>(
       () => _i717.GetPersonalizacionUseCase(gh<_i544.EmpresaRepository>()),
@@ -1891,6 +1906,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i648.ReportesIncidenciaListCubit>(
       () =>
           _i648.ReportesIncidenciaListCubit(gh<_i624.ListarReportesUsecase>()),
+    );
+    gh.factory<_i5.ColaPosCubit>(
+      () => _i5.ColaPosCubit(gh<_i511.PosRepository>()),
     );
     gh.factory<_i295.CampanaFormCubit>(
       () => _i295.CampanaFormCubit(gh<_i179.PromocionRepository>()),

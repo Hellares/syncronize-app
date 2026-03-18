@@ -255,12 +255,19 @@ class _CotizacionItemSelectorState extends State<CotizacionItemSelector> {
       porcentajeIGV = configState.configuracion.impuestoDefaultPorcentaje;
     }
 
+    // Detectar si el precio incluye IGV
+    bool incluyeIgv = false;
+    if (_tipoItem == 'producto' && _productoSeleccionado != null && _sedeId != null) {
+      incluyeIgv = _productoSeleccionado!.precioIncluyeIgvEnSede(_sedeId!);
+    }
+
     final item = CotizacionDetalleInput(
       descripcion: descripcion,
       cantidad: cantidad,
       precioUnitario: precio,
       descuento: descuento,
       porcentajeIGV: porcentajeIGV,
+      precioIncluyeIgv: incluyeIgv,
       productoId: _tipoItem == 'producto' ? _productoSeleccionado?.id : null,
       varianteId: _tipoItem == 'producto' ? _varianteSeleccionada?.id : null,
     );

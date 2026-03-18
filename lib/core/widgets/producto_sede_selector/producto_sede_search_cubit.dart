@@ -40,6 +40,7 @@ class ProductoSedeSearchCubit extends Cubit<ProductoSedeSearchState> {
       ));
 
       _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+        if (isClosed) return;
         _executeSearch(
           empresaId: empresaId,
           sedeId: sedeId,
@@ -108,18 +109,22 @@ class ProductoSedeSearchCubit extends Cubit<ProductoSedeSearchState> {
       }
       _cache[cacheKey] = productos;
 
-      emit(ProductoSedeSearchLoaded(
-        productos: productos,
-        query: query,
-        hasMore: result.data.hasMore,
-      ));
+      if (!isClosed) {
+        emit(ProductoSedeSearchLoaded(
+          productos: productos,
+          query: query,
+          hasMore: result.data.hasMore,
+        ));
+      }
     } else if (result is Error) {
       final error = result as Error;
-      emit(ProductoSedeSearchError(
-        message: error.message,
-        query: query,
-        productosAnteriores: _productosActuales,
-      ));
+      if (!isClosed) {
+        emit(ProductoSedeSearchError(
+          message: error.message,
+          query: query,
+          productosAnteriores: _productosActuales,
+        ));
+      }
     }
   }
 

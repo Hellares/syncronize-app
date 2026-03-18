@@ -10,6 +10,7 @@ class CotizacionDetalleInput {
   final double precioUnitario;
   final double descuento;
   final double porcentajeIGV;
+  final bool precioIncluyeIgv;
 
   const CotizacionDetalleInput({
     this.productoId,
@@ -20,9 +21,26 @@ class CotizacionDetalleInput {
     required this.precioUnitario,
     this.descuento = 0,
     this.porcentajeIGV = 18.0,
+    this.precioIncluyeIgv = false,
   });
 
-  double get subtotal => cantidad * precioUnitario - descuento;
+  double get subtotalBruto => cantidad * precioUnitario - descuento;
+
+  double get subtotal {
+    if (precioIncluyeIgv) {
+      return subtotalBruto / (1 + porcentajeIGV / 100);
+    }
+    return subtotalBruto;
+  }
+
+  double get igv => subtotal * (porcentajeIGV / 100);
+
+  double get total {
+    if (precioIncluyeIgv) {
+      return subtotalBruto;
+    }
+    return subtotal + igv;
+  }
 
   Map<String, dynamic> toMap() => {
         if (productoId != null) 'productoId': productoId,
@@ -33,5 +51,6 @@ class CotizacionDetalleInput {
         'precioUnitario': precioUnitario,
         if (descuento > 0) 'descuento': descuento,
         'porcentajeIGV': porcentajeIGV,
+        'precioIncluyeIgv': precioIncluyeIgv,
       };
 }

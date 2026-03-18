@@ -6,6 +6,7 @@ import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/widgets/custom_button.dart';
 import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/network/dio_client.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../../auth/presentation/bloc/auth/auth_bloc.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
@@ -64,6 +65,7 @@ class _VentaFormPageState extends State<VentaFormPage> {
   String _moneda = 'PEN';
 
   bool get _desdeCotizacion => widget.cotizacionId != null;
+  bool _cotizacionCargada = false;
 
   @override
   void initState() {
@@ -82,6 +84,54 @@ class _VentaFormPageState extends State<VentaFormPage> {
       _vendedorId = authState.user.id;
     }
     _leerConfiguracion();
+
+    // Si viene de cotización, cargar datos y saltar al paso de pago
+    if (_desdeCotizacion) {
+      _cargarDatosCotizacion();
+    }
+  }
+
+  Future<void> _cargarDatosCotizacion() async {
+    if (_empresaId == null || widget.cotizacionId == null) return;
+    try {
+      final dio = locator<DioClient>();
+      final response = await dio.get('/cotizaciones/${widget.cotizacionId}');
+      final data = response.data as Map<String, dynamic>;
+
+      if (!mounted) return;
+      setState(() {
+        // Cliente
+        _nombreClienteController.text = data['nombreCliente']?.toString() ?? '';
+        _documentoController.text = data['documentoCliente']?.toString() ?? '';
+        _emailController.text = data['emailCliente']?.toString() ?? '';
+        _telefonoController.text = data['telefonoCliente']?.toString() ?? '';
+        _direccionController.text = data['direccionCliente']?.toString() ?? '';
+        _clienteId = data['clienteId'] as String?;
+        if (data['sedeId'] != null) _sedeId = data['sedeId'] as String;
+
+        // Items de la cotización
+        final detalles = data['detalles'] as List? ?? [];
+        _items.clear();
+        for (final d in detalles) {
+          final dm = d as Map<String, dynamic>;
+          _items.add(VentaDetalleInput(
+            productoId: dm['productoId'] as String?,
+            varianteId: dm['varianteId'] as String?,
+            descripcion: dm['descripcion']?.toString() ?? dm['producto']?['nombre']?.toString() ?? 'Producto',
+            cantidad: (dm['cantidad'] as num?)?.toDouble() ?? 1,
+            precioUnitario: (dm['precioUnitario'] as num?)?.toDouble() ?? 0,
+            descuento: (dm['descuento'] as num?)?.toDouble() ?? 0,
+            porcentajeIGV: _impuestoPorcentaje,
+          ));
+        }
+
+        // Saltar al paso de items para que el cajero verifique
+        _currentStep = 1;
+        _cotizacionCargada = true;
+      });
+    } catch (e) {
+      // Si falla, dejar el formulario normal
+    }
   }
 
   void _leerConfiguracion() {

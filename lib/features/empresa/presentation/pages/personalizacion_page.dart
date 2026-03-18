@@ -58,6 +58,10 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
   bool _isUploadingBanner = false;
   double _logoUploadProgress = 0.0;
 
+  // Banners múltiples
+  List<Map<String, dynamic>> _banners = [];
+  bool _isUploadingMultiBanner = false;
+
   // Controllers
   final _bannerUrlController = TextEditingController();
   final _bannerTextoController = TextEditingController();
@@ -123,6 +127,10 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
         _currentBannerUrl = p.bannerPrincipalUrl;
         _bannerUrlController.text = p.bannerPrincipalUrl ?? '';
         _bannerTextoController.text = p.bannerPrincipalTexto ?? '';
+        _banners = (p.banners as List?)
+            ?.where((b) => b is Map)
+            .map((b) => Map<String, dynamic>.from(b as Map))
+            .toList() ?? [];
         _splashUrlController.text = p.appSplashScreenUrl ?? '';
         _dominioController.text = p.dominioPersonalizado ?? '';
         _bannerColor = _parseColor(p.bannerColor);
@@ -316,6 +324,60 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
     }
   }
 
+  Future<void> _addBanner() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Galería'),
+              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('Cámara'),
+              onTap: () => Navigator.pop(ctx, ImageSource.camera),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null) return;
+
+    final empresaId = _localStorage.getString(StorageConstants.tenantId);
+    if (empresaId == null) return;
+
+    try {
+      final XFile? picked = await _imagePicker.pickImage(source: source, imageQuality: 85);
+      if (picked == null) return;
+
+      setState(() => _isUploadingMultiBanner = true);
+
+      final archivoResponse = await _storageService.uploadFile(
+        file: File(picked.path),
+        empresaId: empresaId,
+        entidadTipo: 'EMPRESA',
+        entidadId: empresaId,
+        categoria: 'BANNER',
+      );
+
+      setState(() {
+        _banners.add({
+          'url': archivoResponse.url,
+          'texto': '',
+          'link': '',
+          'orden': _banners.length,
+        });
+        _isUploadingMultiBanner = false;
+      });
+    } catch (e) {
+      setState(() => _isUploadingMultiBanner = false);
+    }
+  }
+
   void _showBannerSourceDialog() {
     showModalBottomSheet(
       context: context,
@@ -429,6 +491,7 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
     final updatedPersonalizacion = _personalizacion!.copyWith(
       bannerPrincipalUrl: _bannerUrlController.text.isEmpty ? null : _bannerUrlController.text,
       bannerPrincipalTexto: _bannerTextoController.text.isEmpty ? null : _bannerTextoController.text,
+      banners: _banners.isNotEmpty ? _banners : null,
       bannerColor: _colorToHex(_bannerColor),
       colorPrimario: _colorToHex(_colorPrimario),
       colorSecundario: _colorToHex(_colorSecundario),
@@ -846,6 +909,90 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
               prefixIcon: const Icon(Icons.text_fields, size: 16),
               borderColor: AppColors.blueborder,
             ),
+
+            const SizedBox(height: 16),
+
+            // Banners múltiples (carousel web)
+            Row(
+              children: [
+                Icon(Icons.view_carousel, size: 13, color: AppColors.blue1),
+                const SizedBox(width: 6),
+                const Text('Banners del carousel', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                const Spacer(),
+                TextButton.icon(
+                  onPressed: _isUploadingMultiBanner ? null : _addBanner,
+                  icon: const Icon(Icons.add_photo_alternate, size: 14),
+                  label: const Text('Agregar', style: TextStyle(fontSize: 11)),
+                ),
+              ],
+            ),
+            if (_isUploadingMultiBanner)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: LinearProgressIndicator(),
+              ),
+            if (_banners.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text('Sin banners adicionales', style: TextStyle(fontSize: 11, color: Colors.grey[400])),
+              )
+            else
+              SizedBox(
+                height: 80,
+                child: ReorderableListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _banners.length,
+                  onReorder: (oldIndex, newIndex) {
+                    setState(() {
+                      if (newIndex > oldIndex) newIndex--;
+                      final item = _banners.removeAt(oldIndex);
+                      _banners.insert(newIndex, item);
+                      for (int i = 0; i < _banners.length; i++) {
+                        _banners[i]['orden'] = i;
+                      }
+                    });
+                  },
+                  itemBuilder: (_, i) {
+                    final b = _banners[i];
+                    return Container(
+                      key: ValueKey(b['url']),
+                      width: 130,
+                      margin: const EdgeInsets.only(right: 8),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppColors.blueborder),
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          Image.network(b['url'], fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(color: Colors.grey[200], child: const Icon(Icons.image))),
+                          Positioned(
+                            top: 2, right: 2,
+                            child: GestureDetector(
+                              onTap: () => setState(() => _banners.removeAt(i)),
+                              child: Container(
+                                padding: const EdgeInsets.all(2),
+                                decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                                child: const Icon(Icons.close, size: 12, color: Colors.white),
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            bottom: 2, left: 2,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                              decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(3)),
+                              child: Text('${i + 1}', style: const TextStyle(color: Colors.white, fontSize: 9)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
 
             _sectionDivider(),
 

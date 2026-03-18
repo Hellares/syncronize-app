@@ -33,6 +33,8 @@ import '../../features/marketplace/presentation/pages/opiniones_producto_page.da
 import '../../features/marketplace/presentation/pages/gestion_opiniones_page.dart';
 import '../../features/marketplace/presentation/pages/favoritos_page.dart';
 import '../../features/direccion/presentation/pages/mis_direcciones_page.dart';
+import '../../features/pos/presentation/pages/cola_pos_page.dart';
+import '../../features/pos/presentation/pages/cobrar_cotizacion_page.dart';
 import '../../features/producto/presentation/pages/productos_page.dart';
 import '../../features/producto/presentation/pages/producto_detail_page.dart';
 import '../../features/producto/presentation/pages/producto_form_page.dart';
@@ -101,6 +103,7 @@ import '../../features/servicio/presentation/pages/ordenes_servicio_page.dart';
 import '../../features/servicio/presentation/pages/orden_servicio_form_page.dart';
 import '../../features/servicio/presentation/pages/orden_servicio_detail_page.dart';
 import '../../features/servicio/presentation/pages/orden_cliente_detail_page.dart';
+import '../../features/servicio/presentation/pages/cobrar_orden_page.dart';
 import '../../features/servicio/presentation/pages/servicio_dashboard_page.dart';
 import '../../features/servicio/presentation/pages/catalogo_plantillas_page.dart';
 import '../../features/servicio/presentation/pages/plantillas_servicio_page.dart';
@@ -926,6 +929,14 @@ class AppRouter {
           return OrdenServicioDetailPage(ordenId: ordenId);
         },
       ),
+      GoRoute(
+        path: '/empresa/ordenes/:id/cobrar',
+        name: 'empresa-ordenes-servicio-cobrar',
+        builder: (context, state) {
+          final ordenId = state.pathParameters['id']!;
+          return CobrarOrdenPage(ordenId: ordenId);
+        },
+      ),
       // Rutas de tercerización B2B
       GoRoute(
         path: '/empresa/tercerizacion',
@@ -976,6 +987,19 @@ class AppRouter {
         path: '/empresa/promociones/nueva',
         name: 'empresa-promociones-nueva',
         builder: (context, state) => const CrearCampanaPage(),
+      ),
+      GoRoute(
+        path: '/empresa/cola-pos',
+        name: 'empresa-cola-pos',
+        builder: (context, state) => const ColaPosPage(),
+      ),
+      GoRoute(
+        path: '/empresa/cola-pos/cobrar/:id',
+        name: 'empresa-cola-pos-cobrar',
+        builder: (context, state) {
+          final cotizacionId = state.pathParameters['id']!;
+          return CobrarCotizacionPage(cotizacionId: cotizacionId);
+        },
       ),
       GoRoute(
         path: '/empresa/preguntas-producto',
