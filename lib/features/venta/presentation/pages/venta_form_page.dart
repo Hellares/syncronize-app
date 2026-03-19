@@ -8,11 +8,13 @@ import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/widgets/smart_appbar.dart';
+import '../../../../core/widgets/producto_sede_selector/producto_sede_search_cubit.dart';
 import '../../../auth/presentation/bloc/auth/auth_bloc.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_cubit.dart';
 import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_state.dart';
+import '../../../producto/presentation/bloc/producto_list/producto_list_cubit.dart';
 import '../bloc/venta_form/venta_form_cubit.dart';
 import '../bloc/venta_form/venta_form_state.dart';
 import '../../domain/entities/venta.dart';
@@ -164,6 +166,13 @@ class _VentaFormPageState extends State<VentaFormPage> {
       child: BlocListener<VentaFormCubit, VentaFormState>(
         listener: (context, state) {
           if (state is VentaFormSuccess) {
+            // Invalidate product/stock caches so lists refresh
+            try {
+              context.read<ProductoListCubit>().invalidateCache();
+            } catch (_) {}
+            try {
+              context.read<ProductoSedeSearchCubit>().clearCache();
+            } catch (_) {}
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text(state.message)),
             );

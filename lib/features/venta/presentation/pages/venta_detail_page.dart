@@ -9,8 +9,10 @@ import '../../../../core/theme/gradient_container.dart';
 import '../../../../core/fonts/app_text_widgets.dart';
 import '../../../../core/utils/resource.dart';
 import '../../../../core/widgets/smart_appbar.dart';
+import '../../../../core/widgets/producto_sede_selector/producto_sede_search_cubit.dart';
 import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_cubit.dart';
 import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_state.dart';
+import '../../../producto/presentation/bloc/producto_list/producto_list_cubit.dart';
 import '../../domain/entities/venta.dart';
 import '../../domain/usecases/get_venta_usecase.dart';
 import '../bloc/venta_form/venta_form_cubit.dart';
@@ -65,6 +67,13 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
       child: BlocListener<VentaFormCubit, VentaFormState>(
         listener: (context, state) {
           if (state is VentaConfirmada) {
+            // Confirming a sale deducts stock — invalidate product caches
+            try {
+              context.read<ProductoListCubit>().invalidateCache();
+            } catch (_) {}
+            try {
+              context.read<ProductoSedeSearchCubit>().clearCache();
+            } catch (_) {}
             setState(() => _venta = state.venta);
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Venta confirmada')),
@@ -79,6 +88,13 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
             _loadVenta();
           }
           if (state is VentaAnulada) {
+            // Annulling a sale reverses stock — invalidate product caches
+            try {
+              context.read<ProductoListCubit>().invalidateCache();
+            } catch (_) {}
+            try {
+              context.read<ProductoSedeSearchCubit>().clearCache();
+            } catch (_) {}
             setState(() => _venta = state.venta);
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Venta anulada')),
