@@ -679,6 +679,14 @@ class AppRouter {
           return CotizacionDetailPage(cotizacionId: cotizacionId);
         },
       ),
+      GoRoute(
+        path: '/empresa/cotizaciones/:id/editar',
+        name: 'empresa-cotizaciones-editar',
+        builder: (context, state) {
+          final cotizacionId = state.pathParameters['id']!;
+          return CotizacionFormPage(cotizacionId: cotizacionId);
+        },
+      ),
       // Rutas de ventas
       GoRoute(
         path: '/empresa/ventas',

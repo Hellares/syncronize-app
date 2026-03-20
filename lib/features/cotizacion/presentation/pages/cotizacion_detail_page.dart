@@ -138,6 +138,15 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
                           ),
                         ),
                         const PopupMenuDivider(),
+                        if (_cotizacion!.esEditable)
+                          const PopupMenuItem(
+                            value: 'editar',
+                            child: ListTile(
+                              leading: Icon(Icons.edit, color: AppColors.blue1),
+                              title: Text('Editar'),
+                              dense: true,
+                            ),
+                          ),
                         const PopupMenuItem(
                           value: 'duplicar',
                           child: ListTile(
@@ -494,6 +503,22 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
 
     if (cot.estado == EstadoCotizacion.borrador) {
       actions.add(Expanded(
+        child: OutlinedButton.icon(
+          onPressed: _navigateToEdit,
+          icon: const Icon(Icons.edit, size: 18),
+          label: const Text('Editar'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.blue1,
+            side: const BorderSide(color: AppColors.blue1),
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ),
+      ));
+      actions.add(const SizedBox(width: 12));
+      actions.add(Expanded(
         child: ElevatedButton.icon(
           onPressed: () {
             context.read<CotizacionFormCubit>().cambiarEstado(
@@ -692,6 +717,9 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
 
   void _handleMenuAction(BuildContext context, String action) {
     switch (action) {
+      case 'editar':
+        _navigateToEdit();
+        break;
       case 'pdf_interno':
         _generarDocumentoPDF(_cotizacion!, modoCliente: false);
         break;
@@ -706,6 +734,15 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
       case 'eliminar':
         _showDeleteConfirmation(context);
         break;
+    }
+  }
+
+  Future<void> _navigateToEdit() async {
+    final result = await context.push<bool>(
+      '/empresa/cotizaciones/${_cotizacion!.id}/editar',
+    );
+    if (result == true) {
+      _loadCotizacion();
     }
   }
 

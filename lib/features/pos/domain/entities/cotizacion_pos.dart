@@ -3,6 +3,7 @@ import 'package:equatable/equatable.dart';
 class CotizacionPOS extends Equatable {
   final String id;
   final String codigo;
+  final String estado;
   final String nombreCliente;
   final String vendedor;
   final String? sede;
@@ -15,6 +16,7 @@ class CotizacionPOS extends Equatable {
   const CotizacionPOS({
     required this.id,
     required this.codigo,
+    required this.estado,
     required this.nombreCliente,
     required this.vendedor,
     this.sede,
@@ -24,6 +26,9 @@ class CotizacionPOS extends Equatable {
     required this.detalles,
     required this.creadoEn,
   });
+
+  bool get esPendiente => estado == 'PENDIENTE';
+  bool get esAprobada => estado == 'APROBADA';
 
   /// Tiempo de espera en minutos
   int get minutosEspera => DateTime.now().difference(creadoEn).inMinutes;

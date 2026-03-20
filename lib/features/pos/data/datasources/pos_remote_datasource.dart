@@ -39,6 +39,7 @@ class PosRemoteDataSource {
       return CotizacionPOS(
         id: map['id'] as String,
         codigo: map['codigo'] as String,
+        estado: map['estado']?.toString() ?? 'APROBADA',
         nombreCliente: map['nombreCliente']?.toString() ?? 'Sin cliente',
         vendedor: map['vendedor']?.toString() ?? 'Sin vendedor',
         sede: map['sede']?.toString(),

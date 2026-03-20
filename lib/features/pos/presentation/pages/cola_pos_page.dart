@@ -69,7 +69,7 @@ class _ColaPosView extends StatelessWidget {
                       Text('No hay cotizaciones en cola',
                           style: TextStyle(fontSize: 16, color: Colors.grey[600], fontWeight: FontWeight.w500)),
                       const SizedBox(height: 8),
-                      Text('Las cotizaciones aprobadas apareceran aqui',
+                      Text('Las cotizaciones pendientes y aprobadas apareceran aqui',
                           style: TextStyle(fontSize: 13, color: Colors.grey[400])),
                     ],
                   ),
@@ -196,7 +196,25 @@ class _CotizacionPOSCardState extends State<_CotizacionPOSCard> {
                     Row(
                       children: [
                         Text(c.codigo, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 6),
+                        // Chip de estado
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: c.esPendiente
+                                ? Colors.amber.withValues(alpha: 0.15)
+                                : Colors.green.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            c.esPendiente ? 'Pendiente' : 'Aprobada',
+                            style: TextStyle(
+                              fontSize: 10, fontWeight: FontWeight.w600,
+                              color: c.esPendiente ? Colors.amber[800] : Colors.green[700],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
@@ -298,10 +316,20 @@ class _CotizacionPOSCardState extends State<_CotizacionPOSCard> {
                   context.read<ColaPosCubit>().refresh();
                 }
               },
-              icon: const Icon(Icons.point_of_sale, size: 16),
-              label: const Text('Cobrar', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+              icon: Icon(
+                c.esPendiente ? Icons.flash_on : Icons.point_of_sale,
+                size: 16,
+              ),
+              label: Text(
+                c.esPendiente ? 'Aprobar y Cobrar' : 'Cobrar',
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+              ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: esUrgente ? Colors.orange : AppColors.blue1,
+                backgroundColor: esUrgente
+                    ? Colors.orange
+                    : c.esPendiente
+                        ? Colors.amber[700]
+                        : AppColors.blue1,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),

@@ -154,6 +154,7 @@ class Venta extends Equatable {
   // Relaciones
   final String? sedeNombre;
   final String? vendedorNombre;
+  final String? cajeroNombre;
   final String? clienteNombreCompleto;
   final String? cotizacionCodigo;
   final List<VentaDetalle>? detalles;
@@ -194,6 +195,7 @@ class Venta extends Equatable {
     required this.actualizadoEn,
     this.sedeNombre,
     this.vendedorNombre,
+    this.cajeroNombre,
     this.clienteNombreCompleto,
     this.cotizacionCodigo,
     this.detalles,

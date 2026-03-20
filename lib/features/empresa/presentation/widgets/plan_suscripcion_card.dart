@@ -4,10 +4,12 @@ import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/utils/date_formatter.dart';
 import 'package:syncronize/core/widgets/info_chip.dart';
 import 'package:syncronize/features/auth/presentation/widgets/widgets.dart';
+import '../../../../core/di/injection_container.dart';
+import '../../../../core/network/dio_client.dart';
 import '../../../../core/widgets/animated_container.dart';
 import '../../domain/entities/empresa_context.dart';
 
-class PlanSuscripcionCard extends StatelessWidget {
+class PlanSuscripcionCard extends StatefulWidget {
   final EmpresaContext empresaContext;
 
   const PlanSuscripcionCard({
@@ -16,8 +18,44 @@ class PlanSuscripcionCard extends StatelessWidget {
   });
 
   @override
+  State<PlanSuscripcionCard> createState() => _PlanSuscripcionCardState();
+}
+
+class _PlanSuscripcionCardState extends State<PlanSuscripcionCard> {
+  double? _tcCompra;
+  double? _tcVenta;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTipoCambio();
+  }
+
+  Future<void> _loadTipoCambio() async {
+    try {
+      final dio = locator<DioClient>();
+      final response = await dio.get('/consultas/tipo-cambio');
+      final data = response.data as Map<String, dynamic>;
+      if (mounted) {
+        setState(() {
+          _tcCompra = _toDouble(data['compra']);
+          _tcVenta = _toDouble(data['venta']);
+        });
+      }
+    } catch (_) {}
+  }
+
+  static double _toDouble(dynamic v) {
+    if (v == null) return 0;
+    if (v is double) return v;
+    if (v is int) return v.toDouble();
+    if (v is String) return double.tryParse(v) ?? 0;
+    return 0;
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final empresa = empresaContext.empresa;
+    final empresa = widget.empresaContext.empresa;
     final plan = empresa.planSuscripcion;
 
     return AnimatedNeonBorder(
@@ -53,12 +91,31 @@ class PlanSuscripcionCard extends StatelessWidget {
                   ],
                 ),
               ),
-              InfoChip(
-                icon: Icons.check_circle_outline_rounded, 
-                text: _formatEstadoSuscripcion(empresa.estadoSuscripcion,),
-                backgroundColor: _getEstadoColor(empresa.estadoSuscripcion),
-                textColor: AppColors.blue2,
-              )
+              if (_tcCompra != null && _tcVenta != null)
+
+                InfoChip(
+                  borderRadius: 4,
+                  borderColor: Colors.green.withValues(alpha: 0.3),
+                  backgroundColor: Colors.green.withValues(alpha: 0.1),
+                  textColor: Colors.green[800]!,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  text: 'USD C:${_tcCompra!.toStringAsFixed(3)} V:${_tcVenta!.toStringAsFixed(3)}',
+                ),
+                SizedBox(width: 5),
+
+              Padding(
+                padding: const EdgeInsets.only(right: 3),
+                child: InfoChip(
+                  borderColor: AppColors.bluechip,
+                  borderRadius: 4,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  text: _formatEstadoSuscripcion(empresa.estadoSuscripcion),
+                  backgroundColor: _getEstadoColor(empresa.estadoSuscripcion),
+                  textColor: AppColors.blue2,
+                  icon: Icons.check_circle_outline_rounded,
+                  iconSize: 12,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 5),
@@ -80,7 +137,7 @@ class PlanSuscripcionCard extends StatelessWidget {
                 ),
             ],
           ),
-          if (empresaContext.permissions.canChangePlan) ...[
+          if (widget.empresaContext.permissions.canChangePlan) ...[
             const SizedBox(height: 16),
             CustomButton(
               // borderColor: AppColors.white,

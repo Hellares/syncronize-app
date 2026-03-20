@@ -38,6 +38,7 @@ class VentaModel extends Venta {
     required super.actualizadoEn,
     super.sedeNombre,
     super.vendedorNombre,
+    super.cajeroNombre,
     super.clienteNombreCompleto,
     super.cotizacionCodigo,
     super.detalles,
@@ -58,6 +59,16 @@ class VentaModel extends Venta {
       final persona = vendedor['persona'] as Map<String, dynamic>?;
       if (persona != null) {
         vendedorNombre =
+            '${persona['nombres'] ?? ''} ${persona['apellidos'] ?? ''}'.trim();
+      }
+    }
+
+    String? cajeroNombre;
+    final cajero = json['cajero'] as Map<String, dynamic>?;
+    if (cajero != null) {
+      final persona = cajero['persona'] as Map<String, dynamic>?;
+      if (persona != null) {
+        cajeroNombre =
             '${persona['nombres'] ?? ''} ${persona['apellidos'] ?? ''}'.trim();
       }
     }
@@ -122,6 +133,7 @@ class VentaModel extends Venta {
       actualizadoEn: DateTime.parse(json['actualizadoEn'] as String),
       sedeNombre: sede?['nombre'] as String?,
       vendedorNombre: vendedorNombre,
+      cajeroNombre: cajeroNombre,
       clienteNombreCompleto: clienteNombreCompleto,
       cotizacionCodigo: cotizacion?['codigo'] as String?,
       detalles: detalles,

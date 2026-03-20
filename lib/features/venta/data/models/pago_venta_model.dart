@@ -9,6 +9,9 @@ class PagoVentaModel extends PagoVenta {
     required super.monto,
     super.referencia,
     required super.fechaPago,
+    super.monedaOriginal,
+    super.montoOriginal,
+    super.tipoCambio,
   });
 
   factory PagoVentaModel.fromJson(Map<String, dynamic> json) {
@@ -19,6 +22,9 @@ class PagoVentaModel extends PagoVenta {
       monto: _toDouble(json['monto']),
       referencia: json['referencia'] as String?,
       fechaPago: DateTime.parse(json['fechaPago'] as String),
+      monedaOriginal: json['monedaOriginal'] as String?,
+      montoOriginal: json['montoOriginal'] != null ? _toDouble(json['montoOriginal']) : null,
+      tipoCambio: json['tipoCambio'] != null ? _toDouble(json['tipoCambio']) : null,
     );
   }
 

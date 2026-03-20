@@ -2,10 +2,12 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:http/http.dart' as http;
+import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/services/storage_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/utils/resource.dart';
@@ -14,6 +16,8 @@ import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_cubit.dart';
 import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_state.dart';
+import '../../../configuracion_documentos/domain/entities/configuracion_documento_completa.dart';
+import '../../../configuracion_documentos/domain/usecases/get_configuracion_completa_usecase.dart';
 import '../../domain/entities/venta.dart';
 import '../../domain/usecases/get_venta_usecase.dart';
 import '../services/pdf_venta_generator.dart';
@@ -80,13 +84,44 @@ class _VentaTicketPreviewPageState extends State<VentaTicketPreviewPage> {
           configState.configuracion.impuestoDefaultPorcentaje;
     }
 
+    // Cargar configuración de documentos (colores, logo, márgenes, etc.)
+    ConfiguracionDocumentoCompleta? documentConfig;
+    try {
+      final configResult = await locator<GetConfiguracionCompletaUseCase>()(
+        tipo: 'TICKET_VENTA',
+        formato: 'TICKET_80MM',
+        sedeId: venta.sedeId,
+      );
+      if (configResult is Success<ConfiguracionDocumentoCompleta>) {
+        documentConfig = configResult.data;
+      }
+    } catch (_) {}
+
+    // Logo: prioridad configuración de documentos > logo de empresa
     Uint8List? logoBytes;
-    if (empresa.logo != null && empresa.logo!.isNotEmpty) {
+    final logoUrl = documentConfig?.configuracion.logoUrl ?? empresa.logo;
+    if (logoUrl != null && logoUrl.isNotEmpty) {
       try {
-        final response = await http.get(Uri.parse(empresa.logo!));
+        final response = await http.get(Uri.parse(logoUrl));
         if (response.statusCode == 200) logoBytes = response.bodyBytes;
       } catch (_) {}
     }
+
+    // Cargar firma del cliente si existe
+    Uint8List? firmaBytes;
+    try {
+      final storageService = locator<StorageService>();
+      final archivos = await storageService.getFilesByEntity(
+        entidadTipo: 'VENTA',
+        entidadId: venta.id,
+        empresaId: venta.empresaId,
+      );
+      final firmaArchivo = archivos.where((a) => a.categoria == 'FIRMA').firstOrNull;
+      if (firmaArchivo != null) {
+        final response = await http.get(Uri.parse(firmaArchivo.url));
+        if (response.statusCode == 200) firmaBytes = response.bodyBytes;
+      }
+    } catch (_) {}
 
     try {
       final pdf = await PdfVentaGenerator.generarTicket(
@@ -96,6 +131,8 @@ class _VentaTicketPreviewPageState extends State<VentaTicketPreviewPage> {
         logoEmpresa: logoBytes,
         nombreImpuesto: nombreImpuesto,
         porcentajeImpuesto: porcentajeImpuesto,
+        documentConfig: documentConfig,
+        firmaCliente: firmaBytes,
       );
 
       if (!mounted) return;
@@ -175,48 +212,68 @@ class _VentaTicketPreviewPageState extends State<VentaTicketPreviewPage> {
 
     if (_pdfBytes == null) return const SizedBox.shrink();
 
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.receipt_long, size: 80, color: AppColors.blue1),
-          const SizedBox(height: 16),
-          Text(
-            _venta?.codigo ?? '',
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+    return Column(
+      children: [
+        // Previsualización del PDF
+        Expanded(
+          child: PdfPreview(
+            build: (format) => _pdfBytes!,
+            allowSharing: false,
+            allowPrinting: false,
+            canChangePageFormat: false,
+            canChangeOrientation: false,
+            canDebug: false,
+            pdfFileName: 'ticket_${_venta?.codigo ?? 'venta'}.pdf',
+            actions: const [],
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Ticket generado correctamente',
-            style: TextStyle(color: Colors.grey.shade600),
+        ),
+
+        // Botones de acción
+        Container(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.08),
+                blurRadius: 8,
+                offset: const Offset(0, -2),
+              ),
+            ],
           ),
-          const SizedBox(height: 24),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          child: Row(
             children: [
-              ElevatedButton.icon(
-                onPressed: _sharePdf,
-                icon: const Icon(Icons.share),
-                label: const Text('Compartir'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.blue1,
-                  foregroundColor: Colors.white,
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _sharePdf,
+                  icon: const Icon(Icons.share, size: 18),
+                  label: const Text('Compartir'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.blue1,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
-              ElevatedButton.icon(
-                onPressed: _printBluetooth,
-                icon: const Icon(Icons.print),
-                label: const Text('Imprimir'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green.shade600,
-                  foregroundColor: Colors.white,
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _printBluetooth,
+                  icon: const Icon(Icons.print, size: 18),
+                  label: const Text('Imprimir'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green.shade600,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
                 ),
               ),
             ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 

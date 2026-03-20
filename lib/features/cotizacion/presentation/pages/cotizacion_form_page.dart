@@ -6,6 +6,7 @@ import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/widgets/custom_button.dart';
 import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/utils/resource.dart';
 import '../../../../core/widgets/custom_dropdown.dart';
 import '../../../../core/widgets/date/custom_date.dart';
 import '../../../../core/widgets/smart_appbar.dart';
@@ -16,13 +17,19 @@ import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_e
 import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_state.dart';
 import '../bloc/cotizacion_form/cotizacion_form_cubit.dart';
 import '../bloc/cotizacion_form/cotizacion_form_state.dart';
+import '../../domain/entities/cotizacion.dart';
 import '../../domain/entities/cotizacion_detalle_input.dart';
+import '../../domain/usecases/get_cotizacion_usecase.dart';
 import '../widgets/cotizacion_item_selector.dart';
 import '../widgets/cotizacion_compatibilidad_banner.dart';
 import '../../../../core/widgets/cliente_unificado_selector.dart';
 
 class CotizacionFormPage extends StatefulWidget {
-  const CotizacionFormPage({super.key});
+  final String? cotizacionId;
+
+  const CotizacionFormPage({super.key, this.cotizacionId});
+
+  bool get isEditing => cotizacionId != null;
 
   @override
   State<CotizacionFormPage> createState() => _CotizacionFormPageState();
@@ -63,6 +70,11 @@ class _CotizacionFormPageState extends State<CotizacionFormPage> {
   String _nombreImpuesto = 'IGV';
   int _diasVigencia = 30;
 
+  // Edición
+  bool _isLoadingCotizacion = false;
+
+  bool get _isEditing => widget.isEditing;
+
   @override
   void initState() {
     super.initState();
@@ -85,6 +97,72 @@ class _CotizacionFormPageState extends State<CotizacionFormPage> {
     }
     // Leer configuración si ya está cargada
     _leerConfiguracion();
+
+    // Si es edición, cargar datos existentes
+    if (_isEditing) {
+      _loadCotizacion();
+    }
+  }
+
+  Future<void> _loadCotizacion() async {
+    setState(() => _isLoadingCotizacion = true);
+
+    final result = await locator<GetCotizacionUseCase>()(
+      cotizacionId: widget.cotizacionId!,
+    );
+
+    if (!mounted) return;
+
+    if (result is Success<Cotizacion>) {
+      final cot = result.data;
+      setState(() {
+        // Paso 1: Cliente
+        _nombreCotizacionController.text = cot.nombre ?? '';
+        _clienteId = cot.clienteId;
+        _nombreClienteController.text = cot.nombreCliente;
+        _documentoController.text = cot.documentoCliente ?? '';
+        _emailController.text = cot.emailCliente ?? '';
+        _telefonoController.text = cot.telefonoCliente ?? '';
+        _direccionController.text = cot.direccionCliente ?? '';
+
+        // Paso 2: Items
+        _items.clear();
+        if (cot.detalles != null) {
+          for (final d in cot.detalles!) {
+            _items.add(CotizacionDetalleInput(
+              productoId: d.productoId,
+              varianteId: d.varianteId,
+              servicioId: d.servicioId,
+              descripcion: d.descripcion,
+              cantidad: d.cantidad,
+              precioUnitario: d.precioUnitario,
+              descuento: d.descuento,
+              porcentajeIGV: d.porcentajeIGV,
+            ));
+          }
+        }
+
+        // Paso 3: Condiciones
+        _moneda = cot.moneda;
+        _observacionesController.text = cot.observaciones ?? '';
+        _condicionesController.text = cot.condiciones ?? '';
+        if (cot.fechaVencimiento != null) {
+          final fv = cot.fechaVencimiento!;
+          _fechaVencimientoController.text =
+              '${fv.day.toString().padLeft(2, '0')}/${fv.month.toString().padLeft(2, '0')}/${fv.year}';
+        }
+
+        _isLoadingCotizacion = false;
+      });
+    } else if (result is Error<Cotizacion>) {
+      setState(() => _isLoadingCotizacion = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al cargar cotizacion: ${result.message}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   void _leerConfiguracion() {
@@ -152,11 +230,13 @@ class _CotizacionFormPageState extends State<CotizacionFormPage> {
         builder: (context, state) {
           return Scaffold(
             appBar: SmartAppBar(
-              title: 'Nueva Cotizacion',
+              title: _isEditing ? 'Editar Cotizacion' : 'Nueva Cotizacion',
               backgroundColor: AppColors.blue1,
               foregroundColor: Colors.white,
             ),
-            body: GradientContainer(
+            body: _isLoadingCotizacion
+                ? const Center(child: CircularProgressIndicator())
+                : GradientContainer(
               child: Form(
                 key: _formKey,
                 child: Theme(
@@ -184,8 +264,8 @@ class _CotizacionFormPageState extends State<CotizacionFormPage> {
                           if (_currentStep == 3)
                             CustomButton(
                               text: state is CotizacionFormLoading
-                                  ? 'Creando...'
-                                  : 'Crear Cotizacion',
+                                  ? (_isEditing ? 'Guardando...' : 'Creando...')
+                                  : (_isEditing ? 'Guardar Cambios' : 'Crear Cotizacion'),
                               onPressed: state is CotizacionFormLoading
                                   ? null
                                   : () => _submitCotizacion(context),
@@ -756,8 +836,8 @@ class _CotizacionFormPageState extends State<CotizacionFormPage> {
     }
 
     final data = <String, dynamic>{
-      'sedeId': _sedeId ?? '',
-      'vendedorId': _vendedorId ?? '',
+      if (!_isEditing) 'sedeId': _sedeId ?? '',
+      if (!_isEditing) 'vendedorId': _vendedorId ?? '',
       if (_clienteId != null) 'clienteId': _clienteId,
       if (_nombreCotizacionController.text.trim().isNotEmpty)
         'nombre': _nombreCotizacionController.text.trim(),
@@ -779,7 +859,14 @@ class _CotizacionFormPageState extends State<CotizacionFormPage> {
       'detalles': _items.map((item) => item.toMap()).toList(),
     };
 
-    context.read<CotizacionFormCubit>().crearCotizacion(data);
+    if (_isEditing) {
+      context.read<CotizacionFormCubit>().actualizarCotizacion(
+        widget.cotizacionId!,
+        data,
+      );
+    } else {
+      context.read<CotizacionFormCubit>().crearCotizacion(data);
+    }
   }
 }
 

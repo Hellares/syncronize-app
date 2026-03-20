@@ -256,6 +256,13 @@ class _EmpresaDashboardPageState extends State<EmpresaDashboardPage> {
                   onTap: () => context.push('/empresa/ventas'),
                 ),
                 StatsCard(
+                  title: 'Cola POS',
+                  value: '-',
+                  icon: Icons.receipt_long,
+                  color: Colors.orange,
+                  onTap: () => context.push('/empresa/cola-pos'),
+                ),
+                StatsCard(
                   title: 'Proveedores',
                   value: stats.totalProveedores.toString(),
                   icon: Icons.local_shipping,

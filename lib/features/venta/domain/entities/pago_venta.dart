@@ -10,6 +10,11 @@ class PagoVenta extends Equatable {
   final String? referencia;
   final DateTime fechaPago;
 
+  // Pago en moneda extranjera
+  final String? monedaOriginal;
+  final double? montoOriginal;
+  final double? tipoCambio;
+
   const PagoVenta({
     required this.id,
     required this.ventaId,
@@ -17,8 +22,13 @@ class PagoVenta extends Equatable {
     required this.monto,
     this.referencia,
     required this.fechaPago,
+    this.monedaOriginal,
+    this.montoOriginal,
+    this.tipoCambio,
   });
 
+  bool get esEnDolares => monedaOriginal == 'USD';
+
   @override
-  List<Object?> get props => [id, ventaId, metodoPago, monto, referencia, fechaPago];
+  List<Object?> get props => [id, ventaId, metodoPago, monto, referencia, fechaPago, monedaOriginal];
 }
