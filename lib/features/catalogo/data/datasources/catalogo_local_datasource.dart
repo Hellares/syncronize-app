@@ -9,7 +9,7 @@ class CatalogoLocalDataSource {
   CatalogoLocalDataSource(this._localStorage);
 
   // TODO: Implementar caché de catálogos si es necesario
-  // Por ahora, este datasource está disponible para futuras implementaciones
+  // Por ahora, este datasource está disponible para futuras implementacionessi 
   // de caché local
 
   /// Limpia el caché de catálogos

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/proveedor.dart';
 
 class ProveedorDetailPage extends StatelessWidget {
@@ -140,23 +141,36 @@ class ProveedorDetailPage extends StatelessWidget {
                         ))
                     .toList(),
               ),
-            if (proveedor.bancos != null && proveedor.bancos!.isNotEmpty)
-              _buildSection(
-                'Cuentas Bancarias (${proveedor.bancos!.length})',
-                proveedor.bancos!
-                    .map((b) => ListTile(
-                          leading: const Icon(Icons.account_balance),
-                          title: Text(b.nombreBanco),
-                          subtitle: Text(
-                            '${b.tipoCuentaTexto} - ${b.numeroCuentaOculto}',
-                          ),
-                          trailing: Text(
-                            b.moneda,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ))
-                    .toList(),
-              ),
+            _buildSection(
+              'Cuentas Bancarias${proveedor.bancos != null ? ' (${proveedor.bancos!.length})' : ''}',
+              [
+                if (proveedor.bancos != null && proveedor.bancos!.isNotEmpty)
+                  ...proveedor.bancos!.map((b) => ListTile(
+                    leading: const Icon(Icons.account_balance),
+                    title: Text(b.nombreBanco),
+                    subtitle: Text('${b.tipoCuentaTexto} - ${b.numeroCuentaOculto}'),
+                    trailing: Text(b.moneda, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  )),
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      await context.push(
+                        '/empresa/proveedores/${proveedor.id}/bancos',
+                        extra: {'nombre': proveedor.nombre},
+                      );
+                    },
+                    icon: const Icon(Icons.account_balance, size: 16),
+                    label: const Text('Gestionar cuentas bancarias', style: TextStyle(fontSize: 12)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.blue1,
+                      side: const BorderSide(color: AppColors.blue1),
+                      minimumSize: const Size(double.infinity, 40),
+                    ),
+                  ),
+                ),
+              ],
+            ),
             if (proveedor.notas != null && proveedor.notas!.isNotEmpty)
               _buildSection(
                 'Notas',

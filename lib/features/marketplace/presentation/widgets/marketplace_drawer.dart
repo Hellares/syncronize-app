@@ -283,6 +283,19 @@ class _AuthenticatedDrawerContent extends StatelessWidget {
                 },
               ),
               _DrawerItem(
+                icon: Icons.request_quote_outlined,
+                title: 'Mis Cotizaciones',
+                textStyle: TextStyle(
+                  fontFamily: AppFonts.getFontFamily(AppFont.oxygenBold),
+                  fontSize: 10,
+                  color: AppColors.blue,
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  context.push('/mis-solicitudes-cotizacion');
+                },
+              ),
+              _DrawerItem(
                 icon: Icons.history,
                 title: 'Mi Actividad',
                 textStyle: TextStyle(

@@ -83,6 +83,27 @@ import '../../features/aviso_mantenimiento/presentation/bloc/aviso_configuracion
     as _i410;
 import '../../features/aviso_mantenimiento/presentation/bloc/aviso_list/aviso_list_cubit.dart'
     as _i96;
+import '../../features/caja/data/datasources/caja_remote_datasource.dart'
+    as _i840;
+import '../../features/caja/data/repositories/caja_repository_impl.dart'
+    as _i276;
+import '../../features/caja/domain/repositories/caja_repository.dart' as _i742;
+import '../../features/caja/domain/usecases/abrir_caja_usecase.dart' as _i600;
+import '../../features/caja/domain/usecases/cerrar_caja_usecase.dart' as _i575;
+import '../../features/caja/domain/usecases/crear_movimiento_usecase.dart'
+    as _i290;
+import '../../features/caja/domain/usecases/get_caja_activa_usecase.dart'
+    as _i265;
+import '../../features/caja/domain/usecases/get_historial_usecase.dart'
+    as _i969;
+import '../../features/caja/domain/usecases/get_movimientos_usecase.dart'
+    as _i259;
+import '../../features/caja/domain/usecases/get_resumen_usecase.dart' as _i413;
+import '../../features/caja/presentation/bloc/caja_activa_cubit.dart' as _i503;
+import '../../features/caja/presentation/bloc/caja_historial_cubit.dart'
+    as _i849;
+import '../../features/caja/presentation/bloc/caja_movimientos_cubit.dart'
+    as _i38;
 import '../../features/carrito/data/datasources/carrito_remote_datasource.dart'
     as _i503;
 import '../../features/carrito/data/repositories/carrito_repository_impl.dart'
@@ -819,6 +840,30 @@ import '../../features/servicio/presentation/bloc/orden_servicio_list/orden_serv
     as _i930;
 import '../../features/servicio/presentation/bloc/servicio_list/servicio_list_cubit.dart'
     as _i239;
+import '../../features/solicitud_cotizacion/data/datasources/solicitud_cotizacion_remote_datasource.dart'
+    as _i126;
+import '../../features/solicitud_cotizacion/data/repositories/solicitud_cotizacion_repository_impl.dart'
+    as _i161;
+import '../../features/solicitud_cotizacion/domain/repositories/solicitud_cotizacion_repository.dart'
+    as _i800;
+import '../../features/solicitud_cotizacion/domain/usecases/cancelar_solicitud_usecase.dart'
+    as _i1010;
+import '../../features/solicitud_cotizacion/domain/usecases/crear_solicitud_usecase.dart'
+    as _i287;
+import '../../features/solicitud_cotizacion/domain/usecases/get_mis_solicitudes_usecase.dart'
+    as _i954;
+import '../../features/solicitud_cotizacion/domain/usecases/get_solicitud_detalle_usecase.dart'
+    as _i430;
+import '../../features/solicitud_cotizacion/presentation/bloc/mis_solicitudes_cubit.dart'
+    as _i1016;
+import '../../features/solicitud_cotizacion/presentation/bloc/solicitud_form_cubit.dart'
+    as _i483;
+import '../../features/solicitud_cotizacion_empresa/data/datasources/solicitud_empresa_remote_datasource.dart'
+    as _i129;
+import '../../features/solicitud_cotizacion_empresa/presentation/bloc/solicitud_empresa_action_cubit.dart'
+    as _i437;
+import '../../features/solicitud_cotizacion_empresa/presentation/bloc/solicitudes_recibidas_cubit.dart'
+    as _i60;
 import '../../features/tercerizacion/data/datasources/tercerizacion_remote_datasource.dart'
     as _i176;
 import '../../features/tercerizacion/data/repositories/tercerizacion_repository_impl.dart'
@@ -1034,6 +1079,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i129.AvisoMantenimientoRemoteDataSource>(
       () => _i129.AvisoMantenimientoRemoteDataSource(gh<_i667.DioClient>()),
     );
+    gh.lazySingleton<_i840.CajaRemoteDataSource>(
+      () => _i840.CajaRemoteDataSource(gh<_i667.DioClient>()),
+    );
     gh.lazySingleton<_i503.CarritoRemoteDataSource>(
       () => _i503.CarritoRemoteDataSource(gh<_i667.DioClient>()),
     );
@@ -1142,6 +1190,12 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i236.ServicioRemoteDataSource>(
       () => _i236.ServicioRemoteDataSource(gh<_i667.DioClient>()),
+    );
+    gh.lazySingleton<_i126.SolicitudCotizacionRemoteDataSource>(
+      () => _i126.SolicitudCotizacionRemoteDataSource(gh<_i667.DioClient>()),
+    );
+    gh.lazySingleton<_i129.SolicitudEmpresaRemoteDataSource>(
+      () => _i129.SolicitudEmpresaRemoteDataSource(gh<_i667.DioClient>()),
     );
     gh.lazySingleton<_i176.TercerizacionRemoteDataSource>(
       () => _i176.TercerizacionRemoteDataSource(gh<_i667.DioClient>()),
@@ -1348,6 +1402,13 @@ extension GetItInjectableX on _i174.GetIt {
       () =>
           _i40.MarketplaceSearchCubit(gh<_i221.MarketplaceRemoteDataSource>()),
     );
+    gh.lazySingleton<_i800.SolicitudCotizacionRepository>(
+      () => _i161.SolicitudCotizacionRepositoryImpl(
+        gh<_i126.SolicitudCotizacionRemoteDataSource>(),
+        gh<_i932.NetworkInfo>(),
+        gh<_i490.ErrorHandlerService>(),
+      ),
+    );
     gh.lazySingleton<_i511.PosRepository>(
       () => _i84.PosRepositoryImpl(
         gh<_i449.PosRemoteDataSource>(),
@@ -1436,6 +1497,16 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i633.ConsultarRucUseCase>(
       () => _i633.ConsultarRucUseCase(gh<_i112.ConsultasRepository>()),
+    );
+    gh.factory<_i437.SolicitudEmpresaActionCubit>(
+      () => _i437.SolicitudEmpresaActionCubit(
+        gh<_i129.SolicitudEmpresaRemoteDataSource>(),
+      ),
+    );
+    gh.factory<_i60.SolicitudesRecibidasCubit>(
+      () => _i60.SolicitudesRecibidasCubit(
+        gh<_i129.SolicitudEmpresaRemoteDataSource>(),
+      ),
     );
     gh.factory<_i446.ActivarUnidadUseCase>(
       () => _i446.ActivarUnidadUseCase(gh<_i531.UnidadMedidaRepository>()),
@@ -1550,6 +1621,26 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i490.ErrorHandlerService>(),
       ),
     );
+    gh.lazySingleton<_i1010.CancelarSolicitudUseCase>(
+      () => _i1010.CancelarSolicitudUseCase(
+        gh<_i800.SolicitudCotizacionRepository>(),
+      ),
+    );
+    gh.lazySingleton<_i287.CrearSolicitudUseCase>(
+      () => _i287.CrearSolicitudUseCase(
+        gh<_i800.SolicitudCotizacionRepository>(),
+      ),
+    );
+    gh.lazySingleton<_i954.GetMisSolicitudesUseCase>(
+      () => _i954.GetMisSolicitudesUseCase(
+        gh<_i800.SolicitudCotizacionRepository>(),
+      ),
+    );
+    gh.lazySingleton<_i430.GetSolicitudDetalleUseCase>(
+      () => _i430.GetSolicitudDetalleUseCase(
+        gh<_i800.SolicitudCotizacionRepository>(),
+      ),
+    );
     gh.factory<_i925.ConfiguracionDocumentosCubit>(
       () => _i925.ConfiguracionDocumentosCubit(
         getConfiguracionUseCase: gh<_i448.GetConfiguracionDocumentosUseCase>(),
@@ -1622,6 +1713,13 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i84.GetStockVarianteEnSedeUseCase>(
       () => _i84.GetStockVarianteEnSedeUseCase(
         gh<_i262.ProductoStockRepository>(),
+      ),
+    );
+    gh.lazySingleton<_i742.CajaRepository>(
+      () => _i276.CajaRepositoryImpl(
+        gh<_i840.CajaRemoteDataSource>(),
+        gh<_i932.NetworkInfo>(),
+        gh<_i490.ErrorHandlerService>(),
       ),
     );
     gh.factory<_i314.CategoriasEmpresaCubit>(
@@ -2328,6 +2426,12 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i582.SincronizarContadorUseCase>(),
       ),
     );
+    gh.factory<_i1016.MisSolicitudesCubit>(
+      () => _i1016.MisSolicitudesCubit(
+        gh<_i954.GetMisSolicitudesUseCase>(),
+        gh<_i1010.CancelarSolicitudUseCase>(),
+      ),
+    );
     gh.factory<_i829.ReporteIncidenciaDetailCubit>(
       () =>
           _i829.ReporteIncidenciaDetailCubit(gh<_i146.ObtenerReporteUsecase>()),
@@ -2359,6 +2463,27 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i984.UpdateEstadoAvisoUseCase(
         gh<_i1007.AvisoMantenimientoRepository>(),
       ),
+    );
+    gh.factory<_i600.AbrirCajaUseCase>(
+      () => _i600.AbrirCajaUseCase(gh<_i742.CajaRepository>()),
+    );
+    gh.factory<_i575.CerrarCajaUseCase>(
+      () => _i575.CerrarCajaUseCase(gh<_i742.CajaRepository>()),
+    );
+    gh.factory<_i290.CrearMovimientoUseCase>(
+      () => _i290.CrearMovimientoUseCase(gh<_i742.CajaRepository>()),
+    );
+    gh.factory<_i265.GetCajaActivaUseCase>(
+      () => _i265.GetCajaActivaUseCase(gh<_i742.CajaRepository>()),
+    );
+    gh.factory<_i969.GetHistorialUseCase>(
+      () => _i969.GetHistorialUseCase(gh<_i742.CajaRepository>()),
+    );
+    gh.factory<_i259.GetMovimientosUseCase>(
+      () => _i259.GetMovimientosUseCase(gh<_i742.CajaRepository>()),
+    );
+    gh.factory<_i413.GetResumenUseCase>(
+      () => _i413.GetResumenUseCase(gh<_i742.CajaRepository>()),
     );
     gh.factory<_i291.MarcasMaestrasCubit>(
       () => _i291.MarcasMaestrasCubit(gh<_i608.GetMarcasMaestrasUseCase>()),
@@ -2491,6 +2616,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i413.EliminarItemCubit>(
       () => _i413.EliminarItemCubit(gh<_i192.EliminarItemUsecase>()),
     );
+    gh.factory<_i483.SolicitudFormCubit>(
+      () => _i483.SolicitudFormCubit(gh<_i287.CrearSolicitudUseCase>()),
+    );
     gh.factory<_i96.AvisoListCubit>(
       () => _i96.AvisoListCubit(
         gh<_i801.GetAvisosUseCase>(),
@@ -2519,6 +2647,9 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i175.ServicioDashboardCubit(
         gh<_i742.EstadisticasServicioRepository>(),
       ),
+    );
+    gh.factory<_i849.CajaHistorialCubit>(
+      () => _i849.CajaHistorialCubit(gh<_i969.GetHistorialUseCase>()),
     );
     gh.factory<_i894.VinculacionActionCubit>(
       () => _i894.VinculacionActionCubit(
@@ -2561,6 +2692,13 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i427.CompraAnalyticsCubit>(
       () => _i427.CompraAnalyticsCubit(gh<_i914.GetCompraAnalyticsUseCase>()),
+    );
+    gh.factory<_i503.CajaActivaCubit>(
+      () => _i503.CajaActivaCubit(
+        gh<_i265.GetCajaActivaUseCase>(),
+        gh<_i600.AbrirCajaUseCase>(),
+        gh<_i575.CerrarCajaUseCase>(),
+      ),
     );
     gh.factory<_i94.ProveedorListCubit>(
       () => _i94.ProveedorListCubit(gh<_i825.GetProveedoresUseCase>()),
@@ -2676,6 +2814,13 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i410.TransferenciasListCubit>(
       () => _i410.TransferenciasListCubit(
         gh<_i875.ListarTransferenciasUseCase>(),
+      ),
+    );
+    gh.factory<_i38.CajaMovimientosCubit>(
+      () => _i38.CajaMovimientosCubit(
+        gh<_i259.GetMovimientosUseCase>(),
+        gh<_i290.CrearMovimientoUseCase>(),
+        gh<_i413.GetResumenUseCase>(),
       ),
     );
     gh.factory<_i87.CompleteProfileCubit>(

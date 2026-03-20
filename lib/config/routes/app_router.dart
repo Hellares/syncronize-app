@@ -31,6 +31,26 @@ import '../../features/mis_pedidos/presentation/pages/mis_pedidos_page.dart';
 import '../../features/mis_pedidos/presentation/pages/pedido_detail_page.dart';
 import '../../features/pedido_marketplace_empresa/presentation/pages/pedidos_marketplace_empresa_page.dart';
 import '../../features/pedido_marketplace_empresa/presentation/pages/pedido_marketplace_detail_empresa_page.dart';
+import '../../features/solicitud_cotizacion/presentation/pages/solicitud_form_page.dart';
+import '../../features/solicitud_cotizacion/presentation/pages/mis_solicitudes_page.dart';
+import '../../features/solicitud_cotizacion/presentation/pages/solicitud_detail_page.dart';
+import '../../features/solicitud_cotizacion_empresa/presentation/pages/solicitudes_recibidas_page.dart';
+import '../../features/caja/presentation/pages/caja_page.dart';
+import '../../features/cuentas_por_cobrar/presentation/pages/cuentas_por_cobrar_page.dart';
+import '../../features/cuentas_por_pagar/presentation/pages/cuentas_por_pagar_page.dart';
+import '../../features/empresa_banco/presentation/pages/empresa_banco_page.dart';
+import '../../features/resumen_financiero/presentation/pages/resumen_financiero_page.dart';
+import '../../features/prestamo/presentation/pages/prestamos_page.dart';
+import '../../features/libro_contable/presentation/pages/libro_contable_page.dart';
+import '../../features/flujo_proyectado/presentation/pages/flujo_proyectado_page.dart';
+import '../../features/categoria_gasto/presentation/pages/categorias_gasto_page.dart';
+import '../../features/meta_financiera/presentation/pages/metas_financieras_page.dart';
+import '../../features/empresa_banco/presentation/pages/conciliacion_page.dart';
+import '../../features/caja/presentation/pages/movimientos_caja_page.dart';
+import '../../features/caja/presentation/pages/cerrar_caja_page.dart';
+import '../../features/caja/presentation/pages/historial_caja_page.dart';
+import '../../features/caja/presentation/pages/nuevo_movimiento_page.dart';
+import '../../features/solicitud_cotizacion_empresa/presentation/pages/solicitud_recibida_detail_page.dart';
 import '../../features/marketplace/presentation/pages/producto_marketplace_detail_page.dart';
 import '../../features/marketplace/presentation/pages/empresa_public_profile_page.dart';
 import '../../features/marketplace/presentation/pages/preguntas_producto_page.dart';
@@ -65,6 +85,7 @@ import '../../features/cliente/presentation/pages/clientes_page.dart';
 import '../../features/cliente/presentation/pages/cliente_form_page.dart';
 import '../../features/proveedor/presentation/pages/proveedores_page.dart';
 import '../../features/proveedor/presentation/pages/proveedor_form_page.dart';
+import '../../features/proveedor/presentation/pages/proveedor_banco_page.dart';
 import '../../features/proveedor/presentation/pages/proveedor_detail_page.dart';
 import '../../features/usuario/presentation/pages/usuarios_page.dart';
 import '../../features/usuario/presentation/pages/usuario_form_page.dart';
@@ -505,6 +526,20 @@ class AppRouter {
         },
       ),
       GoRoute(
+        path: '/empresa/proveedores/:id/bancos',
+        name: 'empresa-proveedores-bancos',
+        builder: (context, state) {
+          final empresaId = locator<LocalStorageService>().getString(StorageConstants.tenantId) ?? '';
+          final id = state.pathParameters['id']!;
+          final extra = state.extra as Map<String, dynamic>? ?? {};
+          return ProveedorBancoPage(
+            empresaId: empresaId,
+            proveedorId: id,
+            proveedorNombre: extra['nombre'] as String? ?? 'Proveedor',
+          );
+        },
+      ),
+      GoRoute(
         path: '/empresa/proveedores/:id/editar',
         name: 'empresa-proveedores-editar',
         builder: (context, state) {
@@ -747,6 +782,112 @@ class AppRouter {
           final id = state.pathParameters['id']!;
           return PedidoMarketplaceDetailEmpresaPage(pedidoId: id);
         },
+      ),
+      // Rutas de solicitudes de cotización (empresa)
+      GoRoute(
+        path: '/empresa/solicitudes-cotizacion',
+        name: 'empresa-solicitudes-cotizacion',
+        builder: (context, state) => const SolicitudesRecibidasPage(),
+      ),
+      GoRoute(
+        path: '/empresa/solicitudes-cotizacion/:id',
+        name: 'empresa-solicitudes-cotizacion-detail',
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return SolicitudRecibidaDetailPage(solicitudId: id);
+        },
+      ),
+      // Rutas de caja
+      GoRoute(
+        path: '/empresa/caja',
+        name: 'empresa-caja',
+        builder: (context, state) => const CajaPage(),
+      ),
+      GoRoute(
+        path: '/empresa/caja/:id/movimientos',
+        name: 'empresa-caja-movimientos',
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return MovimientosCajaPage(cajaId: id);
+        },
+      ),
+      GoRoute(
+        path: '/empresa/caja/:id/cerrar',
+        name: 'empresa-caja-cerrar',
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return CerrarCajaPage(cajaId: id);
+        },
+      ),
+      GoRoute(
+        path: '/empresa/caja/:id/nuevo-movimiento',
+        name: 'empresa-caja-nuevo-movimiento',
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return NuevoMovimientoPage(cajaId: id);
+        },
+      ),
+      GoRoute(
+        path: '/empresa/cuentas-por-cobrar',
+        name: 'empresa-cuentas-por-cobrar',
+        builder: (context, state) => const CuentasPorCobrarPage(),
+      ),
+      GoRoute(
+        path: '/empresa/cuentas-por-pagar',
+        name: 'empresa-cuentas-por-pagar',
+        builder: (context, state) => const CuentasPorPagarPage(),
+      ),
+      GoRoute(
+        path: '/empresa/cuentas-bancarias',
+        name: 'empresa-cuentas-bancarias',
+        builder: (context, state) => const EmpresaBancoPage(),
+      ),
+      GoRoute(
+        path: '/empresa/resumen-financiero',
+        name: 'empresa-resumen-financiero',
+        builder: (context, state) => const ResumenFinancieroPage(),
+      ),
+      GoRoute(
+        path: '/empresa/prestamos',
+        name: 'empresa-prestamos',
+        builder: (context, state) => const PrestamosPage(),
+      ),
+      GoRoute(
+        path: '/empresa/libro-contable',
+        name: 'empresa-libro-contable',
+        builder: (context, state) => const LibroContablePage(),
+      ),
+      GoRoute(
+        path: '/empresa/flujo-proyectado',
+        name: 'empresa-flujo-proyectado',
+        builder: (context, state) => const FlujoProyectadoPage(),
+      ),
+      GoRoute(
+        path: '/empresa/categorias-gasto',
+        name: 'empresa-categorias-gasto',
+        builder: (context, state) => const CategoriasGastoPage(),
+      ),
+      GoRoute(
+        path: '/empresa/metas-financieras',
+        name: 'empresa-metas-financieras',
+        builder: (context, state) => const MetasFinancierasPage(),
+      ),
+      GoRoute(
+        path: '/empresa/cuentas-bancarias/:id/conciliacion',
+        name: 'empresa-conciliacion',
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          final extra = state.extra as Map<String, dynamic>? ?? {};
+          return ConciliacionPage(
+            cuentaId: id,
+            cuentaNombre: extra['nombre'] as String? ?? 'Cuenta',
+          );
+        },
+      ),
+      GoRoute(
+        path: '/empresa/caja/historial',
+        name: 'empresa-caja-historial',
+        builder: (context, state) => const HistorialCajaPage(),
       ),
       // Rutas de devoluciones
       GoRoute(
@@ -1128,6 +1269,31 @@ class AppRouter {
         path: '/mis-pedidos',
         name: 'mis-pedidos',
         builder: (context, state) => const MisPedidosPage(),
+      ),
+      GoRoute(
+        path: '/mis-solicitudes-cotizacion',
+        name: 'mis-solicitudes-cotizacion',
+        builder: (context, state) => const MisSolicitudesPage(),
+      ),
+      GoRoute(
+        path: '/mis-solicitudes-cotizacion/:id',
+        name: 'mis-solicitudes-cotizacion-detail',
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return SolicitudDetailPage(solicitudId: id);
+        },
+      ),
+      GoRoute(
+        path: '/solicitar-cotizacion',
+        name: 'solicitar-cotizacion',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>? ?? {};
+          return SolicitudFormPage(
+            empresaId: extra['empresaId'] as String? ?? '',
+            empresaNombre: extra['empresaNombre'] as String? ?? '',
+            subdominio: extra['subdominio'] as String? ?? '',
+          );
+        },
       ),
       GoRoute(
         path: '/mis-compras',

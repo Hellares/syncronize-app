@@ -127,7 +127,7 @@ class _PedidosViewState extends State<_PedidosView> {
               checkmarkColor: Colors.white,
               side: BorderSide(color: isSelected ? AppColors.blue1 : Colors.grey.shade300),
               onSelected: (_) {
-                setState(() => _filtroEstado = f['value'] as String?);
+                setState(() => _filtroEstado = f['value']);
                 context.read<PedidosEmpresaCubit>().loadPedidos(estado: _filtroEstado);
               },
             ),

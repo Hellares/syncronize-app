@@ -337,6 +337,32 @@ class _EmpresaPublicProfilePageState extends State<EmpresaPublicProfilePage> {
             ),
           ),
 
+          // Botón solicitar cotización
+          SliverToBoxAdapter(
+            child: Container(
+              color: Colors.white,
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  context.push('/solicitar-cotizacion', extra: {
+                    'empresaId': _empresa!['id'],
+                    'empresaNombre': nombre,
+                    'subdominio': widget.subdominio,
+                  });
+                },
+                icon: const Icon(Icons.request_quote, size: 16),
+                label: const Text('Solicitar Cotización', style: TextStyle(fontSize: 12)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.deepPurple,
+                  side: const BorderSide(color: Colors.deepPurple),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  minimumSize: const Size(double.infinity, 40),
+                ),
+              ),
+            ),
+          ),
+
           // Descripción
           if (descripcion != null && descripcion.isNotEmpty)
             SliverToBoxAdapter(
