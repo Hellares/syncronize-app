@@ -17,6 +17,7 @@ class ConsultaDniModel {
   final String? origen;
   final bool? existeEnSistema;
   final String? personaId;
+  final bool? tieneUsuario;
 
   ConsultaDniModel({
     required this.dni,
@@ -35,6 +36,7 @@ class ConsultaDniModel {
     this.origen,
     this.existeEnSistema,
     this.personaId,
+    this.tieneUsuario,
   });
 
   factory ConsultaDniModel.fromJson(Map<String, dynamic> json) {
@@ -55,6 +57,7 @@ class ConsultaDniModel {
       origen: json['origen'] as String?,
       existeEnSistema: json['existeEnSistema'] as bool?,
       personaId: json['personaId'] as String?,
+      tieneUsuario: json['tieneUsuario'] as bool?,
     );
   }
 
@@ -76,6 +79,7 @@ class ConsultaDniModel {
       origen: origen,
       existeEnSistema: existeEnSistema,
       personaId: personaId,
+      tieneUsuario: tieneUsuario,
     );
   }
 }

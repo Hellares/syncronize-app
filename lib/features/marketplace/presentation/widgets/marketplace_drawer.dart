@@ -266,7 +266,33 @@ class _AuthenticatedDrawerContent extends StatelessWidget {
                 ),
                 onTap: () {
                   Navigator.pop(context);
-                  // TODO: Navegar a mis compras
+                  context.push('/mis-compras');
+                },
+              ),
+              _DrawerItem(
+                icon: Icons.receipt_long_outlined,
+                title: 'Mis Pedidos',
+                textStyle: TextStyle(
+                  fontFamily: AppFonts.getFontFamily(AppFont.oxygenBold),
+                  fontSize: 10,
+                  color: AppColors.blue,
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  context.push('/mis-pedidos');
+                },
+              ),
+              _DrawerItem(
+                icon: Icons.history,
+                title: 'Mi Actividad',
+                textStyle: TextStyle(
+                  fontFamily: AppFonts.getFontFamily(AppFont.oxygenBold),
+                  fontSize: 10,
+                  color: AppColors.blue,
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  context.push('/portal-unificado');
                 },
               ),
               _DrawerItem(
@@ -279,7 +305,7 @@ class _AuthenticatedDrawerContent extends StatelessWidget {
                 ),
                 onTap: () {
                   Navigator.pop(context);
-                  // TODO: Navegar a favoritos
+                  context.push('/mis-favoritos');
                 },
               ),
               _DrawerItem(

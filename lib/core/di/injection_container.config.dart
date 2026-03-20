@@ -83,6 +83,25 @@ import '../../features/aviso_mantenimiento/presentation/bloc/aviso_configuracion
     as _i410;
 import '../../features/aviso_mantenimiento/presentation/bloc/aviso_list/aviso_list_cubit.dart'
     as _i96;
+import '../../features/carrito/data/datasources/carrito_remote_datasource.dart'
+    as _i503;
+import '../../features/carrito/data/repositories/carrito_repository_impl.dart'
+    as _i733;
+import '../../features/carrito/domain/repositories/carrito_repository.dart'
+    as _i982;
+import '../../features/carrito/domain/usecases/actualizar_cantidad_usecase.dart'
+    as _i224;
+import '../../features/carrito/domain/usecases/agregar_item_usecase.dart'
+    as _i81;
+import '../../features/carrito/domain/usecases/eliminar_item_usecase.dart'
+    as _i883;
+import '../../features/carrito/domain/usecases/get_carrito_usecase.dart'
+    as _i477;
+import '../../features/carrito/domain/usecases/get_contador_usecase.dart'
+    as _i689;
+import '../../features/carrito/domain/usecases/vaciar_carrito_usecase.dart'
+    as _i98;
+import '../../features/carrito/presentation/bloc/carrito_cubit.dart' as _i447;
 import '../../features/catalogo/data/datasources/catalogo_local_datasource.dart'
     as _i15;
 import '../../features/catalogo/data/datasources/catalogo_remote_datasource.dart'
@@ -451,6 +470,32 @@ import '../../features/marketplace/data/datasources/marketplace_remote_datasourc
     as _i221;
 import '../../features/marketplace/presentation/bloc/marketplace_search_cubit.dart'
     as _i40;
+import '../../features/mis_pedidos/data/datasources/mis_pedidos_remote_datasource.dart'
+    as _i613;
+import '../../features/mis_pedidos/data/repositories/mis_pedidos_repository_impl.dart'
+    as _i559;
+import '../../features/mis_pedidos/domain/repositories/mis_pedidos_repository.dart'
+    as _i284;
+import '../../features/mis_pedidos/domain/usecases/cancelar_pedido_usecase.dart'
+    as _i653;
+import '../../features/mis_pedidos/domain/usecases/confirmar_recepcion_usecase.dart'
+    as _i591;
+import '../../features/mis_pedidos/domain/usecases/get_mis_pedidos_usecase.dart'
+    as _i511;
+import '../../features/mis_pedidos/domain/usecases/get_pedido_detalle_usecase.dart'
+    as _i1020;
+import '../../features/mis_pedidos/domain/usecases/subir_comprobante_usecase.dart'
+    as _i156;
+import '../../features/mis_pedidos/presentation/bloc/mis_pedidos_cubit.dart'
+    as _i588;
+import '../../features/mis_pedidos/presentation/bloc/pedido_action_cubit.dart'
+    as _i485;
+import '../../features/pedido_marketplace_empresa/data/datasources/pedido_empresa_remote_datasource.dart'
+    as _i469;
+import '../../features/pedido_marketplace_empresa/presentation/bloc/pedido_empresa_action_cubit.dart'
+    as _i928;
+import '../../features/pedido_marketplace_empresa/presentation/bloc/pedidos_empresa_cubit.dart'
+    as _i520;
 import '../../features/pos/data/datasources/pos_remote_datasource.dart'
     as _i449;
 import '../../features/pos/data/repositories/pos_repository_impl.dart' as _i84;
@@ -989,6 +1034,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i129.AvisoMantenimientoRemoteDataSource>(
       () => _i129.AvisoMantenimientoRemoteDataSource(gh<_i667.DioClient>()),
     );
+    gh.lazySingleton<_i503.CarritoRemoteDataSource>(
+      () => _i503.CarritoRemoteDataSource(gh<_i667.DioClient>()),
+    );
     gh.lazySingleton<_i27.CatalogoRemoteDataSource>(
       () => _i27.CatalogoRemoteDataSource(gh<_i667.DioClient>()),
     );
@@ -1037,6 +1085,12 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i221.MarketplaceRemoteDataSource>(
       () => _i221.MarketplaceRemoteDataSource(gh<_i667.DioClient>()),
+    );
+    gh.lazySingleton<_i613.MisPedidosRemoteDataSource>(
+      () => _i613.MisPedidosRemoteDataSource(gh<_i667.DioClient>()),
+    );
+    gh.lazySingleton<_i469.PedidoEmpresaRemoteDataSource>(
+      () => _i469.PedidoEmpresaRemoteDataSource(gh<_i667.DioClient>()),
     );
     gh.lazySingleton<_i449.PosRemoteDataSource>(
       () => _i449.PosRemoteDataSource(gh<_i667.DioClient>()),
@@ -1152,6 +1206,37 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i932.NetworkInfo>(),
       ),
     );
+    gh.lazySingleton<_i284.MisPedidosRepository>(
+      () => _i559.MisPedidosRepositoryImpl(
+        gh<_i613.MisPedidosRemoteDataSource>(),
+        gh<_i932.NetworkInfo>(),
+        gh<_i490.ErrorHandlerService>(),
+      ),
+    );
+    gh.factory<_i928.PedidoEmpresaActionCubit>(
+      () => _i928.PedidoEmpresaActionCubit(
+        gh<_i469.PedidoEmpresaRemoteDataSource>(),
+      ),
+    );
+    gh.factory<_i520.PedidosEmpresaCubit>(
+      () =>
+          _i520.PedidosEmpresaCubit(gh<_i469.PedidoEmpresaRemoteDataSource>()),
+    );
+    gh.factory<_i653.CancelarPedidoUseCase>(
+      () => _i653.CancelarPedidoUseCase(gh<_i284.MisPedidosRepository>()),
+    );
+    gh.factory<_i591.ConfirmarRecepcionUseCase>(
+      () => _i591.ConfirmarRecepcionUseCase(gh<_i284.MisPedidosRepository>()),
+    );
+    gh.factory<_i511.GetMisPedidosUseCase>(
+      () => _i511.GetMisPedidosUseCase(gh<_i284.MisPedidosRepository>()),
+    );
+    gh.factory<_i1020.GetPedidoDetalleUseCase>(
+      () => _i1020.GetPedidoDetalleUseCase(gh<_i284.MisPedidosRepository>()),
+    );
+    gh.factory<_i156.SubirComprobanteUseCase>(
+      () => _i156.SubirComprobanteUseCase(gh<_i284.MisPedidosRepository>()),
+    );
     gh.lazySingleton<_i37.ClienteRepository>(
       () => _i797.ClienteRepositoryImpl(
         gh<_i189.ClienteRemoteDataSource>(),
@@ -1174,6 +1259,13 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i213.RegistrarClienteUseCase>(
       () => _i213.RegistrarClienteUseCase(gh<_i37.ClienteRepository>()),
     );
+    gh.lazySingleton<_i982.CarritoRepository>(
+      () => _i733.CarritoRepositoryImpl(
+        gh<_i503.CarritoRemoteDataSource>(),
+        gh<_i932.NetworkInfo>(),
+        gh<_i490.ErrorHandlerService>(),
+      ),
+    );
     gh.lazySingleton<_i248.ConfiguracionCodigosRepository>(
       () => _i960.ConfiguracionCodigosRepositoryImpl(
         gh<_i719.ConfiguracionCodigosRemoteDataSource>(),
@@ -1188,6 +1280,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i169.SedesSelectorCubit>(
       () => _i169.SedesSelectorCubit(gh<_i873.GetSedesUseCase>()),
+    );
+    gh.factory<_i588.MisPedidosCubit>(
+      () => _i588.MisPedidosCubit(gh<_i511.GetMisPedidosUseCase>()),
     );
     gh.factory<_i210.ClienteListCubit>(
       () => _i210.ClienteListCubit(gh<_i646.GetClientesUseCase>()),
@@ -1613,6 +1708,24 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i490.ErrorHandlerService>(),
       ),
     );
+    gh.factory<_i224.ActualizarCantidadUseCase>(
+      () => _i224.ActualizarCantidadUseCase(gh<_i982.CarritoRepository>()),
+    );
+    gh.factory<_i81.AgregarItemUseCase>(
+      () => _i81.AgregarItemUseCase(gh<_i982.CarritoRepository>()),
+    );
+    gh.factory<_i883.EliminarItemUseCase>(
+      () => _i883.EliminarItemUseCase(gh<_i982.CarritoRepository>()),
+    );
+    gh.factory<_i477.GetCarritoUseCase>(
+      () => _i477.GetCarritoUseCase(gh<_i982.CarritoRepository>()),
+    );
+    gh.factory<_i689.GetContadorUseCase>(
+      () => _i689.GetContadorUseCase(gh<_i982.CarritoRepository>()),
+    );
+    gh.factory<_i98.VaciarCarritoUseCase>(
+      () => _i98.VaciarCarritoUseCase(gh<_i982.CarritoRepository>()),
+    );
     gh.factory<_i135.EmpresaContextCubit>(
       () => _i135.EmpresaContextCubit(
         gh<_i1001.GetEmpresaContextUseCase>(),
@@ -1758,6 +1871,13 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i120.UpdatePolitica>(
       () => _i120.UpdatePolitica(gh<_i605.DescuentoRepository>()),
+    );
+    gh.factory<_i485.PedidoActionCubit>(
+      () => _i485.PedidoActionCubit(
+        gh<_i156.SubirComprobanteUseCase>(),
+        gh<_i653.CancelarPedidoUseCase>(),
+        gh<_i591.ConfirmarRecepcionUseCase>(),
+      ),
     );
     gh.lazySingleton<_i1067.OrdenServicioRepository>(
       () => _i312.OrdenServicioRepositoryImpl(
@@ -2090,6 +2210,16 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i238.CrearTransferenciaCubit(
         gh<_i629.CrearTransferenciaUseCase>(),
         gh<_i831.CrearTransferenciasMultiplesUseCase>(),
+      ),
+    );
+    gh.factory<_i447.CarritoCubit>(
+      () => _i447.CarritoCubit(
+        gh<_i477.GetCarritoUseCase>(),
+        gh<_i81.AgregarItemUseCase>(),
+        gh<_i224.ActualizarCantidadUseCase>(),
+        gh<_i883.EliminarItemUseCase>(),
+        gh<_i98.VaciarCarritoUseCase>(),
+        gh<_i689.GetContadorUseCase>(),
       ),
     );
     gh.factory<_i850.GetOrdenesServicioUseCase>(

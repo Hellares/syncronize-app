@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/storage/local_storage_service.dart';
 import '../../../../core/storage/secure_storage_service.dart';
 import '../../../../core/constants/storage_constants.dart';
 import '../../../../core/utils/resource.dart';
+import '../../../../core/utils/role_navigation_helper.dart';
 import '../../domain/entities/empresa_list_item.dart';
 import '../../domain/usecases/get_user_empresas_usecase.dart';
 import '../../domain/usecases/switch_empresa_usecase.dart';
@@ -158,16 +160,17 @@ class _EmpresaSwitchBottomSheetState extends State<EmpresaSwitchBottomSheet> {
     if (!mounted) return;
     await context.read<EmpresaContextCubit>().loadEmpresaContextById(empresa.id);
 
-    setState(() {
-      _isSwitching = false;
-    });
+    if (!mounted) return;
+
+    // 5. Determinar ruta según el rol
+    final targetRoute = RoleNavigationHelper.getEmpresaRoute();
 
     if (!mounted) return;
 
-    // 6. Cerrar el bottom sheet
+    // 6. Cerrar el bottom sheet y navegar a la ruta correcta según el rol
     Navigator.pop(context);
+    context.go(targetRoute);
 
-    // 7. Mostrar confirmación
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Cambiado a: ${empresa.nombre}'),

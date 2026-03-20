@@ -56,10 +56,10 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
 
             _SectionTitleNode(
               'Productos',
-              visible: permissions?.canManageProducts ?? false,
+              visible: permissions?.canViewProducts ?? false,
             ),
             _SectionNode(
-              visible: permissions?.canManageProducts ?? false,
+              visible: permissions?.canViewProducts ?? false,
               children: [
                 _TileNode(
                   title: 'Productos',
@@ -146,8 +146,11 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
 
             const _DividerNode(),
 
-            const _SectionTitleNode('Inventario'),
+            _SectionTitleNode('Inventario',
+              visible: permissions?.canViewProducts ?? false,
+            ),
             _TileNode(
+              visible: permissions?.canViewProducts ?? false,
               title: 'Transferencias',
               icon: Icons.swap_horiz,
               iconColor: AppColors.blue2,
@@ -155,6 +158,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/inventario/transferencias')),
             ),
             _TileNode(
+              visible: permissions?.canViewProducts ?? false,
               title: 'Incidencias de Transferencia',
               icon: Icons.warning_amber,
               iconColor: Colors.orange,
@@ -162,6 +166,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/inventario/incidencias')),
             ),
             _TileNode(
+              visible: permissions?.canViewProducts ?? false,
               title: 'Reportes de Incidencia',
               icon: Icons.assignment,
               iconColor: Colors.purple,
@@ -169,6 +174,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/reportes-incidencia')),
             ),
             _TileNode(
+              visible: permissions?.canViewProducts ?? false,
               title: 'Stock por Sede',
               icon: Icons.inventory,
               iconColor: AppColors.blue2,
@@ -176,6 +182,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/inventario/stock-por-sede')),
             ),
             _TileNode(
+              visible: permissions?.canViewProducts ?? false,
               title: 'Alertas de Stock',
               icon: Icons.notifications_active,
               iconColor: Colors.red,
@@ -183,6 +190,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/inventario/alertas')),
             ),
             _TileNode(
+              visible: permissions?.canViewProducts ?? false,
               title: 'Historial de Precios',
               icon: Icons.price_change,
               iconColor: Colors.teal,
@@ -194,6 +202,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
 
             const _SectionTitleNode('Operaciones'),
             _TileNode(
+              visible: permissions?.canViewCotizaciones ?? false,
               title: 'Cotizaciones',
               icon: Icons.request_quote,
               iconColor: AppColors.blue2,
@@ -201,6 +210,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/cotizaciones')),
             ),
             _TileNode(
+              visible: permissions?.canViewVentas ?? false,
               title: 'Ventas',
               icon: Icons.point_of_sale,
               iconColor: AppColors.blue2,
@@ -208,6 +218,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/ventas')),
             ),
             _TileNode(
+              visible: permissions?.canViewVentas ?? false,
               title: 'Cola POS',
               icon: Icons.queue,
               iconColor: Colors.teal,
@@ -215,6 +226,15 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/cola-pos')),
             ),
             _TileNode(
+              visible: permissions?.canViewVentas ?? false,
+              title: 'Pedidos Marketplace',
+              icon: Icons.storefront,
+              iconColor: Colors.teal,
+              routeMatch: const _RouteMatch.startsWith('/empresa/pedidos-marketplace'),
+              onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/pedidos-marketplace')),
+            ),
+            _TileNode(
+              visible: permissions?.canViewDevoluciones ?? false,
               title: 'Devoluciones',
               icon: Icons.assignment_return,
               iconColor: AppColors.blue2,
@@ -222,6 +242,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/devoluciones')),
             ),
             _TileNode(
+              visible: permissions?.canViewReports ?? false,
               title: 'Reportes Ventas',
               icon: Icons.bar_chart,
               iconColor: AppColors.blue2,
@@ -237,7 +258,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/descuentos')),
             ),
             _TileNode(
-              visible: permissions?.canManageServices ?? false,
+              visible: permissions?.canViewServices ?? false,
               title: 'Servicios',
               icon: Icons.room_service,
               iconColor: AppColors.blue2,
@@ -269,7 +290,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/citas/clientes')),
             ),
             _TileNode(
-              visible: permissions?.canManageServices ?? false,
+              visible: permissions?.canViewServices ?? false,
               title: 'Plantillas de Servicio',
               icon: Icons.view_list,
               iconColor: AppColors.blue2,
@@ -294,6 +315,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/tercerizacion')),
             ),
             _TileNode(
+              visible: permissions?.canViewClients ?? false,
               title: 'Vinculaciones B2B',
               icon: Icons.link,
               iconColor: Colors.teal,
@@ -301,6 +323,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/vinculacion')),
             ),
             _TileNode(
+              visible: permissions?.canManageProducts ?? false,
               title: 'Promociones',
               icon: Icons.campaign,
               iconColor: Colors.deepOrange,
@@ -332,6 +355,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/sedes')),
             ),
             _TileNode(
+              visible: permissions?.canViewClients ?? false,
               title: 'Clientes',
               icon: Icons.people_alt,
               iconColor: AppColors.blue2,
@@ -339,6 +363,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/clientes?empresaId=$empresaId')),
             ),
             _TileNode(
+              visible: permissions?.canViewProveedores ?? false,
               title: 'Proveedores',
               icon: Icons.business,
               iconColor: AppColors.blue2,
@@ -348,8 +373,11 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
 
             const _DividerNode(),
 
-            const _SectionTitleNode('Compras'),
+            _SectionTitleNode('Compras',
+              visible: permissions?.canViewCompras ?? false,
+            ),
             _SectionNode(
+              visible: permissions?.canViewCompras ?? false,
               children: [
                 _TileNode(
                   title: 'Órdenes de Compra',
@@ -403,7 +431,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/configuracion-documentos')),
             ),
             _TileNode(
-              visible: permissions?.canManageUsers ?? false,
+              visible: permissions?.canViewUsers ?? false,
               title: 'Usuarios',
               icon: Icons.people,
               iconColor: AppColors.blue2,

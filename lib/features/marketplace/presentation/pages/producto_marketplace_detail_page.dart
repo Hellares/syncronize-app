@@ -5,12 +5,12 @@ import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/widgets/custom_loading.dart';
 import 'package:url_launcher/url_launcher.dart';
-// import 'package:share_plus/share_plus.dart'; // TODO: agregar dependencia
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/constants/storage_constants.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/storage/local_storage_service.dart';
+import '../../../../core/storage/secure_storage_service.dart';
 import '../../data/datasources/marketplace_remote_datasource.dart';
 import '../widgets/favorito_button.dart';
 import '../widgets/preguntas_producto_section.dart';
@@ -94,10 +94,9 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
               size: 22,
             ),
             IconButton(
-              icon: const Icon(Icons.share_outlined, size: 20),
-              onPressed: () {
-                // TODO: implementar share cuando se agregue share_plus
-              },
+              icon: const Icon(Icons.shopping_cart_outlined, size: 20),
+              onPressed: () => context.push('/carrito'),
+              tooltip: 'Mi carrito',
             ),
           ],
         ],
@@ -630,6 +629,48 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
     );
   }
 
+  bool _addingToCart = false;
+
+  Future<void> _agregarAlCarrito() async {
+    final secureStorage = locator<SecureStorageService>();
+    final token = await secureStorage.read(key: StorageConstants.accessToken);
+    if (token == null || token.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Inicia sesión para agregar al carrito')),
+        );
+      }
+      return;
+    }
+
+    setState(() => _addingToCart = true);
+    try {
+      await locator<DioClient>().post(
+        '/marketplace/carrito',
+        data: {'productoId': widget.productoId, 'cantidad': 1},
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Producto agregado al carrito'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        final msg = e.toString().contains('stock')
+            ? 'Stock insuficiente'
+            : 'Error al agregar al carrito';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(msg), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _addingToCart = false);
+    }
+  }
+
   Widget _buildBottomBar() {
     final p = _producto!;
     final empresa = p['empresa'] as Map<String, dynamic>? ?? {};
@@ -639,6 +680,7 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
     final precio = p['precio'] as num?;
     final precioOferta = p['precioOferta'] as num?;
     final enOferta = p['enOferta'] as bool? ?? false;
+    final hayStock = p['hayStock'] as bool? ?? false;
     final precioFinal = enOferta && precioOferta != null ? precioOferta : precio;
 
     return Container(
@@ -670,19 +712,31 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
               )
             else
               const Expanded(child: SizedBox()),
-            if (telefono != null && telefono.isNotEmpty)
+            const SizedBox(width: 8),
+            // Botón agregar al carrito
+            if (hayStock)
               ElevatedButton.icon(
-                onPressed: () => _openWhatsApp(telefono, nombre, precioFinal, empresaNombre),
-                icon: const Icon(Icons.chat, size: 18),
-                label: const Text('Consultar por WhatsApp', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                onPressed: _addingToCart ? null : _agregarAlCarrito,
+                icon: _addingToCart
+                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.add_shopping_cart, size: 18),
+                label: const Text('Agregar', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF25D366),
+                  backgroundColor: AppColors.blue1,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   elevation: 0,
                 ),
               ),
+            if (telefono != null && telefono.isNotEmpty) ...[
+              const SizedBox(width: 8),
+              IconButton(
+                onPressed: () => _openWhatsApp(telefono, nombre, precioFinal, empresaNombre),
+                icon: const Icon(Icons.chat, color: Color(0xFF25D366), size: 24),
+                tooltip: 'WhatsApp',
+              ),
+            ],
           ],
         ),
       ),

@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 import 'bloc_provider.dart';
 import 'config/routes/app_router.dart';
 import 'config/theme/app_theme.dart';
+import 'core/di/injection_container.dart';
+import 'core/network/dio_client.dart';
 import 'core/presentation/widgets/app_initializer.dart';
 import 'core/services/push_notification_service.dart';
 import 'features/auth/presentation/bloc/auth/auth_bloc.dart';
@@ -28,15 +30,44 @@ class MyApp extends StatefulWidget {
   State<MyApp> createState() => _MyAppState();
 }
 
-class _MyAppState extends State<MyApp> {
+class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   StreamSubscription? _authSubscription;
   bool _isListening = false;
   bool _wasAuthenticated = false;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _authSubscription?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _wasAuthenticated) {
+      _validateSession();
+    }
+  }
+
+  Future<void> _validateSession() async {
+    try {
+      final dio = locator<DioClient>();
+      await dio.get('/auth/validate-session');
+    } catch (_) {
+      // Si falla (401 → refresh también falló = session revocada), forzar logout
+      if (_wasAuthenticated && mounted) {
+        final bloc = context.read<AuthBloc>();
+        if (bloc.state is Authenticated) {
+          bloc.add(const LogoutRequestedEvent());
+        }
+      }
+    }
   }
 
   void _listenAuthChanges(AuthBloc authBloc) {

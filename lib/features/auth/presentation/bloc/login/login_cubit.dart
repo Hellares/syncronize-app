@@ -449,7 +449,6 @@ class LoginCubit extends Cubit<LoginState> {
     final params = LoginParams(
       credencial: state.email.value.trim(),
       password: state.password.value,
-      loginMode: 'marketplace',
     );
 
     final result = await loginUseCase(params);
@@ -534,7 +533,6 @@ class LoginCubit extends Cubit<LoginState> {
 
       final params = GoogleSignInParams(
         idToken: idToken,
-        loginMode: 'marketplace',
       );
 
       final result = await googleSignInUseCase(params);

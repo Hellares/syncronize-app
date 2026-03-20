@@ -4,25 +4,25 @@ import '../di/injection_container.dart';
 
 /// Helper para determinar la ruta de navegación según el rol del usuario
 class RoleNavigationHelper {
-  /// Roles que deben ir al portal de cliente
-  static const _clienteRoles = ['CLIENTE'];
+  /// Mapeo de rol → ruta inicial más relevante
+  static const _roleRoutes = <String, String>{
+    'CLIENTE': '/empresa/cliente',
+    'VENDEDOR': '/empresa/cotizaciones',
+    'CAJERO': '/empresa/cola-pos',
+    'TECNICO': '/empresa/ordenes',
+    'CONTADOR': '/empresa/ventas/analytics',
+  };
 
   /// Determina la ruta correcta según el rol almacenado en localStorage
   static String getEmpresaRoute() {
     final localStorage = locator<LocalStorageService>();
     final tenantRole = localStorage.getString(StorageConstants.tenantRole);
-
-    if (tenantRole != null && _clienteRoles.contains(tenantRole)) {
-      return '/empresa/cliente';
-    }
-    return '/empresa/dashboard';
+    return getRouteForRole(tenantRole);
   }
 
   /// Determina la ruta según un rol proporcionado directamente
   static String getRouteForRole(String? role) {
-    if (role != null && _clienteRoles.contains(role)) {
-      return '/empresa/cliente';
-    }
-    return '/empresa/dashboard';
+    if (role == null) return '/empresa/dashboard';
+    return _roleRoutes[role] ?? '/empresa/dashboard';
   }
 }

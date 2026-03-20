@@ -2,11 +2,14 @@ import '../../domain/entities/empresa_permissions.dart';
 
 class EmpresaPermissionsModel extends EmpresaPermissions {
   const EmpresaPermissionsModel({
+    required super.canViewUsers,
     required super.canManageUsers,
     required super.canViewProducts,
     required super.canManageProducts,
     required super.canViewServices,
     required super.canManageServices,
+    required super.canViewClients,
+    required super.canManageClients,
     required super.canViewDiscounts,
     required super.canManageDiscounts,
     required super.canViewCotizaciones,
@@ -31,11 +34,14 @@ class EmpresaPermissionsModel extends EmpresaPermissions {
 
   factory EmpresaPermissionsModel.fromJson(Map<String, dynamic> json) {
     return EmpresaPermissionsModel(
+      canViewUsers: json['canViewUsers'] as bool? ?? false,
       canManageUsers: json['canManageUsers'] as bool? ?? false,
       canViewProducts: json['canViewProducts'] as bool? ?? false,
       canManageProducts: json['canManageProducts'] as bool? ?? false,
       canViewServices: json['canViewServices'] as bool? ?? false,
       canManageServices: json['canManageServices'] as bool? ?? false,
+      canViewClients: json['canViewClients'] as bool? ?? false,
+      canManageClients: json['canManageClients'] as bool? ?? false,
       canViewDiscounts: json['canViewDiscounts'] as bool? ?? false,
       canManageDiscounts: json['canManageDiscounts'] as bool? ?? false,
       canViewCotizaciones: json['canViewCotizaciones'] as bool? ?? false,
@@ -61,11 +67,14 @@ class EmpresaPermissionsModel extends EmpresaPermissions {
 
   Map<String, dynamic> toJson() {
     return {
+      'canViewUsers': canViewUsers,
       'canManageUsers': canManageUsers,
       'canViewProducts': canViewProducts,
       'canManageProducts': canManageProducts,
       'canViewServices': canViewServices,
       'canManageServices': canManageServices,
+      'canViewClients': canViewClients,
+      'canManageClients': canManageClients,
       'canViewDiscounts': canViewDiscounts,
       'canManageDiscounts': canManageDiscounts,
       'canViewCotizaciones': canViewCotizaciones,
@@ -93,11 +102,14 @@ class EmpresaPermissionsModel extends EmpresaPermissions {
 
   factory EmpresaPermissionsModel.fromEntity(EmpresaPermissions entity) {
     return EmpresaPermissionsModel(
+      canViewUsers: entity.canViewUsers,
       canManageUsers: entity.canManageUsers,
       canViewProducts: entity.canViewProducts,
       canManageProducts: entity.canManageProducts,
       canViewServices: entity.canViewServices,
       canManageServices: entity.canManageServices,
+      canViewClients: entity.canViewClients,
+      canManageClients: entity.canManageClients,
       canViewDiscounts: entity.canViewDiscounts,
       canManageDiscounts: entity.canManageDiscounts,
       canViewCotizaciones: entity.canViewCotizaciones,

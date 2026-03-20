@@ -17,7 +17,8 @@ class CompleteProfileState extends Equatable {
   final bool dniConsultado;
 
   // Vinculación de cuentas
-  final bool dniPerteneceAOtro;
+  final bool dniPerteneceAOtro; // Persona sin usuario — se puede vincular
+  final bool dniYaTieneUsuario; // Persona CON usuario — bloqueado
   final String? targetPersonaId;
   final bool isLinking;
   final Resource? linkResponse;
@@ -36,6 +37,7 @@ class CompleteProfileState extends Equatable {
     this.distrito,
     this.dniConsultado = false,
     this.dniPerteneceAOtro = false,
+    this.dniYaTieneUsuario = false,
     this.targetPersonaId,
     this.isLinking = false,
     this.linkResponse,
@@ -56,6 +58,7 @@ class CompleteProfileState extends Equatable {
     String? distrito,
     bool? dniConsultado,
     bool? dniPerteneceAOtro,
+    bool? dniYaTieneUsuario,
     String? targetPersonaId,
     bool? isLinking,
     Resource? linkResponse,
@@ -74,6 +77,7 @@ class CompleteProfileState extends Equatable {
       distrito: distrito ?? this.distrito,
       dniConsultado: dniConsultado ?? this.dniConsultado,
       dniPerteneceAOtro: dniPerteneceAOtro ?? this.dniPerteneceAOtro,
+      dniYaTieneUsuario: dniYaTieneUsuario ?? this.dniYaTieneUsuario,
       targetPersonaId: targetPersonaId ?? this.targetPersonaId,
       isLinking: isLinking ?? this.isLinking,
       linkResponse: linkResponse,
@@ -95,6 +99,7 @@ class CompleteProfileState extends Equatable {
         distrito,
         dniConsultado,
         dniPerteneceAOtro,
+        dniYaTieneUsuario,
         targetPersonaId,
         isLinking,
         linkResponse,

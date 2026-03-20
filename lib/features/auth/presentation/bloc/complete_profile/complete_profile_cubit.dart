@@ -78,7 +78,11 @@ class CompleteProfileCubit extends Cubit<CompleteProfileState> {
       final data = result.data;
 
       // Verificar si el DNI pertenece a otra persona en el sistema
-      final perteneceAOtro = data.existeEnSistema == true && data.personaId != null;
+      // Solo ofrecer vinculación si la persona NO tiene usuario (fue registrada por una empresa)
+      // Si ya tiene usuario, bloquear — no se puede vincular con otra cuenta
+      final perteneceAOtro = data.existeEnSistema == true
+          && data.personaId != null
+          && data.tieneUsuario != true;
 
       // Auto-llenar dirección si está vacía
       final direccionActual = state.direccion.value.trim();
@@ -86,10 +90,16 @@ class CompleteProfileCubit extends Cubit<CompleteProfileState> {
           ? data.direccionCompleta
           : direccionActual;
 
+      // DNI existe y tiene usuario = bloqueado (no vincular)
+      final bloqueado = data.existeEnSistema == true
+          && data.personaId != null
+          && data.tieneUsuario == true;
+
       emit(state.copyWith(
         isConsultingDni: false,
         dniConsultado: true,
         dniPerteneceAOtro: perteneceAOtro,
+        dniYaTieneUsuario: bloqueado,
         targetPersonaId: data.personaId,
         nombres: data.nombres,
         apellidos: data.apellidos,
@@ -160,6 +170,14 @@ class CompleteProfileCubit extends Cubit<CompleteProfileState> {
   }
 
   Future<void> submit() async {
+    // Bloquear si el DNI ya tiene otro usuario
+    if (state.dniYaTieneUsuario) {
+      emit(state.copyWith(
+        dni: state.dni.copyWith(error: 'Este DNI ya está registrado con otra cuenta'),
+      ));
+      return;
+    }
+
     if (!_isFormValid()) {
       emit(state.copyWith(
         dni: state.dni.copyWith(error: _validateDni(state.dni.value)),

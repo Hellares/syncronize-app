@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/constants/storage_constants.dart';
 import '../../../../core/fonts/app_text_widgets.dart';
+import '../../../../core/network/dio_client.dart';
 import '../../../../core/storage/local_storage_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/gradient_background.dart';
@@ -36,10 +37,13 @@ class _EmpresaProfilePageState extends State<EmpresaProfilePage> {
   final _datasource = locator<EmpresaRemoteDataSource>();
   final _localStorage = locator<LocalStorageService>();
 
+  final _envioGratisDesdeController = TextEditingController();
+
   bool _isSaving = false;
   bool _initialized = false;
   bool _aceptaTercerizacion = false;
   List<String> _tiposServicioTercerizacion = [];
+  bool _permiteRetiroTienda = false;
 
   @override
   void dispose() {
@@ -49,6 +53,7 @@ class _EmpresaProfilePageState extends State<EmpresaProfilePage> {
     _webController.dispose();
     _descripcionController.dispose();
     _descripcionTercerizacionController.dispose();
+    _envioGratisDesdeController.dispose();
     super.dispose();
   }
 
@@ -63,6 +68,22 @@ class _EmpresaProfilePageState extends State<EmpresaProfilePage> {
     _descripcionTercerizacionController.text = empresa.descripcionTercerizacion ?? '';
     _tiposServicioTercerizacion = List.from(empresa.tiposServicioTercerizacion);
     _initialized = true;
+    _loadConfigEnvio();
+  }
+
+  Future<void> _loadConfigEnvio() async {
+    try {
+      final dio = locator<DioClient>();
+      final response = await dio.get('/pedidos-marketplace/configuracion-envio');
+      final data = response.data as Map<String, dynamic>?;
+      if (data != null && mounted) {
+        setState(() {
+          final gratis = data['envioGratisDesde'];
+          _envioGratisDesdeController.text = gratis != null ? gratis.toString() : '';
+          _permiteRetiroTienda = data['permiteRetiroTienda'] == true;
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _saveChanges() async {
@@ -92,6 +113,17 @@ class _EmpresaProfilePageState extends State<EmpresaProfilePage> {
                   ? null
                   : _descripcionTercerizacionController.text,
           'tiposServicioTercerizacion': _tiposServicioTercerizacion,
+        },
+      );
+
+      // Guardar config de envío por separado
+      await locator<DioClient>().patch(
+        '/pedidos-marketplace/configuracion-envio',
+        data: {
+          'envioGratisDesde': _envioGratisDesdeController.text.isNotEmpty
+              ? double.tryParse(_envioGratisDesdeController.text)
+              : null,
+          'permiteRetiroTienda': _permiteRetiroTienda,
         },
       );
 
@@ -138,6 +170,8 @@ class _EmpresaProfilePageState extends State<EmpresaProfilePage> {
                   _buildUbicacionSection(context, empresa),
                   const SizedBox(height: 12),
                   _buildContactSection(context),
+                  const SizedBox(height: 12),
+                  _buildEnvioSection(context),
                   const SizedBox(height: 12),
                   _buildTercerizacionSection(context),
                   const SizedBox(height: 20),
@@ -485,6 +519,64 @@ class _EmpresaProfilePageState extends State<EmpresaProfilePage> {
       ),
     );
   }
+  Widget _buildEnvioSection(BuildContext context) {
+    return GradientContainer(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.local_shipping, color: AppColors.blue1, size: 20),
+                const SizedBox(width: 8),
+                const AppSubtitle('CONFIGURACIÓN DE ENVÍO', fontSize: 12),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Configura las opciones de envío para tus ventas del marketplace',
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('📦 Envío local: el cliente asume el costo al recibir',
+                    style: TextStyle(fontSize: 11, color: Colors.blue.shade800)),
+                  const SizedBox(height: 4),
+                  Text('🚚 Envío nacional: el cliente asume el costo al retirar de agencia',
+                    style: TextStyle(fontSize: 11, color: Colors.blue.shade800)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            CustomText(
+              controller: _envioGratisDesdeController,
+              label: 'Envío gratis si la compra supera (S/)',
+              hintText: 'Ej: 100.00 (dejar vacío si nunca es gratis)',
+              borderColor: AppColors.blue1,
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 12),
+            CustomSwitchTile(
+              title: 'Permitir retiro en tienda',
+              subtitle: 'Los clientes pueden recoger en tus sedes',
+              value: _permiteRetiroTienda,
+              onChanged: (v) => setState(() => _permiteRetiroTienda = v),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildTercerizacionSection(BuildContext context) {
     const tiposDisponibles = [
       'REPARACION',

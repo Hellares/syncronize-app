@@ -25,6 +25,12 @@ import '../../features/empresa/presentation/pages/empresa_profile_page.dart';
 import '../../features/empresa/presentation/pages/personalizacion_page.dart';
 import '../../features/empresa/presentation/pages/planes_page.dart';
 import '../../features/marketplace/presentation/pages/marketplace_page.dart';
+import '../../features/portal_unificado/presentation/pages/portal_unificado_page.dart';
+import '../../features/carrito/presentation/pages/carrito_page.dart';
+import '../../features/mis_pedidos/presentation/pages/mis_pedidos_page.dart';
+import '../../features/mis_pedidos/presentation/pages/pedido_detail_page.dart';
+import '../../features/pedido_marketplace_empresa/presentation/pages/pedidos_marketplace_empresa_page.dart';
+import '../../features/pedido_marketplace_empresa/presentation/pages/pedido_marketplace_detail_empresa_page.dart';
 import '../../features/marketplace/presentation/pages/producto_marketplace_detail_page.dart';
 import '../../features/marketplace/presentation/pages/empresa_public_profile_page.dart';
 import '../../features/marketplace/presentation/pages/preguntas_producto_page.dart';
@@ -728,6 +734,20 @@ class AppRouter {
         name: 'empresa-ventas-analytics',
         builder: (context, state) => const VentaAnalyticsPage(),
       ),
+      // Rutas de pedidos marketplace (empresa)
+      GoRoute(
+        path: '/empresa/pedidos-marketplace',
+        name: 'empresa-pedidos-marketplace',
+        builder: (context, state) => const PedidosMarketplaceEmpresaPage(),
+      ),
+      GoRoute(
+        path: '/empresa/pedidos-marketplace/:id',
+        name: 'empresa-pedidos-marketplace-detail',
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return PedidoMarketplaceDetailEmpresaPage(pedidoId: id);
+        },
+      ),
       // Rutas de devoluciones
       GoRoute(
         path: '/empresa/devoluciones',
@@ -1093,6 +1113,34 @@ class AppRouter {
         path: '/marketplace',
         name: 'marketplace',
         builder: (context, state) => const MarketplacePage(),
+      ),
+      GoRoute(
+        path: '/portal-unificado',
+        name: 'portal-unificado',
+        builder: (context, state) => const PortalUnificadoPage(),
+      ),
+      GoRoute(
+        path: '/carrito',
+        name: 'carrito',
+        builder: (context, state) => const CarritoPage(),
+      ),
+      GoRoute(
+        path: '/mis-pedidos',
+        name: 'mis-pedidos',
+        builder: (context, state) => const MisPedidosPage(),
+      ),
+      GoRoute(
+        path: '/mis-compras',
+        name: 'mis-compras',
+        builder: (context, state) => const MisPedidosPage(modo: MisPedidosModo.compras),
+      ),
+      GoRoute(
+        path: '/mis-pedidos/:id',
+        name: 'mis-pedidos-detail',
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return PedidoDetailPage(pedidoId: id);
+        },
       ),
       GoRoute(
         path: '/producto-detalle/:id',

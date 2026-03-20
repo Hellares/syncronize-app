@@ -2,7 +2,9 @@ import 'package:equatable/equatable.dart';
 
 /// Entidad que representa los permisos del usuario en la empresa
 class EmpresaPermissions extends Equatable {
-  final bool canManageUsers;
+  // Usuarios - Separado en VIEW y MANAGE
+  final bool canViewUsers;         // Ver lista de usuarios
+  final bool canManageUsers;       // Crear, editar, eliminar usuarios
 
   // Productos - Separado en VIEW y MANAGE
   final bool canViewProducts;      // Ver catálogo de productos
@@ -11,6 +13,10 @@ class EmpresaPermissions extends Equatable {
   // Servicios - Separado en VIEW y MANAGE
   final bool canViewServices;      // Ver catálogo de servicios
   final bool canManageServices;    // Crear, editar, eliminar servicios
+
+  // Clientes - Separado en VIEW y MANAGE
+  final bool canViewClients;       // Ver lista de clientes
+  final bool canManageClients;     // Crear, editar, eliminar clientes
 
   // Descuentos - Separado en VIEW y MANAGE
   final bool canViewDiscounts;     // Ver políticas de descuento
@@ -46,11 +52,14 @@ class EmpresaPermissions extends Equatable {
   final bool canChangePlan;
 
   const EmpresaPermissions({
+    required this.canViewUsers,
     required this.canManageUsers,
     required this.canViewProducts,
     required this.canManageProducts,
     required this.canViewServices,
     required this.canManageServices,
+    required this.canViewClients,
+    required this.canManageClients,
     required this.canViewDiscounts,
     required this.canManageDiscounts,
     required this.canViewCotizaciones,
@@ -82,11 +91,14 @@ class EmpresaPermissions extends Equatable {
 
   @override
   List<Object?> get props => [
+        canViewUsers,
         canManageUsers,
         canViewProducts,
         canManageProducts,
         canViewServices,
         canManageServices,
+        canViewClients,
+        canManageClients,
         canViewDiscounts,
         canManageDiscounts,
         canViewCotizaciones,

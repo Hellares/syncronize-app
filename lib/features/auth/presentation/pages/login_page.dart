@@ -53,11 +53,49 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
   final GlobalKey _passwordCardKey = GlobalKey();
 
   bool _showPasswordCard = false;
+  bool _isAutoSwitching = false;
 
   //!Variable para cambiar el estilo del gradient fácilmente
   final GradientStyle _gradientStyle = GradientStyle.professional; //!Cambia aquí el estilo
 
   final LogoStyle _logoStyle = LogoStyle.glowEffect;
+
+  /// Switch unificado a una empresa — usado por auto-switch y selector manual
+  Future<void> _switchToCompany({
+    required String empresaId,
+    required String subdominio,
+    required String empresaNombre,
+    required String? empresaRole,
+    required bool showLoading,
+  }) async {
+    final switchUseCase = locator<SwitchEmpresaUseCase>();
+    final localStorage = locator<LocalStorageService>();
+
+    if (showLoading && mounted) setState(() => _isAutoSwitching = true);
+
+    final switchResult = await switchUseCase(
+      empresaId: empresaId,
+      subdominio: subdominio,
+      empresaNombre: empresaNombre,
+      empresaRole: empresaRole,
+    );
+
+    if (switchResult is Error) {
+      if (showLoading && mounted) setState(() => _isAutoSwitching = false);
+      if (context.mounted) {
+        SnackBarHelper.showError(context, switchResult.message);
+      }
+      return;
+    }
+
+    await localStorage.setString(StorageConstants.loginMode, 'management');
+    if (empresaRole != null) {
+      await localStorage.setString(StorageConstants.tenantRole, empresaRole);
+    }
+    if (context.mounted) {
+      context.go(RoleNavigationHelper.getEmpresaRoute());
+    }
+  }
 
   @override
   void dispose() {
@@ -166,60 +204,54 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                     context.read<AuthBloc>().add(UserLoggedInEvent(user: user));
                   }
 
-                  // Mostrar selector de modo (Marketplace vs Management)
+                  // Auto-switch: si solo tiene 1 empresa, ir directo sin mostrar selector
+                  final allCompanies = authResponse.options!
+                      .where((o) => o.availableCompanies != null)
+                      .expand((o) => o.availableCompanies!)
+                      .toList();
+
+                  if (allCompanies.length == 1) {
+                    final company = allCompanies.first;
+                    await _switchToCompany(
+                      empresaId: company.id,
+                      subdominio: company.subdominio,
+                      empresaNombre: company.nombre,
+                      empresaRole: company.roles.isNotEmpty ? company.roles.first : null,
+                      showLoading: true,
+                    );
+                    return;
+                  }
+
+                  // Múltiples empresas: mostrar selector de modo (Marketplace vs Management)
                   ModeSelectionBottomSheet.show(
                     context: context,
                     modeOptions: authResponse.options!,
                     onModeSelected: (modeType, subdominioEmpresa) async {
-                      // Cerrar el bottom sheet
                       Navigator.pop(context);
 
-                      final localStorage = locator<LocalStorageService>();
-
                       if (modeType == 'marketplace') {
-                        // Marketplace: no necesita switch-tenant, navegar directo
+                        final localStorage = locator<LocalStorageService>();
                         await localStorage.setString(StorageConstants.loginMode, 'marketplace');
                         if (context.mounted) {
                           context.go('/marketplace');
                         }
                       } else {
-                        // Management: usar switch-tenant (sin re-autenticar)
-                        final switchUseCase = locator<SwitchEmpresaUseCase>();
-
                         // Buscar empresa seleccionada en las opciones
-                        String empresaId = '';
-                        String empresaNombre = '';
-                        String? empresaRole;
                         for (final option in authResponse.options!) {
                           if (option.availableCompanies != null) {
                             for (final company in option.availableCompanies!) {
                               if (company.subdominio == subdominioEmpresa) {
-                                empresaId = company.id;
-                                empresaNombre = company.nombre;
-                                empresaRole = company.roles.isNotEmpty ? company.roles.first : null;
-                                break;
+                                await _switchToCompany(
+                                  empresaId: company.id,
+                                  subdominio: company.subdominio,
+                                  empresaNombre: company.nombre,
+                                  empresaRole: company.roles.isNotEmpty ? company.roles.first : null,
+                                  showLoading: false,
+                                );
+                                return;
                               }
                             }
                           }
-                        }
-
-                        final switchResult = await switchUseCase(
-                          empresaId: empresaId,
-                          subdominio: subdominioEmpresa,
-                          empresaNombre: empresaNombre,
-                          empresaRole: empresaRole,
-                        );
-
-                        if (switchResult is Error) {
-                          if (context.mounted) {
-                            SnackBarHelper.showError(context, switchResult.message);
-                          }
-                          return;
-                        }
-
-                        await localStorage.setString(StorageConstants.loginMode, 'management');
-                        if (context.mounted) {
-                          context.go(RoleNavigationHelper.getEmpresaRoute());
                         }
                       }
                     },
@@ -259,7 +291,7 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
               }
             },
             builder: (context, state) {
-              final isLoading = state.response is Loading;
+              final isLoading = state.response is Loading || _isAutoSwitching;
               final isCheckingMethods = state.isCheckingMethods;
 
               final canUseGoogle = state.shouldShowGoogleButton;

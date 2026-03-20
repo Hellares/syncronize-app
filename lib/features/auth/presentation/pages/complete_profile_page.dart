@@ -237,7 +237,37 @@ class _CompleteProfileViewState extends State<_CompleteProfileView> {
                       },
                     ),
 
-                    // Banner de vinculación (si el DNI pertenece a otra cuenta)
+                    // Banner de DNI BLOQUEADO (ya tiene otra cuenta de usuario)
+                    BlocBuilder<CompleteProfileCubit, CompleteProfileState>(
+                      buildWhen: (prev, curr) =>
+                          prev.dniYaTieneUsuario != curr.dniYaTieneUsuario,
+                      builder: (context, state) {
+                        if (!state.dniYaTieneUsuario) return const SizedBox.shrink();
+                        return Container(
+                          padding: const EdgeInsets.all(16),
+                          margin: const EdgeInsets.only(bottom: 16),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade50,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.red.shade300),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.block, color: Colors.red.shade700, size: 22),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  'Este DNI ya está registrado con otra cuenta. No se puede usar. Si crees que es un error, contacta a soporte.',
+                                  style: TextStyle(fontSize: 12, color: Colors.red.shade800),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+
+                    // Banner de vinculación (si el DNI pertenece a persona SIN cuenta)
                     BlocBuilder<CompleteProfileCubit, CompleteProfileState>(
                       buildWhen: (prev, curr) =>
                           prev.dniPerteneceAOtro != curr.dniPerteneceAOtro ||

@@ -17,6 +17,7 @@ class ConsultaDni extends Equatable {
   final String? origen;
   final bool? existeEnSistema;
   final String? personaId;
+  final bool? tieneUsuario;
 
   const ConsultaDni({
     required this.dni,
@@ -35,6 +36,7 @@ class ConsultaDni extends Equatable {
     this.origen,
     this.existeEnSistema,
     this.personaId,
+    this.tieneUsuario,
   });
 
   String get apellidos => '$apellidoPaterno $apellidoMaterno'.trim();
@@ -57,5 +59,6 @@ class ConsultaDni extends Equatable {
         origen,
         existeEnSistema,
         personaId,
+        tieneUsuario,
       ];
 }

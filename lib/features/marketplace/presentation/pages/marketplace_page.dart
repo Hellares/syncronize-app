@@ -4,14 +4,15 @@ import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/network/dio_client.dart';
+import '../../../../core/storage/local_storage_service.dart';
+import '../../../../core/storage/secure_storage_service.dart';
+import '../../../../core/constants/api_constants.dart';
+import '../../../../core/constants/storage_constants.dart';
 import '../../../../core/widgets/custom_search_field.dart';
 import '../bloc/marketplace_search_cubit.dart';
 import '../widgets/marketplace_drawer.dart';
 import '../widgets/producto_marketplace_card.dart';
-import '../../../../core/constants/api_constants.dart';
-import '../../../../core/constants/storage_constants.dart';
-import '../../../../core/network/dio_client.dart';
-import '../../../../core/storage/local_storage_service.dart';
 import '../widgets/favorito_button.dart';
 import '../widgets/ubicacion_selector.dart';
 
@@ -44,12 +45,14 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
   double? _ubicacionLng;
   String? _ubicacionLabel;
   List<dynamic> _vistos = [];
+  int _carritoCount = 0;
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
     _loadUserData();
+    _loadCarritoCount();
   }
 
   @override
@@ -64,6 +67,21 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
         _scrollController.position.maxScrollExtent - 200) {
       context.read<MarketplaceSearchCubit>().loadMore();
     }
+  }
+
+  Future<void> _loadCarritoCount() async {
+    try {
+      final secureStorage = locator<SecureStorageService>();
+      final token = await secureStorage.read(key: StorageConstants.accessToken);
+      if (token == null || token.isEmpty) return;
+
+      final response = await locator<DioClient>().get('/marketplace/carrito/contador');
+      if (mounted) {
+        setState(() {
+          _carritoCount = (response.data['totalCantidad'] as int?) ?? 0;
+        });
+      }
+    } catch (_) {}
   }
 
   void _onSearch(String query) {
@@ -123,6 +141,39 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
                 _onSearch('');
               },
             ),
+            actions: [
+              Stack(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.shopping_cart_outlined, size: 22),
+                    onPressed: () async {
+                      await context.push('/carrito');
+                      _loadCarritoCount();
+                    },
+                    tooltip: 'Mi carrito',
+                  ),
+                  if (_carritoCount > 0)
+                    Positioned(
+                      right: 4,
+                      top: 4,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                        child: Text(
+                          _carritoCount > 99 ? '99+' : '$_carritoCount',
+                          style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(width: 4),
+            ],
           ),
         ],
         body: Column(
@@ -235,9 +286,12 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
                           final producto = state.productos[index] as Map<String, dynamic>;
                           return ProductoMarketplaceCard(
                             producto: producto,
-                            onTap: () {
+                            onTap: () async {
                               final id = producto['id'] as String?;
-                              if (id != null) context.push('/producto-detalle/$id');
+                              if (id != null) {
+                                await context.push('/producto-detalle/$id');
+                                _loadCarritoCount();
+                              }
                             },
                           );
                         },
@@ -369,6 +423,7 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
                   onTap: () async {
                     await context.push('/producto-detalle/${v['id']}');
                     _loadUserData();
+                    _loadCarritoCount();
                   },
                   child: Container(
                     width: 105,
