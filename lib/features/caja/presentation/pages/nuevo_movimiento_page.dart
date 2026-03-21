@@ -4,11 +4,16 @@ import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/widgets/custom_button.dart';
+import 'package:syncronize/core/widgets/custom_dropdown.dart';
+import 'package:syncronize/core/widgets/currency/currency_textfield.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import 'package:syncronize/core/widgets/snack_bar_helper.dart';
+import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import '../../domain/entities/movimiento_caja.dart';
 import '../../domain/usecases/crear_movimiento_usecase.dart';
 import '../../../../core/utils/resource.dart';
+import '../../../categoria_gasto/domain/entities/categoria_gasto.dart';
+import '../../../categoria_gasto/domain/usecases/get_categorias_gasto_usecase.dart';
 
 class NuevoMovimientoPage extends StatefulWidget {
   final String cajaId;
@@ -27,13 +32,48 @@ class _NuevoMovimientoPageState extends State<NuevoMovimientoPage> {
   final _descripcionController = TextEditingController();
   bool _isSubmitting = false;
 
+  // CategoriaGasto personalizada
+  List<CategoriaGasto> _categoriasGasto = [];
+  CategoriaGasto? _selectedCategoriaGasto;
+  bool _loadingCategoriasGasto = false;
+
   List<CategoriaMovimientoCaja> get _categoriasFiltradas =>
       CategoriaMovimientoCaja.porTipo(_selectedTipo);
+
+  /// Determina si la categoria seleccionada acepta una CategoriaGasto personalizada
+  bool get _mostrarDropdownCategoriaGasto {
+    return _selectedCategoria == CategoriaMovimientoCaja.gastoOperativo ||
+        _selectedCategoria == CategoriaMovimientoCaja.otroEgreso ||
+        _selectedCategoria == CategoriaMovimientoCaja.otroIngreso;
+  }
 
   @override
   void initState() {
     super.initState();
     _selectedCategoria = _categoriasFiltradas.first;
+    _cargarCategoriasGasto();
+  }
+
+  Future<void> _cargarCategoriasGasto() async {
+    setState(() => _loadingCategoriasGasto = true);
+    final useCase = locator<GetCategoriasGastoUseCase>();
+    final result = await useCase();
+    if (!mounted) return;
+    if (result is Success<List<CategoriaGasto>>) {
+      setState(() {
+        _categoriasGasto = result.data;
+        _loadingCategoriasGasto = false;
+      });
+    } else {
+      setState(() => _loadingCategoriasGasto = false);
+    }
+  }
+
+  List<CategoriaGasto> get _categoriasGastoFiltradas {
+    if (_selectedCategoria == CategoriaMovimientoCaja.otroIngreso) {
+      return _categoriasGasto.where((c) => c.tipo == 'INGRESO').toList();
+    }
+    return _categoriasGasto.where((c) => c.tipo == 'EGRESO').toList();
   }
 
   @override
@@ -60,7 +100,7 @@ class _NuevoMovimientoPageState extends State<NuevoMovimientoPage> {
               // Tipo selector
               const AppSubtitle(
                 'Tipo de Movimiento',
-                fontSize: 14,
+                fontSize: 12,
                 color: AppColors.blue3,
               ),
               const SizedBox(height: 10),
@@ -80,23 +120,24 @@ class _NuevoMovimientoPageState extends State<NuevoMovimientoPage> {
                             _selectedTipo = tipo;
                             _selectedCategoria =
                                 CategoriaMovimientoCaja.porTipo(tipo).first;
+                            _selectedCategoriaGasto = null;
                           });
                         },
                         borderRadius: BorderRadius.circular(12),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                            vertical: 14,
+                            vertical: 12,
                           ),
                           decoration: BoxDecoration(
                             color: isSelected
                                 ? tipo.color.withValues(alpha: 0.1)
                                 : AppColors.white,
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(10),
                             border: Border.all(
                               color: isSelected
                                   ? tipo.color
                                   : AppColors.greyLight,
-                              width: isSelected ? 2 : 1,
+                              width: isSelected ? 1 : 0.6,
                             ),
                           ),
                           child: Row(
@@ -104,7 +145,7 @@ class _NuevoMovimientoPageState extends State<NuevoMovimientoPage> {
                             children: [
                               Icon(
                                 tipo.icon,
-                                size: 20,
+                                size: 18,
                                 color: isSelected
                                     ? tipo.color
                                     : AppColors.textSecondary,
@@ -113,7 +154,7 @@ class _NuevoMovimientoPageState extends State<NuevoMovimientoPage> {
                               Text(
                                 tipo.label,
                                 style: TextStyle(
-                                  fontSize: 14,
+                                  fontSize: 13,
                                   fontWeight: isSelected
                                       ? FontWeight.w700
                                       : FontWeight.w500,
@@ -133,40 +174,15 @@ class _NuevoMovimientoPageState extends State<NuevoMovimientoPage> {
               const SizedBox(height: 24),
 
               // Categoria dropdown
-              const AppSubtitle(
-                'Categoria',
-                fontSize: 14,
-                color: AppColors.blue3,
-              ),
-              const SizedBox(height: 10),
-              DropdownButtonFormField<CategoriaMovimientoCaja>(
+              CustomDropdown<CategoriaMovimientoCaja>(
+                label: 'Categoria',
+                hintText: 'Selecciona una categoria',
                 value: _selectedCategoria,
-                decoration: InputDecoration(
-                  prefixIcon: Icon(
-                    _selectedCategoria?.icon ?? Icons.category_rounded,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                ),
+                borderColor: AppColors.blue1,
                 items: _categoriasFiltradas
-                    .map((cat) => DropdownMenuItem(
+                    .map((cat) => DropdownItem(
                           value: cat,
-                          child: Row(
-                            children: [
-                              Icon(cat.icon,
-                                  size: 18, color: AppColors.blue3),
-                              const SizedBox(width: 10),
-                              Text(
-                                cat.label,
-                                style: const TextStyle(fontSize: 14),
-                              ),
-                            ],
-                          ),
+                          label: cat.label,
                         ))
                     .toList(),
                 onChanged: (value) {
@@ -175,10 +191,34 @@ class _NuevoMovimientoPageState extends State<NuevoMovimientoPage> {
               ),
               const SizedBox(height: 24),
 
+              // Categoria de gasto personalizada (condicional)
+              if (_mostrarDropdownCategoriaGasto) ...[
+                if (_loadingCategoriasGasto)
+                  const SizedBox.shrink()
+                else
+                  CustomDropdown<CategoriaGasto?>(
+                    label: 'Categoria de Gasto (opcional)',
+                    hintText: 'Sin categoria',
+                    value: _selectedCategoriaGasto,
+                    borderColor: AppColors.blue1,
+                    items: [
+                      const DropdownItem<CategoriaGasto?>(value: null, label: 'Sin categoria'),
+                      ..._categoriasGastoFiltradas.map((cat) => DropdownItem<CategoriaGasto?>(
+                        value: cat,
+                        label: cat.nombre,
+                      )),
+                    ],
+                    onChanged: (value) {
+                      setState(() => _selectedCategoriaGasto = value);
+                    },
+                  ),
+                const SizedBox(height: 24),
+              ],
+
               // Metodo de pago selector
               const AppSubtitle(
                 'Metodo de Pago',
-                fontSize: 14,
+                fontSize: 12,
                 color: AppColors.blue3,
               ),
               const SizedBox(height: 10),
@@ -203,7 +243,7 @@ class _NuevoMovimientoPageState extends State<NuevoMovimientoPage> {
                         Text(
                           metodo.label,
                           style: TextStyle(
-                            fontSize: 13,
+                            fontSize: 11,
                             fontWeight: FontWeight.w500,
                             color: isSelected
                                 ? AppColors.white
@@ -228,56 +268,22 @@ class _NuevoMovimientoPageState extends State<NuevoMovimientoPage> {
               const SizedBox(height: 24),
 
               // Monto
-              const AppSubtitle(
-                'Monto',
-                fontSize: 14,
-                color: AppColors.blue3,
-              ),
-              const SizedBox(height: 10),
-              TextFormField(
+              CurrencyTextField(
                 controller: _montoController,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                decoration: InputDecoration(
-                  prefixIcon: const Icon(Icons.attach_money_rounded),
-                  prefixText: 'S/ ',
-                  hintText: '0.00',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 14,
-                  ),
-                ),
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                ),
+                label: 'Monto',
+                borderColor: _selectedTipo.color,
+                hintText: '0.00',
               ),
               const SizedBox(height: 24),
 
               // Descripcion
-              const AppSubtitle(
-                'Descripcion (opcional)',
-                fontSize: 14,
-                color: AppColors.blue3,
-              ),
-              const SizedBox(height: 10),
-              TextFormField(
+              CustomText(
                 controller: _descripcionController,
+                label: 'Descripcion (opcional)',
+                hintText: 'Detalle del movimiento...',
+                borderColor: AppColors.blue1,
                 maxLines: 3,
-                decoration: InputDecoration(
-                  hintText: 'Detalle del movimiento...',
-                  prefixIcon: const Icon(Icons.note_rounded),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                ),
+                enableVoiceInput: true,
               ),
               const SizedBox(height: 32),
 
@@ -287,7 +293,7 @@ class _NuevoMovimientoPageState extends State<NuevoMovimientoPage> {
                 child: CustomButton(
                   text: 'Registrar Movimiento',
                   backgroundColor: _selectedTipo.color,
-                  height: 48,
+                  height: 35,
                   isLoading: _isSubmitting,
                   onPressed: _isSubmitting ? null : _registrarMovimiento,
                 ),
@@ -324,6 +330,7 @@ class _NuevoMovimientoPageState extends State<NuevoMovimientoPage> {
       descripcion: _descripcionController.text.isNotEmpty
           ? _descripcionController.text
           : null,
+      categoriaGastoId: _selectedCategoriaGasto?.id,
     );
 
     if (!mounted) return;

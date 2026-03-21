@@ -6,6 +6,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_gradients.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/theme/gradient_container.dart';
+import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../domain/entities/cotizacion_pos.dart';
 import '../bloc/cola_pos/cola_pos_cubit.dart';
@@ -82,13 +83,13 @@ class _ColaPosView extends StatelessWidget {
                   children: [
                     // Header con contador
                     Container(
-                      margin: const EdgeInsets.all(16),
+                      margin: const EdgeInsets.all(14),
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [AppColors.blue1, AppColors.blue1.withValues(alpha: 0.8)],
                         ),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                       child: Row(
                         children: [
@@ -167,9 +168,8 @@ class _CotizacionPOSCardState extends State<_CotizacionPOSCard> {
       gradient: esUrgente ? AppGradients.orangeWhiteBlue() : AppGradients.blueWhiteBlue(),
       borderColor: esUrgente ? Colors.orange.shade300 : AppColors.blueborder,
       shadowStyle: ShadowStyle.colorful,
-      borderRadius: BorderRadius.circular(12),
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -178,14 +178,14 @@ class _CotizacionPOSCardState extends State<_CotizacionPOSCard> {
             children: [
               // Posición en cola
               Container(
-                width: 32, height: 32,
+                width: 30, height: 30,
                 decoration: BoxDecoration(
                   color: esUrgente ? Colors.orange : AppColors.blue1,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: Center(
                   child: Text('${widget.posicion}',
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 14)),
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 12)),
                 ),
               ),
               const SizedBox(width: 10),
@@ -195,7 +195,7 @@ class _CotizacionPOSCardState extends State<_CotizacionPOSCard> {
                   children: [
                     Row(
                       children: [
-                        Text(c.codigo, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                        Text(c.codigo, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
                         const SizedBox(width: 6),
                         // Chip de estado
                         Container(
@@ -234,7 +234,7 @@ class _CotizacionPOSCardState extends State<_CotizacionPOSCard> {
                       ],
                     ),
                     const SizedBox(height: 2),
-                    Text(c.nombreCliente, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                    Text(c.nombreCliente, style: TextStyle(fontSize: 10, color: Colors.grey[600])),
                   ],
                 ),
               ),
@@ -242,7 +242,7 @@ class _CotizacionPOSCardState extends State<_CotizacionPOSCard> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text('S/ ${c.total.toStringAsFixed(2)}',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
                   Text('${c.totalItems} items', style: TextStyle(fontSize: 10, color: Colors.grey[500])),
                 ],
               ),
@@ -253,14 +253,14 @@ class _CotizacionPOSCardState extends State<_CotizacionPOSCard> {
           // Vendedor + sede
           Row(
             children: [
-              Icon(Icons.person_outline, size: 12, color: Colors.grey[400]),
+              Icon(Icons.person_outline, size: 12, color: Colors.grey[700]),
               const SizedBox(width: 4),
-              Text(c.vendedor, style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+              Text(c.vendedor, style: TextStyle(fontSize: 10, color: Colors.grey[700]), overflow: TextOverflow.ellipsis),
               if (c.sede != null) ...[
                 const SizedBox(width: 12),
-                Icon(Icons.store, size: 12, color: Colors.grey[400]),
+                Icon(Icons.store, size: 12, color: Colors.grey[700]),
                 const SizedBox(width: 4),
-                Text(c.sede!, style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+                Text(c.sede!, style: TextStyle(fontSize: 10, color: Colors.grey[700])),
               ],
             ],
           ),
@@ -308,34 +308,25 @@ class _CotizacionPOSCardState extends State<_CotizacionPOSCard> {
           // Botón convertir en venta
           const SizedBox(height: 10),
           SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
+
+            child: CustomButton(
               onPressed: () async {
                 final result = await context.push('/empresa/cola-pos/cobrar/${c.id}');
                 if (result == true && context.mounted) {
                   context.read<ColaPosCubit>().refresh();
                 }
               },
-              icon: Icon(
-                c.esPendiente ? Icons.flash_on : Icons.point_of_sale,
-                size: 16,
-              ),
-              label: Text(
-                c.esPendiente ? 'Aprobar y Cobrar' : 'Cobrar',
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: esUrgente
-                    ? Colors.orange
-                    : c.esPendiente
-                        ? Colors.amber[700]
-                        : AppColors.blue1,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
+              text: c.esPendiente ? 'Aprobar y Cobrar' : 'Cobrar',
+              icon: c.esPendiente ? Icon(Icons.flash_on) : Icon(Icons.point_of_sale),
+              backgroundColor: esUrgente
+                  ? Colors.orange
+                  : c.esPendiente
+                      ? Colors.amber[700]!
+                      : AppColors.blue1,
+              textColor: Colors.white,
             ),
-          ),
+
+          ),        
         ],
       ),
     );

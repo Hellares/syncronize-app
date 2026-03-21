@@ -109,6 +109,7 @@ class _DevolucionVentaDetailPageState extends State<DevolucionVentaDetailPage> {
                 _row(Icons.calendar_today, 'Creada', fmt.format(d.creadoEn)),
                 if (d.aprobadoEn != null) _row(Icons.check_circle, 'Aprobada', fmt.format(d.aprobadoEn!)),
                 if (d.procesadoEn != null) _row(Icons.inventory, 'Procesada', fmt.format(d.procesadoEn!)),
+                _row(Icons.swap_horiz, 'Reembolso', d.tipoReembolso.label),
                 if (d.ventaCodigo != null) _row(Icons.receipt, 'Venta', d.ventaCodigo!),
                 if (d.sedeNombre != null) _row(Icons.store, 'Sede', d.sedeNombre!),
               ]),
@@ -158,6 +159,31 @@ class _DevolucionVentaDetailPageState extends State<DevolucionVentaDetailPage> {
                         _chip(item.estadoProducto.label, Colors.purple),
                         _chip(item.accion.label, Colors.teal),
                       ]),
+                      if (item.productoReemplazoNombre != null) ...[
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Row(children: [
+                            Icon(Icons.swap_horiz, size: 14, color: Colors.orange.shade700),
+                            const SizedBox(width: 4),
+                            Expanded(child: Text(
+                              'Cambio por: ${item.productoReemplazoNombre}',
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.orange.shade800),
+                            )),
+                          ]),
+                        ),
+                        if (item.diferenciaPrecio != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Text(
+                              'Diferencia: S/ ${item.diferenciaPrecio!.toStringAsFixed(2)}',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: item.diferenciaPrecio! > 0 ? Colors.red.shade700 : Colors.green.shade700,
+                              ),
+                            ),
+                          ),
+                      ],
                       if (item.observaciones != null)
                         Padding(
                           padding: const EdgeInsets.only(top: 4),

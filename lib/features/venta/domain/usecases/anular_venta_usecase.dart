@@ -9,7 +9,15 @@ class AnularVentaUseCase {
 
   AnularVentaUseCase(this._repository);
 
-  Future<Resource<Venta>> call({required String ventaId}) {
-    return _repository.anularVenta(ventaId: ventaId);
+  Future<Resource<Venta>> call({
+    required String ventaId,
+    required String autorizadoPorId,
+    required String motivo,
+  }) {
+    return _repository.anularVenta(
+      ventaId: ventaId,
+      autorizadoPorId: autorizadoPorId,
+      motivo: motivo,
+    );
   }
 }

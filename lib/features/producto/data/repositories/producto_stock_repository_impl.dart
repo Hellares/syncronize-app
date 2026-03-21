@@ -8,6 +8,7 @@ import '../../domain/entities/movimiento_stock.dart';
 import '../../domain/entities/precio_historial_sede.dart';
 import '../../domain/repositories/producto_stock_repository.dart';
 import '../datasources/producto_stock_remote_datasource.dart';
+import '../models/movimiento_stock_model.dart';
 import '../models/precio_historial_sede_model.dart';
 
 @LazySingleton(as: ProductoStockRepository)
@@ -241,9 +242,12 @@ class ProductoStockRepositoryImpl implements ProductoStockRepository {
   }
 
   @override
-  Future<Resource<List<MovimientoStock>>> getHistorialMovimientos({
+  Future<Resource<KardexData>> getHistorialMovimientos({
     required String stockId,
-    int limit = 50,
+    int limit = 100,
+    String? tipo,
+    String? fechaDesde,
+    String? fechaHasta,
   }) async {
     if (!await _networkInfo.isConnected) {
       return Error(
@@ -253,11 +257,27 @@ class ProductoStockRepositoryImpl implements ProductoStockRepository {
     }
 
     try {
-      final movimientos = await _remoteDataSource.getHistorialMovimientos(
+      final response = await _remoteDataSource.getHistorialMovimientos(
         stockId: stockId,
         limit: limit,
+        tipo: tipo,
+        fechaDesde: fechaDesde,
+        fechaHasta: fechaHasta,
       );
-      return Success(movimientos);
+
+      // Parsear movimientos
+      final rawMovimientos = response['movimientos'] as List? ?? [];
+      final movimientos = rawMovimientos
+          .map((e) => MovimientoStockModel.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+      // Parsear resumen
+      final rawResumen = response['resumen'] as List? ?? [];
+      final resumen = rawResumen
+          .map((e) => KardexResumenItemModel.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+      return Success(KardexData(movimientos: movimientos, resumen: resumen));
     } catch (e) {
       return _errorHandler.handleException(e, context: 'ProductoStock');
     }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:syncronize/core/di/injection_container.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
@@ -63,7 +64,27 @@ class HistorialMovimientosBottomSheet extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
-                const AppSubtitle('Historial de Movimientos'),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const AppSubtitle('Historial de Movimientos'),
+                    TextButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        final nombre = Uri.encodeComponent(stock.nombreProducto);
+                        context.push(
+                          '/empresa/inventario/kardex/${stock.id}?nombre=$nombre',
+                        );
+                      },
+                      icon: const Icon(Icons.open_in_new, size: 14),
+                      label: const Text('Ver Kardex Completo'),
+                      style: TextButton.styleFrom(
+                        textStyle: const TextStyle(fontSize: 12),
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 4),
                 Text(
                   stock.nombreProducto,
@@ -95,7 +116,7 @@ class HistorialMovimientosBottomSheet extends StatelessWidget {
 
           // Lista de movimientos
           Expanded(
-            child: FutureBuilder<Resource<List<MovimientoStock>>>(
+            child: FutureBuilder<Resource<KardexData>>(
               future: locator<GetHistorialMovimientosUseCase>()(
                 stockId: stock.id,
                 limit: 100,
@@ -128,7 +149,8 @@ class HistorialMovimientosBottomSheet extends StatelessWidget {
                   );
                 }
 
-                final movimientos = (result as Success).data;
+                final kardexData = (result as Success<KardexData>).data;
+                final movimientos = kardexData.movimientos;
 
                 if (movimientos.isEmpty) {
                   return Center(
@@ -176,8 +198,7 @@ class _MovimientoTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isEntrada = movimiento.esEntrada;
-    final color = isEntrada ? Colors.green : Colors.red;
+    final color = movimiento.tipo.color;
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -197,7 +218,7 @@ class _MovimientoTile extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
-              isEntrada ? Icons.arrow_downward : Icons.arrow_upward,
+              movimiento.tipo.icon,
               color: Colors.white,
               size: 20,
             ),
@@ -205,13 +226,13 @@ class _MovimientoTile extends StatelessWidget {
 
           const SizedBox(width: 12),
 
-          // Información
+          // Informacion
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  movimiento.tipo.descripcion,
+                  movimiento.tipo.label,
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 14,
@@ -226,6 +247,17 @@ class _MovimientoTile extends StatelessWidget {
                       fontSize: 12,
                     ),
                   ),
+                if (movimiento.documentoReferencia != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    'Doc: ${movimiento.documentoReferencia}',
+                    style: TextStyle(
+                      color: Colors.blue[700],
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 4),
                 Row(
                   children: [
@@ -236,13 +268,16 @@ class _MovimientoTile extends StatelessWidget {
                         fontSize: 11,
                       ),
                     ),
-                    if (movimiento.numeroDocumento != null) ...[
+                    if (movimiento.usuarioNombre != null) ...[
                       const SizedBox(width: 8),
-                      Text(
-                        '• ${movimiento.numeroDocumento}',
-                        style: const TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 11,
+                      Flexible(
+                        child: Text(
+                          '- ${movimiento.usuarioNombre}',
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 11,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
@@ -250,7 +285,7 @@ class _MovimientoTile extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Stock: ${movimiento.cantidadAnterior} → ${movimiento.cantidadNueva}',
+                  'Stock: ${movimiento.cantidadAnterior} -> ${movimiento.cantidadNueva}',
                   style: const TextStyle(
                     color: AppColors.textSecondary,
                     fontSize: 11,

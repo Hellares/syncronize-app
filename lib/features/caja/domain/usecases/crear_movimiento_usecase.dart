@@ -16,6 +16,7 @@ class CrearMovimientoUseCase {
     required MetodoPago metodoPago,
     required double monto,
     String? descripcion,
+    String? categoriaGastoId,
   }) {
     return _repository.crearMovimiento(
       cajaId: cajaId,
@@ -24,6 +25,7 @@ class CrearMovimientoUseCase {
       metodoPago: metodoPago,
       monto: monto,
       descripcion: descripcion,
+      categoriaGastoId: categoriaGastoId,
     );
   }
 }

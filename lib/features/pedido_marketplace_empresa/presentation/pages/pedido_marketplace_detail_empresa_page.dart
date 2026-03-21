@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:intl/intl.dart';
+import '../../../../core/utils/date_formatter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/fonts/app_text_widgets.dart';
@@ -8,6 +8,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/theme/gradient_container.dart';
 import '../../../../core/widgets/smart_appbar.dart';
+import '../../domain/entities/pedido_empresa.dart';
 import '../bloc/pedido_empresa_action_cubit.dart';
 
 class PedidoMarketplaceDetailEmpresaPage extends StatelessWidget {
@@ -49,7 +50,7 @@ class _DetailView extends StatelessWidget {
 
         return Scaffold(
           appBar: SmartAppBar(
-            title: pedido?['codigo'] ?? 'Pedido',
+            title: pedido?.codigo ?? 'Pedido',
             backgroundColor: AppColors.blue1,
             foregroundColor: Colors.white,
           ),
@@ -66,12 +67,8 @@ class _DetailView extends StatelessWidget {
     );
   }
 
-  Widget _buildContent(BuildContext context, Map<String, dynamic> p) {
-    final estado = p['estado'] as String? ?? '';
-    final detalles = p['detalles'] as List<dynamic>? ?? [];
-    final dateFormat = DateFormat('dd/MM/yyyy HH:mm');
-    final creadoEn = p['creadoEn'] != null ? DateTime.tryParse(p['creadoEn'].toString()) : null;
-    final comprobante = p['comprobantePagoUrl'] as String?;
+  Widget _buildContent(BuildContext context, PedidoMarketplaceEmpresa p) {
+    // Using DateFormatter for display dates
 
     return RefreshIndicator(
       onRefresh: () => context.read<PedidoEmpresaActionCubit>().loadDetalle(pedidoId),
@@ -88,15 +85,15 @@ class _DetailView extends StatelessWidget {
                 children: [
                   const Icon(Icons.receipt_long, color: AppColors.blue1, size: 20),
                   const SizedBox(width: 10),
-                  Expanded(child: AppSubtitle(p['codigo'] ?? '', fontSize: 15)),
-                  _buildEstadoChip(estado),
+                  Expanded(child: AppSubtitle(p.codigo, fontSize: 15)),
+                  _buildEstadoChip(p.estado),
                 ],
               ),
             ),
           ),
           const SizedBox(height: 12),
 
-          // Comprador + Dirección
+          // Comprador + Direccion
           GradientContainer(
             borderColor: AppColors.blueborder,
             child: Padding(
@@ -106,27 +103,27 @@ class _DetailView extends StatelessWidget {
                 children: [
                   const AppSubtitle('COMPRADOR', fontSize: 11, color: AppColors.blue1),
                   const SizedBox(height: 8),
-                  _infoRow(Icons.person_outline, 'Nombre', p['nombreComprador'] ?? ''),
-                  if (p['emailComprador'] != null) _infoRow(Icons.email_outlined, 'Email', p['emailComprador']),
-                  if (p['telefonoComprador'] != null) _infoRow(Icons.phone_outlined, 'Teléfono', p['telefonoComprador']),
-                  if (creadoEn != null) _infoRow(Icons.calendar_today, 'Fecha', dateFormat.format(creadoEn)),
-                  if (p['direccionEnvio'] != null) ...[
+                  _infoRow(Icons.person_outline, 'Nombre', p.nombreComprador),
+                  if (p.emailComprador != null) _infoRow(Icons.email_outlined, 'Email', p.emailComprador!),
+                  if (p.telefonoComprador != null) _infoRow(Icons.phone_outlined, 'Telefono', p.telefonoComprador!),
+                  if (p.creadoEn != null) _infoRow(Icons.calendar_today, 'Fecha', DateFormatter.formatDateTime(p.creadoEn!)),
+                  if (p.direccionEnvio != null) ...[
                     const Divider(height: 16),
-                    const AppSubtitle('DIRECCIÓN DE ENVÍO', fontSize: 11, color: AppColors.blue1),
+                    const AppSubtitle('DIRECCION DE ENVIO', fontSize: 11, color: AppColors.blue1),
                     const SizedBox(height: 8),
-                    _infoRow(Icons.location_on_outlined, 'Dirección', p['direccionEnvio']),
-                    if (p['referenciaEnvio'] != null) _infoRow(Icons.near_me, 'Referencia', p['referenciaEnvio']),
-                    if (p['distritoEnvio'] != null || p['provinciaEnvio'] != null || p['departamentoEnvio'] != null)
-                      _infoRow(Icons.map_outlined, 'Ubicación',
-                        [p['distritoEnvio'], p['provinciaEnvio'], p['departamentoEnvio']]
-                          .where((e) => e != null && e.toString().isNotEmpty).join(', ')),
-                    if (p['coordenadasEnvio'] != null) ...[
+                    _infoRow(Icons.location_on_outlined, 'Direccion', p.direccionEnvio!),
+                    if (p.referenciaEnvio != null) _infoRow(Icons.near_me, 'Referencia', p.referenciaEnvio!),
+                    if (p.distritoEnvio != null || p.provinciaEnvio != null || p.departamentoEnvio != null)
+                      _infoRow(Icons.map_outlined, 'Ubicacion',
+                        [p.distritoEnvio, p.provinciaEnvio, p.departamentoEnvio]
+                          .where((e) => e != null && e.isNotEmpty).join(', ')),
+                    if (p.coordenadasEnvio != null) ...[
                       const SizedBox(height: 8),
                       SizedBox(
                         width: double.infinity,
                         child: OutlinedButton.icon(
                           onPressed: () {
-                            final coords = p['coordenadasEnvio'] as Map<String, dynamic>?;
+                            final coords = p.coordenadasEnvio;
                             if (coords == null) return;
                             final lat = coords['lat'];
                             final lng = coords['lng'] ?? coords['lon'];
@@ -135,7 +132,7 @@ class _DetailView extends StatelessWidget {
                             }
                           },
                           icon: const Icon(Icons.directions, size: 18),
-                          label: const Text('Ver en mapa / Cómo llegar'),
+                          label: const Text('Ver en mapa / Como llegar'),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: Colors.green.shade700,
                             side: BorderSide(color: Colors.green.shade400),
@@ -160,26 +157,23 @@ class _DetailView extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  AppSubtitle('ITEMS (${detalles.length})', fontSize: 11, color: AppColors.blue1),
+                  AppSubtitle('ITEMS (${p.detalles.length})', fontSize: 11, color: AppColors.blue1),
                   const SizedBox(height: 8),
-                  ...detalles.map((d) {
-                    final det = d as Map<String, dynamic>;
-                    final cantidad = det['cantidad'] as int? ?? 1;
-                    final precio = double.tryParse(det['precioUnitario']?.toString() ?? '') ?? 0;
+                  ...p.detalles.map((item) {
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 6),
                       child: Row(
                         children: [
-                          if (det['imagenUrl'] != null) ...[
+                          if (item.imagenUrl != null) ...[
                             ClipRRect(
                               borderRadius: BorderRadius.circular(6),
-                              child: Image.network(det['imagenUrl'], width: 40, height: 40, fit: BoxFit.cover,
+                              child: Image.network(item.imagenUrl!, width: 40, height: 40, fit: BoxFit.cover,
                                 errorBuilder: (_, __, ___) => const SizedBox(width: 40, height: 40)),
                             ),
                             const SizedBox(width: 10),
                           ],
-                          Expanded(child: AppSubtitle(det['descripcion'] ?? '', fontSize: 12)),
-                          Text('$cantidad x S/${precio.toStringAsFixed(2)}',
+                          Expanded(child: AppSubtitle(item.productoNombre, fontSize: 12)),
+                          Text('${item.cantidad} x S/${item.precioUnitario.toStringAsFixed(2)}',
                             style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
                         ],
                       ),
@@ -190,7 +184,7 @@ class _DetailView extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const AppSubtitle('Total', fontSize: 14),
-                      AppSubtitle('S/ ${double.tryParse(p['total']?.toString() ?? '')?.toStringAsFixed(2) ?? '0.00'}',
+                      AppSubtitle('S/ ${p.total.toStringAsFixed(2)}',
                         fontSize: 16, color: AppColors.blue1),
                     ],
                   ),
@@ -201,7 +195,7 @@ class _DetailView extends StatelessWidget {
           const SizedBox(height: 12),
 
           // Comprobante
-          if (comprobante != null)
+          if (p.comprobantePagoUrl != null)
             GradientContainer(
               borderColor: AppColors.blueborder,
               child: Padding(
@@ -215,14 +209,14 @@ class _DetailView extends StatelessWidget {
                       children: [
                         Icon(Icons.payment, size: 14, color: Colors.grey.shade500),
                         const SizedBox(width: 6),
-                        Text('Método: ${p['metodoPago'] ?? 'No especificado'}',
+                        Text('Metodo: ${p.metodoPago ?? 'No especificado'}',
                           style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
                       ],
                     ),
                     const SizedBox(height: 10),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(8),
-                      child: Image.network(comprobante, width: double.infinity, fit: BoxFit.contain,
+                      child: Image.network(p.comprobantePagoUrl!, width: double.infinity, fit: BoxFit.contain,
                         errorBuilder: (_, __, ___) => Container(height: 100, color: Colors.grey.shade200,
                           child: const Center(child: Text('Error al cargar imagen')))),
                     ),
@@ -231,7 +225,7 @@ class _DetailView extends StatelessWidget {
               ),
             ),
 
-          if (p['motivoRechazo'] != null) ...[
+          if (p.motivoRechazo != null) ...[
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(12),
@@ -240,7 +234,7 @@ class _DetailView extends StatelessWidget {
                 children: [
                   const Icon(Icons.error_outline, color: Colors.red, size: 18),
                   const SizedBox(width: 8),
-                  Expanded(child: Text('Motivo rechazo: ${p['motivoRechazo']}', style: const TextStyle(fontSize: 12, color: Colors.red))),
+                  Expanded(child: Text('Motivo rechazo: ${p.motivoRechazo}', style: const TextStyle(fontSize: 12, color: Colors.red))),
                 ],
               ),
             ),
@@ -252,12 +246,11 @@ class _DetailView extends StatelessWidget {
     );
   }
 
-  Widget? _buildActions(BuildContext context, Map<String, dynamic> p, bool isLoading) {
-    final estado = p['estado'] as String? ?? '';
+  Widget? _buildActions(BuildContext context, PedidoMarketplaceEmpresa p, bool isLoading) {
     final actions = <Widget>[];
     final cubit = context.read<PedidoEmpresaActionCubit>();
 
-    if (estado == 'PAGO_ENVIADO') {
+    if (p.estado == 'PAGO_ENVIADO') {
       actions.add(Expanded(
         child: OutlinedButton.icon(
           onPressed: isLoading ? null : () => _showRechazoDialog(context, cubit),
@@ -277,17 +270,17 @@ class _DetailView extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
         ),
       ));
-    } else if (estado == 'PAGO_VALIDADO') {
+    } else if (p.estado == 'PAGO_VALIDADO') {
       actions.add(Expanded(
         child: ElevatedButton.icon(
           onPressed: isLoading ? null : () => cubit.cambiarEstado(pedidoId, 'EN_PREPARACION'),
           icon: const Icon(Icons.inventory, size: 18),
-          label: const Text('En Preparación'),
+          label: const Text('En Preparacion'),
           style: ElevatedButton.styleFrom(backgroundColor: AppColors.blue1, foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
         ),
       ));
-    } else if (estado == 'EN_PREPARACION') {
+    } else if (p.estado == 'EN_PREPARACION') {
       actions.add(Expanded(
         child: ElevatedButton.icon(
           onPressed: isLoading ? null : () => _showEnvioDialog(context, cubit),
@@ -337,7 +330,7 @@ class _DetailView extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Marcar como enviado', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-        content: TextField(controller: controller, decoration: const InputDecoration(hintText: 'Código de seguimiento (opcional)', border: OutlineInputBorder())),
+        content: TextField(controller: controller, decoration: const InputDecoration(hintText: 'Codigo de seguimiento (opcional)', border: OutlineInputBorder())),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
           ElevatedButton(
@@ -346,7 +339,7 @@ class _DetailView extends StatelessWidget {
               cubit.cambiarEstado(pedidoId, 'ENVIADO', codigoSeguimiento: controller.text.trim().isEmpty ? null : controller.text.trim());
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.teal, foregroundColor: Colors.white),
-            child: const Text('Confirmar Envío'),
+            child: const Text('Confirmar Envio'),
           ),
         ],
       ),
@@ -374,7 +367,7 @@ class _DetailView extends StatelessWidget {
       case 'PENDIENTE_PAGO': color = Colors.grey; label = 'Pendiente pago'; break;
       case 'PAGO_ENVIADO': color = Colors.orange; label = 'Pago enviado'; break;
       case 'PAGO_VALIDADO': color = Colors.blue; label = 'Pago validado'; break;
-      case 'EN_PREPARACION': color = Colors.indigo; label = 'En preparación'; break;
+      case 'EN_PREPARACION': color = Colors.indigo; label = 'En preparacion'; break;
       case 'ENVIADO': color = Colors.teal; label = 'Enviado'; break;
       case 'ENTREGADO': color = Colors.green; label = 'Entregado'; break;
       case 'CANCELADO': case 'PAGO_RECHAZADO': color = Colors.red; label = estado == 'CANCELADO' ? 'Cancelado' : 'Pago rechazado'; break;

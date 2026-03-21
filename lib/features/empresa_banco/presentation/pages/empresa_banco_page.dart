@@ -1,93 +1,111 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/fonts/app_text_widgets.dart';
-import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/theme/gradient_container.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../../../core/widgets/custom_button.dart';
+import '../../../../core/widgets/custom_dropdown.dart';
 import '../../../auth/presentation/widgets/custom_text.dart' show CustomText;
+import '../../domain/entities/empresa_banco.dart';
+import '../bloc/empresa_banco_cubit.dart';
+import '../bloc/empresa_banco_state.dart';
 
-class EmpresaBancoPage extends StatefulWidget {
+class EmpresaBancoPage extends StatelessWidget {
   const EmpresaBancoPage({super.key});
 
   @override
-  State<EmpresaBancoPage> createState() => _EmpresaBancoPageState();
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (_) => locator<EmpresaBancoCubit>()..loadCuentas(),
+      child: const _EmpresaBancoView(),
+    );
+  }
 }
 
-class _EmpresaBancoPageState extends State<EmpresaBancoPage> {
-  List<dynamic> _cuentas = [];
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    setState(() => _isLoading = true);
-    try {
-      final response = await locator<DioClient>().get('/empresa-banco');
-      if (mounted) setState(() { _cuentas = response.data as List<dynamic>? ?? []; _isLoading = false; });
-    } catch (_) {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
+class _EmpresaBancoView extends StatelessWidget {
+  const _EmpresaBancoView();
 
   @override
   Widget build(BuildContext context) {
+    final cubit = context.read<EmpresaBancoCubit>();
+
     return Scaffold(
       appBar: SmartAppBar(title: 'Cuentas Bancarias', backgroundColor: AppColors.blue1, foregroundColor: Colors.white),
       floatingActionButton: FloatingActionButton(
-        onPressed: _showCrearDialog,
+        onPressed: () => _showCrearDialog(context, cubit),
         backgroundColor: AppColors.blue1,
         child: const Icon(Icons.add, color: Colors.white),
       ),
       body: GradientBackground(
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : _cuentas.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.account_balance_outlined, size: 56, color: Colors.grey.shade300),
-                        const SizedBox(height: 12),
-                        Text('No hay cuentas bancarias registradas', style: TextStyle(color: Colors.grey.shade500)),
-                        const SizedBox(height: 16),
-                        CustomButton(text: 'Agregar cuenta', onPressed: _showCrearDialog, backgroundColor: AppColors.blue1, height: 40),
-                      ],
-                    ),
-                  )
-                : RefreshIndicator(
-                    onRefresh: _load,
-                    color: AppColors.blue1,
-                    child: ListView.builder(
-                      padding: const EdgeInsets.all(12),
-                      itemCount: _cuentas.length,
-                      itemBuilder: (context, index) {
-                        final cuenta = _cuentas[index] as Map<String, dynamic>;
-                        return _CuentaCard(
-                          cuenta: cuenta,
-                          onMarcarPrincipal: () => _marcarPrincipal(cuenta['id']),
-                          onEliminar: () => _eliminar(cuenta['id']),
-                          onActualizarSaldo: () => _showSaldoDialog(cuenta),
-                          onConciliacion: () => context.push(
-                            '/empresa/cuentas-bancarias/${cuenta['id']}/conciliacion',
-                            extra: {'nombre': cuenta['nombreBanco']},
-                          ),
-                        );
-                      },
-                    ),
+        child: BlocBuilder<EmpresaBancoCubit, EmpresaBancoState>(
+          builder: (context, state) {
+            if (state is EmpresaBancoLoading) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (state is EmpresaBancoError) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.error_outline, size: 56, color: Colors.grey.shade300),
+                    const SizedBox(height: 12),
+                    Text(state.message, style: TextStyle(color: Colors.grey.shade500)),
+                    const SizedBox(height: 16),
+                    CustomButton(text: 'Reintentar', onPressed: () => cubit.loadCuentas(), backgroundColor: AppColors.blue1, height: 40),
+                  ],
+                ),
+              );
+            }
+            if (state is EmpresaBancoLoaded) {
+              final cuentas = state.cuentas;
+              if (cuentas.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.account_balance_outlined, size: 56, color: Colors.grey.shade300),
+                      const SizedBox(height: 12),
+                      Text('No hay cuentas bancarias registradas', style: TextStyle(color: Colors.grey.shade500)),
+                      const SizedBox(height: 16),
+                      CustomButton(text: 'Agregar cuenta', onPressed: () => _showCrearDialog(context, cubit), backgroundColor: AppColors.blue1, height: 40),
+                    ],
                   ),
+                );
+              }
+              return RefreshIndicator(
+                onRefresh: () => cubit.loadCuentas(),
+                color: AppColors.blue1,
+                child: ListView.builder(
+                  padding: const EdgeInsets.all(12),
+                  itemCount: cuentas.length,
+                  itemBuilder: (context, index) {
+                    final cuenta = cuentas[index];
+                    return _CuentaCard(
+                      cuenta: cuenta,
+                      onMarcarPrincipal: () => cubit.marcarPrincipal(id: cuenta.id),
+                      onEliminar: () => _eliminar(context, cubit, cuenta.id),
+                      onActualizarSaldo: () => _showSaldoDialog(context, cubit, cuenta),
+                      onConciliacion: () => context.push(
+                        '/empresa/cuentas-bancarias/${cuenta.id}/conciliacion',
+                        extra: {'nombre': cuenta.nombreBanco},
+                      ),
+                    );
+                  },
+                ),
+              );
+            }
+            return const SizedBox.shrink();
+          },
+        ),
       ),
     );
   }
 
-  void _showCrearDialog() {
+  void _showCrearDialog(BuildContext context, EmpresaBancoCubit cubit) {
     final nombreBancoCtrl = TextEditingController();
     final numeroCuentaCtrl = TextEditingController();
     final cciCtrl = TextEditingController();
@@ -95,77 +113,128 @@ class _EmpresaBancoPageState extends State<EmpresaBancoPage> {
     String tipoCuenta = 'AHORROS';
     String moneda = 'PEN';
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Nueva Cuenta Bancaria', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CustomText(controller: nombreBancoCtrl, label: 'Banco', hintText: 'Ej: BCP, Interbank', borderColor: AppColors.blue1),
-                const SizedBox(height: 10),
-                DropdownButtonFormField<String>(
-                  value: tipoCuenta,
-                  decoration: InputDecoration(labelText: 'Tipo de cuenta', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))),
-                  items: const [
-                    DropdownMenuItem(value: 'AHORROS', child: Text('Ahorros')),
-                    DropdownMenuItem(value: 'CORRIENTE', child: Text('Corriente')),
-                    DropdownMenuItem(value: 'INTERBANCARIA', child: Text('Interbancaria')),
-                  ],
-                  onChanged: (v) => setDialogState(() => tipoCuenta = v ?? 'AHORROS'),
-                ),
-                const SizedBox(height: 10),
-                CustomText(controller: numeroCuentaCtrl, label: 'Número de cuenta', borderColor: AppColors.blue1),
-                const SizedBox(height: 10),
-                CustomText(controller: cciCtrl, label: 'CCI (opcional)', borderColor: AppColors.blue1),
-                const SizedBox(height: 10),
-                CustomText(controller: titularCtrl, label: 'Titular (opcional)', borderColor: AppColors.blue1),
-                const SizedBox(height: 10),
-                DropdownButtonFormField<String>(
-                  value: moneda,
-                  decoration: InputDecoration(labelText: 'Moneda', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))),
-                  items: const [
-                    DropdownMenuItem(value: 'PEN', child: Text('PEN - Soles')),
-                    DropdownMenuItem(value: 'USD', child: Text('USD - Dólares')),
-                  ],
-                  onChanged: (v) => setDialogState(() => moneda = v ?? 'PEN'),
-                ),
-              ],
+        builder: (ctx, setDialogState) => Container(
+          margin: const EdgeInsets.only(top: 60),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Padding(
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              top: 16,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40, height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Icon(Icons.account_balance, color: AppColors.blue1, size: 20),
+                      const SizedBox(width: 8),
+                      const AppSubtitle('Nueva Cuenta Bancaria', fontSize: 16),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  CustomText(controller: nombreBancoCtrl, label: 'Banco *', hintText: 'Ej: BCP, Interbank', borderColor: AppColors.blue1),
+                  const SizedBox(height: 12),
+                  CustomDropdown<String>(
+                    label: 'Tipo de cuenta',
+                    value: tipoCuenta,
+                    borderColor: AppColors.blue1,
+                    items: const [
+                      DropdownItem(value: 'AHORROS', label: 'Ahorros'),
+                      DropdownItem(value: 'CORRIENTE', label: 'Corriente'),
+                      DropdownItem(value: 'INTERBANCARIA', label: 'Interbancaria'),
+                    ],
+                    onChanged: (v) => setDialogState(() => tipoCuenta = v ?? 'AHORROS'),
+                  ),
+                  const SizedBox(height: 12),
+                  CustomText(controller: numeroCuentaCtrl, label: 'Número de cuenta *', borderColor: AppColors.blue1),
+                  const SizedBox(height: 12),
+                  CustomText(controller: cciCtrl, label: 'CCI (opcional)', borderColor: AppColors.blue1),
+                  const SizedBox(height: 12),
+                  CustomText(controller: titularCtrl, label: 'Titular (opcional)', borderColor: AppColors.blue1),
+                  const SizedBox(height: 12),
+                  CustomDropdown<String>(
+                    label: 'Moneda',
+                    value: moneda,
+                    borderColor: AppColors.blue1,
+                    items: const [
+                      DropdownItem(value: 'PEN', label: 'PEN - Soles'),
+                      DropdownItem(value: 'USD', label: 'USD - Dólares'),
+                    ],
+                    onChanged: (v) => setDialogState(() => moneda = v ?? 'PEN'),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size(0, 44),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          child: const Text('Cancelar'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        flex: 2,
+                        child: CustomButton(
+                          text: 'Guardar',
+                          backgroundColor: AppColors.blue1,
+                          height: 44,
+                          onPressed: () {
+                            if (nombreBancoCtrl.text.isEmpty || numeroCuentaCtrl.text.isEmpty) return;
+                            Navigator.pop(ctx);
+                            cubit.crear(
+                              nombreBanco: nombreBancoCtrl.text.trim(),
+                              tipoCuenta: tipoCuenta,
+                              numeroCuenta: numeroCuentaCtrl.text.trim(),
+                              cci: cciCtrl.text.isNotEmpty ? cciCtrl.text.trim() : null,
+                              titular: titularCtrl.text.isNotEmpty ? titularCtrl.text.trim() : null,
+                              moneda: moneda,
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
-            ElevatedButton(
-              onPressed: () async {
-                if (nombreBancoCtrl.text.isEmpty || numeroCuentaCtrl.text.isEmpty) return;
-                Navigator.pop(ctx);
-                await locator<DioClient>().post('/empresa-banco', data: {
-                  'nombreBanco': nombreBancoCtrl.text.trim(),
-                  'tipoCuenta': tipoCuenta,
-                  'numeroCuenta': numeroCuentaCtrl.text.trim(),
-                  if (cciCtrl.text.isNotEmpty) 'cci': cciCtrl.text.trim(),
-                  if (titularCtrl.text.isNotEmpty) 'titular': titularCtrl.text.trim(),
-                  'moneda': moneda,
-                });
-                _load();
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.blue1, foregroundColor: Colors.white),
-              child: const Text('Guardar'),
-            ),
-          ],
         ),
       ),
     );
   }
 
-  void _showSaldoDialog(dynamic cuenta) {
-    final saldoCtrl = TextEditingController(text: cuenta['saldoActual']?.toString() ?? '');
+  void _showSaldoDialog(BuildContext context, EmpresaBancoCubit cubit, EmpresaBanco cuenta) {
+    final saldoCtrl = TextEditingController(text: cuenta.saldoActual.toString());
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Actualizar saldo - ${cuenta['nombreBanco']}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+        title: Text('Actualizar saldo - ${cuenta.nombreBanco}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
         content: CustomText(controller: saldoCtrl, label: 'Saldo actual', hintText: '0.00', borderColor: AppColors.blue1, keyboardType: TextInputType.number),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
@@ -173,8 +242,7 @@ class _EmpresaBancoPageState extends State<EmpresaBancoPage> {
             onPressed: () async {
               Navigator.pop(ctx);
               final saldo = double.tryParse(saldoCtrl.text) ?? 0;
-              await locator<DioClient>().patch('/empresa-banco/${cuenta['id']}/saldo', data: {'saldo': saldo});
-              _load();
+              cubit.actualizarSaldo(id: cuenta.id, saldo: saldo);
             },
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.blue1, foregroundColor: Colors.white),
             child: const Text('Guardar'),
@@ -184,12 +252,7 @@ class _EmpresaBancoPageState extends State<EmpresaBancoPage> {
     );
   }
 
-  Future<void> _marcarPrincipal(String id) async {
-    await locator<DioClient>().post('/empresa-banco/$id/principal');
-    _load();
-  }
-
-  Future<void> _eliminar(String id) async {
+  Future<void> _eliminar(BuildContext context, EmpresaBancoCubit cubit, String id) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -206,14 +269,13 @@ class _EmpresaBancoPageState extends State<EmpresaBancoPage> {
       ),
     );
     if (confirm == true) {
-      await locator<DioClient>().delete('/empresa-banco/$id');
-      _load();
+      cubit.eliminar(id: id);
     }
   }
 }
 
 class _CuentaCard extends StatelessWidget {
-  final Map<String, dynamic> cuenta;
+  final EmpresaBanco cuenta;
   final VoidCallback onMarcarPrincipal;
   final VoidCallback onEliminar;
   final VoidCallback onConciliacion;
@@ -223,8 +285,8 @@ class _CuentaCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final esPrincipal = cuenta['esPrincipal'] == true;
-    final saldo = cuenta['saldoActual'] != null ? double.tryParse(cuenta['saldoActual'].toString()) : null;
+    final esPrincipal = cuenta.esPrincipal;
+    final saldo = cuenta.saldoActual;
 
     return GradientContainer(
       margin: const EdgeInsets.only(bottom: 10),
@@ -238,7 +300,7 @@ class _CuentaCard extends StatelessWidget {
               children: [
                 const Icon(Icons.account_balance, size: 20, color: AppColors.blue1),
                 const SizedBox(width: 8),
-                Expanded(child: AppSubtitle(cuenta['nombreBanco'] ?? '', fontSize: 14)),
+                Expanded(child: AppSubtitle(cuenta.nombreBanco, fontSize: 14)),
                 if (esPrincipal)
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -262,23 +324,21 @@ class _CuentaCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            _infoRow(Icons.credit_card, '${_tipoCuentaLabel(cuenta['tipoCuenta'])} - ${cuenta['moneda'] ?? 'PEN'}'),
-            _infoRow(Icons.numbers, cuenta['numeroCuenta'] ?? ''),
-            if (cuenta['cci'] != null && (cuenta['cci'] as String).isNotEmpty)
-              _infoRow(Icons.swap_horiz, 'CCI: ${cuenta['cci']}'),
-            if (cuenta['titular'] != null && (cuenta['titular'] as String).isNotEmpty)
-              _infoRow(Icons.person_outline, cuenta['titular']),
-            if (saldo != null) ...[
-              const Divider(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Saldo:', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-                  AppSubtitle('${cuenta['moneda'] ?? 'S/'} ${saldo.toStringAsFixed(2)}',
-                    fontSize: 16, color: saldo >= 0 ? Colors.green : Colors.red),
-                ],
-              ),
-            ],
+            _infoRow(Icons.credit_card, '${_tipoCuentaLabel(cuenta.tipoCuenta)} - ${cuenta.moneda ?? 'PEN'}'),
+            _infoRow(Icons.numbers, cuenta.numeroCuenta),
+            if (cuenta.cci != null && cuenta.cci!.isNotEmpty)
+              _infoRow(Icons.swap_horiz, 'CCI: ${cuenta.cci}'),
+            if (cuenta.titular != null && cuenta.titular!.isNotEmpty)
+              _infoRow(Icons.person_outline, cuenta.titular!),
+            const Divider(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Saldo:', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                AppSubtitle('${cuenta.moneda ?? 'S/'} ${saldo.toStringAsFixed(2)}',
+                  fontSize: 16, color: saldo >= 0 ? Colors.green : Colors.red),
+              ],
+            ),
           ],
         ),
       ),

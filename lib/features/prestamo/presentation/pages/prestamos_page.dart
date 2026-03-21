@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
+import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/di/injection_container.dart';
-import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/fonts/app_text_widgets.dart';
 import '../../../../core/theme/gradient_background.dart';
@@ -9,80 +10,39 @@ import '../../../../core/theme/gradient_container.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../auth/presentation/widgets/custom_text.dart' show CustomText;
+import '../../domain/entities/prestamo.dart';
+import '../bloc/prestamo_cubit.dart';
+import '../bloc/prestamo_state.dart';
 
-class PrestamosPage extends StatefulWidget {
+class PrestamosPage extends StatelessWidget {
   const PrestamosPage({super.key});
 
   @override
-  State<PrestamosPage> createState() => _PrestamosPageState();
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (_) => locator<PrestamoCubit>()..loadData(),
+      child: const _PrestamosView(),
+    );
+  }
 }
 
-class _PrestamosPageState extends State<PrestamosPage> {
-  final _dio = locator<DioClient>();
-  final _currencyFormat = NumberFormat.currency(locale: 'es_PE', symbol: 'S/');
-
-  List<Map<String, dynamic>> _prestamos = [];
-  Map<String, dynamic>? _resumen;
-  bool _isLoading = true;
-  String _filtroEstado = 'TODOS';
-
-  final List<String> _filtros = ['TODOS', 'ACTIVO', 'PAGADO', 'VENCIDO'];
+class _PrestamosView extends StatefulWidget {
+  const _PrestamosView();
 
   @override
-  void initState() {
-    super.initState();
-    _loadData();
-  }
+  State<_PrestamosView> createState() => _PrestamosViewState();
+}
 
-  Future<void> _loadData() async {
-    setState(() => _isLoading = true);
-    try {
-      final futures = await Future.wait([
-        _dio.get('/prestamos/resumen'),
-        _dio.get('/prestamos'),
-      ]);
-      if (mounted) {
-        setState(() {
-          _resumen = futures[0].data as Map<String, dynamic>?;
-          _prestamos = List<Map<String, dynamic>>.from(
-            (futures[1].data as List<dynamic>?)?.map((e) => Map<String, dynamic>.from(e as Map)) ?? [],
-          );
-          _isLoading = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _loadPrestamos() async {
-    try {
-      final queryParams = <String, dynamic>{};
-      if (_filtroEstado != 'TODOS') {
-        queryParams['estado'] = _filtroEstado;
-      }
-      final response = await _dio.get('/prestamos', queryParameters: queryParams);
-      if (mounted) {
-        setState(() {
-          _prestamos = List<Map<String, dynamic>>.from(
-            (response.data as List<dynamic>?)?.map((e) => Map<String, dynamic>.from(e as Map)) ?? [],
-          );
-        });
-      }
-    } catch (_) {}
-  }
-
-  double _parseDecimal(dynamic value) {
-    if (value == null) return 0.0;
-    if (value is num) return value.toDouble();
-    return double.tryParse(value.toString()) ?? 0.0;
-  }
+class _PrestamosViewState extends State<_PrestamosView> {
+  final _currencyFormat = NumberFormat.currency(locale: 'es_PE', symbol: 'S/');
+  String _filtroEstado = 'TODOS';
+  final List<String> _filtros = ['TODOS', 'ACTIVO', 'PAGADO', 'VENCIDO'];
 
   String _formatDate(String? dateStr) {
     if (dateStr == null || dateStr.isEmpty) return '-';
     try {
       final date = DateTime.parse(dateStr);
-      return DateFormat('dd/MM/yyyy').format(date);
+      return DateFormatter.formatDate(date);
     } catch (_) {
       return dateStr;
     }
@@ -133,6 +93,8 @@ class _PrestamosPageState extends State<PrestamosPage> {
 
   @override
   Widget build(BuildContext context) {
+    final cubit = context.read<PrestamoCubit>();
+
     return Scaffold(
       appBar: SmartAppBar(
         title: 'Prestamos',
@@ -141,36 +103,58 @@ class _PrestamosPageState extends State<PrestamosPage> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh, size: 20),
-            onPressed: _loadData,
+            onPressed: () => cubit.loadData(),
             tooltip: 'Recargar',
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _showCrearPrestamoDialog,
+        onPressed: () => _showCrearPrestamoDialog(context, cubit),
         backgroundColor: AppColors.blue1,
         child: const Icon(Icons.add, color: Colors.white),
       ),
       body: GradientBackground(
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : RefreshIndicator(
-                onRefresh: _loadData,
+        child: BlocBuilder<PrestamoCubit, PrestamoState>(
+          builder: (context, state) {
+            if (state is PrestamoLoading) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (state is PrestamoError) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.error_outline, size: 56, color: Colors.grey.shade300),
+                    const SizedBox(height: 12),
+                    Text(state.message, style: TextStyle(color: Colors.grey.shade500)),
+                    const SizedBox(height: 16),
+                    CustomButton(text: 'Reintentar', onPressed: () => cubit.loadData(), backgroundColor: AppColors.blue1, height: 40),
+                  ],
+                ),
+              );
+            }
+            if (state is PrestamoLoaded) {
+              return RefreshIndicator(
+                onRefresh: () => cubit.loadData(),
                 color: AppColors.blue1,
                 child: ListView(
                   padding: const EdgeInsets.all(12),
                   children: [
-                    _buildResumenCard(),
+                    if (state.resumen != null) _buildResumenCard(state.resumen!),
                     const SizedBox(height: 12),
-                    _buildFilterChips(),
+                    _buildFilterChips(cubit),
                     const SizedBox(height: 12),
-                    if (_prestamos.isEmpty)
+                    if (state.prestamos.isEmpty)
                       _buildEmptyState()
                     else
-                      ..._prestamos.map(_buildPrestamoCard),
+                      ...state.prestamos.map((p) => _buildPrestamoCard(context, cubit, p)),
                   ],
                 ),
-              ),
+              );
+            }
+            return const SizedBox.shrink();
+          },
+        ),
       ),
     );
   }
@@ -178,12 +162,12 @@ class _PrestamosPageState extends State<PrestamosPage> {
   // ═══════════════════════════════════════════════════════════════════════
   // RESUMEN CARD
   // ═══════════════════════════════════════════════════════════════════════
-  Widget _buildResumenCard() {
-    final totalDeuda = _parseDecimal(_resumen?['totalDeuda']);
-    final totalOriginal = _parseDecimal(_resumen?['totalOriginal']);
-    final totalPagado = _parseDecimal(_resumen?['totalPagado']);
-    final porcentaje = _parseDecimal(_resumen?['porcentajePagado']);
-    final cantActivos = _resumen?['cantidadActivos'] ?? 0;
+  Widget _buildResumenCard(ResumenPrestamos resumen) {
+    final totalDeuda = resumen.totalDeuda;
+    final totalOriginal = resumen.totalOriginal;
+    final totalPagado = resumen.totalPagado;
+    final porcentaje = resumen.porcentajePagado;
+    final cantActivos = resumen.cantidadActivos;
 
     return GradientContainer(
       borderColor: AppColors.blue1.withValues(alpha: 0.3),
@@ -291,7 +275,7 @@ class _PrestamosPageState extends State<PrestamosPage> {
   // ═══════════════════════════════════════════════════════════════════════
   // FILTER CHIPS
   // ═══════════════════════════════════════════════════════════════════════
-  Widget _buildFilterChips() {
+  Widget _buildFilterChips(PrestamoCubit cubit) {
     return SizedBox(
       height: 34,
       child: ListView.separated(
@@ -319,7 +303,9 @@ class _PrestamosPageState extends State<PrestamosPage> {
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             onSelected: (_) {
               setState(() => _filtroEstado = filtro);
-              _loadPrestamos();
+              cubit.loadPrestamos(
+                estado: filtro == 'TODOS' ? null : filtro,
+              );
             },
           );
         },
@@ -356,20 +342,20 @@ class _PrestamosPageState extends State<PrestamosPage> {
   // ═══════════════════════════════════════════════════════════════════════
   // PRESTAMO CARD
   // ═══════════════════════════════════════════════════════════════════════
-  Widget _buildPrestamoCard(Map<String, dynamic> prestamo) {
-    final montoOriginal = _parseDecimal(prestamo['montoOriginal']);
-    final saldoPendiente = _parseDecimal(prestamo['saldoPendiente']);
+  Widget _buildPrestamoCard(BuildContext context, PrestamoCubit cubit, Prestamo prestamo) {
+    final montoOriginal = prestamo.montoOriginal;
+    final saldoPendiente = prestamo.saldoPendiente;
     final montoPagado = montoOriginal - saldoPendiente;
     final progreso = montoOriginal > 0 ? (montoPagado / montoOriginal).clamp(0.0, 1.0) : 0.0;
-    final tipo = prestamo['tipo'] as String? ?? '';
-    final estado = prestamo['estado'] as String? ?? '';
-    final entidad = prestamo['entidadPrestamo'] as String? ?? '-';
-    final fechaVencimiento = prestamo['fechaVencimiento'] as String?;
+    final tipo = prestamo.tipo;
+    final estado = prestamo.estado;
+    final entidad = prestamo.entidadPrestamo;
+    final fechaVencimiento = prestamo.fechaVencimiento;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: GestureDetector(
-        onTap: () => _showRegistrarPagoSheet(prestamo),
+        onTap: () => _showRegistrarPagoSheet(context, cubit, prestamo),
         child: GradientContainer(
           borderColor: _getEstadoColor(estado).withValues(alpha: 0.3),
           padding: const EdgeInsets.all(14),
@@ -502,7 +488,7 @@ class _PrestamosPageState extends State<PrestamosPage> {
   // ═══════════════════════════════════════════════════════════════════════
   // CREAR PRESTAMO DIALOG
   // ═══════════════════════════════════════════════════════════════════════
-  void _showCrearPrestamoDialog() {
+  void _showCrearPrestamoDialog(BuildContext context, PrestamoCubit cubit) {
     final entidadCtrl = TextEditingController();
     final montoCtrl = TextEditingController();
     final tasaInteresCtrl = TextEditingController();
@@ -514,27 +500,50 @@ class _PrestamosPageState extends State<PrestamosPage> {
     DateTime? fechaVencimiento;
     bool isSubmitting = false;
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      barrierDismissible: false,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      isDismissible: false,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) {
-          return AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            title: Row(
-              children: [
-                Icon(Icons.account_balance_wallet, color: AppColors.blue1, size: 20),
-                const SizedBox(width: 8),
-                const Text('Nuevo Prestamo', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-              ],
+          return Container(
+            margin: const EdgeInsets.only(top: 60),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
             ),
-            content: SizedBox(
-              width: MediaQuery.of(context).size.width * 0.9,
+            child: Padding(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 16,
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+              ),
               child: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Handle bar
+                    Center(
+                      child: Container(
+                        width: 40, height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Icon(Icons.account_balance_wallet, color: AppColors.blue1, size: 20),
+                        const SizedBox(width: 8),
+                        const AppSubtitle('Nuevo Prestamo', fontSize: 16),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
                     // Tipo
                     Text('Tipo de prestamo', style: TextStyle(fontSize: 10, color: Colors.grey.shade700)),
                     const SizedBox(height: 6),
@@ -640,7 +649,7 @@ class _PrestamosPageState extends State<PrestamosPage> {
                             const SizedBox(width: 8),
                             Text(
                               fechaDesembolso != null
-                                  ? DateFormat('dd/MM/yyyy').format(fechaDesembolso!)
+                                  ? DateFormatter.formatDate(fechaDesembolso!)
                                   : 'Seleccionar fecha',
                               style: TextStyle(
                                 fontSize: 11,
@@ -679,7 +688,7 @@ class _PrestamosPageState extends State<PrestamosPage> {
                             const SizedBox(width: 8),
                             Text(
                               fechaVencimiento != null
-                                  ? DateFormat('dd/MM/yyyy').format(fechaVencimiento!)
+                                  ? DateFormatter.formatDate(fechaVencimiento!)
                                   : 'Seleccionar fecha (opcional)',
                               style: TextStyle(
                                 fontSize: 11,
@@ -700,72 +709,82 @@ class _PrestamosPageState extends State<PrestamosPage> {
                       maxLines: 3,
                       height: null,
                     ),
+                    const SizedBox(height: 20),
+                    // Botones
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
+                            style: OutlinedButton.styleFrom(
+                              minimumSize: const Size(0, 44),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                            child: const Text('Cancelar'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 2,
+                          child: CustomButton(
+                            text: 'Crear Prestamo',
+                            isLoading: isSubmitting,
+                            backgroundColor: AppColors.blue1,
+                            height: 44,
+                            onPressed: () async {
+                              if (entidadCtrl.text.trim().isEmpty || montoCtrl.text.trim().isEmpty || fechaDesembolso == null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Completa los campos obligatorios'), backgroundColor: AppColors.red),
+                                );
+                                return;
+                              }
+
+                              setDialogState(() => isSubmitting = true);
+                              try {
+                                final success = await cubit.crear(
+                                  tipo: tipo,
+                                  entidadPrestamo: entidadCtrl.text.trim(),
+                                  montoOriginal: double.tryParse(montoCtrl.text.trim()) ?? 0,
+                                  fechaDesembolso: DateFormat('yyyy-MM-dd').format(fechaDesembolso!),
+                                  tasaInteres: tasaInteresCtrl.text.trim().isNotEmpty
+                                      ? double.tryParse(tasaInteresCtrl.text.trim())
+                                      : null,
+                                  cantidadCuotas: cantidadCuotasCtrl.text.trim().isNotEmpty
+                                      ? int.tryParse(cantidadCuotasCtrl.text.trim())
+                                      : null,
+                                  montoCuota: montoCuotaCtrl.text.trim().isNotEmpty
+                                      ? double.tryParse(montoCuotaCtrl.text.trim())
+                                      : null,
+                                  fechaVencimiento: fechaVencimiento != null
+                                      ? DateFormat('yyyy-MM-dd').format(fechaVencimiento!)
+                                      : null,
+                                  descripcion: descripcionCtrl.text.trim().isNotEmpty
+                                      ? descripcionCtrl.text.trim()
+                                      : null,
+                                );
+                                if (ctx.mounted) Navigator.pop(ctx);
+                                if (success && context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Prestamo creado exitosamente'), backgroundColor: AppColors.green),
+                                  );
+                                }
+                              } catch (e) {
+                                setDialogState(() => isSubmitting = false);
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.red),
+                                  );
+                                }
+                              }
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),
             ),
-            actions: [
-              TextButton(
-                onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
-                child: Text('Cancelar', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
-              ),
-              CustomButton(
-                text: 'Crear Prestamo',
-                isLoading: isSubmitting,
-                backgroundColor: AppColors.blue1,
-                height: 36,
-                fontSize: 11,
-                onPressed: () async {
-                  if (entidadCtrl.text.trim().isEmpty || montoCtrl.text.trim().isEmpty || fechaDesembolso == null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Completa los campos obligatorios'), backgroundColor: AppColors.red),
-                    );
-                    return;
-                  }
-
-                  setDialogState(() => isSubmitting = true);
-                  try {
-                    final body = <String, dynamic>{
-                      'tipo': tipo,
-                      'entidadPrestamo': entidadCtrl.text.trim(),
-                      'montoOriginal': double.tryParse(montoCtrl.text.trim()) ?? 0,
-                      'fechaDesembolso': DateFormat('yyyy-MM-dd').format(fechaDesembolso!),
-                    };
-                    if (tasaInteresCtrl.text.trim().isNotEmpty) {
-                      body['tasaInteres'] = double.tryParse(tasaInteresCtrl.text.trim());
-                    }
-                    if (cantidadCuotasCtrl.text.trim().isNotEmpty) {
-                      body['cantidadCuotas'] = int.tryParse(cantidadCuotasCtrl.text.trim());
-                    }
-                    if (montoCuotaCtrl.text.trim().isNotEmpty) {
-                      body['montoCuota'] = double.tryParse(montoCuotaCtrl.text.trim());
-                    }
-                    if (fechaVencimiento != null) {
-                      body['fechaVencimiento'] = DateFormat('yyyy-MM-dd').format(fechaVencimiento!);
-                    }
-                    if (descripcionCtrl.text.trim().isNotEmpty) {
-                      body['descripcion'] = descripcionCtrl.text.trim();
-                    }
-
-                    await _dio.post('/prestamos', data: body);
-                    if (ctx.mounted) Navigator.pop(ctx);
-                    _loadData();
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Prestamo creado exitosamente'), backgroundColor: AppColors.green),
-                      );
-                    }
-                  } catch (e) {
-                    setDialogState(() => isSubmitting = false);
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.red),
-                      );
-                    }
-                  }
-                },
-              ),
-            ],
           );
         },
       ),
@@ -775,16 +794,15 @@ class _PrestamosPageState extends State<PrestamosPage> {
   // ═══════════════════════════════════════════════════════════════════════
   // REGISTRAR PAGO BOTTOM SHEET
   // ═══════════════════════════════════════════════════════════════════════
-  void _showRegistrarPagoSheet(Map<String, dynamic> prestamo) {
+  void _showRegistrarPagoSheet(BuildContext context, PrestamoCubit cubit, Prestamo prestamo) {
     final montoCtrl = TextEditingController();
     final referenciaCtrl = TextEditingController();
     String metodoPago = 'TRANSFERENCIA';
     bool isSubmitting = false;
 
-    final prestamoId = prestamo['id'];
-    final entidad = prestamo['entidadPrestamo'] as String? ?? '-';
-    final saldoPendiente = _parseDecimal(prestamo['saldoPendiente']);
-    final montoOriginal = _parseDecimal(prestamo['montoOriginal']);
+    final entidad = prestamo.entidadPrestamo;
+    final saldoPendiente = prestamo.saldoPendiente;
+    final montoOriginal = prestamo.montoOriginal;
     final montoPagado = montoOriginal - saldoPendiente;
     final progreso = montoOriginal > 0 ? (montoPagado / montoOriginal).clamp(0.0, 1.0) : 0.0;
 
@@ -948,24 +966,23 @@ class _PrestamosPageState extends State<PrestamosPage> {
 
                         setSheetState(() => isSubmitting = true);
                         try {
-                          final body = <String, dynamic>{
-                            'metodoPago': metodoPago,
-                            'monto': monto,
-                          };
-                          if (referenciaCtrl.text.trim().isNotEmpty) {
-                            body['referencia'] = referenciaCtrl.text.trim();
-                          }
-                          await _dio.post('/prestamos/$prestamoId/pago', data: body);
+                          final success = await cubit.registrarPago(
+                            prestamoId: prestamo.id,
+                            metodoPago: metodoPago,
+                            monto: monto,
+                            referencia: referenciaCtrl.text.trim().isNotEmpty
+                                ? referenciaCtrl.text.trim()
+                                : null,
+                          );
                           if (ctx.mounted) Navigator.pop(ctx);
-                          _loadData();
-                          if (mounted) {
+                          if (success && context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(content: Text('Pago registrado exitosamente'), backgroundColor: AppColors.green),
                             );
                           }
                         } catch (e) {
                           setSheetState(() => isSubmitting = false);
-                          if (mounted) {
+                          if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.red),
                             );

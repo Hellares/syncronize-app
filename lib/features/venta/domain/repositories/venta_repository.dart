@@ -10,6 +10,8 @@ abstract class VentaRepository {
     required Map<String, dynamic> data,
   });
 
+  Future<Resource<Venta>> crearYCobrar({required Map<String, dynamic> data});
+
   Future<Resource<List<Venta>>> getVentas({
     String? sedeId,
     String? estado,
@@ -33,7 +35,13 @@ abstract class VentaRepository {
     required Map<String, dynamic> data,
   });
 
-  Future<Resource<Venta>> anularVenta({required String ventaId});
+  Future<Resource<Venta>> anularVenta({
+    required String ventaId,
+    required String autorizadoPorId,
+    required String motivo,
+  });
 
   Future<Resource<Map<String, dynamic>>> getResumen({String? sedeId});
+
+  Future<Resource<Venta?>> buscarPorCodigo({required String codigo});
 }

@@ -1,4 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:syncronize/core/fonts/app_text_widgets.dart';
+import 'package:syncronize/core/theme/app_colors.dart';
+import 'package:syncronize/core/widgets/custom_button.dart';
+import 'package:syncronize/core/widgets/custom_dropdown.dart';
+import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 
 class ProveedorFormFields extends StatelessWidget {
   // Controllers - Identificación
@@ -17,7 +23,6 @@ class ProveedorFormFields extends StatelessWidget {
   final TextEditingController ciudadController;
   final TextEditingController provinciaController;
   final TextEditingController paisController;
-  final TextEditingController codigoPostalController;
 
   // Controllers - Términos Comerciales
   final TextEditingController limiteCreditoController;
@@ -40,6 +45,10 @@ class ProveedorFormFields extends StatelessWidget {
   final ValueChanged<String> onTipoDocumentoChanged;
   final ValueChanged<String?> onTerminosPagoChanged;
 
+  // New callbacks for document search
+  final VoidCallback? onSearchDocument;
+  final bool isSearching;
+
   const ProveedorFormFields({
     super.key,
     required this.nombreController,
@@ -53,7 +62,6 @@ class ProveedorFormFields extends StatelessWidget {
     required this.ciudadController,
     required this.provinciaController,
     required this.paisController,
-    required this.codigoPostalController,
     required this.limiteCreditoController,
     required this.descuentoPreferencialController,
     required this.contactoPrincipalController,
@@ -65,6 +73,8 @@ class ProveedorFormFields extends StatelessWidget {
     required this.isEditing,
     required this.onTipoDocumentoChanged,
     required this.onTerminosPagoChanged,
+    this.onSearchDocument,
+    this.isSearching = false,
   });
 
   @override
@@ -72,272 +82,212 @@ class ProveedorFormFields extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Sección: Identificación
-        _buildSectionTitle('Identificación'),
-        TextFormField(
+        // ─── Sección 1: Identificación ───
+        _buildSectionHeader('Identificación', Icons.badge_outlined),
+        CustomDropdown<String>(
+          label: 'Tipo de Documento *',
+          items: const [
+            DropdownItem(value: 'RUC', label: 'RUC'),
+            DropdownItem(value: 'DNI', label: 'DNI'),
+            DropdownItem(value: 'PASAPORTE', label: 'Pasaporte'),
+            DropdownItem(value: 'CARNET_EXTRANJERIA', label: 'Carnet de Extranjería'),
+          ],
+          value: tipoDocumento,
+          onChanged: isLoading ? null : (value) {
+            if (value != null) onTipoDocumentoChanged(value);
+          },
+          borderColor: AppColors.blue1,
+          enabled: !isLoading,
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: CustomText(
+                controller: documentoController,
+                label: 'Numero de Documento *',
+                keyboardType: TextInputType.number,
+                borderColor: AppColors.blue1,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                enabled: !isLoading,
+              ),
+            ),
+            const SizedBox(width: 8),
+            CustomButton(
+              text: 'Buscar',
+              icon: isSearching
+                  ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.search, size: 16),
+              backgroundColor: AppColors.blue1,
+              height: 40,
+              onPressed: isLoading || isSearching ? null : onSearchDocument,
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        CustomText(
           controller: nombreController,
-          decoration: const InputDecoration(
-            labelText: 'Nombre o Razón Social *',
-            border: OutlineInputBorder(),
-          ),
+          label: 'Nombre o Razón Social *',
+          borderColor: AppColors.blue1,
           enabled: !isLoading,
-          validator: (value) {
-            if (value == null || value.trim().isEmpty) {
-              return 'El nombre es requerido';
-            }
-            return null;
-          },
         ),
-        const SizedBox(height: 16),
-        TextFormField(
+        const SizedBox(height: 12),
+        CustomText(
           controller: nombreComercialController,
-          decoration: const InputDecoration(
-            labelText: 'Nombre Comercial',
-            border: OutlineInputBorder(),
-          ),
+          label: 'Nombre Comercial',
+          borderColor: AppColors.blue1,
           enabled: !isLoading,
         ),
-        const SizedBox(height: 16),
-        DropdownButtonFormField<String>(
-          initialValue: tipoDocumento,
-          decoration: const InputDecoration(
-            labelText: 'Tipo de Documento *',
-            border: OutlineInputBorder(),
-          ),
-          items: const [
-            DropdownMenuItem(value: 'RUC', child: Text('RUC')),
-            DropdownMenuItem(value: 'DNI', child: Text('DNI')),
-            DropdownMenuItem(value: 'PASAPORTE', child: Text('Pasaporte')),
-            DropdownMenuItem(
-                value: 'CARNET_EXTRANJERIA',
-                child: Text('Carnet de Extranjería')),
-          ],
-          onChanged: isLoading ? null : (value) => onTipoDocumentoChanged(value!),
-        ),
-        const SizedBox(height: 16),
-        TextFormField(
-          controller: documentoController,
-          decoration: const InputDecoration(
-            labelText: 'Número de Documento *',
-            border: OutlineInputBorder(),
-          ),
-          enabled: !isLoading,
-          keyboardType: TextInputType.number,
-          validator: (value) {
-            if (value == null || value.trim().isEmpty) {
-              return 'El documento es requerido';
-            }
-            return null;
-          },
-        ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 8),
 
-        // Sección: Información de Contacto
-        _buildSectionTitle('Información de Contacto'),
-        TextFormField(
+        // ─── Sección 2: Contacto ───
+        _buildSectionHeader('Contacto', Icons.contact_phone_outlined),
+        CustomText(
           controller: emailController,
-          decoration: const InputDecoration(
-            labelText: 'Email',
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.email),
-          ),
-          enabled: !isLoading,
+          label: 'Email',
           keyboardType: TextInputType.emailAddress,
+          borderColor: AppColors.blue1,
+          enabled: !isLoading,
         ),
-        const SizedBox(height: 16),
-        TextFormField(
+        const SizedBox(height: 12),
+        CustomText(
           controller: telefonoController,
-          decoration: const InputDecoration(
-            labelText: 'Teléfono',
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.phone),
-          ),
-          enabled: !isLoading,
+          label: 'Teléfono',
           keyboardType: TextInputType.phone,
+          borderColor: AppColors.blue1,
+          enabled: !isLoading,
         ),
-        const SizedBox(height: 16),
-        TextFormField(
+        const SizedBox(height: 12),
+        CustomText(
           controller: telefonoAlternativoController,
-          decoration: const InputDecoration(
-            labelText: 'Teléfono Alternativo',
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.phone_android),
-          ),
-          enabled: !isLoading,
+          label: 'Teléfono Alternativo',
           keyboardType: TextInputType.phone,
+          borderColor: AppColors.blue1,
+          enabled: !isLoading,
         ),
-        const SizedBox(height: 16),
-        TextFormField(
+        const SizedBox(height: 12),
+        CustomText(
           controller: sitioWebController,
-          decoration: const InputDecoration(
-            labelText: 'Sitio Web',
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.language),
-            hintText: 'https://ejemplo.com',
-          ),
-          enabled: !isLoading,
+          label: 'Sitio Web',
           keyboardType: TextInputType.url,
+          hintText: 'https://ejemplo.com',
+          borderColor: AppColors.blue1,
+          enabled: !isLoading,
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 8),
 
-        // Sección: Dirección
-        _buildSectionTitle('Dirección'),
-        TextFormField(
+        // ─── Sección 3: Dirección ───
+        _buildSectionHeader('Dirección', Icons.location_on_outlined),
+        CustomText(
           controller: direccionController,
-          decoration: const InputDecoration(
-            labelText: 'Dirección',
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.location_on),
-          ),
+          label: 'Dirección',
+          borderColor: AppColors.blue1,
           enabled: !isLoading,
         ),
-        const SizedBox(height: 16),
-        TextFormField(
+        const SizedBox(height: 12),
+        CustomText(
           controller: ciudadController,
-          decoration: const InputDecoration(
-            labelText: 'Ciudad',
-            border: OutlineInputBorder(),
-          ),
+          label: 'Ciudad / Distrito',
+          borderColor: AppColors.blue1,
           enabled: !isLoading,
         ),
-        const SizedBox(height: 16),
-        TextFormField(
+        const SizedBox(height: 12),
+        CustomText(
           controller: provinciaController,
-          decoration: const InputDecoration(
-            labelText: 'Provincia / Departamento',
-            border: OutlineInputBorder(),
-          ),
+          label: 'Provincia',
+          borderColor: AppColors.blue1,
           enabled: !isLoading,
         ),
-        const SizedBox(height: 16),
-        TextFormField(
+        const SizedBox(height: 12),
+        CustomText(
           controller: paisController,
-          decoration: const InputDecoration(
-            labelText: 'País',
-            border: OutlineInputBorder(),
-            hintText: 'PE',
-          ),
+          label: 'País',
+          hintText: 'PE',
+          borderColor: AppColors.blue1,
           enabled: !isLoading,
         ),
-        const SizedBox(height: 16),
-        TextFormField(
-          controller: codigoPostalController,
-          decoration: const InputDecoration(
-            labelText: 'Código Postal',
-            border: OutlineInputBorder(),
-          ),
-          enabled: !isLoading,
-          keyboardType: TextInputType.number,
-        ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 8),
 
-        // Sección: Términos Comerciales
-        _buildSectionTitle('Términos Comerciales'),
-        DropdownButtonFormField<String>(
-          initialValue: terminosPago,
-          decoration: const InputDecoration(
-            labelText: 'Términos de Pago',
-            border: OutlineInputBorder(),
-          ),
+        // ─── Sección 4: Términos Comerciales ───
+        _buildSectionHeader('Términos Comerciales', Icons.handshake_outlined),
+        CustomDropdown<String>(
+          label: 'Términos de Pago',
           items: const [
-            DropdownMenuItem(value: 'CONTADO', child: Text('Contado')),
-            DropdownMenuItem(
-                value: 'CREDITO_7', child: Text('Crédito 7 días')),
-            DropdownMenuItem(
-                value: 'CREDITO_15', child: Text('Crédito 15 días')),
-            DropdownMenuItem(
-                value: 'CREDITO_30', child: Text('Crédito 30 días')),
-            DropdownMenuItem(
-                value: 'CREDITO_45', child: Text('Crédito 45 días')),
-            DropdownMenuItem(
-                value: 'CREDITO_60', child: Text('Crédito 60 días')),
+            DropdownItem(value: 'CONTADO', label: 'Contado'),
+            DropdownItem(value: 'CREDITO_7', label: 'Crédito 7 días'),
+            DropdownItem(value: 'CREDITO_15', label: 'Crédito 15 días'),
+            DropdownItem(value: 'CREDITO_30', label: 'Crédito 30 días'),
+            DropdownItem(value: 'CREDITO_45', label: 'Crédito 45 días'),
+            DropdownItem(value: 'CREDITO_60', label: 'Crédito 60 días'),
           ],
+          value: terminosPago,
           onChanged: isLoading ? null : onTerminosPagoChanged,
+          borderColor: AppColors.blue1,
+          hintText: 'Seleccionar',
+          enabled: !isLoading,
         ),
-        const SizedBox(height: 16),
-        TextFormField(
+        const SizedBox(height: 12),
+        CustomText(
           controller: limiteCreditoController,
-          decoration: const InputDecoration(
-            labelText: 'Límite de Crédito',
-            border: OutlineInputBorder(),
-            prefixText: 'S/ ',
-            hintText: '0.00',
-          ),
-          enabled: !isLoading,
+          label: 'Límite de Crédito',
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          prefixText: 'S/ ',
+          hintText: '0.00',
+          borderColor: AppColors.blue1,
+          enabled: !isLoading,
         ),
-        const SizedBox(height: 16),
-        TextFormField(
+        const SizedBox(height: 12),
+        CustomText(
           controller: descuentoPreferencialController,
-          decoration: const InputDecoration(
-            labelText: 'Descuento Preferencial',
-            border: OutlineInputBorder(),
-            suffixText: '%',
-            hintText: '0',
-          ),
-          enabled: !isLoading,
+          label: 'Descuento Preferencial',
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          validator: (value) {
-            if (value != null && value.trim().isNotEmpty) {
-              final val = double.tryParse(value.trim());
-              if (val == null || val < 0 || val > 100) {
-                return 'Debe estar entre 0 y 100';
-              }
-            }
-            return null;
-          },
+          suffixText: '%',
+          hintText: '0',
+          borderColor: AppColors.blue1,
+          enabled: !isLoading,
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 8),
 
-        // Sección: Contacto Principal
-        _buildSectionTitle('Contacto Principal'),
-        TextFormField(
+        // ─── Sección 5: Contacto Principal ───
+        _buildSectionHeader('Contacto Principal', Icons.person_outline),
+        CustomText(
           controller: contactoPrincipalController,
-          decoration: const InputDecoration(
-            labelText: 'Nombre del Contacto',
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.person),
-          ),
+          label: 'Nombre del Contacto',
+          borderColor: AppColors.blue1,
           enabled: !isLoading,
         ),
-        const SizedBox(height: 16),
-        TextFormField(
+        const SizedBox(height: 12),
+        CustomText(
           controller: cargoContactoController,
-          decoration: const InputDecoration(
-            labelText: 'Cargo',
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.work),
-          ),
+          label: 'Cargo',
+          borderColor: AppColors.blue1,
           enabled: !isLoading,
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 8),
 
-        // Sección: Notas
-        _buildSectionTitle('Notas Adicionales'),
-        TextFormField(
+        // ─── Sección 6: Notas ───
+        _buildSectionHeader('Notas', Icons.notes_outlined),
+        CustomText(
           controller: notasController,
-          decoration: const InputDecoration(
-            labelText: 'Notas',
-            border: OutlineInputBorder(),
-            hintText: 'Información adicional sobre el proveedor',
-          ),
-          enabled: !isLoading,
+          label: 'Notas',
+          hintText: 'Información adicional sobre el proveedor',
           maxLines: 3,
+          borderColor: AppColors.blue1,
+          enabled: !isLoading,
         ),
       ],
     );
   }
 
-  Widget _buildSectionTitle(String title) {
+  Widget _buildSectionHeader(String title, IconData icon) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.bold,
-          color: Colors.blue,
-        ),
+      padding: const EdgeInsets.only(bottom: 8, top: 16),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: AppColors.blue1),
+          const SizedBox(width: 6),
+          AppSubtitle(title, fontSize: 13, color: AppColors.blue1),
+        ],
       ),
     );
   }

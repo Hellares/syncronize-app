@@ -3,13 +3,22 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:syncronize/core/fonts/app_text_widgets.dart';
+import 'package:syncronize/core/widgets/custom_button.dart';
+import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import '../../../../core/di/injection_container.dart';
-import '../../../../core/network/dio_client.dart';
 import '../../../../core/services/storage_service.dart';
+import '../../../../core/utils/resource.dart';
+import '../../domain/entities/cobrar_cotizacion_data.dart';
+import '../../domain/usecases/cargar_datos_cobro_usecase.dart';
+import '../../domain/usecases/cobrar_cotizacion_usecase.dart';
+import '../../../venta/domain/entities/venta.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_gradients.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/theme/gradient_container.dart';
+import '../../../../core/widgets/comprobante_condicion_card.dart';
+import '../../../../core/widgets/pagos_section_widget.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../../../core/widgets/snack_bar_helper.dart';
 import '../../../cotizacion/domain/entities/cotizacion_detalle_input.dart';
@@ -26,20 +35,18 @@ class CobrarCotizacionPage extends StatefulWidget {
 }
 
 class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
-  final _dio = locator<DioClient>();
-
   Map<String, dynamic>? _cotizacion;
   List<Map<String, dynamic>> _items = [];
   List<Map<String, dynamic>> _itemsSinStock = [];
   List<String> _excluirDetalleIds = [];
   Map<String, double> _ajustarCantidades = {};
-  List<CotizacionDetalleInput> _itemsAgregados = [];
+  final List<CotizacionDetalleInput> _itemsAgregados = [];
   bool _isLoading = true;
   bool _isProcessing = false;
   String? _error;
 
   // Pagos múltiples
-  List<Map<String, dynamic>> _pagos = [];
+  final List<Map<String, dynamic>> _pagos = [];
   String _metodoActual = 'EFECTIVO';
   String _monedaActual = 'PEN'; // PEN o USD
   double? _tipoCambioVenta; // tipo de cambio venta del día
@@ -51,6 +58,8 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
   // Comprobante
   String _tipoComprobante = 'BOLETA';
   String _condicionPago = 'CONTADO';
+  final _plazoCreditoController = TextEditingController();
+  final int _numeroCuotas = 1;
 
   // Firma
   Uint8List? _firmaBytes;
@@ -68,50 +77,33 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
     _referenciaAgregarController.dispose();
     _referenciaController.dispose();
     _observacionesController.dispose();
+    _plazoCreditoController.dispose();
     super.dispose();
   }
 
   Future<void> _loadCotizacion() async {
-    try {
-      // Cargar cotización, validar stock y tipo de cambio en paralelo
-      final responses = await Future.wait([
-        _dio.get('/cotizaciones/${widget.cotizacionId}'),
-        _dio.get('/cotizaciones/${widget.cotizacionId}/validar-stock'),
-        _dio.get('/consultas/tipo-cambio').catchError((_) => null),
-      ]);
+    final result = await locator<CargarDatosCobroUseCase>()(
+      cotizacionId: widget.cotizacionId,
+    );
 
-      final data = responses[0].data as Map<String, dynamic>;
-      final stockData = responses[1].data as Map<String, dynamic>;
-      final detalles = (data['detalles'] as List?)?.map((d) => Map<String, dynamic>.from(d as Map)).toList() ?? [];
+    if (!mounted) return;
 
-      // Tipo de cambio
-      final tcResponse = responses[2];
-      if (tcResponse != null && tcResponse.data != null) {
-        final tcData = tcResponse.data as Map<String, dynamic>;
-        _tipoCambioVenta = _toDouble(tcData['venta']);
-      }
-
-      // Identificar ítems sin stock
-      final stockItems = (stockData['items'] as List?) ?? [];
-      final sinStock = stockItems
-          .where((item) => item['sinStock'] == true)
-          .map((item) => Map<String, dynamic>.from(item as Map))
-          .toList();
-
+    if (result is Success<CobrarCotizacionData>) {
+      final data = result.data;
       setState(() {
-        _cotizacion = data;
-        _items = detalles;
-        _itemsSinStock = sinStock;
+        _cotizacion = data.cotizacion;
+        _items = data.items;
+        _itemsSinStock = data.itemsSinStock;
+        _tipoCambioVenta = data.tipoCambioVenta;
         _isLoading = false;
       });
 
-      // Mostrar diálogo si hay ítems sin stock
-      if (sinStock.isNotEmpty && mounted) {
-        _mostrarDialogoSinStock(sinStock);
+      if (data.itemsSinStock.isNotEmpty && mounted) {
+        _mostrarDialogoSinStock(data.itemsSinStock);
       }
-    } catch (e) {
+    } else if (result is Error<CobrarCotizacionData>) {
       setState(() {
-        _error = 'Error al cargar la cotización';
+        _error = result.message;
         _isLoading = false;
       });
     }
@@ -393,27 +385,6 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
     setState(() => _pagos.removeAt(index));
   }
 
-  String _metodoLabel(String metodo) {
-    switch (metodo) {
-      case 'EFECTIVO': return 'Efectivo';
-      case 'TARJETA': return 'Tarjeta';
-      case 'YAPE': return 'Yape';
-      case 'PLIN': return 'Plin';
-      case 'TRANSFERENCIA': return 'Transferencia';
-      default: return metodo;
-    }
-  }
-
-  String _metodoIcon(String metodo) {
-    switch (metodo) {
-      case 'EFECTIVO': return '💵';
-      case 'TARJETA': return '💳';
-      case 'YAPE': case 'PLIN': return '📱';
-      case 'TRANSFERENCIA': return '🏦';
-      default: return '💰';
-    }
-  }
-
   Future<void> _capturarFirma() async {
     final bytes = await showModalBottomSheet<Uint8List>(
       context: context,
@@ -532,20 +503,30 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
         'tipoComprobante': _tipoComprobante,
         'condicionPago': _condicionPago,
         'esCredito': esCredito,
-        // Enviar el primer método como principal (para compatibilidad) y el total pagado
-        'metodoPago': _pagos.isNotEmpty ? _pagos.first['metodo'] : 'EFECTIVO',
-        'montoRecibido': _totalPagado,
-        // Array de pagos múltiples
-        'pagos': _pagos.map((p) => {
-          'metodoPago': p['metodo'],
-          'monto': p['monto'],
-          if ((p['referencia'] as String).isNotEmpty) 'referencia': p['referencia'],
-          if (p['monedaOriginal'] == 'USD') ...{
-            'monedaOriginal': 'USD',
-            'montoOriginal': p['montoOriginal'],
-            'tipoCambio': p['tipoCambio'],
-          },
-        }).toList(),
+        if (!esCredito && _pagos.isNotEmpty) ...{
+          // Enviar el primer método como principal (para compatibilidad) y el total pagado
+          'metodoPago': _pagos.first['metodo'],
+          'montoRecibido': _totalPagado,
+          // Array de pagos múltiples
+          'pagos': _pagos.map((p) => {
+            'metodoPago': p['metodo'],
+            'monto': p['monto'],
+            if ((p['referencia'] as String).isNotEmpty) 'referencia': p['referencia'],
+            if (p['monedaOriginal'] == 'USD') ...{
+              'monedaOriginal': 'USD',
+              'montoOriginal': p['montoOriginal'],
+              'tipoCambio': p['tipoCambio'],
+            },
+          }).toList(),
+        },
+        if (esCredito && _plazoCreditoController.text.isNotEmpty) ...{
+          'plazoCredito': int.tryParse(_plazoCreditoController.text),
+          'fechaVencimientoPago': DateTime.now()
+              .add(Duration(days: int.tryParse(_plazoCreditoController.text) ?? 30))
+              .toIso8601String(),
+        },
+        if (esCredito && _numeroCuotas > 0)
+          'numeroCuotas': _numeroCuotas,
       };
 
       // Tipo de documento según comprobante
@@ -568,25 +549,31 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
         data['itemsAdicionales'] = _itemsAgregados.map((item) => item.toMap()).toList();
       }
 
-      final response = await _dio.post(
-        '/ventas/desde-cotizacion/${widget.cotizacionId}',
+      final result = await locator<CobrarCotizacionUseCase>()(
+        cotizacionId: widget.cotizacionId,
         data: data,
       );
 
-      if (mounted) {
-        final ventaData = response.data as Map<String, dynamic>;
-        final ventaId = ventaData['id'] as String;
-        final empresaId = ventaData['empresaId'] as String;
+      if (!mounted) return;
 
-        // Subir firma si fue capturada
-        await _subirFirma(ventaId, empresaId);
-
-        if (!mounted) return;
-        SnackBarHelper.showSuccess(context, 'Venta registrada exitosamente');
-        // Navegar al ticket reemplazando esta página, para que al volver regrese a la cola POS
-        context.pop(true);
-        context.push('/empresa/ventas/$ventaId/ticket');
+      if (result is Error<Venta>) {
+        setState(() => _isProcessing = false);
+        SnackBarHelper.showError(context, result.message);
+        return;
       }
+
+      final venta = (result as Success<Venta>).data;
+      final ventaId = venta.id;
+      final empresaId = venta.empresaId;
+
+      // Subir firma si fue capturada
+      await _subirFirma(ventaId, empresaId);
+
+      if (!mounted) return;
+      SnackBarHelper.showSuccess(context, 'Venta registrada exitosamente');
+      // Navegar al ticket reemplazando esta página, para que al volver regrese a la cola POS
+      context.pop(true);
+      context.push('/empresa/ventas/$ventaId/ticket');
     } catch (e) {
       if (mounted) {
         setState(() => _isProcessing = false);
@@ -597,6 +584,12 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
 
   @override
   Widget build(BuildContext context) {
+    final botonLabel = _isProcessing
+        ? 'Procesando...'
+        : _cotizacion?['estado'] == 'PENDIENTE'
+            ? 'Aprobar y Cobrar S/ ${_total.toStringAsFixed(2)}'
+            : 'Cobrar S/ ${_total.toStringAsFixed(2)}';
+
     return Scaffold(
       appBar: SmartAppBar.withBackButton(
         title: 'Cobrar',
@@ -608,14 +601,13 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
             : _error != null
                 ? Center(child: Text(_error!))
                 : ListView(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(10),
                     children: [
                       // Código cotización
                       GradientContainer(
                         borderColor: AppColors.blue1,
                         shadowStyle: ShadowStyle.colorful,
-                        borderRadius: BorderRadius.circular(12),
-                        padding: const EdgeInsets.all(14),
+                        padding: const EdgeInsets.all(10),
                         child: Row(
                           children: [
                             Icon(Icons.receipt_long, color: AppColors.blue1, size: 20),
@@ -624,7 +616,7 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(_cotizacion?['codigo']?.toString() ?? '',
-                                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
                                 Text(
                                     _cotizacion?['estado'] == 'PENDIENTE'
                                         ? 'Cotizacion pendiente - se aprobara al cobrar'
@@ -639,7 +631,7 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
                             ),
                             const Spacer(),
                             Text('S/ ${_total.toStringAsFixed(2)}',
-                                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.blue1)),
+                                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.blue1)),
                           ],
                         ),
                       ),
@@ -648,8 +640,7 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
                       // Cliente
                       GradientContainer(
                         borderColor: AppColors.blueborder,
-                        borderRadius: BorderRadius.circular(12),
-                        padding: const EdgeInsets.all(14),
+                        padding: const EdgeInsets.all(10),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -657,7 +648,10 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
                               children: [
                                 Icon(Icons.person, size: 16, color: AppColors.blue1),
                                 const SizedBox(width: 6),
-                                const Text('Cliente', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                                AppSubtitle(
+                                  'Cliente',
+                                  color: AppColors.blue1,
+                                ),
                               ],
                             ),
                             const SizedBox(height: 8),
@@ -674,8 +668,7 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
                       // Items
                       GradientContainer(
                         borderColor: AppColors.blueborder,
-                        borderRadius: BorderRadius.circular(12),
-                        padding: const EdgeInsets.all(14),
+                        padding: const EdgeInsets.all(10),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -685,7 +678,7 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
                                 const SizedBox(width: 6),
                                 Expanded(
                                   child: Text('Productos (${_items.length})',
-                                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                                 ),
                                 GestureDetector(
                                   onTap: _agregarProducto,
@@ -707,7 +700,7 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
                                 ),
                               ],
                             ),
-                            const Divider(height: 16),
+                            const Divider(height: 12),
                             ..._items.asMap().entries.map((entry) {
                               final i = entry.key;
                               final item = entry.value;
@@ -736,7 +729,7 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
                                       child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          Text(nombre, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                                          Text(nombre, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
                                               maxLines: 2, overflow: TextOverflow.ellipsis),
                                           Text('S/ ${precio.toStringAsFixed(2)} c/u',
                                               style: TextStyle(fontSize: 10, color: Colors.grey[500])),
@@ -764,9 +757,9 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text('Total', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                                const Text('Total', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
                                 Text('S/ ${_total.toStringAsFixed(2)}',
-                                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.blue1)),
+                                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.blue1)),
                               ],
                             ),
                           ],
@@ -774,243 +767,40 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
                       ),
                       const SizedBox(height: 12),
 
-                      // Pagos registrados
-                      if (_pagos.isNotEmpty)
-                        GradientContainer(
-                          borderColor: Colors.green.shade300,
-                          borderRadius: BorderRadius.circular(12),
-                          padding: const EdgeInsets.all(14),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(Icons.check_circle, size: 16, color: Colors.green[700]),
-                                  const SizedBox(width: 6),
-                                  Text('Pagos registrados (${_pagos.length})',
-                                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              ..._pagos.asMap().entries.map((entry) {
-                                final i = entry.key;
-                                final p = entry.value;
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 6),
-                                  child: Row(
-                                    children: [
-                                      Text(_metodoIcon(p['metodo']), style: const TextStyle(fontSize: 14)),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(_metodoLabel(p['metodo']),
-                                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                                            if ((p['referencia'] as String).isNotEmpty)
-                                              Text('Ref: ${p['referencia']}',
-                                                  style: TextStyle(fontSize: 10, color: Colors.grey[500])),
-                                          ],
-                                        ),
-                                      ),
-                                      Column(
-                                        crossAxisAlignment: CrossAxisAlignment.end,
-                                        children: [
-                                          Text('S/ ${(p['monto'] as double).toStringAsFixed(2)}',
-                                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.green[700])),
-                                          if (p['monedaOriginal'] == 'USD')
-                                            Text('\$${(p['montoOriginal'] as double).toStringAsFixed(2)} USD (TC ${(p['tipoCambio'] as double).toStringAsFixed(3)})',
-                                                style: TextStyle(fontSize: 9, color: Colors.blue[600])),
-                                        ],
-                                      ),
-                                      const SizedBox(width: 6),
-                                      GestureDetector(
-                                        onTap: () => _removerPago(i),
-                                        child: Icon(Icons.close, size: 16, color: Colors.red[300]),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              }),
-                              const Divider(height: 12),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text('Total pagado', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-                                  Text('S/ ${_totalPagado.toStringAsFixed(2)}',
-                                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.green[700])),
-                                ],
-                              ),
-                              if (_saldoPendiente > 0.01)
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text('Saldo pendiente', style: TextStyle(fontSize: 12, color: Colors.orange[700])),
-                                    Text('S/ ${_saldoPendiente.toStringAsFixed(2)}',
-                                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.orange[700])),
-                                  ],
-                                ),
-                            ],
-                          ),
-                        ),
-                      if (_pagos.isNotEmpty) const SizedBox(height: 12),
-
-                      // Agregar pago
-                      GradientContainer(
-                        borderColor: _saldoPendiente <= 0.01 && _pagos.isNotEmpty
-                            ? Colors.green.shade300
-                            : Colors.green.shade200,
-                        borderRadius: BorderRadius.circular(12),
-                        padding: const EdgeInsets.all(14),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(Icons.add_card, size: 16, color: Colors.green[700]),
-                                const SizedBox(width: 6),
-                                const Text('Agregar pago', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                              ],
-                            ),
-                            const SizedBox(height: 10),
-                            // Método
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: [
-                                _metodoPagoChip('EFECTIVO', '💵', 'Efectivo'),
-                                _metodoPagoChip('TARJETA', '💳', 'Tarjeta'),
-                                _metodoPagoChip('YAPE', '📱', 'Yape'),
-                                _metodoPagoChip('PLIN', '📱', 'Plin'),
-                                _metodoPagoChip('TRANSFERENCIA', '🏦', 'Transferencia'),
-                              ],
-                            ),
-                            // Moneda
-                            if (_tipoCambioVenta != null) ...[
-                              const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  Text('Moneda: ', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-                                  const SizedBox(width: 6),
-                                  _monedaChip('PEN', 'S/', 'Soles'),
-                                  const SizedBox(width: 6),
-                                  _monedaChip('USD', '\$', 'Dolares'),
-                                  const Spacer(),
-                                  if (_monedaActual == 'USD')
-                                    Text('TC: ${_tipoCambioVenta!.toStringAsFixed(3)}',
-                                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.blue[700])),
-                                ],
-                              ),
-                            ],
-                            const SizedBox(height: 10),
-                            // Monto + Referencia
-                            Row(
-                              children: [
-                                Expanded(
-                                  flex: 2,
-                                  child: TextField(
-                                    controller: _montoAgregarController,
-                                    keyboardType: TextInputType.number,
-                                    decoration: InputDecoration(
-                                      labelText: _saldoPendiente > 0.01
-                                          ? 'Monto (pend: ${_monedaActual == 'USD' ? '\$${(_saldoPendiente / _tipoCambioVenta!).toStringAsFixed(2)}' : 'S/${_saldoPendiente.toStringAsFixed(2)}'})'
-                                          : 'Monto',
-                                      prefixText: _monedaActual == 'USD' ? '\$ ' : 'S/ ',
-                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                                      isDense: true,
-                                    ),
-                                  ),
-                                ),
-                                if (_metodoActual != 'EFECTIVO') ...[
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    flex: 2,
-                                    child: TextField(
-                                      controller: _referenciaAgregarController,
-                                      decoration: InputDecoration(
-                                        labelText: 'Referencia',
-                                        hintText: 'N° operacion',
-                                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                                        isDense: true,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                                const SizedBox(width: 8),
-                                GestureDetector(
-                                  onTap: _agregarPago,
-                                  child: Container(
-                                    padding: const EdgeInsets.all(10),
-                                    decoration: BoxDecoration(
-                                      color: Colors.green[600],
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: const Icon(Icons.add, color: Colors.white, size: 20),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
+                      ComprobanteCondicionCard(
+                        tipoComprobante: _tipoComprobante,
+                        onComprobanteChanged: (v) => setState(() => _tipoComprobante = v),
+                        condicionPago: _condicionPago,
+                        onCondicionChanged: (v) => setState(() {
+                          _condicionPago = v;
+                          if (v == 'CREDITO') _pagos.clear();
+                        }),
+                        showMixto: false,
                       ),
                       const SizedBox(height: 12),
 
-                      // Tipo de comprobante
-                      GradientContainer(
-                        borderColor: AppColors.blueborder,
-                        borderRadius: BorderRadius.circular(12),
-                        padding: const EdgeInsets.all(14),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(Icons.description, size: 16, color: AppColors.blue1),
-                                const SizedBox(width: 6),
-                                const Text('Comprobante', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                              ],
-                            ),
-                            const SizedBox(height: 10),
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: [
-                                _comprobanteChip('BOLETA', Icons.receipt, 'Boleta'),
-                                _comprobanteChip('FACTURA', Icons.article, 'Factura'),
-                              ],
-                            ),
-                            if (_tipoComprobante == 'FACTURA') ...[
-                              const SizedBox(height: 8),
-                              Text('Se requiere RUC del cliente',
-                                  style: TextStyle(fontSize: 11, color: Colors.orange[700], fontStyle: FontStyle.italic)),
-                            ],
-                            const SizedBox(height: 12),
-                            // Condición de pago
-                            Row(
-                              children: [
-                                const Text('Condición: ', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Wrap(
-                                    spacing: 6,
-                                    children: [
-                                      _condicionChip('CONTADO', 'Contado'),
-                                      _condicionChip('CREDITO', 'Crédito'),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
+                      if (_condicionPago != 'CREDITO') ...[
+                        PagosSectionWidget(
+                          pagos: _pagos,
+                          metodoActual: _metodoActual,
+                          onMetodoChanged: (v) => setState(() => _metodoActual = v),
+                          monedaActual: _monedaActual,
+                          onMonedaChanged: (v) => setState(() => _monedaActual = v),
+                          tipoCambioVenta: _tipoCambioVenta,
+                          saldoPendiente: _saldoPendiente,
+                          totalPagado: _totalPagado,
+                          montoController: _montoAgregarController,
+                          referenciaController: _referenciaAgregarController,
+                          onAgregarPago: _agregarPago,
+                          onRemoverPago: _removerPago,
                         ),
-                      ),
-                      const SizedBox(height: 12),
+                        const SizedBox(height: 12),
+                      ],
 
                       // Referencia y observaciones
                       GradientContainer(
                         borderColor: AppColors.blueborder,
-                        borderRadius: BorderRadius.circular(12),
-                        padding: const EdgeInsets.all(14),
+                        padding: const EdgeInsets.all(10),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -1018,29 +808,26 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
                               children: [
                                 Icon(Icons.note_alt, size: 16, color: AppColors.blue1),
                                 const SizedBox(width: 6),
-                                const Text('Datos adicionales', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                                AppSubtitle(
+                                  'Datos adicionales',
+                                  color: AppColors.blue1,
+                                ),  
                               ],
                             ),
                             const SizedBox(height: 10),
-                            TextField(
+                            CustomText(
                               controller: _referenciaController,
-                              decoration: InputDecoration(
-                                labelText: 'Referencia de pago',
-                                hintText: 'N° operación, voucher, etc.',
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                                isDense: true,
-                              ),
+                              borderColor: AppColors.blue1,
+                              label: 'Referencia de pago',
+                              hintText: 'N° operación, voucher, etc.',
                             ),
                             const SizedBox(height: 10),
-                            TextField(
+                            CustomText(
                               controller: _observacionesController,
+                              borderColor: AppColors.blue1,
+                              label: 'Observaciones',
+                              hintText: 'Notas adicionales...',
                               maxLines: 2,
-                              decoration: InputDecoration(
-                                labelText: 'Observaciones',
-                                hintText: 'Notas adicionales...',
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                                isDense: true,
-                              ),
                             ),
                           ],
                         ),
@@ -1050,8 +837,7 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
                       const SizedBox(height: 12),
                       GradientContainer(
                         borderColor: _firmaBytes != null ? AppColors.blue1 : AppColors.blueborder,
-                        borderRadius: BorderRadius.circular(12),
-                        padding: const EdgeInsets.all(14),
+                        padding: const EdgeInsets.all(10),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -1059,7 +845,11 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
                               children: [
                                 Icon(Icons.draw_outlined, size: 16, color: AppColors.blue1),
                                 const SizedBox(width: 6),
-                                const Text('Firma del cliente', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                                // const Text('Firma del cliente', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                                AppSubtitle(
+                                  'Firma del cliente',
+                                  color: AppColors.blue1,
+                                ),
                                 const Spacer(),
                                 if (_firmaBytes != null)
                                   GestureDetector(
@@ -1135,34 +925,40 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
                       ],
 
                       const SizedBox(height: 16),
-
-                      // Botón cobrar
-                      SizedBox(
-                        width: double.infinity,
-                        height: 50,
-                        child: ElevatedButton.icon(
-                          onPressed: _isProcessing ? null : _procesarVenta,
-                          icon: _isProcessing
-                              ? const SizedBox(width: 20, height: 20,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                              : const Icon(Icons.point_of_sale, size: 20),
-                          label: Text(
-                              _isProcessing
-                                  ? 'Procesando...'
-                                  : _cotizacion?['estado'] == 'PENDIENTE'
-                                      ? 'Aprobar y Cobrar S/ ${_total.toStringAsFixed(2)}'
-                                      : 'Cobrar S/ ${_total.toStringAsFixed(2)}',
-                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green[600],
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 32),
                     ],
                   ),
+      ),
+      bottomNavigationBar: Container(
+        padding: EdgeInsets.only(
+          left: 16,
+          right: 16,
+          top: 10,
+          bottom: MediaQuery.of(context).padding.bottom + 10,
+        ),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 8,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: SizedBox(
+          width: double.infinity,
+          height: 35,
+          child: CustomButton(
+            onPressed: _isProcessing ? null : _procesarVenta,
+            text: botonLabel,
+            icon: _isProcessing ? const SizedBox(width: 18, height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                : const Icon(Icons.point_of_sale, size: 18),
+            backgroundColor: Colors.green[600],
+            iconColor: Colors.white,
+
+          ),
+        ),
       ),
     );
   }
@@ -1172,8 +968,8 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
       padding: const EdgeInsets.only(bottom: 4),
       child: Row(
         children: [
-          Text('$label: ', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
-          Expanded(child: Text(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500))),
+          SizedBox(width: 80, child: Text('$label: ', style: TextStyle(fontSize: 12, color: Colors.grey[500]))),
+          Expanded(child: Text(value, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w500))),
         ],
       ),
     );
@@ -1185,94 +981,12 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+          Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
           Text('S/ ${monto.toStringAsFixed(2)}',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: color)),
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: color)),
         ],
       ),
     );
   }
 
-  Widget _comprobanteChip(String value, IconData icon, String label) {
-    final selected = _tipoComprobante == value;
-    return GestureDetector(
-      onTap: () => setState(() => _tipoComprobante = value),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: selected ? AppColors.blue1 : Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: selected ? AppColors.blue1 : Colors.grey[300]!),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 16, color: selected ? Colors.white : Colors.grey[600]),
-            const SizedBox(width: 6),
-            Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
-                color: selected ? Colors.white : Colors.grey[700])),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _condicionChip(String value, String label) {
-    final selected = _condicionPago == value;
-    return GestureDetector(
-      onTap: () => setState(() => _condicionPago = value),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: selected ? AppColors.blue1.withValues(alpha: 0.1) : Colors.transparent,
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: selected ? AppColors.blue1 : Colors.grey[300]!),
-        ),
-        child: Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600,
-            color: selected ? AppColors.blue1 : Colors.grey[600])),
-      ),
-    );
-  }
-
-  Widget _monedaChip(String value, String symbol, String label) {
-    final selected = _monedaActual == value;
-    return GestureDetector(
-      onTap: () => setState(() => _monedaActual = value),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: BoxDecoration(
-          color: selected ? Colors.blue[700] : Colors.white,
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: selected ? Colors.blue[700]! : Colors.grey[300]!),
-        ),
-        child: Text('$symbol $label',
-            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600,
-                color: selected ? Colors.white : Colors.grey[700])),
-      ),
-    );
-  }
-
-  Widget _metodoPagoChip(String value, String icon, String label) {
-    final selected = _metodoActual == value;
-    return GestureDetector(
-      onTap: () => setState(() => _metodoActual = value),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: selected ? AppColors.blue1 : Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: selected ? AppColors.blue1 : Colors.grey[300]!),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(icon, style: const TextStyle(fontSize: 14)),
-            const SizedBox(width: 4),
-            Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
-                color: selected ? Colors.white : Colors.grey[700])),
-          ],
-        ),
-      ),
-    );
-  }
 }

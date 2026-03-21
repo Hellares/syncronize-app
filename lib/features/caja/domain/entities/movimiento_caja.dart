@@ -57,7 +57,8 @@ enum CategoriaMovimientoCaja {
   otroIngreso,
   pagoProveedor,
   gastoOperativo,
-  otroEgreso;
+  otroEgreso,
+  reposicionCajaChica;
 
   String get label {
     switch (this) {
@@ -79,6 +80,8 @@ enum CategoriaMovimientoCaja {
         return 'Gasto Operativo';
       case CategoriaMovimientoCaja.otroEgreso:
         return 'Otro Egreso';
+      case CategoriaMovimientoCaja.reposicionCajaChica:
+        return 'Reposición Caja Chica';
     }
   }
 
@@ -102,6 +105,8 @@ enum CategoriaMovimientoCaja {
         return 'GASTO_OPERATIVO';
       case CategoriaMovimientoCaja.otroEgreso:
         return 'OTRO_EGRESO';
+      case CategoriaMovimientoCaja.reposicionCajaChica:
+        return 'REPOSICION_CAJA_CHICA';
     }
   }
 
@@ -125,6 +130,8 @@ enum CategoriaMovimientoCaja {
         return Icons.receipt_long_rounded;
       case CategoriaMovimientoCaja.otroEgreso:
         return Icons.remove_circle_rounded;
+      case CategoriaMovimientoCaja.reposicionCajaChica:
+        return Icons.account_balance_wallet_rounded;
     }
   }
 
@@ -140,6 +147,7 @@ enum CategoriaMovimientoCaja {
       case CategoriaMovimientoCaja.pagoProveedor:
       case CategoriaMovimientoCaja.gastoOperativo:
       case CategoriaMovimientoCaja.otroEgreso:
+      case CategoriaMovimientoCaja.reposicionCajaChica:
         return false;
     }
   }
@@ -164,6 +172,8 @@ enum CategoriaMovimientoCaja {
         return CategoriaMovimientoCaja.gastoOperativo;
       case 'OTRO_EGRESO':
         return CategoriaMovimientoCaja.otroEgreso;
+      case 'REPOSICION_CAJA_CHICA':
+        return CategoriaMovimientoCaja.reposicionCajaChica;
       default:
         return CategoriaMovimientoCaja.otroIngreso;
     }
@@ -252,10 +262,14 @@ class MovimientoCaja extends Equatable {
   final MetodoPago metodoPago;
   final double monto;
   final String? descripcion;
+  final String? categoriaGastoId;
+  final String? categoriaGastoNombre;
   final bool esManual;
   final DateTime fechaMovimiento;
   final String? ventaCodigo;
   final String? pedidoCodigo;
+  final bool anulado;
+  final String? motivoAnulacion;
 
   const MovimientoCaja({
     required this.id,
@@ -265,10 +279,14 @@ class MovimientoCaja extends Equatable {
     required this.metodoPago,
     required this.monto,
     this.descripcion,
+    this.categoriaGastoId,
+    this.categoriaGastoNombre,
     this.esManual = false,
     required this.fechaMovimiento,
     this.ventaCodigo,
     this.pedidoCodigo,
+    this.anulado = false,
+    this.motivoAnulacion,
   });
 
   @override
@@ -280,9 +298,13 @@ class MovimientoCaja extends Equatable {
         metodoPago,
         monto,
         descripcion,
+        categoriaGastoId,
+        categoriaGastoNombre,
         esManual,
         fechaMovimiento,
         ventaCodigo,
         pedidoCodigo,
+        anulado,
+        motivoAnulacion,
       ];
 }

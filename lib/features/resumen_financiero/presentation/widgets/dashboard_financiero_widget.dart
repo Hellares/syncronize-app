@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/fonts/app_text_widgets.dart';
-import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/theme/gradient_container.dart';
-import '../../../../core/widgets/smart_appbar.dart';
 import '../../../../core/widgets/custom_button.dart';
+import '../bloc/resumen_financiero_cubit.dart';
+import '../bloc/resumen_financiero_state.dart';
 
-class DashboardFinancieroWidget extends StatefulWidget {
+class DashboardFinancieroWidget extends StatelessWidget {
   final VoidCallback? onVerResumenCompleto;
 
   const DashboardFinancieroWidget({
@@ -18,62 +18,39 @@ class DashboardFinancieroWidget extends StatefulWidget {
   });
 
   @override
-  State<DashboardFinancieroWidget> createState() => _DashboardFinancieroWidgetState();
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (_) {
+        final now = DateTime.now();
+        final inicio = DateTime(now.year, now.month, now.day);
+        final fin = DateTime(now.year, now.month, now.day, 23, 59, 59);
+        return locator<ResumenFinancieroCubit>()
+          ..loadResumen(
+            fechaDesde: inicio.toIso8601String(),
+            fechaHasta: fin.toIso8601String(),
+          );
+      },
+      child: _DashboardFinancieroContent(
+        onVerResumenCompleto: onVerResumenCompleto,
+      ),
+    );
+  }
 }
 
-class _DashboardFinancieroWidgetState extends State<DashboardFinancieroWidget> {
-  Map<String, dynamic>? _data;
-  bool _isLoading = true;
-  bool _hasError = false;
+class _DashboardFinancieroContent extends StatelessWidget {
+  final VoidCallback? onVerResumenCompleto;
 
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    setState(() {
-      _isLoading = true;
-      _hasError = false;
-    });
-    try {
-      final dio = locator<DioClient>();
-      final now = DateTime.now();
-      final inicio = DateTime(now.year, now.month, now.day);
-      final fin = DateTime(now.year, now.month, now.day, 23, 59, 59);
-
-      final response = await dio.get(
-        '/resumen-financiero',
-        queryParameters: {
-          'fechaInicio': inicio.toIso8601String(),
-          'fechaFin': fin.toIso8601String(),
-        },
-      );
-
-      if (mounted) {
-        setState(() {
-          _data = response.data as Map<String, dynamic>?;
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _hasError = true;
-        });
-      }
-    }
-  }
+  const _DashboardFinancieroContent({this.onVerResumenCompleto});
 
   @override
   Widget build(BuildContext context) {
     return GradientContainer(
       borderColor: AppColors.blueborder,
       padding: const EdgeInsets.all(14),
-      child: _isLoading
-          ? const SizedBox(
+      child: BlocBuilder<ResumenFinancieroCubit, ResumenFinancieroState>(
+        builder: (context, state) {
+          if (state is ResumenFinancieroLoading || state is ResumenFinancieroInitial) {
+            return const SizedBox(
               height: 100,
               child: Center(
                 child: SizedBox(
@@ -82,14 +59,21 @@ class _DashboardFinancieroWidgetState extends State<DashboardFinancieroWidget> {
                   child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.blue1),
                 ),
               ),
-            )
-          : _hasError
-              ? _buildErrorState()
-              : _buildContent(),
+            );
+          }
+          if (state is ResumenFinancieroError) {
+            return _buildErrorState(context);
+          }
+          if (state is ResumenFinancieroLoaded) {
+            return _buildContent(context, state);
+          }
+          return const SizedBox.shrink();
+        },
+      ),
     );
   }
 
-  Widget _buildErrorState() {
+  Widget _buildErrorState(BuildContext context) {
     return SizedBox(
       height: 80,
       child: Center(
@@ -104,7 +88,15 @@ class _DashboardFinancieroWidgetState extends State<DashboardFinancieroWidget> {
             ),
             const SizedBox(height: 4),
             GestureDetector(
-              onTap: _load,
+              onTap: () {
+                final now = DateTime.now();
+                final inicio = DateTime(now.year, now.month, now.day);
+                final fin = DateTime(now.year, now.month, now.day, 23, 59, 59);
+                context.read<ResumenFinancieroCubit>().loadResumen(
+                      fechaDesde: inicio.toIso8601String(),
+                      fechaHasta: fin.toIso8601String(),
+                    );
+              },
               child: const Text(
                 'Reintentar',
                 style: TextStyle(fontSize: 10, color: AppColors.blue1, fontWeight: FontWeight.w600),
@@ -116,14 +108,15 @@ class _DashboardFinancieroWidgetState extends State<DashboardFinancieroWidget> {
     );
   }
 
-  Widget _buildContent() {
-    final ventasHoyCount = _data?['ventasHoyCount'] as int? ?? 0;
-    final ventasHoyMonto = double.tryParse(_data?['ventasHoyMonto']?.toString() ?? '') ?? 0;
-    final ingresosHoy = double.tryParse(_data?['ingresosHoy']?.toString() ?? '') ?? 0;
-    final egresosHoy = double.tryParse(_data?['egresosHoy']?.toString() ?? '') ?? 0;
+  Widget _buildContent(BuildContext context, ResumenFinancieroLoaded state) {
+    final data = state.resumen.data;
+    final ventasHoyCount = data['ventasHoyCount'] as int? ?? 0;
+    final ventasHoyMonto = double.tryParse(data['ventasHoyMonto']?.toString() ?? '') ?? 0;
+    final ingresosHoy = double.tryParse(data['ingresosHoy']?.toString() ?? '') ?? 0;
+    final egresosHoy = double.tryParse(data['egresosHoy']?.toString() ?? '') ?? 0;
     final flujoCaja = ingresosHoy - egresosHoy;
-    final cuentasVencidas = _data?['cuentasVencidas'] as int? ?? 0;
-    final cuotasProximas = _data?['cuotasProximas'] as int? ?? 0;
+    final cuentasVencidas = data['cuentasVencidas'] as int? ?? 0;
+    final cuotasProximas = data['cuotasProximas'] as int? ?? 0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -135,7 +128,7 @@ class _DashboardFinancieroWidgetState extends State<DashboardFinancieroWidget> {
             const AppSubtitle('Resumen Financiero Hoy', fontSize: 13, color: AppColors.blue3),
             const Spacer(),
             Text(
-              DateFormat('dd/MM/yyyy').format(DateTime.now()),
+              DateFormatter.formatDate(DateTime.now()),
               style: TextStyle(fontSize: 9, color: Colors.grey.shade500),
             ),
           ],
@@ -216,7 +209,7 @@ class _DashboardFinancieroWidgetState extends State<DashboardFinancieroWidget> {
             height: 34,
             fontSize: 11,
             icon: const Icon(Icons.arrow_forward, size: 14, color: Colors.white),
-            onPressed: widget.onVerResumenCompleto ?? () {
+            onPressed: onVerResumenCompleto ?? () {
               Navigator.of(context).pushNamed('/empresa/resumen-financiero');
             },
           ),

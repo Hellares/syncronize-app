@@ -24,6 +24,7 @@ class PlanSuscripcionCard extends StatefulWidget {
 class _PlanSuscripcionCardState extends State<PlanSuscripcionCard> {
   double? _tcCompra;
   double? _tcVenta;
+  bool _expandido = false;
 
   @override
   void initState() {
@@ -59,100 +60,118 @@ class _PlanSuscripcionCardState extends State<PlanSuscripcionCard> {
     final plan = empresa.planSuscripcion;
 
     return AnimatedNeonBorder(
+      borderRadius: 8,
       enableGlow: true,
       padding: const EdgeInsets.all(12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Icon(Icons.workspace_premium, color: AppColors.blue1, size: 22),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      plan != null ? 'Plan ${plan.nombre}' : 'Sin Plan',
-                      style: const TextStyle(
-                        color: AppColors.blue1,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    if (plan != null)
+          // Header (siempre visible, tap para expandir/colapsar)
+          GestureDetector(
+            onTap: () => setState(() => _expandido = !_expandido),
+            behavior: HitTestBehavior.opaque,
+            child: Row(
+              children: [
+                const Icon(Icons.workspace_premium, color: AppColors.blue1, size: 22),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Text(
-                        '\$${plan.precio.toStringAsFixed(2)} / ${plan.periodo}',
+                        plan != null ? 'Plan ${plan.nombre}' : 'Sin Plan',
                         style: const TextStyle(
                           color: AppColors.blue1,
-                          fontSize: 9,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
                         ),
+                      ),
+                      if (plan != null)
+                        Text(
+                          '\$${plan.precio.toStringAsFixed(2)} / ${plan.periodo}',
+                          style: const TextStyle(
+                            color: AppColors.blue1,
+                            fontSize: 9,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                if (_tcCompra != null && _tcVenta != null) ...[
+                  InfoChip(
+                    borderRadius: 4,
+                    borderColor: Colors.green.withValues(alpha: 0.3),
+                    backgroundColor: Colors.green.withValues(alpha: 0.1),
+                    textColor: Colors.green[800]!,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    text: 'USD C:${_tcCompra!.toStringAsFixed(3)} V:${_tcVenta!.toStringAsFixed(3)}',
+                  ),
+                  const SizedBox(width: 5),
+                ],
+                Padding(
+                  padding: const EdgeInsets.only(right: 3),
+                  child: InfoChip(
+                    borderColor: AppColors.bluechip,
+                    borderRadius: 4,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    text: _formatEstadoSuscripcion(empresa.estadoSuscripcion),
+                    backgroundColor: _getEstadoColor(empresa.estadoSuscripcion),
+                    textColor: AppColors.blue2,
+                    icon: Icons.check_circle_outline_rounded,
+                    iconSize: 12,
+                  ),
+                ),
+                AnimatedRotation(
+                  turns: _expandido ? 0.5 : 0,
+                  duration: const Duration(milliseconds: 200),
+                  child: Icon(Icons.expand_more, size: 20, color: AppColors.blue1),
+                ),
+              ],
+            ),
+          ),
+          // Contenido colapsable
+          AnimatedCrossFade(
+            firstChild: const SizedBox.shrink(),
+            secondChild: Column(
+              children: [
+                const SizedBox(height: 5),
+                const Divider(color: AppColors.greyLight),
+                const SizedBox(height: 5),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _buildPlanInfoItem(
+                      Icons.people,
+                      'Usuarios',
+                      '${empresa.usuariosActuales}',
+                    ),
+                    if (empresa.fechaVencimiento != null)
+                      _buildPlanInfoItem(
+                        Icons.calendar_today,
+                        'Vence',
+                        _formatFechaVencimiento(empresa.fechaVencimiento!),
                       ),
                   ],
                 ),
-              ),
-              if (_tcCompra != null && _tcVenta != null)
-
-                InfoChip(
-                  borderRadius: 4,
-                  borderColor: Colors.green.withValues(alpha: 0.3),
-                  backgroundColor: Colors.green.withValues(alpha: 0.1),
-                  textColor: Colors.green[800]!,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  text: 'USD C:${_tcCompra!.toStringAsFixed(3)} V:${_tcVenta!.toStringAsFixed(3)}',
-                ),
-                SizedBox(width: 5),
-
-              Padding(
-                padding: const EdgeInsets.only(right: 3),
-                child: InfoChip(
-                  borderColor: AppColors.bluechip,
-                  borderRadius: 4,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  text: _formatEstadoSuscripcion(empresa.estadoSuscripcion),
-                  backgroundColor: _getEstadoColor(empresa.estadoSuscripcion),
-                  textColor: AppColors.blue2,
-                  icon: Icons.check_circle_outline_rounded,
-                  iconSize: 12,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 5),
-          const Divider(color: AppColors.greyLight),
-          const SizedBox(height: 5),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _buildPlanInfoItem(
-                Icons.people,
-                'Usuarios',
-                '${empresa.usuariosActuales}',
-              ),
-              if (empresa.fechaVencimiento != null)
-                _buildPlanInfoItem(
-                  Icons.calendar_today,
-                  'Vence',
-                  _formatFechaVencimiento(empresa.fechaVencimiento!),
-                ),
-            ],
-          ),
-          if (widget.empresaContext.permissions.canChangePlan) ...[
-            const SizedBox(height: 16),
-            CustomButton(
-              // borderColor: AppColors.white,
-              backgroundColor: AppColors.blue1,
-              borderWidth: 1,
-              height: 31,
-              text:  'Cambiar Plan', 
-              textColor: AppColors.white,
-              onPressed: () {
-                context.push('/empresa/planes');
-              },
-              icon: Icon(Icons.upgrade, color: AppColors.white),
-              // backgroundColor: AppColors.blue,
+                if (widget.empresaContext.permissions.canChangePlan) ...[
+                  const SizedBox(height: 16),
+                  CustomButton(
+                    backgroundColor: AppColors.blue1,
+                    borderWidth: 1,
+                    height: 31,
+                    text: 'Cambiar Plan',
+                    textColor: AppColors.white,
+                    onPressed: () {
+                      context.push('/empresa/planes');
+                    },
+                    icon: const Icon(Icons.upgrade, color: AppColors.white),
+                  ),
+                ],
+              ],
             ),
-          ],
+            crossFadeState: _expandido ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 200),
+          ),
         ],
       ),
     );

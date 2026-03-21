@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/utils/date_formatter.dart';
+import 'package:syncronize/core/widgets/autorizacion_dialog.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import '../../domain/entities/movimiento_caja.dart';
 import '../bloc/caja_movimientos_cubit.dart';
@@ -149,7 +150,7 @@ class _MovimientosCajaPageState extends State<MovimientosCajaPage> {
             ),
           )
               .then((result) {
-            if (result == true) {
+            if (result == true && mounted) {
               context
                   .read<CajaMovimientosCubit>()
                   .loadMovimientos(widget.cajaId);
@@ -190,112 +191,244 @@ class _MovimientosCajaPageState extends State<MovimientosCajaPage> {
     NumberFormat currencyFormat,
   ) {
     final isIngreso = mov.tipo == TipoMovimientoCaja.ingreso;
+    final isAnulado = mov.anulado;
+    final canAnular = mov.esManual && !mov.anulado;
 
-    return GradientContainer(
-      padding: const EdgeInsets.all(12),
-      child: Row(
-        children: [
-          // Icon
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: mov.tipo.color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              mov.categoria.icon,
-              size: 22,
-              color: mov.tipo.color,
-            ),
-          ),
-          const SizedBox(width: 12),
-          // Content
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  mov.descripcion ?? mov.categoria.label,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+    return GestureDetector(
+      onLongPress: canAnular ? () => _showAnularMovimientoMenu(mov) : null,
+      child: Opacity(
+        opacity: isAnulado ? 0.5 : 1.0,
+        child: GradientContainer(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              // Icon
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: isAnulado
+                      ? Colors.grey.withValues(alpha: 0.1)
+                      : mov.tipo.color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                const SizedBox(height: 4),
-                Row(
+                child: Icon(
+                  isAnulado ? Icons.cancel : mov.categoria.icon,
+                  size: 22,
+                  color: isAnulado ? Colors.grey : mov.tipo.color,
+                ),
+              ),
+              const SizedBox(width: 12),
+              // Content
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Payment method badge
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.bluechip,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            mov.metodoPago.icon,
-                            size: 12,
-                            color: AppColors.blue3,
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            mov.descripcion ?? mov.categoria.label,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: isAnulado ? Colors.grey : AppColors.textPrimary,
+                              decoration: isAnulado ? TextDecoration.lineThrough : null,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(width: 4),
-                          Text(
-                            mov.metodoPago.label,
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.blue3,
+                        ),
+                        if (isAnulado) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.red.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                            ),
+                            child: const Text(
+                              'ANULADO',
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.red,
+                              ),
                             ),
                           ),
                         ],
-                      ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    // Time
-                    Text(
-                      DateFormatter.formatDateTime(mov.fechaMovimiento),
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: AppColors.textSecondary,
-                      ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        // Payment method badge
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.bluechip,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                mov.metodoPago.icon,
+                                size: 12,
+                                color: AppColors.blue3,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                mov.metodoPago.label,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                  color: AppColors.blue3,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        // Time
+                        Text(
+                          DateFormatter.formatDateTime(mov.fechaMovimiento),
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
                     ),
+                    // Reference codes
+                    if (mov.ventaCodigo != null || mov.pedidoCodigo != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        mov.ventaCodigo != null
+                            ? 'Venta: ${mov.ventaCodigo}'
+                            : 'Pedido: ${mov.pedidoCodigo}',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textSecondary,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ],
+                    // Motivo anulacion
+                    if (isAnulado && mov.motivoAnulacion != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'Motivo: ${mov.motivoAnulacion}',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.red[300],
+                          fontStyle: FontStyle.italic,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ],
                 ),
-                // Reference codes
-                if (mov.ventaCodigo != null || mov.pedidoCodigo != null) ...[
-                  const SizedBox(height: 4),
+              ),
+              // Amount
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
                   Text(
-                    mov.ventaCodigo != null
-                        ? 'Venta: ${mov.ventaCodigo}'
-                        : 'Pedido: ${mov.pedidoCodigo}',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: AppColors.textSecondary,
-                      fontStyle: FontStyle.italic,
+                    '${isIngreso ? '+' : '-'} ${currencyFormat.format(mov.monto)}',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: isAnulado
+                          ? Colors.grey
+                          : (isIngreso ? AppColors.green : AppColors.red),
+                      decoration: isAnulado ? TextDecoration.lineThrough : null,
                     ),
                   ),
+                  if (canAnular)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Icon(
+                        Icons.more_horiz,
+                        size: 16,
+                        color: Colors.grey[400],
+                      ),
+                    ),
                 ],
-              ],
-            ),
+              ),
+            ],
           ),
-          // Amount
-          Text(
-            '${isIngreso ? '+' : '-'} ${currencyFormat.format(mov.monto)}',
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              color: isIngreso ? AppColors.green : AppColors.red,
-            ),
-          ),
-        ],
+        ),
       ),
     );
+  }
+
+  void _showAnularMovimientoMenu(MovimientoCaja mov) {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              margin: const EdgeInsets.only(top: 12),
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.cancel, color: Colors.red),
+              title: const Text('Anular movimiento',
+                  style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
+              subtitle: Text(
+                mov.descripcion ?? mov.categoria.label,
+                style: const TextStyle(fontSize: 12),
+              ),
+              onTap: () {
+                Navigator.pop(ctx);
+                _requestAnularMovimiento(mov);
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _requestAnularMovimiento(MovimientoCaja mov) async {
+    final result = await showAutorizacionDialog(
+      context,
+      operacion: 'ANULAR_MOVIMIENTO_CAJA',
+      titulo: 'Autorizar anulacion',
+      descripcion: 'Un administrador debe autorizar la anulacion de este movimiento',
+    );
+
+    if (result != null && mounted) {
+      final cubit = context.read<CajaMovimientosCubit>();
+      final success = await cubit.anularMovimiento(
+        cajaId: widget.cajaId,
+        movimientoId: mov.id,
+        autorizadoPorId: result.autorizadoPorId,
+        motivo: result.autorizadoPorNombre.isNotEmpty
+            ? 'Anulacion - Autorizado por ${result.autorizadoPorNombre}'
+            : 'Anulacion de movimiento',
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(success ? 'Movimiento anulado' : 'Error al anular movimiento'),
+            backgroundColor: success ? Colors.green : Colors.red,
+          ),
+        );
+      }
+    }
   }
 }

@@ -26,6 +26,11 @@ class VentaRemoteDataSource {
     return VentaModel.fromJson(response.data as Map<String, dynamic>);
   }
 
+  Future<VentaModel> crearYCobrar(Map<String, dynamic> data) async {
+    final response = await _dioClient.post('$_basePath/cobrar', data: data);
+    return VentaModel.fromJson(response.data as Map<String, dynamic>);
+  }
+
   Future<List<VentaModel>> getVentas({
     String? sedeId,
     String? estado,
@@ -79,9 +84,31 @@ class VentaRemoteDataSource {
     return VentaModel.fromJson(response.data as Map<String, dynamic>);
   }
 
-  Future<VentaModel> anularVenta(String id) async {
-    final response = await _dioClient.post('$_basePath/$id/anular');
+  Future<VentaModel> anularVenta(String id, {
+    required String autorizadoPorId,
+    required String motivo,
+  }) async {
+    final response = await _dioClient.post('$_basePath/$id/anular', data: {
+      'autorizadoPorId': autorizadoPorId,
+      'motivo': motivo,
+    });
     return VentaModel.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<VentaModel?> buscarPorCodigo(String codigo) async {
+    try {
+      final response = await _dioClient.get(
+        '$_basePath/buscar',
+        queryParameters: {'codigo': codigo},
+      );
+      if (response.data == null) return null;
+      return VentaModel.fromJson(response.data as Map<String, dynamic>);
+    } catch (e) {
+      if (e.toString().contains('404') || e.toString().contains('NOT_FOUND')) {
+        return null;
+      }
+      rethrow;
+    }
   }
 
   Future<Map<String, dynamic>> getResumen({String? sedeId}) async {

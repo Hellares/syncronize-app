@@ -1,5 +1,6 @@
 import 'package:injectable/injectable.dart';
 import '../../../../core/network/dio_client.dart';
+import '../models/pedido_empresa_model.dart';
 
 @lazySingleton
 class PedidoEmpresaRemoteDataSource {
@@ -8,7 +9,7 @@ class PedidoEmpresaRemoteDataSource {
 
   PedidoEmpresaRemoteDataSource(this._dioClient);
 
-  Future<List<Map<String, dynamic>>> listarPedidos({
+  Future<List<PedidoMarketplaceEmpresaModel>> listarPedidos({
     String? estado,
     String? search,
   }) async {
@@ -19,16 +20,25 @@ class PedidoEmpresaRemoteDataSource {
 
     final response = await _dioClient.get(url, queryParameters: params);
     final data = response.data;
+    List<dynamic> rawList;
     if (data is Map && data['data'] is List) {
-      return (data['data'] as List).cast<Map<String, dynamic>>();
+      rawList = data['data'] as List;
+    } else if (data is List) {
+      rawList = data;
+    } else {
+      rawList = [];
     }
-    if (data is List) return data.cast<Map<String, dynamic>>();
-    return [];
+    return rawList
+        .cast<Map<String, dynamic>>()
+        .map((json) => PedidoMarketplaceEmpresaModel.fromJson(json))
+        .toList();
   }
 
-  Future<Map<String, dynamic>> detallePedido(String id) async {
+  Future<PedidoMarketplaceEmpresaModel> detallePedido(String id) async {
     final response = await _dioClient.get('$_basePath/$id');
-    return response.data as Map<String, dynamic>;
+    return PedidoMarketplaceEmpresaModel.fromJson(
+      response.data as Map<String, dynamic>,
+    );
   }
 
   Future<void> validarPago(String id, {required String accion, String? motivoRechazo}) async {
@@ -45,8 +55,10 @@ class PedidoEmpresaRemoteDataSource {
     });
   }
 
-  Future<Map<String, dynamic>> getResumen() async {
+  Future<ResumenPedidosModel> getResumen() async {
     final response = await _dioClient.get('$_basePath/resumen');
-    return response.data as Map<String, dynamic>;
+    return ResumenPedidosModel.fromJson(
+      response.data as Map<String, dynamic>,
+    );
   }
 }

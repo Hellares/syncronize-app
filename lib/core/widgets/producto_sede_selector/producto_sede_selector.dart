@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:collection/collection.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../../features/empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../features/empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../../features/producto/domain/entities/producto_list_item.dart';
@@ -67,6 +68,7 @@ class _ProductoSedeSelectorState extends State<ProductoSedeSelector> {
   ProductoListItem? _productoSeleccionado;
   ProductoVariante? _varianteSeleccionada;
   late final ProductoSedeSearchCubit _cubit;
+  String? _barcodeSearchPending;
 
   @override
   void initState() {
@@ -91,6 +93,7 @@ class _ProductoSedeSelectorState extends State<ProductoSedeSelector> {
     // Si cambia la empresa, resetear todo
     if (oldWidget.empresaId != widget.empresaId) {
       _cubit.reset();
+      _barcodeSearchPending = null;
       setState(() {
         _sedeSeleccionadaId = widget.sedeIdInicial;
         _productoSeleccionado = null;
@@ -135,6 +138,7 @@ class _ProductoSedeSelectorState extends State<ProductoSedeSelector> {
   }
 
   void _onSedeChanged(String sedeId) {
+    _barcodeSearchPending = null;
     setState(() {
       _sedeSeleccionadaId = sedeId;
       _productoSeleccionado = null;
@@ -175,28 +179,117 @@ class _ProductoSedeSelectorState extends State<ProductoSedeSelector> {
     );
   }
 
+  /// Abre el escáner de código de barras y busca el producto
+  Future<void> _escanearCodigoBarras() async {
+    if (_sedeSeleccionadaId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Selecciona una sede primero')),
+      );
+      return;
+    }
+
+    final codigo = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.black,
+      builder: (ctx) => _BarcodeScannerSheet(),
+    );
+
+    if (codigo == null || codigo.isEmpty || !mounted) return;
+
+    // Marcar que estamos esperando resultado de barcode
+    setState(() => _barcodeSearchPending = codigo);
+
+    _cubit.searchProductos(
+      empresaId: widget.empresaId,
+      sedeId: _sedeSeleccionadaId,
+      query: codigo,
+      limit: widget.limite,
+      soloProductos: widget.soloProductos,
+    );
+  }
+
+  /// Llamado desde el BlocListener cuando llega un resultado de búsqueda por barcode
+  void _handleBarcodeResult(ProductoSedeSearchState state) {
+    if (_barcodeSearchPending == null) return;
+
+    if (state is ProductoSedeSearchLoaded) {
+      final codigo = _barcodeSearchPending!;
+      _barcodeSearchPending = null;
+
+      if (state.productos.length == 1) {
+        _onProductoSeleccionado(state.productos.first);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Producto encontrado: ${state.productos.first.nombre}'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      } else if (state.productos.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('No se encontro producto con codigo: $codigo'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      // Si hay varios, el dropdown los muestra
+    } else if (state is ProductoSedeSearchError) {
+      _barcodeSearchPending = null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocProvider.value(
       value: _cubit,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (widget.mostrarSelectorSede) ...[
-            _buildSedeSelector(),
-            const SizedBox(height: 16),
+      child: BlocListener<ProductoSedeSearchCubit, ProductoSedeSearchState>(
+        listener: (context, state) => _handleBarcodeResult(state),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (widget.mostrarSelectorSede) ...[
+              _buildSedeSelector(),
+              const SizedBox(height: 5),
+            ],
+            _buildProductosListWithScanner(),
+            if (_productoSeleccionado != null &&
+                _productoSeleccionado!.tieneVariantes &&
+                _productoSeleccionado!.variantes != null &&
+                _productoSeleccionado!.variantes!.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              _buildVarianteDropdown(),
+            ],
           ],
-          _buildProductosList(),
-          if (_productoSeleccionado != null &&
-              _productoSeleccionado!.tieneVariantes &&
-              _productoSeleccionado!.variantes != null &&
-              _productoSeleccionado!.variantes!.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            _buildVarianteDropdown(),
-          ],
-        ],
+        ),
       ),
+    );
+  }
+
+  Widget _buildProductosListWithScanner() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: _buildProductosList()),
+        // const SizedBox(width: 8),
+        Padding(
+          padding: const EdgeInsets.only(top: 5),
+          child: IconButton(
+            onPressed: _escanearCodigoBarras,
+            icon: const Icon(Icons.qr_code_scanner_rounded),
+            color: AppColors.blue1,
+            tooltip: 'Escanear codigo de barras',
+            style: IconButton.styleFrom(
+              backgroundColor: AppColors.blue1.withValues(alpha: 0.1),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(4),
+              ),
+             ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -217,7 +310,7 @@ class _ProductoSedeSelectorState extends State<ProductoSedeSelector> {
       children: [
         Icon(Icons.store, size: 16, color: Colors.grey[600]),
         const SizedBox(width: 8),
-        AppSubtitle('Sede:', fontSize: 13),
+        AppSubtitle('Sede:', fontSize: 12),
         const SizedBox(width: 8),
         CustomSedeSelector(
           sedes: sedes,
@@ -246,12 +339,7 @@ class _ProductoSedeSelectorState extends State<ProductoSedeSelector> {
               ),
             );
           }
-          return const Center(
-            child: Padding(
-              padding: EdgeInsets.all(20),
-              child: CircularProgressIndicator(),
-            ),
-          );
+          return const SizedBox.shrink();
         }
 
         // Error: mostrar mensaje con productos previos si existen
@@ -286,19 +374,24 @@ class _ProductoSedeSelectorState extends State<ProductoSedeSelector> {
               ],
             );
           }
-          return Center(
-            child: Column(
+          return Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Row(
               children: [
-                Icon(Icons.error_outline, size: 48, color: Colors.red[300]),
-                const SizedBox(height: 8),
-                Text(
-                  'Error: ${state.message}',
-                  style: TextStyle(color: Colors.red[700]),
+                Icon(Icons.error_outline, size: 14, color: Colors.red[400]),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    state.message,
+                    style: TextStyle(fontSize: 12, color: Colors.red[400]),
+                  ),
                 ),
-                const SizedBox(height: 8),
-                TextButton(
-                  onPressed: _buscarProductos,
-                  child: const Text('Reintentar'),
+                InkWell(
+                  onTap: _buscarProductos,
+                  child: Text(
+                    'Reintentar',
+                    style: TextStyle(fontSize: 12, color: AppColors.blue1, fontWeight: FontWeight.w600),
+                  ),
                 ),
               ],
             ),
@@ -310,31 +403,18 @@ class _ProductoSedeSelectorState extends State<ProductoSedeSelector> {
         final isLoading = state is ProductoSedeSearchLoading ||
             state is ProductoSedeSearchDebouncing;
 
-        // Loading sin productos previos: spinner
+        // Loading sin productos previos: no mostrar nada (evita salto visual)
         if (isLoading && productos.isEmpty) {
-          return const Center(
-            child: Padding(
-              padding: EdgeInsets.all(20),
-              child: CircularProgressIndicator(),
-            ),
-          );
+          return const SizedBox.shrink();
         }
 
-        // Sin productos
+        // Sin productos — texto compacto debajo del dropdown
         if (productos.isEmpty) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                children: [
-                  Icon(Icons.inventory_2_outlined, size: 48, color: Colors.grey[400]),
-                  const SizedBox(height: 8),
-                  Text(
-                    widget.emptyMessage ?? 'No hay productos disponibles en esta sede',
-                    style: const TextStyle(color: Colors.grey),
-                  ),
-                ],
-              ),
+          return Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(
+              widget.emptyMessage ?? 'No se encontraron productos',
+              style: TextStyle(fontSize: 12, color: Colors.grey[500]),
             ),
           );
         }
@@ -431,6 +511,65 @@ class _ProductoSedeSelectorState extends State<ProductoSedeSelector> {
       dropdownStyle: DropdownStyle.searchable,
       showSearchBox: true,
       borderColor: AppColors.blue1,
+    );
+  }
+}
+
+/// Bottom sheet para escanear código de barras con protección contra
+/// múltiples detecciones y manejo correcto del lifecycle del controller.
+class _BarcodeScannerSheet extends StatefulWidget {
+  @override
+  State<_BarcodeScannerSheet> createState() => _BarcodeScannerSheetState();
+}
+
+class _BarcodeScannerSheetState extends State<_BarcodeScannerSheet> {
+  final MobileScannerController _controller = MobileScannerController();
+  bool _hasDetected = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: MediaQuery.of(context).size.height * 0.5,
+      child: Stack(
+        children: [
+          MobileScanner(
+            controller: _controller,
+            onDetect: (capture) {
+              if (_hasDetected) return;
+              final barcodes = capture.barcodes;
+              if (barcodes.isNotEmpty && barcodes.first.rawValue != null) {
+                _hasDetected = true;
+                _controller.stop();
+                Navigator.of(context).pop(barcodes.first.rawValue);
+              }
+            },
+          ),
+          Positioned(
+            top: 16,
+            right: 16,
+            child: IconButton(
+              icon: const Icon(Icons.close, color: Colors.white, size: 30),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          ),
+          const Positioned(
+            bottom: 24,
+            left: 0,
+            right: 0,
+            child: Text(
+              'Apunta al codigo de barras',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white, fontSize: 14),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

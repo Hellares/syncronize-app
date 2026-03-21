@@ -2,8 +2,6 @@ import 'package:dio/dio.dart';
 import 'package:injectable/injectable.dart';
 import '../../../../core/network/dio_client.dart';
 import '../models/producto_stock_model.dart';
-import '../models/movimiento_stock_model.dart';
-import '../models/precio_historial_sede_model.dart';
 import '../../domain/entities/movimiento_stock.dart';
 
 /// Data source remoto para operaciones de ProductoStock (inventario por sede)
@@ -137,7 +135,7 @@ class ProductoStockRemoteDataSource {
     final response = await _dioClient.put(
       '/producto-stock/$stockId/ajustar',
       data: {
-        'tipo': tipo.value,
+        'tipo': tipo.apiValue,
         'cantidad': cantidad,
         if (motivo != null) 'motivo': motivo,
         if (observaciones != null) 'observaciones': observaciones,
@@ -181,24 +179,28 @@ class ProductoStockRemoteDataSource {
     return ProductoStockModel.fromJson(response.data as Map<String, dynamic>);
   }
 
-  /// Obtiene el historial de movimientos de un stock
+  /// Obtiene el historial de movimientos de un stock (kardex)
   ///
   /// GET /api/producto-stock/:id/movimientos
-  Future<List<MovimientoStockModel>> getHistorialMovimientos({
+  /// Retorna { movimientos: [...], resumen: [...] }
+  Future<Map<String, dynamic>> getHistorialMovimientos({
     required String stockId,
-    int limit = 50,
+    int limit = 100,
+    String? tipo,
+    String? fechaDesde,
+    String? fechaHasta,
   }) async {
+    final queryParams = <String, dynamic>{'limit': limit};
+    if (tipo != null) queryParams['tipo'] = tipo;
+    if (fechaDesde != null) queryParams['fechaDesde'] = fechaDesde;
+    if (fechaHasta != null) queryParams['fechaHasta'] = fechaHasta;
+
     final response = await _dioClient.get(
       '/producto-stock/$stockId/movimientos',
-      queryParameters: {
-        'limit': limit,
-      },
+      queryParameters: queryParams,
     );
 
-    final List movimientos = response.data as List;
-    return movimientos
-        .map((e) => MovimientoStockModel.fromJson(e as Map<String, dynamic>))
-        .toList();
+    return response.data as Map<String, dynamic>;
   }
 
   /// Obtiene alertas de productos con stock bajo el mínimo

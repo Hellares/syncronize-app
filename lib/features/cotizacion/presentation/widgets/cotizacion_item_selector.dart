@@ -17,10 +17,13 @@ import '../../domain/entities/cotizacion_detalle_input.dart';
 /// Widget para buscar y agregar productos/items al detalle de cotizacion
 class CotizacionItemSelector extends StatefulWidget {
   final Function(CotizacionDetalleInput item) onItemSelected;
+  /// Si false, oculta los botones Producto/Personalizado y siempre muestra modo producto.
+  final bool showModeSelector;
 
   const CotizacionItemSelector({
     super.key,
     required this.onItemSelected,
+    this.showModeSelector = true,
   });
 
   @override
@@ -79,6 +82,7 @@ class _CotizacionItemSelectorState extends State<CotizacionItemSelector> {
             const SizedBox(height: 6),
 
             // Tipo de item
+            if (widget.showModeSelector)
             Container(
               alignment: AlignmentDirectional.center,
               child: SegmentedButton<String>(
@@ -106,7 +110,7 @@ class _CotizacionItemSelectorState extends State<CotizacionItemSelector> {
                   ButtonSegment(
                     value: 'producto',
                     label: Text('Producto'),
-                    icon: Icon(Icons.inventory_2, size: 15),
+                    icon: Icon(Icons.inventory_2, size: 13),
                   ),
                   ButtonSegment(
                     value: 'personalizado',
@@ -123,10 +127,10 @@ class _CotizacionItemSelectorState extends State<CotizacionItemSelector> {
                 },
               ),
             ),
-            const SizedBox(height: 12),
+            if (widget.showModeSelector) const SizedBox(height: 12),
 
             if (_tipoItem == 'producto') _buildProductoSelector(),
-            if (_tipoItem == 'personalizado') _buildPersonalizadoForm(),
+            if (widget.showModeSelector && _tipoItem == 'personalizado') _buildPersonalizadoForm(),
 
             const SizedBox(height: 10),
 

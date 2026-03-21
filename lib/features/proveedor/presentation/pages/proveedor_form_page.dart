@@ -5,6 +5,9 @@ import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import 'package:syncronize/features/auth/presentation/widgets/custom_button.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/utils/resource.dart';
+import '../../../consultas_externas/domain/usecases/consultar_ruc_usecase.dart';
+import '../../../consultas_externas/domain/usecases/consultar_dni_usecase.dart';
 import '../../domain/entities/proveedor.dart';
 import '../bloc/proveedor_form/proveedor_form_cubit.dart';
 import '../bloc/proveedor_form/proveedor_form_state.dart';
@@ -60,6 +63,8 @@ class _ProveedorFormViewState extends State<_ProveedorFormView> {
   String? _terminosPago;
   int? _diasCredito;
 
+  bool _isSearching = false;
+
   bool get _isEditing => widget.proveedor != null;
 
   @override
@@ -114,6 +119,78 @@ class _ProveedorFormViewState extends State<_ProveedorFormView> {
     super.dispose();
   }
 
+  Future<void> _searchDocument() async {
+    final doc = _documentoController.text.trim();
+    if (doc.isEmpty) return;
+
+    setState(() => _isSearching = true);
+
+    try {
+      if (_tipoDocumento == 'RUC' && doc.length == 11) {
+        final useCase = locator<ConsultarRucUseCase>();
+        final result = await useCase(doc);
+        if (!mounted) return;
+        if (result is Success) {
+          final data = (result as Success).data;
+          setState(() {
+            _nombreController.text = data.razonSocial;
+            _direccionController.text = data.direccion;
+            _ciudadController.text = data.distrito;
+            _provinciaController.text = '${data.departamento} - ${data.provincia}';
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Datos cargados desde SUNAT'), backgroundColor: Colors.green),
+          );
+        } else if (result is Error) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text((result as Error).message), backgroundColor: Colors.red),
+          );
+        }
+      } else if (_tipoDocumento == 'DNI' && doc.length == 8) {
+        final useCase = locator<ConsultarDniUseCase>();
+        final result = await useCase(doc);
+        if (!mounted) return;
+        if (result is Success) {
+          final data = (result as Success).data;
+          setState(() {
+            _nombreController.text = data.nombreCompleto;
+            _direccionController.text = data.direccion;
+            _ciudadController.text = data.distrito;
+            _provinciaController.text = '${data.departamento} - ${data.provincia}';
+            if (data.telefono != null && data.telefono!.isNotEmpty) {
+              _telefonoController.text = data.telefono!;
+            }
+            if (data.email != null && data.email!.isNotEmpty) {
+              _emailController.text = data.email!;
+            }
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Datos cargados desde ${data.origen ?? "RENIEC"}'), backgroundColor: Colors.green),
+          );
+        } else if (result is Error) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text((result as Error).message), backgroundColor: Colors.red),
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_tipoDocumento == 'RUC' ? 'Ingresa 11 digitos para RUC' : 'Ingresa 8 digitos para DNI'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al consultar documento'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSearching = false);
+    }
+  }
+
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
 
@@ -154,7 +231,9 @@ class _ProveedorFormViewState extends State<_ProveedorFormView> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: Scaffold(
       appBar: SmartAppBar(backgroundColor: AppColors.blue1, foregroundColor: Colors.white, title: '${_isEditing ? 'Editar' : 'Nuevo'} Proveedor'),
       body: BlocConsumer<ProveedorFormCubit, ProveedorFormState>(
         listener: (context, state) {
@@ -191,7 +270,6 @@ class _ProveedorFormViewState extends State<_ProveedorFormView> {
                         ciudadController: _ciudadController,
                         provinciaController: _provinciaController,
                         paisController: _paisController,
-                        codigoPostalController: _codigoPostalController,
                         limiteCreditoController: _limiteCreditoController,
                         descuentoPreferencialController: _descuentoPreferencialController,
                         contactoPrincipalController: _contactoPrincipalController,
@@ -203,6 +281,8 @@ class _ProveedorFormViewState extends State<_ProveedorFormView> {
                         isEditing: _isEditing,
                         onTipoDocumentoChanged: (value) => setState(() => _tipoDocumento = value),
                         onTerminosPagoChanged: (value) => setState(() => _terminosPago = value),
+                        onSearchDocument: _searchDocument,
+                        isSearching: _isSearching,
                       ),
                       const SizedBox(height: 24),
                       CustomButton(
@@ -225,6 +305,7 @@ class _ProveedorFormViewState extends State<_ProveedorFormView> {
           );
         },
       ),
+    ),
     );
   }
 }

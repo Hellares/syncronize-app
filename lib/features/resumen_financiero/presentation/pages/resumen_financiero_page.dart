@@ -1,25 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
-import '../../../../core/di/injection_container.dart';
 import '../../../../core/fonts/app_text_widgets.dart';
-import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/theme/gradient_container.dart';
 import '../../../../core/widgets/smart_appbar.dart';
+import 'package:go_router/go_router.dart';
+import '../../../../core/di/injection_container.dart';
+import '../bloc/resumen_financiero_cubit.dart';
+import '../bloc/resumen_financiero_state.dart';
 
-class ResumenFinancieroPage extends StatefulWidget {
+class ResumenFinancieroPage extends StatelessWidget {
   const ResumenFinancieroPage({super.key});
 
   @override
-  State<ResumenFinancieroPage> createState() => _ResumenFinancieroPageState();
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (_) => locator<ResumenFinancieroCubit>(),
+      child: const _ResumenFinancieroView(),
+    );
+  }
 }
 
-class _ResumenFinancieroPageState extends State<ResumenFinancieroPage> {
-  Map<String, dynamic>? _data;
-  List<dynamic> _graficoDiario = [];
-  bool _isLoading = true;
+class _ResumenFinancieroView extends StatefulWidget {
+  const _ResumenFinancieroView();
+
+  @override
+  State<_ResumenFinancieroView> createState() => _ResumenFinancieroViewState();
+}
+
+class _ResumenFinancieroViewState extends State<_ResumenFinancieroView> {
   String _periodoLabel = 'Este mes';
   DateTime _fechaDesde = DateTime(DateTime.now().year, DateTime.now().month, 1);
   DateTime _fechaHasta = DateTime.now();
@@ -30,72 +42,92 @@ class _ResumenFinancieroPageState extends State<ResumenFinancieroPage> {
     _load();
   }
 
-  Future<void> _load() async {
-    setState(() => _isLoading = true);
-    try {
-      final params = { 'fechaDesde': _fechaDesde.toIso8601String(), 'fechaHasta': _fechaHasta.toIso8601String() };
-      final responses = await Future.wait([
-        locator<DioClient>().get('/resumen-financiero', queryParameters: params),
-        locator<DioClient>().get('/resumen-financiero/grafico-diario', queryParameters: params),
-      ]);
-      if (mounted) setState(() {
-        _data = responses[0].data as Map<String, dynamic>?;
-        _graficoDiario = responses[1].data as List<dynamic>? ?? [];
-        _isLoading = false;
-      });
-    } catch (_) {
-      if (mounted) setState(() => _isLoading = false);
-    }
+  void _load() {
+    context.read<ResumenFinancieroCubit>().loadResumen(
+          fechaDesde: _fechaDesde.toIso8601String(),
+          fechaHasta: _fechaHasta.toIso8601String(),
+        );
   }
 
   void _seleccionarPeriodo(String label, DateTime desde, DateTime hasta) {
-    setState(() { _periodoLabel = label; _fechaDesde = desde; _fechaHasta = hasta; });
+    setState(() {
+      _periodoLabel = label;
+      _fechaDesde = desde;
+      _fechaHasta = hasta;
+    });
     _load();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: SmartAppBar(title: 'Resumen Financiero', backgroundColor: AppColors.blue1, foregroundColor: Colors.white),
+      appBar: SmartAppBar(
+        title: 'Resumen Financiero',
+        backgroundColor: AppColors.blue1,
+        foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.download_rounded),
+            tooltip: 'Exportar reportes',
+            onPressed: () => context.push('/empresa/reportes-financieros'),
+          ),
+        ],
+      ),
       body: GradientBackground(
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : _data == null
-                ? const Center(child: Text('Error al cargar'))
-                : RefreshIndicator(
-                    onRefresh: _load,
-                    color: AppColors.blue1,
-                    child: ListView(
-                      padding: const EdgeInsets.all(12),
-                      children: [
-                        _buildPeriodoSelector(),
-                        const SizedBox(height: 12),
-                        _buildFlujoNeto(),
-                        const SizedBox(height: 12),
-                        if (_graficoDiario.isNotEmpty) ...[
-                          _buildGrafico(),
-                          const SizedBox(height: 12),
-                        ],
-                        _buildVentasCompras(),
-                        const SizedBox(height: 12),
-                        _buildCuentasPendientes(),
-                        const SizedBox(height: 12),
-                        _buildCajaHoy(),
-                        const SizedBox(height: 12),
-                        _buildBancos(),
-                        const SizedBox(height: 12),
-                        _buildMarketplace(),
-                        const SizedBox(height: 12),
-                        if (_data!['prestamos'] != null) _buildPrestamos(),
-                        const SizedBox(height: 20),
-                      ],
-                    ),
-                  ),
+        child: BlocBuilder<ResumenFinancieroCubit, ResumenFinancieroState>(
+          builder: (context, state) {
+            if (state is ResumenFinancieroLoading) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (state is ResumenFinancieroError) {
+              return Center(child: Text('Error al cargar'));
+            }
+            if (state is ResumenFinancieroLoaded) {
+              return _buildContent(state);
+            }
+            return const Center(child: CircularProgressIndicator());
+          },
+        ),
       ),
     );
   }
 
-  // ─── PERIODO ───
+  Widget _buildContent(ResumenFinancieroLoaded state) {
+    final data = state.resumen.data;
+    final graficoDiario = state.grafico?.datos ?? [];
+
+    return RefreshIndicator(
+      onRefresh: () async => _load(),
+      color: AppColors.blue1,
+      child: ListView(
+        padding: const EdgeInsets.all(12),
+        children: [
+          _buildPeriodoSelector(),
+          const SizedBox(height: 12),
+          _buildFlujoNeto(data),
+          const SizedBox(height: 12),
+          if (graficoDiario.isNotEmpty) ...[
+            _buildGrafico(graficoDiario),
+            const SizedBox(height: 12),
+          ],
+          _buildVentasCompras(data),
+          const SizedBox(height: 12),
+          _buildCuentasPendientes(data),
+          const SizedBox(height: 12),
+          _buildCajaHoy(data),
+          const SizedBox(height: 12),
+          _buildBancos(data),
+          const SizedBox(height: 12),
+          _buildMarketplace(data),
+          const SizedBox(height: 12),
+          if (data['prestamos'] != null) _buildPrestamos(data),
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+
+  // --- PERIODO ---
   Widget _buildPeriodoSelector() {
     final now = DateTime.now();
     final periodos = [
@@ -103,7 +135,7 @@ class _ResumenFinancieroPageState extends State<ResumenFinancieroPage> {
       {'label': 'Esta semana', 'desde': now.subtract(Duration(days: now.weekday - 1)), 'hasta': now},
       {'label': 'Este mes', 'desde': DateTime(now.year, now.month, 1), 'hasta': now},
       {'label': 'Mes anterior', 'desde': DateTime(now.year, now.month - 1, 1), 'hasta': DateTime(now.year, now.month, 0)},
-      {'label': 'Este año', 'desde': DateTime(now.year, 1, 1), 'hasta': now},
+      {'label': 'Este ano', 'desde': DateTime(now.year, 1, 1), 'hasta': now},
     ];
 
     return SingleChildScrollView(
@@ -149,11 +181,11 @@ class _ResumenFinancieroPageState extends State<ResumenFinancieroPage> {
     );
   }
 
-  // ─── GRÁFICO ───
-  Widget _buildGrafico() {
+  // --- GRAFICO ---
+  Widget _buildGrafico(List<Map<String, dynamic>> graficoDiario) {
     final dateFormat = DateFormat('dd/MM');
-    final maxIngresos = _graficoDiario.fold<double>(0, (m, d) => ((d['ingresos'] as num?)?.toDouble() ?? 0) > m ? (d['ingresos'] as num).toDouble() : m);
-    final maxEgresos = _graficoDiario.fold<double>(0, (m, d) => ((d['egresos'] as num?)?.toDouble() ?? 0) > m ? (d['egresos'] as num).toDouble() : m);
+    final maxIngresos = graficoDiario.fold<double>(0, (m, d) => ((d['ingresos'] as num?)?.toDouble() ?? 0) > m ? (d['ingresos'] as num).toDouble() : m);
+    final maxEgresos = graficoDiario.fold<double>(0, (m, d) => ((d['egresos'] as num?)?.toDouble() ?? 0) > m ? (d['egresos'] as num).toDouble() : m);
     final maxY = (maxIngresos > maxEgresos ? maxIngresos : maxEgresos) * 1.2;
 
     return GradientContainer(
@@ -196,11 +228,11 @@ class _ResumenFinancieroPageState extends State<ResumenFinancieroPage> {
                     bottomTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
-                        interval: _graficoDiario.length > 15 ? (_graficoDiario.length / 5).ceil().toDouble() : 1,
+                        interval: graficoDiario.length > 15 ? (graficoDiario.length / 5).ceil().toDouble() : 1,
                         getTitlesWidget: (value, meta) {
                           final idx = value.toInt();
-                          if (idx < 0 || idx >= _graficoDiario.length) return const SizedBox.shrink();
-                          final fecha = DateTime.tryParse(_graficoDiario[idx]['fecha'] ?? '');
+                          if (idx < 0 || idx >= graficoDiario.length) return const SizedBox.shrink();
+                          final fecha = DateTime.tryParse(graficoDiario[idx]['fecha'] ?? '');
                           if (fecha == null) return const SizedBox.shrink();
                           return Padding(
                             padding: const EdgeInsets.only(top: 4),
@@ -215,21 +247,21 @@ class _ResumenFinancieroPageState extends State<ResumenFinancieroPage> {
                   maxY: maxY > 0 ? maxY : 100,
                   lineBarsData: [
                     LineChartBarData(
-                      spots: _graficoDiario.asMap().entries.map((e) =>
+                      spots: graficoDiario.asMap().entries.map((e) =>
                         FlSpot(e.key.toDouble(), (e.value['ingresos'] as num?)?.toDouble() ?? 0)).toList(),
                       isCurved: true,
                       color: Colors.green,
                       barWidth: 2,
-                      dotData: FlDotData(show: _graficoDiario.length <= 15),
+                      dotData: FlDotData(show: graficoDiario.length <= 15),
                       belowBarData: BarAreaData(show: true, color: Colors.green.withValues(alpha: 0.1)),
                     ),
                     LineChartBarData(
-                      spots: _graficoDiario.asMap().entries.map((e) =>
+                      spots: graficoDiario.asMap().entries.map((e) =>
                         FlSpot(e.key.toDouble(), (e.value['egresos'] as num?)?.toDouble() ?? 0)).toList(),
                       isCurved: true,
                       color: Colors.red,
                       barWidth: 2,
-                      dotData: FlDotData(show: _graficoDiario.length <= 15),
+                      dotData: FlDotData(show: graficoDiario.length <= 15),
                       belowBarData: BarAreaData(show: true, color: Colors.red.withValues(alpha: 0.1)),
                     ),
                   ],
@@ -242,9 +274,9 @@ class _ResumenFinancieroPageState extends State<ResumenFinancieroPage> {
     );
   }
 
-  // ─── FLUJO NETO ───
-  Widget _buildFlujoNeto() {
-    final resumen = _data!['resumen'] as Map<String, dynamic>;
+  // --- FLUJO NETO ---
+  Widget _buildFlujoNeto(Map<String, dynamic> data) {
+    final resumen = data['resumen'] as Map<String, dynamic>;
     final ingresos = (resumen['totalIngresos'] as num?)?.toDouble() ?? 0;
     final egresos = (resumen['totalEgresos'] as num?)?.toDouble() ?? 0;
     final flujo = (resumen['flujoNeto'] as num?)?.toDouble() ?? 0;
@@ -282,10 +314,10 @@ class _ResumenFinancieroPageState extends State<ResumenFinancieroPage> {
     );
   }
 
-  // ─── VENTAS Y COMPRAS ───
-  Widget _buildVentasCompras() {
-    final ventas = _data!['ventas'] as Map<String, dynamic>;
-    final compras = _data!['compras'] as Map<String, dynamic>;
+  // --- VENTAS Y COMPRAS ---
+  Widget _buildVentasCompras(Map<String, dynamic> data) {
+    final ventas = data['ventas'] as Map<String, dynamic>;
+    final compras = data['compras'] as Map<String, dynamic>;
 
     return Row(
       children: [
@@ -348,10 +380,10 @@ class _ResumenFinancieroPageState extends State<ResumenFinancieroPage> {
     );
   }
 
-  // ─── CUENTAS PENDIENTES ───
-  Widget _buildCuentasPendientes() {
-    final cobrar = _data!['cuentasPorCobrar'] as Map<String, dynamic>;
-    final pagar = _data!['cuentasPorPagar'] as Map<String, dynamic>;
+  // --- CUENTAS PENDIENTES ---
+  Widget _buildCuentasPendientes(Map<String, dynamic> data) {
+    final cobrar = data['cuentasPorCobrar'] as Map<String, dynamic>;
+    final pagar = data['cuentasPorPagar'] as Map<String, dynamic>;
 
     return GradientContainer(
       borderColor: AppColors.blueborder,
@@ -408,9 +440,9 @@ class _ResumenFinancieroPageState extends State<ResumenFinancieroPage> {
     );
   }
 
-  // ─── CAJA HOY ───
-  Widget _buildCajaHoy() {
-    final caja = _data!['caja'] as Map<String, dynamic>;
+  // --- CAJA HOY ---
+  Widget _buildCajaHoy(Map<String, dynamic> data) {
+    final caja = data['caja'] as Map<String, dynamic>;
     final ingresos = (caja['ingresosHoy'] as num?)?.toDouble() ?? 0;
     final egresos = (caja['egresosHoy'] as num?)?.toDouble() ?? 0;
     final flujo = (caja['flujoHoy'] as num?)?.toDouble() ?? 0;
@@ -458,9 +490,9 @@ class _ResumenFinancieroPageState extends State<ResumenFinancieroPage> {
     );
   }
 
-  // ─── BANCOS ───
-  Widget _buildBancos() {
-    final bancos = _data!['bancos'] as Map<String, dynamic>;
+  // --- BANCOS ---
+  Widget _buildBancos(Map<String, dynamic> data) {
+    final bancos = data['bancos'] as Map<String, dynamic>;
     final cuentas = bancos['cuentas'] as List<dynamic>? ?? [];
     final totalSaldo = (bancos['totalSaldo'] as num?)?.toDouble() ?? 0;
 
@@ -512,9 +544,9 @@ class _ResumenFinancieroPageState extends State<ResumenFinancieroPage> {
     );
   }
 
-  // ─── MARKETPLACE ───
-  Widget _buildMarketplace() {
-    final mp = _data!['pedidosMarketplace'] as Map<String, dynamic>;
+  // --- MARKETPLACE ---
+  Widget _buildMarketplace(Map<String, dynamic> data) {
+    final mp = data['pedidosMarketplace'] as Map<String, dynamic>;
 
     return GradientContainer(
       borderColor: AppColors.blueborder,
@@ -539,7 +571,7 @@ class _ResumenFinancieroPageState extends State<ResumenFinancieroPage> {
               ],
             ),
             const SizedBox(height: 6),
-            Text('${mp['cantidad']} pedidos • ${mp['pedidosPendientes']} pendientes • ${mp['pedidosEntregados']} entregados',
+            Text('${mp['cantidad']} pedidos - ${mp['pedidosPendientes']} pendientes - ${mp['pedidosEntregados']} entregados',
               style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
           ],
         ),
@@ -547,9 +579,9 @@ class _ResumenFinancieroPageState extends State<ResumenFinancieroPage> {
     );
   }
 
-  // ─── PRÉSTAMOS ───
-  Widget _buildPrestamos() {
-    final p = _data!['prestamos'] as Map<String, dynamic>;
+  // --- PRESTAMOS ---
+  Widget _buildPrestamos(Map<String, dynamic> data) {
+    final p = data['prestamos'] as Map<String, dynamic>;
     final deuda = (p['totalDeuda'] as num?)?.toDouble() ?? 0;
     final original = (p['totalOriginal'] as num?)?.toDouble() ?? 0;
     final pagado = (p['totalPagado'] as num?)?.toDouble() ?? 0;
@@ -569,7 +601,7 @@ class _ResumenFinancieroPageState extends State<ResumenFinancieroPage> {
               children: [
                 const Icon(Icons.account_balance_wallet_outlined, size: 16, color: Colors.brown),
                 const SizedBox(width: 6),
-                const AppSubtitle('PRÉSTAMOS', fontSize: 11, color: Colors.brown),
+                const AppSubtitle('PRESTAMOS', fontSize: 11, color: Colors.brown),
                 const Spacer(),
                 Text('$activos activo${activos != 1 ? 's' : ''}', style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
               ],
@@ -583,7 +615,6 @@ class _ResumenFinancieroPageState extends State<ResumenFinancieroPage> {
               ],
             ),
             const SizedBox(height: 8),
-            // Progress bar
             ClipRRect(
               borderRadius: BorderRadius.circular(4),
               child: LinearProgressIndicator(
@@ -602,7 +633,7 @@ class _ResumenFinancieroPageState extends State<ResumenFinancieroPage> {
     );
   }
 
-  // ─── HELPERS ───
+  // --- HELPERS ---
   Widget _miniCard(String label, double monto, Color color) {
     return Container(
       padding: const EdgeInsets.all(10),

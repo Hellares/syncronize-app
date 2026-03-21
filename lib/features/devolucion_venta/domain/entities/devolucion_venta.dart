@@ -140,12 +140,37 @@ enum AccionDevolucion {
   }
 }
 
+enum TipoReembolso {
+  efectivo,
+  cambioProducto;
+
+  String get label {
+    switch (this) {
+      case TipoReembolso.efectivo: return 'Devolucion de dinero';
+      case TipoReembolso.cambioProducto: return 'Cambio de producto';
+    }
+  }
+  String get apiValue {
+    switch (this) {
+      case TipoReembolso.efectivo: return 'EFECTIVO';
+      case TipoReembolso.cambioProducto: return 'CAMBIO_PRODUCTO';
+    }
+  }
+  static TipoReembolso fromString(String value) {
+    switch (value.toUpperCase()) {
+      case 'CAMBIO_PRODUCTO': return TipoReembolso.cambioProducto;
+      default: return TipoReembolso.efectivo;
+    }
+  }
+}
+
 class DevolucionVenta extends Equatable {
   final String id;
   final String codigo;
   final String empresaId;
   final String sedeId;
   final EstadoDevolucion estado;
+  final TipoReembolso tipoReembolso;
   final String? ventaId;
   final String? clienteId;
   final String? motivo;
@@ -168,6 +193,7 @@ class DevolucionVenta extends Equatable {
     required this.empresaId,
     required this.sedeId,
     required this.estado,
+    this.tipoReembolso = TipoReembolso.efectivo,
     this.ventaId,
     this.clienteId,
     this.motivo,
@@ -204,6 +230,12 @@ class DevolucionVentaItem extends Equatable {
   final String? observaciones;
   final String? productoNombre;
   final String? varianteNombre;
+  final String? productoReemplazoId;
+  final String? varianteReemplazoId;
+  final String? productoReemplazoNombre;
+  final double? precioOriginal;
+  final double? precioReemplazo;
+  final double? diferenciaPrecio;
 
   const DevolucionVentaItem({
     required this.id,
@@ -217,6 +249,12 @@ class DevolucionVentaItem extends Equatable {
     this.observaciones,
     this.productoNombre,
     this.varianteNombre,
+    this.productoReemplazoId,
+    this.varianteReemplazoId,
+    this.productoReemplazoNombre,
+    this.precioOriginal,
+    this.precioReemplazo,
+    this.diferenciaPrecio,
   });
 
   @override

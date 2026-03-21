@@ -3,7 +3,6 @@ import 'package:intl/intl.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
-import '../../domain/entities/movimiento_caja.dart';
 import '../../domain/entities/resumen_caja.dart';
 
 /// Card que muestra el resumen de la caja con totales de ingresos, egresos y saldo

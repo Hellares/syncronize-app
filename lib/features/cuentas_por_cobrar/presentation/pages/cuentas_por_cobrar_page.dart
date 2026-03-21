@@ -1,55 +1,51 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/services/export_service.dart';
+import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/fonts/app_text_widgets.dart';
-import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/theme/gradient_container.dart';
 import '../../../../core/widgets/smart_appbar.dart';
+import '../../domain/entities/cuenta_por_cobrar.dart';
+import '../bloc/cuentas_cobrar_cubit.dart';
+import '../bloc/cuentas_cobrar_state.dart';
 
-class CuentasPorCobrarPage extends StatefulWidget {
+class CuentasPorCobrarPage extends StatelessWidget {
   const CuentasPorCobrarPage({super.key});
 
   @override
-  State<CuentasPorCobrarPage> createState() => _CuentasPorCobrarPageState();
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (_) => locator<CuentasCobrarCubit>()..loadCuentas(),
+      child: const _CuentasCobrarView(),
+    );
+  }
 }
 
-class _CuentasPorCobrarPageState extends State<CuentasPorCobrarPage> {
-  List<dynamic> _cuentas = [];
-  Map<String, dynamic>? _resumen;
-  bool _isLoading = true;
+class _CuentasCobrarView extends StatefulWidget {
+  const _CuentasCobrarView();
+  @override
+  State<_CuentasCobrarView> createState() => _CuentasCobrarViewState();
+}
+
+class _CuentasCobrarViewState extends State<_CuentasCobrarView> {
   String? _filtroEstado;
 
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    setState(() => _isLoading = true);
-    try {
-      final dio = locator<DioClient>();
-      String url = '/cuentas-por-cobrar';
-      if (_filtroEstado != null) url += '?estado=$_filtroEstado';
-
-      final responses = await Future.wait([
-        dio.get(url),
-        dio.get('/cuentas-por-cobrar/resumen'),
-      ]);
-
-      if (mounted) {
-        setState(() {
-          _cuentas = responses[0].data as List<dynamic>? ?? [];
-          _resumen = responses[1].data as Map<String, dynamic>?;
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) setState(() => _isLoading = false);
-    }
+  Future<void> _exportExcel(BuildContext context) async {
+    final now = DateTime.now();
+    final inicio = DateTime(now.year, now.month, 1);
+    await locator<ExportService>().exportAndShare(
+      context: context,
+      endpoint: '/reportes-financieros/export/cuentas-cobrar',
+      queryParams: {
+        'fechaDesde': inicio.toIso8601String().split('T').first,
+        'fechaHasta': now.toIso8601String().split('T').first,
+      },
+      fileName: 'cuentas_por_cobrar_${now.month}_${now.year}.xlsx',
+    );
   }
 
   @override
@@ -59,21 +55,35 @@ class _CuentasPorCobrarPageState extends State<CuentasPorCobrarPage> {
         title: 'Cuentas por Cobrar',
         backgroundColor: AppColors.blue1,
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.file_download, color: Colors.white),
+            tooltip: 'Exportar Excel',
+            onPressed: () => _exportExcel(context),
+          ),
+        ],
       ),
       body: GradientBackground(
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : RefreshIndicator(
-                onRefresh: _load,
+        child: BlocBuilder<CuentasCobrarCubit, CuentasCobrarState>(
+          builder: (context, state) {
+            if (state is CuentasCobrarLoading) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (state is CuentasCobrarError) {
+              return Center(child: Text(state.message));
+            }
+            if (state is CuentasCobrarLoaded) {
+              return RefreshIndicator(
+                onRefresh: () => context.read<CuentasCobrarCubit>().loadCuentas(estado: _filtroEstado),
                 color: AppColors.blue1,
                 child: ListView(
                   padding: const EdgeInsets.all(12),
                   children: [
-                    if (_resumen != null) _buildResumen(),
+                    if (state.resumen != null) _buildResumen(state.resumen!),
                     const SizedBox(height: 12),
-                    _buildFiltros(),
+                    _buildFiltros(context),
                     const SizedBox(height: 8),
-                    if (_cuentas.isEmpty)
+                    if (state.cuentas.isEmpty)
                       Padding(
                         padding: const EdgeInsets.all(32),
                         child: Center(
@@ -87,20 +97,27 @@ class _CuentasPorCobrarPageState extends State<CuentasPorCobrarPage> {
                         ),
                       )
                     else
-                      ..._cuentas.map((c) => _CuentaCard(cuenta: c as Map<String, dynamic>)),
+                      ...state.cuentas.map((c) => GestureDetector(
+                        onTap: () async {
+                          await context.push('/empresa/ventas/${c.id}');
+                          if (context.mounted) {
+                            context.read<CuentasCobrarCubit>().loadCuentas(estado: _filtroEstado);
+                          }
+                        },
+                        child: _CuentaCard(cuenta: c),
+                      )),
                   ],
                 ),
-              ),
+              );
+            }
+            return const SizedBox.shrink();
+          },
+        ),
       ),
     );
   }
 
-  Widget _buildResumen() {
-    final pendiente = (_resumen!['totalPendiente'] as num?)?.toDouble() ?? 0;
-    final vencido = (_resumen!['totalVencido'] as num?)?.toDouble() ?? 0;
-    final cantPendientes = _resumen!['cantidadPendientes'] as int? ?? 0;
-    final cantVencidas = _resumen!['cantidadVencidas'] as int? ?? 0;
-
+  Widget _buildResumen(ResumenCuentasCobrar resumen) {
     return GradientContainer(
       borderColor: AppColors.blueborder,
       child: Padding(
@@ -112,8 +129,8 @@ class _CuentasPorCobrarPageState extends State<CuentasPorCobrarPage> {
                 Expanded(
                   child: _ResumenItem(
                     label: 'Pendiente',
-                    monto: pendiente,
-                    cantidad: cantPendientes,
+                    monto: resumen.totalPendiente,
+                    cantidad: resumen.cantidadPendientes,
                     color: Colors.orange,
                   ),
                 ),
@@ -121,8 +138,8 @@ class _CuentasPorCobrarPageState extends State<CuentasPorCobrarPage> {
                 Expanded(
                   child: _ResumenItem(
                     label: 'Vencido',
-                    monto: vencido,
-                    cantidad: cantVencidas,
+                    monto: resumen.totalVencido,
+                    cantidad: resumen.cantidadVencidas,
                     color: Colors.red,
                   ),
                 ),
@@ -134,7 +151,7 @@ class _CuentasPorCobrarPageState extends State<CuentasPorCobrarPage> {
               children: [
                 const AppSubtitle('Total por cobrar', fontSize: 13),
                 AppSubtitle(
-                  'S/ ${(pendiente + vencido).toStringAsFixed(2)}',
+                  'S/ ${resumen.totalPorCobrar.toStringAsFixed(2)}',
                   fontSize: 16,
                   color: AppColors.blue1,
                 ),
@@ -146,7 +163,7 @@ class _CuentasPorCobrarPageState extends State<CuentasPorCobrarPage> {
     );
   }
 
-  Widget _buildFiltros() {
+  Widget _buildFiltros(BuildContext context) {
     final filtros = [
       {'label': 'Todos', 'value': null},
       {'label': 'Pendientes', 'value': 'PENDIENTE'},
@@ -169,8 +186,8 @@ class _CuentasPorCobrarPageState extends State<CuentasPorCobrarPage> {
               checkmarkColor: Colors.white,
               side: BorderSide(color: isSelected ? AppColors.blue1 : Colors.grey.shade300),
               onSelected: (_) {
-                setState(() => _filtroEstado = f['value'] as String?);
-                _load();
+                setState(() => _filtroEstado = f['value']);
+                context.read<CuentasCobrarCubit>().loadCuentas(estado: _filtroEstado);
               },
             ),
           );
@@ -210,24 +227,14 @@ class _ResumenItem extends StatelessWidget {
 }
 
 class _CuentaCard extends StatelessWidget {
-  final Map<String, dynamic> cuenta;
+  final CuentaPorCobrar cuenta;
   const _CuentaCard({required this.cuenta});
 
   @override
   Widget build(BuildContext context) {
-    final codigo = cuenta['codigo'] as String? ?? '';
-    final cliente = cuenta['nombreCliente'] as String? ?? '';
-    final saldo = (cuenta['saldoPendiente'] as num?)?.toDouble() ?? 0;
-    final total = (cuenta['totalVenta'] as num?)?.toDouble() ?? 0;
-    final estado = cuenta['estado'] as String? ?? '';
-    final dias = cuenta['diasVencimiento'] as int?;
-    final fechaVenc = cuenta['fechaVencimiento'] != null
-        ? DateTime.tryParse(cuenta['fechaVencimiento'].toString())
-        : null;
-
     Color estadoColor;
     String estadoLabel;
-    switch (estado) {
+    switch (cuenta.estado) {
       case 'VENCIDA': estadoColor = Colors.red; estadoLabel = 'Vencida'; break;
       case 'PAGADA': estadoColor = Colors.green; estadoLabel = 'Pagada'; break;
       default: estadoColor = Colors.orange; estadoLabel = 'Pendiente';
@@ -235,7 +242,7 @@ class _CuentaCard extends StatelessWidget {
 
     return GradientContainer(
       margin: const EdgeInsets.only(bottom: 8),
-      borderColor: estado == 'VENCIDA' ? Colors.red.shade300 : AppColors.blueborder,
+      borderColor: cuenta.estado == 'VENCIDA' ? Colors.red.shade300 : AppColors.blueborder,
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(
@@ -243,7 +250,7 @@ class _CuentaCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                AppSubtitle(codigo, fontSize: 13, color: AppColors.blue1),
+                AppSubtitle(cuenta.codigo, fontSize: 13, color: AppColors.blue1),
                 const Spacer(),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -257,27 +264,47 @@ class _CuentaCard extends StatelessWidget {
               children: [
                 const Icon(Icons.person_outline, size: 14, color: Colors.grey),
                 const SizedBox(width: 4),
-                Expanded(child: AppSubtitle(cliente, fontSize: 12)),
+                Expanded(child: AppSubtitle(cuenta.nombreCliente, fontSize: 12)),
               ],
             ),
             const SizedBox(height: 6),
             Row(
               children: [
-                Text('Total: S/ ${total.toStringAsFixed(2)}', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                Text('Total: S/ ${cuenta.totalVenta.toStringAsFixed(2)}', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
                 const Spacer(),
-                AppSubtitle('Saldo: S/ ${saldo.toStringAsFixed(2)}', fontSize: 13, color: estadoColor),
+                AppSubtitle('Saldo: S/ ${cuenta.saldoPendiente.toStringAsFixed(2)}', fontSize: 13, color: estadoColor),
               ],
             ),
-            if (fechaVenc != null) ...[
+            if (cuenta.fechaVencimiento != null) ...[
               const SizedBox(height: 4),
               Row(
                 children: [
-                  Icon(Icons.event, size: 13, color: estado == 'VENCIDA' ? Colors.red : Colors.grey.shade500),
+                  Icon(Icons.event, size: 13, color: cuenta.estado == 'VENCIDA' ? Colors.red : Colors.grey.shade500),
                   const SizedBox(width: 4),
                   Text(
-                    'Vence: ${DateFormat('dd/MM/yyyy').format(fechaVenc)}${dias != null ? ' (${dias > 0 ? 'en $dias días' : dias == 0 ? 'hoy' : '${dias.abs()} días atrás'})' : ''}',
-                    style: TextStyle(fontSize: 10, color: estado == 'VENCIDA' ? Colors.red : Colors.grey.shade600),
+                    'Vence: ${DateFormatter.formatDate(cuenta.fechaVencimiento!)}${cuenta.diasVencimiento != null ? ' (${cuenta.diasVencimiento! > 0 ? 'en ${cuenta.diasVencimiento} días' : cuenta.diasVencimiento == 0 ? 'hoy' : '${cuenta.diasVencimiento!.abs()} días atrás'})' : ''}',
+                    style: TextStyle(fontSize: 10, color: cuenta.estado == 'VENCIDA' ? Colors.red : Colors.grey.shade600),
                   ),
+                ],
+              ),
+            ],
+            if (cuenta.numeroCuotas != null && cuenta.numeroCuotas! > 0) ...[
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Icon(Icons.calendar_month, size: 13, color: Colors.blue[600]),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Cuotas: ${cuenta.cuotasPagadas ?? 0}/${cuenta.numeroCuotas} pagadas',
+                    style: TextStyle(fontSize: 10, color: Colors.blue[600]),
+                  ),
+                  if (cuenta.proximaCuota != null) ...[
+                    const Text(' | ', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                    Text(
+                      'Proxima: S/ ${cuenta.proximaCuota!.saldoPendiente.toStringAsFixed(2)}',
+                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.orange[700]),
+                    ),
+                  ],
                 ],
               ),
             ],

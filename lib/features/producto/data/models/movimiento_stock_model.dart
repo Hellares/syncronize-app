@@ -18,15 +18,39 @@ class MovimientoStockModel extends MovimientoStock {
     super.transferenciaId,
     required super.usuarioId,
     required super.creadoEn,
+    super.usuarioNombre,
+    super.ventaCodigo,
+    super.compraCodigo,
+    super.transferenciaCodigo,
+    super.devolucionCodigo,
   });
 
   factory MovimientoStockModel.fromJson(Map<String, dynamic> json) {
+    // Parsear nombre del usuario desde la relacion anidada
+    String? usuarioNombre;
+    final usuario = json['usuario'] as Map<String, dynamic>?;
+    if (usuario != null) {
+      final persona = usuario['persona'] as Map<String, dynamic>?;
+      if (persona != null) {
+        final nombres = persona['nombres'] as String? ?? '';
+        final apellidos = persona['apellidos'] as String? ?? '';
+        usuarioNombre = '$nombres $apellidos'.trim();
+        if (usuarioNombre.isEmpty) usuarioNombre = null;
+      }
+    }
+
+    // Parsear codigos de documentos relacionados
+    final venta = json['venta'] as Map<String, dynamic>?;
+    final compra = json['compra'] as Map<String, dynamic>?;
+    final transferencia = json['transferencia'] as Map<String, dynamic>?;
+    final devolucion = json['devolucion'] as Map<String, dynamic>?;
+
     return MovimientoStockModel(
       id: json['id'] as String,
       sedeId: json['sedeId'] as String,
       productoStockId: json['productoStockId'] as String,
       empresaId: json['empresaId'] as String,
-      tipo: TipoMovimientoStockExtension.fromString(json['tipo'] as String),
+      tipo: TipoMovimientoStock.fromString(json['tipo'] as String),
       tipoDocumento: json['tipoDocumento'] as String?,
       numeroDocumento: json['numeroDocumento'] as String?,
       cantidadAnterior: toSafeInt(json['cantidadAnterior']),
@@ -37,9 +61,13 @@ class MovimientoStockModel extends MovimientoStock {
       transferenciaId: json['transferenciaId'] as String?,
       usuarioId: json['usuarioId'] as String,
       creadoEn: DateTime.parse(json['creadoEn'] as String),
+      usuarioNombre: usuarioNombre,
+      ventaCodigo: venta?['codigo'] as String?,
+      compraCodigo: compra?['codigo'] as String?,
+      transferenciaCodigo: transferencia?['codigo'] as String?,
+      devolucionCodigo: devolucion?['codigo'] as String?,
     );
   }
-
 
   Map<String, dynamic> toJson() {
     return {
@@ -47,7 +75,7 @@ class MovimientoStockModel extends MovimientoStock {
       'sedeId': sedeId,
       'productoStockId': productoStockId,
       'empresaId': empresaId,
-      'tipo': tipo.value,
+      'tipo': tipo.apiValue,
       if (tipoDocumento != null) 'tipoDocumento': tipoDocumento,
       if (numeroDocumento != null) 'numeroDocumento': numeroDocumento,
       'cantidadAnterior': cantidadAnterior,
@@ -59,5 +87,21 @@ class MovimientoStockModel extends MovimientoStock {
       'usuarioId': usuarioId,
       'creadoEn': creadoEn.toIso8601String(),
     };
+  }
+}
+
+class KardexResumenItemModel extends KardexResumenItem {
+  const KardexResumenItemModel({
+    required super.tipo,
+    required super.totalCantidad,
+    required super.totalMovimientos,
+  });
+
+  factory KardexResumenItemModel.fromJson(Map<String, dynamic> json) {
+    return KardexResumenItemModel(
+      tipo: json['tipo'] as String? ?? '',
+      totalCantidad: toSafeInt(json['totalCantidad']),
+      totalMovimientos: toSafeInt(json['totalMovimientos']),
+    );
   }
 }

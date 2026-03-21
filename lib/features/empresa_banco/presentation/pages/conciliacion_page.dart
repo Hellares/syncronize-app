@@ -1,16 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
+import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/di/injection_container.dart';
-import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/fonts/app_text_widgets.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/theme/gradient_container.dart';
 import '../../../../core/widgets/smart_appbar.dart';
-import '../../../../core/widgets/custom_button.dart';
-import '../../../auth/presentation/widgets/custom_text.dart' show CustomText;
+import '../../domain/entities/empresa_banco.dart';
+import '../bloc/conciliacion_cubit.dart';
+import '../bloc/conciliacion_state.dart';
 
-class ConciliacionPage extends StatefulWidget {
+class ConciliacionPage extends StatelessWidget {
   final String cuentaId;
   final String cuentaNombre;
 
@@ -21,18 +23,41 @@ class ConciliacionPage extends StatefulWidget {
   });
 
   @override
-  State<ConciliacionPage> createState() => _ConciliacionPageState();
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (_) {
+        final now = DateTime.now();
+        final fechaDesde = DateTime(now.year, now.month, 1);
+        return locator<ConciliacionCubit>()
+          ..getConciliacion(
+            cuentaId: cuentaId,
+            fechaDesde: DateFormat('yyyy-MM-dd').format(fechaDesde),
+            fechaHasta: DateFormat('yyyy-MM-dd').format(now),
+          );
+      },
+      child: _ConciliacionView(
+        cuentaId: cuentaId,
+        cuentaNombre: cuentaNombre,
+      ),
+    );
+  }
 }
 
-class _ConciliacionPageState extends State<ConciliacionPage> {
-  final _dio = locator<DioClient>();
-  final _currencyFormat = NumberFormat.currency(locale: 'es_PE', symbol: 'S/');
+class _ConciliacionView extends StatefulWidget {
+  final String cuentaId;
+  final String cuentaNombre;
 
-  bool _isLoading = true;
-  Map<String, dynamic>? _cuenta;
-  Map<String, dynamic>? _movimientosSistema;
-  Map<String, dynamic>? _conciliacion;
-  List<Map<String, dynamic>> _movimientos = [];
+  const _ConciliacionView({
+    required this.cuentaId,
+    required this.cuentaNombre,
+  });
+
+  @override
+  State<_ConciliacionView> createState() => _ConciliacionViewState();
+}
+
+class _ConciliacionViewState extends State<_ConciliacionView> {
+  final _currencyFormat = NumberFormat.currency(locale: 'es_PE', symbol: 'S/');
 
   late DateTime _fechaDesde;
   late DateTime _fechaHasta;
@@ -43,59 +68,21 @@ class _ConciliacionPageState extends State<ConciliacionPage> {
     final now = DateTime.now();
     _fechaDesde = DateTime(now.year, now.month, 1);
     _fechaHasta = now;
-    _loadData();
   }
 
-  Future<void> _loadData() async {
-    setState(() => _isLoading = true);
-    try {
-      final response = await _dio.get(
-        '/empresa-banco/${widget.cuentaId}/conciliacion',
-        queryParameters: {
-          'fechaDesde': DateFormat('yyyy-MM-dd').format(_fechaDesde),
-          'fechaHasta': DateFormat('yyyy-MM-dd').format(_fechaHasta),
-        },
-      );
-
-      final data = response.data as Map<String, dynamic>? ?? {};
-
-      if (mounted) {
-        setState(() {
-          _cuenta = data['cuenta'] as Map<String, dynamic>?;
-          _movimientosSistema = data['movimientosSistema'] as Map<String, dynamic>?;
-          _conciliacion = data['conciliacion'] as Map<String, dynamic>?;
-          _movimientos = List<Map<String, dynamic>>.from(
-            (data['movimientos'] as List<dynamic>?)?.map((e) => Map<String, dynamic>.from(e as Map)) ?? [],
-          );
-          _isLoading = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  double _parseDecimal(dynamic value) {
-    if (value == null) return 0.0;
-    if (value is num) return value.toDouble();
-    return double.tryParse(value.toString()) ?? 0.0;
-  }
-
-  String _formatDate(String? dateStr) {
-    if (dateStr == null || dateStr.isEmpty) return '-';
-    try {
-      final date = DateTime.parse(dateStr);
-      return DateFormat('dd/MM/yyyy').format(date);
-    } catch (_) {
-      return dateStr;
-    }
+  void _loadData() {
+    context.read<ConciliacionCubit>().getConciliacion(
+      cuentaId: widget.cuentaId,
+      fechaDesde: DateFormat('yyyy-MM-dd').format(_fechaDesde),
+      fechaHasta: DateFormat('yyyy-MM-dd').format(_fechaHasta),
+    );
   }
 
   String _formatDateTime(String? dateStr) {
     if (dateStr == null || dateStr.isEmpty) return '-';
     try {
       final date = DateTime.parse(dateStr);
-      return DateFormat('dd/MM/yyyy HH:mm').format(date);
+      return DateFormatter.formatDateTime(date);
     } catch (_) {
       return dateStr;
     }
@@ -151,31 +138,52 @@ class _ConciliacionPageState extends State<ConciliacionPage> {
         ],
       ),
       body: GradientBackground(
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : RefreshIndicator(
-                onRefresh: _loadData,
+        child: BlocBuilder<ConciliacionCubit, ConciliacionState>(
+          builder: (context, state) {
+            if (state is ConciliacionLoading) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (state is ConciliacionError) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.error_outline, size: 56, color: Colors.grey.shade300),
+                    const SizedBox(height: 12),
+                    Text(state.message, style: TextStyle(color: Colors.grey.shade500)),
+                  ],
+                ),
+              );
+            }
+            if (state is ConciliacionLoaded) {
+              final data = state.conciliacion;
+              return RefreshIndicator(
+                onRefresh: () async => _loadData(),
                 color: AppColors.blue1,
                 child: ListView(
                   padding: const EdgeInsets.all(12),
                   children: [
-                    _buildHeaderCard(),
+                    _buildHeaderCard(data.cuenta),
                     const SizedBox(height: 10),
                     _buildDateRangeChip(),
                     const SizedBox(height: 10),
-                    _buildConciliacionCard(),
+                    _buildConciliacionCard(data.conciliacion),
                     const SizedBox(height: 10),
-                    _buildMovimientosSistemaCard(),
+                    _buildMovimientosSistemaCard(data.movimientosSistema),
                     const SizedBox(height: 14),
-                    _buildMovimientosHeader(),
+                    _buildMovimientosHeader(data.movimientos.length),
                     const SizedBox(height: 8),
-                    if (_movimientos.isEmpty)
+                    if (data.movimientos.isEmpty)
                       _buildEmptyMovimientos()
                     else
-                      ..._movimientos.map(_buildMovimientoTile),
+                      ...data.movimientos.map(_buildMovimientoTile),
                   ],
                 ),
-              ),
+              );
+            }
+            return const SizedBox.shrink();
+          },
+        ),
       ),
     );
   }
@@ -183,11 +191,11 @@ class _ConciliacionPageState extends State<ConciliacionPage> {
   // ═══════════════════════════════════════════════════════════════════════
   // HEADER CARD — Bank name, account number, moneda, saldo
   // ═══════════════════════════════════════════════════════════════════════
-  Widget _buildHeaderCard() {
-    final nombreBanco = _cuenta?['nombreBanco'] as String? ?? widget.cuentaNombre;
-    final numeroCuenta = _cuenta?['numeroCuenta'] as String? ?? '-';
-    final moneda = _cuenta?['moneda'] as String? ?? 'PEN';
-    final saldoActual = _parseDecimal(_cuenta?['saldoActual']);
+  Widget _buildHeaderCard(ConciliacionCuenta cuenta) {
+    final nombreBanco = cuenta.nombreBanco.isNotEmpty ? cuenta.nombreBanco : widget.cuentaNombre;
+    final numeroCuenta = cuenta.numeroCuenta.isNotEmpty ? cuenta.numeroCuenta : '-';
+    final moneda = cuenta.moneda;
+    final saldoActual = cuenta.saldoActual;
 
     return GradientContainer(
       borderColor: AppColors.blue1.withValues(alpha: 0.3),
@@ -261,7 +269,7 @@ class _ConciliacionPageState extends State<ConciliacionPage> {
             Icon(Icons.calendar_today, size: 14, color: AppColors.blue1),
             const SizedBox(width: 8),
             Text(
-              '${DateFormat('dd/MM/yyyy').format(_fechaDesde)} — ${DateFormat('dd/MM/yyyy').format(_fechaHasta)}',
+              '${DateFormatter.formatDate(_fechaDesde)} — ${DateFormatter.formatDate(_fechaHasta)}',
               style: TextStyle(fontSize: 11, color: AppColors.blue1, fontWeight: FontWeight.w600),
             ),
             const SizedBox(width: 6),
@@ -275,11 +283,11 @@ class _ConciliacionPageState extends State<ConciliacionPage> {
   // ═══════════════════════════════════════════════════════════════════════
   // CONCILIACION SUMMARY CARD
   // ═══════════════════════════════════════════════════════════════════════
-  Widget _buildConciliacionCard() {
-    final saldoBanco = _parseDecimal(_conciliacion?['saldoBanco']);
-    final saldoSistema = _parseDecimal(_conciliacion?['saldoSistema']);
-    final diferencia = _parseDecimal(_conciliacion?['diferencia']);
-    final conciliado = _conciliacion?['conciliado'] == true;
+  Widget _buildConciliacionCard(ConciliacionResultado resultado) {
+    final saldoBanco = resultado.saldoBanco;
+    final saldoSistema = resultado.saldoSistema;
+    final diferencia = resultado.diferencia;
+    final conciliado = resultado.conciliado;
 
     final diferenciaAbs = diferencia.abs();
     final matchPercentage = saldoBanco != 0
@@ -484,11 +492,11 @@ class _ConciliacionPageState extends State<ConciliacionPage> {
   // ═══════════════════════════════════════════════════════════════════════
   // MOVIMIENTOS SISTEMA SUMMARY
   // ═══════════════════════════════════════════════════════════════════════
-  Widget _buildMovimientosSistemaCard() {
-    final cantidad = _movimientosSistema?['cantidad'] ?? 0;
-    final totalIngresos = _parseDecimal(_movimientosSistema?['totalIngresos']);
-    final totalEgresos = _parseDecimal(_movimientosSistema?['totalEgresos']);
-    final saldoSistema = _parseDecimal(_movimientosSistema?['saldoSistema']);
+  Widget _buildMovimientosSistemaCard(ConciliacionMovimientosSistema movSistema) {
+    final cantidad = movSistema.cantidad;
+    final totalIngresos = movSistema.totalIngresos;
+    final totalEgresos = movSistema.totalEgresos;
+    final saldoSistema = movSistema.saldoSistema;
 
     return GradientContainer(
       borderColor: AppColors.blue1.withValues(alpha: 0.2),
@@ -584,7 +592,7 @@ class _ConciliacionPageState extends State<ConciliacionPage> {
   // ═══════════════════════════════════════════════════════════════════════
   // MOVIMIENTOS LIST
   // ═══════════════════════════════════════════════════════════════════════
-  Widget _buildMovimientosHeader() {
+  Widget _buildMovimientosHeader(int count) {
     return Row(
       children: [
         Icon(Icons.list_alt, size: 18, color: AppColors.blue1),
@@ -592,7 +600,7 @@ class _ConciliacionPageState extends State<ConciliacionPage> {
         AppSubtitle('Detalle de Movimientos', fontSize: 12, color: AppColors.blue3),
         const Spacer(),
         Text(
-          '${_movimientos.length} registros',
+          '$count registros',
           style: TextStyle(fontSize: 9, color: Colors.grey.shade500),
         ),
       ],
@@ -622,12 +630,11 @@ class _ConciliacionPageState extends State<ConciliacionPage> {
     );
   }
 
-  Widget _buildMovimientoTile(Map<String, dynamic> mov) {
-    final tipo = mov['tipo'] as String? ?? '';
-    final descripcion = mov['descripcion'] as String? ?? mov['concepto'] as String? ?? '-';
-    final monto = _parseDecimal(mov['monto']);
-    final fecha = mov['fecha'] as String? ?? mov['createdAt'] as String?;
-    final referencia = mov['referencia'] as String?;
+  Widget _buildMovimientoTile(ConciliacionMovimiento mov) {
+    final tipo = mov.tipo;
+    final descripcion = mov.descripcion.isNotEmpty ? mov.descripcion : '-';
+    final monto = mov.monto;
+    final fecha = mov.fechaMovimiento;
     final isIngreso = tipo.toUpperCase() == 'INGRESO' || tipo.toUpperCase() == 'CREDITO' || monto >= 0;
 
     final montoDisplay = monto.abs();
@@ -685,18 +692,6 @@ class _ConciliacionPageState extends State<ConciliacionPage> {
                         Text(
                           _formatDateTime(fecha),
                           style: TextStyle(fontSize: 9, color: Colors.grey.shade500),
-                        ),
-                      ],
-                      if (referencia != null && referencia.isNotEmpty) ...[
-                        const SizedBox(width: 8),
-                        Icon(Icons.tag, size: 10, color: Colors.grey.shade400),
-                        const SizedBox(width: 3),
-                        Flexible(
-                          child: Text(
-                            referencia,
-                            style: TextStyle(fontSize: 9, color: Colors.grey.shade500),
-                            overflow: TextOverflow.ellipsis,
-                          ),
                         ),
                       ],
                     ],

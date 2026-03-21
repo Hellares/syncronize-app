@@ -8,6 +8,7 @@ import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/theme/gradient_container.dart';
 import '../../../../core/fonts/app_text_widgets.dart';
 import '../../../../core/utils/resource.dart';
+import '../../../../core/widgets/autorizacion_dialog.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../../../core/widgets/producto_sede_selector/producto_sede_search_cubit.dart';
 import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_cubit.dart';
@@ -241,6 +242,10 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
           if (v.pagos != null && v.pagos!.isNotEmpty) ...[
             const SizedBox(height: 12),
             _buildPagosHistorialSection(v),
+          ],
+          if (v.cuotas != null && v.cuotas!.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            _buildCuotasSection(),
           ],
           if (v.observaciones != null) ...[
             const SizedBox(height: 12),
@@ -541,6 +546,99 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
     );
   }
 
+  Widget _buildCuotasSection() {
+    final cuotas = _venta!.cuotas!;
+    final cuotasPagadas = cuotas.where((c) => c.estado == 'PAGADA').length;
+
+    return GradientContainer(
+      borderColor: AppColors.blueborder,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.calendar_month, size: 16, color: AppColors.blue1),
+                const SizedBox(width: 6),
+                AppSubtitle('Cuotas ($cuotasPagadas/${cuotas.length} pagadas)', fontSize: 14),
+              ],
+            ),
+            const Divider(height: 16),
+            ...cuotas.map((cuota) {
+              Color estadoColor;
+              IconData estadoIcon;
+              switch (cuota.estado) {
+                case 'PAGADA':
+                  estadoColor = Colors.green;
+                  estadoIcon = Icons.check_circle;
+                  break;
+                case 'PAGADA_PARCIAL':
+                  estadoColor = Colors.blue;
+                  estadoIcon = Icons.timelapse;
+                  break;
+                case 'VENCIDA':
+                  estadoColor = Colors.red;
+                  estadoIcon = Icons.error;
+                  break;
+                default:
+                  estadoColor = Colors.orange;
+                  estadoIcon = Icons.schedule;
+              }
+
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    Icon(estadoIcon, size: 18, color: estadoColor),
+                    const SizedBox(width: 8),
+                    Container(
+                      width: 24, height: 24,
+                      decoration: BoxDecoration(
+                        color: estadoColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Center(
+                        child: Text('${cuota.numero}',
+                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: estadoColor)),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('S/ ${cuota.monto.toStringAsFixed(2)}',
+                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                          Text(
+                            'Vence: ${DateFormat('dd/MM/yyyy').format(cuota.fechaVencimiento)}'
+                            '${cuota.montoPagado > 0 ? ' | Pagado: S/ ${cuota.montoPagado.toStringAsFixed(2)}' : ''}',
+                            style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: estadoColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        cuota.estado == 'PAGADA_PARCIAL' ? 'Parcial' : cuota.estado == 'PAGADA' ? 'Pagada' : cuota.estado == 'VENCIDA' ? 'Vencida' : 'Pendiente',
+                        style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: estadoColor),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildNotasSection(Venta v) {
     return GradientContainer(
       borderColor: AppColors.blueborder,
@@ -743,90 +841,188 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
       text: _venta!.saldoPendiente.toStringAsFixed(2),
     );
     final refCtrl = TextEditingController();
-    MetodoPago metodoPago = MetodoPago.efectivo;
+    String metodoActual = 'EFECTIVO';
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Registrar Pago',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Saldo pendiente: ${_venta!.moneda} ${_venta!.saldoPendiente.toStringAsFixed(2)}',
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<MetodoPago>(
-                value: metodoPago,
-                decoration: const InputDecoration(
-                  labelText: 'Metodo de pago',
-                  border: OutlineInputBorder(),
-                  isDense: true,
-                ),
-                items: MetodoPago.values
-                    .where((m) => m != MetodoPago.credito)
-                    .map((m) => DropdownMenuItem(
-                          value: m,
-                          child: Text(m.label, style: const TextStyle(fontSize: 13)),
-                        ))
-                    .toList(),
-                onChanged: (v) {
-                  if (v != null) setDialogState(() => metodoPago = v);
-                },
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: montoCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Monto',
-                  border: OutlineInputBorder(),
-                  isDense: true,
-                ),
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: refCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Referencia (opcional)',
-                  border: OutlineInputBorder(),
-                  isDense: true,
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancelar'),
+        builder: (ctx, setSheetState) {
+          return Container(
+            margin: const EdgeInsets.only(top: 60),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
             ),
-            ElevatedButton(
-              onPressed: () {
-                final monto = double.tryParse(montoCtrl.text);
-                if (monto == null || monto <= 0) return;
-                Navigator.pop(ctx);
-                context.read<VentaFormCubit>().procesarPago(
-                  _venta!.id,
-                  {
-                    'metodoPago': metodoPago.apiValue,
-                    'monto': monto,
-                    if (refCtrl.text.isNotEmpty) 'referencia': refCtrl.text,
-                  },
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green.shade600,
-                foregroundColor: Colors.white,
+            child: Padding(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 20,
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
               ),
-              child: const Text('Registrar'),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Handle bar
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Header
+                    Row(
+                      children: [
+                        Icon(Icons.payment, size: 20, color: Colors.green[700]),
+                        const SizedBox(width: 8),
+                        const AppSubtitle('Registrar Pago', fontSize: 16),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Saldo pendiente
+                    GradientContainer(
+                      borderColor: Colors.orange.shade300,
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('Saldo pendiente',
+                                style: TextStyle(fontSize: 13, color: Colors.orange[700])),
+                            AppSubtitle(
+                              '${_venta!.moneda} ${_venta!.saldoPendiente.toStringAsFixed(2)}',
+                              fontSize: 16,
+                              color: Colors.orange[700],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Método de pago chips
+                    const AppSubtitle('Metodo de Pago', fontSize: 13),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _pagoChip('EFECTIVO', '💵', 'Efectivo', metodoActual, (v) => setSheetState(() => metodoActual = v)),
+                        _pagoChip('TARJETA', '💳', 'Tarjeta', metodoActual, (v) => setSheetState(() => metodoActual = v)),
+                        _pagoChip('YAPE', '📱', 'Yape', metodoActual, (v) => setSheetState(() => metodoActual = v)),
+                        _pagoChip('PLIN', '📱', 'Plin', metodoActual, (v) => setSheetState(() => metodoActual = v)),
+                        _pagoChip('TRANSFERENCIA', '🏦', 'Transfer.', metodoActual, (v) => setSheetState(() => metodoActual = v)),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Monto
+                    TextFormField(
+                      controller: montoCtrl,
+                      decoration: InputDecoration(
+                        labelText: 'Monto',
+                        prefixText: 'S/ ',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        isDense: true,
+                      ),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Referencia (solo si no es efectivo)
+                    if (metodoActual != 'EFECTIVO')
+                      TextFormField(
+                        controller: refCtrl,
+                        decoration: InputDecoration(
+                          labelText: 'Referencia / N° operacion',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                          isDense: true,
+                        ),
+                      ),
+                    if (metodoActual != 'EFECTIVO') const SizedBox(height: 16),
+                    if (metodoActual == 'EFECTIVO') const SizedBox(height: 4),
+
+                    // Botones
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            style: OutlinedButton.styleFrom(
+                              minimumSize: const Size(0, 44),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                            child: const Text('Cancelar'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 2,
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              final monto = double.tryParse(montoCtrl.text);
+                              if (monto == null || monto <= 0) return;
+                              Navigator.pop(ctx);
+                              context.read<VentaFormCubit>().procesarPago(
+                                _venta!.id,
+                                {
+                                  'metodoPago': metodoActual,
+                                  'monto': monto,
+                                  if (refCtrl.text.isNotEmpty) 'referencia': refCtrl.text,
+                                },
+                              );
+                            },
+                            icon: const Icon(Icons.check, size: 18),
+                            label: const Text('Registrar Pago'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green.shade600,
+                              foregroundColor: Colors.white,
+                              minimumSize: const Size(0, 44),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
             ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _pagoChip(String value, String icon, String label, String selected, ValueChanged<String> onTap) {
+    final isSelected = selected == value;
+    return GestureDetector(
+      onTap: () => onTap(value),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.blue1 : Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: isSelected ? AppColors.blue1 : Colors.grey[300]!),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(icon, style: const TextStyle(fontSize: 14)),
+            const SizedBox(width: 4),
+            Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
+                color: isSelected ? Colors.white : Colors.grey[700])),
           ],
         ),
       ),
@@ -852,7 +1048,7 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(ctx);
-              context.read<VentaFormCubit>().anularVenta(_venta!.id);
+              _requestAutorizacionAnular(context);
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
@@ -862,6 +1058,25 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _requestAutorizacionAnular(BuildContext ctx) async {
+    final result = await showAutorizacionDialog(
+      ctx,
+      operacion: 'ANULAR_VENTA',
+      titulo: 'Autorizacion para anular',
+      descripcion: 'Un administrador debe autorizar la anulacion de esta venta',
+    );
+
+    if (!mounted || result == null) return;
+
+    context.read<VentaFormCubit>().anularVenta(
+      _venta!.id,
+      autorizadoPorId: result.autorizadoPorId,
+      motivo: result.autorizadoPorNombre.isNotEmpty
+          ? 'Anulacion de venta - Autorizado por ${result.autorizadoPorNombre}'
+          : 'Anulacion de venta',
     );
   }
 }

@@ -285,11 +285,9 @@ class _VentaTicketPreviewPageState extends State<VentaTicketPreviewPage> {
         '${tempDir.path}/ticket_${_venta?.codigo ?? 'venta'}.pdf');
     await file.writeAsBytes(_pdfBytes!);
 
-    await SharePlus.instance.share(
-      ShareParams(
-        files: [XFile(file.path)],
-        text: 'Ticket de venta ${_venta?.codigo}',
-      ),
+    await Share.shareXFiles(
+      [XFile(file.path)],
+      text: 'Ticket de venta ${_venta?.codigo}',
     );
   }
 

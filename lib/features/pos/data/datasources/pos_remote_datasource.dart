@@ -1,6 +1,7 @@
 import 'package:injectable/injectable.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../pos/domain/entities/cotizacion_pos.dart';
+import '../../../venta/data/models/venta_model.dart';
 
 @lazySingleton
 class PosRemoteDataSource {
@@ -59,5 +60,43 @@ class PosRemoteDataSource {
         creadoEn: DateTime.parse(map['creadoEn'] as String),
       );
     }).toList();
+  }
+
+  Future<Map<String, dynamic>> getCotizacion(String cotizacionId) async {
+    final response = await _dioClient.get('/cotizaciones/$cotizacionId');
+    return response.data as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> validarStock(String cotizacionId) async {
+    final response = await _dioClient.get('/cotizaciones/$cotizacionId/validar-stock');
+    return response.data as Map<String, dynamic>;
+  }
+
+  Future<double?> getTipoCambio() async {
+    try {
+      final response = await _dioClient.get('/consultas/tipo-cambio');
+      if (response.data != null) {
+        final data = response.data as Map<String, dynamic>;
+        final venta = data['venta'];
+        if (venta == null) return null;
+        if (venta is double) return venta;
+        if (venta is int) return venta.toDouble();
+        if (venta is String) return double.tryParse(venta);
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<VentaModel> cobrarCotizacion(
+    String cotizacionId,
+    Map<String, dynamic> data,
+  ) async {
+    final response = await _dioClient.post(
+      '/ventas/desde-cotizacion/$cotizacionId',
+      data: data,
+    );
+    return VentaModel.fromJson(response.data as Map<String, dynamic>);
   }
 }

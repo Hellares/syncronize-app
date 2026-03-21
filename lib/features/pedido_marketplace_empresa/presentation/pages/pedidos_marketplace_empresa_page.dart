@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
+import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/fonts/app_text_widgets.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/theme/gradient_container.dart';
 import '../../../../core/widgets/smart_appbar.dart';
+import '../../domain/entities/pedido_empresa.dart';
 import '../bloc/pedidos_empresa_cubit.dart';
 
 class PedidosMarketplaceEmpresaPage extends StatelessWidget {
@@ -86,7 +87,7 @@ class _PedidosViewState extends State<_PedidosView> {
                         itemCount: state.pedidos.length,
                         itemBuilder: (context, index) => _PedidoCard(
                           pedido: state.pedidos[index],
-                          onTap: () => _navigateToDetail(state.pedidos[index]['id'] as String),
+                          onTap: () => _navigateToDetail(state.pedidos[index].id),
                         ),
                       ),
                     );
@@ -144,25 +145,18 @@ class _PedidosViewState extends State<_PedidosView> {
 }
 
 class _PedidoCard extends StatelessWidget {
-  final Map<String, dynamic> pedido;
+  final PedidoMarketplaceEmpresa pedido;
   final VoidCallback onTap;
 
   const _PedidoCard({required this.pedido, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final codigo = pedido['codigo'] as String? ?? '';
-    final estado = pedido['estado'] as String? ?? '';
-    final total = double.tryParse(pedido['total']?.toString() ?? '') ?? 0;
-    final nombre = pedido['nombreComprador'] as String? ?? '';
-    final detalles = pedido['detalles'] as List<dynamic>? ?? [];
-    final creadoEn = pedido['creadoEn'] as String?;
-    final fecha = creadoEn != null ? DateTime.tryParse(creadoEn) : null;
-    final dateFormat = DateFormat('dd/MM/yyyy HH:mm');
+    // Using DateFormatter for display dates
 
     return GradientContainer(
       margin: const EdgeInsets.only(bottom: 10),
-      borderColor: estado == 'PAGO_ENVIADO' ? Colors.orange.shade300 : AppColors.blueborder,
+      borderColor: pedido.requiereAccion ? Colors.orange.shade300 : AppColors.blueborder,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
@@ -173,9 +167,9 @@ class _PedidoCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  AppSubtitle(codigo, fontSize: 13, color: AppColors.blue1),
+                  AppSubtitle(pedido.codigo, fontSize: 13, color: AppColors.blue1),
                   const Spacer(),
-                  _EstadoChip(estado: estado),
+                  _EstadoChip(estado: pedido.estado),
                 ],
               ),
               const SizedBox(height: 8),
@@ -183,7 +177,7 @@ class _PedidoCard extends StatelessWidget {
                 children: [
                   const Icon(Icons.person_outline, size: 14, color: Colors.grey),
                   const SizedBox(width: 4),
-                  Expanded(child: AppSubtitle(nombre, fontSize: 12)),
+                  Expanded(child: AppSubtitle(pedido.nombreComprador, fontSize: 12)),
                 ],
               ),
               const SizedBox(height: 4),
@@ -191,17 +185,17 @@ class _PedidoCard extends StatelessWidget {
                 children: [
                   const Icon(Icons.inventory_2_outlined, size: 14, color: Colors.grey),
                   const SizedBox(width: 4),
-                  Text('${detalles.length} item${detalles.length != 1 ? 's' : ''}',
+                  Text('${pedido.detalles.length} item${pedido.detalles.length != 1 ? 's' : ''}',
                       style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
                   const Spacer(),
-                  AppSubtitle('S/ ${total.toStringAsFixed(2)}', fontSize: 14, color: AppColors.blue1),
+                  AppSubtitle('S/ ${pedido.total.toStringAsFixed(2)}', fontSize: 14, color: AppColors.blue1),
                 ],
               ),
-              if (fecha != null) ...[
+              if (pedido.creadoEn != null) ...[
                 const SizedBox(height: 4),
-                Text(dateFormat.format(fecha), style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+                Text(DateFormatter.formatDateTime(pedido.creadoEn!), style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
               ],
-              if (estado == 'PAGO_ENVIADO') ...[
+              if (pedido.requiereAccion) ...[
                 const SizedBox(height: 6),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),

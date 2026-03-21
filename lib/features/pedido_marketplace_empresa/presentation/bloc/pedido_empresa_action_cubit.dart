@@ -1,6 +1,10 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
-import '../../data/datasources/pedido_empresa_remote_datasource.dart';
+import '../../../../core/utils/resource.dart';
+import '../../domain/entities/pedido_empresa.dart';
+import '../../domain/usecases/get_detalle_pedido_empresa_usecase.dart';
+import '../../domain/usecases/validar_pago_usecase.dart';
+import '../../domain/usecases/cambiar_estado_pedido_usecase.dart';
 
 // States
 abstract class PedidoEmpresaActionState {}
@@ -21,54 +25,72 @@ class PedidoEmpresaActionError extends PedidoEmpresaActionState {
 
 // Detail state
 class PedidoEmpresaDetailLoaded extends PedidoEmpresaActionState {
-  final Map<String, dynamic> pedido;
+  final PedidoMarketplaceEmpresa pedido;
   PedidoEmpresaDetailLoaded(this.pedido);
 }
 
 // Cubit
 @injectable
 class PedidoEmpresaActionCubit extends Cubit<PedidoEmpresaActionState> {
-  final PedidoEmpresaRemoteDataSource _dataSource;
+  final GetDetallePedidoEmpresaUseCase _getDetalleUseCase;
+  final ValidarPagoUseCase _validarPagoUseCase;
+  final CambiarEstadoPedidoUseCase _cambiarEstadoUseCase;
 
-  PedidoEmpresaActionCubit(this._dataSource) : super(PedidoEmpresaActionInitial());
+  PedidoEmpresaActionCubit(
+    this._getDetalleUseCase,
+    this._validarPagoUseCase,
+    this._cambiarEstadoUseCase,
+  ) : super(PedidoEmpresaActionInitial());
 
   Future<void> loadDetalle(String pedidoId) async {
     emit(PedidoEmpresaActionLoading());
-    try {
-      final pedido = await _dataSource.detallePedido(pedidoId);
-      emit(PedidoEmpresaDetailLoaded(pedido));
-    } catch (e) {
-      emit(PedidoEmpresaActionError(e.toString()));
+    final result = await _getDetalleUseCase(pedidoId);
+    if (isClosed) return;
+    if (result is Success<PedidoMarketplaceEmpresa>) {
+      emit(PedidoEmpresaDetailLoaded(result.data));
+    } else if (result is Error<PedidoMarketplaceEmpresa>) {
+      emit(PedidoEmpresaActionError(result.message));
     }
   }
 
   Future<void> aprobarPago(String pedidoId) async {
     emit(PedidoEmpresaActionLoading());
-    try {
-      await _dataSource.validarPago(pedidoId, accion: 'APROBADO');
+    final result = await _validarPagoUseCase(pedidoId, accion: 'APROBADO');
+    if (isClosed) return;
+    if (result is Success) {
       emit(PedidoEmpresaActionSuccess('Pago aprobado'));
-    } catch (e) {
-      emit(PedidoEmpresaActionError(e.toString()));
+    } else if (result is Error) {
+      emit(PedidoEmpresaActionError((result).message));
     }
   }
 
   Future<void> rechazarPago(String pedidoId, String motivo) async {
     emit(PedidoEmpresaActionLoading());
-    try {
-      await _dataSource.validarPago(pedidoId, accion: 'RECHAZADO', motivoRechazo: motivo);
+    final result = await _validarPagoUseCase(
+      pedidoId,
+      accion: 'RECHAZADO',
+      motivoRechazo: motivo,
+    );
+    if (isClosed) return;
+    if (result is Success) {
       emit(PedidoEmpresaActionSuccess('Pago rechazado'));
-    } catch (e) {
-      emit(PedidoEmpresaActionError(e.toString()));
+    } else if (result is Error) {
+      emit(PedidoEmpresaActionError((result).message));
     }
   }
 
   Future<void> cambiarEstado(String pedidoId, String estado, {String? codigoSeguimiento}) async {
     emit(PedidoEmpresaActionLoading());
-    try {
-      await _dataSource.cambiarEstado(pedidoId, estado: estado, codigoSeguimiento: codigoSeguimiento);
+    final result = await _cambiarEstadoUseCase(
+      pedidoId,
+      estado: estado,
+      codigoSeguimiento: codigoSeguimiento,
+    );
+    if (isClosed) return;
+    if (result is Success) {
       emit(PedidoEmpresaActionSuccess('Estado actualizado'));
-    } catch (e) {
-      emit(PedidoEmpresaActionError(e.toString()));
+    } else if (result is Error) {
+      emit(PedidoEmpresaActionError((result).message));
     }
   }
 }

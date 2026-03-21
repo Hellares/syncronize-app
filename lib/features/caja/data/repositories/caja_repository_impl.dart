@@ -3,10 +3,12 @@ import '../../../../core/network/network_info.dart';
 import '../../../../core/services/error_handler_service.dart';
 import '../../../../core/utils/resource.dart';
 import '../../domain/entities/caja.dart';
+import '../../domain/entities/caja_monitor.dart';
 import '../../domain/entities/movimiento_caja.dart';
 import '../../domain/entities/resumen_caja.dart';
 import '../../domain/repositories/caja_repository.dart';
 import '../datasources/caja_remote_datasource.dart';
+import '../models/caja_monitor_model.dart';
 
 @LazySingleton(as: CajaRepository)
 class CajaRepositoryImpl implements CajaRepository {
@@ -62,6 +64,7 @@ class CajaRepositoryImpl implements CajaRepository {
     required MetodoPago metodoPago,
     required double monto,
     String? descripcion,
+    String? categoriaGastoId,
   }) async {
     if (!await _networkInfo.isConnected) {
       return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
@@ -74,6 +77,7 @@ class CajaRepositoryImpl implements CajaRepository {
         metodoPago: metodoPago.apiValue,
         monto: monto,
         descripcion: descripcion,
+        categoriaGastoId: categoriaGastoId,
       );
       return Success(null);
     } catch (e) {
@@ -150,6 +154,42 @@ class CajaRepositoryImpl implements CajaRepository {
     try {
       final resumen = await _remoteDataSource.getResumen(cajaId);
       return Success(resumen.toEntity());
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Caja');
+    }
+  }
+
+  @override
+  Future<Resource<void>> anularMovimiento({
+    required String cajaId,
+    required String movimientoId,
+    required String autorizadoPorId,
+    required String motivo,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      await _remoteDataSource.anularMovimiento(
+        cajaId: cajaId,
+        movimientoId: movimientoId,
+        autorizadoPorId: autorizadoPorId,
+        motivo: motivo,
+      );
+      return Success(null);
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Caja');
+    }
+  }
+
+  @override
+  Future<Resource<CajaMonitorData>> getMonitor({String? sedeId}) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final data = await _remoteDataSource.getMonitor(sedeId: sedeId);
+      return Success(CajaMonitorDataModel.fromJson(data));
     } catch (e) {
       return _errorHandler.handleException(e, context: 'Caja');
     }

@@ -1,5 +1,6 @@
 import '../../../../core/utils/resource.dart';
 import '../entities/caja.dart';
+import '../entities/caja_monitor.dart';
 import '../entities/movimiento_caja.dart';
 import '../entities/resumen_caja.dart';
 
@@ -20,6 +21,7 @@ abstract class CajaRepository {
     required MetodoPago metodoPago,
     required double monto,
     String? descripcion,
+    String? categoriaGastoId,
   });
 
   Future<Resource<List<MovimientoCaja>>> getMovimientos({
@@ -41,4 +43,13 @@ abstract class CajaRepository {
   Future<Resource<ResumenCaja>> getResumen({
     required String cajaId,
   });
+
+  Future<Resource<void>> anularMovimiento({
+    required String cajaId,
+    required String movimientoId,
+    required String autorizadoPorId,
+    required String motivo,
+  });
+
+  Future<Resource<CajaMonitorData>> getMonitor({String? sedeId});
 }

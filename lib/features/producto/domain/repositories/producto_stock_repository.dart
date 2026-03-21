@@ -76,10 +76,13 @@ abstract class ProductoStockRepository {
     bool precioIncluyeIgv = false,
   });
 
-  /// Obtiene el historial de movimientos de un stock
-  Future<Resource<List<MovimientoStock>>> getHistorialMovimientos({
+  /// Obtiene el historial de movimientos de un stock (kardex)
+  Future<Resource<KardexData>> getHistorialMovimientos({
     required String stockId,
-    int limit = 50,
+    int limit = 100,
+    String? tipo,
+    String? fechaDesde,
+    String? fechaHasta,
   });
 
   /// Obtiene alertas de productos con stock bajo el mínimo

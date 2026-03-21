@@ -1,25 +1,36 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
-import '../../../../core/di/injection_container.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/fonts/app_text_widgets.dart';
-import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/theme/gradient_container.dart';
+import '../../../../core/di/injection_container.dart';
 import '../../../../core/widgets/smart_appbar.dart';
-import '../../../../core/widgets/custom_button.dart';
+import '../../domain/entities/flujo_proyectado.dart';
+import '../bloc/flujo_proyectado_cubit.dart';
+import '../bloc/flujo_proyectado_state.dart';
 
-class FlujoProyectadoPage extends StatefulWidget {
+class FlujoProyectadoPage extends StatelessWidget {
   const FlujoProyectadoPage({super.key});
 
   @override
-  State<FlujoProyectadoPage> createState() => _FlujoProyectadoPageState();
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (_) => locator<FlujoProyectadoCubit>(),
+      child: const _FlujoProyectadoView(),
+    );
+  }
 }
 
-class _FlujoProyectadoPageState extends State<FlujoProyectadoPage> {
-  List<Map<String, dynamic>> _periodos = [];
-  bool _isLoading = true;
+class _FlujoProyectadoView extends StatefulWidget {
+  const _FlujoProyectadoView();
+
+  @override
+  State<_FlujoProyectadoView> createState() => _FlujoProyectadoViewState();
+}
+
+class _FlujoProyectadoViewState extends State<_FlujoProyectadoView> {
   int _mesesSeleccionados = 3;
 
   final List<Map<String, dynamic>> _opcionesPeriodo = [
@@ -34,25 +45,10 @@ class _FlujoProyectadoPageState extends State<FlujoProyectadoPage> {
     _load();
   }
 
-  Future<void> _load() async {
-    setState(() => _isLoading = true);
-    try {
-      final dio = locator<DioClient>();
-      final response = await dio.get(
-        '/flujo-proyectado',
-        queryParameters: {'meses': _mesesSeleccionados},
-      );
-
-      final data = response.data as List<dynamic>? ?? [];
-      if (mounted) {
-        setState(() {
-          _periodos = data.map((e) => e as Map<String, dynamic>).toList();
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) setState(() => _isLoading = false);
-    }
+  void _load() {
+    context.read<FlujoProyectadoCubit>().loadProyeccion(
+          meses: _mesesSeleccionados,
+        );
   }
 
   @override
@@ -64,27 +60,51 @@ class _FlujoProyectadoPageState extends State<FlujoProyectadoPage> {
         foregroundColor: Colors.white,
       ),
       body: GradientBackground(
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : RefreshIndicator(
-                onRefresh: _load,
-                color: AppColors.blue1,
-                child: ListView(
-                  padding: const EdgeInsets.all(12),
+        child: BlocBuilder<FlujoProyectadoCubit, FlujoProyectadoState>(
+          builder: (context, state) {
+            if (state is FlujoProyectadoLoading) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (state is FlujoProyectadoError) {
+              return Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    _buildPeriodSelector(),
-                    const SizedBox(height: 12),
-                    if (_periodos.isNotEmpty) _buildCurrentBalanceCard(),
-                    const SizedBox(height: 12),
-                    if (_periodos.length > 1) _buildChart(),
-                    const SizedBox(height: 12),
-                    if (_periodos.isEmpty)
-                      _buildEmptyState()
-                    else
-                      ..._periodos.map((p) => _PeriodoCard(periodo: p)),
+                    Icon(Icons.error_outline, size: 48, color: Colors.grey.shade400),
+                    const SizedBox(height: 8),
+                    Text(state.message, style: TextStyle(color: Colors.grey.shade600)),
                   ],
                 ),
-              ),
+              );
+            }
+            if (state is FlujoProyectadoLoaded) {
+              return _buildContent(state.periodos);
+            }
+            return const Center(child: CircularProgressIndicator());
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContent(List<PeriodoFlujo> periodos) {
+    return RefreshIndicator(
+      onRefresh: () async => _load(),
+      color: AppColors.blue1,
+      child: ListView(
+        padding: const EdgeInsets.all(12),
+        children: [
+          _buildPeriodSelector(),
+          const SizedBox(height: 12),
+          if (periodos.isNotEmpty) _buildCurrentBalanceCard(periodos.first),
+          const SizedBox(height: 12),
+          if (periodos.length > 1) _buildChart(periodos),
+          const SizedBox(height: 12),
+          if (periodos.isEmpty)
+            _buildEmptyState()
+          else
+            ...periodos.map((p) => _PeriodoCard(periodo: p)),
+        ],
       ),
     );
   }
@@ -126,9 +146,8 @@ class _FlujoProyectadoPageState extends State<FlujoProyectadoPage> {
     );
   }
 
-  Widget _buildCurrentBalanceCard() {
-    final first = _periodos.first;
-    final saldoProyectado = double.tryParse(first['saldoProyectado']?.toString() ?? '') ?? 0;
+  Widget _buildCurrentBalanceCard(PeriodoFlujo first) {
+    final saldoProyectado = first.saldoProyectado;
 
     return GradientContainer(
       borderColor: AppColors.blueborder,
@@ -168,12 +187,10 @@ class _FlujoProyectadoPageState extends State<FlujoProyectadoPage> {
     );
   }
 
-  Widget _buildChart() {
-    final maxVal = _periodos.fold<double>(0, (prev, p) {
-      final cobros = double.tryParse(p['cobrosEsperados']?.toString() ?? '') ?? 0;
-      final pagos = double.tryParse(p['pagosEsperados']?.toString() ?? '') ?? 0;
-      final cuotas = double.tryParse(p['cuotasPrestamos']?.toString() ?? '') ?? 0;
-      final maxInPeriod = [cobros, pagos, cuotas].reduce((a, b) => a > b ? a : b);
+  Widget _buildChart(List<PeriodoFlujo> periodos) {
+    final maxVal = periodos.fold<double>(0, (prev, p) {
+      final maxInPeriod = [p.cobrosEsperados, p.pagosEsperados, p.cuotasPrestamos]
+          .reduce((a, b) => a > b ? a : b);
       return maxInPeriod > prev ? maxInPeriod : prev;
     });
 
@@ -227,13 +244,13 @@ class _FlujoProyectadoPageState extends State<FlujoProyectadoPage> {
                         showTitles: true,
                         getTitlesWidget: (value, meta) {
                           final idx = value.toInt();
-                          if (idx < 0 || idx >= _periodos.length) {
+                          if (idx < 0 || idx >= periodos.length) {
                             return const SizedBox.shrink();
                           }
                           return Padding(
                             padding: const EdgeInsets.only(top: 6),
                             child: Text(
-                              _periodos[idx]['label']?.toString() ?? '',
+                              periodos[idx].label,
                               style: const TextStyle(fontSize: 9, color: AppColors.blue3),
                             ),
                           );
@@ -272,30 +289,27 @@ class _FlujoProyectadoPageState extends State<FlujoProyectadoPage> {
                     ),
                   ),
                   borderData: FlBorderData(show: false),
-                  barGroups: _periodos.asMap().entries.map((entry) {
+                  barGroups: periodos.asMap().entries.map((entry) {
                     final idx = entry.key;
                     final p = entry.value;
-                    final cobros = double.tryParse(p['cobrosEsperados']?.toString() ?? '') ?? 0;
-                    final pagos = double.tryParse(p['pagosEsperados']?.toString() ?? '') ?? 0;
-                    final cuotas = double.tryParse(p['cuotasPrestamos']?.toString() ?? '') ?? 0;
 
                     return BarChartGroupData(
                       x: idx,
                       barRods: [
                         BarChartRodData(
-                          toY: cobros,
+                          toY: p.cobrosEsperados,
                           color: AppColors.green,
                           width: 10,
                           borderRadius: const BorderRadius.vertical(top: Radius.circular(3)),
                         ),
                         BarChartRodData(
-                          toY: pagos,
+                          toY: p.pagosEsperados,
                           color: AppColors.red,
                           width: 10,
                           borderRadius: const BorderRadius.vertical(top: Radius.circular(3)),
                         ),
                         BarChartRodData(
-                          toY: cuotas,
+                          toY: p.cuotasPrestamos,
                           color: AppColors.orange,
                           width: 10,
                           borderRadius: const BorderRadius.vertical(top: Radius.circular(3)),
@@ -350,17 +364,13 @@ class _FlujoProyectadoPageState extends State<FlujoProyectadoPage> {
 }
 
 class _PeriodoCard extends StatelessWidget {
-  final Map<String, dynamic> periodo;
+  final PeriodoFlujo periodo;
   const _PeriodoCard({required this.periodo});
 
   @override
   Widget build(BuildContext context) {
-    final label = periodo['label']?.toString() ?? '';
-    final cobros = double.tryParse(periodo['cobrosEsperados']?.toString() ?? '') ?? 0;
-    final pagos = double.tryParse(periodo['pagosEsperados']?.toString() ?? '') ?? 0;
-    final cuotas = double.tryParse(periodo['cuotasPrestamos']?.toString() ?? '') ?? 0;
-    final flujoNeto = double.tryParse(periodo['flujoNeto']?.toString() ?? '') ?? 0;
-    final saldoProyectado = double.tryParse(periodo['saldoProyectado']?.toString() ?? '') ?? 0;
+    final flujoNeto = periodo.flujoNeto ?? (periodo.cobrosEsperados - periodo.pagosEsperados - periodo.cuotasPrestamos);
+    final saldoProyectado = periodo.saldoProyectado;
 
     return GradientContainer(
       margin: const EdgeInsets.only(bottom: 8),
@@ -374,15 +384,15 @@ class _PeriodoCard extends StatelessWidget {
               children: [
                 Icon(Icons.date_range, size: 14, color: AppColors.blue1),
                 const SizedBox(width: 6),
-                AppSubtitle(label, fontSize: 13, color: AppColors.blue1),
+                AppSubtitle(periodo.label, fontSize: 13, color: AppColors.blue1),
               ],
             ),
             const SizedBox(height: 10),
-            _buildRow('Cobros esperados', cobros, AppColors.green),
+            _buildRow('Cobros esperados', periodo.cobrosEsperados, AppColors.green),
             const SizedBox(height: 4),
-            _buildRow('Pagos esperados', pagos, AppColors.red),
+            _buildRow('Pagos esperados', periodo.pagosEsperados, AppColors.red),
             const SizedBox(height: 4),
-            _buildRow('Cuotas prestamos', cuotas, AppColors.orange),
+            _buildRow('Cuotas prestamos', periodo.cuotasPrestamos, AppColors.orange),
             Divider(color: Colors.grey.shade300, height: 16),
             _buildRow('Flujo neto', flujoNeto, flujoNeto >= 0 ? AppColors.green : AppColors.red),
             const SizedBox(height: 6),

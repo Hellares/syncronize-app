@@ -18,9 +18,14 @@ import '../widgets/stats_card.dart';
 import '../widgets/empresa_switch_bottom_sheet.dart';
 import '../widgets/empresa_drawer.dart';
 import '../widgets/plan_suscripcion_card.dart';
-import '../widgets/roles_permisos_section.dart';
 import '../widgets/sedes_section.dart';
 import '../widgets/usage_limit_card.dart';
+import '../widgets/resumen_financiero_mini_cards.dart';
+import '../widgets/accesos_rapidos_section.dart';
+import '../widgets/cajas_activas_card.dart';
+import '../widgets/alertas_activas_card.dart';
+import '../widgets/ventas_sparkline_card.dart';
+import '../../../resumen_financiero/presentation/bloc/resumen_financiero_cubit.dart';
 import '../../../../core/widgets/notification_bell.dart';
 
 class EmpresaDashboardPage extends StatefulWidget {
@@ -57,22 +62,33 @@ class _EmpresaDashboardPageState extends State<EmpresaDashboardPage> {
       drawer: const EmpresaDrawer(),
       body: GradientBackground(
         style: GradientStyle.minimal,
-        child: BlocBuilder<EmpresaContextCubit, EmpresaContextState>(
-          builder: (context, state) {
-            if (state is EmpresaContextLoading) {
-              return CustomLoading.small(message: 'Cargando...');
-            }
-        
-            if (state is EmpresaContextError) {
-              return _buildErrorView(state.message);
-            }
-        
-            if (state is EmpresaContextLoaded) {
-              return _buildDashboard(state.context);
-            }
-        
-            return const SizedBox.shrink();
+        child: BlocProvider(
+          create: (_) {
+            final now = DateTime.now();
+            final inicio = DateTime(now.year, now.month, 1);
+            return locator<ResumenFinancieroCubit>()
+              ..loadResumen(
+                fechaDesde: inicio.toIso8601String(),
+                fechaHasta: now.toIso8601String(),
+              );
           },
+          child: BlocBuilder<EmpresaContextCubit, EmpresaContextState>(
+            builder: (context, state) {
+              if (state is EmpresaContextLoading) {
+                return CustomLoading.small(message: 'Cargando...');
+              }
+
+              if (state is EmpresaContextError) {
+                return _buildErrorView(state.message);
+              }
+
+              if (state is EmpresaContextLoaded) {
+                return _buildDashboard(context, state.context);
+              }
+
+              return const SizedBox.shrink();
+            },
+          ),
         ),
       ),
     );
@@ -106,7 +122,7 @@ class _EmpresaDashboardPageState extends State<EmpresaDashboardPage> {
                       Flexible(
                         child: Text(
                           state.context.empresa.nombre,
-                          style: const TextStyle(fontSize: 11),
+                          style: const TextStyle(fontSize: 10),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -181,14 +197,21 @@ class _EmpresaDashboardPageState extends State<EmpresaDashboardPage> {
     );
   }
 
-  Widget _buildDashboard(EmpresaContext empresaContext) {
+  Widget _buildDashboard(BuildContext innerContext, EmpresaContext empresaContext) {
     final stats = empresaContext.statistics;
     final permissions = empresaContext.permissions;
 
     return RefreshIndicator(
       onRefresh: () async {
-        await context.read<EmpresaContextCubit>().reloadContext();
+        final empresaCubit = innerContext.read<EmpresaContextCubit>();
+        final resumenCubit = innerContext.read<ResumenFinancieroCubit>();
+        await empresaCubit.reloadContext();
         _loadPendientes();
+        final now = DateTime.now();
+        resumenCubit.loadResumen(
+          fechaDesde: DateTime(now.year, now.month, 1).toIso8601String(),
+          fechaHasta: now.toIso8601String(),
+        );
       },
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -198,7 +221,15 @@ class _EmpresaDashboardPageState extends State<EmpresaDashboardPage> {
           children: [
             // Plan de Suscripción
             PlanSuscripcionCard(empresaContext: empresaContext),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
+
+            // Accesos rápidos
+            const AccesosRapidosSection(),
+            const SizedBox(height: 16),
+
+            // Resumen financiero mini cards
+            const ResumenFinancieroMiniCards(),
+            const SizedBox(height: 16),
 
             // Título
             AppSubtitle('Resumen', fontSize: 12),
@@ -301,19 +332,28 @@ class _EmpresaDashboardPageState extends State<EmpresaDashboardPage> {
               ],
             ),
 
+            const SizedBox(height: 16),
+
+            // Cajas activas
+            const CajasActivasCard(),
+            const SizedBox(height: 16),
+
+            // Alertas activas
+            const AlertasActivasCard(),
+            const SizedBox(height: 16),
+
+            // Ventas sparkline
+            const VentasSparklineCard(),
+            const SizedBox(height: 16),
+
             // Uso del Plan
             if (empresaContext.planLimits != null) ...[
-              const SizedBox(height: 24),
               AppSubtitle('Uso del Plan', fontSize: 12),
               const SizedBox(height: 5),
               UsageLimitCard(planLimits: empresaContext.planLimits!),
             ],
 
-            const SizedBox(height: 28),
-
-            // Roles y Permisos
-            RolesPermisosSection(empresaContext: empresaContext),
-            const SizedBox(height: 28),
+            const SizedBox(height: 16),
 
             // Sedes
             SedesSection(empresaContext: empresaContext),

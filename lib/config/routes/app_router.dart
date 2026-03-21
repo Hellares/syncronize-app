@@ -36,6 +36,12 @@ import '../../features/solicitud_cotizacion/presentation/pages/mis_solicitudes_p
 import '../../features/solicitud_cotizacion/presentation/pages/solicitud_detail_page.dart';
 import '../../features/solicitud_cotizacion_empresa/presentation/pages/solicitudes_recibidas_page.dart';
 import '../../features/caja/presentation/pages/caja_page.dart';
+import '../../features/caja_chica/presentation/pages/caja_chica_page.dart';
+import '../../features/caja_chica/presentation/pages/caja_chica_detail_page.dart';
+import '../../features/caja_chica/presentation/pages/crear_caja_chica_page.dart';
+import '../../features/caja_chica/presentation/pages/nuevo_gasto_page.dart';
+import '../../features/caja_chica/presentation/pages/historial_rendiciones_page.dart';
+import '../../features/caja_chica/presentation/pages/rendicion_page.dart';
 import '../../features/cuentas_por_cobrar/presentation/pages/cuentas_por_cobrar_page.dart';
 import '../../features/cuentas_por_pagar/presentation/pages/cuentas_por_pagar_page.dart';
 import '../../features/empresa_banco/presentation/pages/empresa_banco_page.dart';
@@ -46,10 +52,12 @@ import '../../features/flujo_proyectado/presentation/pages/flujo_proyectado_page
 import '../../features/categoria_gasto/presentation/pages/categorias_gasto_page.dart';
 import '../../features/meta_financiera/presentation/pages/metas_financieras_page.dart';
 import '../../features/empresa_banco/presentation/pages/conciliacion_page.dart';
+import '../../features/resumen_financiero/presentation/pages/reportes_financieros_page.dart';
 import '../../features/caja/presentation/pages/movimientos_caja_page.dart';
 import '../../features/caja/presentation/pages/cerrar_caja_page.dart';
 import '../../features/caja/presentation/pages/historial_caja_page.dart';
 import '../../features/caja/presentation/pages/nuevo_movimiento_page.dart';
+import '../../features/caja/presentation/pages/caja_monitor_page.dart';
 import '../../features/solicitud_cotizacion_empresa/presentation/pages/solicitud_recibida_detail_page.dart';
 import '../../features/marketplace/presentation/pages/producto_marketplace_detail_page.dart';
 import '../../features/marketplace/presentation/pages/empresa_public_profile_page.dart';
@@ -71,11 +79,17 @@ import '../../features/producto/presentation/pages/plantillas_atributos_page.dar
 import '../../features/producto/presentation/pages/configuraciones_precio_page.dart';
 import '../../features/producto/presentation/pages/ajuste_masivo_precios_page.dart';
 import '../../features/producto/presentation/pages/stock_por_sede_page.dart';
+import '../../features/producto/presentation/pages/stock_por_ubicacion_page.dart';
 import '../../features/producto/presentation/pages/alertas_stock_bajo_page.dart';
 import '../../features/producto/presentation/pages/transferencias_stock_page.dart';
 import '../../features/producto/presentation/pages/crear_transferencia_page.dart';
 import '../../features/producto/presentation/pages/incidencias_transferencias_page.dart';
 import '../../features/producto/presentation/pages/reglas_compatibilidad_page.dart';
+import '../../features/producto/presentation/pages/configurar_stock_minmax_page.dart';
+import '../../features/producto/presentation/pages/merma_perdida_page.dart';
+import '../../features/producto/presentation/pages/valorizacion_inventario_page.dart';
+import '../../features/producto/presentation/pages/sugerencias_reorden_page.dart';
+import '../../features/producto/presentation/pages/reporte_rotacion_page.dart';
 // import '../../features/producto/presentation/pages/crear_transferencia_multiple_page.dart';
 import '../../features/catalogo/presentation/pages/gestion_categorias_page.dart';
 import '../../features/catalogo/presentation/pages/gestion_marcas_page.dart';
@@ -101,7 +115,7 @@ import '../../features/cotizacion/presentation/pages/cotizaciones_page.dart';
 import '../../features/cotizacion/presentation/pages/cotizacion_form_page.dart';
 import '../../features/cotizacion/presentation/pages/cotizacion_detail_page.dart';
 import '../../features/venta/presentation/pages/ventas_page.dart';
-import '../../features/venta/presentation/pages/venta_form_page.dart';
+import '../../features/venta/presentation/pages/venta_pos_page.dart';
 import '../../features/venta/presentation/pages/venta_detail_page.dart';
 import '../../features/venta/presentation/pages/venta_ticket_preview_page.dart';
 import '../../features/venta/presentation/pages/venta_analytics_page.dart';
@@ -121,6 +135,7 @@ import '../../features/compra/presentation/pages/compra_analytics_page.dart';
 import '../../features/compra/presentation/pages/compra_export_page.dart';
 import '../../features/compra/domain/entities/orden_compra.dart';
 import '../../features/producto/presentation/pages/historial_precios_global_page.dart';
+import '../../features/producto/presentation/pages/kardex_page.dart';
 import '../../features/compra/domain/entities/compra.dart';
 import '../../features/compra/domain/entities/lote.dart';
 import '../../features/servicio/presentation/pages/configuracion_campos_page.dart';
@@ -150,6 +165,9 @@ import '../../features/cita/presentation/pages/cita_cliente_detail_page.dart';
 import '../../features/cita/presentation/pages/nueva_cita_sheet.dart';
 import '../../features/cita/presentation/pages/historial_citas_cliente_page.dart';
 import '../../features/cita/presentation/pages/clientes_citas_page.dart';
+import '../../features/inventario/presentation/pages/inventarios_page.dart';
+import '../../features/inventario/presentation/pages/inventario_detail_page.dart';
+import '../../features/inventario/presentation/pages/crear_inventario_page.dart';
 
 /// Configuración de rutas de la aplicación
 class AppRouter {
@@ -447,6 +465,64 @@ class AppRouter {
           return HistorialPreciosGlobalPage(empresaId: empresaId);
         },
       ),
+      GoRoute(
+        path: '/empresa/inventario/kardex/:stockId',
+        name: 'empresa-kardex',
+        builder: (context, state) {
+          final stockId = state.pathParameters['stockId']!;
+          final nombre = state.uri.queryParameters['nombre'];
+          return KardexPage(stockId: stockId, productoNombre: nombre);
+        },
+      ),
+      // Rutas de inventario fisico
+      GoRoute(
+        path: '/empresa/inventarios',
+        name: 'empresa-inventarios',
+        builder: (context, state) => const InventariosPage(),
+      ),
+      GoRoute(
+        path: '/empresa/inventarios/crear',
+        name: 'empresa-inventarios-crear',
+        builder: (context, state) => const CrearInventarioPage(),
+      ),
+      GoRoute(
+        path: '/empresa/inventarios/:id',
+        name: 'empresa-inventarios-detail',
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return InventarioDetailPage(inventarioId: id);
+        },
+      ),
+      GoRoute(
+        path: '/empresa/inventario/por-ubicacion',
+        name: 'empresa-inventario-ubicacion',
+        builder: (context, state) => const StockPorUbicacionPage(),
+      ),
+      GoRoute(
+        path: '/empresa/inventario/stock-minmax',
+        name: 'empresa-stock-minmax',
+        builder: (context, state) => const ConfigurarStockMinMaxPage(),
+      ),
+      GoRoute(
+        path: '/empresa/inventario/merma-perdida',
+        name: 'empresa-merma-perdida',
+        builder: (context, state) => const MermaPerdidaPage(),
+      ),
+      GoRoute(
+        path: '/empresa/inventario/valorizacion',
+        name: 'empresa-valorizacion',
+        builder: (context, state) => const ValorizacionInventarioPage(),
+      ),
+      GoRoute(
+        path: '/empresa/inventario/sugerencias-reorden',
+        name: 'empresa-sugerencias-reorden',
+        builder: (context, state) => const SugerenciasReordenPage(),
+      ),
+      GoRoute(
+        path: '/empresa/inventario/reporte-rotacion',
+        name: 'empresa-reporte-rotacion',
+        builder: (context, state) => const ReporteRotacionPage(),
+      ),
       // Rutas de reportes de incidencia
       GoRoute(
         path: '/empresa/reportes-incidencia',
@@ -737,15 +813,7 @@ class AppRouter {
       GoRoute(
         path: '/empresa/ventas/nueva',
         name: 'empresa-ventas-nueva',
-        builder: (context, state) => const VentaFormPage(),
-      ),
-      GoRoute(
-        path: '/empresa/ventas/desde-cotizacion/:id',
-        name: 'empresa-ventas-desde-cotizacion',
-        builder: (context, state) {
-          final cotizacionId = state.pathParameters['id']!;
-          return VentaFormPage(cotizacionId: cotizacionId);
-        },
+        builder: (context, state) => const VentaPOSPage(),
       ),
       GoRoute(
         path: '/empresa/ventas/:id',
@@ -873,6 +941,11 @@ class AppRouter {
         builder: (context, state) => const MetasFinancierasPage(),
       ),
       GoRoute(
+        path: '/empresa/reportes-financieros',
+        name: 'empresa-reportes-financieros',
+        builder: (context, state) => const ReportesFinancierosPage(),
+      ),
+      GoRoute(
         path: '/empresa/cuentas-bancarias/:id/conciliacion',
         name: 'empresa-conciliacion',
         builder: (context, state) {
@@ -888,6 +961,54 @@ class AppRouter {
         path: '/empresa/caja/historial',
         name: 'empresa-caja-historial',
         builder: (context, state) => const HistorialCajaPage(),
+      ),
+      GoRoute(
+        path: '/empresa/caja/monitor',
+        name: 'empresa-caja-monitor',
+        builder: (context, state) => const CajaMonitorPage(),
+      ),
+      // Rutas de caja chica
+      GoRoute(
+        path: '/empresa/caja-chica',
+        name: 'empresa-caja-chica',
+        builder: (context, state) => const CajaChicaPage(),
+      ),
+      GoRoute(
+        path: '/empresa/caja-chica/crear',
+        name: 'empresa-caja-chica-crear',
+        builder: (context, state) => const CrearCajaChicaPage(),
+      ),
+      GoRoute(
+        path: '/empresa/caja-chica/:id',
+        name: 'empresa-caja-chica-detail',
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return CajaChicaDetailPage(cajaChicaId: id);
+        },
+      ),
+      GoRoute(
+        path: '/empresa/caja-chica/:id/nuevo-gasto',
+        name: 'empresa-caja-chica-nuevo-gasto',
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return NuevoGastoPage(cajaChicaId: id);
+        },
+      ),
+      GoRoute(
+        path: '/empresa/caja-chica/rendiciones/historial',
+        name: 'empresa-caja-chica-rendiciones',
+        builder: (context, state) {
+          final cajaChicaId = state.uri.queryParameters['cajaChicaId'];
+          return HistorialRendicionesPage(cajaChicaId: cajaChicaId);
+        },
+      ),
+      GoRoute(
+        path: '/empresa/caja-chica/rendiciones/:rendicionId',
+        name: 'empresa-caja-chica-rendicion-detail',
+        builder: (context, state) {
+          final rendicionId = state.pathParameters['rendicionId']!;
+          return RendicionPage(rendicionId: rendicionId);
+        },
       ),
       // Rutas de devoluciones
       GoRoute(

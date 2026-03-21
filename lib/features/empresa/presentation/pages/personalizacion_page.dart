@@ -127,7 +127,7 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
         _currentBannerUrl = p.bannerPrincipalUrl;
         _bannerUrlController.text = p.bannerPrincipalUrl ?? '';
         _bannerTextoController.text = p.bannerPrincipalTexto ?? '';
-        _banners = (p.banners as List?)
+        _banners = (p.banners)
             ?.where((b) => b is Map)
             .map((b) => Map<String, dynamic>.from(b as Map))
             .toList() ?? [];

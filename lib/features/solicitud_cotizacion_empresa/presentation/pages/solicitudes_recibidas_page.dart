@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
+import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/fonts/app_text_widgets.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/theme/gradient_container.dart';
 import '../../../../core/widgets/smart_appbar.dart';
+import '../../domain/entities/solicitud_empresa.dart';
 import '../bloc/solicitudes_recibidas_cubit.dart';
 
 class SolicitudesRecibidasPage extends StatelessWidget {
@@ -72,7 +73,7 @@ class _SolicitudesViewState extends State<_SolicitudesView> {
                         itemCount: state.solicitudes.length,
                         itemBuilder: (context, index) {
                           final sol = state.solicitudes[index];
-                          return _SolicitudCard(solicitud: sol, onTap: () => _navigateDetail(sol['id'] as String));
+                          return _SolicitudCard(solicitud: sol, onTap: () => _navigateDetail(sol.id));
                         },
                       ),
                     );
@@ -91,7 +92,7 @@ class _SolicitudesViewState extends State<_SolicitudesView> {
     final filtros = [
       {'label': 'Todos', 'value': null},
       {'label': 'Pendientes', 'value': 'PENDIENTE'},
-      {'label': 'En Revisión', 'value': 'EN_REVISION'},
+      {'label': 'En Revision', 'value': 'EN_REVISION'},
       {'label': 'Cotizadas', 'value': 'COTIZADA'},
       {'label': 'Rechazadas', 'value': 'RECHAZADA'},
     ];
@@ -109,7 +110,7 @@ class _SolicitudesViewState extends State<_SolicitudesView> {
               selected: isSelected, selectedColor: AppColors.blue1, backgroundColor: Colors.white, checkmarkColor: Colors.white,
               side: BorderSide(color: isSelected ? AppColors.blue1 : Colors.grey.shade300),
               onSelected: (_) {
-                setState(() => _filtro = f['value']);
+                setState(() => _filtro = f['value'] as String?);
                 context.read<SolicitudesRecibidasCubit>().load(estado: _filtro);
               },
             ),
@@ -126,18 +127,18 @@ class _SolicitudesViewState extends State<_SolicitudesView> {
 }
 
 class _SolicitudCard extends StatelessWidget {
-  final Map<String, dynamic> solicitud;
+  final SolicitudRecibida solicitud;
   final VoidCallback onTap;
   const _SolicitudCard({required this.solicitud, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final codigo = solicitud['codigo'] as String? ?? '';
-    final estado = solicitud['estado'] as String? ?? '';
-    final nombre = solicitud['nombreSolicitante'] as String? ?? '';
-    final items = solicitud['items'] as List<dynamic>? ?? [];
-    final manuales = items.where((i) => i['esManual'] == true).length;
-    final creadoEn = solicitud['creadoEn'] != null ? DateTime.tryParse(solicitud['creadoEn'].toString()) : null;
+    final codigo = solicitud.codigo ?? '';
+    final estado = solicitud.estado;
+    final nombre = solicitud.nombreSolicitante ?? '';
+    final items = solicitud.items;
+    final manuales = solicitud.itemsManuales;
+    final creadoEn = solicitud.creadoEn;
 
     return GradientContainer(
       margin: const EdgeInsets.only(bottom: 10),
@@ -176,7 +177,7 @@ class _SolicitudCard extends StatelessWidget {
               ),
               if (creadoEn != null) ...[
                 const SizedBox(height: 4),
-                Text(DateFormat('dd/MM/yyyy HH:mm').format(creadoEn), style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+                Text(DateFormatter.formatDateTime(creadoEn), style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
               ],
               if (estado == 'PENDIENTE') ...[
                 const SizedBox(height: 6),
@@ -204,7 +205,7 @@ class _EstadoChip extends StatelessWidget {
     String label;
     switch (estado) {
       case 'PENDIENTE': color = Colors.orange; label = 'Pendiente'; break;
-      case 'EN_REVISION': color = Colors.blue; label = 'En revisión'; break;
+      case 'EN_REVISION': color = Colors.blue; label = 'En revision'; break;
       case 'COTIZADA': color = Colors.green; label = 'Cotizada'; break;
       case 'RECHAZADA': color = Colors.red; label = 'Rechazada'; break;
       case 'CANCELADA': color = Colors.grey; label = 'Cancelada'; break;

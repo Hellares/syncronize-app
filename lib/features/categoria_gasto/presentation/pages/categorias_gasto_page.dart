@@ -1,25 +1,36 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/di/injection_container.dart';
-import '../../../../core/fonts/app_text_widgets.dart';
-import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/theme/gradient_container.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../../../core/widgets/custom_button.dart';
+import '../../domain/entities/categoria_gasto.dart';
+import '../bloc/categoria_gasto_cubit.dart';
+import '../bloc/categoria_gasto_state.dart';
 
-class CategoriasGastoPage extends StatefulWidget {
+class CategoriasGastoPage extends StatelessWidget {
   const CategoriasGastoPage({super.key});
 
   @override
-  State<CategoriasGastoPage> createState() => _CategoriasGastoPageState();
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (_) => locator<CategoriaGastoCubit>()..loadCategorias(),
+      child: const _CategoriasGastoView(),
+    );
+  }
 }
 
-class _CategoriasGastoPageState extends State<CategoriasGastoPage>
+class _CategoriasGastoView extends StatefulWidget {
+  const _CategoriasGastoView();
+
+  @override
+  State<_CategoriasGastoView> createState() => _CategoriasGastoViewState();
+}
+
+class _CategoriasGastoViewState extends State<_CategoriasGastoView>
     with SingleTickerProviderStateMixin {
-  List<Map<String, dynamic>> _categorias = [];
-  bool _isLoading = true;
   late TabController _tabController;
 
   static const List<Color> _predefinedColors = [
@@ -60,7 +71,6 @@ class _CategoriasGastoPageState extends State<CategoriasGastoPage>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _load();
   }
 
   @override
@@ -69,119 +79,19 @@ class _CategoriasGastoPageState extends State<CategoriasGastoPage>
     super.dispose();
   }
 
-  Future<void> _load() async {
-    setState(() => _isLoading = true);
-    try {
-      final dio = locator<DioClient>();
-      final response = await dio.get('/categorias-gasto');
-      final data = response.data as List<dynamic>? ?? [];
-      if (mounted) {
-        setState(() {
-          _categorias = data.map((e) => e as Map<String, dynamic>).toList();
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) setState(() => _isLoading = false);
-    }
+  List<CategoriaGasto> _filteredByTipo(List<CategoriaGasto> categorias, String tipo) {
+    return categorias.where((c) => c.tipo == tipo).toList();
   }
 
-  List<Map<String, dynamic>> _filteredByTipo(String tipo) {
-    return _categorias.where((c) => (c['tipo']?.toString() ?? '') == tipo).toList();
-  }
-
-  Future<void> _createCategoria(String nombre, String tipo, Color color, IconData icon) async {
-    try {
-      final dio = locator<DioClient>();
-      await dio.post('/categorias-gasto', data: {
-        'nombre': nombre,
-        'tipo': tipo,
-        'color': '#${color.value.toRadixString(16).padLeft(8, '0').substring(2)}',
-        'icono': icon.codePoint.toString(),
-      });
-      _load();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al crear categoria: $e'),
-            backgroundColor: AppColors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _updateCategoria(String id, String nombre, Color color, IconData icon) async {
-    try {
-      final dio = locator<DioClient>();
-      await dio.patch('/categorias-gasto/$id', data: {
-        'nombre': nombre,
-        'color': '#${color.value.toRadixString(16).padLeft(8, '0').substring(2)}',
-        'icono': icon.codePoint.toString(),
-      });
-      _load();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al actualizar: $e'),
-            backgroundColor: AppColors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _deleteCategoria(String id) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Eliminar categoria', style: TextStyle(fontSize: 15)),
-        content: const Text(
-          'Esta accion no se puede deshacer. Los movimientos con esta categoria no se veran afectados.',
-          style: TextStyle(fontSize: 12),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar', style: TextStyle(fontSize: 12)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Eliminar', style: TextStyle(fontSize: 12, color: AppColors.red)),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true) return;
-
-    try {
-      final dio = locator<DioClient>();
-      await dio.delete('/categorias-gasto/$id');
-      _load();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al eliminar: $e'),
-            backgroundColor: AppColors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  void _showAddEditDialog({Map<String, dynamic>? existing}) {
+  void _showAddEditDialog({CategoriaGasto? existing}) {
     final isEditing = existing != null;
-    final nombreCtrl = TextEditingController(text: existing?['nombre']?.toString() ?? '');
+    final nombreCtrl = TextEditingController(text: existing?.nombre ?? '');
     final currentTab = _tabController.index;
-    String tipo = existing?['tipo']?.toString() ?? (currentTab == 0 ? 'INGRESO' : 'EGRESO');
+    String tipo = existing?.tipo ?? (currentTab == 0 ? 'INGRESO' : 'EGRESO');
 
     Color selectedColor = _predefinedColors[0];
-    if (existing?['color'] != null) {
-      final hexStr = existing!['color'].toString().replaceFirst('#', '');
+    if (existing?.color != null) {
+      final hexStr = existing!.color!.replaceFirst('#', '');
       final parsed = int.tryParse(hexStr, radix: 16);
       if (parsed != null) {
         selectedColor = Color(0xFF000000 | parsed);
@@ -189,8 +99,8 @@ class _CategoriasGastoPageState extends State<CategoriasGastoPage>
     }
 
     IconData selectedIcon = _predefinedIcons[0];
-    if (existing?['icono'] != null) {
-      final code = int.tryParse(existing!['icono'].toString());
+    if (existing?.icono != null) {
+      final code = int.tryParse(existing!.icono!);
       if (code != null) {
         selectedIcon = IconData(code, fontFamily: 'MaterialIcons');
       }
@@ -327,15 +237,23 @@ class _CategoriasGastoPageState extends State<CategoriasGastoPage>
                     final nombre = nombreCtrl.text.trim();
                     if (nombre.isEmpty) return;
                     Navigator.pop(ctx);
+                    final colorHex = '#${selectedColor.value.toRadixString(16).padLeft(8, '0').substring(2)}';
+                    final iconoStr = selectedIcon.codePoint.toString();
+                    final cubit = context.read<CategoriaGastoCubit>();
                     if (isEditing) {
-                      _updateCategoria(
-                        existing['id'].toString(),
-                        nombre,
-                        selectedColor,
-                        selectedIcon,
+                      cubit.actualizar(
+                        id: existing.id,
+                        nombre: nombre,
+                        color: colorHex,
+                        icono: iconoStr,
                       );
                     } else {
-                      _createCategoria(nombre, tipo, selectedColor, selectedIcon);
+                      cubit.crear(
+                        nombre: nombre,
+                        tipo: tipo,
+                        color: colorHex,
+                        icono: iconoStr,
+                      );
                     }
                   },
                 ),
@@ -344,6 +262,32 @@ class _CategoriasGastoPageState extends State<CategoriasGastoPage>
           },
         );
       },
+    );
+  }
+
+  void _deleteCategoria(String id) {
+    showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Eliminar categoria', style: TextStyle(fontSize: 15)),
+        content: const Text(
+          'Esta accion no se puede deshacer. Los movimientos con esta categoria no se veran afectados.',
+          style: TextStyle(fontSize: 12),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar', style: TextStyle(fontSize: 12)),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx, true);
+              context.read<CategoriaGastoCubit>().eliminar(id: id);
+            },
+            child: const Text('Eliminar', style: TextStyle(fontSize: 12, color: AppColors.red)),
+          ),
+        ],
+      ),
     );
   }
 
@@ -368,15 +312,31 @@ class _CategoriasGastoPageState extends State<CategoriasGastoPage>
         ),
       ),
       body: GradientBackground(
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : TabBarView(
+        child: BlocBuilder<CategoriaGastoCubit, CategoriaGastoState>(
+          builder: (context, state) {
+            if (state is CategoriaGastoLoading) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (state is CategoriaGastoError) {
+              return Center(
+                child: Text(
+                  state.message,
+                  style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+                ),
+              );
+            }
+            if (state is CategoriaGastoLoaded) {
+              return TabBarView(
                 controller: _tabController,
                 children: [
-                  _buildCategoriaList('INGRESO'),
-                  _buildCategoriaList('EGRESO'),
+                  _buildCategoriaList(state.categorias, 'INGRESO'),
+                  _buildCategoriaList(state.categorias, 'EGRESO'),
                 ],
-              ),
+              );
+            }
+            return const SizedBox.shrink();
+          },
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppColors.blue1,
@@ -386,8 +346,8 @@ class _CategoriasGastoPageState extends State<CategoriasGastoPage>
     );
   }
 
-  Widget _buildCategoriaList(String tipo) {
-    final categorias = _filteredByTipo(tipo);
+  Widget _buildCategoriaList(List<CategoriaGasto> allCategorias, String tipo) {
+    final categorias = _filteredByTipo(allCategorias, tipo);
 
     if (categorias.isEmpty) {
       return Center(
@@ -429,7 +389,7 @@ class _CategoriasGastoPageState extends State<CategoriasGastoPage>
     }
 
     return RefreshIndicator(
-      onRefresh: _load,
+      onRefresh: () => context.read<CategoriaGastoCubit>().loadCategorias(),
       color: AppColors.blue1,
       child: ListView.builder(
         padding: const EdgeInsets.all(12),
@@ -439,7 +399,7 @@ class _CategoriasGastoPageState extends State<CategoriasGastoPage>
           return _CategoriaCard(
             categoria: cat,
             onEdit: () => _showAddEditDialog(existing: cat),
-            onDelete: () => _deleteCategoria(cat['id'].toString()),
+            onDelete: () => _deleteCategoria(cat.id),
           );
         },
       ),
@@ -448,7 +408,7 @@ class _CategoriasGastoPageState extends State<CategoriasGastoPage>
 }
 
 class _CategoriaCard extends StatelessWidget {
-  final Map<String, dynamic> categoria;
+  final CategoriaGasto categoria;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
@@ -460,28 +420,11 @@ class _CategoriaCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final nombre = categoria['nombre']?.toString() ?? '';
-    final tipo = categoria['tipo']?.toString() ?? '';
-
-    Color catColor = AppColors.blue1;
-    if (categoria['color'] != null) {
-      final hexStr = categoria['color'].toString().replaceFirst('#', '');
-      final parsed = int.tryParse(hexStr, radix: 16);
-      if (parsed != null) {
-        catColor = Color(0xFF000000 | parsed);
-      }
-    }
-
-    IconData catIcon = Icons.category;
-    if (categoria['icono'] != null) {
-      final code = int.tryParse(categoria['icono'].toString());
-      if (code != null) {
-        catIcon = IconData(code, fontFamily: 'MaterialIcons');
-      }
-    }
+    final catColor = categoria.colorValue;
+    final catIcon = categoria.iconData;
 
     return Dismissible(
-      key: Key(categoria['id'].toString()),
+      key: Key(categoria.id),
       direction: DismissDirection.endToStart,
       background: Container(
         alignment: Alignment.centerRight,
@@ -519,7 +462,7 @@ class _CategoriaCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      nombre,
+                      categoria.nombre,
                       style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
@@ -539,10 +482,10 @@ class _CategoriaCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          tipo,
+                          categoria.tipo,
                           style: TextStyle(
                             fontSize: 10,
-                            color: tipo == 'INGRESO' ? AppColors.green : AppColors.red,
+                            color: categoria.tipo == 'INGRESO' ? AppColors.green : AppColors.red,
                             fontWeight: FontWeight.w500,
                           ),
                         ),

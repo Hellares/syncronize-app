@@ -1,24 +1,30 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/di/injection_container.dart';
-import '../../../../core/fonts/app_text_widgets.dart';
-import '../../../../core/network/dio_client.dart';
+import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/theme/gradient_container.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../../../core/widgets/custom_button.dart';
+import '../../domain/entities/meta_financiera.dart';
+import '../bloc/meta_financiera_cubit.dart';
+import '../bloc/meta_financiera_state.dart';
 
-class MetasFinancierasPage extends StatefulWidget {
+class MetasFinancierasPage extends StatelessWidget {
   const MetasFinancierasPage({super.key});
 
   @override
-  State<MetasFinancierasPage> createState() => _MetasFinancierasPageState();
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (_) => locator<MetaFinancieraCubit>()..loadMetas(),
+      child: const _MetasFinancierasView(),
+    );
+  }
 }
 
-class _MetasFinancierasPageState extends State<MetasFinancierasPage> {
-  List<Map<String, dynamic>> _metas = [];
-  bool _isLoading = true;
+class _MetasFinancierasView extends StatelessWidget {
+  const _MetasFinancierasView();
 
   static const Map<String, Color> _tipoColors = {
     'VENTAS': Color(0xFF1976D2),
@@ -34,66 +40,8 @@ class _MetasFinancierasPageState extends State<MetasFinancierasPage> {
     'REDUCCION_GASTOS': 'Reduccion Gastos',
   };
 
-  static const Map<String, IconData> _tipoIcons = {
-    'VENTAS': Icons.point_of_sale,
-    'INGRESOS': Icons.trending_up,
-    'AHORRO': Icons.savings,
-    'REDUCCION_GASTOS': Icons.trending_down,
-  };
 
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    setState(() => _isLoading = true);
-    try {
-      final dio = locator<DioClient>();
-      final response = await dio.get('/metas-financieras/resumen');
-      final data = response.data as List<dynamic>? ?? [];
-      if (mounted) {
-        setState(() {
-          _metas = data.map((e) => e as Map<String, dynamic>).toList();
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _createMeta({
-    required String tipo,
-    required String nombre,
-    required double montoMeta,
-    required DateTime fechaInicio,
-    required DateTime fechaFin,
-  }) async {
-    try {
-      final dio = locator<DioClient>();
-      await dio.post('/metas-financieras', data: {
-        'tipo': tipo,
-        'nombre': nombre,
-        'montoMeta': montoMeta,
-        'fechaInicio': fechaInicio.toIso8601String(),
-        'fechaFin': fechaFin.toIso8601String(),
-      });
-      _load();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al crear meta: $e'),
-            backgroundColor: AppColors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  void _showCreateDialog() {
+  void _showCreateDialog(BuildContext context) {
     final nombreCtrl = TextEditingController();
     final montoCtrl = TextEditingController();
     String tipoSeleccionado = 'VENTAS';
@@ -211,7 +159,7 @@ class _MetasFinancierasPageState extends State<MetasFinancierasPage> {
                     final monto = double.tryParse(montoCtrl.text.trim()) ?? 0;
                     if (nombre.isEmpty || monto <= 0) return;
                     Navigator.pop(ctx);
-                    _createMeta(
+                    context.read<MetaFinancieraCubit>().crearMeta(
                       tipo: tipoSeleccionado,
                       nombre: nombre,
                       montoMeta: monto,
@@ -237,38 +185,51 @@ class _MetasFinancierasPageState extends State<MetasFinancierasPage> {
         foregroundColor: Colors.white,
       ),
       body: GradientBackground(
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : RefreshIndicator(
-                onRefresh: _load,
+        child: BlocBuilder<MetaFinancieraCubit, MetaFinancieraState>(
+          builder: (context, state) {
+            if (state is MetaFinancieraLoading) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (state is MetaFinancieraError) {
+              return Center(
+                child: Text(
+                  state.message,
+                  style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+                ),
+              );
+            }
+            if (state is MetaFinancieraLoaded) {
+              return RefreshIndicator(
+                onRefresh: () => context.read<MetaFinancieraCubit>().loadMetas(),
                 color: AppColors.blue1,
                 child: ListView(
                   padding: const EdgeInsets.all(12),
                   children: [
-                    _buildResumenCards(),
+                    _buildResumenCards(state.metas),
                     const SizedBox(height: 12),
-                    if (_metas.isEmpty)
+                    if (state.metas.isEmpty)
                       _buildEmptyState()
                     else
-                      ..._metas.map((m) => _MetaCard(meta: m)),
+                      ...state.metas.map((m) => _MetaCard(meta: m)),
                   ],
                 ),
-              ),
+              );
+            }
+            return const SizedBox.shrink();
+          },
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppColors.blue1,
-        onPressed: _showCreateDialog,
+        onPressed: () => _showCreateDialog(context),
         child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }
 
-  Widget _buildResumenCards() {
-    final cumplidas = _metas.where((m) {
-      final porcentaje = double.tryParse(m['porcentaje']?.toString() ?? '') ?? 0;
-      return porcentaje >= 100;
-    }).length;
-    final pendientes = _metas.length - cumplidas;
+  Widget _buildResumenCards(List<MetaFinanciera> metas) {
+    final cumplidas = metas.where((m) => m.porcentaje >= 100).length;
+    final pendientes = metas.length - cumplidas;
 
     return Row(
       children: [
@@ -369,7 +330,7 @@ class _MetasFinancierasPageState extends State<MetasFinancierasPage> {
 }
 
 class _MetaCard extends StatelessWidget {
-  final Map<String, dynamic> meta;
+  final MetaFinanciera meta;
   const _MetaCard({required this.meta});
 
   static const Map<String, Color> _tipoColors = {
@@ -395,25 +356,14 @@ class _MetaCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final nombre = meta['nombre']?.toString() ?? '';
-    final tipo = meta['tipo']?.toString() ?? '';
-    final montoMeta = double.tryParse(meta['montoMeta']?.toString() ?? '') ?? 0;
-    final actual = double.tryParse(meta['actual']?.toString() ?? '') ?? 0;
-    final porcentaje = double.tryParse(meta['porcentaje']?.toString() ?? '') ?? 0;
-    final diferencia = double.tryParse(meta['diferencia']?.toString() ?? '') ?? 0;
-    final fechaInicioRaw = meta['fechaInicio']?.toString() ?? '';
-    final fechaFinRaw = meta['fechaFin']?.toString() ?? '';
-    final fechaInicio = DateTime.tryParse(fechaInicioRaw);
-    final fechaFin = DateTime.tryParse(fechaFinRaw);
-
-    final tipoColor = _tipoColors[tipo] ?? AppColors.blue1;
-    final tipoLabel = _tipoLabels[tipo] ?? tipo;
-    final tipoIcon = _tipoIcons[tipo] ?? Icons.flag;
+    final tipoColor = _tipoColors[meta.tipo] ?? AppColors.blue1;
+    final tipoLabel = _tipoLabels[meta.tipo] ?? meta.tipo;
+    final tipoIcon = _tipoIcons[meta.tipo] ?? Icons.flag;
 
     final now = DateTime.now();
-    final isCumplida = porcentaje >= 100;
-    final isVencida = fechaFin != null && fechaFin.isBefore(now) && !isCumplida;
-    final isCerca = porcentaje >= 75 && porcentaje < 100;
+    final isCumplida = meta.cumplida;
+    final isVencida = meta.fechaFin != null && meta.fechaFin!.isBefore(now) && !isCumplida;
+    final isCerca = meta.porcentaje >= 75 && meta.porcentaje < 100;
 
     Color statusColor;
     IconData statusIcon;
@@ -443,6 +393,8 @@ class _MetaCard extends StatelessWidget {
             ? AppColors.red
             : tipoColor;
 
+    final diferencia = meta.diferencia ?? 0;
+
     return GradientContainer(
       margin: const EdgeInsets.only(bottom: 10),
       borderColor: isCumplida
@@ -471,7 +423,7 @@ class _MetaCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        nombre,
+                        meta.nombre,
                         style: const TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
@@ -512,7 +464,7 @@ class _MetaCard extends StatelessWidget {
             ClipRRect(
               borderRadius: BorderRadius.circular(4),
               child: LinearProgressIndicator(
-                value: (porcentaje / 100).clamp(0.0, 1.0),
+                value: (meta.porcentaje / 100).clamp(0.0, 1.0),
                 backgroundColor: Colors.grey.shade200,
                 valueColor: AlwaysStoppedAnimation<Color>(progressColor),
                 minHeight: 8,
@@ -523,11 +475,11 @@ class _MetaCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'S/ ${actual.toStringAsFixed(2)} / S/ ${montoMeta.toStringAsFixed(2)}',
+                  'S/ ${meta.montoActual.toStringAsFixed(2)} / S/ ${meta.montoMeta.toStringAsFixed(2)}',
                   style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
                 ),
                 Text(
-                  '${porcentaje.toStringAsFixed(1)}%',
+                  '${meta.porcentaje.toStringAsFixed(1)}%',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
@@ -548,14 +500,14 @@ class _MetaCard extends StatelessWidget {
                 ),
               ),
             ],
-            if (fechaInicio != null && fechaFin != null) ...[
+            if (meta.fechaInicio != null && meta.fechaFin != null) ...[
               const SizedBox(height: 8),
               Row(
                 children: [
                   Icon(Icons.date_range, size: 13, color: Colors.grey.shade500),
                   const SizedBox(width: 4),
                   Text(
-                    '${DateFormat('dd/MM/yyyy').format(fechaInicio)} - ${DateFormat('dd/MM/yyyy').format(fechaFin)}',
+                    '${DateFormatter.formatDate(meta.fechaInicio!)} - ${DateFormatter.formatDate(meta.fechaFin!)}',
                     style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
                   ),
                   if (isVencida) ...[
@@ -611,7 +563,7 @@ class _DatePickerField extends StatelessWidget {
             Text(label, style: TextStyle(fontSize: 9, color: Colors.grey.shade500)),
             const SizedBox(height: 2),
             Text(
-              DateFormat('dd/MM/yyyy').format(date),
+              DateFormatter.formatDate(date),
               style: const TextStyle(fontSize: 12, color: AppColors.blue3),
             ),
           ],

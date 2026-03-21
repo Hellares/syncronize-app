@@ -1,6 +1,11 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
-import '../../data/datasources/solicitud_empresa_remote_datasource.dart';
+
+import '../../../../core/utils/resource.dart';
+import '../../domain/entities/solicitud_empresa.dart';
+import '../../domain/usecases/cotizar_solicitud_usecase.dart';
+import '../../domain/usecases/get_detalle_solicitud_usecase.dart';
+import '../../domain/usecases/rechazar_solicitud_usecase.dart';
 
 abstract class SolicitudEmpresaActionState {}
 
@@ -9,7 +14,7 @@ class SolicitudEmpresaActionInitial extends SolicitudEmpresaActionState {}
 class SolicitudEmpresaActionLoading extends SolicitudEmpresaActionState {}
 
 class SolicitudEmpresaDetailLoaded extends SolicitudEmpresaActionState {
-  final Map<String, dynamic> solicitud;
+  final SolicitudRecibida solicitud;
   SolicitudEmpresaDetailLoaded(this.solicitud);
 }
 
@@ -24,38 +29,45 @@ class SolicitudEmpresaActionError extends SolicitudEmpresaActionState {
 }
 
 @injectable
-class SolicitudEmpresaActionCubit extends Cubit<SolicitudEmpresaActionState> {
-  final SolicitudEmpresaRemoteDataSource _dataSource;
+class SolicitudEmpresaActionCubit
+    extends Cubit<SolicitudEmpresaActionState> {
+  final GetDetalleSolicitudUseCase _getDetalleSolicitud;
+  final RechazarSolicitudUseCase _rechazarSolicitud;
+  final CotizarSolicitudUseCase _cotizarSolicitud;
 
-  SolicitudEmpresaActionCubit(this._dataSource) : super(SolicitudEmpresaActionInitial());
+  SolicitudEmpresaActionCubit(
+    this._getDetalleSolicitud,
+    this._rechazarSolicitud,
+    this._cotizarSolicitud,
+  ) : super(SolicitudEmpresaActionInitial());
 
   Future<void> loadDetalle(String id) async {
     emit(SolicitudEmpresaActionLoading());
-    try {
-      final data = await _dataSource.detalle(id);
-      emit(SolicitudEmpresaDetailLoaded(data));
-    } catch (e) {
-      emit(SolicitudEmpresaActionError(e.toString()));
+    final result = await _getDetalleSolicitud(id);
+    if (result is Success<SolicitudRecibida>) {
+      emit(SolicitudEmpresaDetailLoaded(result.data));
+    } else if (result is Error<SolicitudRecibida>) {
+      emit(SolicitudEmpresaActionError(result.message));
     }
   }
 
   Future<void> rechazar(String id, String motivo) async {
     emit(SolicitudEmpresaActionLoading());
-    try {
-      await _dataSource.rechazar(id, motivo);
+    final result = await _rechazarSolicitud(id, motivo);
+    if (result is Success) {
       emit(SolicitudEmpresaActionSuccess('Solicitud rechazada'));
-    } catch (e) {
-      emit(SolicitudEmpresaActionError(e.toString()));
+    } else if (result is Error) {
+      emit(SolicitudEmpresaActionError((result).message));
     }
   }
 
   Future<void> vincularCotizacion(String id, String cotizacionId) async {
     emit(SolicitudEmpresaActionLoading());
-    try {
-      await _dataSource.cotizar(id, cotizacionId);
-      emit(SolicitudEmpresaActionSuccess('Cotización vinculada'));
-    } catch (e) {
-      emit(SolicitudEmpresaActionError(e.toString()));
+    final result = await _cotizarSolicitud(id, cotizacionId);
+    if (result is Success) {
+      emit(SolicitudEmpresaActionSuccess('Cotizacion vinculada'));
+    } else if (result is Error) {
+      emit(SolicitudEmpresaActionError((result).message));
     }
   }
 }

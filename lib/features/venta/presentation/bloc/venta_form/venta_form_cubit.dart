@@ -4,6 +4,7 @@ import '../../../../../core/utils/resource.dart';
 import '../../../domain/entities/venta.dart';
 import '../../../domain/usecases/crear_venta_usecase.dart';
 import '../../../domain/usecases/crear_venta_desde_cotizacion_usecase.dart';
+import '../../../domain/usecases/crear_y_cobrar_venta_usecase.dart';
 import '../../../domain/usecases/actualizar_venta_usecase.dart';
 import '../../../domain/usecases/confirmar_venta_usecase.dart';
 import '../../../domain/usecases/procesar_pago_usecase.dart';
@@ -14,6 +15,7 @@ import 'venta_form_state.dart';
 class VentaFormCubit extends Cubit<VentaFormState> {
   final CrearVentaUseCase _crearVentaUseCase;
   final CrearVentaDesdeCotizacionUseCase _crearDesdeCotizacionUseCase;
+  final CrearYCobrarVentaUseCase _crearYCobrarVentaUseCase;
   final ActualizarVentaUseCase _actualizarVentaUseCase;
   final ConfirmarVentaUseCase _confirmarVentaUseCase;
   final ProcesarPagoUseCase _procesarPagoUseCase;
@@ -22,12 +24,14 @@ class VentaFormCubit extends Cubit<VentaFormState> {
   VentaFormCubit({
     required CrearVentaUseCase crearVentaUseCase,
     required CrearVentaDesdeCotizacionUseCase crearDesdeCotizacionUseCase,
+    required CrearYCobrarVentaUseCase crearYCobrarVentaUseCase,
     required ActualizarVentaUseCase actualizarVentaUseCase,
     required ConfirmarVentaUseCase confirmarVentaUseCase,
     required ProcesarPagoUseCase procesarPagoUseCase,
     required AnularVentaUseCase anularVentaUseCase,
   })  : _crearVentaUseCase = crearVentaUseCase,
         _crearDesdeCotizacionUseCase = crearDesdeCotizacionUseCase,
+        _crearYCobrarVentaUseCase = crearYCobrarVentaUseCase,
         _actualizarVentaUseCase = actualizarVentaUseCase,
         _confirmarVentaUseCase = confirmarVentaUseCase,
         _procesarPagoUseCase = procesarPagoUseCase,
@@ -64,6 +68,21 @@ class VentaFormCubit extends Cubit<VentaFormState> {
       emit(VentaFormSuccess(
         venta: result.data,
         message: 'Venta creada desde cotizacion exitosamente',
+      ));
+    } else if (result is Error<Venta>) {
+      emit(VentaFormError(result.message));
+    }
+  }
+
+  Future<void> crearYCobrar(Map<String, dynamic> data) async {
+    emit(const VentaFormLoading());
+    final result = await _crearYCobrarVentaUseCase(data: data);
+    if (isClosed) return;
+
+    if (result is Success<Venta>) {
+      emit(VentaFormSuccess(
+        venta: result.data,
+        message: 'Venta cobrada exitosamente',
       ));
     } else if (result is Error<Venta>) {
       emit(VentaFormError(result.message));
@@ -109,9 +128,17 @@ class VentaFormCubit extends Cubit<VentaFormState> {
     }
   }
 
-  Future<void> anularVenta(String id) async {
+  Future<void> anularVenta(
+    String id, {
+    required String autorizadoPorId,
+    required String motivo,
+  }) async {
     emit(const VentaFormLoading());
-    final result = await _anularVentaUseCase(ventaId: id);
+    final result = await _anularVentaUseCase(
+      ventaId: id,
+      autorizadoPorId: autorizadoPorId,
+      motivo: motivo,
+    );
     if (isClosed) return;
 
     if (result is Success<Venta>) {

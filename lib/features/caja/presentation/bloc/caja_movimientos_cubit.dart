@@ -3,6 +3,7 @@ import 'package:injectable/injectable.dart';
 import '../../../../core/utils/resource.dart';
 import '../../domain/entities/movimiento_caja.dart';
 import '../../domain/entities/resumen_caja.dart';
+import '../../domain/usecases/anular_movimiento_usecase.dart';
 import '../../domain/usecases/crear_movimiento_usecase.dart';
 import '../../domain/usecases/get_movimientos_usecase.dart';
 import '../../domain/usecases/get_resumen_usecase.dart';
@@ -13,6 +14,7 @@ class CajaMovimientosCubit extends Cubit<CajaMovimientosState> {
   final GetMovimientosUseCase _getMovimientosUseCase;
   final CrearMovimientoUseCase _crearMovimientoUseCase;
   final GetResumenUseCase _getResumenUseCase;
+  final AnularMovimientoUseCase _anularMovimientoUseCase;
 
   String? _currentCajaId;
 
@@ -20,6 +22,7 @@ class CajaMovimientosCubit extends Cubit<CajaMovimientosState> {
     this._getMovimientosUseCase,
     this._crearMovimientoUseCase,
     this._getResumenUseCase,
+    this._anularMovimientoUseCase,
   ) : super(const CajaMovimientosInitial());
 
   Future<void> loadMovimientos(String cajaId) async {
@@ -68,6 +71,26 @@ class CajaMovimientosCubit extends Cubit<CajaMovimientosState> {
 
     if (result is Success<void>) {
       // Reload movements after creating one
+      await loadMovimientos(cajaId);
+      return true;
+    }
+    return false;
+  }
+
+  Future<bool> anularMovimiento({
+    required String cajaId,
+    required String movimientoId,
+    required String autorizadoPorId,
+    required String motivo,
+  }) async {
+    final result = await _anularMovimientoUseCase(
+      cajaId: cajaId,
+      movimientoId: movimientoId,
+      autorizadoPorId: autorizadoPorId,
+      motivo: motivo,
+    );
+
+    if (result is Success<void>) {
       await loadMovimientos(cajaId);
       return true;
     }

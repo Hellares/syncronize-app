@@ -563,7 +563,7 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
                     onPressed: () {
                       Navigator.pop(ctx);
                       context.push(
-                        '/empresa/ventas/desde-cotizacion/${cot.id}',
+                        '/empresa/cola-pos/cobrar/${cot.id}',
                       );
                     },
                     style: ElevatedButton.styleFrom(

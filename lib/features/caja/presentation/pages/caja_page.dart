@@ -7,7 +7,10 @@ import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/utils/date_formatter.dart';
 import 'package:syncronize/core/widgets/custom_button.dart';
+import 'package:syncronize/core/widgets/custom_dropdown.dart';
+import 'package:syncronize/core/widgets/currency/currency_textfield.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
+import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import 'package:syncronize/core/widgets/snack_bar_helper.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
@@ -185,26 +188,16 @@ class _CajaViewState extends State<_CajaView> {
                 ),
                 const SizedBox(height: 16),
                 // Sede selector
-                DropdownButtonFormField<String>(
+                CustomDropdown<String>(
+                  label: 'Sede',
+                  hintText: 'Selecciona una sede',
                   value: _selectedSedeId,
-                  decoration: InputDecoration(
-                    labelText: 'Sede',
-                    prefixIcon: const Icon(Icons.store_rounded),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                  ),
+                  borderColor: AppColors.blue1,
+                  prefixIcon: const Icon(Icons.store_rounded, size: 18),
                   items: sedes
-                      .map((sede) => DropdownMenuItem<String>(
+                      .map((sede) => DropdownItem<String>(
                             value: sede.id,
-                            child: Text(
-                              sede.nombre,
-                              style: const TextStyle(fontSize: 14),
-                            ),
+                            label: sede.nombre,
                           ))
                       .toList(),
                   onChanged: (value) {
@@ -213,39 +206,18 @@ class _CajaViewState extends State<_CajaView> {
                 ),
                 const SizedBox(height: 16),
                 // Monto apertura
-                TextFormField(
+                CurrencyTextField(
                   controller: _montoAperturaController,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                  decoration: InputDecoration(
-                    labelText: 'Monto de Apertura',
-                    prefixIcon: const Icon(Icons.attach_money_rounded),
-                    prefixText: 'S/ ',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                  ),
+                  label: 'Monto de Apertura',
+                  borderColor: AppColors.blue1,
                 ),
                 const SizedBox(height: 16),
                 // Observaciones
-                TextFormField(
+                CustomText(
                   controller: _observacionesController,
+                  label: 'Observaciones (opcional)',
+                  borderColor: AppColors.blue1,
                   maxLines: 2,
-                  decoration: InputDecoration(
-                    labelText: 'Observaciones (opcional)',
-                    prefixIcon: const Icon(Icons.note_rounded),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                  ),
                 ),
                 const SizedBox(height: 24),
                 SizedBox(
@@ -300,7 +272,7 @@ class _CajaViewState extends State<_CajaView> {
       },
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -321,7 +293,7 @@ class _CajaViewState extends State<_CajaView> {
                         child: const Icon(
                           Icons.point_of_sale_rounded,
                           color: AppColors.green,
-                          size: 24,
+                          size: 20,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -331,14 +303,14 @@ class _CajaViewState extends State<_CajaView> {
                           children: [
                             AppSubtitle(
                               caja.codigo,
-                              fontSize: 16,
+                              fontSize: 14,
                               color: AppColors.blue3,
                             ),
                             const SizedBox(height: 2),
                             Text(
                               caja.sedeNombre ?? 'Sede',
                               style: const TextStyle(
-                                fontSize: 13,
+                                fontSize: 11,
                                 color: AppColors.textSecondary,
                               ),
                             ),
@@ -357,7 +329,7 @@ class _CajaViewState extends State<_CajaView> {
                         child: Text(
                           caja.estado.label,
                           style: TextStyle(
-                            fontSize: 12,
+                            fontSize: 11,
                             fontWeight: FontWeight.w600,
                             color: caja.estado.color,
                           ),
@@ -376,19 +348,28 @@ class _CajaViewState extends State<_CajaView> {
                         ),
                       ),
                       Expanded(
-                        child: _buildInfoItem(
-                          'Apertura',
-                          DateFormatter.formatDateTime(caja.fechaApertura),
-                          Icons.access_time_rounded,
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: _buildInfoItemEnd(
+                            'Apertura',
+                            DateFormatter.formatDateTime(caja.fechaApertura),
+                            Icons.access_time_rounded,
+                          ),
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 8),
-                  _buildInfoItem(
-                    'Monto Apertura',
-                    currencyFormat.format(caja.montoApertura),
-                    Icons.attach_money_rounded,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildInfoItem(
+                          'Monto Apertura',
+                          currencyFormat.format(caja.montoApertura),
+                          Icons.attach_money_rounded,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -520,7 +501,6 @@ class _CajaViewState extends State<_CajaView> {
               child: CustomButton(
                 text: 'Cerrar Caja',
                 backgroundColor: AppColors.red,
-                height: 48,
                 onPressed: () => _navigateToCerrarCaja(context, caja.id),
               ),
             ),
@@ -550,7 +530,7 @@ class _CajaViewState extends State<_CajaView> {
               Text(
                 value,
                 style: const TextStyle(
-                  fontSize: 13,
+                  fontSize: 10,
                   fontWeight: FontWeight.w600,
                   color: AppColors.textPrimary,
                 ),
@@ -559,6 +539,36 @@ class _CajaViewState extends State<_CajaView> {
             ],
           ),
         ),
+      ],
+    );
+  }
+
+  Widget _buildInfoItemEnd(String label, String value, IconData icon) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 11,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            Text(
+              value,
+              style: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(width: 6),
+        Icon(icon, size: 16, color: AppColors.textSecondary),
       ],
     );
   }
@@ -582,7 +592,7 @@ class _CajaViewState extends State<_CajaView> {
             Text(
               label,
               style: TextStyle(
-                fontSize: 13,
+                fontSize: 12,
                 fontWeight: FontWeight.w600,
                 color: color,
               ),
@@ -624,7 +634,7 @@ class _CajaViewState extends State<_CajaView> {
                 Text(
                   mov.descripcion ?? mov.categoria.label,
                   style: const TextStyle(
-                    fontSize: 13,
+                    fontSize: 12,
                     fontWeight: FontWeight.w500,
                     color: AppColors.textPrimary,
                   ),
@@ -655,6 +665,7 @@ class _CajaViewState extends State<_CajaView> {
   }
 
   void _navigateToNuevoMovimiento(BuildContext context, String cajaId) {
+    final movCubit = context.read<CajaMovimientosCubit>();
     Navigator.of(context)
         .push(
       MaterialPageRoute(
@@ -663,7 +674,7 @@ class _CajaViewState extends State<_CajaView> {
     )
         .then((result) {
       if (result == true) {
-        context.read<CajaMovimientosCubit>().loadMovimientos(cajaId);
+        movCubit.loadMovimientos(cajaId);
       }
     });
   }
@@ -680,16 +691,18 @@ class _CajaViewState extends State<_CajaView> {
   }
 
   void _navigateToCerrarCaja(BuildContext context, String cajaId) {
+    final cajaCubit = context.read<CajaActivaCubit>();
+    final movCubit = context.read<CajaMovimientosCubit>();
     Navigator.of(context)
         .push(
       MaterialPageRoute(
         builder: (_) => MultiBlocProvider(
           providers: [
             BlocProvider.value(
-              value: context.read<CajaActivaCubit>(),
+              value: cajaCubit,
             ),
             BlocProvider.value(
-              value: context.read<CajaMovimientosCubit>(),
+              value: movCubit,
             ),
           ],
           child: CerrarCajaPage(cajaId: cajaId),
@@ -698,7 +711,7 @@ class _CajaViewState extends State<_CajaView> {
     )
         .then((_) {
       // Reload state when coming back
-      context.read<CajaActivaCubit>().loadCajaActiva();
+      cajaCubit.loadCajaActiva();
     });
   }
 }

@@ -52,6 +52,7 @@ class CajaRemoteDataSource {
     required String metodoPago,
     required double monto,
     String? descripcion,
+    String? categoriaGastoId,
   }) async {
     final data = <String, dynamic>{
       'tipo': tipo,
@@ -61,6 +62,9 @@ class CajaRemoteDataSource {
     };
     if (descripcion != null && descripcion.isNotEmpty) {
       data['descripcion'] = descripcion;
+    }
+    if (categoriaGastoId != null && categoriaGastoId.isNotEmpty) {
+      data['categoriaGastoId'] = categoriaGastoId;
     }
 
     await _dioClient.post('$_basePath/$cajaId/movimiento', data: data);
@@ -113,5 +117,28 @@ class CajaRemoteDataSource {
   Future<ResumenCajaModel> getResumen(String cajaId) async {
     final response = await _dioClient.get('$_basePath/$cajaId/resumen');
     return ResumenCajaModel.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<void> anularMovimiento({
+    required String cajaId,
+    required String movimientoId,
+    required String autorizadoPorId,
+    required String motivo,
+  }) async {
+    await _dioClient.post(
+      '$_basePath/$cajaId/movimiento/$movimientoId/anular',
+      data: {'autorizadoPorId': autorizadoPorId, 'motivo': motivo},
+    );
+  }
+
+  Future<Map<String, dynamic>> getMonitor({String? sedeId}) async {
+    final queryParams = <String, dynamic>{};
+    if (sedeId != null) queryParams['sedeId'] = sedeId;
+
+    final response = await _dioClient.get(
+      '$_basePath/monitor',
+      queryParameters: queryParams,
+    );
+    return response.data as Map<String, dynamic>;
   }
 }

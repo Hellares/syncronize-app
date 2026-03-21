@@ -165,7 +165,7 @@ class _AjustarStockDialogState extends State<AjustarStockDialog> {
       items: TipoMovimientoStock.values.map((tipo) {
         return DropdownItem<TipoMovimientoStock>(
           value: tipo,
-          label: tipo.descripcion,
+          label: tipo.label,
           leading: Icon(
             tipo.esEntrada ? Icons.arrow_downward : Icons.arrow_upward,
             size: 16,

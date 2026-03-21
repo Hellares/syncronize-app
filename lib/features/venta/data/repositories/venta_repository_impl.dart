@@ -53,6 +53,21 @@ class VentaRepositoryImpl implements VentaRepository {
   }
 
   @override
+  Future<Resource<Venta>> crearYCobrar({
+    required Map<String, dynamic> data,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final venta = await _remoteDataSource.crearYCobrar(data);
+      return Success(venta.toEntity());
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Venta');
+    }
+  }
+
+  @override
   Future<Resource<List<Venta>>> getVentas({
     String? sedeId,
     String? estado,
@@ -138,12 +153,20 @@ class VentaRepositoryImpl implements VentaRepository {
   }
 
   @override
-  Future<Resource<Venta>> anularVenta({required String ventaId}) async {
+  Future<Resource<Venta>> anularVenta({
+    required String ventaId,
+    required String autorizadoPorId,
+    required String motivo,
+  }) async {
     if (!await _networkInfo.isConnected) {
       return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
     }
     try {
-      final venta = await _remoteDataSource.anularVenta(ventaId);
+      final venta = await _remoteDataSource.anularVenta(
+        ventaId,
+        autorizadoPorId: autorizadoPorId,
+        motivo: motivo,
+      );
       return Success(venta.toEntity());
     } catch (e) {
       return _errorHandler.handleException(e, context: 'Venta');
@@ -158,6 +181,19 @@ class VentaRepositoryImpl implements VentaRepository {
     try {
       final result = await _remoteDataSource.getResumen(sedeId: sedeId);
       return Success(result);
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Venta');
+    }
+  }
+
+  @override
+  Future<Resource<Venta?>> buscarPorCodigo({required String codigo}) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final venta = await _remoteDataSource.buscarPorCodigo(codigo);
+      return Success(venta?.toEntity());
     } catch (e) {
       return _errorHandler.handleException(e, context: 'Venta');
     }

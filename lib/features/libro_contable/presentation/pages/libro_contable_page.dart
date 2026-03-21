@@ -1,25 +1,37 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-import '../../../../core/di/injection_container.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/fonts/app_text_widgets.dart';
-import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/theme/gradient_container.dart';
+import '../../../../core/di/injection_container.dart';
+import '../../../../core/services/export_service.dart';
 import '../../../../core/widgets/smart_appbar.dart';
-import '../../../../core/widgets/custom_button.dart';
+import '../../domain/entities/libro_contable.dart';
+import '../bloc/libro_contable_cubit.dart';
+import '../bloc/libro_contable_state.dart';
 
-class LibroContablePage extends StatefulWidget {
+class LibroContablePage extends StatelessWidget {
   const LibroContablePage({super.key});
 
   @override
-  State<LibroContablePage> createState() => _LibroContablePageState();
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (_) => locator<LibroContableCubit>(),
+      child: const _LibroContableView(),
+    );
+  }
 }
 
-class _LibroContablePageState extends State<LibroContablePage> {
-  List<dynamic> _movimientos = [];
-  Map<String, dynamic>? _resumen;
-  bool _isLoading = true;
+class _LibroContableView extends StatefulWidget {
+  const _LibroContableView();
+
+  @override
+  State<_LibroContableView> createState() => _LibroContableViewState();
+}
+
+class _LibroContableViewState extends State<_LibroContableView> {
   int _mesSeleccionado = DateTime.now().month;
   int _anioSeleccionado = DateTime.now().year;
 
@@ -34,29 +46,20 @@ class _LibroContablePageState extends State<LibroContablePage> {
     _load();
   }
 
-  Future<void> _load() async {
-    setState(() => _isLoading = true);
-    try {
-      final dio = locator<DioClient>();
-      final response = await dio.get(
-        '/libro-contable',
-        queryParameters: {
-          'mes': _mesSeleccionado,
-          'anio': _anioSeleccionado,
-        },
-      );
+  void _load() {
+    context.read<LibroContableCubit>().loadLibro(
+          mes: _mesSeleccionado,
+          anio: _anioSeleccionado,
+        );
+  }
 
-      final data = response.data as Map<String, dynamic>? ?? {};
-      if (mounted) {
-        setState(() {
-          _movimientos = data['movimientos'] as List<dynamic>? ?? [];
-          _resumen = data['resumen'] as Map<String, dynamic>?;
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) setState(() => _isLoading = false);
-    }
+  Future<void> _exportExcel(BuildContext context) async {
+    await locator<ExportService>().exportAndShare(
+      context: context,
+      endpoint: '/reportes-financieros/export/libro-contable',
+      queryParams: {'mes': _mesSeleccionado, 'anio': _anioSeleccionado},
+      fileName: 'libro_contable_${_mesSeleccionado}_$_anioSeleccionado.xlsx',
+    );
   }
 
   @override
@@ -66,27 +69,60 @@ class _LibroContablePageState extends State<LibroContablePage> {
         title: 'Libro Contable',
         backgroundColor: AppColors.blue1,
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.file_download, color: Colors.white),
+            tooltip: 'Exportar Excel',
+            onPressed: () => _exportExcel(context),
+          ),
+        ],
       ),
       body: GradientBackground(
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : RefreshIndicator(
-                onRefresh: _load,
-                color: AppColors.blue1,
-                child: ListView(
-                  padding: const EdgeInsets.all(12),
+        child: BlocBuilder<LibroContableCubit, LibroContableState>(
+          builder: (context, state) {
+            if (state is LibroContableLoading) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (state is LibroContableError) {
+              return Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    _buildMonthYearSelector(),
-                    const SizedBox(height: 12),
-                    if (_resumen != null) _buildResumenCard(),
-                    const SizedBox(height: 12),
-                    if (_movimientos.isEmpty)
-                      _buildEmptyState()
-                    else
-                      ..._buildGroupedMovements(),
+                    Icon(Icons.error_outline, size: 48, color: Colors.grey.shade400),
+                    const SizedBox(height: 8),
+                    Text(state.message, style: TextStyle(color: Colors.grey.shade600)),
                   ],
                 ),
-              ),
+              );
+            }
+            if (state is LibroContableLoaded) {
+              return _buildContent(state);
+            }
+            return const Center(child: CircularProgressIndicator());
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContent(LibroContableLoaded state) {
+    final libro = state.libro;
+
+    return RefreshIndicator(
+      onRefresh: () async => _load(),
+      color: AppColors.blue1,
+      child: ListView(
+        padding: const EdgeInsets.all(12),
+        children: [
+          _buildMonthYearSelector(),
+          const SizedBox(height: 12),
+          _buildResumenCard(libro.resumen),
+          const SizedBox(height: 12),
+          if (libro.movimientos.isEmpty)
+            _buildEmptyState()
+          else
+            ..._buildGroupedMovements(libro.movimientos),
+        ],
       ),
     );
   }
@@ -175,10 +211,10 @@ class _LibroContablePageState extends State<LibroContablePage> {
     );
   }
 
-  Widget _buildResumenCard() {
-    final ingresos = double.tryParse(_resumen!['totalIngresos']?.toString() ?? '') ?? 0;
-    final egresos = double.tryParse(_resumen!['totalEgresos']?.toString() ?? '') ?? 0;
-    final saldo = double.tryParse(_resumen!['saldo']?.toString() ?? '') ?? 0;
+  Widget _buildResumenCard(ResumenContable resumen) {
+    final ingresos = resumen.totalIngresos;
+    final egresos = resumen.totalEgresos;
+    final saldo = resumen.saldoFinal;
 
     return GradientContainer(
       borderColor: AppColors.blueborder,
@@ -233,16 +269,13 @@ class _LibroContablePageState extends State<LibroContablePage> {
     );
   }
 
-  List<Widget> _buildGroupedMovements() {
-    final Map<String, List<Map<String, dynamic>>> grouped = {};
+  List<Widget> _buildGroupedMovements(List<MovimientoContable> movimientos) {
+    final Map<String, List<MovimientoContable>> grouped = {};
 
-    for (final m in _movimientos) {
-      final mov = m as Map<String, dynamic>;
-      final fechaRaw = mov['fecha']?.toString() ?? '';
-      final fecha = DateTime.tryParse(fechaRaw);
-      final key = fecha != null
-          ? DateFormat('dd/MM/yyyy').format(fecha)
-          : fechaRaw;
+    for (final mov in movimientos) {
+      final key = mov.fecha != null
+          ? DateFormatter.formatDate(mov.fecha!)
+          : '';
 
       grouped.putIfAbsent(key, () => []);
       grouped[key]!.add(mov);
@@ -362,19 +395,12 @@ class _SummaryItem extends StatelessWidget {
 }
 
 class _MovimientoCard extends StatelessWidget {
-  final Map<String, dynamic> movimiento;
+  final MovimientoContable movimiento;
   const _MovimientoCard({required this.movimiento});
 
   @override
   Widget build(BuildContext context) {
-    final tipo = movimiento['tipo']?.toString() ?? '';
-    final descripcion = movimiento['descripcion']?.toString() ?? '';
-    final categoria = movimiento['categoria']?.toString() ?? '';
-    final referencia = movimiento['referencia']?.toString() ?? '';
-    final monto = double.tryParse(movimiento['monto']?.toString() ?? '') ?? 0;
-    final saldoAcumulado = double.tryParse(movimiento['saldoAcumulado']?.toString() ?? '') ?? 0;
-
-    final isIngreso = tipo.toUpperCase() == 'INGRESO';
+    final isIngreso = movimiento.tipo.toUpperCase() == 'INGRESO';
     final color = isIngreso ? AppColors.green : AppColors.red;
     final icon = isIngreso ? Icons.arrow_upward : Icons.arrow_downward;
     final signo = isIngreso ? '+' : '-';
@@ -400,7 +426,7 @@ class _MovimientoCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    descripcion,
+                    movimiento.descripcion,
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -412,7 +438,7 @@ class _MovimientoCard extends StatelessWidget {
                   const SizedBox(height: 3),
                   Row(
                     children: [
-                      if (categoria.isNotEmpty)
+                      if (movimiento.categoria != null && movimiento.categoria!.isNotEmpty)
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
@@ -420,15 +446,15 @@ class _MovimientoCard extends StatelessWidget {
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
-                            categoria,
+                            movimiento.categoria!,
                             style: const TextStyle(fontSize: 9, color: AppColors.blue1),
                           ),
                         ),
-                      if (referencia.isNotEmpty) ...[
+                      if (movimiento.referencia != null && movimiento.referencia!.isNotEmpty) ...[
                         const SizedBox(width: 6),
                         Flexible(
                           child: Text(
-                            referencia,
+                            movimiento.referencia!,
                             style: TextStyle(fontSize: 9, color: Colors.grey.shade500),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -444,7 +470,7 @@ class _MovimientoCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  '$signo S/ ${monto.abs().toStringAsFixed(2)}',
+                  '$signo S/ ${movimiento.monto.abs().toStringAsFixed(2)}',
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.bold,
@@ -452,10 +478,11 @@ class _MovimientoCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  'Saldo: S/ ${saldoAcumulado.toStringAsFixed(2)}',
-                  style: TextStyle(fontSize: 9, color: Colors.grey.shade500),
-                ),
+                if (movimiento.saldoAcumulado != null)
+                  Text(
+                    'Saldo: S/ ${movimiento.saldoAcumulado!.toStringAsFixed(2)}',
+                    style: TextStyle(fontSize: 9, color: Colors.grey.shade500),
+                  ),
               ],
             ),
           ],

@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'cuota_venta.dart';
 import 'venta_detalle.dart';
 import 'pago_venta.dart';
 
@@ -162,6 +163,11 @@ class Venta extends Equatable {
   final int? cantidadDetalles;
   final int? cantidadPagos;
 
+  // Cuotas
+  final int? numeroCuotas;
+  final double? montoCreditoInicial;
+  final List<CuotaVenta>? cuotas;
+
   const Venta({
     required this.id,
     required this.empresaId,
@@ -202,6 +208,9 @@ class Venta extends Equatable {
     this.pagos,
     this.cantidadDetalles,
     this.cantidadPagos,
+    this.numeroCuotas,
+    this.montoCreditoInicial,
+    this.cuotas,
   });
 
   bool get esEditable => estado == EstadoVenta.borrador;
@@ -247,5 +256,8 @@ class Venta extends Equatable {
         actualizadoEn,
         detalles,
         pagos,
+        numeroCuotas,
+        montoCreditoInicial,
+        cuotas,
       ];
 }

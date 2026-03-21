@@ -1,8 +1,10 @@
 import '../../domain/entities/venta.dart';
 import '../../domain/entities/venta_detalle.dart';
 import '../../domain/entities/pago_venta.dart';
+import '../../domain/entities/cuota_venta.dart';
 import 'venta_detalle_model.dart';
 import 'pago_venta_model.dart';
+import 'cuota_venta_model.dart';
 
 class VentaModel extends Venta {
   const VentaModel({
@@ -45,6 +47,9 @@ class VentaModel extends Venta {
     super.pagos,
     super.cantidadDetalles,
     super.cantidadPagos,
+    super.numeroCuotas,
+    super.montoCreditoInicial,
+    super.cuotas,
   });
 
   factory VentaModel.fromJson(Map<String, dynamic> json) {
@@ -96,6 +101,13 @@ class VentaModel extends Venta {
           .toList();
     }
 
+    List<CuotaVenta>? cuotas;
+    if (json['cuotas'] != null) {
+      cuotas = (json['cuotas'] as List)
+          .map((e) => CuotaVentaModel.fromJson(e as Map<String, dynamic>))
+          .toList();
+    }
+
     return VentaModel(
       id: json['id'] as String,
       empresaId: json['empresaId'] as String,
@@ -140,6 +152,9 @@ class VentaModel extends Venta {
       pagos: pagos,
       cantidadDetalles: count?['detalles'] as int?,
       cantidadPagos: count?['pagos'] as int?,
+      numeroCuotas: json['numeroCuotas'] as int?,
+      montoCreditoInicial: json['montoCreditoInicial'] != null ? _toDouble(json['montoCreditoInicial']) : null,
+      cuotas: cuotas,
     );
   }
 
