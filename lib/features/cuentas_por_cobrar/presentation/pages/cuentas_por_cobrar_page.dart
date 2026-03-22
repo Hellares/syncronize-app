@@ -157,6 +157,20 @@ class _CuentasCobrarViewState extends State<_CuentasCobrarView> {
                 ),
               ],
             ),
+            if (resumen.totalMora > 0) ...[
+              const SizedBox(height: 6),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const AppSubtitle('Total mora', fontSize: 13),
+                  AppSubtitle(
+                    'S/ ${resumen.totalMora.toStringAsFixed(2)}',
+                    fontSize: 14,
+                    color: Colors.red,
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
@@ -275,6 +289,24 @@ class _CuentaCard extends StatelessWidget {
                 AppSubtitle('Saldo: S/ ${cuenta.saldoPendiente.toStringAsFixed(2)}', fontSize: 13, color: estadoColor),
               ],
             ),
+            if (cuenta.totalMora > 0) ...[
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Icon(Icons.warning_amber_rounded, size: 13, color: Colors.red.shade600),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Mora: S/ ${cuenta.totalMora.toStringAsFixed(2)}',
+                    style: TextStyle(fontSize: 11, color: Colors.red.shade600, fontWeight: FontWeight.w600),
+                  ),
+                  const Spacer(),
+                  Text(
+                    'Total c/mora: S/ ${cuenta.totalConMora.toStringAsFixed(2)}',
+                    style: TextStyle(fontSize: 11, color: Colors.red.shade700, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            ],
             if (cuenta.fechaVencimiento != null) ...[
               const SizedBox(height: 4),
               Row(

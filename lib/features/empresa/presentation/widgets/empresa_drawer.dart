@@ -53,6 +53,14 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
                 // ctx.go('/empresa');
               }),
             ),
+            _TileNode(
+              title: 'Mi Dashboard',
+              icon: Icons.trending_up,
+              iconColor: Colors.green,
+              visible: permissions?.canViewVentas ?? false,
+              routeMatch: const _RouteMatch.startsWith('/empresa/dashboard-vendedor'),
+              onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/dashboard-vendedor')),
+            ),
 
             _SectionTitleNode(
               'Productos',
@@ -214,6 +222,14 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/inventario/por-ubicacion')),
             ),
             _TileNode(
+              visible: permissions?.canManageProducts ?? false,
+              title: 'Gestión Ubicaciones',
+              icon: Icons.warehouse,
+              iconColor: Colors.blueGrey,
+              routeMatch: const _RouteMatch.startsWith('/empresa/inventario/ubicaciones-almacen'),
+              onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/inventario/ubicaciones-almacen')),
+            ),
+            _TileNode(
               visible: permissions?.canViewProducts ?? false,
               title: 'Stock Min/Max',
               icon: Icons.tune,
@@ -253,6 +269,22 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               routeMatch: const _RouteMatch.startsWith('/empresa/inventario/reporte-rotacion'),
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/inventario/reporte-rotacion')),
             ),
+            _TileNode(
+              visible: permissions?.canViewProducts ?? false,
+              title: 'Monitor Productos',
+              icon: Icons.monitor_heart,
+              iconColor: Colors.deepOrange,
+              routeMatch: const _RouteMatch.startsWith('/empresa/monitor-productos'),
+              onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/monitor-productos')),
+            ),
+            _TileNode(
+              visible: permissions?.canViewProducts ?? false,
+              title: 'Códigos de Barras',
+              icon: Icons.qr_code_2,
+              iconColor: Colors.indigo,
+              routeMatch: const _RouteMatch.startsWith('/empresa/generador-barcode'),
+              onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/generador-barcode')),
+            ),
 
             const _DividerNode(),
 
@@ -288,6 +320,14 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               iconColor: AppColors.blue2,
               routeMatch: const _RouteMatch.startsWith('/empresa/cuentas-bancarias'),
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/cuentas-bancarias')),
+            ),
+            _TileNode(
+              visible: permissions?.canManageSettings ?? false,
+              title: 'Agentes Bancarios',
+              icon: Icons.account_balance,
+              iconColor: Colors.teal,
+              routeMatch: const _RouteMatch.startsWith('/empresa/agentes-bancarios'),
+              onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/agentes-bancarios')),
             ),
             _TileNode(
               visible: permissions?.canViewCompras ?? false,
@@ -384,6 +424,14 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               iconColor: Colors.cyan,
               routeMatch: const _RouteMatch.startsWith('/empresa/flujo-proyectado'),
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/flujo-proyectado')),
+            ),
+            _TileNode(
+              visible: permissions?.canViewVentas ?? false,
+              title: 'Tipo de Cambio',
+              icon: Icons.currency_exchange,
+              iconColor: Colors.green,
+              routeMatch: const _RouteMatch.startsWith('/empresa/tipo-cambio'),
+              onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/tipo-cambio')),
             ),
             _TileNode(
               visible: permissions?.canManageSettings ?? false,

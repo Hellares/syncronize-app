@@ -14,7 +14,6 @@ import '../../../tercerizacion/domain/usecases/get_pendientes_usecase.dart';
 import '../bloc/empresa_context/empresa_context_cubit.dart';
 import '../bloc/empresa_context/empresa_context_state.dart';
 import '../../domain/entities/empresa_context.dart';
-import '../widgets/stats_card.dart';
 import '../widgets/empresa_switch_bottom_sheet.dart';
 import '../widgets/empresa_drawer.dart';
 import '../widgets/plan_suscripcion_card.dart';
@@ -198,8 +197,7 @@ class _EmpresaDashboardPageState extends State<EmpresaDashboardPage> {
   }
 
   Widget _buildDashboard(BuildContext innerContext, EmpresaContext empresaContext) {
-    final stats = empresaContext.statistics;
-    final permissions = empresaContext.permissions;
+
 
     return RefreshIndicator(
       onRefresh: () async {
@@ -229,109 +227,6 @@ class _EmpresaDashboardPageState extends State<EmpresaDashboardPage> {
 
             // Resumen financiero mini cards
             const ResumenFinancieroMiniCards(),
-            const SizedBox(height: 16),
-
-            // Título
-            AppSubtitle('Resumen', fontSize: 12),
-            const SizedBox(height: 5),
-
-            // Grid de estadísticas
-            GridView.count(
-              crossAxisCount: 4,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 16,
-              crossAxisSpacing: 16,
-              children: [
-                StatsCard(
-                  title: 'Productos',
-                  value: stats.totalProductos.toString(),
-                  icon: Icons.inventory,
-                  color: Colors.blue,
-                  onTap: permissions.canManageProducts
-                      ? () => context.push('/empresa/productos')
-                      : null,
-                ),
-                StatsCard(
-                  title: 'Servicios',
-                  value: stats.totalServicios.toString(),
-                  icon: Icons.room_service,
-                  color: Colors.green,
-                  onTap: permissions.canManageServices
-                      ? () => context.push('/empresa/servicios')
-                      : null,
-                ),
-                StatsCard(
-                  title: 'Sedes',
-                  value: stats.totalSedes.toString(),
-                  icon: Icons.store,
-                  color: Colors.orange,
-                  onTap: permissions.canManageSedes
-                      ? () => context.push('/empresa/sedes')
-                      : null,
-                ),
-                StatsCard(
-                  title: 'Cotizaciones',
-                  value: stats.totalCotizaciones.toString(),
-                  icon: Icons.request_quote,
-                  color: Colors.purple,
-                  onTap: permissions.canViewCotizaciones
-                      ? () => context.push('/empresa/cotizaciones')
-                      : null,
-                ),
-                StatsCard(
-                  title: 'Ventas',
-                  value: '-',
-                  icon: Icons.point_of_sale,
-                  color: Colors.green,
-                  onTap: () => context.push('/empresa/ventas'),
-                ),
-                StatsCard(
-                  title: 'Cola POS',
-                  value: '-',
-                  icon: Icons.receipt_long,
-                  color: Colors.orange,
-                  onTap: () => context.push('/empresa/cola-pos'),
-                ),
-                StatsCard(
-                  title: 'Proveedores',
-                  value: stats.totalProveedores.toString(),
-                  icon: Icons.local_shipping,
-                  color: Colors.teal,
-                  onTap: permissions.canViewProveedores
-                      ? () => context.push('/empresa/proveedores')
-                      : null,
-                ),
-                StatsCard(
-                  title: 'Órdenes Pendientes',
-                  value: stats.ordenesPendientes.toString(),
-                  icon: Icons.pending_actions,
-                  color: stats.ordenesPendientes > 0 ? Colors.red : Colors.grey,
-                  onTap: permissions.canManageOrders
-                      ? () => context.push('/empresa/ordenes')
-                      : null,
-                ),
-                StatsCard(
-                  title: 'Avisos Mantenimiento',
-                  value: '',
-                  icon: Icons.notifications_active_outlined,
-                  color: Colors.orange,
-                  onTap: permissions.canManageOrders
-                      ? () => context.push('/empresa/avisos-mantenimiento')
-                      : null,
-                ),
-                StatsCard(
-                  title: 'Tercerización',
-                  value: _pendientesCount > 0 ? '$_pendientesCount' : '',
-                  icon: Icons.swap_horiz,
-                  color: _pendientesCount > 0 ? Colors.deepPurple : Colors.grey,
-                  onTap: permissions.canManageOrders
-                      ? () => context.push('/empresa/tercerizacion')
-                      : null,
-                ),
-              ],
-            ),
-
             const SizedBox(height: 16),
 
             // Cajas activas

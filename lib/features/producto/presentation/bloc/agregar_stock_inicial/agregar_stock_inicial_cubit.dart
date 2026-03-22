@@ -51,7 +51,7 @@ class AgregarStockInicialCubit extends Cubit<AgregarStockInicialState> {
         // Ya existe un registro, actualizarlo
         final stockExistente = getStockResult.data;
 
-        // 1a. Actualizar precios
+        // 1a. Actualizar precios, ubicación, stock min/max
         final actualizarPreciosResult = await _actualizarPreciosUseCase(
           productoStockId: stockExistente.id,
           empresaId: empresaId,
@@ -61,6 +61,9 @@ class AgregarStockInicialCubit extends Cubit<AgregarStockInicialState> {
           enOferta: data.enOferta ?? false,
           fechaInicioOferta: data.fechaInicioOferta,
           fechaFinOferta: data.fechaFinOferta,
+          ubicacion: data.ubicacion,
+          stockMinimo: data.stockMinimo,
+          stockMaximo: data.stockMaximo,
         );
 
         if (actualizarPreciosResult is Error<ProductoStock>) {

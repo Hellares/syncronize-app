@@ -7,7 +7,7 @@ class RoleNavigationHelper {
   /// Mapeo de rol → ruta inicial más relevante
   static const _roleRoutes = <String, String>{
     'CLIENTE': '/empresa/cliente',
-    'VENDEDOR': '/empresa/cotizaciones',
+    'VENDEDOR': '/empresa/dashboard-vendedor',
     'CAJERO': '/empresa/cola-pos',
     'TECNICO': '/empresa/ordenes',
     'CONTADOR': '/empresa/ventas/analytics',

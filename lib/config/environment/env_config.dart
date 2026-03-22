@@ -10,7 +10,6 @@ class EnvConfig {
 
   //! Cambiar esto según el entorno actual
   static const Environment _currentEnvironment = Environment.development;
-
   // URLs base según el entorno
   // Nota: 10.0.2.2 es la IP del host desde el emulador Android
   static const Map<Environment, String> _baseUrls = {

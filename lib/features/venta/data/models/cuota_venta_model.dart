@@ -10,6 +10,13 @@ class CuotaVentaModel extends CuotaVenta {
     required super.saldoPendiente,
     required super.fechaVencimiento,
     required super.estado,
+    super.montoMora,
+    super.diasVencido,
+    super.montoPrincipal,
+    super.montoInteresCuota,
+    super.montoPagadoPrincipal,
+    super.montoPagadoInteres,
+    super.montoPagadoMora,
   });
 
   factory CuotaVentaModel.fromJson(Map<String, dynamic> json) {
@@ -22,6 +29,13 @@ class CuotaVentaModel extends CuotaVenta {
       saldoPendiente: _toDouble(json['saldoPendiente']),
       fechaVencimiento: DateTime.parse(json['fechaVencimiento'] as String),
       estado: json['estado'] as String? ?? 'PENDIENTE',
+      montoMora: _toDouble(json['montoMora']),
+      diasVencido: json['diasVencido'] as int? ?? 0,
+      montoPrincipal: _toDouble(json['montoPrincipal']),
+      montoInteresCuota: _toDouble(json['montoInteresCuota']),
+      montoPagadoPrincipal: _toDouble(json['montoPagadoPrincipal']),
+      montoPagadoInteres: _toDouble(json['montoPagadoInteres']),
+      montoPagadoMora: _toDouble(json['montoPagadoMora']),
     );
   }
 

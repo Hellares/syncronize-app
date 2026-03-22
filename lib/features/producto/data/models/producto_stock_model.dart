@@ -23,7 +23,7 @@ class ProductoStockModel extends ProductoStock {
     super.fechaInicioOferta,
     super.fechaFinOferta,
     super.precioConfigurado = false,
-    super.precioIncluyeIgv = false,
+    super.precioIncluyeIgv = true,
     required super.creadoEn,
     required super.actualizadoEn,
     super.sede,
@@ -69,7 +69,7 @@ class ProductoStockModel extends ProductoStock {
           ? DateTime.parse(json['fechaFinOferta'] as String)
           : null,
       precioConfigurado: json['precioConfigurado'] as bool? ?? false,
-      precioIncluyeIgv: json['precioIncluyeIgv'] as bool? ?? false,
+      precioIncluyeIgv: json['precioIncluyeIgv'] as bool? ?? true,
       creadoEn: DateTime.parse(json['creadoEn'] as String),
       actualizadoEn: DateTime.parse(json['actualizadoEn'] as String),
       sede: json['sede'] != null

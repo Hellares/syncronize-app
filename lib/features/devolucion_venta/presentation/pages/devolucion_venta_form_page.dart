@@ -196,18 +196,20 @@ class _DevolucionVentaFormPageState extends State<DevolucionVentaFormPage> {
                       textCase: TextCase.upper,
                     )),
                     const SizedBox(width: 8),
-                    CustomButton(
-                      text: 'Buscar',
-                      icon: _loadingVenta
-                          ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                          : const Icon(Icons.search, size: 16),
-                      backgroundColor: AppColors.blue1,
-                      height: 35,
-                      onPressed: _loadingVenta ? null : () {
-                        if (_ventaIdController.text.isNotEmpty) {
-                          _buscarVenta(_ventaIdController.text.trim());
-                        }
-                      },
+                    Padding(
+                      padding: const EdgeInsets.only(top: 10),
+                      child: CustomButton(
+                        text: 'Buscar',
+                        icon: _loadingVenta
+                            ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                            : const Icon(Icons.search, size: 16),
+                        backgroundColor: AppColors.blue1,
+                        onPressed: _loadingVenta ? null : () {
+                          if (_ventaIdController.text.isNotEmpty) {
+                            _buscarVenta(_ventaIdController.text.trim());
+                          }
+                        },
+                      ),
                     ),
                   ]),
                 ],
@@ -367,8 +369,7 @@ class _DevolucionVentaFormPageState extends State<DevolucionVentaFormPage> {
                   builder: (context, state) {
                     final isLoading = state is DevolucionFormLoading;
                     return CustomButton(
-                      borderColor: AppColors.blue1,
-                      textColor: AppColors.blue1,
+                      backgroundColor: AppColors.blue1,
                       text: 'Registrar Devolucion',
                       isLoading: isLoading,
                       onPressed: (_venta == null || _items.isEmpty || isLoading) ? null : () => _submit(context),

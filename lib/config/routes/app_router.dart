@@ -46,6 +46,7 @@ import '../../features/cuentas_por_cobrar/presentation/pages/cuentas_por_cobrar_
 import '../../features/cuentas_por_pagar/presentation/pages/cuentas_por_pagar_page.dart';
 import '../../features/empresa_banco/presentation/pages/empresa_banco_page.dart';
 import '../../features/resumen_financiero/presentation/pages/resumen_financiero_page.dart';
+import '../../features/tipo_cambio/presentation/pages/tipo_cambio_page.dart';
 import '../../features/prestamo/presentation/pages/prestamos_page.dart';
 import '../../features/libro_contable/presentation/pages/libro_contable_page.dart';
 import '../../features/flujo_proyectado/presentation/pages/flujo_proyectado_page.dart';
@@ -168,6 +169,12 @@ import '../../features/cita/presentation/pages/clientes_citas_page.dart';
 import '../../features/inventario/presentation/pages/inventarios_page.dart';
 import '../../features/inventario/presentation/pages/inventario_detail_page.dart';
 import '../../features/inventario/presentation/pages/crear_inventario_page.dart';
+import '../../features/ubicacion_almacen/presentation/pages/ubicaciones_almacen_page.dart';
+import '../../features/monitor_productos/presentation/pages/monitor_productos_page.dart';
+import '../../features/generador_barcode/presentation/pages/barcode_generator_page.dart';
+import '../../features/dashboard_vendedor/presentation/pages/dashboard_vendedor_page.dart';
+import '../../features/agente_bancario/presentation/pages/agentes_bancarios_page.dart';
+import '../../features/agente_bancario/presentation/pages/agente_detalle_page.dart';
 
 /// Configuración de rutas de la aplicación
 class AppRouter {
@@ -499,6 +506,11 @@ class AppRouter {
         builder: (context, state) => const StockPorUbicacionPage(),
       ),
       GoRoute(
+        path: '/empresa/inventario/ubicaciones-almacen',
+        name: 'empresa-ubicaciones-almacen',
+        builder: (context, state) => const UbicacionesAlmacenPage(),
+      ),
+      GoRoute(
         path: '/empresa/inventario/stock-minmax',
         name: 'empresa-stock-minmax',
         builder: (context, state) => const ConfigurarStockMinMaxPage(),
@@ -522,6 +534,24 @@ class AppRouter {
         path: '/empresa/inventario/reporte-rotacion',
         name: 'empresa-reporte-rotacion',
         builder: (context, state) => const ReporteRotacionPage(),
+      ),
+      GoRoute(
+        path: '/empresa/monitor-productos',
+        name: 'empresa-monitor-productos',
+        builder: (context, state) => const MonitorProductosPage(),
+      ),
+      GoRoute(
+        path: '/empresa/dashboard-vendedor',
+        name: 'empresa-dashboard-vendedor',
+        builder: (context, state) {
+          final vendedorId = state.uri.queryParameters['vendedorId'];
+          return DashboardVendedorPage(vendedorId: vendedorId);
+        },
+      ),
+      GoRoute(
+        path: '/empresa/generador-barcode',
+        name: 'empresa-generador-barcode',
+        builder: (context, state) => const BarcodeGeneratorPage(),
       ),
       // Rutas de reportes de incidencia
       GoRoute(
@@ -916,6 +946,11 @@ class AppRouter {
         builder: (context, state) => const ResumenFinancieroPage(),
       ),
       GoRoute(
+        path: '/empresa/tipo-cambio',
+        name: 'empresa-tipo-cambio',
+        builder: (context, state) => const TipoCambioPage(),
+      ),
+      GoRoute(
         path: '/empresa/prestamos',
         name: 'empresa-prestamos',
         builder: (context, state) => const PrestamosPage(),
@@ -1008,6 +1043,20 @@ class AppRouter {
         builder: (context, state) {
           final rendicionId = state.pathParameters['rendicionId']!;
           return RendicionPage(rendicionId: rendicionId);
+        },
+      ),
+      // Rutas de agentes bancarios
+      GoRoute(
+        path: '/empresa/agentes-bancarios',
+        name: 'empresa-agentes-bancarios',
+        builder: (context, state) => const AgentesBancariosPage(),
+      ),
+      GoRoute(
+        path: '/empresa/agentes-bancarios/:id',
+        name: 'empresa-agentes-bancarios-detail',
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return AgenteDetallePage(agenteId: id);
         },
       ),
       // Rutas de devoluciones

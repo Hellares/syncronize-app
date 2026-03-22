@@ -15,59 +15,59 @@ class AccesosRapidosSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return GradientContainer(
       borderColor: AppColors.blueborder,
-      padding: const EdgeInsets.all(12),
-      child: Row(
+      padding: const EdgeInsets.all(10),
+      child: Column(
         children: [
-          Expanded(
-            child: _AccesoRapidoButton(
-              icon: Icons.point_of_sale,
-              label: 'Nueva Venta',
-              color: AppColors.green,
-              onTap: () => context.push('/empresa/ventas/nueva'),
-            ),
+          // Fila 1: Operaciones
+          Row(
+            children: [
+              _card(Icons.point_of_sale, 'Venta', AppColors.green, () => context.push('/empresa/ventas/nueva')),
+              _card(Icons.receipt_long, 'Cola POS', AppColors.orange, () => context.push('/empresa/cola-pos'), badge: colaPosCount),
+              _card(Icons.account_balance_wallet, 'Caja', AppColors.blue1, () => context.push('/empresa/caja')),
+              _card(Icons.monitor_heart, 'Monitor Cajas', Colors.deepOrange, () => context.push('/empresa/caja/monitor')),
+              _card(Icons.analytics, 'Finanzas', Colors.deepPurple, () => context.push('/empresa/resumen-financiero')),
+            ],
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _AccesoRapidoButton(
-              icon: Icons.receipt_long,
-              label: 'Cola POS',
-              color: AppColors.orange,
-              badgeCount: colaPosCount,
-              onTap: () => context.push('/empresa/cola-pos'),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _AccesoRapidoButton(
-              icon: Icons.account_balance_wallet,
-              label: 'Caja',
-              color: AppColors.blue1,
-              onTap: () => context.push('/empresa/caja'),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _AccesoRapidoButton(
-              icon: Icons.monitor_heart,
-              label: 'Monitor',
-              color: Colors.deepOrange,
-              onTap: () => context.push('/empresa/caja/monitor'),
-            ),
+          const SizedBox(height: 6),
+          // Fila 2: Inventario & Herramientas
+          Row(
+            children: [
+              _card(Icons.inventory_2, 'Monitor Prod.', Colors.deepOrange, () => context.push('/empresa/monitor-productos')),
+              _card(Icons.room_service, 'Servicios', Colors.blue, () => context.push('/empresa/servicios')),
+              _card(Icons.currency_exchange, 'Tipo Cambio', Colors.green.shade700, () => context.push('/empresa/tipo-cambio')),
+              _card(Icons.inventory, 'Productos', Colors.blue.shade800, () => context.push('/empresa/productos')),
+              _card(Icons.request_quote, 'Cotizaciones', Colors.purple, () => context.push('/empresa/cotizaciones')),
+            ],
           ),
         ],
       ),
     );
   }
+
+  Widget _card(IconData icon, String label, Color color, VoidCallback onTap, {int badge = 0}) {
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 3),
+        child: _AccesoRapidoCard(
+          icon: icon,
+          label: label,
+          color: color,
+          badgeCount: badge,
+          onTap: onTap,
+        ),
+      ),
+    );
+  }
 }
 
-class _AccesoRapidoButton extends StatelessWidget {
+class _AccesoRapidoCard extends StatelessWidget {
   final IconData icon;
   final String label;
   final Color color;
   final int badgeCount;
   final VoidCallback onTap;
 
-  const _AccesoRapidoButton({
+  const _AccesoRapidoCard({
     required this.icon,
     required this.label,
     required this.color,
@@ -80,11 +80,25 @@ class _AccesoRapidoButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        height: 60,
+        height: 68,
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: color.withValues(alpha: 0.2)),
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Colors.white,
+              color.withValues(alpha: 0.08),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withValues(alpha: 0.3), width: 0.4),
+          boxShadow: [
+            BoxShadow(
+              color: color.withValues(alpha: 0.06),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -92,37 +106,40 @@ class _AccesoRapidoButton extends StatelessWidget {
             Stack(
               clipBehavior: Clip.none,
               children: [
-                Icon(icon, size: 20, color: color),
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(icon, size: 18, color: color),
+                ),
                 if (badgeCount > 0)
                   Positioned(
-                    right: -8,
-                    top: -6,
+                    right: -6,
+                    top: -5,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 4, vertical: 1),
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                       decoration: BoxDecoration(
                         color: AppColors.red,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         '$badgeCount',
-                        style: const TextStyle(
-                          fontSize: 8,
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: const TextStyle(fontSize: 7, color: Colors.white, fontWeight: FontWeight.bold),
                       ),
                     ),
                   ),
               ],
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 5),
             Text(
               label,
               style: TextStyle(
-                fontSize: 10,
-                color: color,
-                fontWeight: FontWeight.w600,
+                fontSize: 8.5,
+                color: color.withValues(alpha: 0.9),
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.2,
               ),
               textAlign: TextAlign.center,
               maxLines: 1,

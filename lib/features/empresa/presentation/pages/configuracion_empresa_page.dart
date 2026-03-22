@@ -31,6 +31,17 @@ class _ConfiguracionEmpresaPageState extends State<ConfiguracionEmpresaPage> {
   final _diasVigenciaController = TextEditingController();
   final _condicionesController = TextEditingController();
 
+  // Interés por crédito
+  final _porcentajeInteresController = TextEditingController();
+  bool _interesHabilitado = false;
+  bool _interesEsEditable = true;
+
+  // Mora
+  final _porcentajeMoraController = TextEditingController();
+  final _moraMaximaController = TextEditingController();
+  final _diasGraciaController = TextEditingController();
+  bool _moraHabilitada = false;
+
   // Etiquetas equipo
   final _etiquetaSeccionController = TextEditingController();
   final _etiquetaTipoController = TextEditingController();
@@ -64,6 +75,10 @@ class _ConfiguracionEmpresaPageState extends State<ConfiguracionEmpresaPage> {
     _simboloMonedaController.dispose();
     _diasVigenciaController.dispose();
     _condicionesController.dispose();
+    _porcentajeInteresController.dispose();
+    _porcentajeMoraController.dispose();
+    _moraMaximaController.dispose();
+    _diasGraciaController.dispose();
     _etiquetaSeccionController.dispose();
     _etiquetaTipoController.dispose();
     _etiquetaMarcaController.dispose();
@@ -89,6 +104,17 @@ class _ConfiguracionEmpresaPageState extends State<ConfiguracionEmpresaPage> {
     _etiquetaSerieController.text = config.etiquetaNumeroSerie ?? defaults['etiquetaNumeroSerie'] ?? 'Número de serie';
     _etiquetaCondicionController.text = config.etiquetaCondicionEquipo ?? defaults['etiquetaCondicionEquipo'] ?? 'Condición del equipo';
     _mostrarSeccionEquipo = config.mostrarSeccionEquipo;
+
+    // Interés por crédito
+    _interesHabilitado = config.interesHabilitado;
+    _porcentajeInteresController.text = config.porcentajeInteresDefault.toString();
+    _interesEsEditable = config.interesEsEditable;
+
+    // Mora
+    _moraHabilitada = config.moraHabilitada;
+    _porcentajeMoraController.text = config.porcentajeMoraDiario.toString();
+    _moraMaximaController.text = config.moraMaximaPorcentaje.toString();
+    _diasGraciaController.text = config.diasGraciaMora.toString();
   }
 
   Map<String, dynamic> _defaultsPorRubro(String? rubro) {
@@ -171,6 +197,13 @@ class _ConfiguracionEmpresaPageState extends State<ConfiguracionEmpresaPage> {
       etiquetaNumeroSerie: _etiquetaSerieController.text.trim(),
       etiquetaCondicionEquipo: _etiquetaCondicionController.text.trim(),
       mostrarSeccionEquipo: _mostrarSeccionEquipo,
+      interesHabilitado: _interesHabilitado,
+      porcentajeInteresDefault: double.tryParse(_porcentajeInteresController.text) ?? 0,
+      interesEsEditable: _interesEsEditable,
+      moraHabilitada: _moraHabilitada,
+      porcentajeMoraDiario: double.tryParse(_porcentajeMoraController.text) ?? 0.05,
+      moraMaximaPorcentaje: double.tryParse(_moraMaximaController.text) ?? 30.0,
+      diasGraciaMora: int.tryParse(_diasGraciaController.text) ?? 0,
     );
 
     await context
@@ -429,6 +462,192 @@ class _ConfiguracionEmpresaPageState extends State<ConfiguracionEmpresaPage> {
                         minLines: 2,
                         onChanged: (_) => _onChanged(),
                       ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // Sección: Interés por Crédito
+              _SectionHeader(
+                icon: Icons.percent,
+                title: 'Interés por Crédito',
+                subtitle: 'Recargo aplicado a ventas a crédito',
+              ),
+              const SizedBox(height: 12),
+              GradientContainer(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const AppSubtitle('Habilitar interés por crédito', fontSize: 12),
+                                AppText(
+                                  'Aplicar un recargo porcentual a ventas a crédito',
+                                  color: Colors.grey.shade600,
+                                  size: 10,
+                                ),
+                              ],
+                            ),
+                          ),
+                          Switch(
+                            value: _interesHabilitado,
+                            activeColor: AppColors.blue1,
+                            onChanged: (v) {
+                              setState(() => _interesHabilitado = v);
+                              _onChanged();
+                            },
+                          ),
+                        ],
+                      ),
+                      if (_interesHabilitado) ...[
+                        const Divider(height: 20),
+                        CustomText(
+                          controller: _porcentajeInteresController,
+                          borderColor: AppColors.blue1,
+                          label: 'Porcentaje de interés (%)',
+                          hintText: 'Ej: 5',
+                          prefixIcon: const Icon(Icons.percent),
+                          helperText: 'Se aplica sobre el monto total a crédito. Ej: 5% sobre S/ 1,000 = S/ 50 de interés',
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          validator: (v) {
+                            if (v == null || v.isEmpty) return 'Requerido';
+                            final val = double.tryParse(v);
+                            if (val == null || val < 0 || val > 100) return 'Entre 0 y 100%';
+                            return null;
+                          },
+                          onChanged: (_) => _onChanged(),
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const AppSubtitle('Vendedor puede modificar el porcentaje', fontSize: 12),
+                                  AppText(
+                                    'Si está deshabilitado, el vendedor no podrá cambiar el % al crear la venta',
+                                    color: Colors.grey.shade600,
+                                    size: 10,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Switch(
+                              value: _interesEsEditable,
+                              activeColor: AppColors.blue1,
+                              onChanged: (v) {
+                                setState(() => _interesEsEditable = v);
+                                _onChanged();
+                              },
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // Sección: Mora por cuotas vencidas
+              _SectionHeader(
+                icon: Icons.warning_amber_rounded,
+                title: 'Mora por Cuotas Vencidas',
+                subtitle: 'Interés automático por atraso en pagos a crédito',
+              ),
+              const SizedBox(height: 12),
+              GradientContainer(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const AppSubtitle('Habilitar mora', fontSize: 12),
+                                AppText(
+                                  'Calcular interés automáticamente sobre cuotas vencidas',
+                                  color: Colors.grey.shade600,
+                                  size: 10,
+                                ),
+                              ],
+                            ),
+                          ),
+                          Switch(
+                            value: _moraHabilitada,
+                            activeColor: AppColors.blue1,
+                            onChanged: (v) {
+                              setState(() => _moraHabilitada = v);
+                              _onChanged();
+                            },
+                          ),
+                        ],
+                      ),
+                      if (_moraHabilitada) ...[
+                        const Divider(height: 20),
+                        CustomText(
+                          controller: _porcentajeMoraController,
+                          borderColor: AppColors.blue1,
+                          label: 'Porcentaje diario (%)',
+                          hintText: 'Ej: 0.05',
+                          prefixIcon: const Icon(Icons.percent),
+                          helperText: 'Se aplica por cada día de atraso. Ej: 0.05% = S/ 0.50 diarios por cada S/ 1,000',
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          validator: (v) {
+                            if (v == null || v.isEmpty) return 'Requerido';
+                            final val = double.tryParse(v);
+                            if (val == null || val < 0 || val > 5) return 'Entre 0 y 5%';
+                            return null;
+                          },
+                          onChanged: (_) => _onChanged(),
+                        ),
+                        const SizedBox(height: 16),
+                        CustomText(
+                          controller: _moraMaximaController,
+                          borderColor: AppColors.blue1,
+                          label: 'Mora máxima (%)',
+                          hintText: 'Ej: 30',
+                          prefixIcon: const Icon(Icons.vertical_align_top),
+                          helperText: 'Tope máximo de mora como % del monto de la cuota',
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          validator: (v) {
+                            if (v == null || v.isEmpty) return 'Requerido';
+                            final val = double.tryParse(v);
+                            if (val == null || val < 0 || val > 100) return 'Entre 0 y 100%';
+                            return null;
+                          },
+                          onChanged: (_) => _onChanged(),
+                        ),
+                        const SizedBox(height: 16),
+                        CustomText(
+                          controller: _diasGraciaController,
+                          borderColor: AppColors.blue1,
+                          label: 'Días de gracia',
+                          hintText: 'Ej: 3',
+                          prefixIcon: const Icon(Icons.hourglass_empty),
+                          helperText: 'Días después del vencimiento antes de aplicar mora (0 = inmediato)',
+                          keyboardType: TextInputType.number,
+                          validator: (v) {
+                            if (v == null || v.isEmpty) return 'Requerido';
+                            final val = int.tryParse(v);
+                            if (val == null || val < 0 || val > 90) return 'Entre 0 y 90 días';
+                            return null;
+                          },
+                          onChanged: (_) => _onChanged(),
+                        ),
+                      ],
                     ],
                   ),
                 ),

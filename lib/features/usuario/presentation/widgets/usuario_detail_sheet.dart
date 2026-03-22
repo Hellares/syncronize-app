@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/app_gradients.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
@@ -140,7 +141,25 @@ class UsuarioDetailSheet extends StatelessWidget {
                 ),
               ),
             )
-          else
+          else ...[
+            // Botón ver dashboard del vendedor
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  context.push('/empresa/dashboard-vendedor?vendedorId=${usuario.id}');
+                },
+                icon: const Icon(Icons.trending_up, size: 16),
+                label: const Text('Ver Dashboard de Ventas'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.green.shade700,
+                  side: BorderSide(color: Colors.green.shade300),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
             // Botones para empleados
             Row(
               children: [
@@ -170,6 +189,7 @@ class UsuarioDetailSheet extends StatelessWidget {
                 ),
               ],
             ),
+          ],
         ],
       ),
     );

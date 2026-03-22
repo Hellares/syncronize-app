@@ -222,6 +222,10 @@ class _SolicitudDetailPageState extends State<SolicitudDetailPage> {
                     ),
                   ),
                 ],
+                if (solicitud.fechaVencimiento != null) ...[
+                  const SizedBox(height: 6),
+                  _buildFechaVencimientoRow(solicitud.fechaVencimiento!),
+                ],
               ],
             ),
           ),
@@ -596,6 +600,44 @@ class _SolicitudDetailPageState extends State<SolicitudDetailPage> {
           color: estado.color,
         ),
       ),
+    );
+  }
+
+  Widget _buildFechaVencimientoRow(DateTime fechaVencimiento) {
+    final now = DateTime.now();
+    final diferencia = fechaVencimiento.difference(now);
+    final diasRestantes = diferencia.inDays;
+
+    final Color color;
+    final String texto;
+
+    if (diasRestantes < 0) {
+      color = AppColors.red;
+      texto = 'Vencida hace ${diasRestantes.abs()} dia${diasRestantes.abs() == 1 ? '' : 's'}';
+    } else if (diasRestantes == 0) {
+      color = AppColors.orange;
+      texto = 'Vence hoy';
+    } else if (diasRestantes <= 3) {
+      color = AppColors.orange;
+      texto = 'Vence en $diasRestantes dia${diasRestantes == 1 ? '' : 's'}';
+    } else {
+      color = AppColors.green;
+      texto = 'Vence en $diasRestantes dias';
+    }
+
+    return Row(
+      children: [
+        Icon(Icons.timer_outlined, size: 12, color: color),
+        const SizedBox(width: 4),
+        Text(
+          '${_formatDate(fechaVencimiento)} - $texto',
+          style: TextStyle(
+            fontSize: 10,
+            color: color,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
     );
   }
 

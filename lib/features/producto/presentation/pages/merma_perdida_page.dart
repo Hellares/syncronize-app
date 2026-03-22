@@ -7,7 +7,6 @@ import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/theme/gradient_container.dart';
-import '../../../../core/fonts/app_text_widgets.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_dropdown.dart';
@@ -29,7 +28,6 @@ class MermaPerdidaPage extends StatefulWidget {
 
 class _MermaPerdidaPageState extends State<MermaPerdidaPage> {
   final DioClient _dio = locator<DioClient>();
-  final _currencyFormat = NumberFormat('#,##0.00', 'es_PE');
 
   List<Sede> _sedes = [];
   String? _selectedSedeId;

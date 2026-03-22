@@ -44,4 +44,10 @@ class SolicitudCotizacionRemoteDataSource {
   Future<void> cancelarSolicitud(String id) async {
     await _dioClient.post('$_basePath/$id/cancelar');
   }
+
+  /// GET /marketplace/solicitudes-cotizacion/items-previos/:empresaId
+  Future<List<Map<String, dynamic>>> getItemsPrevios(String empresaId) async {
+    final response = await _dioClient.get('$_basePath/items-previos/$empresaId');
+    return (response.data as List<dynamic>).cast<Map<String, dynamic>>();
+  }
 }

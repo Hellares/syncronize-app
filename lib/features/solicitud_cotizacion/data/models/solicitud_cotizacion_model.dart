@@ -110,6 +110,7 @@ class SolicitudCotizacionModel {
   final dynamic cotizacion;
   final DateTime? creadoEn;
   final DateTime? actualizadoEn;
+  final DateTime? fechaVencimiento;
 
   const SolicitudCotizacionModel({
     required this.id,
@@ -126,6 +127,7 @@ class SolicitudCotizacionModel {
     this.cotizacion,
     this.creadoEn,
     this.actualizadoEn,
+    this.fechaVencimiento,
   });
 
   factory SolicitudCotizacionModel.fromJson(Map<String, dynamic> json) {
@@ -163,6 +165,9 @@ class SolicitudCotizacionModel {
       actualizadoEn: json['actualizadoEn'] != null
           ? DateTime.tryParse(json['actualizadoEn'] as String)
           : null,
+      fechaVencimiento: json['fechaVencimiento'] != null
+          ? DateTime.tryParse(json['fechaVencimiento'] as String)
+          : null,
     );
   }
 
@@ -182,6 +187,7 @@ class SolicitudCotizacionModel {
       cotizacion: cotizacion,
       creadoEn: creadoEn,
       actualizadoEn: actualizadoEn,
+      fechaVencimiento: fechaVencimiento,
     );
   }
 }

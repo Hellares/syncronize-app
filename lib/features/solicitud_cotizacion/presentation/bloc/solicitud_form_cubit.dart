@@ -1,6 +1,8 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 import '../../../../core/utils/resource.dart';
+import '../../data/datasources/solicitud_cotizacion_remote_datasource.dart';
+import '../../data/models/solicitud_cotizacion_model.dart';
 import '../../domain/entities/solicitud_cotizacion.dart';
 import '../../domain/usecases/crear_solicitud_usecase.dart';
 import 'solicitud_form_state.dart';
@@ -8,8 +10,9 @@ import 'solicitud_form_state.dart';
 @injectable
 class SolicitudFormCubit extends Cubit<SolicitudFormState> {
   final CrearSolicitudUseCase _crearSolicitudUseCase;
+  final SolicitudCotizacionRemoteDataSource _remoteDataSource;
 
-  SolicitudFormCubit(this._crearSolicitudUseCase)
+  SolicitudFormCubit(this._crearSolicitudUseCase, this._remoteDataSource)
       : super(const SolicitudFormEditing());
 
   /// Lista actual de items
@@ -88,6 +91,39 @@ class SolicitudFormCubit extends Cubit<SolicitudFormState> {
       items: _currentItems,
       observaciones: observaciones.isEmpty ? null : observaciones,
     ));
+  }
+
+  /// Carga items de la solicitud anterior para pre-popular el formulario
+  Future<void> cargarItemsPrevios(String empresaId) async {
+    try {
+      final itemsData = await _remoteDataSource.getItemsPrevios(empresaId);
+
+      if (itemsData.isEmpty) {
+        emit(SolicitudFormError(
+          message: 'No se encontraron items de solicitudes anteriores',
+          items: _currentItems,
+          observaciones: _currentObservaciones,
+        ));
+        return;
+      }
+
+      final items = List<SolicitudItem>.from(_currentItems);
+      for (final json in itemsData) {
+        final model = SolicitudItemModel.fromJson(json);
+        items.add(model.toEntity());
+      }
+
+      emit(SolicitudFormEditing(
+        items: items,
+        observaciones: _currentObservaciones,
+      ));
+    } catch (e) {
+      emit(SolicitudFormError(
+        message: 'Error al cargar items previos: ${e.toString()}',
+        items: _currentItems,
+        observaciones: _currentObservaciones,
+      ));
+    }
   }
 
   /// Envia la solicitud al servidor

@@ -12,6 +12,17 @@ class ConfiguracionEmpresa extends Equatable {
   final int diasVigenciaCotizacion;
   final String? condicionesDefault;
 
+  // Configuración de interés por crédito
+  final bool interesHabilitado;
+  final double porcentajeInteresDefault;
+  final bool interesEsEditable;
+
+  // Configuración de mora
+  final bool moraHabilitada;
+  final double porcentajeMoraDiario;
+  final double moraMaximaPorcentaje;
+  final int diasGraciaMora;
+
   // Etiquetas personalizables para sección equipo
   final String? etiquetaSeccionEquipo;
   final String? etiquetaTipoEquipo;
@@ -30,6 +41,13 @@ class ConfiguracionEmpresa extends Equatable {
     this.monedasPermitidas = const ['PEN', 'USD'],
     this.diasVigenciaCotizacion = 30,
     this.condicionesDefault,
+    this.interesHabilitado = false,
+    this.porcentajeInteresDefault = 0,
+    this.interesEsEditable = true,
+    this.moraHabilitada = false,
+    this.porcentajeMoraDiario = 0.05,
+    this.moraMaximaPorcentaje = 30.0,
+    this.diasGraciaMora = 0,
     this.etiquetaSeccionEquipo,
     this.etiquetaTipoEquipo,
     this.etiquetaMarcaEquipo,
@@ -50,6 +68,8 @@ class ConfiguracionEmpresa extends Equatable {
         id, empresaId, impuestoDefaultPorcentaje, nombreImpuesto,
         monedaPrincipal, simboloMoneda, monedasPermitidas,
         diasVigenciaCotizacion, condicionesDefault,
+        interesHabilitado, porcentajeInteresDefault, interesEsEditable,
+        moraHabilitada, porcentajeMoraDiario, moraMaximaPorcentaje, diasGraciaMora,
         etiquetaSeccionEquipo, etiquetaTipoEquipo, etiquetaMarcaEquipo,
         etiquetaNumeroSerie, etiquetaCondicionEquipo, mostrarSeccionEquipo,
       ];
@@ -64,6 +84,13 @@ class ConfiguracionEmpresa extends Equatable {
     List<String>? monedasPermitidas,
     int? diasVigenciaCotizacion,
     String? condicionesDefault,
+    bool? interesHabilitado,
+    double? porcentajeInteresDefault,
+    bool? interesEsEditable,
+    bool? moraHabilitada,
+    double? porcentajeMoraDiario,
+    double? moraMaximaPorcentaje,
+    int? diasGraciaMora,
     String? etiquetaSeccionEquipo,
     String? etiquetaTipoEquipo,
     String? etiquetaMarcaEquipo,
@@ -81,6 +108,13 @@ class ConfiguracionEmpresa extends Equatable {
       monedasPermitidas: monedasPermitidas ?? this.monedasPermitidas,
       diasVigenciaCotizacion: diasVigenciaCotizacion ?? this.diasVigenciaCotizacion,
       condicionesDefault: condicionesDefault ?? this.condicionesDefault,
+      interesHabilitado: interesHabilitado ?? this.interesHabilitado,
+      porcentajeInteresDefault: porcentajeInteresDefault ?? this.porcentajeInteresDefault,
+      interesEsEditable: interesEsEditable ?? this.interesEsEditable,
+      moraHabilitada: moraHabilitada ?? this.moraHabilitada,
+      porcentajeMoraDiario: porcentajeMoraDiario ?? this.porcentajeMoraDiario,
+      moraMaximaPorcentaje: moraMaximaPorcentaje ?? this.moraMaximaPorcentaje,
+      diasGraciaMora: diasGraciaMora ?? this.diasGraciaMora,
       etiquetaSeccionEquipo: etiquetaSeccionEquipo ?? this.etiquetaSeccionEquipo,
       etiquetaTipoEquipo: etiquetaTipoEquipo ?? this.etiquetaTipoEquipo,
       etiquetaMarcaEquipo: etiquetaMarcaEquipo ?? this.etiquetaMarcaEquipo,

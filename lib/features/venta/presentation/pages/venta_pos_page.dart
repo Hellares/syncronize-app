@@ -78,6 +78,18 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
   String _nombreImpuesto = 'IGV';
   String _moneda = 'PEN';
 
+  // Mora config
+  bool _moraHabilitada = false;
+  double _porcentajeMoraDiario = 0;
+  double _moraMaximaPorcentaje = 0;
+  int _diasGraciaMora = 0;
+
+  // Interés por crédito
+  bool _interesHabilitado = false;
+  double _porcentajeInteres = 0;
+  bool _interesEsEditable = true;
+  final _porcentajeInteresController = TextEditingController(text: '0');
+
   @override
   void initState() {
     super.initState();
@@ -130,6 +142,14 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
           configState.configuracion.impuestoDefaultPorcentaje;
       _nombreImpuesto = configState.configuracion.nombreImpuesto;
       _moneda = configState.configuracion.monedaPrincipal;
+      _moraHabilitada = configState.configuracion.moraHabilitada;
+      _porcentajeMoraDiario = configState.configuracion.porcentajeMoraDiario;
+      _moraMaximaPorcentaje = configState.configuracion.moraMaximaPorcentaje;
+      _diasGraciaMora = configState.configuracion.diasGraciaMora;
+      _interesHabilitado = configState.configuracion.interesHabilitado;
+      _porcentajeInteres = configState.configuracion.porcentajeInteresDefault;
+      _porcentajeInteresController.text = _porcentajeInteres.toStringAsFixed(2);
+      _interesEsEditable = configState.configuracion.interesEsEditable;
     }
   }
 
@@ -145,6 +165,7 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
     _montoCreditoController.dispose();
     _numeroCuotasController.dispose();
     _observacionesController.dispose();
+    _porcentajeInteresController.dispose();
     super.dispose();
   }
 
@@ -178,6 +199,12 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
 
   /// Saldo pendiente de la parte que se paga ahora
   double get _saldoPendiente => _montoPagarAhora - _totalPagado;
+
+  /// Monto de interés calculado sobre el crédito
+  double get _montoInteresCalculado => _montoCredito * (_porcentajeInteres / 100);
+
+  /// Monto a crédito incluyendo interés
+  double get _montoCreditoConInteres => _montoCredito + _montoInteresCalculado;
 
   void _agregarPago() {
     final monto = double.tryParse(_montoAgregarController.text);
@@ -241,7 +268,25 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
             );
           }
         },
-        child: Builder(
+        child: BlocListener<ConfiguracionEmpresaCubit, ConfiguracionEmpresaState>(
+          listener: (context, state) {
+            if (state is ConfiguracionEmpresaLoaded) {
+              setState(() {
+                _impuestoPorcentaje = state.configuracion.impuestoDefaultPorcentaje;
+                _nombreImpuesto = state.configuracion.nombreImpuesto;
+                _moneda = state.configuracion.monedaPrincipal;
+                _moraHabilitada = state.configuracion.moraHabilitada;
+                _porcentajeMoraDiario = state.configuracion.porcentajeMoraDiario;
+                _moraMaximaPorcentaje = state.configuracion.moraMaximaPorcentaje;
+                _diasGraciaMora = state.configuracion.diasGraciaMora;
+                _interesHabilitado = state.configuracion.interesHabilitado;
+                _porcentajeInteres = state.configuracion.porcentajeInteresDefault;
+                _porcentajeInteresController.text = _porcentajeInteres.toStringAsFixed(2);
+                _interesEsEditable = state.configuracion.interesEsEditable;
+              });
+            }
+          },
+          child: Builder(
           builder: (context) => GestureDetector(
             onTap: () => FocusScope.of(context).unfocus(),
             child: Scaffold(
@@ -288,6 +333,7 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
             bottomNavigationBar: _buildActionButtons(context),
           ),
           ),
+        ),
         ),
       ),
     );
@@ -512,6 +558,10 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
                       ),
                     ],
                   ),
+                  if (_interesHabilitado && _esCredito) ...[
+                    const SizedBox(height: 10),
+                    _buildInteresCredito(),
+                  ],
                   if (_montoCredito > 0 && _numeroCuotas > 0) ...[
                     const SizedBox(height: 10),
                     _buildCuotasPreview(),
@@ -566,6 +616,10 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
                       _numeroCuotasController.text = v.toString();
                     }),
                   ),
+                  if (_interesHabilitado && _esCredito) ...[
+                    const SizedBox(height: 10),
+                    _buildInteresCredito(),
+                  ],
                   if (_numeroCuotas > 0 && _items.isNotEmpty) ...[
                     const SizedBox(height: 10),
                     _buildCuotasPreview(),
@@ -614,10 +668,72 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
     );
   }
 
+  // ─── Interés por Crédito ───
+
+  Widget _buildInteresCredito() {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.green.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.green.shade300),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.percent, size: 14, color: Colors.green[700]),
+              const SizedBox(width: 6),
+              Text('Interés por crédito', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.green[700])),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: _interesEsEditable
+                  ? CustomText(
+                      controller: _porcentajeInteresController,
+                      borderColor: Colors.green.shade400,
+                      label: 'Interés (%)',
+                      hintText: 'Ej: 5',
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      onChanged: (v) {
+                        setState(() {
+                          _porcentajeInteres = double.tryParse(v) ?? 0;
+                        });
+                      },
+                    )
+                  : InputDecorator(
+                      decoration: InputDecoration(
+                        labelText: 'Interés (%)',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      child: Text('${_porcentajeInteres.toStringAsFixed(2)}%'),
+                    ),
+              ),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text('Interés: S/ ${_montoInteresCalculado.toStringAsFixed(2)}',
+                      style: TextStyle(fontSize: 11, color: Colors.green[700], fontWeight: FontWeight.w600)),
+                  Text('Total: S/ ${_montoCreditoConInteres.toStringAsFixed(2)}',
+                      style: TextStyle(fontSize: 12, color: Colors.green[800], fontWeight: FontWeight.w700)),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   // ─── Cuotas Preview ───
 
   Widget _buildCuotasPreview() {
-    final mc = _montoCredito;
+    final mc = (_interesHabilitado && _porcentajeInteres > 0) ? _montoCreditoConInteres : _montoCredito;
     if (mc <= 0 || _numeroCuotas <= 0) return const SizedBox.shrink();
 
     final montoCuota = (mc / _numeroCuotas * 100).floor() / 100;
@@ -667,6 +783,44 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
                 ),
               );
             }),
+            // Aviso de mora si está habilitada
+            if (_moraHabilitada) ...[
+              const Divider(height: 16),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange.shade300),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.info_outline, size: 16, color: Colors.orange[800]),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Condiciones de mora por atraso',
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.orange[800]),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '• Interés: $_porcentajeMoraDiario% diario sobre el monto de la cuota\n'
+                            '${_diasGraciaMora > 0 ? '• Gracia: $_diasGraciaMora día${_diasGraciaMora > 1 ? 's' : ''} después del vencimiento\n' : ''}'
+                            '• Tope máximo: ${_moraMaximaPorcentaje.toStringAsFixed(0)}% del monto de la cuota\n'
+                            '• Ej: cuota de S/ ${montoCuota.toStringAsFixed(2)} → mora diaria S/ ${(montoCuota * _porcentajeMoraDiario / 100).toStringAsFixed(2)}',
+                            style: TextStyle(fontSize: 10, color: Colors.orange[700], height: 1.4),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -898,6 +1052,9 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
         'plazoCredito': plazoDias,
         'numeroCuotas': _numeroCuotas,
         'fechaVencimientoPago': fechaUltimaCuota.toIso8601String(),
+      },
+      if (_esCredito && _interesHabilitado && _porcentajeInteres > 0) ...{
+        'porcentajeInteres': _porcentajeInteres,
       },
       if (_observacionesController.text.isNotEmpty)
         'observaciones': _observacionesController.text,

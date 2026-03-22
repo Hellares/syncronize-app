@@ -11,6 +11,13 @@ class ConfiguracionEmpresaModel extends ConfiguracionEmpresa {
     super.monedasPermitidas,
     super.diasVigenciaCotizacion,
     super.condicionesDefault,
+    super.interesHabilitado,
+    super.porcentajeInteresDefault,
+    super.interesEsEditable,
+    super.moraHabilitada,
+    super.porcentajeMoraDiario,
+    super.moraMaximaPorcentaje,
+    super.diasGraciaMora,
     super.etiquetaSeccionEquipo,
     super.etiquetaTipoEquipo,
     super.etiquetaMarcaEquipo,
@@ -35,6 +42,13 @@ class ConfiguracionEmpresaModel extends ConfiguracionEmpresa {
       diasVigenciaCotizacion:
           json['diasVigenciaCotizacion'] as int? ?? 30,
       condicionesDefault: json['condicionesDefault'] as String?,
+      interesHabilitado: json['interesHabilitado'] as bool? ?? false,
+      porcentajeInteresDefault: _toDouble(json['porcentajeInteresDefault']) ?? 0,
+      interesEsEditable: json['interesEsEditable'] as bool? ?? true,
+      moraHabilitada: json['moraHabilitada'] as bool? ?? false,
+      porcentajeMoraDiario: _toDouble(json['porcentajeMoraDiario']) ?? 0.05,
+      moraMaximaPorcentaje: _toDouble(json['moraMaximaPorcentaje']) ?? 30.0,
+      diasGraciaMora: json['diasGraciaMora'] as int? ?? 0,
       etiquetaSeccionEquipo: json['etiquetaSeccionEquipo'] as String?,
       etiquetaTipoEquipo: json['etiquetaTipoEquipo'] as String?,
       etiquetaMarcaEquipo: json['etiquetaMarcaEquipo'] as String?,
@@ -53,6 +67,13 @@ class ConfiguracionEmpresaModel extends ConfiguracionEmpresa {
       'monedasPermitidas': monedasPermitidas,
       'diasVigenciaCotizacion': diasVigenciaCotizacion,
       if (condicionesDefault != null) 'condicionesDefault': condicionesDefault,
+      'interesHabilitado': interesHabilitado,
+      'porcentajeInteresDefault': porcentajeInteresDefault,
+      'interesEsEditable': interesEsEditable,
+      'moraHabilitada': moraHabilitada,
+      'porcentajeMoraDiario': porcentajeMoraDiario,
+      'moraMaximaPorcentaje': moraMaximaPorcentaje,
+      'diasGraciaMora': diasGraciaMora,
       if (etiquetaSeccionEquipo != null) 'etiquetaSeccionEquipo': etiquetaSeccionEquipo,
       if (etiquetaTipoEquipo != null) 'etiquetaTipoEquipo': etiquetaTipoEquipo,
       if (etiquetaMarcaEquipo != null) 'etiquetaMarcaEquipo': etiquetaMarcaEquipo,
@@ -75,6 +96,13 @@ class ConfiguracionEmpresaModel extends ConfiguracionEmpresa {
       monedasPermitidas: entity.monedasPermitidas,
       diasVigenciaCotizacion: entity.diasVigenciaCotizacion,
       condicionesDefault: entity.condicionesDefault,
+      interesHabilitado: entity.interesHabilitado,
+      porcentajeInteresDefault: entity.porcentajeInteresDefault,
+      interesEsEditable: entity.interesEsEditable,
+      moraHabilitada: entity.moraHabilitada,
+      porcentajeMoraDiario: entity.porcentajeMoraDiario,
+      moraMaximaPorcentaje: entity.moraMaximaPorcentaje,
+      diasGraciaMora: entity.diasGraciaMora,
       etiquetaSeccionEquipo: entity.etiquetaSeccionEquipo,
       etiquetaTipoEquipo: entity.etiquetaTipoEquipo,
       etiquetaMarcaEquipo: entity.etiquetaMarcaEquipo,
@@ -82,5 +110,14 @@ class ConfiguracionEmpresaModel extends ConfiguracionEmpresa {
       etiquetaCondicionEquipo: entity.etiquetaCondicionEquipo,
       mostrarSeccionEquipo: entity.mostrarSeccionEquipo,
     );
+  }
+
+  static double? _toDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) return double.tryParse(value);
+    if (value is num) return value.toDouble();
+    return null;
   }
 }

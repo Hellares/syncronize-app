@@ -96,7 +96,7 @@ class ProductoFormController extends ChangeNotifier {
   // ============================================================
   // FLAGS BOOLEANOS
   // ============================================================
-  bool _visibleMarketplace = true;
+  bool _visibleMarketplace = false;
   bool get visibleMarketplace => _visibleMarketplace;
   set visibleMarketplace(bool value) {
     _visibleMarketplace = value;
@@ -302,7 +302,7 @@ class ProductoFormController extends ChangeNotifier {
     _selectedPlantilla = null;
     plantillaAtributosValues.clear();
 
-    _visibleMarketplace = true;
+    _visibleMarketplace = false;
     _destacado = false;
     _tieneVariantes = false;
     _esCombo = false;

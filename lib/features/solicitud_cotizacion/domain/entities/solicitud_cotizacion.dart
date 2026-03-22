@@ -155,6 +155,7 @@ class SolicitudCotizacion extends Equatable {
   final dynamic cotizacion;
   final DateTime? creadoEn;
   final DateTime? actualizadoEn;
+  final DateTime? fechaVencimiento;
 
   const SolicitudCotizacion({
     required this.id,
@@ -171,6 +172,7 @@ class SolicitudCotizacion extends Equatable {
     this.cotizacion,
     this.creadoEn,
     this.actualizadoEn,
+    this.fechaVencimiento,
   });
 
   @override
@@ -189,5 +191,6 @@ class SolicitudCotizacion extends Equatable {
         cotizacion,
         creadoEn,
         actualizadoEn,
+        fechaVencimiento,
       ];
 }

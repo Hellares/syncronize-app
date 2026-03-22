@@ -67,7 +67,7 @@ class ProductoStock extends Equatable {
     this.fechaInicioOferta,
     this.fechaFinOferta,
     this.precioConfigurado = false,
-    this.precioIncluyeIgv = false,
+    this.precioIncluyeIgv = true,
     required this.creadoEn,
     required this.actualizadoEn,
     this.sede,

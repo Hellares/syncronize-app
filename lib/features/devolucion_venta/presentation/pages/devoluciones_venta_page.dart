@@ -7,6 +7,7 @@ import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/app_gradients.dart';
 import 'package:syncronize/core/widgets/custom_filter_chip.dart';
 import 'package:syncronize/core/widgets/custom_search_field.dart';
+import 'package:syncronize/core/widgets/floating_button_text.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import '../../../../core/theme/gradient_container.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
@@ -146,12 +147,10 @@ class _DevolucionesVentaPageState extends State<DevolucionesVentaPage> {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: FloatingButtonText(
+        label: 'Nueva Devolucion',
+        icon: Icons.add,
         onPressed: () => context.push('/empresa/devoluciones/nueva'),
-        icon: const Icon(Icons.add),
-        label: const Text('Nueva Devolucion'),
-        backgroundColor: AppColors.blue1,
-        foregroundColor: Colors.white,
       ),
     );
   }

@@ -59,7 +59,7 @@ mixin StockPorSedeMixin {
 
   /// Verifica si el precio incluye IGV en una sede
   bool precioIncluyeIgvEnSede(String sedeId) {
-    return stockSedeInfo(sedeId)?.precioIncluyeIgv ?? false;
+    return stockSedeInfo(sedeId)?.precioIncluyeIgv ?? true;
   }
 
   /// Obtiene el precio efectivo (con oferta si aplica) de una sede específica

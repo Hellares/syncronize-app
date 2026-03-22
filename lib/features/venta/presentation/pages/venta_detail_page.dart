@@ -565,6 +565,42 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
               ],
             ),
             const Divider(height: 16),
+            // Resumen de mora si hay
+            Builder(builder: (_) {
+              final totalMora = cuotas.fold<double>(0, (sum, c) => sum + c.montoMora);
+              final totalSaldoConMora = cuotas.where((c) => c.saldoPendiente > 0).fold<double>(0, (sum, c) => sum + c.saldoPendiente + c.montoMora);
+              if (totalMora > 0) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.red.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.warning_amber_rounded, color: Colors.red.shade700, size: 18),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Mora acumulada: S/ ${totalMora.toStringAsFixed(2)}',
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.red.shade700)),
+                              Text('Deuda total con mora: S/ ${totalSaldoConMora.toStringAsFixed(2)}',
+                                  style: TextStyle(fontSize: 10, color: Colors.red.shade600)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+              return const SizedBox.shrink();
+            }),
             ...cuotas.map((cuota) {
               Color estadoColor;
               IconData estadoIcon;
@@ -615,6 +651,28 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                             '${cuota.montoPagado > 0 ? ' | Pagado: S/ ${cuota.montoPagado.toStringAsFixed(2)}' : ''}',
                             style: TextStyle(fontSize: 10, color: Colors.grey[600]),
                           ),
+                          if (cuota.tieneMora)
+                            Text(
+                              'Mora: S/ ${cuota.montoMora.toStringAsFixed(2)} (${cuota.diasVencido} días) → Total: S/ ${cuota.totalConMora.toStringAsFixed(2)}',
+                              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.red),
+                            ),
+                          if (!cuota.tieneMora && cuota.estado == 'VENCIDA' && cuota.saldoPendiente > 0)
+                            Text(
+                              'Vencida hace ${DateTime.now().difference(cuota.fechaVencimiento).inDays} días — mora pendiente de cálculo',
+                              style: TextStyle(fontSize: 10, color: Colors.red.shade300, fontStyle: FontStyle.italic),
+                            ),
+                          if (cuota.estado == 'PENDIENTE' || cuota.estado == 'PAGADA_PARCIAL') ...[
+                            Builder(builder: (_) {
+                              final diasParaVencer = cuota.fechaVencimiento.difference(DateTime.now()).inDays;
+                              if (diasParaVencer <= 3 && diasParaVencer >= 0) {
+                                return Text(
+                                  'Vence en $diasParaVencer día${diasParaVencer != 1 ? 's' : ''} — pague a tiempo para evitar mora',
+                                  style: TextStyle(fontSize: 10, color: Colors.orange.shade700, fontStyle: FontStyle.italic),
+                                );
+                              }
+                              return const SizedBox.shrink();
+                            }),
+                          ],
                         ],
                       ),
                     ),

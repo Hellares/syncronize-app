@@ -6,8 +6,8 @@ import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/theme/gradient_container.dart';
-import '../../../../core/fonts/app_text_widgets.dart';
 import '../../../../core/widgets/smart_appbar.dart';
+import '../../../../core/widgets/custom_dropdown.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../../empresa/domain/entities/sede.dart';
@@ -74,9 +74,9 @@ class _ValorizacionInventarioPageState
 
       if (data is Map<String, dynamic>) {
         setState(() {
-          _valorTotal = (data['valorTotal'] ?? 0).toDouble();
-          _stockTotal = (data['stockTotal'] ?? 0) as int;
-          _totalProductos = (data['totalProductos'] ?? 0) as int;
+          _valorTotal = (data['valorGlobal'] ?? data['valorTotal'] ?? 0).toDouble();
+          _stockTotal = (data['stockGlobal'] ?? data['stockTotal'] ?? 0) as int;
+          _totalProductos = (data['totalSedes'] ?? data['totalProductos'] ?? 0) as int;
 
           final sedesData = data['porSede'];
           if (sedesData is List) {
@@ -110,7 +110,11 @@ class _ValorizacionInventarioPageState
       style: GradientStyle.professional,
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        appBar: SmartAppBar(title: 'Valorizacion de Inventario'),
+        appBar: SmartAppBar(
+          title: 'Valorizacion de Inventario',
+          backgroundColor: AppColors.blue1,
+          foregroundColor: AppColors.white,
+        ),
         body: RefreshIndicator(
           onRefresh: _loadData,
           child: ListView(
@@ -169,53 +173,19 @@ class _ValorizacionInventarioPageState
   Widget _buildSedeFilter() {
     return GradientContainer(
       padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Filtrar por Sede (opcional)',
-            style: TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: 14,
-              color: AppColors.blue3,
-            ),
-          ),
-          const SizedBox(height: 8),
-          DropdownButtonFormField<String?>(
-            value: _selectedSedeId,
-            decoration: InputDecoration(
-              hintText: 'Todas las sedes',
-              hintStyle: const TextStyle(fontSize: 13),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              isDense: true,
-            ),
-            isExpanded: true,
-            style:
-                const TextStyle(fontSize: 13, color: AppColors.textPrimary),
-            items: [
-              const DropdownMenuItem<String?>(
-                value: null,
-                child: Text('Todas las sedes',
-                    style: TextStyle(fontSize: 13)),
-              ),
-              ..._sedes.map((sede) {
-                return DropdownMenuItem<String?>(
-                  value: sede.id,
-                  child: Text(sede.nombre,
-                      style: const TextStyle(fontSize: 13)),
-                );
-              }),
-            ],
-            onChanged: (val) {
-              setState(() => _selectedSedeId = val);
-              _loadData();
-            },
-          ),
+      child: CustomDropdown<String?>(
+        label: 'Filtrar por Sede (opcional)',
+        hintText: 'Todas las sedes',
+        value: _selectedSedeId,
+        borderColor: AppColors.blue1,
+        items: [
+          const DropdownItem<String?>(value: null, label: 'Todas las sedes'),
+          ..._sedes.map((sede) => DropdownItem<String?>(value: sede.id, label: sede.nombre)),
         ],
+        onChanged: (val) {
+          setState(() => _selectedSedeId = val);
+          _loadData();
+        },
       ),
     );
   }
@@ -225,7 +195,7 @@ class _ValorizacionInventarioPageState
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
-          const Icon(Icons.attach_money, size: 36, color: AppColors.blue1),
+          const Icon(Icons.attach_money, size: 30, color: AppColors.blue1),
           const SizedBox(height: 8),
           const Text(
             'Valor Total del Inventario',
@@ -462,11 +432,12 @@ class _ValorizacionInventarioPageState
           // Rows
           ...List.generate(_topProductos.length, (i) {
             final p = _topProductos[i];
-            final nombre = p['nombre'] as String? ??
+            final nombre = p['productoNombre'] as String? ??
+                p['nombre'] as String? ??
                 (p['producto'] is Map
                     ? (p['producto'] as Map)['nombre'] as String?
                     : null) ??
-                '-';
+                'Sin nombre';
             final stock = p['stockActual'] ?? p['stock'] ?? 0;
             final valor = (p['valorTotal'] ??
                     (p['precio'] != null && p['stockActual'] != null

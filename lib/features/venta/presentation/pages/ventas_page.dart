@@ -255,7 +255,7 @@ class _VentaListTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding:
-              const EdgeInsets.only(left: 14, right: 14, top: 8, bottom: 8),
+              const EdgeInsets.only(left: 10, right: 10, top: 8, bottom: 8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -329,13 +329,13 @@ class _VentaListTile extends StatelessWidget {
                     Text(
                       'Vendedor: ${venta.vendedorNombre}',
                       style: TextStyle(
-                          fontSize: 12, color: Colors.grey.shade600),
+                          fontSize: 10, color: Colors.grey.shade600),
                     ),
                   Text(
                     '${venta.moneda} ${venta.total.toStringAsFixed(2)}',
                     style: const TextStyle(
                       fontWeight: FontWeight.w500,
-                      fontSize: 13,
+                      fontSize: 8,
                     ),
                   ),
                 ],

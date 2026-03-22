@@ -12,6 +12,7 @@ class CuentaCobrarModel {
   final int? numeroCuotas;
   final int? cuotasPagadas;
   final ProximaCuota? proximaCuota;
+  final double totalMora;
 
   const CuentaCobrarModel({
     required this.id,
@@ -25,6 +26,7 @@ class CuentaCobrarModel {
     this.numeroCuotas,
     this.cuotasPagadas,
     this.proximaCuota,
+    this.totalMora = 0,
   });
 
   static double _toDouble(dynamic value) {
@@ -48,6 +50,7 @@ class CuentaCobrarModel {
             ? DateTime.parse(pc['fechaVencimiento'] as String)
             : DateTime.now(),
         estado: pc['estado'] as String? ?? 'PENDIENTE',
+        montoMora: _toDouble(pc['montoMora']),
       );
     }
 
@@ -65,6 +68,7 @@ class CuentaCobrarModel {
       numeroCuotas: json['numeroCuotas'] as int?,
       cuotasPagadas: json['cuotasPagadas'] as int?,
       proximaCuota: proximaCuota,
+      totalMora: _toDouble(json['totalMora']),
     );
   }
 
@@ -81,6 +85,7 @@ class CuentaCobrarModel {
       numeroCuotas: numeroCuotas,
       cuotasPagadas: cuotasPagadas,
       proximaCuota: proximaCuota,
+      totalMora: totalMora,
     );
   }
 }
@@ -90,12 +95,14 @@ class ResumenCuentasCobrarModel {
   final double totalVencido;
   final int cantidadPendientes;
   final int cantidadVencidas;
+  final double totalMora;
 
   const ResumenCuentasCobrarModel({
     required this.totalPendiente,
     required this.totalVencido,
     required this.cantidadPendientes,
     required this.cantidadVencidas,
+    this.totalMora = 0,
   });
 
   factory ResumenCuentasCobrarModel.fromJson(Map<String, dynamic> json) {
@@ -104,6 +111,7 @@ class ResumenCuentasCobrarModel {
       totalVencido: CuentaCobrarModel._toDouble(json['totalVencido']),
       cantidadPendientes: json['cantidadPendientes'] as int? ?? 0,
       cantidadVencidas: json['cantidadVencidas'] as int? ?? 0,
+      totalMora: CuentaCobrarModel._toDouble(json['totalMora']),
     );
   }
 
@@ -113,6 +121,7 @@ class ResumenCuentasCobrarModel {
       totalVencido: totalVencido,
       cantidadPendientes: cantidadPendientes,
       cantidadVencidas: cantidadVencidas,
+      totalMora: totalMora,
     );
   }
 }

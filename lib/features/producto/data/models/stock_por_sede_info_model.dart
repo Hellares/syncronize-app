@@ -17,7 +17,7 @@ class StockPorSedeInfoModel extends StockPorSedeInfo {
     super.fechaInicioOferta,
     super.fechaFinOferta,
     super.precioConfigurado = false,
-    super.precioIncluyeIgv = false,
+    super.precioIncluyeIgv = true,
   });
 
   factory StockPorSedeInfoModel.fromJson(Map<String, dynamic> json) {
@@ -64,7 +64,7 @@ class StockPorSedeInfoModel extends StockPorSedeInfo {
           ? DateTime.parse(json['fechaFinOferta'] as String)
           : null,
       precioConfigurado: json['precioConfigurado'] as bool? ?? false,
-      precioIncluyeIgv: json['precioIncluyeIgv'] as bool? ?? false,
+      precioIncluyeIgv: json['precioIncluyeIgv'] as bool? ?? true,
     );
   }
 

@@ -12,6 +12,7 @@ class CuentaPorCobrar extends Equatable {
   final int? numeroCuotas;
   final int? cuotasPagadas;
   final ProximaCuota? proximaCuota;
+  final double totalMora;
 
   const CuentaPorCobrar({
     required this.id,
@@ -25,10 +26,13 @@ class CuentaPorCobrar extends Equatable {
     this.numeroCuotas,
     this.cuotasPagadas,
     this.proximaCuota,
+    this.totalMora = 0,
   });
 
+  double get totalConMora => saldoPendiente + totalMora;
+
   @override
-  List<Object?> get props => [id, codigo, nombreCliente, saldoPendiente, totalVenta, estado, numeroCuotas, cuotasPagadas, proximaCuota];
+  List<Object?> get props => [id, codigo, nombreCliente, saldoPendiente, totalVenta, estado, numeroCuotas, cuotasPagadas, proximaCuota, totalMora];
 }
 
 class ProximaCuota extends Equatable {
@@ -38,6 +42,7 @@ class ProximaCuota extends Equatable {
   final double saldoPendiente;
   final DateTime fechaVencimiento;
   final String estado;
+  final double montoMora;
 
   const ProximaCuota({
     required this.id,
@@ -46,10 +51,13 @@ class ProximaCuota extends Equatable {
     required this.saldoPendiente,
     required this.fechaVencimiento,
     required this.estado,
+    this.montoMora = 0,
   });
 
+  double get totalConMora => saldoPendiente + montoMora;
+
   @override
-  List<Object?> get props => [id, numero, monto, saldoPendiente, fechaVencimiento, estado];
+  List<Object?> get props => [id, numero, monto, saldoPendiente, fechaVencimiento, estado, montoMora];
 }
 
 class ResumenCuentasCobrar extends Equatable {
@@ -57,16 +65,19 @@ class ResumenCuentasCobrar extends Equatable {
   final double totalVencido;
   final int cantidadPendientes;
   final int cantidadVencidas;
+  final double totalMora;
 
   const ResumenCuentasCobrar({
     required this.totalPendiente,
     required this.totalVencido,
     required this.cantidadPendientes,
     required this.cantidadVencidas,
+    this.totalMora = 0,
   });
 
   double get totalPorCobrar => totalPendiente + totalVencido;
+  double get totalConMora => totalPorCobrar + totalMora;
 
   @override
-  List<Object?> get props => [totalPendiente, totalVencido, cantidadPendientes, cantidadVencidas];
+  List<Object?> get props => [totalPendiente, totalVencido, cantidadPendientes, cantidadVencidas, totalMora];
 }

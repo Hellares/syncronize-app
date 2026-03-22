@@ -41,7 +41,7 @@ class StockPorSedeInfo extends Equatable {
     this.fechaInicioOferta,
     this.fechaFinOferta,
     this.precioConfigurado = false,
-    this.precioIncluyeIgv = false,
+    this.precioIncluyeIgv = true,
   });
 
   /// Verifica si el stock está bajo el mínimo

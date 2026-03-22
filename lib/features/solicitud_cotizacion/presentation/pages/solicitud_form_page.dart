@@ -279,6 +279,8 @@ class _SolicitudFormPageState extends State<SolicitudFormPage> {
                 _buildItemsList(),
                 const SizedBox(height: 12),
                 _buildAgregarManualButton(),
+                const SizedBox(height: 8),
+                _buildCargarItemsPreviosButton(),
                 const SizedBox(height: 20),
                 _buildObservacionesField(),
                 const SizedBox(height: 20),
@@ -668,6 +670,21 @@ class _SolicitudFormPageState extends State<SolicitudFormPage> {
         fontSize: 10,
         height: 36,
         onPressed: _showAgregarItemManualDialog,
+      ),
+    );
+  }
+
+  Widget _buildCargarItemsPreviosButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: CustomButton(
+        text: 'Cargar items de solicitud anterior',
+        isOutlined: true,
+        borderColor: AppColors.blueGrey,
+        textColor: AppColors.blueGrey,
+        fontSize: 10,
+        height: 36,
+        onPressed: () => _formCubit.cargarItemsPrevios(widget.empresaId),
       ),
     );
   }

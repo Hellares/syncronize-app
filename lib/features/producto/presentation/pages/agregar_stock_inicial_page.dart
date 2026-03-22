@@ -11,6 +11,9 @@ import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../../sede/presentation/bloc/sede_list/sede_list_cubit.dart';
 import '../../../sede/presentation/bloc/sede_list/sede_list_state.dart';
+import '../../../../core/widgets/custom_dropdown.dart';
+import '../../../../core/di/injection_container.dart';
+import '../../../../core/network/dio_client.dart';
 import '../../domain/entities/producto.dart';
 import '../bloc/agregar_stock_inicial/agregar_stock_inicial_cubit.dart';
 import '../bloc/agregar_stock_inicial/agregar_stock_inicial_state.dart';
@@ -36,6 +39,9 @@ class _AgregarStockInicialPageState extends State<AgregarStockInicialPage> {
 
   // Sedes seleccionadas
   final Set<String> _sedesSeleccionadas = {};
+
+  // Ubicaciones por sede
+  final Map<String, List<DropdownItem<String>>> _ubicacionesPorSede = {};
 
   @override
   void initState() {
@@ -68,8 +74,26 @@ class _AgregarStockInicialPageState extends State<AgregarStockInicialPage> {
       } else {
         _sedesSeleccionadas.add(sedeId);
         _sedeControllers[sedeId] = SedeStockControllers();
+        _cargarUbicaciones(sedeId);
       }
     });
+  }
+
+  Future<void> _cargarUbicaciones(String sedeId) async {
+    try {
+      final dio = locator<DioClient>();
+      final response = await dio.get('/ubicaciones-almacen/sede/$sedeId');
+      if (mounted) {
+        final ubicaciones = (response.data as List<dynamic>)
+            .map((u) {
+              final codigo = u['codigo'] as String;
+              final nombre = u['nombre'] as String;
+              return DropdownItem<String>(value: '$codigo - $nombre', label: '$codigo - $nombre');
+            })
+            .toList();
+        setState(() => _ubicacionesPorSede[sedeId] = ubicaciones);
+      }
+    } catch (_) {}
   }
 
   Future<void> _submit() async {
@@ -378,11 +402,21 @@ class _AgregarStockInicialPageState extends State<AgregarStockInicialPage> {
                         ],
                       ),
                       const SizedBox(height: 12),
-                      CustomText(
-                        controller: controllers.ubicacionController,
-                        borderColor: AppColors.blue1,
+                      CustomDropdown<String>(
                         label: 'Ubicación física (opcional)',
-                        hintText: 'Ej: Pasillo 3, Estante B',
+                        hintText: (_ubicacionesPorSede[sede.id]?.isEmpty ?? true)
+                            ? 'Sin ubicaciones registradas'
+                            : 'Seleccionar ubicación',
+                        value: controllers.ubicacionController.text.isEmpty
+                            ? null
+                            : controllers.ubicacionController.text,
+                        items: _ubicacionesPorSede[sede.id] ?? [],
+                        borderColor: AppColors.blue1,
+                        onChanged: (v) {
+                          setState(() {
+                            controllers.ubicacionController.text = v ?? '';
+                          });
+                        },
                       ),
                       const SizedBox(height: 16),
                       AppSubtitle('PRECIOS (OPCIONALES)'),
