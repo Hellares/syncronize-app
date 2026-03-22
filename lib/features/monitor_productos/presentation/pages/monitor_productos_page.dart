@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/theme/gradient_container.dart';
@@ -226,6 +227,29 @@ class _MonitorProductosViewState extends State<_MonitorProductosView> {
                           _buildExpandedAlertSection(state.data.alertas),
                         ],
                         const SizedBox(height: 16),
+                        // Marketplace management button
+                        GradientContainer(
+                          borderColor: Colors.purple.withValues(alpha: 0.3),
+                          gradient: LinearGradient(
+                            colors: [Colors.white, Colors.purple.withValues(alpha: 0.05)],
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                          ),
+                          child: ListTile(
+                            leading: const Icon(Icons.storefront, color: Colors.purple),
+                            title: Text(
+                              'Gestionar Marketplace',
+                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.purple.shade700),
+                            ),
+                            subtitle: Text(
+                              '${state.data.estadisticas.visibleMarketplace} visibles / ${state.data.estadisticas.noVisibleMarketplace} ocultos',
+                              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                            ),
+                            trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.purple),
+                            onTap: () => _showMarketplaceSheet(context),
+                          ),
+                        ),
+                        const SizedBox(height: 80),
                       ],
                     ),
                     if (_selectedIds.isNotEmpty)
@@ -237,6 +261,21 @@ class _MonitorProductosViewState extends State<_MonitorProductosView> {
             return const SizedBox.shrink();
           },
         ),
+      ),
+    );
+  }
+
+  void _showMarketplaceSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => _MarketplaceSheet(
+        onChanged: () {
+          context.read<MonitorProductosCubit>().loadMonitor(sedeId: _selectedSedeId);
+        },
       ),
     );
   }
@@ -803,6 +842,211 @@ class _ProductoAlertaTile extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Bottom sheet for managing marketplace visibility
+class _MarketplaceSheet extends StatefulWidget {
+  final VoidCallback onChanged;
+  const _MarketplaceSheet({required this.onChanged});
+
+  @override
+  State<_MarketplaceSheet> createState() => _MarketplaceSheetState();
+}
+
+class _MarketplaceSheetState extends State<_MarketplaceSheet> {
+  final DioClient _dio = locator<DioClient>();
+  List<Map<String, dynamic>> _productos = [];
+  bool _loading = true;
+  final Set<String> _selectedIds = {};
+  bool _selectMode = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProductos();
+  }
+
+  Future<void> _loadProductos() async {
+    setState(() => _loading = true);
+    try {
+      final response = await _dio.get('/producto-stock/marketplace-productos');
+      if (mounted) {
+        setState(() {
+          _productos = (response.data as List<dynamic>).cast<Map<String, dynamic>>();
+          _loading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _toggleSingle(String productoId, bool visible) async {
+    try {
+      await _dio.patch('/producto-stock/bulk/marketplace', data: {
+        'productoIds': [productoId],
+        'visible': visible,
+      });
+      _loadProductos();
+      widget.onChanged();
+    } catch (_) {}
+  }
+
+  Future<void> _bulkToggle(bool visible) async {
+    if (_selectedIds.isEmpty) return;
+    try {
+      await _dio.patch('/producto-stock/bulk/marketplace', data: {
+        'productoIds': _selectedIds.toList(),
+        'visible': visible,
+      });
+      setState(() {
+        _selectedIds.clear();
+        _selectMode = false;
+      });
+      _loadProductos();
+      widget.onChanged();
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final visibles = _productos.where((p) => p['visibleMarketplace'] == true).length;
+    final ocultos = _productos.length - visibles;
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.75,
+      maxChildSize: 0.95,
+      minChildSize: 0.4,
+      expand: false,
+      builder: (ctx, scrollController) => Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.storefront, color: Colors.purple, size: 22),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text('Gestionar Marketplace',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                    ),
+                    if (!_selectMode)
+                      TextButton.icon(
+                        onPressed: () => setState(() => _selectMode = true),
+                        icon: const Icon(Icons.checklist, size: 16),
+                        label: const Text('Seleccionar', style: TextStyle(fontSize: 11)),
+                      )
+                    else
+                      TextButton(
+                        onPressed: () => setState(() { _selectMode = false; _selectedIds.clear(); }),
+                        child: const Text('Cancelar', style: TextStyle(fontSize: 11)),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    _chip('Visibles: $visibles', Colors.green),
+                    const SizedBox(width: 8),
+                    _chip('Ocultos: $ocultos', Colors.red),
+                    const SizedBox(width: 8),
+                    _chip('Total: ${_productos.length}', Colors.grey),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          if (_selectMode && _selectedIds.isNotEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              color: Colors.purple.shade50,
+              child: Row(
+                children: [
+                  Text('${_selectedIds.length} seleccionados',
+                      style: TextStyle(fontSize: 12, color: Colors.purple.shade700, fontWeight: FontWeight.w600)),
+                  const Spacer(),
+                  TextButton.icon(
+                    onPressed: () => _bulkToggle(true),
+                    icon: Icon(Icons.visibility, size: 14, color: Colors.green.shade700),
+                    label: Text('Mostrar', style: TextStyle(fontSize: 11, color: Colors.green.shade700)),
+                  ),
+                  TextButton.icon(
+                    onPressed: () => _bulkToggle(false),
+                    icon: Icon(Icons.visibility_off, size: 14, color: Colors.red.shade700),
+                    label: Text('Ocultar', style: TextStyle(fontSize: 11, color: Colors.red.shade700)),
+                  ),
+                ],
+              ),
+            ),
+          const Divider(height: 1),
+          if (_loading)
+            const Expanded(child: Center(child: CircularProgressIndicator()))
+          else
+            Expanded(
+              child: ListView.separated(
+                controller: scrollController,
+                itemCount: _productos.length,
+                separatorBuilder: (_, __) => Divider(height: 1, color: Colors.grey.shade200),
+                itemBuilder: (ctx, index) {
+                  final p = _productos[index];
+                  final visible = p['visibleMarketplace'] == true;
+                  final id = p['id'] as String;
+
+                  return ListTile(
+                    dense: true,
+                    leading: _selectMode
+                        ? Checkbox(
+                            value: _selectedIds.contains(id),
+                            activeColor: Colors.purple,
+                            onChanged: (v) {
+                              setState(() {
+                                if (v == true) _selectedIds.add(id);
+                                else _selectedIds.remove(id);
+                              });
+                            },
+                          )
+                        : Icon(
+                            visible ? Icons.visibility : Icons.visibility_off,
+                            size: 20,
+                            color: visible ? Colors.green : Colors.grey,
+                          ),
+                    title: Text(
+                      p['nombre'] as String? ?? '',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                      maxLines: 1, overflow: TextOverflow.ellipsis,
+                    ),
+                    subtitle: Text(
+                      '${p['codigoEmpresa'] ?? ''} • Stock: ${p['stockActual'] ?? 0}${p['precio'] != null ? ' • S/ ${(p['precio'] as num).toStringAsFixed(2)}' : ''}',
+                      style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                    ),
+                    trailing: _selectMode
+                        ? null
+                        : Switch(
+                            value: visible,
+                            activeColor: Colors.green,
+                            onChanged: (v) => _toggleSingle(id, v),
+                          ),
+                  );
+                },
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _chip(String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(text, style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w600)),
     );
   }
 }
