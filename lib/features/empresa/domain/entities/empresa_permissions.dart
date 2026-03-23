@@ -46,6 +46,16 @@ class EmpresaPermissions extends Equatable {
   final bool canViewCaja;
   final bool canManageCaja;
 
+  // RRHH
+  final bool canViewEmpleados;
+  final bool canManageEmpleados;
+  final bool canViewAsistencia;
+  final bool canManageAsistencia;
+  final bool canViewPlanilla;
+  final bool canManagePlanilla;
+  final bool canApproveIncidencias;
+  final bool canApprovePlanilla;
+
   final bool canManageSedes;
   final bool canViewReports;
   final bool canManageInvoices;
@@ -78,6 +88,14 @@ class EmpresaPermissions extends Equatable {
     required this.canManageCompras,
     required this.canViewCaja,
     required this.canManageCaja,
+    required this.canViewEmpleados,
+    required this.canManageEmpleados,
+    required this.canViewAsistencia,
+    required this.canManageAsistencia,
+    required this.canViewPlanilla,
+    required this.canManagePlanilla,
+    required this.canApproveIncidencias,
+    required this.canApprovePlanilla,
     required this.canManageSedes,
     required this.canViewReports,
     required this.canManageInvoices,
@@ -119,6 +137,14 @@ class EmpresaPermissions extends Equatable {
         canManageCompras,
         canViewCaja,
         canManageCaja,
+        canViewEmpleados,
+        canManageEmpleados,
+        canViewAsistencia,
+        canManageAsistencia,
+        canViewPlanilla,
+        canManagePlanilla,
+        canApproveIncidencias,
+        canApprovePlanilla,
         canManageSedes,
         canViewReports,
         canManageInvoices,

@@ -175,6 +175,22 @@ import '../../features/generador_barcode/presentation/pages/barcode_generator_pa
 import '../../features/dashboard_vendedor/presentation/pages/dashboard_vendedor_page.dart';
 import '../../features/agente_bancario/presentation/pages/agentes_bancarios_page.dart';
 import '../../features/agente_bancario/presentation/pages/agente_detalle_page.dart';
+// RRHH
+import '../../features/rrhh/presentation/pages/dashboard_rrhh_page.dart';
+import '../../features/rrhh/presentation/pages/empleados_page.dart';
+import '../../features/rrhh/presentation/pages/empleado_form_page.dart';
+import '../../features/rrhh/presentation/pages/empleado_detail_page.dart';
+import '../../features/rrhh/presentation/pages/turnos_page.dart';
+import '../../features/rrhh/presentation/pages/horario_plantilla_page.dart';
+import '../../features/rrhh/presentation/pages/asistencia_page.dart';
+import '../../features/rrhh/presentation/pages/registrar_asistencia_page.dart';
+import '../../features/rrhh/presentation/pages/asistencia_resumen_page.dart';
+import '../../features/rrhh/presentation/pages/incidencias_page.dart';
+import '../../features/rrhh/presentation/pages/planilla_page.dart';
+import '../../features/rrhh/presentation/pages/planilla_detalle_page.dart';
+import '../../features/rrhh/presentation/pages/boleta_pago_page.dart';
+import '../../features/rrhh/presentation/pages/adelantos_page.dart';
+import '../../features/rrhh/domain/entities/empleado.dart';
 
 /// Configuración de rutas de la aplicación
 class AppRouter {
@@ -1509,6 +1525,94 @@ class AppRouter {
           final subdominio = state.pathParameters['subdominio']!;
           return EmpresaPublicProfilePage(subdominio: subdominio);
         },
+      ),
+      // ==================== RRHH ====================
+      GoRoute(
+        path: '/empresa/rrhh/dashboard',
+        name: 'rrhh-dashboard',
+        builder: (context, state) => const DashboardRrhhPage(),
+      ),
+      GoRoute(
+        path: '/empresa/rrhh/empleados',
+        name: 'rrhh-empleados',
+        builder: (context, state) => const EmpleadosPage(),
+      ),
+      GoRoute(
+        path: '/empresa/rrhh/empleados/crear',
+        name: 'rrhh-empleados-crear',
+        builder: (context, state) => const EmpleadoFormPage(),
+      ),
+      GoRoute(
+        path: '/empresa/rrhh/empleados/:id',
+        name: 'rrhh-empleado-detail',
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return EmpleadoDetailPage(empleadoId: id);
+        },
+      ),
+      GoRoute(
+        path: '/empresa/rrhh/empleados/:id/editar',
+        name: 'rrhh-empleado-editar',
+        builder: (context, state) {
+          final empleado = state.extra as Empleado?;
+          return EmpleadoFormPage(empleado: empleado);
+        },
+      ),
+      GoRoute(
+        path: '/empresa/rrhh/turnos',
+        name: 'rrhh-turnos',
+        builder: (context, state) => const TurnosPage(),
+      ),
+      GoRoute(
+        path: '/empresa/rrhh/horarios',
+        name: 'rrhh-horarios',
+        builder: (context, state) => const HorarioPlantillaPage(),
+      ),
+      GoRoute(
+        path: '/empresa/rrhh/asistencia',
+        name: 'rrhh-asistencia',
+        builder: (context, state) => const AsistenciaPage(),
+      ),
+      GoRoute(
+        path: '/empresa/rrhh/asistencia/registrar',
+        name: 'rrhh-asistencia-registrar',
+        builder: (context, state) => const RegistrarAsistenciaPage(),
+      ),
+      GoRoute(
+        path: '/empresa/rrhh/asistencia/resumen',
+        name: 'rrhh-asistencia-resumen',
+        builder: (context, state) => const AsistenciaResumenPage(),
+      ),
+      GoRoute(
+        path: '/empresa/rrhh/incidencias',
+        name: 'rrhh-incidencias',
+        builder: (context, state) => const IncidenciasPage(),
+      ),
+      GoRoute(
+        path: '/empresa/rrhh/planilla',
+        name: 'rrhh-planilla',
+        builder: (context, state) => const PlanillaPage(),
+      ),
+      GoRoute(
+        path: '/empresa/rrhh/planilla/:id',
+        name: 'rrhh-planilla-detail',
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return PlanillaDetallePage(periodoId: id);
+        },
+      ),
+      GoRoute(
+        path: '/empresa/rrhh/boleta/:id',
+        name: 'rrhh-boleta-detail',
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return BoletaPagoPage(boletaId: id);
+        },
+      ),
+      GoRoute(
+        path: '/empresa/rrhh/adelantos',
+        name: 'rrhh-adelantos',
+        builder: (context, state) => const AdelantosPage(),
       ),
     ],
   );

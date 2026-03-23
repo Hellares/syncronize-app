@@ -72,6 +72,20 @@ import 'package:syncronize/features/vinculacion/presentation/bloc/vinculacion_ac
 import 'package:syncronize/features/cita/presentation/bloc/cita_list/cita_list_cubit.dart';
 import 'package:syncronize/features/cita/presentation/bloc/cita_form/cita_form_cubit.dart';
 import 'package:syncronize/features/cita/presentation/bloc/disponibilidad/disponibilidad_cubit.dart';
+// RRHH
+import 'package:syncronize/features/rrhh/presentation/bloc/empleado_list/empleado_list_cubit.dart';
+import 'package:syncronize/features/rrhh/presentation/bloc/empleado_form/empleado_form_cubit.dart';
+import 'package:syncronize/features/rrhh/presentation/bloc/empleado_detail/empleado_detail_cubit.dart';
+import 'package:syncronize/features/rrhh/presentation/bloc/turno_list/turno_list_cubit.dart';
+import 'package:syncronize/features/rrhh/presentation/bloc/horario_plantilla/horario_plantilla_cubit.dart';
+import 'package:syncronize/features/rrhh/presentation/bloc/asistencia_list/asistencia_list_cubit.dart';
+import 'package:syncronize/features/rrhh/presentation/bloc/asistencia_resumen/asistencia_resumen_cubit.dart';
+import 'package:syncronize/features/rrhh/presentation/bloc/incidencia_list/incidencia_list_cubit.dart';
+import 'package:syncronize/features/rrhh/presentation/bloc/planilla_list/planilla_list_cubit.dart';
+import 'package:syncronize/features/rrhh/presentation/bloc/planilla_detail/planilla_detail_cubit.dart';
+import 'package:syncronize/features/rrhh/presentation/bloc/boleta_detail/boleta_detail_cubit.dart';
+import 'package:syncronize/features/rrhh/presentation/bloc/adelanto_list/adelanto_list_cubit.dart';
+import 'package:syncronize/features/rrhh/presentation/bloc/dashboard_rrhh/dashboard_rrhh_cubit.dart';
 
 /// Lista centralizada de todos los BLoCs globales de la aplicación
 List<BlocProvider> blocProviders = [
@@ -523,6 +537,60 @@ List<BlocProvider> blocProviders = [
   // Disponibilidad Cubit - Maneja la consulta de slots disponibles
   BlocProvider<DisponibilidadCubit>(
     create: (context) => locator<DisponibilidadCubit>(),
+    lazy: true,
+  ),
+
+  // ==================== RRHH ====================
+  BlocProvider<EmpleadoListCubit>(
+    create: (context) => locator<EmpleadoListCubit>(),
+    lazy: true,
+  ),
+  BlocProvider<EmpleadoFormCubit>(
+    create: (context) => locator<EmpleadoFormCubit>(),
+    lazy: true,
+  ),
+  BlocProvider<EmpleadoDetailCubit>(
+    create: (context) => locator<EmpleadoDetailCubit>(),
+    lazy: true,
+  ),
+  BlocProvider<TurnoListCubit>(
+    create: (context) => locator<TurnoListCubit>(),
+    lazy: true,
+  ),
+  BlocProvider<HorarioPlantillaCubit>(
+    create: (context) => locator<HorarioPlantillaCubit>(),
+    lazy: true,
+  ),
+  BlocProvider<AsistenciaListCubit>(
+    create: (context) => locator<AsistenciaListCubit>(),
+    lazy: true,
+  ),
+  BlocProvider<AsistenciaResumenCubit>(
+    create: (context) => locator<AsistenciaResumenCubit>(),
+    lazy: true,
+  ),
+  BlocProvider<IncidenciaListCubit>(
+    create: (context) => locator<IncidenciaListCubit>(),
+    lazy: true,
+  ),
+  BlocProvider<PlanillaListCubit>(
+    create: (context) => locator<PlanillaListCubit>(),
+    lazy: true,
+  ),
+  BlocProvider<PlanillaDetailCubit>(
+    create: (context) => locator<PlanillaDetailCubit>(),
+    lazy: true,
+  ),
+  BlocProvider<BoletaDetailCubit>(
+    create: (context) => locator<BoletaDetailCubit>(),
+    lazy: true,
+  ),
+  BlocProvider<AdelantoListCubit>(
+    create: (context) => locator<AdelantoListCubit>(),
+    lazy: true,
+  ),
+  BlocProvider<DashboardRrhhCubit>(
+    create: (context) => locator<DashboardRrhhCubit>(),
     lazy: true,
   ),
 

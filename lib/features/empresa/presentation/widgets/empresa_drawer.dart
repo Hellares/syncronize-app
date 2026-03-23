@@ -613,6 +613,68 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
 
             const _DividerNode(),
 
+            _SectionTitleNode('Recursos Humanos',
+              visible: permissions?.canViewEmpleados ?? false,
+            ),
+            _TileNode(
+              visible: permissions?.canViewEmpleados ?? false,
+              title: 'Dashboard RRHH',
+              icon: Icons.dashboard,
+              iconColor: Colors.indigo,
+              routeMatch: const _RouteMatch.startsWith('/empresa/rrhh/dashboard'),
+              onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/rrhh/dashboard')),
+            ),
+            _TileNode(
+              visible: permissions?.canViewEmpleados ?? false,
+              title: 'Empleados',
+              icon: Icons.badge,
+              iconColor: Colors.blue,
+              routeMatch: const _RouteMatch.startsWith('/empresa/rrhh/empleados'),
+              onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/rrhh/empleados')),
+            ),
+            _TileNode(
+              visible: permissions?.canViewEmpleados ?? false,
+              title: 'Turnos y Horarios',
+              icon: Icons.schedule,
+              iconColor: Colors.orange,
+              routeMatch: const _RouteMatch.startsWith('/empresa/rrhh/turnos'),
+              onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/rrhh/turnos')),
+            ),
+            _TileNode(
+              visible: permissions?.canViewAsistencia ?? false,
+              title: 'Asistencia',
+              icon: Icons.fingerprint,
+              iconColor: Colors.green,
+              routeMatch: const _RouteMatch.startsWith('/empresa/rrhh/asistencia'),
+              onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/rrhh/asistencia')),
+            ),
+            _TileNode(
+              visible: permissions?.canViewAsistencia ?? false,
+              title: 'Incidencias',
+              icon: Icons.event_busy,
+              iconColor: Colors.amber,
+              routeMatch: const _RouteMatch.startsWith('/empresa/rrhh/incidencias'),
+              onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/rrhh/incidencias')),
+            ),
+            _TileNode(
+              visible: permissions?.canViewPlanilla ?? false,
+              title: 'Planilla',
+              icon: Icons.receipt_long,
+              iconColor: Colors.purple,
+              routeMatch: const _RouteMatch.startsWith('/empresa/rrhh/planilla'),
+              onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/rrhh/planilla')),
+            ),
+            _TileNode(
+              visible: permissions?.canViewPlanilla ?? false,
+              title: 'Adelantos',
+              icon: Icons.attach_money,
+              iconColor: Colors.red,
+              routeMatch: const _RouteMatch.startsWith('/empresa/rrhh/adelantos'),
+              onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/rrhh/adelantos')),
+            ),
+
+            const _DividerNode(),
+
             const _SectionTitleNode('Administración'),
             _TileNode(
               visible: permissions?.canManageSettings ?? false,

@@ -116,6 +116,7 @@ class Venta extends Equatable {
   final String? clienteEmpresaId;
   final String vendedorId;
   final String? cotizacionId;
+  final String canalVenta; // POS, COTIZACION, ONLINE, MANUAL
   final String codigo;
 
   // Datos del cliente (snapshot)
@@ -176,6 +177,7 @@ class Venta extends Equatable {
     this.clienteEmpresaId,
     required this.vendedorId,
     this.cotizacionId,
+    this.canalVenta = 'POS',
     required this.codigo,
     required this.nombreCliente,
     this.documentoCliente,
@@ -243,6 +245,7 @@ class Venta extends Equatable {
         clienteId,
         vendedorId,
         cotizacionId,
+        canalVenta,
         codigo,
         nombreCliente,
         subtotal,

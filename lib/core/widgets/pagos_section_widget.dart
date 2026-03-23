@@ -45,6 +45,8 @@ class PagosSectionWidget extends StatelessWidget {
   final TextEditingController referenciaController;
   final VoidCallback onAgregarPago;
   final void Function(int index) onRemoverPago;
+  final double? montoCredito;
+  final int? numeroCuotas;
 
   const PagosSectionWidget({
     super.key,
@@ -60,6 +62,8 @@ class PagosSectionWidget extends StatelessWidget {
     required this.referenciaController,
     required this.onAgregarPago,
     required this.onRemoverPago,
+    this.montoCredito,
+    this.numeroCuotas,
   });
 
   @override
@@ -143,6 +147,20 @@ class PagosSectionWidget extends StatelessWidget {
                             style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.orange[700])),
                       ],
                     ),
+                  if (montoCredito != null && montoCredito! > 0) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'A credito${numeroCuotas != null && numeroCuotas! > 0 ? ' ($numeroCuotas cuota${numeroCuotas! > 1 ? 's' : ''})' : ''}',
+                          style: TextStyle(fontSize: 11, color: Colors.orange[600]),
+                        ),
+                        Text('S/ ${montoCredito!.toStringAsFixed(2)}',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.orange[600])),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -150,102 +168,122 @@ class PagosSectionWidget extends StatelessWidget {
           const SizedBox(height: 12),
         ],
 
-        // Agregar pago
-        GradientContainer(
-          borderColor: saldoPendiente <= 0.01 && pagos.isNotEmpty
-              ? Colors.green.shade300
-              : AppColors.blueborder,
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.add_card, size: 16, color: Colors.green[700]),
-                    const SizedBox(width: 6),
-                    // const Text('Agregar pago', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                    AppSubtitle('Agregar pago')
-                  ],
-                ),
-                const SizedBox(height: 10),
-                // Método de pago chips
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    _metodoPagoChip('EFECTIVO', '💵', 'Efectivo'),
-                    _metodoPagoChip('TARJETA', '💳', 'Tarjeta'),
-                    _metodoPagoChip('YAPE', '📱', 'Yape'),
-                    _metodoPagoChip('PLIN', '📱', 'Plin'),
-                    _metodoPagoChip('TRANSFERENCIA', '🏦', 'Transfer.'),
-                  ],
-                ),
-                // Moneda
-                if (tipoCambioVenta != null) ...[
-                  const SizedBox(height: 12),
+        // Agregar pago — ocultar si ya se cubrió el monto
+        if (saldoPendiente <= 0.01 && pagos.isNotEmpty)
+          GradientContainer(
+            borderColor: Colors.green.shade300,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  Icon(Icons.check_circle, size: 20, color: Colors.green[700]),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Pago completo',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.green[700]),
+                    ),
+                  ),
+                  Text('S/ ${totalPagado.toStringAsFixed(2)}',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Colors.green[700])),
+                ],
+              ),
+            ),
+          )
+        else
+          GradientContainer(
+            borderColor: AppColors.blueborder,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Row(
                     children: [
-                      Text('Moneda: ', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                      Icon(Icons.add_card, size: 16, color: Colors.green[700]),
                       const SizedBox(width: 6),
-                      _monedaChip('PEN', 'S/', 'Soles'),
-                      const SizedBox(width: 6),
-                      _monedaChip('USD', '\$', 'Dolares'),
-                      const Spacer(),
-                      if (monedaActual == 'USD')
-                        Text('TC: ${tipoCambioVenta!.toStringAsFixed(3)}',
-                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.blue[700])),
+                      AppSubtitle('Agregar pago'),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  // Método de pago chips
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _metodoPagoChip('EFECTIVO', '💵', 'Efectivo'),
+                      _metodoPagoChip('TARJETA', '💳', 'Tarjeta'),
+                      _metodoPagoChip('YAPE', '📱', 'Yape'),
+                      _metodoPagoChip('PLIN', '📱', 'Plin'),
+                      _metodoPagoChip('TRANSFERENCIA', '🏦', 'Transfer.'),
+                    ],
+                  ),
+                  // Moneda
+                  if (tipoCambioVenta != null) ...[
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Text('Moneda: ', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                        const SizedBox(width: 6),
+                        _monedaChip('PEN', 'S/', 'Soles'),
+                        const SizedBox(width: 6),
+                        _monedaChip('USD', '\$', 'Dolares'),
+                        const Spacer(),
+                        if (monedaActual == 'USD')
+                          Text('TC: ${tipoCambioVenta!.toStringAsFixed(3)}',
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.blue[700])),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: 10),
+                  // Monto + Referencia + Botón agregar
+                  Row(
+                    children: [
+                      Expanded(
+                        flex: 2,
+                        child: CurrencyTextField(
+                          controller: montoController,
+                          enableRealTimeValidation: false,
+                          borderColor: Colors.green[700]!,
+                          currencySymbol: monedaActual == 'USD' ? '\$' : 'S/',
+                          label: saldoPendiente > 0.01
+                              ? 'Pend: ${monedaActual == 'USD' && tipoCambioVenta != null ? '\$${(saldoPendiente / tipoCambioVenta!).toStringAsFixed(2)}' : 'S/${saldoPendiente.toStringAsFixed(2)}'}'
+                              : 'Monto',
+                        ),
+                      ),
+                      if (metodoActual != 'EFECTIVO') ...[
+                        const SizedBox(width: 8),
+                        Expanded(
+                          flex: 2,
+                          child: CustomText(
+                            controller: referenciaController,
+                            label: 'Referencia',
+                            hintText: 'N° operacion',
+                            borderColor: Colors.green[700]!,
+                          ),
+                        ),
+                      ],
+                      const SizedBox(width: 8),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: GestureDetector(
+                          onTap: onAgregarPago,
+                          child: Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.green[600],
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(Icons.add, color: Colors.white, size: 16),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ],
-                const SizedBox(height: 10),
-                // Monto + Referencia + Botón agregar
-                Row(
-                  children: [
-                    Expanded(
-                      flex: 2,
-                      child: CurrencyTextField(
-                        controller: montoController,
-                        borderColor: Colors.green[700]!,
-                        currencySymbol: monedaActual == 'USD' ? '\$' : 'S/',
-                        label: saldoPendiente > 0.01
-                            ? 'Pend: ${monedaActual == 'USD' && tipoCambioVenta != null ? '\$${(saldoPendiente / tipoCambioVenta!).toStringAsFixed(2)}' : 'S/${saldoPendiente.toStringAsFixed(2)}'}'
-                            : 'Monto',
-                      ),
-                    ),
-                    if (metodoActual != 'EFECTIVO') ...[
-                      const SizedBox(width: 8),
-                      Expanded(
-                        flex: 2,
-                        child: CustomText(
-                          controller: referenciaController,
-                          label: 'Referencia',
-                          hintText: 'N° operacion',
-                          borderColor: Colors.green[700]!,
-                        ),
-                      ),
-                    ],
-                    const SizedBox(width: 8),
-                    Padding(
-                      padding: const EdgeInsets.only(top: 12),
-                      child: GestureDetector(
-                        onTap: onAgregarPago,
-                        child: Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: Colors.green[600],
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(Icons.add, color: Colors.white, size: 16),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+              ),
             ),
           ),
-        ),
       ],
     );
   }

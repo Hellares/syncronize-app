@@ -18,6 +18,8 @@ import '../../../../core/theme/app_gradients.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/theme/gradient_container.dart';
 import '../../../../core/widgets/comprobante_condicion_card.dart';
+import '../../../../core/utils/caja_guard.dart';
+import '../../../../core/widgets/currency/currency_formatter.dart';
 import '../../../../core/widgets/pagos_section_widget.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../../../core/widgets/snack_bar_helper.dart';
@@ -67,6 +69,7 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
   @override
   void initState() {
     super.initState();
+    _verificarCaja();
     _loadCotizacion();
     _montoAgregarController.addListener(() => setState(() {}));
   }
@@ -79,6 +82,13 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
     _observacionesController.dispose();
     _plazoCreditoController.dispose();
     super.dispose();
+  }
+
+  Future<void> _verificarCaja() async {
+    final tieneCaja = await verificarCajaAbierta(context);
+    if (!tieneCaja && mounted) {
+      Navigator.of(context).pop();
+    }
   }
 
   Future<void> _loadCotizacion() async {
@@ -351,8 +361,8 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
   double get _saldoPendiente => _total - _totalPagado;
 
   void _agregarPago() {
-    final monto = double.tryParse(_montoAgregarController.text);
-    if (monto == null || monto <= 0) {
+    final monto = CurrencyUtilsImproved.parseToDouble(_montoAgregarController.text);
+    if (monto <= 0) {
       SnackBarHelper.showError(context, 'Ingresa un monto valido');
       return;
     }

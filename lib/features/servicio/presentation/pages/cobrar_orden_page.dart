@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/widgets/currency/currency_formatter.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -92,8 +93,8 @@ class _CobrarOrdenPageState extends State<CobrarOrdenPage> {
     setState(() => _isProcessing = true);
 
     try {
-      final montoRecibido =
-          double.tryParse(_montoRecibidoController.text) ?? _saldoPendiente;
+      final parsed = CurrencyUtilsImproved.parseToDouble(_montoRecibidoController.text);
+      final montoRecibido = parsed > 0 ? parsed : _saldoPendiente;
       final data = <String, dynamic>{
         'metodoPago': _metodoPago,
         'montoRecibido': montoRecibido,

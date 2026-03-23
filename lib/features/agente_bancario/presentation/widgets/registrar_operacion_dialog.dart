@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/widgets/currency/currency_formatter.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/fonts/app_text_widgets.dart';
 import '../../../auth/presentation/widgets/custom_text.dart';
@@ -57,7 +58,7 @@ class _RegistrarOperacionDialogState extends State<RegistrarOperacionDialog> {
   }
 
   void _calcularComision() {
-    final monto = double.tryParse(_montoController.text) ?? 0;
+    final monto = CurrencyUtilsImproved.parseToDouble(_montoController.text);
     setState(() => _comisionCalculada = monto * widget.comisionPorcentaje / 100);
   }
 

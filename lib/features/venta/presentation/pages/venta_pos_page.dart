@@ -3,10 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
-import 'package:syncronize/core/widgets/currency/currency_textfield.dart';
 import 'package:syncronize/core/widgets/custom_button.dart';
 import '../../../../core/widgets/items_table_widget.dart';
-import '../../../../core/widgets/cuotas_dial_selector.dart';
 import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/network/dio_client.dart';
@@ -21,11 +19,15 @@ import '../../../producto/presentation/bloc/producto_list/producto_list_cubit.da
 import '../bloc/venta_form/venta_form_cubit.dart';
 import '../bloc/venta_form/venta_form_state.dart';
 import '../../domain/entities/venta_detalle_input.dart';
-import '../widgets/resumen_venta_widget.dart';
 import '../../../../core/widgets/cliente_unificado_selector.dart';
 import '../../../cotizacion/presentation/widgets/cotizacion_item_selector.dart';
 import '../../../../core/widgets/comprobante_condicion_card.dart';
 import '../../../../core/widgets/pagos_section_widget.dart';
+import '../../../../core/widgets/currency/currency_formatter.dart';
+import '../widgets/credito_cuotas_section.dart';
+import '../widgets/pos_resumen_totales.dart';
+import '../widgets/pos_action_bar.dart';
+import '../../../../core/utils/caja_guard.dart';
 
 class VentaPOSPage extends StatefulWidget {
   const VentaPOSPage({super.key});
@@ -64,7 +66,7 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
   double? _tipoCambioVenta;
   final _montoAgregarController = TextEditingController();
   final _referenciaAgregarController = TextEditingController();
-  String _condicionPago = 'CONTADO'; // CONTADO, CREDITO, MIXTO
+  String _condicionPago = 'CONTADO';
   bool get _esCredito => _condicionPago == 'CREDITO' || _condicionPago == 'MIXTO';
   int _numeroCuotas = 1;
   final _montoCreditoController = TextEditingController();
@@ -113,6 +115,14 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
       setState(() => _numeroCuotas = int.tryParse(_numeroCuotasController.text) ?? 1);
     });
     _cargarTipoCambio();
+    _verificarCaja();
+  }
+
+  Future<void> _verificarCaja() async {
+    final tieneCaja = await verificarCajaAbierta(context);
+    if (!tieneCaja && mounted) {
+      Navigator.of(context).pop();
+    }
   }
 
   Future<void> _cargarTipoCambio() async {
@@ -138,8 +148,7 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
   void _leerConfiguracion() {
     final configState = context.read<ConfiguracionEmpresaCubit>().state;
     if (configState is ConfiguracionEmpresaLoaded) {
-      _impuestoPorcentaje =
-          configState.configuracion.impuestoDefaultPorcentaje;
+      _impuestoPorcentaje = configState.configuracion.impuestoDefaultPorcentaje;
       _nombreImpuesto = configState.configuracion.nombreImpuesto;
       _moneda = configState.configuracion.monedaPrincipal;
       _moraHabilitada = configState.configuracion.moraHabilitada;
@@ -169,46 +178,34 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
     super.dispose();
   }
 
-  double _calcularSubtotal() {
-    return _items.fold(0.0, (sum, i) => sum + i.subtotal);
-  }
+  // ─── Computed Properties ───
 
-  double _calcularImpuestos() {
-    return _calcularSubtotal() * (_impuestoPorcentaje / 100);
-  }
-
-  double _calcularTotal() {
-    return _calcularSubtotal() + _calcularImpuestos();
-  }
-
+  double _calcularTotal() => _items.fold(0.0, (sum, i) => sum + i.total);
   double get _totalPagado => _pagos.fold(0.0, (sum, p) => sum + (p['monto'] as double));
 
-  /// Monto que va a crédito (MIXTO: lo que ingresa el usuario, CREDITO: el total)
   double get _montoCredito {
     if (_condicionPago == 'CREDITO') return _calcularTotal();
-    if (_condicionPago == 'MIXTO') return double.tryParse(_montoCreditoController.text) ?? 0;
+    if (_condicionPago == 'MIXTO') {
+      final ingresado = CurrencyUtilsImproved.parseToDouble(_montoCreditoController.text);
+      final total = _calcularTotal();
+      return ingresado.clamp(0, total); // No puede exceder el total
+    }
     return 0;
   }
 
-  /// Monto que se debe pagar ahora (total - crédito)
   double get _montoPagarAhora {
     final total = _calcularTotal();
     if (_condicionPago == 'CONTADO') return total;
     return (total - _montoCredito).clamp(0, total);
   }
 
-  /// Saldo pendiente de la parte que se paga ahora
   double get _saldoPendiente => _montoPagarAhora - _totalPagado;
 
-  /// Monto de interés calculado sobre el crédito
-  double get _montoInteresCalculado => _montoCredito * (_porcentajeInteres / 100);
-
-  /// Monto a crédito incluyendo interés
-  double get _montoCreditoConInteres => _montoCredito + _montoInteresCalculado;
+  // ─── Pago Actions ───
 
   void _agregarPago() {
-    final monto = double.tryParse(_montoAgregarController.text);
-    if (monto == null || monto <= 0) return;
+    final monto = CurrencyUtilsImproved.parseToDouble(_montoAgregarController.text);
+    if (monto <= 0) return;
 
     if (_monedaActual == 'USD' && _tipoCambioVenta == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -236,10 +233,9 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
     });
   }
 
-  void _removerPago(int index) {
-    setState(() => _pagos.removeAt(index));
-  }
+  void _removerPago(int index) => setState(() => _pagos.removeAt(index));
 
+  // ─── BUILD ───
 
   @override
   Widget build(BuildContext context) {
@@ -248,23 +244,14 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
       child: BlocListener<VentaFormCubit, VentaFormState>(
         listener: (context, state) {
           if (state is VentaFormSuccess) {
-            try {
-              context.read<ProductoListCubit>().invalidateCache();
-            } catch (_) {}
-            try {
-              context.read<ProductoSedeSearchCubit>().clearCache();
-            } catch (_) {}
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.message)),
-            );
+            try { context.read<ProductoListCubit>().invalidateCache(); } catch (_) {}
+            try { context.read<ProductoSedeSearchCubit>().clearCache(); } catch (_) {}
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.message)));
             Navigator.of(context).pop(true);
           }
           if (state is VentaFormError) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message),
-                backgroundColor: Colors.red,
-              ),
+              SnackBar(content: Text(state.message), backgroundColor: Colors.red),
             );
           }
         },
@@ -302,35 +289,70 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ─── 1. CLIENTE ───
                     _buildSectionHeader('Cliente', Icons.person),
                     _buildClienteSection(),
                     const SizedBox(height: 20),
 
-                    // ─── 2. ITEMS ───
                     _buildSectionHeader('Items', Icons.shopping_cart),
                     _buildItemsSection(),
                     const SizedBox(height: 20),
 
-                    // ─── 3. COMPROBANTE ───
                     _buildSectionHeader('Comprobante', Icons.receipt_long),
-                    _buildComprobanteSection(),
+                    ComprobanteCondicionCard(
+                      tipoComprobante: _tipoComprobante,
+                      onComprobanteChanged: (v) => setState(() => _tipoComprobante = v),
+                      condicionPago: _condicionPago,
+                      onCondicionChanged: (v) => setState(() {
+                        _condicionPago = v;
+                        if (v == 'CREDITO') _pagos.clear();
+                      }),
+                    ),
                     const SizedBox(height: 20),
 
-                    // ─── 4. PAGO ───
                     _buildSectionHeader('Pago', Icons.payments),
                     _buildPagoSection(),
                     const SizedBox(height: 20),
 
-                    // ─── 5. RESUMEN ───
                     _buildSectionHeader('Resumen', Icons.summarize),
-                    _buildResumenSection(),
+                    PosResumenTotales(
+                      items: _items,
+                      moneda: _moneda,
+                      nombreImpuesto: _nombreImpuesto,
+                      porcentajeImpuesto: _impuestoPorcentaje,
+                      totalVenta: _calcularTotal(),
+                      totalPagado: _totalPagado,
+                      montoCredito: _montoCredito,
+                      numeroCuotas: _numeroCuotas,
+                      esCredito: _esCredito,
+                      condicionPago: _condicionPago,
+                      interesHabilitado: _interesHabilitado,
+                      porcentajeInteres: _porcentajeInteres,
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Observaciones
+                    GradientContainer(
+                      borderColor: AppColors.blueborder,
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: CustomText(
+                          controller: _observacionesController,
+                          borderColor: AppColors.blue1,
+                          label: 'Observaciones (opcional)',
+                          enableVoiceInput: true,
+                          maxLines: 3,
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 16),
                   ],
                 ),
               ),
             ),
-            bottomNavigationBar: _buildActionButtons(context),
+            bottomNavigationBar: PosActionBar(
+              onBorrador: () => _submitBorrador(context),
+              onCobrar: () => _submitCobrar(context),
+            ),
           ),
           ),
         ),
@@ -386,8 +408,7 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
                           if (result.tipo == TipoClienteSeleccion.persona) {
                             _clienteId = result.clienteId;
                             _clienteEmpresaId = null;
-                            _nombreClienteController.text =
-                                result.nombreCompleto ?? '';
+                            _nombreClienteController.text = result.nombreCompleto ?? '';
                             _documentoController.text = result.dni ?? '';
                             _emailController.text = result.email ?? '';
                             _telefonoController.text = result.telefono ?? '';
@@ -395,8 +416,7 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
                           } else {
                             _clienteId = null;
                             _clienteEmpresaId = result.clienteEmpresaId;
-                            _nombreClienteController.text =
-                                result.razonSocial ?? result.nombreComercial ?? '';
+                            _nombreClienteController.text = result.razonSocial ?? result.nombreComercial ?? '';
                             _documentoController.text = result.ruc ?? '';
                             _emailController.text = '';
                             _telefonoController.text = result.telefono ?? '';
@@ -406,7 +426,7 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
                       }
                     },
                     text: 'Buscar',
-                    icon: const Icon(Icons.person_search, size: 16, color: AppColors.white,),
+                    icon: const Icon(Icons.person_search, size: 16, color: AppColors.white),
                     backgroundColor: AppColors.blue1,
                     height: 32,
                   ),
@@ -435,7 +455,6 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
           showModeSelector: false,
           onItemSelected: (item) {
             setState(() {
-              // Buscar si ya existe un item con el mismo producto/variante/servicio
               final existingIndex = _items.indexWhere((existing) {
                 if (item.productoId != null && existing.productoId == item.productoId && existing.varianteId == item.varianteId) return true;
                 if (item.servicioId != null && existing.servicioId == item.servicioId) return true;
@@ -443,7 +462,6 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
               });
 
               if (existingIndex >= 0) {
-                // Sumar cantidad al item existente
                 final existing = _items[existingIndex];
                 _items[existingIndex] = VentaDetalleInput(
                   productoId: existing.productoId,
@@ -454,6 +472,7 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
                   precioUnitario: existing.precioUnitario,
                   descuento: existing.descuento,
                   porcentajeIGV: existing.porcentajeIGV,
+                  precioIncluyeIgv: existing.precioIncluyeIgv,
                 );
               } else {
                 _items.add(VentaDetalleInput(
@@ -465,6 +484,7 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
                   precioUnitario: item.precioUnitario,
                   descuento: item.descuento,
                   porcentajeIGV: item.porcentajeIGV,
+                  precioIncluyeIgv: item.precioIncluyeIgv,
                 ));
               }
             });
@@ -475,10 +495,7 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
           Center(
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: Text(
-                'Agrega items a la venta',
-                style: TextStyle(color: Colors.grey.shade500),
-              ),
+              child: Text('Agrega items a la venta', style: TextStyle(color: Colors.grey.shade500)),
             ),
           )
         else
@@ -487,25 +504,11 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
               descripcion: item.descripcion,
               cantidad: item.cantidad,
               precioUnitario: item.precioUnitario,
-              subtotal: item.subtotal,
+              subtotal: item.total,
             )).toList(),
             onRemove: (i) => setState(() => _items.removeAt(i)),
           ),
       ],
-    );
-  }
-
-  // ─── 3. COMPROBANTE Section ───
-
-  Widget _buildComprobanteSection() {
-    return ComprobanteCondicionCard(
-      tipoComprobante: _tipoComprobante,
-      onComprobanteChanged: (v) => setState(() => _tipoComprobante = v),
-      condicionPago: _condicionPago,
-      onCondicionChanged: (v) => setState(() {
-        _condicionPago = v;
-        if (v == 'CREDITO') _pagos.clear();
-      }),
     );
   }
 
@@ -515,123 +518,31 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ─── MIXTO: Monto a crédito + Cuotas ───
-        if (_condicionPago == 'MIXTO') ...[
-          GradientContainer(
-            borderColor: Colors.orange.shade300,
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.credit_score, size: 16, color: Colors.orange[700]),
-                      const SizedBox(width: 6),
-                      // Text('Parte a Credito', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.orange[700])),
-                      AppSubtitle('Parte a Credito', color: Colors.orange[700]!)
-                    ],
-                  ),
-                  const SizedBox(height: 5),
-                  
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Expanded(
-                        child: CurrencyTextField(
-                          controller: _montoCreditoController,
-                          enableRealTimeValidation: false,
-                          borderColor: Colors.orange[700]!,
-                          label: 'Monto a credito',
-                          hintText: '0.00',
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      CuotasDialSelector(
-                        label: 'Cuotas',
-                        value: _numeroCuotas,
-                        activeColor: Colors.orange[700],
-                        onChanged: (v) => setState(() {
-                          _numeroCuotas = v;
-                          _numeroCuotasController.text = v.toString();
-                        }),
-                      ),
-                    ],
-                  ),
-                  if (_interesHabilitado && _esCredito) ...[
-                    const SizedBox(height: 10),
-                    _buildInteresCredito(),
-                  ],
-                  if (_montoCredito > 0 && _numeroCuotas > 0) ...[
-                    const SizedBox(height: 10),
-                    _buildCuotasPreview(),
-                  ],
-                  if (_montoPagarAhora > 0) ...[
-                    const SizedBox(height: 10),
-                    GradientContainer(
-                      borderColor: Colors.green.shade300,
-                      child: Padding(
-                        padding: const EdgeInsets.all(10),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text('Pagar ahora:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.green[700])),
-                            Text('S/ ${_montoPagarAhora.toStringAsFixed(2)}',
-                                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Colors.green[700])),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-        ],
+        // Sección crédito/cuotas (CREDITO y MIXTO)
+        CreditoCuotasSection(
+          condicionPago: _condicionPago,
+          numeroCuotas: _numeroCuotas,
+          onCuotasChanged: (v) => setState(() {
+            _numeroCuotas = v;
+            _numeroCuotasController.text = v.toString();
+          }),
+          montoCreditoController: _montoCreditoController,
+          montoCredito: _montoCredito,
+          montoPagarAhora: _montoPagarAhora,
+          interesHabilitado: _interesHabilitado,
+          interesEsEditable: _interesEsEditable,
+          porcentajeInteres: _porcentajeInteres,
+          porcentajeInteresController: _porcentajeInteresController,
+          onInteresChanged: (v) => setState(() => _porcentajeInteres = double.tryParse(v) ?? 0),
+          moraHabilitada: _moraHabilitada,
+          porcentajeMoraDiario: _porcentajeMoraDiario,
+          moraMaximaPorcentaje: _moraMaximaPorcentaje,
+          diasGraciaMora: _diasGraciaMora,
+          hasItems: _items.isNotEmpty,
+          totalVenta: _calcularTotal(),
+        ),
 
-        // ─── CREDITO: Solo cuotas ───
-        if (_condicionPago == 'CREDITO') ...[
-          GradientContainer(
-            borderColor: Colors.orange.shade300,
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.credit_score, size: 16, color: Colors.orange[700]),
-                      const SizedBox(width: 6),
-                      Text('Credito Total', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.orange[700])),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  CuotasDialSelector(
-                    label: 'Cuotas',
-                    value: _numeroCuotas,
-                    activeColor: Colors.orange[700],
-                    onChanged: (v) => setState(() {
-                      _numeroCuotas = v;
-                      _numeroCuotasController.text = v.toString();
-                    }),
-                  ),
-                  if (_interesHabilitado && _esCredito) ...[
-                    const SizedBox(height: 10),
-                    _buildInteresCredito(),
-                  ],
-                  if (_numeroCuotas > 0 && _items.isNotEmpty) ...[
-                    const SizedBox(height: 10),
-                    _buildCuotasPreview(),
-                  ],
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-        ],
-
-        // ─── Pagos inmediatos (CONTADO y MIXTO) ───
+        // Pagos inmediatos (CONTADO y MIXTO)
         if (_condicionPago != 'CREDITO') ...[
           PagosSectionWidget(
             pagos: _pagos,
@@ -646,400 +557,78 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
             referenciaController: _referenciaAgregarController,
             onAgregarPago: _agregarPago,
             onRemoverPago: _removerPago,
+            montoCredito: _esCredito ? _montoCredito : null,
+            numeroCuotas: _esCredito ? _numeroCuotas : null,
           ),
           const SizedBox(height: 12),
         ],
-
-        // Observaciones
-        GradientContainer(
-          borderColor: AppColors.blueborder,
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: CustomText(
-              controller: _observacionesController,
-              borderColor: AppColors.blue1,
-              label: 'Observaciones (opcional)',
-              enableVoiceInput: true,
-              maxLines: 3,
-            ),
-          ),
-        ),
       ],
     );
   }
 
-  // ─── Interés por Crédito ───
-
-  Widget _buildInteresCredito() {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: Colors.green.shade50,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.green.shade300),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.percent, size: 14, color: Colors.green[700]),
-              const SizedBox(width: 6),
-              Text('Interés por crédito', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.green[700])),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: _interesEsEditable
-                  ? CustomText(
-                      controller: _porcentajeInteresController,
-                      borderColor: Colors.green.shade400,
-                      label: 'Interés (%)',
-                      hintText: 'Ej: 5',
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      onChanged: (v) {
-                        setState(() {
-                          _porcentajeInteres = double.tryParse(v) ?? 0;
-                        });
-                      },
-                    )
-                  : InputDecorator(
-                      decoration: InputDecoration(
-                        labelText: 'Interés (%)',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
-                      child: Text('${_porcentajeInteres.toStringAsFixed(2)}%'),
-                    ),
-              ),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text('Interés: S/ ${_montoInteresCalculado.toStringAsFixed(2)}',
-                      style: TextStyle(fontSize: 11, color: Colors.green[700], fontWeight: FontWeight.w600)),
-                  Text('Total: S/ ${_montoCreditoConInteres.toStringAsFixed(2)}',
-                      style: TextStyle(fontSize: 12, color: Colors.green[800], fontWeight: FontWeight.w700)),
-                ],
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ─── Cuotas Preview ───
-
-  Widget _buildCuotasPreview() {
-    final mc = (_interesHabilitado && _porcentajeInteres > 0) ? _montoCreditoConInteres : _montoCredito;
-    if (mc <= 0 || _numeroCuotas <= 0) return const SizedBox.shrink();
-
-    final montoCuota = (mc / _numeroCuotas * 100).floor() / 100;
-    final resto = double.parse((mc - montoCuota * _numeroCuotas).toStringAsFixed(2));
-    final now = DateTime.now();
-
-    return GradientContainer(
-      borderColor: Colors.blue.shade200,
-      child: Padding(
-        padding: const EdgeInsets.all(10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.calendar_month, size: 14, color: Colors.blue[700]),
-                const SizedBox(width: 6),
-                Text('Cronograma de cuotas', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.blue[700])),
-                const Spacer(),
-                Text('Total: S/ ${mc.toStringAsFixed(2)}', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.blue[700])),
-              ],
-            ),
-            const SizedBox(height: 8),
-            ...List.generate(_numeroCuotas, (i) {
-              final numero = i + 1;
-              final esUltima = numero == _numeroCuotas;
-              final monto = esUltima ? montoCuota + resto : montoCuota;
-              // Cada cuota vence el 1ro del mes siguiente
-              final fecha = DateTime(now.year, now.month + numero + 1, 1);
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 22, height: 22,
-                      decoration: BoxDecoration(
-                        color: Colors.blue[50],
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Center(child: Text('$numero', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.blue[700]))),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(child: Text('S/ ${monto.toStringAsFixed(2)}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500))),
-                    Text('01/${fecha.month.toString().padLeft(2, '0')}/${fecha.year}',
-                        style: TextStyle(fontSize: 11, color: Colors.grey[600])),
-                  ],
-                ),
-              );
-            }),
-            // Aviso de mora si está habilitada
-            if (_moraHabilitada) ...[
-              const Divider(height: 16),
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.orange.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.orange.shade300),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(Icons.info_outline, size: 16, color: Colors.orange[800]),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Condiciones de mora por atraso',
-                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.orange[800]),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '• Interés: $_porcentajeMoraDiario% diario sobre el monto de la cuota\n'
-                            '${_diasGraciaMora > 0 ? '• Gracia: $_diasGraciaMora día${_diasGraciaMora > 1 ? 's' : ''} después del vencimiento\n' : ''}'
-                            '• Tope máximo: ${_moraMaximaPorcentaje.toStringAsFixed(0)}% del monto de la cuota\n'
-                            '• Ej: cuota de S/ ${montoCuota.toStringAsFixed(2)} → mora diaria S/ ${(montoCuota * _porcentajeMoraDiario / 100).toStringAsFixed(2)}',
-                            style: TextStyle(fontSize: 10, color: Colors.orange[700], height: 1.4),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ─── 5. RESUMEN Section ───
-
-  Widget _buildResumenSection() {
-    final totalVenta = _calcularTotal();
-    final cambio = _condicionPago == 'CONTADO' && _totalPagado > totalVenta
-        ? _totalPagado - totalVenta
-        : 0.0;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        ResumenVentaWidget(
-          items: _items,
-          moneda: _moneda,
-          nombreImpuesto: _nombreImpuesto,
-          porcentajeImpuesto: _impuestoPorcentaje,
-        ),
-        if (_items.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          GradientContainer(
-            borderColor: AppColors.blueborder,
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                children: [
-                  // Total de la compra
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('Total Compra',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                      Text(
-                        'S/ ${totalVenta.toStringAsFixed(2)}',
-                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.blue1),
-                      ),
-                    ],
-                  ),
-                  // Pagado al contado
-                  if (_pagos.isNotEmpty) ...[
-                    const Divider(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('Pagado al contado',
-                            style: TextStyle(fontSize: 11, color: Colors.green[700])),
-                        Text(
-                          'S/ ${_totalPagado.toStringAsFixed(2)}',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.green[700]),
-                        ),
-                      ],
-                    ),
-                  ],
-                  // Saldo a crédito
-                  if (_esCredito && _montoCredito > 0) ...[
-                    const SizedBox(height: 4),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('Saldo a credito ($_numeroCuotas cuota${_numeroCuotas > 1 ? 's' : ''})',
-                            style: TextStyle(fontSize: 12, color: Colors.orange[700])),
-                        Text(
-                          'S/ ${_montoCredito.toStringAsFixed(2)}',
-                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.orange[700]),
-                        ),
-                      ],
-                    ),
-                  ],
-                  // Cambio (solo contado)
-                  if (cambio > 0) ...[
-                    const SizedBox(height: 4),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('Cambio',
-                            style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
-                        Text(
-                          'S/ ${cambio.toStringAsFixed(2)}',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.green.shade700),
-                        ),
-                      ],
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-
-  // ─── 6. ACTION BUTTONS ───
-
-  Widget _buildActionButtons(BuildContext context) {
-    return BlocBuilder<VentaFormCubit, VentaFormState>(
-      builder: (context, state) {
-        final isLoading = state is VentaFormLoading;
-        return Container(
-          padding: EdgeInsets.only(
-            left: 16,
-            right: 16,
-            top: 10,
-            bottom: MediaQuery.of(context).padding.bottom + 10,
-          ),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.08),
-                blurRadius: 8,
-                offset: const Offset(0, -2),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              // Guardar Borrador
-              Expanded(
-                child: CustomButton(
-                  text: 'Borrador',
-                  isLoading: isLoading,
-                  backgroundColor: AppColors.blue1,
-                  onPressed:
-                      isLoading ? null : () => _submitBorrador(context),
-                  icon: const Icon(Icons.save_outlined, size: 16),
-                ),
-              ),
-              const SizedBox(width: 12),
-              // Cobrar
-              Expanded(
-                flex: 2,
-                child: CustomButton(
-                  text: 'Cobrar',
-                  isLoading: isLoading,
-                  onPressed: isLoading ? null : () => _submitCobrar(context),
-                  backgroundColor: Colors.green.shade600,
-                  icon: const Icon(Icons.point_of_sale, size: 16),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  // ─── Submit: Cobrar (crear + confirmar + pagar) ───
+  // ─── Submit: Cobrar ───
 
   void _submitCobrar(BuildContext context) {
     if (_nombreClienteController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('El nombre del cliente es requerido')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('El nombre del cliente es requerido')));
       return;
     }
     if (_items.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Agrega al menos un item')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Agrega al menos un item')));
       return;
     }
-    // Validar pagos para CONTADO y MIXTO
     if (_condicionPago == 'CONTADO' && _pagos.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Agrega al menos un pago')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Agrega al menos un pago')));
       return;
     }
-    if (_condicionPago == 'MIXTO' && _montoPagarAhora > 0 && _pagos.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Agrega el pago de la parte al contado')),
-      );
-      return;
+    if (_condicionPago == 'MIXTO') {
+      if (_montoCredito <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ingresa el monto a credito')));
+        return;
+      }
+      if (_montoCredito >= _calcularTotal()) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('El monto a credito debe ser menor al total. Usa "Credito" para credito total.')));
+        return;
+      }
+      if (_montoPagarAhora > 0 && _pagos.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Agrega el pago de la parte al contado')));
+        return;
+      }
+      if (_totalPagado < _montoPagarAhora) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Falta pagar S/ ${(_montoPagarAhora - _totalPagado).toStringAsFixed(2)} de la parte al contado')));
+        return;
+      }
     }
     if (_esCredito && _numeroCuotas <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ingresa el numero de cuotas')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ingresa el numero de cuotas')));
       return;
     }
 
-    final now = DateTime.now();
-    // Plazo = cuotas * 30 días (1 cuota = 1 mes)
     final plazoDias = _numeroCuotas * 30;
-    // Última cuota vence el 1ro del mes correspondiente
+    final now = DateTime.now();
     final fechaUltimaCuota = DateTime(now.year, now.month + _numeroCuotas + 1, 1);
 
     final data = <String, dynamic>{
+      'canalVenta': 'POS',
       'sedeId': _sedeId,
       'vendedorId': _vendedorId,
       if (_clienteId != null) 'clienteId': _clienteId,
       if (_clienteEmpresaId != null) 'clienteEmpresaId': _clienteEmpresaId,
       'nombreCliente': _nombreClienteController.text,
-      if (_documentoController.text.isNotEmpty)
-        'documentoCliente': _documentoController.text,
-      if (_emailController.text.isNotEmpty)
-        'emailCliente': _emailController.text,
-      if (_telefonoController.text.isNotEmpty)
-        'telefonoCliente': _telefonoController.text,
-      if (_direccionController.text.isNotEmpty)
-        'direccionCliente': _direccionController.text,
+      if (_documentoController.text.isNotEmpty) 'documentoCliente': _documentoController.text,
+      if (_emailController.text.isNotEmpty) 'emailCliente': _emailController.text,
+      if (_telefonoController.text.isNotEmpty) 'telefonoCliente': _telefonoController.text,
+      if (_direccionController.text.isNotEmpty) 'direccionCliente': _direccionController.text,
       'moneda': _moneda,
       'tipoComprobante': _tipoComprobante,
       'esCredito': _esCredito,
-      // Pagos inmediatos (CONTADO: todo, MIXTO: la parte al contado)
       if (_pagos.isNotEmpty) ...{
         'metodoPago': _pagos.first['metodo'],
         'montoRecibido': _totalPagado,
         'pagos': _pagos.map((p) => {
           'metodoPago': p['metodo'],
           'monto': p['monto'],
-          if ((p['referencia'] as String).isNotEmpty)
-            'referencia': p['referencia'],
+          if ((p['referencia'] as String).isNotEmpty) 'referencia': p['referencia'],
           if (p['monedaOriginal'] == 'USD') ...{
             'monedaOriginal': 'USD',
             'montoOriginal': p['montoOriginal'],
@@ -1047,7 +636,6 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
           },
         }).toList(),
       },
-      // Datos de crédito/cuotas
       if (_esCredito) ...{
         'plazoCredito': plazoDias,
         'numeroCuotas': _numeroCuotas,
@@ -1056,48 +644,39 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
       if (_esCredito && _interesHabilitado && _porcentajeInteres > 0) ...{
         'porcentajeInteres': _porcentajeInteres,
       },
-      if (_observacionesController.text.isNotEmpty)
-        'observaciones': _observacionesController.text,
+      if (_observacionesController.text.isNotEmpty) 'observaciones': _observacionesController.text,
       'detalles': _items.map((item) => item.toMap()).toList(),
     };
 
     context.read<VentaFormCubit>().crearYCobrar(data);
   }
 
-  // ─── Submit: Guardar Borrador ───
+  // ─── Submit: Borrador ───
 
   void _submitBorrador(BuildContext context) {
     if (_nombreClienteController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('El nombre del cliente es requerido')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('El nombre del cliente es requerido')));
       return;
     }
     if (_items.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Agrega al menos un item')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Agrega al menos un item')));
       return;
     }
 
     final data = <String, dynamic>{
+      'canalVenta': 'POS',
       'sedeId': _sedeId,
       'vendedorId': _vendedorId,
       if (_clienteId != null) 'clienteId': _clienteId,
       if (_clienteEmpresaId != null) 'clienteEmpresaId': _clienteEmpresaId,
       'nombreCliente': _nombreClienteController.text,
-      if (_documentoController.text.isNotEmpty)
-        'documentoCliente': _documentoController.text,
-      if (_emailController.text.isNotEmpty)
-        'emailCliente': _emailController.text,
-      if (_telefonoController.text.isNotEmpty)
-        'telefonoCliente': _telefonoController.text,
-      if (_direccionController.text.isNotEmpty)
-        'direccionCliente': _direccionController.text,
+      if (_documentoController.text.isNotEmpty) 'documentoCliente': _documentoController.text,
+      if (_emailController.text.isNotEmpty) 'emailCliente': _emailController.text,
+      if (_telefonoController.text.isNotEmpty) 'telefonoCliente': _telefonoController.text,
+      if (_direccionController.text.isNotEmpty) 'direccionCliente': _direccionController.text,
       'moneda': _moneda,
       'tipoComprobante': _tipoComprobante,
-      if (_observacionesController.text.isNotEmpty)
-        'observaciones': _observacionesController.text,
+      if (_observacionesController.text.isNotEmpty) 'observaciones': _observacionesController.text,
       'detalles': _items.map((item) => item.toMap()).toList(),
     };
 

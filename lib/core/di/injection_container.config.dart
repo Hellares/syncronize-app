@@ -1044,6 +1044,89 @@ import '../../features/resumen_financiero/domain/usecases/get_resumen_financiero
     as _i116;
 import '../../features/resumen_financiero/presentation/bloc/resumen_financiero_cubit.dart'
     as _i570;
+import '../../features/rrhh/data/datasources/adelanto_remote_datasource.dart'
+    as _i753;
+import '../../features/rrhh/data/datasources/asistencia_remote_datasource.dart'
+    as _i251;
+import '../../features/rrhh/data/datasources/dashboard_rrhh_remote_datasource.dart'
+    as _i435;
+import '../../features/rrhh/data/datasources/empleado_remote_datasource.dart'
+    as _i340;
+import '../../features/rrhh/data/datasources/horario_remote_datasource.dart'
+    as _i1;
+import '../../features/rrhh/data/datasources/incidencia_remote_datasource.dart'
+    as _i569;
+import '../../features/rrhh/data/datasources/planilla_remote_datasource.dart'
+    as _i762;
+import '../../features/rrhh/data/datasources/turno_remote_datasource.dart'
+    as _i31;
+import '../../features/rrhh/data/repositories/adelanto_repository_impl.dart'
+    as _i210;
+import '../../features/rrhh/data/repositories/asistencia_repository_impl.dart'
+    as _i245;
+import '../../features/rrhh/data/repositories/dashboard_rrhh_repository_impl.dart'
+    as _i50;
+import '../../features/rrhh/data/repositories/empleado_repository_impl.dart'
+    as _i451;
+import '../../features/rrhh/data/repositories/horario_repository_impl.dart'
+    as _i472;
+import '../../features/rrhh/data/repositories/incidencia_repository_impl.dart'
+    as _i102;
+import '../../features/rrhh/data/repositories/planilla_repository_impl.dart'
+    as _i509;
+import '../../features/rrhh/data/repositories/turno_repository_impl.dart'
+    as _i1031;
+import '../../features/rrhh/domain/repositories/adelanto_repository.dart'
+    as _i345;
+import '../../features/rrhh/domain/repositories/asistencia_repository.dart'
+    as _i301;
+import '../../features/rrhh/domain/repositories/dashboard_rrhh_repository.dart'
+    as _i766;
+import '../../features/rrhh/domain/repositories/empleado_repository.dart'
+    as _i12;
+import '../../features/rrhh/domain/repositories/horario_repository.dart'
+    as _i795;
+import '../../features/rrhh/domain/repositories/incidencia_repository.dart'
+    as _i288;
+import '../../features/rrhh/domain/repositories/planilla_repository.dart'
+    as _i382;
+import '../../features/rrhh/domain/repositories/turno_repository.dart' as _i303;
+import '../../features/rrhh/presentation/bloc/adelanto/adelanto_cubit.dart'
+    as _i1047;
+import '../../features/rrhh/presentation/bloc/adelanto_list/adelanto_list_cubit.dart'
+    as _i604;
+import '../../features/rrhh/presentation/bloc/asistencia/asistencia_cubit.dart'
+    as _i947;
+import '../../features/rrhh/presentation/bloc/asistencia_list/asistencia_list_cubit.dart'
+    as _i1015;
+import '../../features/rrhh/presentation/bloc/asistencia_resumen/asistencia_resumen_cubit.dart'
+    as _i599;
+import '../../features/rrhh/presentation/bloc/boleta_detail/boleta_detail_cubit.dart'
+    as _i43;
+import '../../features/rrhh/presentation/bloc/dashboard_rrhh/dashboard_rrhh_cubit.dart'
+    as _i913;
+import '../../features/rrhh/presentation/bloc/empleado_detail/empleado_detail_cubit.dart'
+    as _i1066;
+import '../../features/rrhh/presentation/bloc/empleado_form/empleado_form_cubit.dart'
+    as _i230;
+import '../../features/rrhh/presentation/bloc/empleado_list/empleado_list_cubit.dart'
+    as _i1018;
+import '../../features/rrhh/presentation/bloc/horario_list/horario_list_cubit.dart'
+    as _i426;
+import '../../features/rrhh/presentation/bloc/horario_plantilla/horario_plantilla_cubit.dart'
+    as _i305;
+import '../../features/rrhh/presentation/bloc/incidencia/incidencia_cubit.dart'
+    as _i980;
+import '../../features/rrhh/presentation/bloc/incidencia_list/incidencia_list_cubit.dart'
+    as _i536;
+import '../../features/rrhh/presentation/bloc/planilla/planilla_cubit.dart'
+    as _i252;
+import '../../features/rrhh/presentation/bloc/planilla_detail/planilla_detail_cubit.dart'
+    as _i307;
+import '../../features/rrhh/presentation/bloc/planilla_list/planilla_list_cubit.dart'
+    as _i800;
+import '../../features/rrhh/presentation/bloc/turno_list/turno_list_cubit.dart'
+    as _i252;
 import '../../features/sede/data/datasources/sede_remote_datasource.dart'
     as _i785;
 import '../../features/sede/data/repositories/sede_repository_impl.dart'
@@ -1539,6 +1622,30 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i565.ResumenFinancieroRemoteDataSource>(
       () => _i565.ResumenFinancieroRemoteDataSource(gh<_i667.DioClient>()),
     );
+    gh.lazySingleton<_i753.AdelantoRemoteDataSource>(
+      () => _i753.AdelantoRemoteDataSource(gh<_i667.DioClient>()),
+    );
+    gh.lazySingleton<_i251.AsistenciaRemoteDataSource>(
+      () => _i251.AsistenciaRemoteDataSource(gh<_i667.DioClient>()),
+    );
+    gh.lazySingleton<_i435.DashboardRrhhRemoteDataSource>(
+      () => _i435.DashboardRrhhRemoteDataSource(gh<_i667.DioClient>()),
+    );
+    gh.lazySingleton<_i340.EmpleadoRemoteDataSource>(
+      () => _i340.EmpleadoRemoteDataSource(gh<_i667.DioClient>()),
+    );
+    gh.lazySingleton<_i1.HorarioRemoteDataSource>(
+      () => _i1.HorarioRemoteDataSource(gh<_i667.DioClient>()),
+    );
+    gh.lazySingleton<_i569.IncidenciaRemoteDataSource>(
+      () => _i569.IncidenciaRemoteDataSource(gh<_i667.DioClient>()),
+    );
+    gh.lazySingleton<_i762.PlanillaRemoteDataSource>(
+      () => _i762.PlanillaRemoteDataSource(gh<_i667.DioClient>()),
+    );
+    gh.lazySingleton<_i31.TurnoRemoteDataSource>(
+      () => _i31.TurnoRemoteDataSource(gh<_i667.DioClient>()),
+    );
     gh.lazySingleton<_i785.SedeRemoteDataSource>(
       () => _i785.SedeRemoteDataSource(gh<_i667.DioClient>()),
     );
@@ -1615,6 +1722,13 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i27.ConfiguracionPrecioRepository>(),
       ),
     );
+    gh.lazySingleton<_i382.PlanillaRepository>(
+      () => _i509.PlanillaRepositoryImpl(
+        gh<_i762.PlanillaRemoteDataSource>(),
+        gh<_i932.NetworkInfo>(),
+        gh<_i490.ErrorHandlerService>(),
+      ),
+    );
     gh.lazySingleton<_i95.DireccionRepository>(
       () => _i866.DireccionRepositoryImpl(
         gh<_i572.DireccionRemoteDataSource>(),
@@ -1663,6 +1777,13 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i156.SubirComprobanteUseCase>(
       () => _i156.SubirComprobanteUseCase(gh<_i284.MisPedidosRepository>()),
+    );
+    gh.lazySingleton<_i795.HorarioRepository>(
+      () => _i472.HorarioRepositoryImpl(
+        gh<_i1.HorarioRemoteDataSource>(),
+        gh<_i932.NetworkInfo>(),
+        gh<_i490.ErrorHandlerService>(),
+      ),
     );
     gh.lazySingleton<_i37.ClienteRepository>(
       () => _i797.ClienteRepositoryImpl(
@@ -1766,6 +1887,13 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i911.VarianteAtributoCubit>(
       () => _i911.VarianteAtributoCubit(gh<_i1047.ProductoRemoteDataSource>()),
     );
+    gh.lazySingleton<_i301.AsistenciaRepository>(
+      () => _i245.AsistenciaRepositoryImpl(
+        gh<_i251.AsistenciaRemoteDataSource>(),
+        gh<_i932.NetworkInfo>(),
+        gh<_i490.ErrorHandlerService>(),
+      ),
+    );
     gh.lazySingleton<_i341.PrestamoRepository>(
       () => _i392.PrestamoRepositoryImpl(
         gh<_i283.PrestamoRemoteDataSource>(),
@@ -1866,6 +1994,15 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i671.DashboardVendedorRepository>(),
       ),
     );
+    gh.factory<_i947.AsistenciaCubit>(
+      () => _i947.AsistenciaCubit(gh<_i301.AsistenciaRepository>()),
+    );
+    gh.factory<_i1015.AsistenciaListCubit>(
+      () => _i1015.AsistenciaListCubit(gh<_i301.AsistenciaRepository>()),
+    );
+    gh.factory<_i599.AsistenciaResumenCubit>(
+      () => _i599.AsistenciaResumenCubit(gh<_i301.AsistenciaRepository>()),
+    );
     gh.factory<_i690.ProductosStockRepository>(
       () => _i733.ProductosStockRepositoryImpl(
         gh<_i942.ProductosStockRemoteDatasource>(),
@@ -1965,6 +2102,13 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i23.CuentasPagarCubit(
         gh<_i455.GetCuentasPagarUseCase>(),
         gh<_i211.GetResumenCuentasPagarUseCase>(),
+      ),
+    );
+    gh.lazySingleton<_i345.AdelantoRepository>(
+      () => _i210.AdelantoRepositoryImpl(
+        gh<_i753.AdelantoRemoteDataSource>(),
+        gh<_i932.NetworkInfo>(),
+        gh<_i490.ErrorHandlerService>(),
       ),
     );
     gh.lazySingleton<_i266.ReporteIncidenciaRepository>(
@@ -2169,10 +2313,29 @@ extension GetItInjectableX on _i174.GetIt {
         getCompletaUseCase: gh<_i930.GetConfiguracionCompletaUseCase>(),
       ),
     );
+    gh.lazySingleton<_i12.EmpleadoRepository>(
+      () => _i451.EmpleadoRepositoryImpl(
+        gh<_i340.EmpleadoRemoteDataSource>(),
+        gh<_i932.NetworkInfo>(),
+        gh<_i490.ErrorHandlerService>(),
+      ),
+    );
     gh.factory<_i365.CatalogoPreviewCubit>(
       () => _i365.CatalogoPreviewCubit(
         getCatalogoPreviewUseCase: gh<_i75.GetCatalogoPreviewUseCase>(),
       ),
+    );
+    gh.factory<_i43.BoletaDetailCubit>(
+      () => _i43.BoletaDetailCubit(gh<_i382.PlanillaRepository>()),
+    );
+    gh.factory<_i252.PlanillaCubit>(
+      () => _i252.PlanillaCubit(gh<_i382.PlanillaRepository>()),
+    );
+    gh.factory<_i307.PlanillaDetailCubit>(
+      () => _i307.PlanillaDetailCubit(gh<_i382.PlanillaRepository>()),
+    );
+    gh.factory<_i800.PlanillaListCubit>(
+      () => _i800.PlanillaListCubit(gh<_i382.PlanillaRepository>()),
     );
     gh.lazySingleton<_i498.CheckoutRepository>(
       () => _i949.CheckoutRepositoryImpl(
@@ -2282,6 +2445,13 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i449.StockTodasSedesCubit>(
       () => _i449.StockTodasSedesCubit(gh<_i858.GetStockTodasSedesUseCase>()),
+    );
+    gh.lazySingleton<_i303.TurnoRepository>(
+      () => _i1031.TurnoRepositoryImpl(
+        gh<_i31.TurnoRemoteDataSource>(),
+        gh<_i932.NetworkInfo>(),
+        gh<_i490.ErrorHandlerService>(),
+      ),
     );
     gh.lazySingleton<_i212.ClienteEmpresaRepository>(
       () => _i606.ClienteEmpresaRepositoryImpl(
@@ -2410,10 +2580,24 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i98.VaciarCarritoUseCase>(
       () => _i98.VaciarCarritoUseCase(gh<_i982.CarritoRepository>()),
     );
+    gh.lazySingleton<_i766.DashboardRrhhRepository>(
+      () => _i50.DashboardRrhhRepositoryImpl(
+        gh<_i435.DashboardRrhhRemoteDataSource>(),
+        gh<_i932.NetworkInfo>(),
+        gh<_i490.ErrorHandlerService>(),
+      ),
+    );
     gh.factory<_i135.EmpresaContextCubit>(
       () => _i135.EmpresaContextCubit(
         gh<_i1001.GetEmpresaContextUseCase>(),
         gh<_i744.LocalStorageService>(),
+      ),
+    );
+    gh.lazySingleton<_i288.IncidenciaRepository>(
+      () => _i102.IncidenciaRepositoryImpl(
+        gh<_i569.IncidenciaRemoteDataSource>(),
+        gh<_i932.NetworkInfo>(),
+        gh<_i490.ErrorHandlerService>(),
       ),
     );
     gh.lazySingleton<_i150.ComponenteRepository>(
@@ -2538,6 +2722,12 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i459.ProcesarPagoUseCase>(
       () => _i459.ProcesarPagoUseCase(gh<_i950.VentaRepository>()),
+    );
+    gh.factory<_i426.HorarioListCubit>(
+      () => _i426.HorarioListCubit(gh<_i795.HorarioRepository>()),
+    );
+    gh.factory<_i305.HorarioPlantillaCubit>(
+      () => _i305.HorarioPlantillaCubit(gh<_i795.HorarioRepository>()),
     );
     gh.factory<_i59.UsuarioFormCubit>(
       () => _i59.UsuarioFormCubit(gh<_i715.RegistrarUsuarioUseCase>()),
@@ -3008,6 +3198,15 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i71.GetOpcionesEnvioUseCase>(
       () => _i71.GetOpcionesEnvioUseCase(gh<_i498.CheckoutRepository>()),
     );
+    gh.factory<_i1066.EmpleadoDetailCubit>(
+      () => _i1066.EmpleadoDetailCubit(gh<_i12.EmpleadoRepository>()),
+    );
+    gh.factory<_i230.EmpleadoFormCubit>(
+      () => _i230.EmpleadoFormCubit(gh<_i12.EmpleadoRepository>()),
+    );
+    gh.factory<_i1018.EmpleadoListCubit>(
+      () => _i1018.EmpleadoListCubit(gh<_i12.EmpleadoRepository>()),
+    );
     gh.factory<_i791.AplicarAjustesUseCase>(
       () => _i791.AplicarAjustesUseCase(gh<_i173.InventarioRepository>()),
     );
@@ -3034,6 +3233,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i126.RegistrarConteoUseCase>(
       () => _i126.RegistrarConteoUseCase(gh<_i173.InventarioRepository>()),
+    );
+    gh.factory<_i913.DashboardRrhhCubit>(
+      () => _i913.DashboardRrhhCubit(gh<_i766.DashboardRrhhRepository>()),
     );
     gh.factory<_i80.CambiarEstadoPedidoUseCase>(
       () => _i80.CambiarEstadoPedidoUseCase(gh<_i37.PedidoEmpresaRepository>()),
@@ -3131,6 +3333,9 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i1058.BulkPrecioIgvUseCase>(),
       ),
     );
+    gh.factory<_i252.TurnoListCubit>(
+      () => _i252.TurnoListCubit(gh<_i303.TurnoRepository>()),
+    );
     gh.factory<_i620.GestionarReporteCubit>(
       () => _i620.GestionarReporteCubit(
         gh<_i218.EnviarParaRevisionUsecase>(),
@@ -3189,6 +3394,12 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i76.ValidarCompatibilidadCotizacionUseCase(
         gh<_i823.CotizacionRepository>(),
       ),
+    );
+    gh.factory<_i1047.AdelantoCubit>(
+      () => _i1047.AdelantoCubit(gh<_i345.AdelantoRepository>()),
+    );
+    gh.factory<_i604.AdelantoListCubit>(
+      () => _i604.AdelantoListCubit(gh<_i345.AdelantoRepository>()),
     );
     gh.factory<_i437.SolicitudEmpresaActionCubit>(
       () => _i437.SolicitudEmpresaActionCubit(
@@ -3630,6 +3841,12 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i570.DownloadBulkTemplateUseCase>(),
         gh<_i692.BulkUploadProductosUseCase>(),
       ),
+    );
+    gh.factory<_i980.IncidenciaCubit>(
+      () => _i980.IncidenciaCubit(gh<_i288.IncidenciaRepository>()),
+    );
+    gh.factory<_i536.IncidenciaListCubit>(
+      () => _i536.IncidenciaListCubit(gh<_i288.IncidenciaRepository>()),
     );
     gh.factory<_i220.VentaListCubit>(
       () => _i220.VentaListCubit(gh<_i213.GetVentasUseCase>()),

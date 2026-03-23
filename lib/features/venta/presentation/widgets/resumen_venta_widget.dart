@@ -22,8 +22,8 @@ class ResumenVentaWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final subtotal = items.fold(0.0, (sum, i) => sum + i.subtotal);
     final descuento = items.fold(0.0, (sum, i) => sum + i.descuento);
-    final impuestos = subtotal * (porcentajeImpuesto / 100);
-    final total = subtotal + impuestos;
+    final impuestos = items.fold(0.0, (sum, i) => sum + i.igv);
+    final total = items.fold(0.0, (sum, i) => sum + i.total);
 
     return GradientContainer(
       borderColor: AppColors.blueborder,
