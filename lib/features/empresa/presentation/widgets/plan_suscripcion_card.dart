@@ -129,6 +129,12 @@ class _PlanSuscripcionCardState extends State<PlanSuscripcionCard> {
               ],
             ),
           ),
+          // Storage (siempre visible, tap para ir a multimedia)
+          const SizedBox(height: 8),
+          GestureDetector(
+            onTap: () => context.push('/empresa/multimedia'),
+            child: _buildStorageBar(),
+          ),
           // Contenido colapsable
           AnimatedCrossFade(
             firstChild: const SizedBox.shrink(),
@@ -154,7 +160,7 @@ class _PlanSuscripcionCardState extends State<PlanSuscripcionCard> {
                   ],
                 ),
                 if (widget.empresaContext.permissions.canChangePlan) ...[
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
                   CustomButton(
                     backgroundColor: AppColors.blue1,
                     borderWidth: 1,
@@ -201,6 +207,56 @@ class _PlanSuscripcionCardState extends State<PlanSuscripcionCard> {
               ),
             ),
           ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStorageBar() {
+    final storage = widget.empresaContext.planLimits?.almacenamiento;
+    final storageUsadoMB = storage?.actualMB ?? 0;
+    final storageLimiteMB = storage?.limiteMB;
+
+    final porcentaje = storageLimiteMB != null && storageLimiteMB > 0
+        ? (storageUsadoMB / storageLimiteMB).clamp(0.0, 1.0)
+        : 0.0;
+    final esCritico = porcentaje > 0.85;
+
+    final usadoLabel = storageUsadoMB >= 1024
+        ? '${(storageUsadoMB / 1024).toStringAsFixed(1)} GB'
+        : '$storageUsadoMB MB';
+    final limiteLabel = storageLimiteMB != null
+        ? (storageLimiteMB >= 1024
+            ? '${(storageLimiteMB / 1024).toStringAsFixed(0)} GB'
+            : '$storageLimiteMB MB')
+        : 'Ilimitado';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.cloud_outlined, size: 14, color: esCritico ? Colors.red : AppColors.blue1),
+            const SizedBox(width: 6),
+            Text(
+              'Almacenamiento: $usadoLabel / $limiteLabel',
+              style: TextStyle(
+                fontSize: 10,
+                color: esCritico ? Colors.red : AppColors.blue1,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(3),
+          child: LinearProgressIndicator(
+            value: porcentaje,
+            backgroundColor: AppColors.blue1.withValues(alpha: 0.1),
+            color: esCritico ? Colors.red : AppColors.blue1,
+            minHeight: 5,
+          ),
         ),
       ],
     );

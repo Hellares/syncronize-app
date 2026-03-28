@@ -857,6 +857,7 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
 
     return ProductoVideoManager(
       empresaId: empresaState.context.empresa.id,
+      entidadId: widget.productoId,
       initialVideoUrl: _controller.videoUrlController.text.isEmpty ? null : _controller.videoUrlController.text,
       storageService: locator<StorageService>(),
       onVideoUploaded: (String? videoUrl) {

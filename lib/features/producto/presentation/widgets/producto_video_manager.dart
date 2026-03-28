@@ -17,6 +17,7 @@ import 'package:video_player/video_player.dart';
 /// - Manejo de errores con retry
 class ProductoVideoManager extends StatefulWidget {
   final String empresaId;
+  final String? entidadId; // ID del producto (modo edición)
   final String? initialVideoUrl; // URL del video existente (modo edición)
   final Function(String?) onVideoUploaded; // Callback cuando el video se sube
   final StorageService storageService; // Servicio de storage inyectado
@@ -24,6 +25,7 @@ class ProductoVideoManager extends StatefulWidget {
   const ProductoVideoManager({
     super.key,
     required this.empresaId,
+    this.entidadId,
     this.initialVideoUrl,
     required this.onVideoUploaded,
     required this.storageService,
@@ -95,9 +97,9 @@ class _ProductoVideoManagerState extends State<ProductoVideoManager> {
       final fileSizeInBytes = await file.length();
       final fileSizeInMB = fileSizeInBytes / (1024 * 1024);
 
-      if (fileSizeInMB > 200) {
+      if (fileSizeInMB > 80) {
         if (!mounted) return;
-        _showError('El video es demasiado grande. Máximo 200MB permitidos.');
+        _showError('El video es demasiado grande (${fileSizeInMB.toStringAsFixed(1)}MB). Maximo 80MB permitidos.');
         return;
       }
 
@@ -136,6 +138,7 @@ class _ProductoVideoManagerState extends State<ProductoVideoManager> {
         file: _localVideoFile!,
         empresaId: widget.empresaId,
         entidadTipo: 'PRODUCTO',
+        entidadId: widget.entidadId,
         onProgress: (progress) {
           if (mounted) {
             setState(() {

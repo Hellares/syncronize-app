@@ -39,6 +39,7 @@ class PlanSuscripcionRepositoryImpl implements PlanSuscripcionRepository {
   Future<Resource<void>> cambiarPlan({
     required String empresaId,
     required String planId,
+    String periodo = 'MENSUAL',
   }) async {
     if (!await _networkInfo.isConnected) {
       return Error(
@@ -51,6 +52,7 @@ class PlanSuscripcionRepositoryImpl implements PlanSuscripcionRepository {
       await _remoteDataSource.cambiarPlan(
         empresaId: empresaId,
         planId: planId,
+        periodo: periodo,
       );
       return Success(null);
     } catch (e) {

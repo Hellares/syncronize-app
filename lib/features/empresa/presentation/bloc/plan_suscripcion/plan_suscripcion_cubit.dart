@@ -28,6 +28,7 @@ class PlanSuscripcionCubit extends Cubit<PlanSuscripcionState> {
   Future<void> cambiarPlan({
     required String empresaId,
     required String planId,
+    String periodo = 'MENSUAL',
   }) async {
     final currentState = state;
     final planes = currentState is PlanSuscripcionLoaded
@@ -41,6 +42,7 @@ class PlanSuscripcionCubit extends Cubit<PlanSuscripcionState> {
     final result = await _repository.cambiarPlan(
       empresaId: empresaId,
       planId: planId,
+      periodo: periodo,
     );
 
     if (result is Success) {

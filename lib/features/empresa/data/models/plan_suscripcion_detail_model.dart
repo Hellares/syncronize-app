@@ -13,6 +13,10 @@ class PlanSuscripcionDetailModel extends PlanSuscripcionDetail {
     super.limiteSedes,
     super.limitePlantillasAtributos,
     super.limiteCotizaciones,
+    super.limiteAlmacenamientoMB,
+    super.precioSemestral,
+    super.precioAnual,
+    super.tieneWebPermanente,
     required super.tienePersonalizacion,
     required super.tieneDominioPropio,
     required super.tieneApi,
@@ -35,6 +39,18 @@ class PlanSuscripcionDetailModel extends PlanSuscripcionDetail {
       limiteSedes: json['limiteSedes'] as int?,
       limitePlantillasAtributos: json['limitePlantillasAtributos'] as int?,
       limiteCotizaciones: json['limiteCotizaciones'] as int?,
+      limiteAlmacenamientoMB: json['limiteAlmacenamientoMB'] as int?,
+      precioSemestral: json['precioSemestral'] != null
+          ? (json['precioSemestral'] is String
+              ? double.parse(json['precioSemestral'] as String)
+              : (json['precioSemestral'] as num).toDouble())
+          : null,
+      precioAnual: json['precioAnual'] != null
+          ? (json['precioAnual'] is String
+              ? double.parse(json['precioAnual'] as String)
+              : (json['precioAnual'] as num).toDouble())
+          : null,
+      tieneWebPermanente: json['tieneWebPermanente'] as bool? ?? false,
       tienePersonalizacion: json['tienePersonalizacion'] as bool? ?? false,
       tieneDominioPropio: json['tieneDominioPropio'] as bool? ?? false,
       tieneApi: json['tieneApi'] as bool? ?? false,
@@ -56,6 +72,10 @@ class PlanSuscripcionDetailModel extends PlanSuscripcionDetail {
       'limiteSedes': limiteSedes,
       'limitePlantillasAtributos': limitePlantillasAtributos,
       'limiteCotizaciones': limiteCotizaciones,
+      'limiteAlmacenamientoMB': limiteAlmacenamientoMB,
+      'precioSemestral': precioSemestral,
+      'precioAnual': precioAnual,
+      'tieneWebPermanente': tieneWebPermanente,
       'tienePersonalizacion': tienePersonalizacion,
       'tieneDominioPropio': tieneDominioPropio,
       'tieneApi': tieneApi,
@@ -77,6 +97,10 @@ class PlanSuscripcionDetailModel extends PlanSuscripcionDetail {
       limiteSedes: limiteSedes,
       limitePlantillasAtributos: limitePlantillasAtributos,
       limiteCotizaciones: limiteCotizaciones,
+      limiteAlmacenamientoMB: limiteAlmacenamientoMB,
+      precioSemestral: precioSemestral,
+      precioAnual: precioAnual,
+      tieneWebPermanente: tieneWebPermanente,
       tienePersonalizacion: tienePersonalizacion,
       tieneDominioPropio: tieneDominioPropio,
       tieneApi: tieneApi,

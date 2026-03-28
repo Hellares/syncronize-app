@@ -33,10 +33,11 @@ class PlanSuscripcionRemoteDataSource {
   Future<void> cambiarPlan({
     required String empresaId,
     required String planId,
+    String periodo = 'MENSUAL',
   }) async {
     await _dioClient.post(
       '${ApiConstants.empresas}/$empresaId/cambiar-plan',
-      data: {'planId': planId},
+      data: {'planId': planId, 'periodo': periodo},
     );
   }
 }

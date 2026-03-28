@@ -82,6 +82,28 @@ class PlanLimitInfoModel extends PlanLimitInfo {
       };
 }
 
+class StorageLimitInfoModel extends StorageLimitInfo {
+  const StorageLimitInfoModel({
+    super.limiteMB,
+    required super.actualMB,
+    super.disponibleMB,
+  });
+
+  factory StorageLimitInfoModel.fromJson(Map<String, dynamic> json) {
+    return StorageLimitInfoModel(
+      limiteMB: json['limiteMB'] as int?,
+      actualMB: json['actualMB'] as int? ?? 0,
+      disponibleMB: json['disponibleMB'] as int?,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'limiteMB': limiteMB,
+        'actualMB': actualMB,
+        'disponibleMB': disponibleMB,
+      };
+}
+
 class PlanLimitsInfoModel extends PlanLimitsInfo {
   const PlanLimitsInfoModel({
     super.planName,
@@ -91,6 +113,7 @@ class PlanLimitsInfoModel extends PlanLimitsInfo {
     required super.sedes,
     required super.plantillasAtributos,
     required super.cotizaciones,
+    super.almacenamiento,
   });
 
   factory PlanLimitsInfoModel.fromJson(Map<String, dynamic> json) {
@@ -121,6 +144,10 @@ class PlanLimitsInfoModel extends PlanLimitsInfo {
           ? PlanLimitInfoModel.fromJson(
               limites['cotizaciones'] as Map<String, dynamic>)
           : const PlanLimitInfoModel(actual: 0),
+      almacenamiento: limites['almacenamiento'] != null
+          ? StorageLimitInfoModel.fromJson(
+              limites['almacenamiento'] as Map<String, dynamic>)
+          : null,
     );
   }
 
@@ -134,6 +161,9 @@ class PlanLimitsInfoModel extends PlanLimitsInfo {
           'plantillasAtributos':
               (plantillasAtributos as PlanLimitInfoModel).toJson(),
           'cotizaciones': (cotizaciones as PlanLimitInfoModel).toJson(),
+          if (almacenamiento != null)
+            'almacenamiento':
+                (almacenamiento as StorageLimitInfoModel).toJson(),
         },
       };
 

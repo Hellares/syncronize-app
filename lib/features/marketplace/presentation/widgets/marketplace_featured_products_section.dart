@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 /// Sección de productos destacados del Marketplace
@@ -109,12 +110,13 @@ class _ProductCard extends StatelessWidget {
                       topLeft: Radius.circular(12),
                       topRight: Radius.circular(12),
                     ),
-                    child: Image.network(
-                      imageUrl,
+                    child: CachedNetworkImage(
+                      imageUrl: imageUrl,
                       width: 180,
                       height: 140,
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
+                      fadeInDuration: const Duration(milliseconds: 150),
+                      errorWidget: (_, __, ___) {
                         return Container(
                           width: 180,
                           height: 140,

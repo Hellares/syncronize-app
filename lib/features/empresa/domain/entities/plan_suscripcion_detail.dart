@@ -13,6 +13,10 @@ class PlanSuscripcionDetail extends Equatable {
   final int? limiteSedes;
   final int? limitePlantillasAtributos;
   final int? limiteCotizaciones;
+  final int? limiteAlmacenamientoMB;
+  final double? precioSemestral;
+  final double? precioAnual;
+  final bool tieneWebPermanente;
   final bool tienePersonalizacion;
   final bool tieneDominioPropio;
   final bool tieneApi;
@@ -31,6 +35,10 @@ class PlanSuscripcionDetail extends Equatable {
     this.limiteSedes,
     this.limitePlantillasAtributos,
     this.limiteCotizaciones,
+    this.limiteAlmacenamientoMB,
+    this.precioSemestral,
+    this.precioAnual,
+    this.tieneWebPermanente = false,
     required this.tienePersonalizacion,
     required this.tieneDominioPropio,
     required this.tieneApi,
@@ -60,6 +68,30 @@ class PlanSuscripcionDetail extends Equatable {
     return '$limite';
   }
 
+  String get almacenamientoFormateado {
+    if (limiteAlmacenamientoMB == null) return 'Ilimitado';
+    if (limiteAlmacenamientoMB! >= 1024) {
+      return '${(limiteAlmacenamientoMB! / 1024).toStringAsFixed(0)} GB';
+    }
+    return '${limiteAlmacenamientoMB} MB';
+  }
+
+  double getPrecioPorPeriodo(String periodoSeleccionado) {
+    switch (periodoSeleccionado) {
+      case 'SEMESTRAL':
+        return precioSemestral ?? (precio * 6);
+      case 'ANUAL':
+        return precioAnual ?? (precio * 12);
+      default:
+        return precio;
+    }
+  }
+
+  String getPrecioFormateadoPorPeriodo(String periodoSeleccionado) {
+    if (isFreePlan) return 'Gratis';
+    return 'S/ ${getPrecioPorPeriodo(periodoSeleccionado).toStringAsFixed(2)}';
+  }
+
   @override
   List<Object?> get props => [
         id,
@@ -73,6 +105,10 @@ class PlanSuscripcionDetail extends Equatable {
         limiteSedes,
         limitePlantillasAtributos,
         limiteCotizaciones,
+        limiteAlmacenamientoMB,
+        precioSemestral,
+        precioAnual,
+        tieneWebPermanente,
         tienePersonalizacion,
         tieneDominioPropio,
         tieneApi,

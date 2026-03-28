@@ -144,7 +144,26 @@ class PlanCard extends StatelessWidget {
                     plan.formatLimite(plan.limiteCotizaciones)),
                 _buildLimitRow(Icons.dashboard_customize_outlined,
                     'Plantillas', plan.formatLimite(plan.limitePlantillasAtributos)),
+                _buildLimitRow(Icons.cloud_outlined, 'Almacenamiento',
+                    plan.almacenamientoFormateado),
+                _buildLimitRow(Icons.language, 'Pagina web',
+                    plan.tieneWebPermanente ? 'Permanente' : '2 meses'),
                 const SizedBox(height: 8),
+                // Precios por periodo
+                if (!plan.isFreePlan && (plan.precioSemestral != null || plan.precioAnual != null)) ...[
+                  const Text(
+                    'Ahorra pagando adelantado:',
+                    style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                  ),
+                  const SizedBox(height: 4),
+                  if (plan.precioSemestral != null)
+                    _buildLimitRow(Icons.calendar_month, '6 meses',
+                        'S/ ${plan.precioSemestral!.toStringAsFixed(2)}'),
+                  if (plan.precioAnual != null)
+                    _buildLimitRow(Icons.calendar_today, '12 meses',
+                        'S/ ${plan.precioAnual!.toStringAsFixed(2)}'),
+                  const SizedBox(height: 4),
+                ],
                 // Features
                 if (plan.tienePersonalizacion)
                   _buildFeatureRow('Personalizacion de marca'),

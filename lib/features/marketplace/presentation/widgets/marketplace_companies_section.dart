@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 /// Sección de empresas destacadas del Marketplace
@@ -109,10 +110,11 @@ class _CompanyCard extends StatelessWidget {
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(12),
-                        child: Image.network(
-                          logoUrl,
+                        child: CachedNetworkImage(
+                          imageUrl: logoUrl,
                           fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
+                          fadeInDuration: const Duration(milliseconds: 150),
+                          errorWidget: (_, __, ___) {
                             return const Icon(
                               Icons.business,
                               size: 32,

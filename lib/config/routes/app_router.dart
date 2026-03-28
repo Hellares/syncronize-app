@@ -24,6 +24,7 @@ import '../../features/empresa/presentation/pages/configuracion_empresa_page.dar
 import '../../features/empresa/presentation/pages/empresa_profile_page.dart';
 import '../../features/empresa/presentation/pages/personalizacion_page.dart';
 import '../../features/empresa/presentation/pages/planes_page.dart';
+import '../../features/multimedia/presentation/pages/multimedia_page.dart';
 import '../../features/marketplace/presentation/pages/marketplace_page.dart';
 import '../../features/portal_unificado/presentation/pages/portal_unificado_page.dart';
 import '../../features/carrito/presentation/pages/carrito_page.dart';
@@ -360,6 +361,11 @@ class AppRouter {
         path: '/empresa/planes',
         name: 'empresa-planes',
         builder: (context, state) => const PlanesPage(),
+      ),
+      GoRoute(
+        path: '/empresa/multimedia',
+        name: 'empresa-multimedia',
+        builder: (context, state) => const MultimediaPage(),
       ),
       GoRoute(
         path: '/empresa/configuracion-documentos',

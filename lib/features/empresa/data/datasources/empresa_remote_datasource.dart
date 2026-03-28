@@ -136,4 +136,16 @@ class EmpresaRemoteDataSource {
     return ConfiguracionEmpresaModel.fromJson(
         response.data as Map<String, dynamic>);
   }
+
+  /// Obtiene informacion de limites del plan (uso de storage, etc.)
+  Future<Map<String, dynamic>?> getPlanLimitsInfo(String empresaId) async {
+    try {
+      final response = await _dioClient.get(
+        '/productos/atributos-plantillas/limits-info',
+      );
+      return response.data as Map<String, dynamic>?;
+    } catch (_) {
+      return null;
+    }
+  }
 }

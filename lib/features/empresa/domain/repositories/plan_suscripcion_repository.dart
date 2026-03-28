@@ -9,5 +9,6 @@ abstract class PlanSuscripcionRepository {
   Future<Resource<void>> cambiarPlan({
     required String empresaId,
     required String planId,
+    String periodo = 'MENSUAL',
   });
 }

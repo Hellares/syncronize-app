@@ -90,6 +90,7 @@ class PlanLimitsInfo extends Equatable {
   final PlanLimitInfo sedes;
   final PlanLimitInfo plantillasAtributos;
   final PlanLimitInfo cotizaciones;
+  final StorageLimitInfo? almacenamiento;
 
   const PlanLimitsInfo({
     this.planName,
@@ -99,6 +100,7 @@ class PlanLimitsInfo extends Equatable {
     required this.sedes,
     required this.plantillasAtributos,
     required this.cotizaciones,
+    this.almacenamiento,
   });
 
   @override
@@ -110,5 +112,21 @@ class PlanLimitsInfo extends Equatable {
         sedes,
         plantillasAtributos,
         cotizaciones,
+        almacenamiento,
       ];
+}
+
+class StorageLimitInfo extends Equatable {
+  final int? limiteMB;
+  final int actualMB;
+  final int? disponibleMB;
+
+  const StorageLimitInfo({
+    this.limiteMB,
+    this.actualMB = 0,
+    this.disponibleMB,
+  });
+
+  @override
+  List<Object?> get props => [limiteMB, actualMB, disponibleMB];
 }

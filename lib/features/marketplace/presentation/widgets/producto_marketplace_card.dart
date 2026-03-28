@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:syncronize/core/fonts/app_fonts.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
@@ -71,10 +72,12 @@ class ProductoMarketplaceCard extends StatelessWidget {
                   child: Container(
                     color: Colors.grey.shade50,
                     child: imagen != null
-                        ? Image.network(
-                            imagen,
+                        ? CachedNetworkImage(
+                            imageUrl: imagen,
                             fit: BoxFit.contain,
-                            errorBuilder: (_, __, ___) => _buildPlaceholder(),
+                            fadeInDuration: const Duration(milliseconds: 150),
+                            placeholder: (_, __) => _buildPlaceholder(),
+                            errorWidget: (_, __, ___) => _buildPlaceholder(),
                           )
                         : _buildPlaceholder(),
                   ),
@@ -286,12 +289,12 @@ class ProductoMarketplaceCard extends StatelessWidget {
                         if (empresaLogo != null)
                           ClipRRect(
                             borderRadius: BorderRadius.circular(3),
-                            child: Image.network(
-                              empresaLogo,
+                            child: CachedNetworkImage(
+                              imageUrl: empresaLogo,
                               width: 14,
                               height: 14,
                               fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Icon(
+                              errorWidget: (_, __, ___) => Icon(
                                 Icons.storefront,
                                 size: 12,
                                 color: Colors.grey.shade400,
