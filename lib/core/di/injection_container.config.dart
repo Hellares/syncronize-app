@@ -740,6 +740,22 @@ import '../../features/monitor_productos/domain/usecases/get_monitor_productos_u
     as _i644;
 import '../../features/monitor_productos/presentation/bloc/monitor_productos_cubit.dart'
     as _i344;
+import '../../features/pago_suscripcion/data/datasources/pago_suscripcion_remote_datasource.dart'
+    as _i995;
+import '../../features/pago_suscripcion/data/repositories/pago_suscripcion_repository_impl.dart'
+    as _i366;
+import '../../features/pago_suscripcion/domain/repositories/pago_suscripcion_repository.dart'
+    as _i656;
+import '../../features/pago_suscripcion/domain/usecases/get_mis_pagos_usecase.dart'
+    as _i899;
+import '../../features/pago_suscripcion/domain/usecases/solicitar_pago_usecase.dart'
+    as _i1052;
+import '../../features/pago_suscripcion/domain/usecases/subir_comprobante_usecase.dart'
+    as _i157;
+import '../../features/pago_suscripcion/presentation/bloc/mis_pagos/mis_pagos_cubit.dart'
+    as _i90;
+import '../../features/pago_suscripcion/presentation/bloc/pago_suscripcion/pago_suscripcion_cubit.dart'
+    as _i613;
 import '../../features/pedido_marketplace_empresa/data/datasources/pedido_empresa_remote_datasource.dart'
     as _i469;
 import '../../features/pedido_marketplace_empresa/data/repositories/pedido_empresa_repository_impl.dart'
@@ -1365,6 +1381,7 @@ import '../services/error_handler_service.dart' as _i490;
 import '../services/export_service.dart' as _i26;
 import '../services/logger_service.dart' as _i141;
 import '../services/search_history_service.dart' as _i283;
+import '../services/sistema_config_service.dart' as _i295;
 import '../services/storage_service.dart' as _i306;
 import '../storage/local_storage_service.dart' as _i744;
 import '../storage/secure_storage_service.dart' as _i666;
@@ -1467,6 +1484,9 @@ extension GetItInjectableX on _i174.GetIt {
         networkInfo: gh<_i932.NetworkInfo>(),
         errorHandler: gh<_i490.ErrorHandlerService>(),
       ),
+    );
+    gh.lazySingleton<_i295.SistemaConfigService>(
+      () => _i295.SistemaConfigService(gh<_i667.DioClient>()),
     );
     gh.factory<_i75.GetCatalogoPreviewUseCase>(
       () => _i75.GetCatalogoPreviewUseCase(gh<_i858.CatalogosRepository>()),
@@ -1886,6 +1906,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i911.VarianteAtributoCubit>(
       () => _i911.VarianteAtributoCubit(gh<_i1047.ProductoRemoteDataSource>()),
+    );
+    gh.lazySingleton<_i995.PagoSuscripcionRemoteDataSource>(
+      () => _i995.PagoSuscripcionRemoteDataSourceImpl(gh<_i667.DioClient>()),
     );
     gh.lazySingleton<_i301.AsistenciaRepository>(
       () => _i245.AsistenciaRepositoryImpl(
@@ -2579,6 +2602,13 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i98.VaciarCarritoUseCase>(
       () => _i98.VaciarCarritoUseCase(gh<_i982.CarritoRepository>()),
+    );
+    gh.lazySingleton<_i656.PagoSuscripcionRepository>(
+      () => _i366.PagoSuscripcionRepositoryImpl(
+        gh<_i995.PagoSuscripcionRemoteDataSource>(),
+        gh<_i932.NetworkInfo>(),
+        gh<_i490.ErrorHandlerService>(),
+      ),
     );
     gh.lazySingleton<_i766.DashboardRrhhRepository>(
       () => _i50.DashboardRrhhRepositoryImpl(
@@ -3641,6 +3671,17 @@ extension GetItInjectableX on _i174.GetIt {
       () =>
           _i1053.ResponderVinculacionUseCase(gh<_i604.VinculacionRepository>()),
     );
+    gh.factory<_i899.GetMisPagosUseCase>(
+      () => _i899.GetMisPagosUseCase(gh<_i656.PagoSuscripcionRepository>()),
+    );
+    gh.factory<_i1052.SolicitarPagoUseCase>(
+      () => _i1052.SolicitarPagoUseCase(gh<_i656.PagoSuscripcionRepository>()),
+    );
+    gh.factory<_i157.SubirComprobantePagoUseCase>(
+      () => _i157.SubirComprobantePagoUseCase(
+        gh<_i656.PagoSuscripcionRepository>(),
+      ),
+    );
     gh.factory<_i38.CajaMovimientosCubit>(
       () => _i38.CajaMovimientosCubit(
         gh<_i259.GetMovimientosUseCase>(),
@@ -3741,6 +3782,9 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i984.UpdateEstadoAvisoUseCase>(),
       ),
     );
+    gh.factory<_i90.MisPagosSuscripcionCubit>(
+      () => _i90.MisPagosSuscripcionCubit(gh<_i899.GetMisPagosUseCase>()),
+    );
     gh.factory<_i131.EmpresaBancoCubit>(
       () => _i131.EmpresaBancoCubit(
         gh<_i430.GetCuentasBancariasUseCase>(),
@@ -3814,6 +3858,12 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i997.UpdateConfiguracionCampoUseCase>(),
         gh<_i866.DeleteConfiguracionCampoUseCase>(),
         gh<_i176.ReorderConfiguracionCamposUseCase>(),
+      ),
+    );
+    gh.factory<_i613.PagoSuscripcionCubit>(
+      () => _i613.PagoSuscripcionCubit(
+        gh<_i1052.SolicitarPagoUseCase>(),
+        gh<_i157.SubirComprobantePagoUseCase>(),
       ),
     );
     gh.factory<_i918.AsignarUsuariosCubit>(

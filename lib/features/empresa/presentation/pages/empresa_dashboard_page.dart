@@ -24,6 +24,8 @@ import '../widgets/accesos_rapidos_section.dart';
 import '../widgets/cajas_activas_card.dart';
 import '../widgets/alertas_activas_card.dart';
 import '../widgets/ventas_sparkline_card.dart';
+import '../widgets/suscripcion_vencida_screen.dart';
+import '../widgets/suscripcion_banner.dart';
 import '../../../resumen_financiero/presentation/bloc/resumen_financiero_cubit.dart';
 import '../../../../core/widgets/notification_bell.dart';
 
@@ -54,42 +56,68 @@ class _EmpresaDashboardPageState extends State<EmpresaDashboardPage> {
     }
   }
 
+  bool _isBlocked(EmpresaContextState state) {
+    if (state is! EmpresaContextLoaded) return false;
+    final empresa = state.context.empresa;
+    final isFreePlan = empresa.planSuscripcion?.isFreePlan ?? true;
+    if (isFreePlan) return false;
+    if (empresa.estadoSuscripcion != 'VENCIDA') return false;
+    if (empresa.fechaVencimiento == null) return false;
+    final diasVencida = DateTime.now().difference(empresa.fechaVencimiento!).inDays;
+    return diasVencida > 7;
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: _buildAppBar(),
-      drawer: const EmpresaDrawer(),
-      body: GradientBackground(
-        style: GradientStyle.minimal,
-        child: BlocProvider(
-          create: (_) {
-            final now = DateTime.now();
-            final inicio = DateTime(now.year, now.month, 1);
-            return locator<ResumenFinancieroCubit>()
-              ..loadResumen(
-                fechaDesde: inicio.toIso8601String(),
-                fechaHasta: now.toIso8601String(),
-              );
-          },
-          child: BlocBuilder<EmpresaContextCubit, EmpresaContextState>(
-            builder: (context, state) {
-              if (state is EmpresaContextLoading) {
-                return CustomLoading.small(message: 'Cargando...');
-              }
+    return BlocBuilder<EmpresaContextCubit, EmpresaContextState>(
+      buildWhen: (prev, curr) =>
+          _isBlocked(prev) != _isBlocked(curr) || prev.runtimeType != curr.runtimeType,
+      builder: (context, contextState) {
+        final blocked = _isBlocked(contextState);
 
-              if (state is EmpresaContextError) {
-                return _buildErrorView(state.message);
-              }
+        return Scaffold(
+          appBar: blocked ? null : _buildAppBar(),
+          drawer: blocked ? null : const EmpresaDrawer(),
+          body: GradientBackground(
+            style: GradientStyle.minimal,
+            child: BlocProvider(
+              create: (_) {
+                final now = DateTime.now();
+                final inicio = DateTime(now.year, now.month, 1);
+                return locator<ResumenFinancieroCubit>()
+                  ..loadResumen(
+                    fechaDesde: inicio.toIso8601String(),
+                    fechaHasta: now.toIso8601String(),
+                  );
+              },
+              child: BlocBuilder<EmpresaContextCubit, EmpresaContextState>(
+                builder: (context, state) {
+                  if (state is EmpresaContextLoading) {
+                    return CustomLoading.small(message: 'Cargando...');
+                  }
 
-              if (state is EmpresaContextLoaded) {
-                return _buildDashboard(context, state.context);
-              }
+                  if (state is EmpresaContextError) {
+                    return _buildErrorView(state.message);
+                  }
 
-              return const SizedBox.shrink();
-            },
+                  if (state is EmpresaContextLoaded) {
+                    final empresa = state.context.empresa;
+
+                    // Bloqueo completo: venció hace más de 7 días y no es plan gratis
+                    if (blocked) {
+                      return SuscripcionVencidaScreen(empresa: empresa);
+                    }
+
+                    return _buildDashboard(context, state.context);
+                  }
+
+                  return const SizedBox.shrink();
+                },
+              ),
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -217,6 +245,9 @@ class _EmpresaDashboardPageState extends State<EmpresaDashboardPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Banner de suscripción vencida (período de gracia)
+            SuscripcionBanner(empresa: empresaContext.empresa),
+
             // Plan de Suscripción
             PlanSuscripcionCard(empresaContext: empresaContext),
             const SizedBox(height: 16),

@@ -161,16 +161,54 @@ class _PlanSuscripcionCardState extends State<PlanSuscripcionCard> {
                 ),
                 if (widget.empresaContext.permissions.canChangePlan) ...[
                   const SizedBox(height: 12),
-                  CustomButton(
-                    backgroundColor: AppColors.blue1,
-                    borderWidth: 1,
-                    height: 31,
-                    text: 'Cambiar Plan',
-                    textColor: AppColors.white,
-                    onPressed: () {
-                      context.push('/empresa/planes');
-                    },
-                    icon: const Icon(Icons.upgrade, color: AppColors.white),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: CustomButton(
+                          backgroundColor: AppColors.blue1,
+                          borderWidth: 1,
+                          height: 31,
+                          text: 'Cambiar Plan',
+                          textColor: AppColors.white,
+                          onPressed: () {
+                            context.push('/empresa/planes');
+                          },
+                          icon: const Icon(Icons.upgrade, color: AppColors.white),
+                        ),
+                      ),
+                      if (plan != null && !plan.isFreePlan) ...[
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: CustomButton(
+                            backgroundColor: AppColors.green,
+                            borderWidth: 1,
+                            height: 31,
+                            text: 'Pagar',
+                            textColor: AppColors.white,
+                            onPressed: () {
+                              context.push('/empresa/pagar-plan', extra: {
+                                'planId': empresa.planSuscripcionId,
+                                'planNombre': plan.nombre,
+                                'planPrecio': plan.precio,
+                              });
+                            },
+                            icon: const Icon(Icons.payment, color: AppColors.white, size: 18),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  GestureDetector(
+                    onTap: () => context.push('/empresa/mis-pagos'),
+                    child: const Text(
+                      'Ver historial de pagos',
+                      style: TextStyle(
+                        color: AppColors.blue1,
+                        fontSize: 11,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
                   ),
                 ],
               ],

@@ -109,13 +109,22 @@ class _PlanesPageContent extends StatelessWidget {
               context.watch<EmpresaContextCubit>().state;
           String? currentPlanId;
           String? empresaId;
+          double currentPlanPrecio = 0;
           if (empresaContextState is EmpresaContextLoaded) {
             currentPlanId =
                 empresaContextState.context.empresa.planSuscripcionId;
             empresaId = empresaContextState.context.empresa.id;
+            currentPlanPrecio =
+                empresaContextState.context.empresa.planSuscripcion?.precio ?? 0;
           }
 
           final isChanging = state is PlanSuscripcionCambiando;
+          final tienePlanDePaga = currentPlanPrecio > 0;
+
+          // Si tiene plan de paga, no mostrar plan básico (no puede retroceder)
+          final planesVisibles = tienePlanDePaga
+              ? planes.where((p) => !p.isFreePlan).toList()
+              : planes;
 
           return RefreshIndicator(
             onRefresh: () async {
@@ -123,16 +132,16 @@ class _PlanesPageContent extends StatelessWidget {
             },
             child: ListView.builder(
               padding: const EdgeInsets.all(16),
-              itemCount: planes.length,
+              itemCount: planesVisibles.length,
               itemBuilder: (context, index) {
-                final plan = planes[index];
+                final plan = planesVisibles[index];
                 final isCurrentPlan = plan.id == currentPlanId;
 
                 return PlanCard(
                   plan: plan,
                   isCurrentPlan: isCurrentPlan,
                   isLoading: isChanging,
-                  onSelect: isChanging
+                  onSelect: (isChanging || isCurrentPlan)
                       ? null
                       : () => _onSelectPlan(
                             context,

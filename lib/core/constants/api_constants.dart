@@ -103,6 +103,12 @@ class ApiConstants {
   static const String consultaRuc = '/consultas/ruc';
   static const String consultaDni = '/consultas/dni';
 
+  // Endpoints de pagos de suscripcion
+  static const String pagosSuscripcion = '/pagos-suscripcion';
+
+  // Endpoints de configuracion del sistema
+  static const String configuracionSistemaPublica = '/configuracion-sistema/publica';
+
   // Headers
   static const String authorization = 'Authorization';
   static const String contentType = 'Content-Type';

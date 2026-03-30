@@ -72,6 +72,9 @@ import 'package:syncronize/features/vinculacion/presentation/bloc/vinculacion_ac
 import 'package:syncronize/features/cita/presentation/bloc/cita_list/cita_list_cubit.dart';
 import 'package:syncronize/features/cita/presentation/bloc/cita_form/cita_form_cubit.dart';
 import 'package:syncronize/features/cita/presentation/bloc/disponibilidad/disponibilidad_cubit.dart';
+// Pago Suscripcion
+import 'package:syncronize/features/pago_suscripcion/presentation/bloc/pago_suscripcion/pago_suscripcion_cubit.dart';
+import 'package:syncronize/features/pago_suscripcion/presentation/bloc/mis_pagos/mis_pagos_cubit.dart';
 // RRHH
 import 'package:syncronize/features/rrhh/presentation/bloc/empleado_list/empleado_list_cubit.dart';
 import 'package:syncronize/features/rrhh/presentation/bloc/empleado_form/empleado_form_cubit.dart';
@@ -537,6 +540,16 @@ List<BlocProvider> blocProviders = [
   // Disponibilidad Cubit - Maneja la consulta de slots disponibles
   BlocProvider<DisponibilidadCubit>(
     create: (context) => locator<DisponibilidadCubit>(),
+    lazy: true,
+  ),
+
+  // ==================== PAGO SUSCRIPCION ====================
+  BlocProvider<PagoSuscripcionCubit>(
+    create: (context) => locator<PagoSuscripcionCubit>(),
+    lazy: true,
+  ),
+  BlocProvider<MisPagosSuscripcionCubit>(
+    create: (context) => locator<MisPagosSuscripcionCubit>(),
     lazy: true,
   ),
 

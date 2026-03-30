@@ -47,6 +47,8 @@ import '../../features/cuentas_por_cobrar/presentation/pages/cuentas_por_cobrar_
 import '../../features/cuentas_por_pagar/presentation/pages/cuentas_por_pagar_page.dart';
 import '../../features/empresa_banco/presentation/pages/empresa_banco_page.dart';
 import '../../features/resumen_financiero/presentation/pages/resumen_financiero_page.dart';
+import '../../features/pago_suscripcion/presentation/pages/pagar_plan_page.dart';
+import '../../features/pago_suscripcion/presentation/pages/mis_pagos_page.dart';
 import '../../features/tipo_cambio/presentation/pages/tipo_cambio_page.dart';
 import '../../features/prestamo/presentation/pages/prestamos_page.dart';
 import '../../features/libro_contable/presentation/pages/libro_contable_page.dart';
@@ -361,6 +363,25 @@ class AppRouter {
         path: '/empresa/planes',
         name: 'empresa-planes',
         builder: (context, state) => const PlanesPage(),
+      ),
+      GoRoute(
+        path: '/empresa/pagar-plan',
+        name: 'empresa-pagar-plan',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return PagarPlanPage(
+            planId: extra?['planId'] as String?,
+            planNombre: extra?['planNombre'] as String?,
+            planPrecio: (extra?['planPrecio'] as num?)?.toDouble(),
+            planPrecioSemestral: (extra?['planPrecioSemestral'] as num?)?.toDouble(),
+            planPrecioAnual: (extra?['planPrecioAnual'] as num?)?.toDouble(),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/empresa/mis-pagos',
+        name: 'empresa-mis-pagos',
+        builder: (context, state) => const MisPagosPage(),
       ),
       GoRoute(
         path: '/empresa/multimedia',
