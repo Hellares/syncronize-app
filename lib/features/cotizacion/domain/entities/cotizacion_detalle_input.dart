@@ -12,6 +12,8 @@ class CotizacionDetalleInput {
   final double descuento;
   final double porcentajeIGV;
   final bool precioIncluyeIgv;
+  final String tipoAfectacion; // '10' gravado, '20' exonerado, '30' inafecto
+  final double icbper; // ICBPER total del item
 
   const CotizacionDetalleInput({
     this.productoId,
@@ -24,6 +26,8 @@ class CotizacionDetalleInput {
     this.descuento = 0,
     this.porcentajeIGV = 18.0,
     this.precioIncluyeIgv = false,
+    this.tipoAfectacion = '10',
+    this.icbper = 0,
   });
 
   double get subtotalBruto => cantidad * precioUnitario - descuento;
@@ -38,10 +42,8 @@ class CotizacionDetalleInput {
   double get igv => subtotal * (porcentajeIGV / 100);
 
   double get total {
-    if (precioIncluyeIgv) {
-      return subtotalBruto;
-    }
-    return subtotal + igv;
+    final base = precioIncluyeIgv ? subtotalBruto : subtotal + igv;
+    return base + icbper;
   }
 
   Map<String, dynamic> toMap() => {
@@ -55,5 +57,7 @@ class CotizacionDetalleInput {
         if (descuento > 0) 'descuento': descuento,
         'porcentajeIGV': porcentajeIGV,
         'precioIncluyeIgv': precioIncluyeIgv,
+        'tipoAfectacion': tipoAfectacion,
+        if (icbper > 0) 'icbper': icbper,
       };
 }

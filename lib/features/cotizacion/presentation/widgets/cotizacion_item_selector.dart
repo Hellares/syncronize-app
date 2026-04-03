@@ -254,11 +254,38 @@ class _CotizacionItemSelectorState extends State<CotizacionItemSelector> {
       return;
     }
 
-    // Leer porcentaje de impuesto: primero del producto, si no del global
+    // Tipo de afectación IGV y cálculos
+    String tipoAfectacion = '10'; // Gravado por defecto
     double porcentajeIGV = 18.0;
-    if (_tipoItem == 'producto' && _productoSeleccionado != null && _productoSeleccionado!.impuestoPorcentaje != null) {
-      porcentajeIGV = _productoSeleccionado!.impuestoPorcentaje!;
+    double icbper = 0;
+
+    if (_tipoItem == 'producto' && _productoSeleccionado != null) {
+      // Tipo afectación del producto
+      final afectacion = _productoSeleccionado!.tipoAfectacionIgv;
+      if (afectacion == 'EXONERADO') {
+        tipoAfectacion = '20';
+        porcentajeIGV = 0;
+      } else if (afectacion == 'INAFECTO') {
+        tipoAfectacion = '30';
+        porcentajeIGV = 0;
+      } else {
+        // Gravado: usar IGV del producto o global
+        if (_productoSeleccionado!.impuestoPorcentaje != null) {
+          porcentajeIGV = _productoSeleccionado!.impuestoPorcentaje!;
+        } else {
+          final configState = context.read<ConfiguracionEmpresaCubit>().state;
+          if (configState is ConfiguracionEmpresaLoaded) {
+            porcentajeIGV = configState.configuracion.impuestoDefaultPorcentaje;
+          }
+        }
+      }
+
+      // ICBPER (bolsas plásticas)
+      if (_productoSeleccionado!.aplicaIcbper) {
+        icbper = cantidad * 0.50; // S/ 0.50 por unidad
+      }
     } else {
+      // Item personalizado: usar global
       final configState = context.read<ConfiguracionEmpresaCubit>().state;
       if (configState is ConfiguracionEmpresaLoaded) {
         porcentajeIGV = configState.configuracion.impuestoDefaultPorcentaje;
@@ -279,6 +306,8 @@ class _CotizacionItemSelectorState extends State<CotizacionItemSelector> {
       descuento: descuento,
       porcentajeIGV: porcentajeIGV,
       precioIncluyeIgv: incluyeIgv,
+      tipoAfectacion: tipoAfectacion,
+      icbper: icbper,
       productoId: _tipoItem == 'producto' && !esCombo ? _productoSeleccionado?.id : null,
       varianteId: _tipoItem == 'producto' && !esCombo ? _varianteSeleccionada?.id : null,
       comboId: esCombo ? _productoSeleccionado?.id : null,

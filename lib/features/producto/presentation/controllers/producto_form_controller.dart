@@ -24,6 +24,8 @@ class ProductoFormController extends ChangeNotifier {
   final videoUrlController = TextEditingController();
   final impuestoPorcentajeController = TextEditingController();
   final descuentoMaximoController = TextEditingController();
+  String tipoAfectacionIgv = 'GRAVADO';
+  bool aplicaIcbper = false;
   final dimensionLargoController = TextEditingController();
   final dimensionAnchoController = TextEditingController();
   final dimensionAltoController = TextEditingController();
@@ -244,6 +246,8 @@ class ProductoFormController extends ChangeNotifier {
     videoUrlController.text = producto.videoUrl ?? '';
     impuestoPorcentajeController.text = producto.impuestoPorcentaje?.toString() ?? '';
     descuentoMaximoController.text = producto.descuentoMaximo?.toString() ?? '';
+    tipoAfectacionIgv = producto.tipoAfectacionIgv ?? 'GRAVADO';
+    aplicaIcbper = producto.aplicaIcbper ?? false;
 
     // Dimensiones
     if (producto.dimensiones != null) {

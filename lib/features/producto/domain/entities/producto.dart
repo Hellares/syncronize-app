@@ -24,6 +24,8 @@ class Producto extends Equatable with StockPorSedeMixin {
   final String? videoUrl;
   final double? impuestoPorcentaje;
   final double? descuentoMaximo;
+  final String? tipoAfectacionIgv;
+  final bool? aplicaIcbper;
   final bool visibleMarketplace;
   final bool destacado;
   final int? ordenMarketplace;
@@ -65,6 +67,8 @@ class Producto extends Equatable with StockPorSedeMixin {
     this.videoUrl,
     this.impuestoPorcentaje,
     this.descuentoMaximo,
+    this.tipoAfectacionIgv,
+    this.aplicaIcbper,
     required this.visibleMarketplace,
     required this.destacado,
     this.ordenMarketplace,

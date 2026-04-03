@@ -20,6 +20,8 @@ class ProductoListItem extends Equatable with StockPorSedeMixin {
   final int comboReservado; // Cantidad de combos reservados (solo aplica cuando esCombo)
   final double? impuestoPorcentaje; // IGV específico del producto (null = usar global)
   final double? descuentoMaximo; // Máximo descuento permitido en porcentaje
+  final String tipoAfectacionIgv; // GRAVADO, EXONERADO, INAFECTO
+  final bool aplicaIcbper;
 
   ProductoListItem({
     required this.id,
@@ -37,6 +39,8 @@ class ProductoListItem extends Equatable with StockPorSedeMixin {
     this.comboReservado = 0,
     this.impuestoPorcentaje,
     this.descuentoMaximo,
+    this.tipoAfectacionIgv = 'GRAVADO',
+    this.aplicaIcbper = false,
   });
 
   /// Stock consolidado: para productos con variantes suma el stock de todas las variantes,
@@ -65,5 +69,7 @@ class ProductoListItem extends Equatable with StockPorSedeMixin {
         comboReservado,
         impuestoPorcentaje,
         descuentoMaximo,
+        tipoAfectacionIgv,
+        aplicaIcbper,
       ];
 }

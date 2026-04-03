@@ -43,6 +43,8 @@ class ProductoRepositoryImpl implements ProductoRepository {
     String? videoUrl,
     double? impuestoPorcentaje,
     double? descuentoMaximo,
+    String? tipoAfectacionIgv,
+    bool? aplicaIcbper,
     bool? visibleMarketplace,
     bool? destacado,
     bool? tieneVariantes,
@@ -76,6 +78,8 @@ class ProductoRepositoryImpl implements ProductoRepository {
         if (impuestoPorcentaje != null)
           'impuestoPorcentaje': impuestoPorcentaje,
         if (descuentoMaximo != null) 'descuentoMaximo': descuentoMaximo,
+        if (tipoAfectacionIgv != null) 'tipoAfectacionIgv': tipoAfectacionIgv,
+        if (aplicaIcbper != null) 'aplicaIcbper': aplicaIcbper,
         if (visibleMarketplace != null)
           'visibleMarketplace': visibleMarketplace,
         if (destacado != null) 'destacado': destacado,
@@ -190,6 +194,8 @@ class ProductoRepositoryImpl implements ProductoRepository {
     String? videoUrl,
     double? impuestoPorcentaje,
     double? descuentoMaximo,
+    String? tipoAfectacionIgv,
+    bool? aplicaIcbper,
     bool? visibleMarketplace,
     bool? destacado,
     int? ordenMarketplace,
@@ -223,6 +229,8 @@ class ProductoRepositoryImpl implements ProductoRepository {
         if (impuestoPorcentaje != null)
           'impuestoPorcentaje': impuestoPorcentaje,
         if (descuentoMaximo != null) 'descuentoMaximo': descuentoMaximo,
+        if (tipoAfectacionIgv != null) 'tipoAfectacionIgv': tipoAfectacionIgv,
+        if (aplicaIcbper != null) 'aplicaIcbper': aplicaIcbper,
         if (visibleMarketplace != null)
           'visibleMarketplace': visibleMarketplace,
         if (destacado != null) 'destacado': destacado,

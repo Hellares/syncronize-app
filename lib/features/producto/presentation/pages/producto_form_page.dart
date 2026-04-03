@@ -560,6 +560,10 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
                     final cs = context.read<ConfiguracionEmpresaCubit>().state;
                     return cs is ConfiguracionEmpresaLoaded ? cs.configuracion.impuestoDefaultPorcentaje : null;
                   }(),
+                  tipoAfectacionIgv: _controller.tipoAfectacionIgv,
+                  aplicaIcbper: _controller.aplicaIcbper,
+                  onTipoAfectacionChanged: (v) => setState(() => _controller.tipoAfectacionIgv = v),
+                  onAplicaIcbperChanged: (v) => setState(() => _controller.aplicaIcbper = v),
                 ),
                 const SizedBox(height: 15),
                 _buildMultimediaSection(),

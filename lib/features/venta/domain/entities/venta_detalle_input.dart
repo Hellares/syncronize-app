@@ -12,7 +12,9 @@ class VentaDetalleInput {
   final double descuento;
   final double porcentajeIGV;
   final bool precioIncluyeIgv;
-  final int? stockDisponible; // Solo para validación en UI, no se envía al backend
+  final String tipoAfectacion;
+  final double icbper;
+  final int? stockDisponible;
 
   const VentaDetalleInput({
     this.productoId,
@@ -25,6 +27,8 @@ class VentaDetalleInput {
     this.descuento = 0,
     this.porcentajeIGV = 18.0,
     this.precioIncluyeIgv = false,
+    this.tipoAfectacion = '10',
+    this.icbper = 0,
     this.stockDisponible,
   });
 
@@ -42,10 +46,8 @@ class VentaDetalleInput {
   double get igv => subtotal * (porcentajeIGV / 100);
 
   double get total {
-    if (precioIncluyeIgv) {
-      return subtotalBruto;
-    }
-    return subtotal + igv;
+    final base = precioIncluyeIgv ? subtotalBruto : subtotal + igv;
+    return base + icbper;
   }
 
   Map<String, dynamic> toMap() => {
@@ -59,5 +61,7 @@ class VentaDetalleInput {
         if (descuento > 0) 'descuento': descuento,
         'porcentajeIGV': porcentajeIGV,
         'precioIncluyeIgv': precioIncluyeIgv,
+        'tipoAfectacion': tipoAfectacion,
+        if (icbper > 0) 'icbper': icbper,
       };
 }

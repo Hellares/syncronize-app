@@ -24,6 +24,8 @@ class ProductoModel extends Producto {
     super.videoUrl,
     super.impuestoPorcentaje,
     super.descuentoMaximo,
+    super.tipoAfectacionIgv,
+    super.aplicaIcbper,
     required super.visibleMarketplace,
     required super.destacado,
     super.ordenMarketplace,
@@ -69,6 +71,8 @@ class ProductoModel extends Producto {
       descuentoMaximo: json['descuentoMaximo'] != null
           ? toSafeDouble(json['descuentoMaximo'])
           : null,
+      tipoAfectacionIgv: json['tipoAfectacionIgv'] as String? ?? 'GRAVADO',
+      aplicaIcbper: json['aplicaIcbper'] as bool? ?? false,
       visibleMarketplace: json['visibleMarketplace'] as bool? ?? true,
       destacado: json['destacado'] as bool? ?? false,
       ordenMarketplace: json['ordenMarketplace'] != null
@@ -147,6 +151,8 @@ class ProductoModel extends Producto {
       if (videoUrl != null) 'videoUrl': videoUrl,
       if (impuestoPorcentaje != null) 'impuestoPorcentaje': impuestoPorcentaje,
       if (descuentoMaximo != null) 'descuentoMaximo': descuentoMaximo,
+      'tipoAfectacionIgv': tipoAfectacionIgv,
+      'aplicaIcbper': aplicaIcbper,
       'visibleMarketplace': visibleMarketplace,
       'destacado': destacado,
       if (ordenMarketplace != null) 'ordenMarketplace': ordenMarketplace,
@@ -196,6 +202,8 @@ class ProductoModel extends Producto {
       videoUrl: entity.videoUrl,
       impuestoPorcentaje: entity.impuestoPorcentaje,
       descuentoMaximo: entity.descuentoMaximo,
+      tipoAfectacionIgv: entity.tipoAfectacionIgv,
+      aplicaIcbper: entity.aplicaIcbper,
       visibleMarketplace: entity.visibleMarketplace,
       destacado: entity.destacado,
       ordenMarketplace: entity.ordenMarketplace,

@@ -488,6 +488,8 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
                   descuento: item.descuento,
                   porcentajeIGV: item.porcentajeIGV,
                   precioIncluyeIgv: item.precioIncluyeIgv,
+                  tipoAfectacion: item.tipoAfectacion,
+                  icbper: item.icbper,
                 ));
               }
             });

@@ -137,6 +137,8 @@ class ProductoFormCubit extends Cubit<ProductoFormState> {
           descuentoMaximo: controller.descuentoMaximoController.text.isEmpty
               ? null
               : double.tryParse(controller.descuentoMaximoController.text),
+          tipoAfectacionIgv: controller.tipoAfectacionIgv,
+          aplicaIcbper: controller.aplicaIcbper,
           visibleMarketplace: controller.visibleMarketplace,
           destacado: controller.destacado,
           tieneVariantes: controller.tieneVariantes,
@@ -165,6 +167,8 @@ class ProductoFormCubit extends Cubit<ProductoFormState> {
           descuentoMaximo: controller.descuentoMaximoController.text.isEmpty
               ? null
               : double.tryParse(controller.descuentoMaximoController.text),
+          tipoAfectacionIgv: controller.tipoAfectacionIgv,
+          aplicaIcbper: controller.aplicaIcbper,
           visibleMarketplace: controller.visibleMarketplace,
           destacado: controller.destacado,
           tieneVariantes: controller.tieneVariantes,

@@ -19,6 +19,8 @@ class ProductoListItemModel extends ProductoListItem {
     super.comboReservado,
     super.impuestoPorcentaje,
     super.descuentoMaximo,
+    super.tipoAfectacionIgv,
+    super.aplicaIcbper,
   });
 
   factory ProductoListItemModel.fromJson(Map<String, dynamic> json) {
@@ -56,6 +58,8 @@ class ProductoListItemModel extends ProductoListItem {
       descuentoMaximo: json['descuentoMaximo'] != null
           ? double.tryParse(json['descuentoMaximo'].toString())
           : null,
+      tipoAfectacionIgv: json['tipoAfectacionIgv'] as String? ?? 'GRAVADO',
+      aplicaIcbper: json['aplicaIcbper'] as bool? ?? false,
     );
   }
 
@@ -131,6 +135,8 @@ class ProductoListItemModel extends ProductoListItem {
       comboReservado: entity.comboReservado,
       impuestoPorcentaje: entity.impuestoPorcentaje,
       descuentoMaximo: entity.descuentoMaximo,
+      tipoAfectacionIgv: entity.tipoAfectacionIgv,
+      aplicaIcbper: entity.aplicaIcbper,
     );
   }
 }
