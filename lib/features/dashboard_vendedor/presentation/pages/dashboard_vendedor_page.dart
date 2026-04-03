@@ -5,7 +5,12 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/theme/gradient_container.dart';
 import '../../../../core/fonts/app_text_widgets.dart';
+import '../../../../core/widgets/custom_dropdown.dart';
 import '../../../../core/widgets/smart_appbar.dart';
+import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
+import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
+import '../../../usuario/presentation/bloc/usuario_list/usuario_list_cubit.dart';
+import '../../../usuario/presentation/bloc/usuario_list/usuario_list_state.dart';
 import '../../domain/entities/dashboard_vendedor.dart';
 import '../bloc/dashboard_vendedor_cubit.dart';
 import '../bloc/dashboard_vendedor_state.dart';
@@ -16,17 +21,48 @@ class DashboardVendedorPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => locator<DashboardVendedorCubit>()
-        ..loadDashboard(vendedorId: vendedorId),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(create: (_) => locator<DashboardVendedorCubit>()..loadDashboard(vendedorId: vendedorId)),
+        BlocProvider(create: (_) => locator<UsuarioListCubit>()),
+      ],
       child: _DashboardVendedorView(vendedorId: vendedorId),
     );
   }
 }
 
-class _DashboardVendedorView extends StatelessWidget {
+class _DashboardVendedorView extends StatefulWidget {
   final String? vendedorId;
   const _DashboardVendedorView({this.vendedorId});
+
+  @override
+  State<_DashboardVendedorView> createState() => _DashboardVendedorViewState();
+}
+
+class _DashboardVendedorViewState extends State<_DashboardVendedorView> {
+  String? _selectedVendedorId;
+  bool _canViewAll = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedVendedorId = widget.vendedorId;
+
+    // Verificar permisos y cargar lista de vendedores si es admin
+    final empresaState = context.read<EmpresaContextCubit>().state;
+    if (empresaState is EmpresaContextLoaded) {
+      final permisos = empresaState.context.permissions;
+      _canViewAll = permisos.canViewEmpleados;
+      if (_canViewAll) {
+        context.read<UsuarioListCubit>().loadUsuarios(empresaId: empresaState.context.empresa.id);
+      }
+    }
+  }
+
+  void _onVendedorChanged(String? vendedorId) {
+    setState(() => _selectedVendedorId = vendedorId);
+    context.read<DashboardVendedorCubit>().loadDashboard(vendedorId: vendedorId);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,32 +71,76 @@ class _DashboardVendedorView extends StatelessWidget {
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: SmartAppBar(
-          
-          title: 'Mi Dashboard',
+          title: 'Dashboard Vendedor',
           backgroundColor: AppColors.blue1,
           foregroundColor: AppColors.white,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: () => context.read<DashboardVendedorCubit>().loadDashboard(vendedorId: _selectedVendedorId),
+            ),
+          ],
         ),
-        body: BlocBuilder<DashboardVendedorCubit, DashboardVendedorState>(
-          builder: (context, state) {
-            if (state is DashboardVendedorLoading ||
-                state is DashboardVendedorInitial) {
-              return const Center(
-                child: CircularProgressIndicator(color: Colors.white),
-              );
-            }
-            if (state is DashboardVendedorError) {
-              return _ErrorView(
-                message: state.message,
-                onRetry: () => context
-                    .read<DashboardVendedorCubit>()
-                    .loadDashboard(vendedorId: vendedorId),
-              );
-            }
-            if (state is DashboardVendedorLoaded) {
-              return _DashboardContent(data: state.data);
-            }
-            return const SizedBox.shrink();
-          },
+        body: Column(
+          children: [
+            // Selector de vendedor (solo admin)
+            if (_canViewAll)
+              BlocBuilder<UsuarioListCubit, UsuarioListState>(
+                builder: (context, state) {
+                  if (state is UsuarioListLoaded) {
+                    final usuarios = state.usuarios;
+                    return Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                      child: CustomDropdown<String?>(
+                        label: 'Vendedor',
+                        hintText: 'Yo (mi dashboard)',
+                        value: _selectedVendedorId,
+                        borderColor: AppColors.blue1,
+                        dropdownStyle: DropdownStyle.searchable,
+                        items: [
+                          const DropdownItem(value: null, label: 'Yo (mi dashboard)'),
+                          ...usuarios.map((u) => DropdownItem(
+                            value: u.id,
+                            label: '${u.nombres} ${u.apellidos}'.trim(),
+                            leading: CircleAvatar(
+                              radius: 12,
+                              backgroundColor: AppColors.blue1.withValues(alpha: 0.1),
+                              child: Text(
+                                (u.nombres.isNotEmpty ? u.nombres[0] : '?').toUpperCase(),
+                                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.blue1),
+                              ),
+                            ),
+                          )),
+                        ],
+                        onChanged: _onVendedorChanged,
+                      ),
+                    );
+                  }
+                  return const SizedBox.shrink();
+                },
+              ),
+
+            // Dashboard content
+            Expanded(
+              child: BlocBuilder<DashboardVendedorCubit, DashboardVendedorState>(
+                builder: (context, state) {
+                  if (state is DashboardVendedorLoading || state is DashboardVendedorInitial) {
+                    return const Center(child: CircularProgressIndicator(color: Colors.white));
+                  }
+                  if (state is DashboardVendedorError) {
+                    return _ErrorView(
+                      message: state.message,
+                      onRetry: () => context.read<DashboardVendedorCubit>().loadDashboard(vendedorId: _selectedVendedorId),
+                    );
+                  }
+                  if (state is DashboardVendedorLoaded) {
+                    return _DashboardContent(data: state.data);
+                  }
+                  return const SizedBox.shrink();
+                },
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -763,12 +843,14 @@ class _VentasSemanaChart extends StatelessWidget {
   }
 
   String _shortDate(String fecha) {
-    // Expected format: YYYY-MM-DD or similar
-    final parts = fecha.split('-');
+    // La fecha viene como "2026-04-02T05:00:00.000Z" (medianoche Peru en UTC)
+    // Extraer solo la parte yyyy-MM-dd y formatear sin conversión timezone
+    final dateOnly = fecha.contains('T') ? fecha.split('T').first : fecha;
+    final parts = dateOnly.split('-');
     if (parts.length >= 3) {
-      return '${parts[2]}/${parts[1]}';
+      return '${parts[2]}/${parts[1]}'; // dd/MM
     }
-    return fecha.length > 5 ? fecha.substring(fecha.length - 5) : fecha;
+    return dateOnly;
   }
 }
 

@@ -95,6 +95,17 @@ class VentaRemoteDataSource {
     return VentaModel.fromJson(response.data as Map<String, dynamic>);
   }
 
+  Future<VentaModel> generarComprobante(String id, {
+    required String tipoComprobante,
+    String? tipoDocumentoCliente,
+  }) async {
+    final response = await _dioClient.post('$_basePath/$id/generar-comprobante', data: {
+      'tipoComprobante': tipoComprobante,
+      if (tipoDocumentoCliente != null) 'tipoDocumentoCliente': tipoDocumentoCliente,
+    });
+    return VentaModel.fromJson(response.data as Map<String, dynamic>);
+  }
+
   Future<VentaModel?> buscarPorCodigo(String codigo) async {
     try {
       final response = await _dioClient.get(

@@ -286,7 +286,7 @@ class _ProductoVarianteFormDialogState
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'Los precios y el stock se gestionan por sede desde el módulo de inventario',
+                              'El precio se hereda del producto base. El stock se configura desde inventario.',
                               style: TextStyle(
                                 fontSize: 12,
                                 color: Colors.blue.shade700,

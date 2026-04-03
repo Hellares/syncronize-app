@@ -26,10 +26,6 @@ class ProductoComboBanner extends StatelessWidget {
           _buildHeader(),
           const SizedBox(height: 12),
           _buildInfoCard(),
-          if (isEditing) ...[
-            const SizedBox(height: 16),
-            _buildManageButton(context),
-          ],
         ],
       ),
     );
@@ -128,26 +124,4 @@ class ProductoComboBanner extends StatelessWidget {
     }
   }
 
-  Widget _buildManageButton(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton.icon(
-        onPressed: () {
-          // TODO: Navegar a página de gestión de componentes del combo
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Función de gestión de combos próximamente'),
-              backgroundColor: Colors.blue,
-            ),
-          );
-        },
-        icon: const Icon(Icons.category, size: 20),
-        label: const Text('Gestionar Componentes del Combo'),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.blue.shade700,
-          foregroundColor: Colors.white,
-        ),
-      ),
-    );
-  }
 }

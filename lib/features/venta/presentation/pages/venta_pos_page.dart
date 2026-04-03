@@ -456,6 +456,7 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
           onItemSelected: (item) {
             setState(() {
               final existingIndex = _items.indexWhere((existing) {
+                if (item.comboId != null && existing.comboId == item.comboId) return true;
                 if (item.productoId != null && existing.productoId == item.productoId && existing.varianteId == item.varianteId) return true;
                 if (item.servicioId != null && existing.servicioId == item.servicioId) return true;
                 return false;
@@ -467,6 +468,7 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
                   productoId: existing.productoId,
                   varianteId: existing.varianteId,
                   servicioId: existing.servicioId,
+                  comboId: existing.comboId,
                   descripcion: existing.descripcion,
                   cantidad: existing.cantidad + item.cantidad,
                   precioUnitario: existing.precioUnitario,
@@ -479,6 +481,7 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
                   productoId: item.productoId,
                   varianteId: item.varianteId,
                   servicioId: item.servicioId,
+                  comboId: item.comboId,
                   descripcion: item.descripcion,
                   cantidad: item.cantidad,
                   precioUnitario: item.precioUnitario,
@@ -505,6 +508,7 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
               cantidad: item.cantidad,
               precioUnitario: item.precioUnitario,
               subtotal: item.total,
+              porcentajeIGV: item.porcentajeIGV,
             )).toList(),
             onRemove: (i) => setState(() => _items.removeAt(i)),
           ),

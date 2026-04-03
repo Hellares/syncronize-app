@@ -78,6 +78,14 @@ class DateFormatter {
     return DateFormat("dd 'de' MMMM 'de' yyyy 'a las' HH:mm", 'es').format(localDate);
   }
 
+  /// Formatea para API: yyyy-MM-dd (siempre local)
+  ///
+  /// Ejemplo: 2026-01-31
+  static String formatForApi(DateTime dateTime) {
+    final localDate = toLocal(dateTime);
+    return DateFormat('yyyy-MM-dd').format(localDate);
+  }
+
   /// Formatea en formato corto americano: MM/dd/yyyy HH:mm
   ///
   /// Ejemplo: 01/31/2026 21:33

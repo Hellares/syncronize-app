@@ -5,6 +5,7 @@ class CotizacionDetalleInput {
   final String? productoId;
   final String? varianteId;
   final String? servicioId;
+  final String? comboId;
   final String descripcion;
   final double cantidad;
   final double precioUnitario;
@@ -16,6 +17,7 @@ class CotizacionDetalleInput {
     this.productoId,
     this.varianteId,
     this.servicioId,
+    this.comboId,
     required this.descripcion,
     required this.cantidad,
     required this.precioUnitario,
@@ -46,6 +48,7 @@ class CotizacionDetalleInput {
         if (productoId != null) 'productoId': productoId,
         if (varianteId != null) 'varianteId': varianteId,
         if (servicioId != null) 'servicioId': servicioId,
+        if (comboId != null) 'comboId': comboId,
         'descripcion': descripcion,
         'cantidad': cantidad,
         'precioUnitario': precioUnitario,

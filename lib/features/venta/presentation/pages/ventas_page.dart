@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
+import '../../../../core/utils/date_formatter.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/app_gradients.dart';
 import 'package:syncronize/core/widgets/custom_filter_chip.dart';
@@ -244,7 +244,7 @@ class _VentaListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dateFormat = DateFormat('dd/MM/yyyy');
+    // Usar DateFormatter para formato consistente
 
     return GradientContainer(
       shadowStyle: ShadowStyle.colorful,
@@ -266,7 +266,7 @@ class _VentaListTile extends StatelessWidget {
                   VentaEstadoChip(estado: venta.estado),
                   const Spacer(),
                   Text(
-                    dateFormat.format(venta.fechaVenta),
+                    DateFormatter.formatDate(venta.fechaVenta),
                     style: TextStyle(
                       fontSize: 10,
                       color: Colors.grey.shade600,

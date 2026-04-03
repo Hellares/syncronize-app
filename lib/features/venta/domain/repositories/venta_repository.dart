@@ -41,6 +41,12 @@ abstract class VentaRepository {
     required String motivo,
   });
 
+  Future<Resource<Venta>> generarComprobante({
+    required String ventaId,
+    required String tipoComprobante,
+    String? tipoDocumentoCliente,
+  });
+
   Future<Resource<Map<String, dynamic>>> getResumen({String? sedeId});
 
   Future<Resource<Venta?>> buscarPorCodigo({required String codigo});

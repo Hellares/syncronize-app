@@ -128,13 +128,17 @@ class ResumenVendedorModel {
   });
 
   factory ResumenVendedorModel.fromJson(Map<String, dynamic> json) {
+    final ventasHoy = json['ventasHoy'] as Map<String, dynamic>? ?? {};
+    final ventasSemana = json['ventasSemana'] as Map<String, dynamic>? ?? {};
+    final ventasMes = json['ventasMes'] as Map<String, dynamic>? ?? {};
+
     return ResumenVendedorModel(
-      ventasHoyCantidad: json['ventasHoyCantidad'] as int? ?? 0,
-      ventasHoyMonto: (json['ventasHoyMonto'] as num?)?.toDouble() ?? 0,
-      ventasSemanaCantidad: json['ventasSemanaCantidad'] as int? ?? 0,
-      ventasSemanaMonto: (json['ventasSemanaMonto'] as num?)?.toDouble() ?? 0,
-      ventasMesCantidad: json['ventasMesCantidad'] as int? ?? 0,
-      ventasMesMonto: (json['ventasMesMonto'] as num?)?.toDouble() ?? 0,
+      ventasHoyCantidad: ventasHoy['cantidad'] as int? ?? 0,
+      ventasHoyMonto: (ventasHoy['monto'] as num?)?.toDouble() ?? 0,
+      ventasSemanaCantidad: ventasSemana['cantidad'] as int? ?? 0,
+      ventasSemanaMonto: (ventasSemana['monto'] as num?)?.toDouble() ?? 0,
+      ventasMesCantidad: ventasMes['cantidad'] as int? ?? 0,
+      ventasMesMonto: (ventasMes['monto'] as num?)?.toDouble() ?? 0,
       ticketPromedio: (json['ticketPromedio'] as num?)?.toDouble() ?? 0,
       cotizacionesTotal: json['cotizacionesTotal'] as int? ?? 0,
       cotizacionesConvertidas: json['cotizacionesConvertidas'] as int? ?? 0,

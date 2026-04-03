@@ -328,30 +328,10 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
     return 0;
   }
 
-  /// Total dinámico: recalcula desde los ítems actuales
-  double get _total {
-    if (_items.isEmpty) return 0;
-    return _items.fold(0.0, (sum, item) {
-      final cantidad = _toDouble(item['cantidad']);
-      final precio = _toDouble(item['precioUnitario']);
-      final descuento = _toDouble(item['descuento']);
-      final subtotalBruto = (cantidad * precio) - descuento;
-      final porcentajeIGV = _toDouble(item['porcentajeIGV']);
-      final igv = porcentajeIGV > 0 ? subtotalBruto * (porcentajeIGV / 100) : _toDouble(item['igv']);
-      return sum + subtotalBruto + igv;
-    });
-  }
-
-  double get _subtotal {
-    return _items.fold(0.0, (sum, item) {
-      final cantidad = _toDouble(item['cantidad']);
-      final precio = _toDouble(item['precioUnitario']);
-      final descuento = _toDouble(item['descuento']);
-      return sum + (cantidad * precio) - descuento;
-    });
-  }
-
-  double get _impuestos => _total - _subtotal;
+  /// Usa los valores ya calculados por el backend (subtotal, igv, total por item)
+  double get _total => _items.fold(0.0, (sum, item) => sum + _toDouble(item['total']));
+  double get _subtotal => _items.fold(0.0, (sum, item) => sum + _toDouble(item['subtotal']));
+  double get _impuestos => _items.fold(0.0, (sum, item) => sum + _toDouble(item['igv']));
 
   double get _descuentoTotal {
     return _items.fold(0.0, (sum, item) => sum + _toDouble(item['descuento']));
@@ -739,8 +719,28 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
                                       child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          Text(nombre, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-                                              maxLines: 2, overflow: TextOverflow.ellipsis),
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: Text(nombre, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                                                    maxLines: 2, overflow: TextOverflow.ellipsis),
+                                              ),
+                                              if (_items.length > 1 && !_items.every((it) => _toDouble(it['porcentajeIGV']) == _toDouble(_items.first['porcentajeIGV'])))
+                                                Container(
+                                                  margin: const EdgeInsets.only(left: 4),
+                                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.orange.shade50,
+                                                    borderRadius: BorderRadius.circular(3),
+                                                    border: Border.all(color: Colors.orange.shade300, width: 0.5),
+                                                  ),
+                                                  child: Text(
+                                                    'IGV ${_toDouble(item['porcentajeIGV']).toStringAsFixed(0)}%',
+                                                    style: TextStyle(fontSize: 8, fontWeight: FontWeight.w600, color: Colors.orange.shade700),
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
                                           Text('S/ ${precio.toStringAsFixed(2)} c/u',
                                               style: TextStyle(fontSize: 10, color: Colors.grey[500])),
                                         ],
@@ -760,7 +760,10 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
                             const Divider(height: 16),
                             _resumenRow('Subtotal', _subtotal),
                             if (_impuestos > 0)
-                              _resumenRow('IGV (18%)', _impuestos),
+                              _resumenRow(
+                                'IGV${_items.isNotEmpty && _items.every((it) => _toDouble(it['porcentajeIGV']) == _toDouble(_items.first['porcentajeIGV'])) ? ' (${_toDouble(_items.first['porcentajeIGV']).toStringAsFixed(0)}%)' : ''}',
+                                _impuestos,
+                              ),
                             if (_descuentoTotal > 0)
                               _resumenRow('Descuento', -_descuentoTotal, color: Colors.red),
                             const Divider(height: 12),

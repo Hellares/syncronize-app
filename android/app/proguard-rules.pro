@@ -41,3 +41,8 @@
 # Image picker / file picker
 -keep class androidx.core.content.FileProvider { *; }
 -keep class androidx.core.app.** { *; }
+
+# Play Core (deferred components / split install)
+-dontwarn com.google.android.play.core.splitcompat.**
+-dontwarn com.google.android.play.core.splitinstall.**
+-dontwarn com.google.android.play.core.tasks.**

@@ -10,11 +10,13 @@ import '../../../../auth/presentation/widgets/custom_text.dart';
 class ProductoImpuestosSection extends StatelessWidget {
   final TextEditingController impuestoPorcentajeController;
   final TextEditingController descuentoMaximoController;
+  final double? igvGlobal;
 
   const ProductoImpuestosSection({
     super.key,
     required this.impuestoPorcentajeController,
     required this.descuentoMaximoController,
+    this.igvGlobal,
   });
 
   @override
@@ -27,6 +29,14 @@ class ProductoImpuestosSection extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           AppSubtitle('IMPUESTOS Y DESCUENTOS'),
+          if (igvGlobal != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 2, bottom: 4),
+              child: Text(
+                'Vacío = usa IGV global (${igvGlobal!.toStringAsFixed(0)}%). Solo llena si es diferente.',
+                style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+              ),
+            ),
           const SizedBox(height: 5),
           Row(
             children: [
@@ -35,7 +45,7 @@ class ProductoImpuestosSection extends StatelessWidget {
                   controller: impuestoPorcentajeController,
                   borderColor: AppColors.blue1,
                   label: 'Impuesto (%)',
-                  hintText: '0.00',
+                  hintText: igvGlobal != null ? 'Global: ${igvGlobal!.toStringAsFixed(0)}%' : '0.00',
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   validator: _validatePercentage,
                 ),

@@ -9,21 +9,31 @@ class VentaAnalyticsCubit extends Cubit<VentaAnalyticsState> {
 
   VentaAnalyticsCubit(this._dioClient) : super(const VentaAnalyticsInitial());
 
-  Future<void> load({String? sedeId, String? periodo}) async {
+  Future<void> load({String? sedeId, String? periodo, String? fechaInicio, String? fechaFin, String? compAInicio, String? compAFin, String? compBInicio, String? compBFin}) async {
     emit(const VentaAnalyticsLoading());
 
     try {
       final params = <String, dynamic>{};
       if (sedeId != null) params['sedeId'] = sedeId;
       if (periodo != null) params['periodo'] = periodo;
+      if (fechaInicio != null) params['fechaInicio'] = fechaInicio;
+      if (fechaFin != null) params['fechaFin'] = fechaFin;
+
+      // Comparativo: enviar ambos periodos explícitamente
+      final comparativoParams = <String, dynamic>{};
+      if (sedeId != null) comparativoParams['sedeId'] = sedeId;
+      if (compAInicio != null) comparativoParams['fechaInicioA'] = compAInicio;
+      if (compAFin != null) comparativoParams['fechaFinA'] = compAFin;
+      if (compBInicio != null) comparativoParams['fechaInicioB'] = compBInicio;
+      if (compBFin != null) comparativoParams['fechaFinB'] = compBFin;
 
       final results = await Future.wait([
         _dioClient.get('/ventas/analytics/resumen', queryParameters: params),
         _dioClient.get('/ventas/analytics/ventas-periodo', queryParameters: params),
         _dioClient.get('/ventas/analytics/top-productos', queryParameters: params),
         _dioClient.get('/ventas/analytics/top-clientes', queryParameters: params),
-        _dioClient.get('/ventas/analytics/comparativo', queryParameters: params),
-        _dioClient.get('/ventas/analytics/alertas', queryParameters: params),
+        _dioClient.get('/ventas/analytics/comparativo', queryParameters: comparativoParams),
+        _dioClient.get('/ventas/analytics/alertas', queryParameters: comparativoParams),
       ]);
 
       if (isClosed) return;

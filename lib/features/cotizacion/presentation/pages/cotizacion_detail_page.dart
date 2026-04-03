@@ -2,8 +2,8 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
+import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/gradient_background.dart';
@@ -215,7 +215,7 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
     }
 
     final cot = _cotizacion!;
-    final dateFormat = DateFormat('dd/MM/yyyy HH:mm');
+    // Usar DateFormatter para formato consistente
 
     return RefreshIndicator(
       onRefresh: _loadCotizacion,
@@ -223,7 +223,7 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _buildHeaderSection(cot, dateFormat),
+          _buildHeaderSection(cot),
           const SizedBox(height: 12),
           _buildClienteSection(cot),
           const SizedBox(height: 12),
@@ -242,7 +242,7 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
 
   // ─── Header ───
 
-  Widget _buildHeaderSection(Cotizacion cot, DateFormat dateFormat) {
+  Widget _buildHeaderSection(Cotizacion cot) {
     return GradientContainer(
       borderColor: AppColors.blueborder,
       child: Padding(
@@ -283,10 +283,10 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
             ),
             const SizedBox(height: 14),
             _buildDetailRow(
-                Icons.calendar_today, 'Emision', dateFormat.format(cot.fechaEmision)),
+                Icons.calendar_today, 'Emision', DateFormatter.formatDateTime(cot.fechaEmision)),
             if (cot.fechaVencimiento != null)
               _buildDetailRow(Icons.event, 'Vencimiento',
-                  dateFormat.format(cot.fechaVencimiento!)),
+                  DateFormatter.formatDateTime(cot.fechaVencimiento!)),
             _buildDetailRow(
                 Icons.monetization_on_outlined, 'Moneda', cot.moneda),
             if (cot.sedeNombre != null)

@@ -568,13 +568,21 @@ class _AgregarComponenteDialogContentState
         : null;
 
     // Validar que no exista duplicado en el carrito
+    // Si tiene variante: verificar productoId + varianteId exacto
+    // Si no tiene variante: verificar que no exista ningún item con ese productoId
+    // También: si ya existe el producto base, no permitir agregar variante del mismo
     final varianteId = _varianteSeleccionada?.id;
     final bool existeEnCarrito = _carrito.any((componente) {
-      if (varianteId != null) {
-        return componente.productoId == productoId &&
-            componente.varianteId == varianteId;
+      // Mismo producto base ya está (como base o como variante)
+      if (componente.productoId == productoId) {
+        // Si ambos son variantes, verificar que sea la misma
+        if (varianteId != null && componente.varianteId != null) {
+          return componente.varianteId == varianteId;
+        }
+        // Si uno es base y otro variante (o ambos base), es duplicado
+        return true;
       }
-      return componente.productoId == productoId;
+      return false;
     });
 
     if (existeEnCarrito) {

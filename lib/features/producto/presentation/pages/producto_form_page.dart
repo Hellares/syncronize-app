@@ -160,14 +160,9 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
           }
         }
 
-        // Pre-fill impuesto desde configuración de empresa
-        final configState = context.read<ConfiguracionEmpresaCubit>().state;
-        if (configState is ConfiguracionEmpresaLoaded) {
-          final defaultImpuesto = configState.configuracion.impuestoDefaultPorcentaje;
-          if (defaultImpuesto > 0) {
-            _controller.impuestoPorcentajeController.text = defaultImpuesto.toString();
-          }
-        }
+        // NO pre-llenar impuesto: null = usa el IGV global actual de la empresa.
+        // Solo se llena si el usuario quiere un IGV personalizado (ej: exonerado 0%, tasa especial 10%).
+        // Al vender, si es null se toma el IGV global vigente.
       }
     });
 
@@ -522,7 +517,7 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
                   const SizedBox(height: 15),
                 ],
                 if (!_controller.tieneVariantes && !_controller.esCombo) ...[
-                  _buildPrecioStockInfoBanner(),
+                  //_buildPrecioStockInfoBanner(),
                   const SizedBox(height: 15),
                   _buildConfiguracionPrecioSelector(),
                   const SizedBox(height: 15),
@@ -561,6 +556,10 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
                 ProductoImpuestosSection(
                   impuestoPorcentajeController: _controller.impuestoPorcentajeController,
                   descuentoMaximoController: _controller.descuentoMaximoController,
+                  igvGlobal: () {
+                    final cs = context.read<ConfiguracionEmpresaCubit>().state;
+                    return cs is ConfiguracionEmpresaLoaded ? cs.configuracion.impuestoDefaultPorcentaje : null;
+                  }(),
                 ),
                 const SizedBox(height: 15),
                 _buildMultimediaSection(),
@@ -677,15 +676,21 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
       content = BlocListener<AtributoPlantillaCubit, AtributoPlantillaState>(
         listener: (context, state) {
           if (state is AtributoPlantillaLoaded) {
-            // Si ya se cargó el producto y tiene atributos, intentar cargarlos
+            // Intentar cargar atributos desde ProductoDetailCubit o desde widget.productoData
+            Producto? producto;
+
             final productoState = context.read<ProductoDetailCubit>().state;
             if (productoState is ProductoDetailLoaded) {
-              final producto = productoState.producto;
-              if (!producto.tieneVariantes && !producto.esCombo &&
-                  producto.atributosValores != null &&
-                  producto.atributosValores!.isNotEmpty) {
-                _cargarAtributosProducto(producto.atributosValores!);
-              }
+              producto = productoState.producto;
+            } else if (widget.productoData != null) {
+              producto = widget.productoData;
+            }
+
+            if (producto != null &&
+                !producto.tieneVariantes && !producto.esCombo &&
+                producto.atributosValores != null &&
+                producto.atributosValores!.isNotEmpty) {
+              _cargarAtributosProducto(producto.atributosValores!);
             }
           }
         },
@@ -798,44 +803,44 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
     );
   }
 
-  Widget _buildPrecioStockInfoBanner() {
-    final isEditing = widget.isEditing;
-    return GradientContainer(
-      shadowStyle: ShadowStyle.neumorphic,
-      borderColor: AppColors.blueborder,
-      padding: const EdgeInsets.only(left: 12, right: 12, top: 8, bottom: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.storefront, color: AppColors.blue1, size: 16),
-              const SizedBox(width: 8),
-              AppSubtitle('PRECIOS, STOCK Y OFERTAS'),
-            ],
-          ),
-          const SizedBox(height: 5),
-          Row(
-            children: [
-              Icon(Icons.info_outline, color: AppColors.blue1, size: 16),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  isEditing
-                      ? 'Los precios, stock y ofertas se gestionan por sede desde la vista de inventario del producto.'
-                      : 'Los precios, stock y ofertas se configuran por sede después de crear el producto.',
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: Colors.grey[800],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+  // Widget _buildPrecioStockInfoBanner() {
+  //   final isEditing = widget.isEditing;
+  //   return GradientContainer(
+  //     shadowStyle: ShadowStyle.neumorphic,
+  //     borderColor: AppColors.blueborder,
+  //     padding: const EdgeInsets.only(left: 12, right: 12, top: 8, bottom: 12),
+  //     child: Column(
+  //       crossAxisAlignment: CrossAxisAlignment.start,
+  //       children: [
+  //         Row(
+  //           children: [
+  //             Icon(Icons.storefront, color: AppColors.blue1, size: 16),
+  //             const SizedBox(width: 8),
+  //             AppSubtitle('PRECIOS, STOCK Y OFERTAS'),
+  //           ],
+  //         ),
+  //         const SizedBox(height: 5),
+  //         Row(
+  //           children: [
+  //             Icon(Icons.info_outline, color: AppColors.blue1, size: 16),
+  //             const SizedBox(width: 12),
+  //             Expanded(
+  //               child: Text(
+  //                 isEditing
+  //                     ? 'Los precios, stock y ofertas se gestionan por sede desde la vista de inventario del producto.'
+  //                     : 'Los precios, stock y ofertas se configuran por sede después de crear el producto.',
+  //                 style: TextStyle(
+  //                   fontSize: 10,
+  //                   color: Colors.grey[800],
+  //                 ),
+  //               ),
+  //             ),
+  //           ],
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
 
   Widget _buildImagesSection() {
     final empresaState = context.read<EmpresaContextCubit>().state;
@@ -973,9 +978,9 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
               },
             ),
             if (_controller.selectedPlantilla != null) ...[
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
               const Divider(),
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
               Row(
                 children: [
                   AppSubtitle('ATRIBUTOS DE LA PLANTILLA'),
@@ -1002,29 +1007,21 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
                   ],
                 ],
               ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.amber.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.amber.shade200),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.info_outline, color: Colors.amber.shade700, size: 20),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: AppSubtitle(
-                        'Completa los valores de los atributos. Los marcados como "Requerido" son obligatorios.',
-                        fontSize: 10,
-                        color: Colors.amber.shade900,
-                      ),
+              //const SizedBox(height: 6),
+              Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.amber.shade700, size: 14),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: AppSubtitle(
+                      'Completa los valores de los atributos. Los marcados como "Requerido" son obligatorios.',
+                      fontSize: 9,
+                      color: Colors.amber.shade900,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 6),
               ..._controller.selectedPlantilla!.atributos.map((plantillaAtributo) {
                 final atributoInfo = plantillaAtributo.atributo;
                 // Convertir PlantillaAtributoInfo a ProductoAtributo

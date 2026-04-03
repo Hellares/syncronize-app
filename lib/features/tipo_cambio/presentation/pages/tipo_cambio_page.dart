@@ -299,7 +299,7 @@ class _RegistrarManualButton extends StatelessWidget {
 
               final compra = double.parse(compraController.text);
               final venta = double.parse(ventaController.text);
-              final fecha = DateTime.now().toIso8601String().split('T').first;
+              final fecha = DateFormatter.formatForApi(DateTime.now());
 
               Navigator.of(dialogContext).pop();
 

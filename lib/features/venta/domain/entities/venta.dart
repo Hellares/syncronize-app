@@ -169,6 +169,17 @@ class Venta extends Equatable {
   final double? montoCreditoInicial;
   final List<CuotaVenta>? cuotas;
 
+  // Comprobante electrónico
+  final String? comprobanteId;
+  final String? tipoComprobante;
+  final String? codigoComprobante;
+  final double? comprobanteGravada;
+  final double? comprobanteExonerada;
+  final double? comprobanteInafecta;
+  final double? comprobanteIgv;
+  final double? comprobanteIcbper;
+  final String? comprobanteSunatHash;
+
   const Venta({
     required this.id,
     required this.empresaId,
@@ -213,6 +224,15 @@ class Venta extends Equatable {
     this.numeroCuotas,
     this.montoCreditoInicial,
     this.cuotas,
+    this.comprobanteId,
+    this.tipoComprobante,
+    this.codigoComprobante,
+    this.comprobanteGravada,
+    this.comprobanteExonerada,
+    this.comprobanteInafecta,
+    this.comprobanteIgv,
+    this.comprobanteIcbper,
+    this.comprobanteSunatHash,
   });
 
   bool get esEditable => estado == EstadoVenta.borrador;

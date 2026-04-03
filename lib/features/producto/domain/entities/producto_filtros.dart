@@ -128,11 +128,11 @@ class ProductoFiltros extends Equatable {
     if (stockBajo != null) {
       params['stockBajo'] = stockBajo.toString();
     }
-    if (soloProductos != null) {
-      params['soloProductos'] = soloProductos.toString();
+    if (soloProductos == true) {
+      params['soloProductos'] = 'true';
     }
-    if (soloCombos != null) {
-      params['soloCombos'] = soloCombos.toString();
+    if (soloCombos == true) {
+      params['soloCombos'] = 'true';
     }
     if (orden != null) {
       params['orden'] = _ordenToString(orden!);

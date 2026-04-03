@@ -888,6 +888,12 @@ class AppRouter {
         name: 'empresa-ventas-nueva',
         builder: (context, state) => const VentaPOSPage(),
       ),
+      // Analytics ANTES de :id para evitar que :id capture "analytics"
+      GoRoute(
+        path: '/empresa/ventas/analytics',
+        name: 'empresa-ventas-analytics',
+        builder: (context, state) => const VentaAnalyticsPage(),
+      ),
       GoRoute(
         path: '/empresa/ventas/:id',
         name: 'empresa-ventas-detail',
@@ -903,12 +909,6 @@ class AppRouter {
           final ventaId = state.pathParameters['id']!;
           return VentaTicketPreviewPage(ventaId: ventaId);
         },
-      ),
-      // Rutas de analytics de ventas
-      GoRoute(
-        path: '/empresa/ventas/analytics',
-        name: 'empresa-ventas-analytics',
-        builder: (context, state) => const VentaAnalyticsPage(),
       ),
       // Rutas de pedidos marketplace (empresa)
       GoRoute(

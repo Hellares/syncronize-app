@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
+import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/utils/resource.dart';
+import '../../domain/repositories/venta_repository.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/theme/gradient_container.dart';
 import '../../../../core/fonts/app_text_widgets.dart';
-import '../../../../core/utils/resource.dart';
 import '../../../../core/widgets/autorizacion_dialog.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../../../core/widgets/producto_sede_selector/producto_sede_search_cubit.dart';
@@ -222,7 +223,7 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
     }
 
     final v = _venta!;
-    final dateFormat = DateFormat('dd/MM/yyyy HH:mm');
+    // Usar DateFormatter para formato consistente
 
     return RefreshIndicator(
       onRefresh: _loadVenta,
@@ -230,7 +231,7 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _buildHeaderSection(v, dateFormat),
+          _buildHeaderSection(v),
           const SizedBox(height: 12),
           _buildClienteSection(v),
           const SizedBox(height: 12),
@@ -257,7 +258,7 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
     );
   }
 
-  Widget _buildHeaderSection(Venta v, DateFormat dateFormat) {
+  Widget _buildHeaderSection(Venta v) {
     return GradientContainer(
       borderColor: AppColors.blueborder,
       child: Padding(
@@ -285,7 +286,7 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
             ),
             const SizedBox(height: 14),
             _buildDetailRow(
-                Icons.calendar_today, 'Fecha', dateFormat.format(v.fechaVenta)),
+                Icons.calendar_today, 'Fecha', DateFormatter.formatDateTime(v.fechaVenta)),
             _buildDetailRow(
                 Icons.monetization_on_outlined, 'Moneda', v.moneda),
             if (v.sedeNombre != null)
@@ -296,6 +297,32 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
             if (v.cotizacionCodigo != null)
               _buildDetailRow(
                   Icons.link, 'Cotizacion', v.cotizacionCodigo!),
+            // Comprobante
+            const SizedBox(height: 6),
+            if (v.codigoComprobante != null)
+              _buildDetailRow(
+                  Icons.receipt_long, 'Comprobante',
+                  '${v.tipoComprobante} ${v.codigoComprobante}')
+            else
+              Row(
+                children: [
+                  Icon(Icons.receipt_long, size: 14, color: Colors.orange.shade700),
+                  const SizedBox(width: 8),
+                  Text('TICKET', style: TextStyle(fontSize: 11, color: Colors.orange.shade700, fontWeight: FontWeight.w600)),
+                  const Spacer(),
+                  GestureDetector(
+                    onTap: () => _showGenerarComprobanteDialog(context, v),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.blue1,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Text('Generar Comprobante', style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w600)),
+                    ),
+                  ),
+                ],
+              ),
           ],
         ),
       ),
@@ -503,7 +530,7 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
             _buildSectionHeader(Icons.history, 'HISTORIAL DE PAGOS'),
             const SizedBox(height: 12),
             ...v.pagos!.map((pago) {
-              final dateFormat = DateFormat('dd/MM/yyyy HH:mm');
+              // Usar DateFormatter para formato consistente
               return Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Row(
@@ -518,7 +545,7 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                                 fontSize: 12, fontWeight: FontWeight.w600),
                           ),
                           Text(
-                            dateFormat.format(pago.fechaPago),
+                            DateFormatter.formatDateTime(pago.fechaPago),
                             style: TextStyle(
                                 fontSize: 10, color: Colors.grey.shade600),
                           ),
@@ -647,7 +674,7 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                           Text('S/ ${cuota.monto.toStringAsFixed(2)}',
                               style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                           Text(
-                            'Vence: ${DateFormat('dd/MM/yyyy').format(cuota.fechaVencimiento)}'
+                            'Vence: ${DateFormatter.formatDate(cuota.fechaVencimiento)}'
                             '${cuota.montoPagado > 0 ? ' | Pagado: S/ ${cuota.montoPagado.toStringAsFixed(2)}' : ''}',
                             style: TextStyle(fontSize: 10, color: Colors.grey[600]),
                           ),
@@ -859,6 +886,60 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
       case 'anular':
         _showAnularDialog(context);
         break;
+    }
+  }
+
+  void _showGenerarComprobanteDialog(BuildContext context, Venta v) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Generar Comprobante', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Venta: ${v.codigo}', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+            Text('Total: S/ ${v.total.toStringAsFixed(2)}', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+            const SizedBox(height: 16),
+            const Text('Selecciona el tipo de comprobante:', style: TextStyle(fontSize: 13)),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () { Navigator.pop(ctx); _generarComprobante(v.id, 'BOLETA'); },
+            icon: const Icon(Icons.receipt, size: 16),
+            label: const Text('Boleta'),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.blue1, foregroundColor: Colors.white),
+          ),
+          ElevatedButton.icon(
+            onPressed: () { Navigator.pop(ctx); _generarComprobante(v.id, 'FACTURA'); },
+            icon: const Icon(Icons.description, size: 16),
+            label: const Text('Factura'),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade700, foregroundColor: Colors.white),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _generarComprobante(String ventaId, String tipo) async {
+    setState(() => _loading = true);
+    final repo = locator<VentaRepository>();
+    final result = await repo.generarComprobante(ventaId: ventaId, tipoComprobante: tipo);
+    if (!mounted) return;
+    setState(() => _loading = false);
+    if (result is Success<Venta>) {
+      setState(() => _venta = result.data);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$tipo generada: ${result.data.codigoComprobante ?? ''}'), backgroundColor: Colors.green),
+      );
+    } else if (result is Error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text((result as Error).message), backgroundColor: Colors.red),
+      );
     }
   }
 

@@ -51,6 +51,15 @@ class VentaModel extends Venta {
     super.numeroCuotas,
     super.montoCreditoInicial,
     super.cuotas,
+    super.comprobanteId,
+    super.tipoComprobante,
+    super.codigoComprobante,
+    super.comprobanteGravada,
+    super.comprobanteExonerada,
+    super.comprobanteInafecta,
+    super.comprobanteIgv,
+    super.comprobanteIcbper,
+    super.comprobanteSunatHash,
   });
 
   factory VentaModel.fromJson(Map<String, dynamic> json) {
@@ -157,6 +166,15 @@ class VentaModel extends Venta {
       numeroCuotas: json['numeroCuotas'] as int?,
       montoCreditoInicial: json['montoCreditoInicial'] != null ? _toDouble(json['montoCreditoInicial']) : null,
       cuotas: cuotas,
+      comprobanteId: (json['comprobante'] as Map<String, dynamic>?)?['id'] as String?,
+      tipoComprobante: (json['comprobante'] as Map<String, dynamic>?)?['tipoComprobante'] as String?,
+      codigoComprobante: (json['comprobante'] as Map<String, dynamic>?)?['codigoGenerado'] as String?,
+      comprobanteGravada: _tryParseDouble(json['comprobante'], 'gravada'),
+      comprobanteExonerada: _tryParseDouble(json['comprobante'], 'exonerada'),
+      comprobanteInafecta: _tryParseDouble(json['comprobante'], 'inafecta'),
+      comprobanteIgv: _tryParseDouble(json['comprobante'], 'igv'),
+      comprobanteIcbper: _tryParseDouble(json['comprobante'], 'icbper'),
+      comprobanteSunatHash: (json['comprobante'] as Map<String, dynamic>?)?['sunatHash'] as String?,
     );
   }
 
@@ -173,5 +191,14 @@ class VentaModel extends Venta {
   static double? _toDoubleNullable(dynamic value) {
     if (value == null) return null;
     return _toDouble(value);
+  }
+
+  static double? _tryParseDouble(dynamic map, String key) {
+    if (map == null || map is! Map<String, dynamic>) return null;
+    final val = map[key];
+    if (val == null) return null;
+    if (val is num) return val.toDouble();
+    if (val is String) return double.tryParse(val);
+    return null;
   }
 }

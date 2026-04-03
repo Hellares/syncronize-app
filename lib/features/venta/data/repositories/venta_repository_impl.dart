@@ -174,6 +174,27 @@ class VentaRepositoryImpl implements VentaRepository {
   }
 
   @override
+  Future<Resource<Venta>> generarComprobante({
+    required String ventaId,
+    required String tipoComprobante,
+    String? tipoDocumentoCliente,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final venta = await _remoteDataSource.generarComprobante(
+        ventaId,
+        tipoComprobante: tipoComprobante,
+        tipoDocumentoCliente: tipoDocumentoCliente,
+      );
+      return Success(venta.toEntity());
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Venta');
+    }
+  }
+
+  @override
   Future<Resource<Map<String, dynamic>>> getResumen({String? sedeId}) async {
     if (!await _networkInfo.isConnected) {
       return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');

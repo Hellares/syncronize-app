@@ -7,12 +7,14 @@ class ItemTableRow {
   final double cantidad;
   final double precioUnitario;
   final double subtotal;
+  final double? porcentajeIGV;
 
   const ItemTableRow({
     required this.descripcion,
     required this.cantidad,
     required this.precioUnitario,
     required this.subtotal,
+    this.porcentajeIGV,
   });
 }
 
@@ -48,6 +50,9 @@ class ItemsTableWidget extends StatelessWidget {
 
     final showRemove = onRemove != null;
     final subtotal = items.fold(0.0, (sum, i) => sum + i.subtotal);
+    final hayIgvMixto = items.length > 1 &&
+        items.any((i) => i.porcentajeIGV != null) &&
+        !items.every((i) => i.porcentajeIGV == items.first.porcentajeIGV);
 
     return Container(
       decoration: BoxDecoration(
@@ -83,11 +88,31 @@ class ItemsTableWidget extends StatelessWidget {
                 children: [
                   Expanded(
                     flex: 4,
-                    child: Text(
-                      item.descripcion,
-                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            item.descripcion,
+                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (hayIgvMixto && item.porcentajeIGV != null)
+                          Container(
+                            margin: const EdgeInsets.only(left: 3),
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.shade50,
+                              borderRadius: BorderRadius.circular(3),
+                              border: Border.all(color: Colors.orange.shade300, width: 0.5),
+                            ),
+                            child: Text(
+                              '${item.porcentajeIGV!.toStringAsFixed(0)}%',
+                              style: TextStyle(fontSize: 8, fontWeight: FontWeight.w600, color: Colors.orange.shade700),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                   SizedBox(

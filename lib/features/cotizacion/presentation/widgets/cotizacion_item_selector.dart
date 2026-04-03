@@ -163,7 +163,9 @@ class _CotizacionItemSelectorState extends State<CotizacionItemSelector> {
                     controller: _descuentoController,
                     borderColor: AppColors.blue1,
                     label: 'Descuento',
-                    hintText: 'Descuento',
+                    hintText: _productoSeleccionado?.descuentoMaximo != null
+                        ? 'Máx ${_productoSeleccionado!.descuentoMaximo!.toStringAsFixed(0)}%'
+                        : 'Descuento',
                     keyboardType: TextInputType.number,
                   ),
                 ),
@@ -193,9 +195,9 @@ class _CotizacionItemSelectorState extends State<CotizacionItemSelector> {
       empresaId: _empresaId!,
       sedeIdInicial: _sedeId,
       mostrarSelectorSede: true,
-      soloProductos: true,
-      label: 'Selecciona un producto *',
-      hintText: 'Buscar producto...',
+      soloProductos: false,
+      label: 'Selecciona un producto o combo *',
+      hintText: 'Buscar producto o combo...',
       onProductoSeleccionado: ({
         required ProductoListItem producto,
         required String sedeId,
@@ -252,11 +254,15 @@ class _CotizacionItemSelectorState extends State<CotizacionItemSelector> {
       return;
     }
 
-    // Leer porcentaje de impuesto desde configuración
+    // Leer porcentaje de impuesto: primero del producto, si no del global
     double porcentajeIGV = 18.0;
-    final configState = context.read<ConfiguracionEmpresaCubit>().state;
-    if (configState is ConfiguracionEmpresaLoaded) {
-      porcentajeIGV = configState.configuracion.impuestoDefaultPorcentaje;
+    if (_tipoItem == 'producto' && _productoSeleccionado != null && _productoSeleccionado!.impuestoPorcentaje != null) {
+      porcentajeIGV = _productoSeleccionado!.impuestoPorcentaje!;
+    } else {
+      final configState = context.read<ConfiguracionEmpresaCubit>().state;
+      if (configState is ConfiguracionEmpresaLoaded) {
+        porcentajeIGV = configState.configuracion.impuestoDefaultPorcentaje;
+      }
     }
 
     // Detectar si el precio incluye IGV
@@ -265,6 +271,7 @@ class _CotizacionItemSelectorState extends State<CotizacionItemSelector> {
       incluyeIgv = _productoSeleccionado!.precioIncluyeIgvEnSede(_sedeId!);
     }
 
+    final esCombo = _tipoItem == 'producto' && _productoSeleccionado?.esCombo == true;
     final item = CotizacionDetalleInput(
       descripcion: descripcion,
       cantidad: cantidad,
@@ -272,8 +279,9 @@ class _CotizacionItemSelectorState extends State<CotizacionItemSelector> {
       descuento: descuento,
       porcentajeIGV: porcentajeIGV,
       precioIncluyeIgv: incluyeIgv,
-      productoId: _tipoItem == 'producto' ? _productoSeleccionado?.id : null,
-      varianteId: _tipoItem == 'producto' ? _varianteSeleccionada?.id : null,
+      productoId: _tipoItem == 'producto' && !esCombo ? _productoSeleccionado?.id : null,
+      varianteId: _tipoItem == 'producto' && !esCombo ? _varianteSeleccionada?.id : null,
+      comboId: esCombo ? _productoSeleccionado?.id : null,
     );
 
     widget.onItemSelected(item);

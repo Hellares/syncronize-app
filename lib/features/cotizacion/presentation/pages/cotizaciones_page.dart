@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
+import '../../../../core/utils/date_formatter.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/app_gradients.dart';
@@ -271,7 +271,7 @@ class _CotizacionListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dateFormat = DateFormat('dd/MM/yyyy');
+    // Usar DateFormatter para formato consistente
 
     return GradientContainer(
       shadowStyle: ShadowStyle.colorful,
@@ -292,7 +292,7 @@ class _CotizacionListTile extends StatelessWidget {
                   CotizacionEstadoChip(estado: cotizacion.estado),
                   Spacer(),
                   Text(
-                    dateFormat.format(cotizacion.fechaEmision),
+                    DateFormatter.formatDate(cotizacion.fechaEmision),
                     style: TextStyle(
                       fontSize: 10,
                       color: Colors.grey.shade600,

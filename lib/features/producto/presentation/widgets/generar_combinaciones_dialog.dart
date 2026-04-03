@@ -58,6 +58,10 @@ class _GenerarCombinacionesDialogState
   // Plantilla seleccionada (si se eligió una)
   String? _plantillaSeleccionadaNombre;
 
+  // Stock distribution
+  String _stockDistribucion = 'SIN_STOCK'; // SIN_STOCK | EQUITATIVO
+  final _stockTotalController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
@@ -137,6 +141,7 @@ class _GenerarCombinacionesDialogState
   void dispose() {
     _precioBaseController.dispose();
     _precioCostoController.dispose();
+    _stockTotalController.dispose();
     super.dispose();
   }
 
@@ -374,6 +379,94 @@ class _GenerarCombinacionesDialogState
                           return null;
                         },
                       ),
+
+                      const SizedBox(height: 16),
+
+                      // Stock distribution
+                      Text('Stock Inicial',
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.blue1)),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => setState(() => _stockDistribucion = 'SIN_STOCK'),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                                decoration: BoxDecoration(
+                                  color: _stockDistribucion == 'SIN_STOCK' ? AppColors.blue1.withValues(alpha: 0.1) : Colors.grey.shade50,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: _stockDistribucion == 'SIN_STOCK' ? AppColors.blue1 : Colors.grey.shade300),
+                                ),
+                                child: Column(
+                                  children: [
+                                    Icon(Icons.inventory_2_outlined, size: 20, color: _stockDistribucion == 'SIN_STOCK' ? AppColors.blue1 : Colors.grey),
+                                    const SizedBox(height: 4),
+                                    Text('Sin stock', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: _stockDistribucion == 'SIN_STOCK' ? AppColors.blue1 : Colors.grey.shade600)),
+                                    Text('Agregar después', style: TextStyle(fontSize: 8, color: Colors.grey.shade500)),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => setState(() => _stockDistribucion = 'EQUITATIVO'),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                                decoration: BoxDecoration(
+                                  color: _stockDistribucion == 'EQUITATIVO' ? AppColors.blue1.withValues(alpha: 0.1) : Colors.grey.shade50,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: _stockDistribucion == 'EQUITATIVO' ? AppColors.blue1 : Colors.grey.shade300),
+                                ),
+                                child: Column(
+                                  children: [
+                                    Icon(Icons.balance, size: 20, color: _stockDistribucion == 'EQUITATIVO' ? AppColors.blue1 : Colors.grey),
+                                    const SizedBox(height: 4),
+                                    Text('Repartir', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: _stockDistribucion == 'EQUITATIVO' ? AppColors.blue1 : Colors.grey.shade600)),
+                                    Text('Equitativamente', style: TextStyle(fontSize: 8, color: Colors.grey.shade500)),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (_stockDistribucion == 'EQUITATIVO') ...[
+                        const SizedBox(height: 10),
+                        CustomText(
+                          borderColor: AppColors.blue1,
+                          controller: _stockTotalController,
+                          label: 'Stock total a repartir',
+                          hintText: 'Ej: 50',
+                          keyboardType: TextInputType.number,
+                          prefixIcon: const Icon(Icons.inventory, size: 20),
+                          onChanged: (_) => setState(() {}),
+                        ),
+                        if (_stockTotalController.text.isNotEmpty && _combinaciones.isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Builder(builder: (_) {
+                            final stockTotal = int.tryParse(_stockTotalController.text) ?? 0;
+                            final cant = _combinaciones.length;
+                            if (stockTotal <= 0 || cant == 0) return const SizedBox.shrink();
+                            final porVariante = stockTotal ~/ cant;
+                            final resto = stockTotal % cant;
+                            return Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.green.shade50,
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: Colors.green.shade200),
+                              ),
+                              child: Text(
+                                '$cant variantes × $porVariante c/u = ${porVariante * cant}${resto > 0 ? ' (+$resto para las primeras $resto)' : ''}',
+                                style: TextStyle(fontSize: 10, color: Colors.green.shade700, fontWeight: FontWeight.w500),
+                              ),
+                            );
+                          }),
+                        ],
+                      ],
 
                       const SizedBox(height: 16),
 
@@ -677,6 +770,9 @@ class _GenerarCombinacionesDialogState
 
     if (atributosConSeleccion.isEmpty) return;
 
+    final precioBase = double.tryParse(_precioBaseController.text.trim());
+    if (precioBase == null || precioBase <= 0) return;
+
     final data = <String, dynamic>{
       'atributos': atributosConSeleccion.map((a) {
         return {
@@ -684,12 +780,21 @@ class _GenerarCombinacionesDialogState
           'valores': _selectedValues[a.atributoId]!.toList(),
         };
       }).toList(),
-      'precioBase': double.parse(_precioBaseController.text.trim()),
+      'precioBase': precioBase,
     };
 
-    final costText = _precioCostoController.text.trim();
-    if (costText.isNotEmpty) {
-      data['precioCosto'] = double.parse(costText);
+    final precioCosto = double.tryParse(_precioCostoController.text.trim());
+    if (precioCosto != null && precioCosto >= 0) {
+      data['precioCosto'] = precioCosto;
+    }
+
+    // Stock distribution
+    if (_stockDistribucion == 'EQUITATIVO') {
+      final stockText = _stockTotalController.text.trim();
+      if (stockText.isNotEmpty && int.tryParse(stockText) != null && int.parse(stockText) > 0) {
+        data['stockDistribucion'] = 'EQUITATIVO';
+        data['stockTotal'] = int.parse(stockText);
+      }
     }
 
     widget.onSave(data);

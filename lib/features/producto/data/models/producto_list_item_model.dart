@@ -17,6 +17,8 @@ class ProductoListItemModel extends ProductoListItem {
     super.variantes,
     super.stocksPorSede,
     super.comboReservado,
+    super.impuestoPorcentaje,
+    super.descuentoMaximo,
   });
 
   factory ProductoListItemModel.fromJson(Map<String, dynamic> json) {
@@ -48,6 +50,12 @@ class ProductoListItemModel extends ProductoListItem {
             )
           : null,
       comboReservado: json['comboReservado'] as int? ?? 0,
+      impuestoPorcentaje: json['impuestoPorcentaje'] != null
+          ? double.tryParse(json['impuestoPorcentaje'].toString())
+          : null,
+      descuentoMaximo: json['descuentoMaximo'] != null
+          ? double.tryParse(json['descuentoMaximo'].toString())
+          : null,
     );
   }
 
@@ -121,6 +129,8 @@ class ProductoListItemModel extends ProductoListItem {
       variantes: entity.variantes,
       stocksPorSede: entity.stocksPorSede,
       comboReservado: entity.comboReservado,
+      impuestoPorcentaje: entity.impuestoPorcentaje,
+      descuentoMaximo: entity.descuentoMaximo,
     );
   }
 }

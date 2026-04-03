@@ -63,15 +63,15 @@ class _ComboCreateContentState extends State<_ComboCreateContent> {
                 backgroundColor: Colors.green,
               ),
             );
-            // Navegar al detalle del combo creado
+            // Navegar al detalle del combo creado (reemplaza la página actual)
             if (state.combo != null) {
-              context.pop();
-              // Opcional: navegar al detalle del combo
               final empresaState = context.read<EmpresaContextCubit>().state;
               if (empresaState is EmpresaContextLoaded) {
-                context.push(
+                context.pushReplacement(
                   '/empresa/combos/${state.combo!.id}?empresaId=${empresaState.context.empresa.id}',
                 );
+              } else {
+                context.pop();
               }
             }
           } else if (state is ComboError) {

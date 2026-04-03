@@ -44,7 +44,7 @@ class ResumenVentaWidget extends StatelessWidget {
             ],
             const SizedBox(height: 4),
             _buildRow(
-              '$nombreImpuesto (${porcentajeImpuesto.toStringAsFixed(0)}%)',
+              '$nombreImpuesto${items.isNotEmpty && items.every((i) => i.porcentajeIGV == items.first.porcentajeIGV) ? ' (${items.first.porcentajeIGV.toStringAsFixed(0)}%)' : ''}',
               '$moneda ${impuestos.toStringAsFixed(2)}',
             ),
             Padding(

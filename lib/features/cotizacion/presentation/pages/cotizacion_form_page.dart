@@ -6,6 +6,7 @@ import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/widgets/custom_button.dart';
 import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/utils/date_formatter.dart' as df;
 import '../../../../core/utils/resource.dart';
 import '../../../../core/widgets/custom_dropdown.dart';
 import '../../../../core/widgets/date/custom_date.dart';
@@ -66,7 +67,8 @@ class _CotizacionFormPageState extends State<CotizacionFormPage> {
   List<Map<String, dynamic>> _conflictos = [];
 
   // Configuración fiscal (defaults si no se ha cargado)
-  double _impuestoPorcentaje = 18.0;
+  // ignore: unused_field
+  double _impuestoPorcentaje = 18.0; // Mantenido para referencia, el IGV real es per-item
   String _nombreImpuesto = 'IGV';
   int _diasVigencia = 30;
 
@@ -147,9 +149,7 @@ class _CotizacionFormPageState extends State<CotizacionFormPage> {
         _observacionesController.text = cot.observaciones ?? '';
         _condicionesController.text = cot.condiciones ?? '';
         if (cot.fechaVencimiento != null) {
-          final fv = cot.fechaVencimiento!;
-          _fechaVencimientoController.text =
-              '${fv.day.toString().padLeft(2, '0')}/${fv.month.toString().padLeft(2, '0')}/${fv.year}';
+          _fechaVencimientoController.text = df.DateFormatter.formatDate(cot.fechaVencimiento!);
         }
 
         _isLoadingCotizacion = false;
@@ -595,13 +595,32 @@ class _CotizacionFormPageState extends State<CotizacionFormPage> {
             final cantidad = item.cantidad;
             final precio = item.precioUnitario;
             final subtotal = cantidad * precio;
+            final hayIgvMixto = _items.length > 1 && !_items.every((i) => i.porcentajeIGV == _items.first.porcentajeIGV);
 
             return GradientContainer(
               margin: const EdgeInsets.only(bottom: 6),
               child: ListTile(
                 dense: true,
                 contentPadding: const EdgeInsets.only(right: 1, left: 10),
-                title: AppSubtitle(item.descripcion),
+                title: Row(
+                  children: [
+                    Expanded(child: AppSubtitle(item.descripcion)),
+                    if (hayIgvMixto)
+                      Container(
+                        margin: const EdgeInsets.only(left: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: item.porcentajeIGV != _items.first.porcentajeIGV ? Colors.orange.shade50 : Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: item.porcentajeIGV != _items.first.porcentajeIGV ? Colors.orange.shade300 : Colors.blue.shade300, width: 0.5),
+                        ),
+                        child: Text(
+                          'IGV ${item.porcentajeIGV.toStringAsFixed(0)}%',
+                          style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: item.porcentajeIGV != _items.first.porcentajeIGV ? Colors.orange.shade700 : Colors.blue.shade700),
+                        ),
+                      ),
+                  ],
+                ),
                 subtitle: AppSubtitle(
                   '${cantidad.toStringAsFixed(0)} x $_moneda ${precio.toStringAsFixed(2)}',
                   color: Colors.grey.shade600,
@@ -734,7 +753,7 @@ class _CotizacionFormPageState extends State<CotizacionFormPage> {
 
             // Totales
             _SummaryRow('Subtotal', '$_moneda ${subtotal.toStringAsFixed(2)}'),
-            _SummaryRow('$_nombreImpuesto (${_impuestoPorcentaje.toStringAsFixed(0)}%)', '$_moneda ${igv.toStringAsFixed(2)}'),
+            _SummaryRow('$_nombreImpuesto${_items.isNotEmpty && _items.every((i) => i.porcentajeIGV == _items.first.porcentajeIGV) ? ' (${_items.first.porcentajeIGV.toStringAsFixed(0)}%)' : ''}', '$_moneda ${igv.toStringAsFixed(2)}'),
             const SizedBox(height: 4),
             _SummaryRow('Total', '$_moneda ${total.toStringAsFixed(2)}',
                 bold: true),

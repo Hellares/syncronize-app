@@ -111,15 +111,18 @@ class PdfVentaGenerator {
 
               _dottedLine(color: colorPrimario, thickness: 1.2),
 
-              // Titulo
-              pw.Text('TICKET DE VENTA',
+              // Titulo: usar tipo de comprobante si tiene, sino TICKET DE VENTA
+              pw.Text(
+                  venta.tipoComprobante != null
+                      ? '${venta.tipoComprobante} ELECTRONICA'
+                      : 'TICKET DE VENTA',
                   style: pw.TextStyle(
                     fontSize: 9,
                     fontWeight: pw.FontWeight.bold,
                     color: colorPrimario,
                   ),
                   textAlign: pw.TextAlign.center),
-              pw.Text(venta.codigo,
+              pw.Text(venta.codigoComprobante ?? venta.codigo,
                   style: pw.TextStyle(
                     fontSize: 8,
                     fontWeight: pw.FontWeight.bold,
@@ -157,7 +160,14 @@ class PdfVentaGenerator {
                 if (venta.documentoCliente != null)
                   pw.Align(
                     alignment: pw.Alignment.centerLeft,
-                    child: pw.Text('Doc: ${venta.documentoCliente}',
+                    child: pw.Text(
+                        '${venta.tipoComprobante == 'FACTURA' ? 'RUC' : 'Doc'}: ${venta.documentoCliente}',
+                        style: pw.TextStyle(fontSize: 7, color: colorCuerpo)),
+                  ),
+                if (venta.direccionCliente != null && venta.tipoComprobante != null)
+                  pw.Align(
+                    alignment: pw.Alignment.centerLeft,
+                    child: pw.Text('Dir: ${venta.direccionCliente}',
                         style: pw.TextStyle(fontSize: 7, color: colorCuerpo)),
                   ),
                 _dottedLine(color: colorPrimario),
@@ -230,6 +240,35 @@ class PdfVentaGenerator {
                   ],
                 ),
                 _dottedLine(color: colorPrimario),
+
+                // Info tributaria SUNAT para boleta/factura
+                if (venta.tipoComprobante != null) ...[
+                  pw.SizedBox(height: 3),
+                  pw.Align(
+                    alignment: pw.Alignment.centerLeft,
+                    child: pw.Text('INFORMACIÓN TRIBUTARIA',
+                        style: pw.TextStyle(fontSize: 6, fontWeight: pw.FontWeight.bold, color: colorPrimario)),
+                  ),
+                  pw.SizedBox(height: 2),
+                  if (venta.comprobanteGravada != null && venta.comprobanteGravada! > 0)
+                    _buildTotalRow('Op. Gravada', 'S/ ${venta.comprobanteGravada!.toStringAsFixed(2)}', color: colorCuerpo, fontSize: 6.5),
+                  if (venta.comprobanteExonerada != null && venta.comprobanteExonerada! > 0)
+                    _buildTotalRow('Op. Exonerada', 'S/ ${venta.comprobanteExonerada!.toStringAsFixed(2)}', color: colorCuerpo, fontSize: 6.5),
+                  if (venta.comprobanteInafecta != null && venta.comprobanteInafecta! > 0)
+                    _buildTotalRow('Op. Inafecta', 'S/ ${venta.comprobanteInafecta!.toStringAsFixed(2)}', color: colorCuerpo, fontSize: 6.5),
+                  if (venta.comprobanteIgv != null)
+                    _buildTotalRow(nombreImpuesto, 'S/ ${venta.comprobanteIgv!.toStringAsFixed(2)}', color: colorCuerpo, fontSize: 6.5),
+                  if (venta.comprobanteIcbper != null && venta.comprobanteIcbper! > 0)
+                    _buildTotalRow('ICBPER', 'S/ ${venta.comprobanteIcbper!.toStringAsFixed(2)}', color: colorCuerpo, fontSize: 6.5),
+                  _buildTotalRow('Importe Total', 'S/ ${venta.total.toStringAsFixed(2)}', color: colorPrimario, fontSize: 7),
+                  if (venta.comprobanteSunatHash != null) ...[
+                    pw.SizedBox(height: 3),
+                    pw.Text('Hash: ${venta.comprobanteSunatHash}',
+                        style: pw.TextStyle(fontSize: 5, color: colorCuerpo),
+                        textAlign: pw.TextAlign.center),
+                  ],
+                  pw.SizedBox(height: 2),
+                ],
               ],
 
               // Pagos
@@ -393,14 +432,14 @@ class PdfVentaGenerator {
   }
 
   static pw.Widget _buildTotalRow(String label, String value,
-      {PdfColor color = PdfColors.black}) {
+      {PdfColor color = PdfColors.black, double fontSize = 8}) {
     return pw.Padding(
       padding: const pw.EdgeInsets.only(bottom: 1),
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
-          pw.Text(label, style: pw.TextStyle(fontSize: 8, color: color)),
-          pw.Text(value, style: pw.TextStyle(fontSize: 8, color: color)),
+          pw.Text(label, style: pw.TextStyle(fontSize: fontSize, color: color)),
+          pw.Text(value, style: pw.TextStyle(fontSize: fontSize, color: color)),
         ],
       ),
     );
