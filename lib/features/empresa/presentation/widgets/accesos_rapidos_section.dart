@@ -29,14 +29,25 @@ class AccesosRapidosSection extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 6),
-          // Fila 2: Inventario & Herramientas
+          // Fila 2: Ventas & Facturación
           Row(
             children: [
-              _card(Icons.inventory_2, 'Monitor Prod.', Colors.deepOrange, () => context.push('/empresa/monitor-productos')),
+              _card(Icons.shopping_bag, 'Ventas', Colors.indigo, () => context.push('/empresa/ventas')),
+              _card(Icons.description, 'Facturación', Colors.teal, () => context.push('/empresa/monitor-facturacion')),
               _card(Icons.room_service, 'Servicios', Colors.blue, () => context.push('/empresa/servicios')),
-              _card(Icons.currency_exchange, 'Tipo Cambio', Colors.green.shade700, () => context.push('/empresa/tipo-cambio')),
               _card(Icons.inventory, 'Productos', Colors.blue.shade800, () => context.push('/empresa/productos')),
               _card(Icons.request_quote, 'Cotizaciones', Colors.purple, () => context.push('/empresa/cotizaciones')),
+            ],
+          ),
+          const SizedBox(height: 6),
+          // Fila 3: Herramientas
+          Row(
+            children: [
+              _card(Icons.build_circle, 'Órdenes Serv.', Colors.orange.shade700, () => context.push('/empresa/ordenes-servicio')),
+              _card(Icons.inventory_2, 'Monitor Prod.', Colors.deepOrange, () => context.push('/empresa/monitor-productos')),
+              _card(Icons.currency_exchange, 'Tipo Cambio', Colors.green.shade700, () => context.push('/empresa/tipo-cambio')),
+              _card(Icons.people, 'Clientes', Colors.amber.shade800, () => context.push('/empresa/clientes')),
+              _card(Icons.settings, 'Config', Colors.grey.shade600, () => context.push('/empresa/configuracion')),
             ],
           ),
         ],

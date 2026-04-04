@@ -12,8 +12,10 @@ class VentaDetalle extends Equatable {
   final double cantidad;
   final double precioUnitario;
   final double descuento;
+  final String tipoAfectacion;
   final double porcentajeIGV;
   final double igv;
+  final double icbper;
   final double subtotal;
   final double total;
   final int orden;
@@ -37,8 +39,10 @@ class VentaDetalle extends Equatable {
     required this.cantidad,
     required this.precioUnitario,
     this.descuento = 0,
+    this.tipoAfectacion = '10',
     this.porcentajeIGV = 18,
     this.igv = 0,
+    this.icbper = 0,
     required this.subtotal,
     required this.total,
     this.orden = 0,
@@ -70,8 +74,10 @@ class VentaDetalle extends Equatable {
         cantidad,
         precioUnitario,
         descuento,
+        tipoAfectacion,
         porcentajeIGV,
         igv,
+        icbper,
         subtotal,
         total,
         orden,

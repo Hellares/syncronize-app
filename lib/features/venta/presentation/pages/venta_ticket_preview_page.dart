@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/services/storage_service.dart';
+import '../../data/datasources/venta_remote_datasource.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/utils/resource.dart';
@@ -97,6 +98,23 @@ class _VentaTicketPreviewPageState extends State<VentaTicketPreviewPage> {
       }
     } catch (_) {}
 
+    // Cargar config efectiva de facturación (sede > empresa)
+    String? resolucionSunat;
+    String? rucEfectivo;
+    String? razonSocialEfectiva;
+    String? nombreComercialEfectivo;
+    String? direccionFiscalEfectiva;
+    try {
+      final datasource = locator<VentaRemoteDataSource>();
+      // Usar sede del comprobante (emisor) si existe, sino sede de la venta
+      final config = await datasource.getConfiguracionSunat(sedeId: venta.comprobanteSedeId ?? venta.sedeId);
+      resolucionSunat = config['resolucionSunat'] as String?;
+      rucEfectivo = config['ruc'] as String?;
+      razonSocialEfectiva = config['razonSocial'] as String?;
+      nombreComercialEfectivo = config['nombreComercial'] as String?;
+      direccionFiscalEfectiva = config['direccionFiscal'] as String?;
+    } catch (_) {}
+
     // Logo: prioridad configuración de documentos > logo de empresa
     Uint8List? logoBytes;
     final logoUrl = documentConfig?.configuracion.logoUrl ?? empresa.logo;
@@ -127,12 +145,16 @@ class _VentaTicketPreviewPageState extends State<VentaTicketPreviewPage> {
       final pdf = await PdfVentaGenerator.generarTicket(
         venta: venta,
         empresaNombre: empresa.nombre,
-        empresaRuc: empresa.ruc,
+        empresaRuc: rucEfectivo ?? empresa.ruc,
+        razonSocial: razonSocialEfectiva,
+        nombreComercial: nombreComercialEfectivo,
+        direccionFiscal: direccionFiscalEfectiva,
         logoEmpresa: logoBytes,
         nombreImpuesto: nombreImpuesto,
         porcentajeImpuesto: porcentajeImpuesto,
         documentConfig: documentConfig,
         firmaCliente: firmaBytes,
+        resolucionSunat: resolucionSunat,
       );
 
       if (!mounted) return;

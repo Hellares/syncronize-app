@@ -1,5 +1,6 @@
 import 'package:injectable/injectable.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/widgets/comprobante_condicion_card.dart';
 import '../models/venta_model.dart';
 
 @lazySingleton
@@ -104,6 +105,59 @@ class VentaRemoteDataSource {
       if (tipoDocumentoCliente != null) 'tipoDocumentoCliente': tipoDocumentoCliente,
     });
     return VentaModel.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  // ── SUNAT / Nubefact ──
+
+  Future<Map<String, dynamic>> reenviarASunat(String comprobanteId) async {
+    final response = await _dioClient.post('/sunat/comprobantes/$comprobanteId/enviar');
+    return response.data as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> anularComprobante(String comprobanteId, String motivo) async {
+    final response = await _dioClient.post('/sunat/comprobantes/$comprobanteId/anular', data: {
+      'motivo': motivo,
+    });
+    return response.data as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> crearNotaCredito(String comprobanteId, {
+    required String sedeId,
+    required int tipoNota,
+    required String motivo,
+  }) async {
+    final response = await _dioClient.post('/sunat/comprobantes/$comprobanteId/nota-credito', data: {
+      'sedeId': sedeId,
+      'tipoNota': tipoNota,
+      'motivo': motivo,
+    });
+    return response.data as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> crearNotaDebito(String comprobanteId, {
+    required String sedeId,
+    required int tipoNota,
+    required String motivo,
+  }) async {
+    final response = await _dioClient.post('/sunat/comprobantes/$comprobanteId/nota-debito', data: {
+      'sedeId': sedeId,
+      'tipoNota': tipoNota,
+      'motivo': motivo,
+    });
+    return response.data as Map<String, dynamic>;
+  }
+
+  Future<List<EmisorItem>> listarEmisores() async {
+    final response = await _dioClient.get('/sunat/emisores');
+    final list = response.data as List<dynamic>;
+    return list.map((e) => EmisorItem.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<Map<String, dynamic>> getConfiguracionSunat({String? sedeId}) async {
+    final params = <String, dynamic>{};
+    if (sedeId != null) params['sedeId'] = sedeId;
+    final response = await _dioClient.get('/sunat/configuracion', queryParameters: params);
+    return response.data as Map<String, dynamic>;
   }
 
   Future<VentaModel?> buscarPorCodigo(String codigo) async {

@@ -52,6 +52,7 @@ class VentaModel extends Venta {
     super.montoCreditoInicial,
     super.cuotas,
     super.comprobanteId,
+    super.comprobanteSedeId,
     super.tipoComprobante,
     super.codigoComprobante,
     super.comprobanteGravada,
@@ -60,6 +61,16 @@ class VentaModel extends Venta {
     super.comprobanteIgv,
     super.comprobanteIcbper,
     super.comprobanteSunatHash,
+    super.comprobanteEstado,
+    super.comprobanteSunatStatus,
+    super.comprobanteSunatXmlUrl,
+    super.comprobanteSunatPdfUrl,
+    super.comprobanteCadenaQR,
+    super.comprobanteEnlaceNubefact,
+    super.comprobanteNubefactError,
+    super.comprobanteIntentosEnvio,
+    super.comprobanteAnulado,
+    super.notasRelacionadas,
   });
 
   factory VentaModel.fromJson(Map<String, dynamic> json) {
@@ -167,6 +178,7 @@ class VentaModel extends Venta {
       montoCreditoInicial: json['montoCreditoInicial'] != null ? _toDouble(json['montoCreditoInicial']) : null,
       cuotas: cuotas,
       comprobanteId: (json['comprobante'] as Map<String, dynamic>?)?['id'] as String?,
+      comprobanteSedeId: (json['comprobante'] as Map<String, dynamic>?)?['sedeId'] as String?,
       tipoComprobante: (json['comprobante'] as Map<String, dynamic>?)?['tipoComprobante'] as String?,
       codigoComprobante: (json['comprobante'] as Map<String, dynamic>?)?['codigoGenerado'] as String?,
       comprobanteGravada: _tryParseDouble(json['comprobante'], 'gravada'),
@@ -175,6 +187,18 @@ class VentaModel extends Venta {
       comprobanteIgv: _tryParseDouble(json['comprobante'], 'igv'),
       comprobanteIcbper: _tryParseDouble(json['comprobante'], 'icbper'),
       comprobanteSunatHash: (json['comprobante'] as Map<String, dynamic>?)?['sunatHash'] as String?,
+      comprobanteEstado: (json['comprobante'] as Map<String, dynamic>?)?['estado'] as String?,
+      comprobanteSunatStatus: (json['comprobante'] as Map<String, dynamic>?)?['sunatStatus'] as String?,
+      comprobanteSunatXmlUrl: (json['comprobante'] as Map<String, dynamic>?)?['sunatXmlUrl'] as String?,
+      comprobanteSunatPdfUrl: (json['comprobante'] as Map<String, dynamic>?)?['sunatPdfUrl'] as String?,
+      comprobanteCadenaQR: (json['comprobante'] as Map<String, dynamic>?)?['cadenaQR'] as String?,
+      comprobanteEnlaceNubefact: (json['comprobante'] as Map<String, dynamic>?)?['enlaceNubefact'] as String?,
+      comprobanteNubefactError: (json['comprobante'] as Map<String, dynamic>?)?['nubefactError'] as String?,
+      comprobanteIntentosEnvio: (json['comprobante'] as Map<String, dynamic>?)?['intentosEnvio'] as int?,
+      comprobanteAnulado: (json['comprobante'] as Map<String, dynamic>?)?['anulado'] as bool?,
+      notasRelacionadas: ((json['comprobante'] as Map<String, dynamic>?)?['notasRelacionadas'] as List<dynamic>?)
+          ?.map((n) => NotaRelacionada.fromJson(n as Map<String, dynamic>))
+          .toList(),
     );
   }
 

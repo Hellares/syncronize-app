@@ -53,6 +53,15 @@ class Sede extends Equatable {
   final String serieNotaDebito;
   final String? serieGuiaRemision;
 
+  // Facturación electrónica (override por sede)
+  final String? rucSede;
+  final String? razonSocialSede;
+  final String? direccionFiscalSede;
+  final String? nubefactRuta;
+  final String? nubefactToken;
+  final bool? nubefactActivo;
+  final String? resolucionSunat;
+
   // Contadores de documentos por sede
   final int ultimoNumeroFactura;
   final int ultimoNumeroBoleta;
@@ -99,6 +108,13 @@ class Sede extends Equatable {
     required this.serieNotaCredito,
     required this.serieNotaDebito,
     this.serieGuiaRemision,
+    this.rucSede,
+    this.razonSocialSede,
+    this.direccionFiscalSede,
+    this.nubefactRuta,
+    this.nubefactToken,
+    this.nubefactActivo,
+    this.resolucionSunat,
     required this.ultimoNumeroFactura,
     required this.ultimoNumeroBoleta,
     required this.ultimoNumeroNotaCredito,

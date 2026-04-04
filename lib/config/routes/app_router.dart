@@ -126,6 +126,7 @@ import '../../features/venta/presentation/pages/venta_analytics_page.dart';
 import '../../features/devolucion_venta/presentation/pages/devoluciones_venta_page.dart';
 import '../../features/devolucion_venta/presentation/pages/devolucion_venta_form_page.dart';
 import '../../features/devolucion_venta/presentation/pages/devolucion_venta_detail_page.dart';
+import '../../features/monitor_facturacion/presentation/pages/monitor_facturacion_page.dart';
 import '../../features/configuracion_documentos/presentation/pages/configuracion_documentos_page.dart';
 import '../../features/compra/presentation/pages/ordenes_compra_page.dart';
 import '../../features/compra/presentation/pages/orden_compra_detail_page.dart';
@@ -1101,6 +1102,12 @@ class AppRouter {
           final id = state.pathParameters['id']!;
           return AgenteDetallePage(agenteId: id);
         },
+      ),
+      // Monitor de facturación electrónica
+      GoRoute(
+        path: '/empresa/monitor-facturacion',
+        name: 'empresa-monitor-facturacion',
+        builder: (context, state) => const MonitorFacturacionPage(),
       ),
       // Rutas de devoluciones
       GoRoute(

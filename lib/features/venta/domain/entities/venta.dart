@@ -171,6 +171,7 @@ class Venta extends Equatable {
 
   // Comprobante electrónico
   final String? comprobanteId;
+  final String? comprobanteSedeId;
   final String? tipoComprobante;
   final String? codigoComprobante;
   final double? comprobanteGravada;
@@ -179,6 +180,16 @@ class Venta extends Equatable {
   final double? comprobanteIgv;
   final double? comprobanteIcbper;
   final String? comprobanteSunatHash;
+  final String? comprobanteEstado;
+  final String? comprobanteSunatStatus;
+  final String? comprobanteSunatXmlUrl;
+  final String? comprobanteSunatPdfUrl;
+  final String? comprobanteCadenaQR;
+  final String? comprobanteEnlaceNubefact;
+  final String? comprobanteNubefactError;
+  final int? comprobanteIntentosEnvio;
+  final bool? comprobanteAnulado;
+  final List<NotaRelacionada>? notasRelacionadas;
 
   const Venta({
     required this.id,
@@ -225,6 +236,7 @@ class Venta extends Equatable {
     this.montoCreditoInicial,
     this.cuotas,
     this.comprobanteId,
+    this.comprobanteSedeId,
     this.tipoComprobante,
     this.codigoComprobante,
     this.comprobanteGravada,
@@ -233,6 +245,16 @@ class Venta extends Equatable {
     this.comprobanteIgv,
     this.comprobanteIcbper,
     this.comprobanteSunatHash,
+    this.comprobanteEstado,
+    this.comprobanteSunatStatus,
+    this.comprobanteSunatXmlUrl,
+    this.comprobanteSunatPdfUrl,
+    this.comprobanteCadenaQR,
+    this.comprobanteEnlaceNubefact,
+    this.comprobanteNubefactError,
+    this.comprobanteIntentosEnvio,
+    this.comprobanteAnulado,
+    this.notasRelacionadas,
   });
 
   bool get esEditable => estado == EstadoVenta.borrador;
@@ -283,4 +305,69 @@ class Venta extends Equatable {
         montoCreditoInicial,
         cuotas,
       ];
+}
+
+/// Nota de crédito/débito asociada a un comprobante
+class NotaRelacionada {
+  final String id;
+  final String tipoComprobante;
+  final String codigoGenerado;
+  final String estado;
+  final String? sunatStatus;
+  final String? sunatHash;
+  final double total;
+  final String? motivoNota;
+  final int? tipoNotaCredito;
+  final int? tipoNotaDebito;
+  final String? cadenaQR;
+  final bool anulado;
+  final DateTime? fechaEmision;
+  final String? enlaceNubefact;
+  final String? sunatPdfUrl;
+
+  const NotaRelacionada({
+    required this.id,
+    required this.tipoComprobante,
+    required this.codigoGenerado,
+    required this.estado,
+    this.sunatStatus,
+    this.sunatHash,
+    required this.total,
+    this.motivoNota,
+    this.tipoNotaCredito,
+    this.tipoNotaDebito,
+    this.cadenaQR,
+    this.anulado = false,
+    this.fechaEmision,
+    this.enlaceNubefact,
+    this.sunatPdfUrl,
+  });
+
+  String get tipoLabel {
+    if (tipoComprobante == 'NOTA_CREDITO') return 'Nota de Crédito';
+    if (tipoComprobante == 'NOTA_DEBITO') return 'Nota de Débito';
+    return tipoComprobante;
+  }
+
+  factory NotaRelacionada.fromJson(Map<String, dynamic> json) {
+    return NotaRelacionada(
+      id: json['id'] as String,
+      tipoComprobante: json['tipoComprobante'] as String,
+      codigoGenerado: json['codigoGenerado'] as String,
+      estado: json['estado'] as String,
+      sunatStatus: json['sunatStatus'] as String?,
+      sunatHash: json['sunatHash'] as String?,
+      total: json['total'] is num
+          ? (json['total'] as num).toDouble()
+          : double.tryParse(json['total']?.toString() ?? '0') ?? 0,
+      motivoNota: json['motivoNota'] as String?,
+      tipoNotaCredito: json['tipoNotaCredito'] as int?,
+      tipoNotaDebito: json['tipoNotaDebito'] as int?,
+      cadenaQR: json['cadenaQR'] as String?,
+      anulado: json['anulado'] as bool? ?? false,
+      fechaEmision: json['fechaEmision'] != null ? DateTime.tryParse(json['fechaEmision'].toString()) : null,
+      enlaceNubefact: json['enlaceNubefact'] as String?,
+      sunatPdfUrl: json['sunatPdfUrl'] as String?,
+    );
+  }
 }

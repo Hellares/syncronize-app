@@ -395,6 +395,14 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             ),
             _TileNode(
               visible: permissions?.canViewReports ?? false,
+              title: 'Monitor Facturación',
+              icon: Icons.receipt_long,
+              iconColor: Colors.teal,
+              routeMatch: const _RouteMatch.startsWith('/empresa/monitor-facturacion'),
+              onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/monitor-facturacion')),
+            ),
+            _TileNode(
+              visible: permissions?.canViewReports ?? false,
               title: 'Resumen Financiero',
               icon: Icons.analytics,
               iconColor: Colors.deepPurple,

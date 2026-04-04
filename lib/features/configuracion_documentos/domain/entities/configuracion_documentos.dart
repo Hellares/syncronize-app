@@ -5,10 +5,12 @@ class ConfiguracionDocumentos extends Equatable {
   final String empresaId;
   final String? logoUrl;
   final String? nombreComercial;
+  // Datos fiscales: vienen dinámicamente del backend (Empresa/Sede), no de la BD
   final String? ruc;
   final String? direccion;
   final String? telefono;
   final String? email;
+  // Estilos visuales
   final String colorPrimario;
   final String colorSecundario;
   final String colorTexto;
@@ -33,18 +35,9 @@ class ConfiguracionDocumentos extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        empresaId,
-        logoUrl,
-        nombreComercial,
-        ruc,
-        direccion,
-        telefono,
-        email,
-        colorPrimario,
-        colorSecundario,
-        colorTexto,
-        textoPiePagina,
-        mostrarPaginacion,
+        id, empresaId, logoUrl, nombreComercial,
+        ruc, direccion, telefono, email,
+        colorPrimario, colorSecundario, colorTexto,
+        textoPiePagina, mostrarPaginacion,
       ];
 }

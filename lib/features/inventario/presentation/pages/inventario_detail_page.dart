@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:go_router/go_router.dart';
 import 'package:syncronize/core/di/injection_container.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
@@ -73,7 +72,7 @@ class _InventarioDetailPageState extends State<InventarioDetailPage> {
               floatingActionButton: showScanner
                   ? FloatingActionButton(
                       backgroundColor: AppColors.blue1,
-                      onPressed: () => _onScanBarcode(context, inv!),
+                      onPressed: () => _onScanBarcode(context, inv),
                       child: const Icon(Icons.qr_code_scanner, color: Colors.white),
                     )
                   : null,

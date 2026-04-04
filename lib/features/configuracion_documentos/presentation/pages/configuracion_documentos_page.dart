@@ -41,10 +41,7 @@ class _ConfiguracionDocumentosPageState
     extends State<ConfiguracionDocumentosPage> {
   // Identity controllers
   final _nombreComercialCtrl = TextEditingController();
-  final _rucCtrl = TextEditingController();
-  final _direccionCtrl = TextEditingController();
-  final _telefonoCtrl = TextEditingController();
-  final _emailCtrl = TextEditingController();
+  // ruc, direccion, telefono, email eliminados — se configuran en datos de Empresa/Sede
   final _colorPrimarioCtrl = TextEditingController();
   final _colorSecundarioCtrl = TextEditingController();
   final _colorTextoCtrl = TextEditingController();
@@ -86,10 +83,6 @@ class _ConfiguracionDocumentosPageState
   @override
   void dispose() {
     _nombreComercialCtrl.dispose();
-    _rucCtrl.dispose();
-    _direccionCtrl.dispose();
-    _telefonoCtrl.dispose();
-    _emailCtrl.dispose();
     _colorPrimarioCtrl.dispose();
     _colorSecundarioCtrl.dispose();
     _colorTextoCtrl.dispose();
@@ -103,10 +96,6 @@ class _ConfiguracionDocumentosPageState
 
   void _populateConfigFields(ConfiguracionDocumentos config) {
     _nombreComercialCtrl.text = config.nombreComercial ?? '';
-    _rucCtrl.text = config.ruc ?? '';
-    _direccionCtrl.text = config.direccion ?? '';
-    _telefonoCtrl.text = config.telefono ?? '';
-    _emailCtrl.text = config.email ?? '';
     _colorPrimarioCtrl.text = config.colorPrimario;
     _colorSecundarioCtrl.text = config.colorSecundario;
     _colorTextoCtrl.text = config.colorTexto;
@@ -441,41 +430,9 @@ class _ConfiguracionDocumentosPageState
               label: 'Nombre comercial',
               borderColor: AppColors.blue1,
             ),
-            const SizedBox(height: 8),
-            CustomText(
-              controller: _rucCtrl,
-              label: 'RUC',
-              borderColor: AppColors.blue1,
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 8),
-            CustomText(
-              controller: _direccionCtrl,
-              label: 'Direccion',
-              borderColor: AppColors.blue1,
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: CustomText(
-                    controller: _telefonoCtrl,
-                    label: 'Telefono',
-                    borderColor: AppColors.blue1,
-                    keyboardType: TextInputType.phone,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: CustomText(
-                    controller: _emailCtrl,
-                    label: 'Email',
-                    borderColor: AppColors.blue1,
-                    keyboardType: TextInputType.emailAddress,
-                  ),
-                ),
-              ],
-            ),
+            const SizedBox(height: 4),
+            Text('RUC, dirección, teléfono y email se configuran en Datos de Empresa y Sede',
+                style: TextStyle(fontSize: 10, color: Colors.grey.shade500, fontStyle: FontStyle.italic)),
           ],
         ),
       ),
@@ -840,10 +797,6 @@ class _ConfiguracionDocumentosPageState
   void _guardarConfiguracion() {
     final data = <String, dynamic>{};
     if (_nombreComercialCtrl.text.isNotEmpty) data['nombreComercial'] = _nombreComercialCtrl.text;
-    if (_rucCtrl.text.isNotEmpty) data['ruc'] = _rucCtrl.text;
-    if (_direccionCtrl.text.isNotEmpty) data['direccion'] = _direccionCtrl.text;
-    if (_telefonoCtrl.text.isNotEmpty) data['telefono'] = _telefonoCtrl.text;
-    if (_emailCtrl.text.isNotEmpty) data['email'] = _emailCtrl.text;
     if (_colorPrimarioCtrl.text.isNotEmpty) data['colorPrimario'] = _colorPrimarioCtrl.text;
     if (_colorSecundarioCtrl.text.isNotEmpty) data['colorSecundario'] = _colorSecundarioCtrl.text;
     if (_colorTextoCtrl.text.isNotEmpty) data['colorTexto'] = _colorTextoCtrl.text;
@@ -903,10 +856,10 @@ class _ConfiguracionDocumentosPageState
       id: 'preview',
       empresaId: 'preview',
       nombreComercial: _nombreComercialCtrl.text.isNotEmpty ? _nombreComercialCtrl.text : 'Mi Empresa S.A.C.',
-      ruc: _rucCtrl.text.isNotEmpty ? _rucCtrl.text : '20123456789',
-      direccion: _direccionCtrl.text.isNotEmpty ? _direccionCtrl.text : 'Av. Ejemplo 123, Lima',
-      telefono: _telefonoCtrl.text.isNotEmpty ? _telefonoCtrl.text : '(01) 234-5678',
-      email: _emailCtrl.text.isNotEmpty ? _emailCtrl.text : 'contacto@miempresa.com',
+      ruc: '20123456789',
+      direccion: 'Av. Ejemplo 123, Lima',
+      telefono: '(01) 234-5678',
+      email: 'contacto@miempresa.com',
       colorPrimario: _colorPrimarioCtrl.text.isNotEmpty ? _colorPrimarioCtrl.text : '#1565C0',
       colorSecundario: _colorSecundarioCtrl.text.isNotEmpty ? _colorSecundarioCtrl.text : '#1E88E5',
       colorTexto: _colorTextoCtrl.text.isNotEmpty ? _colorTextoCtrl.text : '#333333',

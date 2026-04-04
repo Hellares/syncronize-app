@@ -23,6 +23,7 @@ class ConfiguracionDocumentosModel extends ConfiguracionDocumentos {
       empresaId: json['empresaId'] as String,
       logoUrl: json['logoUrl'] as String?,
       nombreComercial: json['nombreComercial'] as String?,
+      // Datos fiscales: vienen dinámicamente del backend (enriquecidos desde Empresa/Sede)
       ruc: json['ruc'] as String?,
       direccion: json['direccion'] as String?,
       telefono: json['telefono'] as String?,
@@ -42,10 +43,6 @@ class ConfiguracionDocumentosModel extends ConfiguracionDocumentos {
       'empresaId': empresaId,
       if (logoUrl != null) 'logoUrl': logoUrl,
       if (nombreComercial != null) 'nombreComercial': nombreComercial,
-      if (ruc != null) 'ruc': ruc,
-      if (direccion != null) 'direccion': direccion,
-      if (telefono != null) 'telefono': telefono,
-      if (email != null) 'email': email,
       'colorPrimario': colorPrimario,
       'colorSecundario': colorSecundario,
       'colorTexto': colorTexto,

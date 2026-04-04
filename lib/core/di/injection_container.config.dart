@@ -724,6 +724,14 @@ import '../../features/mis_pedidos/presentation/bloc/mis_pedidos_cubit.dart'
     as _i588;
 import '../../features/mis_pedidos/presentation/bloc/pedido_action_cubit.dart'
     as _i485;
+import '../../features/monitor_facturacion/data/datasources/monitor_facturacion_remote_datasource.dart'
+    as _i448;
+import '../../features/monitor_facturacion/data/repositories/monitor_facturacion_repository_impl.dart'
+    as _i37;
+import '../../features/monitor_facturacion/domain/repositories/monitor_facturacion_repository.dart'
+    as _i1026;
+import '../../features/monitor_facturacion/domain/usecases/listar_comprobantes_usecase.dart'
+    as _i782;
 import '../../features/monitor_productos/data/datasources/monitor_productos_remote_datasource.dart'
     as _i746;
 import '../../features/monitor_productos/data/repositories/monitor_productos_repository_impl.dart'
@@ -1600,6 +1608,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i613.MisPedidosRemoteDataSource>(
       () => _i613.MisPedidosRemoteDataSource(gh<_i667.DioClient>()),
     );
+    gh.lazySingleton<_i448.MonitorFacturacionRemoteDatasource>(
+      () => _i448.MonitorFacturacionRemoteDatasource(gh<_i667.DioClient>()),
+    );
     gh.lazySingleton<_i746.MonitorProductosRemoteDataSource>(
       () => _i746.MonitorProductosRemoteDataSource(gh<_i667.DioClient>()),
     );
@@ -1858,6 +1869,11 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i639.SedeListCubit(
         gh<_i873.GetSedesUseCase>(),
         gh<_i746.DeleteSedeUseCase>(),
+      ),
+    );
+    gh.lazySingleton<_i1026.MonitorFacturacionRepository>(
+      () => _i37.MonitorFacturacionRepositoryImpl(
+        gh<_i448.MonitorFacturacionRemoteDatasource>(),
       ),
     );
     gh.factory<_i169.SedesSelectorCubit>(
@@ -3086,6 +3102,11 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i911.CajaChicaListCubit>(
       () => _i911.CajaChicaListCubit(gh<_i322.ListarCajasChicasUseCase>()),
+    );
+    gh.lazySingleton<_i782.ListarComprobantesUseCase>(
+      () => _i782.ListarComprobantesUseCase(
+        gh<_i1026.MonitorFacturacionRepository>(),
+      ),
     );
     gh.factory<_i309.GetConfiguracionUseCase>(
       () => _i309.GetConfiguracionUseCase(

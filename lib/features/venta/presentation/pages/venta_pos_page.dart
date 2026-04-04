@@ -22,6 +22,7 @@ import '../../domain/entities/venta_detalle_input.dart';
 import '../../../../core/widgets/cliente_unificado_selector.dart';
 import '../../../cotizacion/presentation/widgets/cotizacion_item_selector.dart';
 import '../../../../core/widgets/comprobante_condicion_card.dart';
+import '../../data/datasources/venta_remote_datasource.dart';
 import '../../../../core/widgets/pagos_section_widget.dart';
 import '../../../../core/widgets/currency/currency_formatter.dart';
 import '../widgets/credito_cuotas_section.dart';
@@ -58,6 +59,8 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
 
   // Comprobante
   String _tipoComprobante = 'TICKET';
+  List<EmisorItem> _emisores = [];
+  EmisorItem? _emisorSeleccionado;
 
   // Pagos múltiples
   final List<Map<String, dynamic>> _pagos = [];
@@ -109,6 +112,7 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
       _vendedorId = authState.user.id;
     }
     _leerConfiguracion();
+    _cargarEmisores();
     _montoAgregarController.addListener(() => setState(() {}));
     _montoCreditoController.addListener(() => setState(() {}));
     _numeroCuotasController.addListener(() {
@@ -143,6 +147,19 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
     if (v is int) return v.toDouble();
     if (v is String) return double.tryParse(v) ?? 0;
     return 0;
+  }
+
+  Future<void> _cargarEmisores() async {
+    try {
+      final datasource = locator<VentaRemoteDataSource>();
+      final response = await datasource.listarEmisores();
+      if (mounted) {
+        setState(() {
+          _emisores = response;
+          if (_emisores.isNotEmpty) _emisorSeleccionado = _emisores.first;
+        });
+      }
+    } catch (_) {}
   }
 
   void _leerConfiguracion() {
@@ -306,6 +323,9 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
                         _condicionPago = v;
                         if (v == 'CREDITO') _pagos.clear();
                       }),
+                      emisores: _emisores,
+                      emisorSeleccionado: _emisorSeleccionado,
+                      onEmisorChanged: (e) => setState(() => _emisorSeleccionado = e),
                     ),
                     const SizedBox(height: 20),
 
@@ -418,9 +438,9 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
                             _clienteEmpresaId = result.clienteEmpresaId;
                             _nombreClienteController.text = result.razonSocial ?? result.nombreComercial ?? '';
                             _documentoController.text = result.ruc ?? '';
-                            _emailController.text = '';
+                            _emailController.text = result.email ?? '';
                             _telefonoController.text = result.telefono ?? '';
-                            _direccionController.text = '';
+                            _direccionController.text = result.direccion ?? '';
                           }
                         });
                       }
@@ -464,17 +484,23 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
 
               if (existingIndex >= 0) {
                 final existing = _items[existingIndex];
+                final nuevaCantidad = existing.cantidad + item.cantidad;
+                // Recalcular ICBPER proporcionalmente si aplica
+                final icbperPorUnidad = existing.cantidad > 0 ? existing.icbper / existing.cantidad : 0.0;
                 _items[existingIndex] = VentaDetalleInput(
                   productoId: existing.productoId,
                   varianteId: existing.varianteId,
                   servicioId: existing.servicioId,
                   comboId: existing.comboId,
                   descripcion: existing.descripcion,
-                  cantidad: existing.cantidad + item.cantidad,
+                  cantidad: nuevaCantidad,
                   precioUnitario: existing.precioUnitario,
                   descuento: existing.descuento,
                   porcentajeIGV: existing.porcentajeIGV,
                   precioIncluyeIgv: existing.precioIncluyeIgv,
+                  tipoAfectacion: existing.tipoAfectacion,
+                  icbper: icbperPorUnidad * nuevaCantidad,
+                  stockDisponible: existing.stockDisponible,
                 );
               } else {
                 _items.add(VentaDetalleInput(
@@ -627,6 +653,7 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
       if (_direccionController.text.isNotEmpty) 'direccionCliente': _direccionController.text,
       'moneda': _moneda,
       'tipoComprobante': _tipoComprobante,
+      if (_emisorSeleccionado?.sedeId != null) 'sedeFacturacionId': _emisorSeleccionado!.sedeId,
       'esCredito': _esCredito,
       if (_pagos.isNotEmpty) ...{
         'metodoPago': _pagos.first['metodo'],

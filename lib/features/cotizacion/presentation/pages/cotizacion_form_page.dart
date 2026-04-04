@@ -139,7 +139,9 @@ class _CotizacionFormPageState extends State<CotizacionFormPage> {
               cantidad: d.cantidad,
               precioUnitario: d.precioUnitario,
               descuento: d.descuento,
+              tipoAfectacion: d.tipoAfectacion,
               porcentajeIGV: d.porcentajeIGV,
+              icbper: d.icbper,
             ));
           }
         }

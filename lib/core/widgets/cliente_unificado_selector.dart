@@ -44,6 +44,7 @@ class ClienteUnificadoResult {
   final String? razonSocial;
   final String? nombreComercial;
   final String? ruc;
+  final String? direccion;
   final String? contactoId;
   final String? contactoNombre;
   final String? contactoCargo;
@@ -59,6 +60,7 @@ class ClienteUnificadoResult {
         razonSocial = null,
         nombreComercial = null,
         ruc = null,
+        direccion = null,
         contactoId = null,
         contactoNombre = null,
         contactoCargo = null;
@@ -68,6 +70,7 @@ class ClienteUnificadoResult {
     required this.razonSocial,
     this.nombreComercial,
     required this.ruc,
+    this.direccion,
     this.contactoId,
     this.contactoNombre,
     this.contactoCargo,
@@ -1104,6 +1107,7 @@ class _EmpresaTabState extends State<_EmpresaTab>
           razonSocial: empresa.razonSocial,
           nombreComercial: empresa.nombreComercial,
           ruc: empresa.numeroDocumento,
+          direccion: empresa.direccion,
           telefono: empresa.telefono,
           email: empresa.email,
         ),
@@ -1159,6 +1163,7 @@ class _EmpresaTabState extends State<_EmpresaTab>
                     razonSocial: empresa.razonSocial,
                     nombreComercial: empresa.nombreComercial,
                     ruc: empresa.numeroDocumento,
+                    direccion: empresa.direccion,
                     telefono: empresa.telefono,
                     email: empresa.email,
                   ),
@@ -1215,6 +1220,7 @@ class _EmpresaTabState extends State<_EmpresaTab>
                         razonSocial: empresa.razonSocial,
                         nombreComercial: empresa.nombreComercial,
                         ruc: empresa.numeroDocumento,
+                        direccion: empresa.direccion,
                         contactoId: contacto.id,
                         contactoNombre: contacto.nombre,
                         contactoCargo: contacto.cargo,
@@ -1349,6 +1355,7 @@ class _EmpresaTabState extends State<_EmpresaTab>
           razonSocial: empresa.razonSocial,
           nombreComercial: empresa.nombreComercial,
           ruc: empresa.numeroDocumento,
+          direccion: empresa.direccion,
           contactoId: contacto?.id,
           contactoNombre: contacto?.nombre,
           contactoCargo: contacto?.cargo,

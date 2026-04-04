@@ -24,6 +24,13 @@ class SedeFormFields extends StatelessWidget {
   final TextEditingController serieNotaCreditoController;
   final TextEditingController serieNotaDebitoController;
   final TextEditingController serieGuiaRemisionController;
+  // Facturación electrónica por sede (opcional, override)
+  final TextEditingController rucSedeController;
+  final TextEditingController razonSocialSedeController;
+  final TextEditingController direccionFiscalSedeController;
+  final TextEditingController nubefactRutaController;
+  final TextEditingController nubefactTokenController;
+  final TextEditingController resolucionSunatController;
   final TipoSede selectedTipoSede;
   final bool isActive;
   final bool isEditing;
@@ -55,6 +62,12 @@ class SedeFormFields extends StatelessWidget {
     required this.serieNotaCreditoController,
     required this.serieNotaDebitoController,
     required this.serieGuiaRemisionController,
+    required this.rucSedeController,
+    required this.razonSocialSedeController,
+    required this.direccionFiscalSedeController,
+    required this.nubefactRutaController,
+    required this.nubefactTokenController,
+    required this.resolucionSunatController,
     required this.selectedTipoSede,
     required this.isActive,
     required this.isEditing,
@@ -412,6 +425,55 @@ class SedeFormFields extends StatelessWidget {
                 : null,
           ),
 
+          const SizedBox(height: 24),
+
+          // Facturación electrónica (override por sede)
+          AppSubtitle('Facturación Electrónica (opcional)', color: Colors.teal),
+          const SizedBox(height: 4),
+          Text('Solo completar si esta sede factura con un RUC diferente al de la empresa.',
+              style: TextStyle(fontSize: 10, color: Colors.grey.shade600, fontStyle: FontStyle.italic)),
+          const SizedBox(height: 12),
+          CustomText(
+            controller: rucSedeController,
+            label: 'RUC de la Sede',
+            hintText: 'Ej: 20XXXXXXXXX (11 dígitos)',
+            borderColor: Colors.teal,
+          ),
+          const SizedBox(height: 12),
+          CustomText(
+            controller: razonSocialSedeController,
+            label: 'Razón Social',
+            hintText: 'Ej: SOCIO EMPRESA EIRL',
+            borderColor: Colors.teal,
+          ),
+          const SizedBox(height: 12),
+          CustomText(
+            controller: direccionFiscalSedeController,
+            label: 'Dirección Fiscal',
+            hintText: 'Dirección registrada ante SUNAT',
+            borderColor: Colors.teal,
+          ),
+          const SizedBox(height: 12),
+          CustomText(
+            controller: nubefactRutaController,
+            label: 'Nubefact Ruta (URL API)',
+            hintText: 'https://api.nubefact.com/api/v1/...',
+            borderColor: Colors.teal,
+          ),
+          const SizedBox(height: 12),
+          CustomText(
+            controller: nubefactTokenController,
+            label: 'Nubefact Token',
+            hintText: 'Token de autenticación',
+            borderColor: Colors.teal,
+          ),
+          const SizedBox(height: 12),
+          CustomText(
+            controller: resolucionSunatController,
+            label: 'Resolución SUNAT',
+            hintText: 'Ej: No.034-005-0005315',
+            borderColor: Colors.teal,
+          ),
           const SizedBox(height: 24),
         ],
 

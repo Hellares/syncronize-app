@@ -70,6 +70,13 @@ class _SedeFormViewState extends State<_SedeFormView> {
   final _serieNotaCreditoController = TextEditingController();
   final _serieNotaDebitoController = TextEditingController();
   final _serieGuiaRemisionController = TextEditingController();
+  // Facturación electrónica por sede
+  final _rucSedeController = TextEditingController();
+  final _razonSocialSedeController = TextEditingController();
+  final _direccionFiscalSedeController = TextEditingController();
+  final _nubefactRutaController = TextEditingController();
+  final _nubefactTokenController = TextEditingController();
+  final _resolucionSunatController = TextEditingController();
 
   TipoSede _selectedTipoSede = TipoSede.operativaCompleta;
   bool _isActive = true;
@@ -167,6 +174,12 @@ class _SedeFormViewState extends State<_SedeFormView> {
     _serieNotaCreditoController.text = sede.serieNotaCredito;
     _serieNotaDebitoController.text = sede.serieNotaDebito;
     _serieGuiaRemisionController.text = sede.serieGuiaRemision ?? '';
+    _rucSedeController.text = sede.rucSede ?? '';
+    _razonSocialSedeController.text = sede.razonSocialSede ?? '';
+    _direccionFiscalSedeController.text = sede.direccionFiscalSede ?? '';
+    _nubefactRutaController.text = sede.nubefactRuta ?? '';
+    _nubefactTokenController.text = sede.nubefactToken ?? '';
+    _resolucionSunatController.text = sede.resolucionSunat ?? '';
 
     setState(() {
       _selectedTipoSede = sede.tipoSede;
@@ -325,6 +338,19 @@ class _SedeFormViewState extends State<_SedeFormView> {
       if (_serieGuiaRemisionController.text.trim().isNotEmpty)
         'serieGuiaRemision':
             _serieGuiaRemisionController.text.trim().toUpperCase(),
+      // Facturación electrónica por sede (override)
+      if (_rucSedeController.text.trim().isNotEmpty)
+        'rucSede': _rucSedeController.text.trim(),
+      if (_razonSocialSedeController.text.trim().isNotEmpty)
+        'razonSocialSede': _razonSocialSedeController.text.trim(),
+      if (_direccionFiscalSedeController.text.trim().isNotEmpty)
+        'direccionFiscalSede': _direccionFiscalSedeController.text.trim(),
+      if (_nubefactRutaController.text.trim().isNotEmpty)
+        'nubefactRuta': _nubefactRutaController.text.trim(),
+      if (_nubefactTokenController.text.trim().isNotEmpty)
+        'nubefactToken': _nubefactTokenController.text.trim(),
+      if (_resolucionSunatController.text.trim().isNotEmpty)
+        'resolucionSunat': _resolucionSunatController.text.trim(),
       'isActive': _isActive,
     };
 
@@ -466,6 +492,12 @@ class _SedeFormViewState extends State<_SedeFormView> {
                                 _serieNotaDebitoController,
                             serieGuiaRemisionController:
                                 _serieGuiaRemisionController,
+                            rucSedeController: _rucSedeController,
+                            razonSocialSedeController: _razonSocialSedeController,
+                            direccionFiscalSedeController: _direccionFiscalSedeController,
+                            nubefactRutaController: _nubefactRutaController,
+                            nubefactTokenController: _nubefactTokenController,
+                            resolucionSunatController: _resolucionSunatController,
                             selectedTipoSede: _selectedTipoSede,
                             isActive: _isActive,
                             isEditing: widget.isEditing,

@@ -110,7 +110,7 @@ class _SolicitudesViewState extends State<_SolicitudesView> {
               selected: isSelected, selectedColor: AppColors.blue1, backgroundColor: Colors.white, checkmarkColor: Colors.white,
               side: BorderSide(color: isSelected ? AppColors.blue1 : Colors.grey.shade300),
               onSelected: (_) {
-                setState(() => _filtro = f['value'] as String?);
+                setState(() => _filtro = f['value']);
                 context.read<SolicitudesRecibidasCubit>().load(estado: _filtro);
               },
             ),

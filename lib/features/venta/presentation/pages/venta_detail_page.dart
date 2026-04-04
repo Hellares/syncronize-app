@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/utils/resource.dart';
@@ -15,6 +16,7 @@ import '../../../../core/widgets/producto_sede_selector/producto_sede_search_cub
 import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_cubit.dart';
 import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_state.dart';
 import '../../../producto/presentation/bloc/producto_list/producto_list_cubit.dart';
+import '../../data/datasources/venta_remote_datasource.dart';
 import '../../domain/entities/venta.dart';
 import '../../domain/usecases/get_venta_usecase.dart';
 import '../bloc/venta_form/venta_form_cubit.dart';
@@ -299,11 +301,78 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                   Icons.link, 'Cotizacion', v.cotizacionCodigo!),
             // Comprobante
             const SizedBox(height: 6),
-            if (v.codigoComprobante != null)
+            if (v.codigoComprobante != null) ...[
               _buildDetailRow(
                   Icons.receipt_long, 'Comprobante',
-                  '${v.tipoComprobante} ${v.codigoComprobante}')
-            else
+                  '${v.tipoComprobante} ${v.codigoComprobante}'),
+              if (v.comprobanteAnulado == true)
+                Container(
+                  margin: const EdgeInsets.only(top: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(4)),
+                  child: const Text('ANULADO', style: TextStyle(fontSize: 10, color: Colors.red, fontWeight: FontWeight.w700)),
+                ),
+              const SizedBox(height: 4),
+              _buildSunatStatusRow(v),
+              if (v.comprobanteSunatPdfUrl != null || v.comprobanteEnlaceNubefact != null) ...[
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    if (v.comprobanteSunatPdfUrl != null)
+                      GestureDetector(
+                        onTap: () => _abrirUrl(v.comprobanteSunatPdfUrl!),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade50,
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(color: Colors.blue.shade200),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.picture_as_pdf, size: 11, color: Colors.blue.shade700),
+                              const SizedBox(width: 4),
+                              Text('Ver PDF SUNAT', style: TextStyle(fontSize: 9, color: Colors.blue.shade700, fontWeight: FontWeight.w600)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    if (v.comprobanteEnlaceNubefact != null) ...[
+                      const SizedBox(width: 6),
+                      GestureDetector(
+                        onTap: () => _abrirUrl(v.comprobanteEnlaceNubefact!),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(color: Colors.grey.shade300),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.open_in_new, size: 11, color: Colors.grey.shade700),
+                              const SizedBox(width: 4),
+                              Text('Ver en Nubefact', style: TextStyle(fontSize: 9, color: Colors.grey.shade700, fontWeight: FontWeight.w600)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+              if (v.comprobanteSunatStatus == 'ACEPTADO' && v.comprobanteAnulado != true) ...[
+                const SizedBox(height: 8),
+                _buildComprobanteActions(context, v),
+              ],
+              // Notas de crédito/débito relacionadas
+              if (v.notasRelacionadas != null && v.notasRelacionadas!.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                ...v.notasRelacionadas!.map((nota) => _buildNotaCard(nota)),
+              ],
+            ] else
               Row(
                 children: [
                   Icon(Icons.receipt_long, size: 14, color: Colors.orange.shade700),
@@ -812,6 +881,573 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
     );
   }
 
+  Widget _buildNotaCard(NotaRelacionada nota) {
+    final isCredito = nota.tipoComprobante == 'NOTA_CREDITO';
+    final color = isCredito ? Colors.orange : Colors.purple;
+    final statusColor = nota.sunatStatus == 'ACEPTADO'
+        ? Colors.green
+        : nota.sunatStatus == 'RECHAZADO'
+            ? Colors.red
+            : Colors.amber.shade700;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(isCredito ? Icons.remove_circle_outline : Icons.add_circle_outline, size: 14, color: color),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  '${nota.tipoLabel} ${nota.codigoGenerado}',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  nota.sunatStatus ?? 'PENDIENTE',
+                  style: TextStyle(fontSize: 8, color: statusColor, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Text('Total: S/ ${nota.total.toStringAsFixed(2)}',
+                  style: TextStyle(fontSize: 10, color: Colors.grey.shade700)),
+              if (nota.sunatHash != null) ...[
+                const Spacer(),
+                Text('Hash: ${nota.sunatHash!.substring(0, nota.sunatHash!.length.clamp(0, 15))}...',
+                    style: TextStyle(fontSize: 8, color: Colors.grey.shade500)),
+              ],
+            ],
+          ),
+          if (nota.motivoNota != null) ...[
+            const SizedBox(height: 2),
+            Text('Motivo: ${nota.motivoNota}',
+                style: TextStyle(fontSize: 10, color: Colors.grey.shade600, fontStyle: FontStyle.italic)),
+          ],
+          if (nota.enlaceNubefact != null || nota.sunatPdfUrl != null) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                if (nota.sunatPdfUrl != null)
+                  GestureDetector(
+                    onTap: () => _abrirUrl(nota.sunatPdfUrl!),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: Colors.blue.shade200),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.picture_as_pdf, size: 11, color: Colors.blue.shade700),
+                          const SizedBox(width: 4),
+                          Text('Ver PDF', style: TextStyle(fontSize: 9, color: Colors.blue.shade700, fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                    ),
+                  ),
+                if (nota.enlaceNubefact != null) ...[
+                  const SizedBox(width: 6),
+                  GestureDetector(
+                    onTap: () => _abrirUrl(nota.enlaceNubefact!),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.open_in_new, size: 11, color: Colors.grey.shade700),
+                          const SizedBox(width: 4),
+                          Text('Ver en Nubefact', style: TextStyle(fontSize: 9, color: Colors.grey.shade700, fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _abrirUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  Widget _buildComprobanteActions(BuildContext context, Venta v) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 6,
+      children: [
+        _actionChip(
+          icon: Icons.note_add_outlined,
+          label: 'Nota Crédito',
+          color: Colors.orange,
+          onTap: () => _showNotaCreditoDialog(context, v),
+        ),
+        _actionChip(
+          icon: Icons.add_circle_outline,
+          label: 'Nota Débito',
+          color: Colors.purple,
+          onTap: () => _showNotaDebitoDialog(context, v),
+        ),
+        _actionChip(
+          icon: Icons.cancel_outlined,
+          label: 'Anular',
+          color: Colors.red,
+          onTap: () => _showAnularDialog(context, v),
+        ),
+      ],
+    );
+  }
+
+  Widget _actionChip({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 12, color: color),
+            const SizedBox(width: 4),
+            Text(label, style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w600)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showNotaCreditoDialog(BuildContext context, Venta v) {
+    final motivoController = TextEditingController();
+    int tipoNota = 1;
+
+    final tipos = {
+      1: 'Anulación de la operación',
+      2: 'Anulación por error en RUC',
+      3: 'Corrección por error en descripción',
+      4: 'Descuento global',
+      5: 'Descuento por ítem',
+      6: 'Devolución total',
+      7: 'Devolución por ítem',
+      9: 'Disminución en el valor',
+      10: 'Otros conceptos',
+    };
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Nota de Crédito', style: TextStyle(fontSize: 16)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Comprobante: ${v.tipoComprobante} ${v.codigoComprobante}',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                Text('Total: S/ ${v.total.toStringAsFixed(2)}',
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 12),
+                const Text('Tipo de nota:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 6),
+                DropdownButtonFormField<int>(
+                  value: tipoNota,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    border: OutlineInputBorder(),
+                  ),
+                  style: const TextStyle(fontSize: 12, color: Colors.black87),
+                  items: tipos.entries.map((e) => DropdownMenuItem(
+                    value: e.key,
+                    child: Text(e.value, style: const TextStyle(fontSize: 11)),
+                  )).toList(),
+                  onChanged: (val) => setDialogState(() => tipoNota = val ?? 1),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: motivoController,
+                  maxLines: 2,
+                  decoration: const InputDecoration(
+                    labelText: 'Motivo',
+                    hintText: 'Describa el motivo...',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+              onPressed: () {
+                if (motivoController.text.trim().length < 3) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Ingrese un motivo válido (mín. 3 caracteres)')),
+                  );
+                  return;
+                }
+                Navigator.pop(ctx);
+                _ejecutarNotaCredito(v, tipoNota, motivoController.text.trim());
+              },
+              child: const Text('Generar Nota', style: TextStyle(color: Colors.white, fontSize: 12)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showNotaDebitoDialog(BuildContext context, Venta v) {
+    final motivoController = TextEditingController();
+    int tipoNota = 1;
+
+    final tipos = {
+      1: 'Intereses por mora',
+      2: 'Aumento de valor',
+      3: 'Penalidades',
+    };
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Nota de Débito', style: TextStyle(fontSize: 16)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Comprobante: ${v.tipoComprobante} ${v.codigoComprobante}',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                Text('Total: S/ ${v.total.toStringAsFixed(2)}',
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 12),
+                const Text('Tipo de nota:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 6),
+                DropdownButtonFormField<int>(
+                  value: tipoNota,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    border: OutlineInputBorder(),
+                  ),
+                  style: const TextStyle(fontSize: 12, color: Colors.black87),
+                  items: tipos.entries.map((e) => DropdownMenuItem(
+                    value: e.key,
+                    child: Text(e.value, style: const TextStyle(fontSize: 11)),
+                  )).toList(),
+                  onChanged: (val) => setDialogState(() => tipoNota = val ?? 1),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: motivoController,
+                  maxLines: 2,
+                  decoration: const InputDecoration(
+                    labelText: 'Motivo',
+                    hintText: 'Describa el motivo...',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.purple),
+              onPressed: () {
+                if (motivoController.text.trim().length < 3) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Ingrese un motivo válido (mín. 3 caracteres)')),
+                  );
+                  return;
+                }
+                Navigator.pop(ctx);
+                _ejecutarNotaDebito(v, tipoNota, motivoController.text.trim());
+              },
+              child: const Text('Generar Nota', style: TextStyle(color: Colors.white, fontSize: 12)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showAnularDialog(BuildContext context, Venta v) {
+    final motivoController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Anular Comprobante', style: TextStyle(fontSize: 16, color: Colors.red)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('${v.tipoComprobante} ${v.codigoComprobante}',
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+            Text('Total: S/ ${v.total.toStringAsFixed(2)}',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+            const SizedBox(height: 8),
+            const Text('Esta acción generará una comunicación de baja ante SUNAT.',
+                style: TextStyle(fontSize: 11, color: Colors.red)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: motivoController,
+              maxLines: 2,
+              decoration: const InputDecoration(
+                labelText: 'Motivo de anulación',
+                hintText: 'Ej: Error en datos del cliente',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+              style: const TextStyle(fontSize: 12),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () {
+              if (motivoController.text.trim().length < 3) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Ingrese un motivo válido (mín. 3 caracteres)')),
+                );
+                return;
+              }
+              Navigator.pop(ctx);
+              _ejecutarAnulacion(v, motivoController.text.trim());
+            },
+            child: const Text('Anular', style: TextStyle(color: Colors.white, fontSize: 12)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _ejecutarNotaCredito(Venta v, int tipoNota, String motivo) async {
+    setState(() => _loading = true);
+    try {
+      final datasource = locator<VentaRemoteDataSource>();
+      await datasource.crearNotaCredito(
+        v.comprobanteId!,
+        sedeId: v.sedeId,
+        tipoNota: tipoNota,
+        motivo: motivo,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Nota de crédito generada y enviada a SUNAT')),
+        );
+        _loadVenta();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _ejecutarNotaDebito(Venta v, int tipoNota, String motivo) async {
+    setState(() => _loading = true);
+    try {
+      final datasource = locator<VentaRemoteDataSource>();
+      await datasource.crearNotaDebito(
+        v.comprobanteId!,
+        sedeId: v.sedeId,
+        tipoNota: tipoNota,
+        motivo: motivo,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Nota de débito generada y enviada a SUNAT')),
+        );
+        _loadVenta();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _ejecutarAnulacion(Venta v, String motivo) async {
+    setState(() => _loading = true);
+    try {
+      final datasource = locator<VentaRemoteDataSource>();
+      await datasource.anularComprobante(v.comprobanteId!, motivo);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Comprobante anulado ante SUNAT')),
+        );
+        _loadVenta();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Widget _buildSunatStatusRow(Venta v) {
+    final status = v.comprobanteSunatStatus ?? 'PENDIENTE';
+    Color chipColor;
+    String label;
+    switch (status) {
+      case 'ACEPTADO':
+        chipColor = Colors.green;
+        label = 'SUNAT: Aceptado';
+        break;
+      case 'RECHAZADO':
+        chipColor = Colors.red;
+        label = 'SUNAT: Rechazado';
+        break;
+      case 'ERROR_COMUNICACION':
+        chipColor = Colors.orange;
+        label = 'SUNAT: Error conexión';
+        break;
+      case 'PROCESANDO':
+        chipColor = Colors.blue;
+        label = 'SUNAT: Procesando';
+        break;
+      default:
+        chipColor = Colors.amber.shade700;
+        label = 'SUNAT: Pendiente';
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: chipColor.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(label, style: TextStyle(fontSize: 10, color: chipColor, fontWeight: FontWeight.w600)),
+            ),
+            const Spacer(),
+            if (status == 'PENDIENTE' || status == 'ERROR_COMUNICACION')
+              GestureDetector(
+                onTap: () => _reenviarASunat(v.comprobanteId!),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: Colors.blue.shade200),
+                  ),
+                  child: Text('Reintentar', style: TextStyle(fontSize: 10, color: Colors.blue.shade700, fontWeight: FontWeight.w600)),
+                ),
+              ),
+          ],
+        ),
+        if (status == 'RECHAZADO' && v.comprobanteNubefactError != null) ...[
+          const SizedBox(height: 4),
+          Text(v.comprobanteNubefactError!, style: TextStyle(fontSize: 10, color: Colors.red.shade600)),
+        ],
+        if (v.comprobanteSunatHash != null) ...[
+          const SizedBox(height: 4),
+          _buildDetailRow(Icons.tag, 'Hash', v.comprobanteSunatHash!),
+        ],
+      ],
+    );
+  }
+
+  Future<void> _reenviarASunat(String comprobanteId) async {
+    setState(() => _loading = true);
+    try {
+      final datasource = locator<VentaRemoteDataSource>();
+      await datasource.reenviarASunat(comprobanteId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Comprobante reenviado a SUNAT')),
+        );
+        // Recargar venta
+        _loadVenta();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
   Widget _buildDetailRow(IconData icon, String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
@@ -884,7 +1520,7 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
         context.push('/empresa/devoluciones/desde-venta/${widget.ventaId}');
         break;
       case 'anular':
-        _showAnularDialog(context);
+        _showAnularVentaDialog(context);
         break;
     }
   }
@@ -1168,7 +1804,7 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
     );
   }
 
-  void _showAnularDialog(BuildContext context) {
+  void _showAnularVentaDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
