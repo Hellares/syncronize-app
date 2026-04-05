@@ -314,7 +314,7 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                 ),
               const SizedBox(height: 4),
               _buildSunatStatusRow(v),
-              if (v.comprobanteSunatPdfUrl != null || v.comprobanteEnlaceNubefact != null) ...[
+              if (v.comprobanteSunatPdfUrl != null || v.comprobanteEnlaceProveedor != null) ...[
                 const SizedBox(height: 6),
                 Row(
                   children: [
@@ -338,10 +338,10 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                           ),
                         ),
                       ),
-                    if (v.comprobanteEnlaceNubefact != null) ...[
+                    if (v.comprobanteEnlaceProveedor != null) ...[
                       const SizedBox(width: 6),
                       GestureDetector(
-                        onTap: () => _abrirUrl(v.comprobanteEnlaceNubefact!),
+                        onTap: () => _abrirUrl(v.comprobanteEnlaceProveedor!),
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
@@ -354,7 +354,7 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                             children: [
                               Icon(Icons.open_in_new, size: 11, color: Colors.grey.shade700),
                               const SizedBox(width: 4),
-                              Text('Ver en Nubefact', style: TextStyle(fontSize: 9, color: Colors.grey.shade700, fontWeight: FontWeight.w600)),
+                              Text('Ver comprobante', style: TextStyle(fontSize: 9, color: Colors.grey.shade700, fontWeight: FontWeight.w600)),
                             ],
                           ),
                         ),
@@ -941,7 +941,7 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
             Text('Motivo: ${nota.motivoNota}',
                 style: TextStyle(fontSize: 10, color: Colors.grey.shade600, fontStyle: FontStyle.italic)),
           ],
-          if (nota.enlaceNubefact != null || nota.sunatPdfUrl != null) ...[
+          if (nota.enlaceProveedor != null || nota.sunatPdfUrl != null) ...[
             const SizedBox(height: 6),
             Row(
               children: [
@@ -965,10 +965,10 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                       ),
                     ),
                   ),
-                if (nota.enlaceNubefact != null) ...[
+                if (nota.enlaceProveedor != null) ...[
                   const SizedBox(width: 6),
                   GestureDetector(
-                    onTap: () => _abrirUrl(nota.enlaceNubefact!),
+                    onTap: () => _abrirUrl(nota.enlaceProveedor!),
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
@@ -981,7 +981,7 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                         children: [
                           Icon(Icons.open_in_new, size: 11, color: Colors.grey.shade700),
                           const SizedBox(width: 4),
-                          Text('Ver en Nubefact', style: TextStyle(fontSize: 9, color: Colors.grey.shade700, fontWeight: FontWeight.w600)),
+                          Text('Ver comprobante', style: TextStyle(fontSize: 9, color: Colors.grey.shade700, fontWeight: FontWeight.w600)),
                         ],
                       ),
                     ),
@@ -1413,9 +1413,9 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
               ),
           ],
         ),
-        if (status == 'RECHAZADO' && v.comprobanteNubefactError != null) ...[
+        if (status == 'RECHAZADO' && v.comprobanteErrorProveedor != null) ...[
           const SizedBox(height: 4),
-          Text(v.comprobanteNubefactError!, style: TextStyle(fontSize: 10, color: Colors.red.shade600)),
+          Text(v.comprobanteErrorProveedor!, style: TextStyle(fontSize: 10, color: Colors.red.shade600)),
         ],
         if (v.comprobanteSunatHash != null) ...[
           const SizedBox(height: 4),

@@ -127,6 +127,7 @@ import '../../features/devolucion_venta/presentation/pages/devoluciones_venta_pa
 import '../../features/devolucion_venta/presentation/pages/devolucion_venta_form_page.dart';
 import '../../features/devolucion_venta/presentation/pages/devolucion_venta_detail_page.dart';
 import '../../features/monitor_facturacion/presentation/pages/monitor_facturacion_page.dart';
+import '../../features/monitor_facturacion/presentation/pages/reporte_correlativos_page.dart';
 import '../../features/configuracion_documentos/presentation/pages/configuracion_documentos_page.dart';
 import '../../features/compra/presentation/pages/ordenes_compra_page.dart';
 import '../../features/compra/presentation/pages/orden_compra_detail_page.dart';
@@ -1108,6 +1109,11 @@ class AppRouter {
         path: '/empresa/monitor-facturacion',
         name: 'empresa-monitor-facturacion',
         builder: (context, state) => const MonitorFacturacionPage(),
+      ),
+      GoRoute(
+        path: '/empresa/reporte-correlativos',
+        name: 'empresa-reporte-correlativos',
+        builder: (context, state) => const ReporteCorrelativosPage(),
       ),
       // Rutas de devoluciones
       GoRoute(

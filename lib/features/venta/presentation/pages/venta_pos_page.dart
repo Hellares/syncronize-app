@@ -8,6 +8,7 @@ import '../../../../core/widgets/items_table_widget.dart';
 import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/widgets/autorizacion_dialog.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../../../core/widgets/producto_sede_selector/producto_sede_search_cubit.dart';
 import '../../../auth/presentation/bloc/auth/auth_bloc.dart';
@@ -74,6 +75,11 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
   int _numeroCuotas = 1;
   final _montoCreditoController = TextEditingController();
   final _numeroCuotasController = TextEditingController(text: '1');
+
+  // Descuento global
+  double _descuentoGlobal = 0;
+  double _descuentoGlobalPorcentaje = 0;
+  String? _descuentoAutorizadoPorId;
 
   // Observaciones
   final _observacionesController = TextEditingController();
@@ -153,12 +159,33 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
     try {
       final datasource = locator<VentaRemoteDataSource>();
       final response = await datasource.listarEmisores();
-      if (mounted) {
-        setState(() {
-          _emisores = response;
-          if (_emisores.isNotEmpty) _emisorSeleccionado = _emisores.first;
-        });
-      }
+      if (!mounted) return;
+
+      // Obtener sedeFacturacionId de la caja activa
+      String? cajaSedeFacturacionId;
+      try {
+        final dio = locator<DioClient>();
+        final cajaResponse = await dio.get('/caja/activa');
+        final cajaData = cajaResponse.data;
+        if (cajaData is Map<String, dynamic>) {
+          cajaSedeFacturacionId = cajaData['sedeFacturacionId'] as String?;
+        }
+      } catch (_) {}
+
+      setState(() {
+        _emisores = response;
+        if (_emisores.isNotEmpty) {
+          // Pre-seleccionar emisor de la caja si está configurado
+          if (cajaSedeFacturacionId != null) {
+            _emisorSeleccionado = _emisores.firstWhere(
+              (e) => e.sedeId == cajaSedeFacturacionId,
+              orElse: () => _emisores.first,
+            );
+          } else {
+            _emisorSeleccionado = _emisores.first;
+          }
+        }
+      });
     } catch (_) {}
   }
 
@@ -197,7 +224,8 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
 
   // ─── Computed Properties ───
 
-  double _calcularTotal() => _items.fold(0.0, (sum, i) => sum + i.total);
+  double _calcularSubtotalItems() => _items.fold(0.0, (sum, i) => sum + i.total);
+  double _calcularTotal() => (_calcularSubtotalItems() - _descuentoGlobal).clamp(0, double.infinity);
   double get _totalPagado => _pagos.fold(0.0, (sum, p) => sum + (p['monto'] as double));
 
   double get _montoCredito {
@@ -334,6 +362,9 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
                     const SizedBox(height: 20),
 
                     _buildSectionHeader('Resumen', Icons.summarize),
+                    // Botón descuento global
+                    if (_items.isNotEmpty)
+                      _buildDescuentoGlobalSection(),
                     PosResumenTotales(
                       items: _items,
                       moneda: _moneda,
@@ -347,6 +378,7 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
                       condicionPago: _condicionPago,
                       interesHabilitado: _interesHabilitado,
                       porcentajeInteres: _porcentajeInteres,
+                      descuentoGlobal: _descuentoGlobal,
                     ),
                     const SizedBox(height: 12),
 
@@ -433,6 +465,10 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
                             _emailController.text = result.email ?? '';
                             _telefonoController.text = result.telefono ?? '';
                             _direccionController.text = '';
+                            // Auto-default: DNI (8 dígitos) → BOLETA
+                            if ((result.dni ?? '').length == 8 && _tipoComprobante == 'TICKET') {
+                              _tipoComprobante = 'BOLETA';
+                            }
                           } else {
                             _clienteId = null;
                             _clienteEmpresaId = result.clienteEmpresaId;
@@ -441,6 +477,10 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
                             _emailController.text = result.email ?? '';
                             _telefonoController.text = result.telefono ?? '';
                             _direccionController.text = result.direccion ?? '';
+                            // Auto-default: RUC (11 dígitos) → FACTURA
+                            if ((result.ruc ?? '').length == 11 && _tipoComprobante == 'TICKET') {
+                              _tipoComprobante = 'FACTURA';
+                            }
                           }
                         });
                       }
@@ -600,6 +640,80 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
 
   // ─── Submit: Cobrar ───
 
+  Widget _buildDescuentoGlobalSection() {
+    final subtotalItems = _calcularSubtotalItems();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          if (_descuentoGlobal > 0) ...[
+            Icon(Icons.discount, size: 14, color: Colors.green.shade700),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                'Dcto. global: -S/ ${_descuentoGlobal.toStringAsFixed(2)} (${_descuentoGlobalPorcentaje.toStringAsFixed(1)}%)',
+                style: TextStyle(fontSize: 12, color: Colors.green.shade700, fontWeight: FontWeight.w600),
+              ),
+            ),
+            GestureDetector(
+              onTap: () => setState(() {
+                _descuentoGlobal = 0;
+                _descuentoGlobalPorcentaje = 0;
+                _descuentoAutorizadoPorId = null;
+                _pagos.clear();
+                _montoAgregarController.clear();
+              }),
+              child: Icon(Icons.close, size: 16, color: Colors.red.shade400),
+            ),
+          ] else ...[
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: subtotalItems > 0 ? () => _solicitarDescuentoGlobal(context) : null,
+                icon: const Icon(Icons.discount, size: 16),
+                label: const Text('Aplicar descuento global', style: TextStyle(fontSize: 12)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.green.shade700,
+                  side: BorderSide(color: Colors.green.shade300),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _solicitarDescuentoGlobal(BuildContext context) async {
+    // Primero pedir autorización del supervisor
+    final auth = await showAutorizacionDialog(
+      context,
+      operacion: 'DESCUENTO',
+      titulo: 'Autorizar descuento',
+      descripcion: 'Un supervisor debe autorizar el descuento',
+    );
+    if (auth == null || !mounted) return;
+
+    // Dialog con opción: porcentaje o monto fijo
+    final subtotal = _calcularSubtotalItems();
+    final resultado = await showDialog<({double monto, double porcentaje})>(
+      context: context,
+      builder: (ctx) => _DescuentoDialog(subtotal: subtotal, autorizadoPor: auth.autorizadoPorNombre),
+    );
+
+    if (resultado == null || !mounted) return;
+
+    setState(() {
+      _descuentoGlobalPorcentaje = resultado.porcentaje;
+      _descuentoGlobal = resultado.monto;
+      _descuentoAutorizadoPorId = auth.autorizadoPorId;
+      // Limpiar pagos para que el cajero ingrese sobre el total correcto
+      _pagos.clear();
+      _montoAgregarController.clear();
+    });
+  }
+
   void _submitCobrar(BuildContext context) {
     if (_nombreClienteController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('El nombre del cliente es requerido')));
@@ -634,6 +748,22 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
     if (_esCredito && _numeroCuotas <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ingresa el numero de cuotas')));
       return;
+    }
+
+    // Validar documento para comprobante electrónico
+    if (_tipoComprobante == 'FACTURA') {
+      final doc = _documentoController.text.trim();
+      if (doc.isEmpty || doc.length != 11) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('FACTURA requiere RUC válido (11 dígitos)')));
+        return;
+      }
+    }
+    if (_tipoComprobante == 'BOLETA') {
+      final doc = _documentoController.text.trim();
+      if (doc.isNotEmpty && doc.length != 8 && doc.length != 11) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Documento inválido: DNI (8 dígitos) o RUC (11 dígitos)')));
+        return;
+      }
     }
 
     final plazoDias = _numeroCuotas * 30;
@@ -678,6 +808,11 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
         'porcentajeInteres': _porcentajeInteres,
       },
       if (_observacionesController.text.isNotEmpty) 'observaciones': _observacionesController.text,
+      if (_descuentoGlobal > 0) ...{
+        'descuentoGlobal': _descuentoGlobal,
+        'descuentoGlobalPorcentaje': _descuentoGlobalPorcentaje,
+        'descuentoAutorizadoPorId': _descuentoAutorizadoPorId,
+      },
       'detalles': _items.map((item) => item.toMap()).toList(),
     };
 
@@ -714,5 +849,142 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
     };
 
     context.read<VentaFormCubit>().crearVenta(data);
+  }
+}
+
+// ── Dialog de descuento: porcentaje o monto fijo ──
+
+class _DescuentoDialog extends StatefulWidget {
+  final double subtotal;
+  final String autorizadoPor;
+
+  const _DescuentoDialog({required this.subtotal, required this.autorizadoPor});
+
+  @override
+  State<_DescuentoDialog> createState() => _DescuentoDialogState();
+}
+
+class _DescuentoDialogState extends State<_DescuentoDialog> {
+  bool _esPorcentaje = true;
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _aplicar() {
+    final val = double.tryParse(_controller.text) ?? 0;
+    if (val <= 0) return;
+
+    double monto;
+    double porcentaje;
+
+    if (_esPorcentaje) {
+      if (val > 100) return;
+      porcentaje = val;
+      monto = (widget.subtotal * val / 100 * 100).roundToDouble() / 100;
+    } else {
+      if (val > widget.subtotal) return;
+      monto = (val * 100).roundToDouble() / 100;
+      porcentaje = (monto / widget.subtotal * 100 * 100).roundToDouble() / 100;
+    }
+
+    Navigator.pop(context, (monto: monto, porcentaje: porcentaje));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Row(
+        children: [
+          Icon(Icons.discount, color: Colors.green.shade700, size: 20),
+          const SizedBox(width: 8),
+          const Text('Descuento global', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+        ],
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('Autorizado por: ${widget.autorizadoPor}',
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+          const SizedBox(height: 4),
+          Text('Subtotal: S/ ${widget.subtotal.toStringAsFixed(2)}',
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+          const SizedBox(height: 12),
+          // Toggle: Porcentaje / Monto fijo
+          Row(
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => setState(() { _esPorcentaje = true; _controller.clear(); }),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                      color: _esPorcentaje ? Colors.green.shade700 : Colors.white,
+                      borderRadius: const BorderRadius.horizontal(left: Radius.circular(8)),
+                      border: Border.all(color: Colors.green.shade700),
+                    ),
+                    child: Center(
+                      child: Text('Porcentaje %',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
+                              color: _esPorcentaje ? Colors.white : Colors.green.shade700)),
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => setState(() { _esPorcentaje = false; _controller.clear(); }),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                      color: !_esPorcentaje ? Colors.green.shade700 : Colors.white,
+                      borderRadius: const BorderRadius.horizontal(right: Radius.circular(8)),
+                      border: Border.all(color: Colors.green.shade700),
+                    ),
+                    child: Center(
+                      child: Text('Monto fijo',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
+                              color: !_esPorcentaje ? Colors.white : Colors.green.shade700)),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _controller,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            autofocus: true,
+            decoration: InputDecoration(
+              labelText: _esPorcentaje ? 'Porcentaje' : 'Monto a descontar',
+              suffixText: _esPorcentaje ? '%' : 'S/',
+              isDense: true,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            style: const TextStyle(fontSize: 16),
+            onSubmitted: (_) => _aplicar(),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text('Cancelar', style: TextStyle(color: Colors.grey.shade600)),
+        ),
+        ElevatedButton(
+          onPressed: _aplicar,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.green.shade700,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+          child: const Text('Aplicar', style: TextStyle(color: Colors.white)),
+        ),
+      ],
+    );
   }
 }

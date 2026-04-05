@@ -13,11 +13,13 @@ class AbrirCajaUseCase {
     required String sedeId,
     required double montoApertura,
     String? observaciones,
+    String? sedeFacturacionId,
   }) {
     return _repository.abrirCaja(
       sedeId: sedeId,
       montoApertura: montoApertura,
       observaciones: observaciones,
+      sedeFacturacionId: sedeFacturacionId,
     );
   }
 }

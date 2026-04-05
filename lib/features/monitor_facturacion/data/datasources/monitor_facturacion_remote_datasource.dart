@@ -1,6 +1,7 @@
 import 'package:injectable/injectable.dart';
 import '../../../../core/network/dio_client.dart';
 import '../models/comprobante_item_model.dart';
+import '../models/serie_correlativo_model.dart';
 
 @lazySingleton
 class MonitorFacturacionRemoteDatasource {
@@ -52,5 +53,14 @@ class MonitorFacturacionRemoteDatasource {
   Future<Map<String, dynamic>> anular(String comprobanteId, String motivo) async {
     final response = await _dioClient.post('$_basePath/comprobantes/$comprobanteId/anular', data: {'motivo': motivo});
     return response.data as Map<String, dynamic>;
+  }
+
+  Future<ReporteCorrelativosModel> reporteCorrelativos({String? sedeId, String? fechaDesde, String? fechaHasta}) async {
+    final params = <String, dynamic>{};
+    if (sedeId != null) params['sedeId'] = sedeId;
+    if (fechaDesde != null) params['fechaDesde'] = fechaDesde;
+    if (fechaHasta != null) params['fechaHasta'] = fechaHasta;
+    final response = await _dioClient.get('$_basePath/reporte-correlativos', queryParameters: params);
+    return ReporteCorrelativosModel.fromJson(response.data as Map<String, dynamic>);
   }
 }

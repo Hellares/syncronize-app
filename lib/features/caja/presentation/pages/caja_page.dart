@@ -10,6 +10,7 @@ import 'package:syncronize/core/widgets/custom_button.dart';
 import 'package:syncronize/core/widgets/custom_dropdown.dart';
 import 'package:syncronize/core/widgets/currency/currency_textfield.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
+import 'package:syncronize/core/network/dio_client.dart';
 import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import 'package:syncronize/core/widgets/snack_bar_helper.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
@@ -52,6 +53,26 @@ class _CajaViewState extends State<_CajaView> {
   final _montoAperturaController = TextEditingController();
   final _observacionesController = TextEditingController();
   String? _selectedSedeId;
+  String? _selectedEmisorSedeId;
+  List<Map<String, dynamic>> _emisores = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarEmisores();
+  }
+
+  Future<void> _cargarEmisores() async {
+    try {
+      final dio = locator<DioClient>();
+      final response = await dio.get('/sunat/emisores');
+      if (mounted && response.data is List) {
+        setState(() {
+          _emisores = (response.data as List).cast<Map<String, dynamic>>();
+        });
+      }
+    } catch (_) {}
+  }
 
   @override
   void dispose() {
@@ -212,6 +233,24 @@ class _CajaViewState extends State<_CajaView> {
                   borderColor: AppColors.blue1,
                 ),
                 const SizedBox(height: 16),
+                // Emisor por defecto (solo si hay 2+ emisores)
+                if (_emisores.length > 1) ...[
+                  CustomDropdown<String>(
+                    label: 'Emisor por defecto (RUC)',
+                    hintText: 'Selecciona el RUC para facturar',
+                    value: _selectedEmisorSedeId,
+                    borderColor: Colors.green.shade700,
+                    prefixIcon: Icon(Icons.receipt_long, size: 18, color: Colors.green.shade700),
+                    items: _emisores.map((e) => DropdownItem<String>(
+                      value: e['id'] as String? ?? '',
+                      label: '${e['ruc']} - ${e['razonSocial']}',
+                    )).toList(),
+                    onChanged: (value) {
+                      setState(() => _selectedEmisorSedeId = value);
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 // Observaciones
                 CustomText(
                   controller: _observacionesController,
@@ -225,7 +264,6 @@ class _CajaViewState extends State<_CajaView> {
                   child: CustomButton(
                     text: 'Abrir Caja',
                     backgroundColor: AppColors.green,
-                    height: 48,
                     onPressed: _abrirCaja,
                   ),
                 ),
@@ -256,6 +294,7 @@ class _CajaViewState extends State<_CajaView> {
           observaciones: _observacionesController.text.isNotEmpty
               ? _observacionesController.text
               : null,
+          sedeFacturacionId: _selectedEmisorSedeId,
         );
   }
 

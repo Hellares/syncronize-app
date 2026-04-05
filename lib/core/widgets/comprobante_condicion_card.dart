@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import '../theme/app_colors.dart';
 import '../theme/gradient_container.dart';
-import 'custom_dropdown.dart';
 
 /// Datos de un emisor (RUC) disponible para facturar
 class EmisorItem {
@@ -70,18 +69,15 @@ class ComprobanteCondicionCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            CustomDropdown<String>(
-              label: 'Tipo de Comprobante',
-              value: tipoComprobante,
-              borderColor: AppColors.blue1,
-              items: const [
-                DropdownItem(value: 'TICKET', label: 'Ticket (Nota de venta)'),
-                DropdownItem(value: 'BOLETA', label: 'Boleta'),
-                DropdownItem(value: 'FACTURA', label: 'Factura'),
+            AppSubtitle('Tipo de Comprobante', color: AppColors.blue1),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              children: [
+                _comprobanteChip('TICKET', 'Ticket'),
+                _comprobanteChip('BOLETA', 'Boleta'),
+                _comprobanteChip('FACTURA', 'Factura'),
               ],
-              onChanged: (v) {
-                if (v != null) onComprobanteChanged(v);
-              },
             ),
             if (tipoComprobante == 'FACTURA') ...[
               const SizedBox(height: 6),
@@ -150,6 +146,23 @@ class ComprobanteCondicionCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _comprobanteChip(String value, String label) {
+    final selected = tipoComprobante == value;
+    return GestureDetector(
+      onTap: () => onComprobanteChanged(value),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.blue1 : Colors.white,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: selected ? AppColors.blue1 : Colors.grey[300]!, width: 0.6),
+        ),
+        child: Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
+            color: selected ? Colors.white : Colors.grey[700])),
       ),
     );
   }

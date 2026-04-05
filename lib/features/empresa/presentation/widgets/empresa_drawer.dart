@@ -403,6 +403,14 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             ),
             _TileNode(
               visible: permissions?.canViewReports ?? false,
+              title: 'Reporte Correlativos',
+              icon: Icons.format_list_numbered,
+              iconColor: Colors.teal.shade700,
+              routeMatch: const _RouteMatch.startsWith('/empresa/reporte-correlativos'),
+              onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/reporte-correlativos')),
+            ),
+            _TileNode(
+              visible: permissions?.canViewReports ?? false,
               title: 'Resumen Financiero',
               icon: Icons.analytics,
               iconColor: Colors.deepPurple,

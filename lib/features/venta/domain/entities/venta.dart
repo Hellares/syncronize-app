@@ -185,8 +185,8 @@ class Venta extends Equatable {
   final String? comprobanteSunatXmlUrl;
   final String? comprobanteSunatPdfUrl;
   final String? comprobanteCadenaQR;
-  final String? comprobanteEnlaceNubefact;
-  final String? comprobanteNubefactError;
+  final String? comprobanteEnlaceProveedor;
+  final String? comprobanteErrorProveedor;
   final int? comprobanteIntentosEnvio;
   final bool? comprobanteAnulado;
   final List<NotaRelacionada>? notasRelacionadas;
@@ -250,8 +250,8 @@ class Venta extends Equatable {
     this.comprobanteSunatXmlUrl,
     this.comprobanteSunatPdfUrl,
     this.comprobanteCadenaQR,
-    this.comprobanteEnlaceNubefact,
-    this.comprobanteNubefactError,
+    this.comprobanteEnlaceProveedor,
+    this.comprobanteErrorProveedor,
     this.comprobanteIntentosEnvio,
     this.comprobanteAnulado,
     this.notasRelacionadas,
@@ -322,7 +322,7 @@ class NotaRelacionada {
   final String? cadenaQR;
   final bool anulado;
   final DateTime? fechaEmision;
-  final String? enlaceNubefact;
+  final String? enlaceProveedor;
   final String? sunatPdfUrl;
 
   const NotaRelacionada({
@@ -339,7 +339,7 @@ class NotaRelacionada {
     this.cadenaQR,
     this.anulado = false,
     this.fechaEmision,
-    this.enlaceNubefact,
+    this.enlaceProveedor,
     this.sunatPdfUrl,
   });
 
@@ -366,7 +366,7 @@ class NotaRelacionada {
       cadenaQR: json['cadenaQR'] as String?,
       anulado: json['anulado'] as bool? ?? false,
       fechaEmision: json['fechaEmision'] != null ? DateTime.tryParse(json['fechaEmision'].toString()) : null,
-      enlaceNubefact: json['enlaceNubefact'] as String?,
+      enlaceProveedor: json['enlaceProveedor'] as String?,
       sunatPdfUrl: json['sunatPdfUrl'] as String?,
     );
   }

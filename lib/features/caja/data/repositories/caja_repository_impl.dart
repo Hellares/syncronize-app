@@ -27,6 +27,7 @@ class CajaRepositoryImpl implements CajaRepository {
     required String sedeId,
     required double montoApertura,
     String? observaciones,
+    String? sedeFacturacionId,
   }) async {
     if (!await _networkInfo.isConnected) {
       return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
@@ -36,6 +37,7 @@ class CajaRepositoryImpl implements CajaRepository {
         sedeId: sedeId,
         montoApertura: montoApertura,
         observaciones: observaciones,
+        sedeFacturacionId: sedeFacturacionId,
       );
       return Success(caja.toEntity());
     } catch (e) {

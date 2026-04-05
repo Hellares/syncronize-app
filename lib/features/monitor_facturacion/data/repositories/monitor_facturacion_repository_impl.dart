@@ -1,6 +1,7 @@
 import 'package:injectable/injectable.dart';
 import '../../../../core/utils/resource.dart';
 import '../../domain/entities/comprobante_item.dart';
+import '../../domain/entities/serie_correlativo.dart';
 import '../../domain/repositories/monitor_facturacion_repository.dart';
 import '../datasources/monitor_facturacion_remote_datasource.dart';
 
@@ -62,6 +63,16 @@ class MonitorFacturacionRepositoryImpl implements MonitorFacturacionRepository {
       return Success(result);
     } catch (e) {
       return Error('Error al anular: $e');
+    }
+  }
+
+  @override
+  Future<Resource<ReporteCorrelativos>> reporteCorrelativos({String? sedeId, String? fechaDesde, String? fechaHasta}) async {
+    try {
+      final result = await _datasource.reporteCorrelativos(sedeId: sedeId, fechaDesde: fechaDesde, fechaHasta: fechaHasta);
+      return Success(result);
+    } catch (e) {
+      return Error('Error al obtener reporte: $e');
     }
   }
 }

@@ -14,10 +14,10 @@ class ComprobanteItem extends Equatable {
   final String estado;
   final String sunatStatus;
   final String? sunatHash;
-  final bool nubefactEnviado;
-  final String? nubefactError;
+  final bool enviadoAProveedor;
+  final String? errorProveedor;
   final int intentosEnvio;
-  final String? enlaceNubefact;
+  final String? enlaceProveedor;
   final String? sunatPdfUrl;
   final bool anulado;
   final String? motivoNota;
@@ -40,10 +40,10 @@ class ComprobanteItem extends Equatable {
     required this.estado,
     required this.sunatStatus,
     this.sunatHash,
-    this.nubefactEnviado = false,
-    this.nubefactError,
+    this.enviadoAProveedor = false,
+    this.errorProveedor,
     this.intentosEnvio = 0,
-    this.enlaceNubefact,
+    this.enlaceProveedor,
     this.sunatPdfUrl,
     this.anulado = false,
     this.motivoNota,

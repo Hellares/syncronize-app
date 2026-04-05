@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/utils/resource.dart';
@@ -42,7 +43,16 @@ class _MonitorViewState extends State<_MonitorView> {
     return GradientBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        appBar: SmartAppBar(title: 'Monitor de Facturación'),
+        appBar: SmartAppBar(
+          title: 'Monitor de Facturación',
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.format_list_numbered, size: 20),
+              tooltip: 'Reporte Correlativos',
+              onPressed: () => context.push('/empresa/reporte-correlativos'),
+            ),
+          ],
+        ),
         body: Column(
           children: [
             _buildFiltros(),
@@ -131,6 +141,7 @@ class _MonitorViewState extends State<_MonitorView> {
                 const SizedBox(width: 12),
                 _statusChip('Aceptado', 'ACEPTADO', Colors.green),
                 _statusChip('Pendiente', 'PENDIENTE', Colors.amber.shade700),
+                _statusChip('Procesando', 'PROCESANDO', Colors.blue),
                 _statusChip('Error', 'ERROR_COMUNICACION', Colors.orange),
                 _statusChip('Rechazado', 'RECHAZADO', Colors.red),
               ],
@@ -345,9 +356,9 @@ class _ComprobanteCard extends StatelessWidget {
               ],
             ),
             // Error
-            if (item.nubefactError != null && item.esPendiente) ...[
+            if (item.errorProveedor != null && item.esPendiente) ...[
               const SizedBox(height: 4),
-              Text(item.nubefactError!,
+              Text(_traducirError(item.errorProveedor!),
                   style: TextStyle(fontSize: 9, color: Colors.red.shade400),
                   maxLines: 2, overflow: TextOverflow.ellipsis),
             ],
@@ -365,8 +376,8 @@ class _ComprobanteCard extends StatelessWidget {
                   _actionButton(Icons.send, 'Reenviar', Colors.blue, onReenviar),
                 if (item.sunatPdfUrl != null)
                   _actionButton(Icons.picture_as_pdf, 'PDF', Colors.red.shade400, () => _abrirUrl(item.sunatPdfUrl!)),
-                if (item.enlaceNubefact != null)
-                  _actionButton(Icons.open_in_new, 'Ver', Colors.grey.shade600, () => _abrirUrl(item.enlaceNubefact!)),
+                if (item.enlaceProveedor != null)
+                  _actionButton(Icons.open_in_new, 'Ver', Colors.grey.shade600, () => _abrirUrl(item.enlaceProveedor!)),
                 if (item.ventaId != null)
                   _actionButton(Icons.receipt, 'Venta', Colors.indigo, () {
                     // Navigator.pushNamed(context, '/empresa/ventas/${item.ventaId}');
@@ -417,8 +428,15 @@ class _ComprobanteCard extends StatelessWidget {
       switch (item.sunatStatus) {
         case 'ACEPTADO': color = Colors.green; label = 'ACEPTADO'; break;
         case 'RECHAZADO': color = Colors.red; label = 'RECHAZADO'; break;
-        case 'ERROR_COMUNICACION': color = Colors.orange; label = 'ERROR'; break;
-        default: color = Colors.amber.shade700; label = 'PENDIENTE';
+        case 'PROCESANDO': color = Colors.blue; label = 'PROCESANDO'; break;
+        case 'ERROR_COMUNICACION': color = Colors.orange; label = 'ERROR COM.'; break;
+        default:
+          // Diferenciar PENDIENTE: sin enviar vs con intentos fallidos
+          if (item.intentosEnvio == 0) {
+            color = Colors.amber.shade700; label = 'SIN ENVIAR';
+          } else {
+            color = Colors.orange; label = 'REINTENTO';
+          }
       }
     }
     return Container(
@@ -454,5 +472,28 @@ class _ComprobanteCard extends StatelessWidget {
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
+  }
+
+  static String _traducirError(String error) {
+    final lower = error.toLowerCase();
+    if (lower.contains('token') || lower.contains('unauthorized') || lower.contains('403')) {
+      return 'Credenciales del proveedor vencidas o inválidas';
+    }
+    if (lower.contains('ya existe')) {
+      return 'Comprobante ya registrado en SUNAT';
+    }
+    if (lower.contains('serie') || lower.contains('numero')) {
+      return 'Error en serie/correlativo, verifique configuración';
+    }
+    if (lower.contains('ruc') || lower.contains('documento')) {
+      return 'Verifique RUC/DNI del cliente';
+    }
+    if (lower.contains('timeout') || lower.contains('no respondió') || lower.contains('econnrefused')) {
+      return 'Proveedor no respondió, reintente más tarde';
+    }
+    if (lower.contains('certificado') || lower.contains('ssl')) {
+      return 'Error de certificado, contacte soporte';
+    }
+    return error.length > 80 ? '${error.substring(0, 80)}...' : error;
   }
 }

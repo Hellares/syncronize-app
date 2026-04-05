@@ -21,6 +21,7 @@ class PosResumenTotales extends StatelessWidget {
   final String condicionPago;
   final bool interesHabilitado;
   final double porcentajeInteres;
+  final double descuentoGlobal;
 
   const PosResumenTotales({
     super.key,
@@ -36,6 +37,7 @@ class PosResumenTotales extends StatelessWidget {
     required this.condicionPago,
     this.interesHabilitado = false,
     this.porcentajeInteres = 0,
+    this.descuentoGlobal = 0,
   });
 
   @override
@@ -69,6 +71,19 @@ class PosResumenTotales extends StatelessWidget {
               padding: const EdgeInsets.all(12),
               child: Column(
                 children: [
+                  // Descuento global
+                  if (descuentoGlobal > 0) ...[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Dcto. global',
+                            style: TextStyle(fontSize: 11, color: Colors.green[700])),
+                        Text('- S/ ${descuentoGlobal.toStringAsFixed(2)}',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.green[700])),
+                      ],
+                    ),
+                    const Divider(height: 8),
+                  ],
                   // Total de la venta (valor del bien)
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,

@@ -10,6 +10,7 @@ abstract class CajaRepository {
     required String sedeId,
     required double montoApertura,
     String? observaciones,
+    String? sedeFacturacionId,
   });
 
   Future<Resource<Caja?>> getCajaActiva();

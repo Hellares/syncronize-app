@@ -57,9 +57,9 @@ class Sede extends Equatable {
   final String? rucSede;
   final String? razonSocialSede;
   final String? direccionFiscalSede;
-  final String? nubefactRuta;
-  final String? nubefactToken;
-  final bool? nubefactActivo;
+  final String? proveedorRuta;
+  final String? proveedorToken;
+  final bool? facturacionActiva;
   final String? resolucionSunat;
 
   // Contadores de documentos por sede
@@ -111,9 +111,9 @@ class Sede extends Equatable {
     this.rucSede,
     this.razonSocialSede,
     this.direccionFiscalSede,
-    this.nubefactRuta,
-    this.nubefactToken,
-    this.nubefactActivo,
+    this.proveedorRuta,
+    this.proveedorToken,
+    this.facturacionActiva,
     this.resolucionSunat,
     required this.ultimoNumeroFactura,
     required this.ultimoNumeroBoleta,

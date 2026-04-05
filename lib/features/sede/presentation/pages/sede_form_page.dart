@@ -53,6 +53,7 @@ class _SedeFormView extends StatefulWidget {
 
 class _SedeFormViewState extends State<_SedeFormView> {
   final _formKey = GlobalKey<FormState>();
+  Sede? _sedeActual;
 
   // Controladores de texto
   final _codigoController = TextEditingController();
@@ -74,8 +75,8 @@ class _SedeFormViewState extends State<_SedeFormView> {
   final _rucSedeController = TextEditingController();
   final _razonSocialSedeController = TextEditingController();
   final _direccionFiscalSedeController = TextEditingController();
-  final _nubefactRutaController = TextEditingController();
-  final _nubefactTokenController = TextEditingController();
+  final _proveedorRutaController = TextEditingController();
+  final _proveedorTokenController = TextEditingController();
   final _resolucionSunatController = TextEditingController();
 
   TipoSede _selectedTipoSede = TipoSede.operativaCompleta;
@@ -177,8 +178,8 @@ class _SedeFormViewState extends State<_SedeFormView> {
     _rucSedeController.text = sede.rucSede ?? '';
     _razonSocialSedeController.text = sede.razonSocialSede ?? '';
     _direccionFiscalSedeController.text = sede.direccionFiscalSede ?? '';
-    _nubefactRutaController.text = sede.nubefactRuta ?? '';
-    _nubefactTokenController.text = sede.nubefactToken ?? '';
+    _proveedorRutaController.text = sede.proveedorRuta ?? '';
+    _proveedorTokenController.text = sede.proveedorToken ?? '';
     _resolucionSunatController.text = sede.resolucionSunat ?? '';
 
     setState(() {
@@ -345,10 +346,10 @@ class _SedeFormViewState extends State<_SedeFormView> {
         'razonSocialSede': _razonSocialSedeController.text.trim(),
       if (_direccionFiscalSedeController.text.trim().isNotEmpty)
         'direccionFiscalSede': _direccionFiscalSedeController.text.trim(),
-      if (_nubefactRutaController.text.trim().isNotEmpty)
-        'nubefactRuta': _nubefactRutaController.text.trim(),
-      if (_nubefactTokenController.text.trim().isNotEmpty)
-        'nubefactToken': _nubefactTokenController.text.trim(),
+      if (_proveedorRutaController.text.trim().isNotEmpty)
+        'proveedorRuta': _proveedorRutaController.text.trim(),
+      if (_proveedorTokenController.text.trim().isNotEmpty)
+        'proveedorToken': _proveedorTokenController.text.trim(),
       if (_resolucionSunatController.text.trim().isNotEmpty)
         'resolucionSunat': _resolucionSunatController.text.trim(),
       'isActive': _isActive,
@@ -421,6 +422,7 @@ class _SedeFormViewState extends State<_SedeFormView> {
               child: BlocConsumer<SedeFormCubit, SedeFormState>(
                 listener: (context, state) {
                   if (state is SedeFormReady && widget.isEditing && state.sede != null) {
+                    _sedeActual = state.sede;
                     _loadSedeData(state.sede!);
                   }
 
@@ -495,12 +497,16 @@ class _SedeFormViewState extends State<_SedeFormView> {
                             rucSedeController: _rucSedeController,
                             razonSocialSedeController: _razonSocialSedeController,
                             direccionFiscalSedeController: _direccionFiscalSedeController,
-                            nubefactRutaController: _nubefactRutaController,
-                            nubefactTokenController: _nubefactTokenController,
+                            proveedorRutaController: _proveedorRutaController,
+                            proveedorTokenController: _proveedorTokenController,
                             resolucionSunatController: _resolucionSunatController,
                             selectedTipoSede: _selectedTipoSede,
                             isActive: _isActive,
                             isEditing: widget.isEditing,
+                            ultimoNumeroFactura: _sedeActual?.ultimoNumeroFactura ?? 0,
+                            ultimoNumeroBoleta: _sedeActual?.ultimoNumeroBoleta ?? 0,
+                            ultimoNumeroNotaCredito: _sedeActual?.ultimoNumeroNotaCredito ?? 0,
+                            ultimoNumeroNotaDebito: _sedeActual?.ultimoNumeroNotaDebito ?? 0,
                             onTipoSedeChanged: _handleTipoSedeChanged,
                             onIsActiveChanged: (value) {
                               setState(() {

@@ -28,8 +28,8 @@ class SedeFormFields extends StatelessWidget {
   final TextEditingController rucSedeController;
   final TextEditingController razonSocialSedeController;
   final TextEditingController direccionFiscalSedeController;
-  final TextEditingController nubefactRutaController;
-  final TextEditingController nubefactTokenController;
+  final TextEditingController proveedorRutaController;
+  final TextEditingController proveedorTokenController;
   final TextEditingController resolucionSunatController;
   final TipoSede selectedTipoSede;
   final bool isActive;
@@ -44,6 +44,11 @@ class SedeFormFields extends StatelessWidget {
   final VoidCallback? onAddImagenes;
   final ValueChanged<int>? onRemoveImagen;
   final double? uploadProgress;
+  // Correlativos actuales (solo lectura, informativo)
+  final int ultimoNumeroFactura;
+  final int ultimoNumeroBoleta;
+  final int ultimoNumeroNotaCredito;
+  final int ultimoNumeroNotaDebito;
 
   const SedeFormFields({
     super.key,
@@ -65,8 +70,8 @@ class SedeFormFields extends StatelessWidget {
     required this.rucSedeController,
     required this.razonSocialSedeController,
     required this.direccionFiscalSedeController,
-    required this.nubefactRutaController,
-    required this.nubefactTokenController,
+    required this.proveedorRutaController,
+    required this.proveedorTokenController,
     required this.resolucionSunatController,
     required this.selectedTipoSede,
     required this.isActive,
@@ -81,6 +86,10 @@ class SedeFormFields extends StatelessWidget {
     this.onAddImagenes,
     this.onRemoveImagen,
     this.uploadProgress,
+    this.ultimoNumeroFactura = 0,
+    this.ultimoNumeroBoleta = 0,
+    this.ultimoNumeroNotaCredito = 0,
+    this.ultimoNumeroNotaDebito = 0,
   });
 
   /// Determina si el tipo de sede requiere emisión de comprobantes
@@ -90,6 +99,19 @@ class SedeFormFields extends StatelessWidget {
   }
 
   /// Determina si un campo de serie específico debe ser editable
+  Widget _correlativoInfo(String label, int valor) {
+    return Expanded(
+      child: Row(
+        children: [
+          Text('$label: ', style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
+          Text(valor > 0 ? valor.toString().padLeft(8, '0') : 'Sin emisiones',
+              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600,
+                  color: valor > 0 ? AppColors.blue1 : Colors.grey.shade400)),
+        ],
+      ),
+    );
+  }
+
   bool _isSerieEditable(String serieTipo) {
     if (selectedTipoSede == TipoSede.operativaCompleta) {
       return true; // Todas las series editables
@@ -412,6 +434,43 @@ class SedeFormFields extends StatelessWidget {
             ],
           ),
 
+          // Correlativos actuales (informativo)
+          if (isEditing) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Último correlativo emitido',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey.shade700)),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      _correlativoInfo('Factura', ultimoNumeroFactura),
+                      _correlativoInfo('Boleta', ultimoNumeroBoleta),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      _correlativoInfo('N. Crédito', ultimoNumeroNotaCredito),
+                      _correlativoInfo('N. Débito', ultimoNumeroNotaDebito),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text('El próximo comprobante usará el correlativo siguiente',
+                      style: TextStyle(fontSize: 9, color: Colors.grey.shade500, fontStyle: FontStyle.italic)),
+                ],
+              ),
+            ),
+          ],
+
           const SizedBox(height: 16),
 
           CustomText(
@@ -455,15 +514,15 @@ class SedeFormFields extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           CustomText(
-            controller: nubefactRutaController,
-            label: 'Nubefact Ruta (URL API)',
+            controller: proveedorRutaController,
+            label: 'URL API Facturación (URL API)',
             hintText: 'https://api.nubefact.com/api/v1/...',
             borderColor: Colors.teal,
           ),
           const SizedBox(height: 12),
           CustomText(
-            controller: nubefactTokenController,
-            label: 'Nubefact Token',
+            controller: proveedorTokenController,
+            label: 'Token Facturación',
             hintText: 'Token de autenticación',
             borderColor: Colors.teal,
           ),

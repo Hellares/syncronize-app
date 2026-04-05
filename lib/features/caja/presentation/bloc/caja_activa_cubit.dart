@@ -40,6 +40,7 @@ class CajaActivaCubit extends Cubit<CajaActivaState> {
     required String sedeId,
     required double montoApertura,
     String? observaciones,
+    String? sedeFacturacionId,
   }) async {
     emit(const CajaActivaLoading());
 
@@ -47,6 +48,7 @@ class CajaActivaCubit extends Cubit<CajaActivaState> {
       sedeId: sedeId,
       montoApertura: montoApertura,
       observaciones: observaciones,
+      sedeFacturacionId: sedeFacturacionId,
     );
     if (isClosed) return;
 

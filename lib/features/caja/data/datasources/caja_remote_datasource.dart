@@ -16,6 +16,7 @@ class CajaRemoteDataSource {
     required String sedeId,
     required double montoApertura,
     String? observaciones,
+    String? sedeFacturacionId,
   }) async {
     final data = <String, dynamic>{
       'sedeId': sedeId,
@@ -23,6 +24,9 @@ class CajaRemoteDataSource {
     };
     if (observaciones != null && observaciones.isNotEmpty) {
       data['observaciones'] = observaciones;
+    }
+    if (sedeFacturacionId != null && sedeFacturacionId.isNotEmpty) {
+      data['sedeFacturacionId'] = sedeFacturacionId;
     }
 
     final response = await _dioClient.post('$_basePath/abrir', data: data);
