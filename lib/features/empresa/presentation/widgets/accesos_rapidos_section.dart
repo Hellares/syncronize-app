@@ -45,8 +45,8 @@ class AccesosRapidosSection extends StatelessWidget {
             children: [
               _card(Icons.build_circle, 'Órdenes Serv.', Colors.orange.shade700, () => context.push('/empresa/ordenes-servicio')),
               _card(Icons.inventory_2, 'Monitor Prod.', Colors.deepOrange, () => context.push('/empresa/monitor-productos')),
-              _card(Icons.currency_exchange, 'Tipo Cambio', Colors.green.shade700, () => context.push('/empresa/tipo-cambio')),
-              _card(Icons.people, 'Clientes', Colors.amber.shade800, () => context.push('/empresa/clientes')),
+              _card(Icons.account_tree, 'Flujo Docs', Colors.deepPurple, () => context.push('/empresa/flujo-documentos')),
+              _card(Icons.local_shipping, 'Guías Rem.', Colors.indigo, () => context.push('/empresa/guias-remision')),
               _card(Icons.settings, 'Config', Colors.grey.shade600, () => context.push('/empresa/configuracion')),
             ],
           ),

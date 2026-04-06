@@ -38,6 +38,7 @@ class Sede extends Equatable {
   final String? distrito;
   final String? provincia;
   final String? departamento;
+  final String? ubigeo;
   final String? pais;
   final Map<String, dynamic>? coordenadas;
   final List<String> imagenes;
@@ -98,6 +99,7 @@ class Sede extends Equatable {
     this.distrito,
     this.provincia,
     this.departamento,
+    this.ubigeo,
     this.pais,
     this.coordenadas,
     this.imagenes = const [],
@@ -190,6 +192,7 @@ class Sede extends Equatable {
         distrito,
         provincia,
         departamento,
+        ubigeo,
         pais,
         coordenadas,
         horarioAtencion,

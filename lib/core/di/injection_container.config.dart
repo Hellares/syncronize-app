@@ -442,6 +442,10 @@ import '../../features/consultas_externas/domain/repositories/consultas_reposito
     as _i112;
 import '../../features/consultas_externas/domain/usecases/consultar_dni_usecase.dart'
     as _i53;
+import '../../features/consultas_externas/domain/usecases/consultar_licencia_usecase.dart'
+    as _i785;
+import '../../features/consultas_externas/domain/usecases/consultar_placa_usecase.dart'
+    as _i956;
 import '../../features/consultas_externas/domain/usecases/consultar_ruc_usecase.dart'
     as _i633;
 import '../../features/consultas_externas/presentation/bloc/consulta_ruc_cubit.dart'
@@ -650,6 +654,18 @@ import '../../features/generador_barcode/domain/usecases/get_productos_sin_barco
     as _i769;
 import '../../features/generador_barcode/presentation/bloc/barcode_generator_cubit.dart'
     as _i460;
+import '../../features/guia_remision/data/datasources/guia_remision_remote_datasource.dart'
+    as _i593;
+import '../../features/guia_remision/data/repositories/guia_remision_repository_impl.dart'
+    as _i508;
+import '../../features/guia_remision/domain/repositories/guia_remision_repository.dart'
+    as _i108;
+import '../../features/guia_remision/domain/usecases/crear_guia_remision_usecase.dart'
+    as _i726;
+import '../../features/guia_remision/domain/usecases/enviar_guia_remision_usecase.dart'
+    as _i605;
+import '../../features/guia_remision/domain/usecases/listar_guias_remision_usecase.dart'
+    as _i934;
 import '../../features/inventario/data/datasources/inventario_remote_datasource.dart'
     as _i319;
 import '../../features/inventario/data/repositories/inventario_repository_impl.dart'
@@ -1593,6 +1609,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i15.BarcodeRemoteDataSource>(
       () => _i15.BarcodeRemoteDataSource(gh<_i667.DioClient>()),
     );
+    gh.lazySingleton<_i593.GuiaRemisionRemoteDatasource>(
+      () => _i593.GuiaRemisionRemoteDatasource(gh<_i667.DioClient>()),
+    );
     gh.lazySingleton<_i319.InventarioRemoteDataSource>(
       () => _i319.InventarioRemoteDataSource(gh<_i667.DioClient>()),
     );
@@ -1829,6 +1848,11 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i932.NetworkInfo>(),
       ),
     );
+    gh.lazySingleton<_i108.GuiaRemisionRepository>(
+      () => _i508.GuiaRemisionRepositoryImpl(
+        gh<_i593.GuiaRemisionRemoteDatasource>(),
+      ),
+    );
     gh.factory<_i479.GetClienteUseCase>(
       () => _i479.GetClienteUseCase(gh<_i37.ClienteRepository>()),
     );
@@ -1980,6 +2004,16 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i932.NetworkInfo>(),
         gh<_i490.ErrorHandlerService>(),
       ),
+    );
+    gh.lazySingleton<_i726.CrearGuiaRemisionUseCase>(
+      () => _i726.CrearGuiaRemisionUseCase(gh<_i108.GuiaRemisionRepository>()),
+    );
+    gh.lazySingleton<_i605.EnviarGuiaRemisionUseCase>(
+      () => _i605.EnviarGuiaRemisionUseCase(gh<_i108.GuiaRemisionRepository>()),
+    );
+    gh.lazySingleton<_i934.ListarGuiasRemisionUseCase>(
+      () =>
+          _i934.ListarGuiasRemisionUseCase(gh<_i108.GuiaRemisionRepository>()),
     );
     gh.lazySingleton<_i671.DashboardVendedorRepository>(
       () => _i230.DashboardVendedorRepositoryImpl(
@@ -2158,6 +2192,12 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i53.ConsultarDniUseCase>(
       () => _i53.ConsultarDniUseCase(gh<_i112.ConsultasRepository>()),
+    );
+    gh.lazySingleton<_i785.ConsultarLicenciaUseCase>(
+      () => _i785.ConsultarLicenciaUseCase(gh<_i112.ConsultasRepository>()),
+    );
+    gh.lazySingleton<_i956.ConsultarPlacaUseCase>(
+      () => _i956.ConsultarPlacaUseCase(gh<_i112.ConsultasRepository>()),
     );
     gh.lazySingleton<_i633.ConsultarRucUseCase>(
       () => _i633.ConsultarRucUseCase(gh<_i112.ConsultasRepository>()),

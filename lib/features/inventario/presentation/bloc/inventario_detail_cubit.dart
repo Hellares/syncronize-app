@@ -66,7 +66,7 @@ class InventarioDetailCubit extends Cubit<InventarioDetailState> {
       emit(InventarioDetailActionSuccess(inv, 'Conteo iniciado exitosamente'));
       await loadDetalle(id);
     } else if (result is Error) {
-      emit(InventarioDetailActionError(inv, (result as Error).message));
+      emit(InventarioDetailActionError(inv, (result).message));
     }
   }
 
@@ -91,7 +91,7 @@ class InventarioDetailCubit extends Cubit<InventarioDetailState> {
       emit(InventarioDetailActionSuccess(inv, 'Conteo registrado exitosamente'));
       await loadDetalle(inventarioId);
     } else if (result is Error) {
-      emit(InventarioDetailActionError(inv, (result as Error).message));
+      emit(InventarioDetailActionError(inv, (result).message));
     }
   }
 
@@ -108,7 +108,7 @@ class InventarioDetailCubit extends Cubit<InventarioDetailState> {
       emit(InventarioDetailActionSuccess(inv, 'Conteo finalizado exitosamente'));
       await loadDetalle(id);
     } else if (result is Error) {
-      emit(InventarioDetailActionError(inv, (result as Error).message));
+      emit(InventarioDetailActionError(inv, (result).message));
     }
   }
 
@@ -125,7 +125,7 @@ class InventarioDetailCubit extends Cubit<InventarioDetailState> {
       emit(InventarioDetailActionSuccess(inv, 'Inventario aprobado exitosamente'));
       await loadDetalle(id);
     } else if (result is Error) {
-      emit(InventarioDetailActionError(inv, (result as Error).message));
+      emit(InventarioDetailActionError(inv, (result).message));
     }
   }
 
@@ -142,7 +142,7 @@ class InventarioDetailCubit extends Cubit<InventarioDetailState> {
       emit(InventarioDetailActionSuccess(inv, 'Ajustes aplicados exitosamente'));
       await loadDetalle(id);
     } else if (result is Error) {
-      emit(InventarioDetailActionError(inv, (result as Error).message));
+      emit(InventarioDetailActionError(inv, (result).message));
     }
   }
 
@@ -159,7 +159,7 @@ class InventarioDetailCubit extends Cubit<InventarioDetailState> {
       emit(InventarioDetailActionSuccess(inv, 'Inventario cancelado'));
       await loadDetalle(id);
     } else if (result is Error) {
-      emit(InventarioDetailActionError(inv, (result as Error).message));
+      emit(InventarioDetailActionError(inv, (result).message));
     }
   }
 }

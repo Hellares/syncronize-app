@@ -157,7 +157,7 @@ class _ConfiguracionAvisoPageState extends State<ConfiguracionAvisoPage> {
                   Switch(
                     value: _habilitado,
                     onChanged: (v) => setState(() => _habilitado = v),
-                    activeColor: AppColors.blue1,
+                    activeThumbColor: AppColors.blue1,
                   ),
                 ],
               ),

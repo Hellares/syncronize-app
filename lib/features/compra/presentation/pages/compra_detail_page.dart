@@ -161,6 +161,31 @@ class _CompraDetailPageState extends State<CompraDetailPage> {
                         Icons.notes,
                       ),
                     ],
+                    if (_compra.estado == EstadoCompra.CONFIRMADA) ...[
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () => context.push(
+                            '/empresa/guias-remision/nueva',
+                            extra: {
+                              'compraId': _compra.id,
+                              'motivoTraslado': 'COMPRA',
+                            },
+                          ),
+                          icon: const Icon(Icons.local_shipping, size: 18),
+                          label: const Text('Guía Remisión'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.indigo,
+                            side: const BorderSide(color: Colors.indigo),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 24),
                   ],
                 ),

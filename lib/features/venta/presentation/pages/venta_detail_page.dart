@@ -21,6 +21,7 @@ import '../../domain/entities/venta.dart';
 import '../../domain/usecases/get_venta_usecase.dart';
 import '../bloc/venta_form/venta_form_cubit.dart';
 import '../bloc/venta_form/venta_form_state.dart';
+import '../widgets/flujo_documentos_widget.dart';
 import '../widgets/venta_estado_chip.dart';
 
 class VentaDetailPage extends StatefulWidget {
@@ -254,6 +255,8 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
             const SizedBox(height: 12),
             _buildNotasSection(v),
           ],
+          const SizedBox(height: 12),
+          FlujoDocumentosWidget(ventaId: v.id),
           const SizedBox(height: 80),
         ],
       ),
@@ -372,7 +375,7 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                 const SizedBox(height: 10),
                 ...v.notasRelacionadas!.map((nota) => _buildNotaCard(nota)),
               ],
-            ] else
+            ] else ...[
               Row(
                 children: [
                   Icon(Icons.receipt_long, size: 14, color: Colors.orange.shade700),
@@ -392,6 +395,14 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                   ),
                 ],
               ),
+              const SizedBox(height: 8),
+              _actionChip(
+                icon: Icons.local_shipping,
+                label: 'Guía Remisión',
+                color: Colors.indigo,
+                onTap: () => context.push('/empresa/guias-remision/desde-venta/${v.id}'),
+              ),
+            ],
           ],
         ),
       ),
@@ -1024,6 +1035,12 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
           label: 'Anular',
           color: Colors.red,
           onTap: () => _showAnularDialog(context, v),
+        ),
+        _actionChip(
+          icon: Icons.local_shipping,
+          label: 'Guía Remisión',
+          color: Colors.indigo,
+          onTap: () => context.push('/empresa/guias-remision/desde-venta/${v.id}'),
         ),
       ],
     );

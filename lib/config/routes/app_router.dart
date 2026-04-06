@@ -121,6 +121,7 @@ import '../../features/cotizacion/presentation/pages/cotizacion_detail_page.dart
 import '../../features/venta/presentation/pages/ventas_page.dart';
 import '../../features/venta/presentation/pages/venta_pos_page.dart';
 import '../../features/venta/presentation/pages/venta_detail_page.dart';
+import '../../features/venta/presentation/pages/flujo_documentos_page.dart';
 import '../../features/venta/presentation/pages/venta_ticket_preview_page.dart';
 import '../../features/venta/presentation/pages/venta_analytics_page.dart';
 import '../../features/devolucion_venta/presentation/pages/devoluciones_venta_page.dart';
@@ -128,6 +129,13 @@ import '../../features/devolucion_venta/presentation/pages/devolucion_venta_form
 import '../../features/devolucion_venta/presentation/pages/devolucion_venta_detail_page.dart';
 import '../../features/monitor_facturacion/presentation/pages/monitor_facturacion_page.dart';
 import '../../features/monitor_facturacion/presentation/pages/reporte_correlativos_page.dart';
+import '../../features/guia_remision/presentation/pages/guias_remision_page.dart';
+import '../../features/guia_remision/presentation/pages/guia_remision_detail_page.dart';
+import '../../features/guia_remision/presentation/pages/guia_remision_form_page.dart';
+import '../../features/guia_remision/presentation/pages/guia_remision_preview_page.dart';
+import '../../features/guia_remision/presentation/pages/guia_remision_desde_venta_page.dart';
+import '../../features/guia_remision/presentation/pages/guia_remision_editar_page.dart';
+import '../../features/guia_remision/presentation/pages/catalogos_gre_page.dart';
 import '../../features/configuracion_documentos/presentation/pages/configuracion_documentos_page.dart';
 import '../../features/compra/presentation/pages/ordenes_compra_page.dart';
 import '../../features/compra/presentation/pages/orden_compra_detail_page.dart';
@@ -897,6 +905,14 @@ class AppRouter {
         builder: (context, state) => const VentaAnalyticsPage(),
       ),
       GoRoute(
+        path: '/empresa/flujo-documentos',
+        name: 'empresa-flujo-documentos',
+        builder: (context, state) {
+          final codigo = state.uri.queryParameters['codigo'];
+          return FlujoDocumentosPage(codigoInicial: codigo);
+        },
+      ),
+      GoRoute(
         path: '/empresa/ventas/:id',
         name: 'empresa-ventas-detail',
         builder: (context, state) {
@@ -1114,6 +1130,59 @@ class AppRouter {
         path: '/empresa/reporte-correlativos',
         name: 'empresa-reporte-correlativos',
         builder: (context, state) => const ReporteCorrelativosPage(),
+      ),
+      // Guías de Remisión Electrónica
+      GoRoute(
+        path: '/empresa/guias-remision',
+        name: 'empresa-guias-remision',
+        builder: (context, state) => const GuiasRemisionPage(),
+      ),
+      GoRoute(
+        path: '/empresa/guias-remision/nueva',
+        name: 'empresa-guia-remision-nueva',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return GuiaRemisionFormPage(
+            ventaId: extra?['ventaId'] as String?,
+            compraId: extra?['compraId'] as String?,
+            transferenciaId: extra?['transferenciaId'] as String?,
+            devolucionId: extra?['devolucionId'] as String?,
+            motivoTraslado: extra?['motivoTraslado'] as String?,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/empresa/guias-remision/desde-venta/:ventaId',
+        name: 'empresa-guia-remision-desde-venta',
+        builder: (context, state) => GuiaRemisionDesdeVentaPage(
+          ventaId: state.pathParameters['ventaId']!,
+        ),
+      ),
+      GoRoute(
+        path: '/empresa/guias-remision/editar/:guiaId',
+        name: 'empresa-guia-remision-editar',
+        builder: (context, state) => GuiaRemisionEditarPage(
+          guiaId: state.pathParameters['guiaId']!,
+        ),
+      ),
+      GoRoute(
+        path: '/empresa/guias-remision/catalogos',
+        name: 'empresa-gre-catalogos',
+        builder: (context, state) => const CatalogosGrePage(),
+      ),
+      GoRoute(
+        path: '/empresa/guias-remision/:id',
+        name: 'empresa-guia-remision-detail',
+        builder: (context, state) => GuiaRemisionDetailPage(
+          guiaId: state.pathParameters['id']!,
+        ),
+      ),
+      GoRoute(
+        path: '/empresa/guias-remision/:id/pdf',
+        name: 'empresa-guia-remision-pdf',
+        builder: (context, state) => GuiaRemisionPreviewPage(
+          guiaId: state.pathParameters['id']!,
+        ),
       ),
       // Rutas de devoluciones
       GoRoute(

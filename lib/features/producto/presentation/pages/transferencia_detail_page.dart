@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:syncronize/core/theme/app_gradients.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/utils/date_formatter.dart';
@@ -805,6 +806,24 @@ class _TransferenciaDetailPageState extends State<TransferenciaDetailPage> {
                   ],
                 ),
                 const SizedBox(height: 16),
+
+                // Guía de Remisión (solo si está aprobada o en tránsito)
+                if (transferencia.estado == EstadoTransferencia.aprobada ||
+                    transferencia.estado == EstadoTransferencia.enTransito) ...[
+                  _ActionButton(
+                    label: 'Guía Remisión',
+                    icon: Icons.local_shipping,
+                    color: Colors.indigo,
+                    onPressed: () => context.push(
+                      '/empresa/guias-remision/nueva',
+                      extra: {
+                        'transferenciaId': transferencia.id,
+                        'motivoTraslado': 'TRASLADO_ENTRE_ESTABLECIMIENTOS',
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
 
                 // Procesar Completo (solo si está pendiente)
                 if (transferencia.puedeAprobar) ...[
