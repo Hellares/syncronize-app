@@ -142,6 +142,11 @@ class Venta extends Equatable {
   final double? montoRecibido;
   final double? montoCambio;
 
+  // Bancarización (Ley 28194) — requerido cuando total >= S/2000 o USD 500
+  // y el método de pago no es EFECTIVO/CREDITO.
+  final String? bancoPago;
+  final String? referenciaPago;
+
   // Crédito
   final bool esCredito;
   final int? plazoCredito;
@@ -216,6 +221,8 @@ class Venta extends Equatable {
     this.metodoPago,
     this.montoRecibido,
     this.montoCambio,
+    this.bancoPago,
+    this.referenciaPago,
     this.esCredito = false,
     this.plazoCredito,
     this.fechaVencimientoPago,
@@ -295,6 +302,8 @@ class Venta extends Equatable {
         estado,
         metodoPago,
         montoRecibido,
+        bancoPago,
+        referenciaPago,
         esCredito,
         fechaVenta,
         creadoEn,

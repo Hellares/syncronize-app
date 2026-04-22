@@ -70,6 +70,8 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
   double? _tipoCambioVenta;
   final _montoAgregarController = TextEditingController();
   final _referenciaAgregarController = TextEditingController();
+  // Bancarización (Ley 28194): banco seleccionado para el pago actual.
+  String? _bancoActual;
   String _condicionPago = 'CONTADO';
   bool get _esCredito => _condicionPago == 'CREDITO' || _condicionPago == 'MIXTO';
   int _numeroCuotas = 1;
@@ -259,6 +261,27 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
       return;
     }
 
+    // Validación bancarización (Ley 28194): si el total supera el umbral y el
+    // método no es efectivo, exigir referencia (y banco si aplica).
+    final totalVenta = _calcularTotal();
+    final aplicaBancarizacion = requiereBancarizacion(
+      metodo: _metodoActual,
+      totalVentaPen: totalVenta,
+    );
+    final ref = _referenciaAgregarController.text.trim();
+    if (aplicaBancarizacion && ref.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Bancarización: N° de operación obligatorio')),
+      );
+      return;
+    }
+    if (aplicaBancarizacion && requiereBancoPago(_metodoActual) && (_bancoActual == null || _bancoActual!.isEmpty)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Bancarización: debes seleccionar un banco')),
+      );
+      return;
+    }
+
     final montoEnSoles = _monedaActual == 'USD'
         ? double.parse((monto * _tipoCambioVenta!).toStringAsFixed(2))
         : monto;
@@ -267,13 +290,15 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
       _pagos.add({
         'metodo': _metodoActual,
         'monto': montoEnSoles,
-        'referencia': _referenciaAgregarController.text.trim(),
+        'referencia': ref,
+        'banco': _bancoActual ?? '',
         'monedaOriginal': _monedaActual,
         'montoOriginal': monto,
         'tipoCambio': _monedaActual == 'USD' ? _tipoCambioVenta : null,
       });
       _montoAgregarController.clear();
       _referenciaAgregarController.clear();
+      _bancoActual = null;
       _monedaActual = 'PEN';
     });
   }
@@ -619,7 +644,11 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
           PagosSectionWidget(
             pagos: _pagos,
             metodoActual: _metodoActual,
-            onMetodoChanged: (v) => setState(() => _metodoActual = v),
+            onMetodoChanged: (v) => setState(() {
+              _metodoActual = v;
+              // Reset banco cuando cambia método (no siempre aplica)
+              if (!requiereBancoPago(v)) _bancoActual = null;
+            }),
             monedaActual: _monedaActual,
             onMonedaChanged: (v) => setState(() => _monedaActual = v),
             tipoCambioVenta: _tipoCambioVenta,
@@ -631,6 +660,9 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
             onRemoverPago: _removerPago,
             montoCredito: _esCredito ? _montoCredito : null,
             numeroCuotas: _esCredito ? _numeroCuotas : null,
+            totalVentaPen: _calcularTotal(),
+            bancoActual: _bancoActual,
+            onBancoChanged: (v) => setState(() => _bancoActual = v),
           ),
           const SizedBox(height: 12),
         ],
@@ -788,6 +820,11 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
       if (_pagos.isNotEmpty) ...{
         'metodoPago': _pagos.first['metodo'],
         'montoRecibido': _totalPagado,
+        // Bancarización: tomamos banco/referencia del primer pago (Fase 1 asume pago único principal)
+        if ((_pagos.first['banco'] as String?)?.isNotEmpty ?? false)
+          'bancoPago': _pagos.first['banco'],
+        if ((_pagos.first['referencia'] as String?)?.isNotEmpty ?? false)
+          'referenciaPago': _pagos.first['referencia'],
         'pagos': _pagos.map((p) => {
           'metodoPago': p['metodo'],
           'monto': p['monto'],

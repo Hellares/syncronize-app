@@ -83,4 +83,10 @@ class MonitorFacturacionCubit extends Cubit<MonitorFacturacionState> {
     cargar(page: _currentPage);
     return result;
   }
+
+  /// Consulta masiva del estado SUNAT de los comprobantes PROCESANDO.
+  /// El refresh de la lista lo hace la UI tras mostrar el resumen.
+  Future<Resource<Map<String, dynamic>>> consultarPendientes() async {
+    return _repository.consultarPendientes();
+  }
 }

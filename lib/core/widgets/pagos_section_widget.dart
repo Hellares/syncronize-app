@@ -17,6 +17,32 @@ String metodoLabel(String metodo) {
   }
 }
 
+/// Umbrales Ley 28194 (bancarización).
+const double umbralBancarizacionPen = 2000;
+const double umbralBancarizacionUsd = 500;
+
+/// Lista fija de bancos para el dropdown (Fase 1).
+/// Si crece el listado, promover a endpoint /catalogos/bancos.
+const List<String> bancosPeru = [
+  'BCP', 'BBVA', 'Interbank', 'Scotiabank', 'Banco de la Nación',
+  'BanBif', 'Pichincha', 'Mi Banco', 'Caja Arequipa', 'Caja Huancayo',
+  'Otro',
+];
+
+/// ¿El método de pago + total dispara bancarización?
+bool requiereBancarizacion({
+  required String metodo,
+  required double totalVentaPen,
+}) {
+  if (metodo == 'EFECTIVO' || metodo == 'CREDITO') return false;
+  return totalVentaPen >= umbralBancarizacionPen;
+}
+
+/// ¿Requiere dropdown de banco además de referencia?
+bool requiereBancoPago(String metodo) {
+  return metodo == 'TARJETA' || metodo == 'TRANSFERENCIA';
+}
+
 String metodoIcon(String metodo) {
   switch (metodo) {
     case 'EFECTIVO': return '💵';
@@ -47,6 +73,11 @@ class PagosSectionWidget extends StatelessWidget {
   final void Function(int index) onRemoverPago;
   final double? montoCredito;
   final int? numeroCuotas;
+  /// Total de la venta en soles. Si supera umbralBancarizacionPen se pide banco/referencia.
+  final double totalVentaPen;
+  /// Banco seleccionado cuando aplica bancarización (dropdown).
+  final String? bancoActual;
+  final ValueChanged<String?>? onBancoChanged;
 
   const PagosSectionWidget({
     super.key,
@@ -64,6 +95,9 @@ class PagosSectionWidget extends StatelessWidget {
     required this.onRemoverPago,
     this.montoCredito,
     this.numeroCuotas,
+    this.totalVentaPen = 0,
+    this.bancoActual,
+    this.onBancoChanged,
   });
 
   @override
@@ -236,6 +270,49 @@ class PagosSectionWidget extends StatelessWidget {
                     ),
                   ],
                   const SizedBox(height: 10),
+                  // Banner bancarización cuando aplica
+                  if (requiereBancarizacion(metodo: metodoActual, totalVentaPen: totalVentaPen)) ...[
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.amber[50],
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: Colors.amber[700]!, width: 0.6),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.info_outline, size: 14, color: Colors.amber[800]),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              'Bancarización obligatoria (Ley 28194): venta ≥ S/${umbralBancarizacionPen.toStringAsFixed(0)}',
+                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.amber[900]),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    // Dropdown de banco — solo si el método lo requiere (TARJETA/TRANSFERENCIA)
+                    if (requiereBancoPago(metodoActual)) ...[
+                      DropdownButtonFormField<String>(
+                        initialValue: bancoActual,
+                        isDense: true,
+                        decoration: InputDecoration(
+                          labelText: 'Banco *',
+                          border: const OutlineInputBorder(),
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(color: Colors.green[700]!),
+                          ),
+                        ),
+                        items: bancosPeru.map((b) => DropdownMenuItem(value: b, child: Text(b, style: const TextStyle(fontSize: 12)))).toList(),
+                        onChanged: onBancoChanged,
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                  ],
                   // Monto + Referencia + Botón agregar
                   Row(
                     children: [
@@ -257,7 +334,9 @@ class PagosSectionWidget extends StatelessWidget {
                           flex: 2,
                           child: CustomText(
                             controller: referenciaController,
-                            label: 'Referencia',
+                            label: requiereBancarizacion(metodo: metodoActual, totalVentaPen: totalVentaPen)
+                                ? 'Referencia *'
+                                : 'Referencia',
                             hintText: 'N° operacion',
                             borderColor: Colors.green[700]!,
                           ),

@@ -2,6 +2,7 @@ import 'package:injectable/injectable.dart';
 import '../../../../core/utils/resource.dart';
 import '../../domain/entities/comprobante_item.dart';
 import '../../domain/entities/serie_correlativo.dart';
+import '../../domain/entities/sincronizacion_series.dart';
 import '../../domain/repositories/monitor_facturacion_repository.dart';
 import '../datasources/monitor_facturacion_remote_datasource.dart';
 
@@ -57,6 +58,16 @@ class MonitorFacturacionRepositoryImpl implements MonitorFacturacionRepository {
   }
 
   @override
+  Future<Resource<Map<String, dynamic>>> consultarPendientes() async {
+    try {
+      final result = await _datasource.consultarPendientes();
+      return Success(result);
+    } catch (e) {
+      return Error('Error al consultar pendientes: ${_humanize(e)}');
+    }
+  }
+
+  @override
   Future<Resource<Map<String, dynamic>>> anular(String comprobanteId, String motivo) async {
     try {
       final result = await _datasource.anular(comprobanteId, motivo);
@@ -74,5 +85,38 @@ class MonitorFacturacionRepositoryImpl implements MonitorFacturacionRepository {
     } catch (e) {
       return Error('Error al obtener reporte: $e');
     }
+  }
+
+  @override
+  Future<Resource<SincronizacionPreview>> previewSincronizacion(String sedeId) async {
+    try {
+      final result = await _datasource.previewSincronizacion(sedeId);
+      return Success(result);
+    } catch (e) {
+      return Error('No se pudo consultar series: ${_humanize(e)}');
+    }
+  }
+
+  @override
+  Future<Resource<ResultadoSincronizacion>> aplicarSincronizacion({
+    required String sedeId,
+    required List<SeleccionSerie> selecciones,
+    dynamic branchIdProveedor,
+  }) async {
+    try {
+      final result = await _datasource.aplicarSincronizacion(
+        sedeId: sedeId,
+        selecciones: selecciones,
+        branchIdProveedor: branchIdProveedor,
+      );
+      return Success(result);
+    } catch (e) {
+      return Error('No se pudo aplicar la sincronización: ${_humanize(e)}');
+    }
+  }
+
+  String _humanize(Object e) {
+    final s = e.toString();
+    return s.length > 300 ? '${s.substring(0, 300)}…' : s;
   }
 }

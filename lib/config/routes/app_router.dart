@@ -137,6 +137,7 @@ import '../../features/guia_remision/presentation/pages/guia_remision_desde_vent
 import '../../features/guia_remision/presentation/pages/guia_remision_editar_page.dart';
 import '../../features/guia_remision/presentation/pages/catalogos_gre_page.dart';
 import '../../features/configuracion_documentos/presentation/pages/configuracion_documentos_page.dart';
+import '../../features/configuracion_facturacion/presentation/pages/configuracion_facturacion_page.dart';
 import '../../features/compra/presentation/pages/ordenes_compra_page.dart';
 import '../../features/compra/presentation/pages/orden_compra_detail_page.dart';
 import '../../features/compra/presentation/pages/orden_compra_form_page.dart';
@@ -1130,6 +1131,11 @@ class AppRouter {
         path: '/empresa/reporte-correlativos',
         name: 'empresa-reporte-correlativos',
         builder: (context, state) => const ReporteCorrelativosPage(),
+      ),
+      GoRoute(
+        path: '/empresa/configuracion-facturacion',
+        name: 'empresa-configuracion-facturacion',
+        builder: (context, state) => const ConfiguracionFacturacionPage(),
       ),
       // Guías de Remisión Electrónica
       GoRoute(

@@ -1,7 +1,9 @@
 import 'package:injectable/injectable.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../domain/entities/sincronizacion_series.dart';
 import '../models/comprobante_item_model.dart';
 import '../models/serie_correlativo_model.dart';
+import '../models/sincronizacion_series_model.dart';
 
 @lazySingleton
 class MonitorFacturacionRemoteDatasource {
@@ -50,6 +52,13 @@ class MonitorFacturacionRemoteDatasource {
     return response.data as Map<String, dynamic>;
   }
 
+  /// Consulta masiva de estado SUNAT de los comprobantes PROCESANDO.
+  /// Respuesta: { total, actualizados, aunProcesando, noEncontrados, errores:[] }
+  Future<Map<String, dynamic>> consultarPendientes() async {
+    final response = await _dioClient.post('$_basePath/comprobantes/consultar-pendientes');
+    return response.data as Map<String, dynamic>;
+  }
+
   Future<Map<String, dynamic>> anular(String comprobanteId, String motivo) async {
     final response = await _dioClient.post('$_basePath/comprobantes/$comprobanteId/anular', data: {'motivo': motivo});
     return response.data as Map<String, dynamic>;
@@ -62,5 +71,29 @@ class MonitorFacturacionRemoteDatasource {
     if (fechaHasta != null) params['fechaHasta'] = fechaHasta;
     final response = await _dioClient.get('$_basePath/reporte-correlativos', queryParameters: params);
     return ReporteCorrelativosModel.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<SincronizacionPreview> previewSincronizacion(String sedeId) async {
+    final response = await _dioClient.get(
+      '$_basePath/series/preview',
+      queryParameters: {'sedeId': sedeId},
+    );
+    return SincronizacionPreviewModel.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<ResultadoSincronizacion> aplicarSincronizacion({
+    required String sedeId,
+    required List<SeleccionSerie> selecciones,
+    dynamic branchIdProveedor,
+  }) async {
+    final body = <String, dynamic>{
+      'sedeId': sedeId,
+      'selecciones': selecciones.map((s) => s.toJson()).toList(),
+    };
+    if (branchIdProveedor != null) {
+      body['branchIdProveedor'] = branchIdProveedor;
+    }
+    final response = await _dioClient.post('$_basePath/series/sincronizar', data: body);
+    return ResultadoSincronizacionModel.fromJson(response.data as Map<String, dynamic>);
   }
 }

@@ -26,6 +26,7 @@ class ComprobanteItemModel extends ComprobanteItem {
     super.tipoNotaDebito,
     super.comprobanteOrigenId,
     super.ventaId,
+    super.proveedorEmisor,
   });
 
   factory ComprobanteItemModel.fromJson(Map<String, dynamic> json) {
@@ -54,6 +55,7 @@ class ComprobanteItemModel extends ComprobanteItem {
       tipoNotaDebito: json['tipoNotaDebito'] as int?,
       comprobanteOrigenId: json['comprobanteOrigenId'] as String?,
       ventaId: json['ventaId'] as String?,
+      proveedorEmisor: json['proveedorEmisor'] as String?,
     );
   }
 

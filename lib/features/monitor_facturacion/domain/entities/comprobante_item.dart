@@ -25,6 +25,8 @@ class ComprobanteItem extends Equatable {
   final int? tipoNotaDebito;
   final String? comprobanteOrigenId;
   final String? ventaId;
+  /// Proveedor que emitió el comprobante: 'NUBEFACT', 'SYNCROFACT' o null (legacy).
+  final String? proveedorEmisor;
 
   const ComprobanteItem({
     required this.id,
@@ -51,12 +53,29 @@ class ComprobanteItem extends Equatable {
     this.tipoNotaDebito,
     this.comprobanteOrigenId,
     this.ventaId,
+    this.proveedorEmisor,
   });
+
+  /// Proveedores cuyas operaciones (reenviar/anular) están archivadas.
+  /// Mantener sincronizado con PROVEEDORES_ARCHIVADOS del backend.
+  static const _proveedoresArchivados = {'NUBEFACT'};
 
   bool get esNota => tipoComprobante == 'NOTA_CREDITO' || tipoComprobante == 'NOTA_DEBITO';
   bool get esPendiente => sunatStatus == 'PENDIENTE' || sunatStatus == 'ERROR_COMUNICACION';
   bool get esAceptado => sunatStatus == 'ACEPTADO';
   bool get esRechazado => sunatStatus == 'RECHAZADO';
+
+  /// true si el proveedor emisor está archivado y no admite nuevas operaciones.
+  bool get proveedorArchivado => _proveedoresArchivados.contains(proveedorEmisor);
+
+  /// Etiqueta legible del proveedor (para chip).
+  String? get proveedorLabel {
+    switch (proveedorEmisor) {
+      case 'NUBEFACT': return 'Nubefact';
+      case 'SYNCROFACT': return 'Syncrofact';
+      default: return null;
+    }
+  }
 
   String get tipoLabel {
     switch (tipoComprobante) {
@@ -71,5 +90,5 @@ class ComprobanteItem extends Equatable {
   String get simboloMoneda => moneda == 'USD' ? '\$' : 'S/';
 
   @override
-  List<Object?> get props => [id, sunatStatus, estado, intentosEnvio];
+  List<Object?> get props => [id, sunatStatus, estado, intentosEnvio, proveedorEmisor];
 }

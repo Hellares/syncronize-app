@@ -9,10 +9,14 @@ import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/theme/gradient_container.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/widgets/smart_appbar.dart';
+import '../../../empresa/domain/entities/sede.dart';
+import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
+import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../domain/entities/comprobante_item.dart';
 import '../../domain/repositories/monitor_facturacion_repository.dart';
 import '../bloc/monitor_facturacion_cubit.dart';
 import '../bloc/monitor_facturacion_state.dart';
+import '../widgets/sincronizar_series_dialog.dart';
 
 class MonitorFacturacionPage extends StatelessWidget {
   const MonitorFacturacionPage({super.key});
@@ -46,6 +50,22 @@ class _MonitorViewState extends State<_MonitorView> {
         appBar: SmartAppBar(
           title: 'Monitor de Facturación',
           actions: [
+            IconButton(
+              icon: const Icon(Icons.settings_outlined, size: 20),
+              tooltip: 'Configuración de facturación',
+              onPressed: () =>
+                  context.push('/empresa/configuracion-facturacion'),
+            ),
+            IconButton(
+              icon: const Icon(Icons.refresh, size: 20),
+              tooltip: 'Actualizar estados SUNAT de pendientes',
+              onPressed: _consultarPendientes,
+            ),
+            IconButton(
+              icon: const Icon(Icons.sync, size: 20),
+              tooltip: 'Sincronizar series desde proveedor',
+              onPressed: _sincronizarSeries,
+            ),
             IconButton(
               icon: const Icon(Icons.format_list_numbered, size: 20),
               tooltip: 'Reporte Correlativos',
@@ -284,6 +304,85 @@ class _MonitorViewState extends State<_MonitorView> {
     }
   }
 
+  Future<void> _sincronizarSeries() async {
+    final sedes = _getSedes();
+    if (sedes.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No hay sedes disponibles')),
+      );
+      return;
+    }
+
+    String? sedeId;
+    if (sedes.length == 1) {
+      sedeId = sedes.first.id;
+    } else {
+      sedeId = await _elegirSede(sedes);
+    }
+    if (sedeId == null || !mounted) return;
+
+    final aplicado = await showSincronizarSeriesDialog(context, sedeId: sedeId);
+    if (aplicado == true && mounted) {
+      await context.read<MonitorFacturacionCubit>().cargar();
+    }
+  }
+
+  List<Sede> _getSedes() {
+    final state = context.read<EmpresaContextCubit>().state;
+    if (state is EmpresaContextLoaded) return state.context.sedes;
+    return [];
+  }
+
+  Future<String?> _elegirSede(List<Sede> sedes) {
+    return showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
+                  child: Row(
+                    children: [
+                      Icon(Icons.store_mall_directory, size: 18, color: AppColors.blue1),
+                      SizedBox(width: 8),
+                      Text('Selecciona una sede',
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                Flexible(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: sedes.length,
+                    itemBuilder: (_, i) {
+                      final s = sedes[i];
+                      return ListTile(
+                        dense: true,
+                        leading: const Icon(Icons.location_on_outlined, size: 18),
+                        title: Text(s.nombre, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                        subtitle: Text(s.codigo, style: const TextStyle(fontSize: 10)),
+                        onTap: () => Navigator.of(ctx).pop(s.id),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _enviarPendientes() async {
     final result = await context.read<MonitorFacturacionCubit>().enviarPendientes();
     if (mounted) {
@@ -295,6 +394,48 @@ class _MonitorViewState extends State<_MonitorView> {
               : 'Error al enviar pendientes',
         )),
       );
+    }
+  }
+
+  Future<void> _consultarPendientes() async {
+    final cubit = context.read<MonitorFacturacionCubit>();
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Consultando estados en el proveedor...'), duration: Duration(seconds: 2)),
+    );
+    final result = await cubit.consultarPendientes();
+    if (!mounted) return;
+
+    if (result is Success<Map<String, dynamic>>) {
+      final data = result.data;
+      final total = data['total'] ?? 0;
+      final procesados = data['procesados'] ?? 0;
+      final truncado = data['truncado'] == true;
+      final pendientesRestantes = data['pendientesRestantes'] ?? 0;
+      final actualizados = data['actualizados'] ?? 0;
+      final aunProcesando = data['aunProcesando'] ?? 0;
+      final noEncontrados = data['noEncontrados'] ?? 0;
+      final errores = (data['errores'] as List?)?.length ?? 0;
+
+      final String mensaje;
+      if (total == 0) {
+        mensaje = 'No hay comprobantes en PROCESANDO';
+      } else if (truncado) {
+        mensaje = '✓ Procesé $procesados de $total (restan $pendientesRestantes). '
+            'Actualizados: $actualizados · Aún proc: $aunProcesando · Err: $errores. '
+            'Presiona de nuevo para continuar.';
+      } else {
+        mensaje = '✓ Actualizados: $actualizados · Aún procesando: $aunProcesando · No encontrados: $noEncontrados · Errores: $errores';
+      }
+
+      messenger.showSnackBar(SnackBar(
+        content: Text(mensaje),
+        duration: Duration(seconds: truncado ? 6 : 4),
+        backgroundColor: truncado ? Colors.amber[700] : null,
+      ));
+      await cubit.cargar();
+    } else if (result is Error<Map<String, dynamic>>) {
+      messenger.showSnackBar(SnackBar(content: Text(result.message), backgroundColor: Colors.red[700]));
     }
   }
 }
@@ -325,6 +466,10 @@ class _ComprobanteCard extends StatelessWidget {
                   child: Text(item.codigoGenerado,
                       style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
                 ),
+                if (item.proveedorLabel != null) ...[
+                  _proveedorChip(),
+                  const SizedBox(width: 4),
+                ],
                 _sunatStatusChip(),
               ],
             ),
@@ -372,8 +517,14 @@ class _ComprobanteCard extends StatelessWidget {
             const SizedBox(height: 6),
             Row(
               children: [
-                if (item.esPendiente)
+                if (item.esPendiente && !item.proveedorArchivado)
                   _actionButton(Icons.send, 'Reenviar', Colors.blue, onReenviar),
+                if (item.esPendiente && item.proveedorArchivado)
+                  _actionButtonDisabled(
+                    Icons.send,
+                    'Archivado',
+                    'El proveedor ${item.proveedorLabel} ya no acepta reenvíos. Emite una Nota de Crédito con el proveedor activo.',
+                  ),
                 if (item.sunatPdfUrl != null)
                   _actionButton(Icons.picture_as_pdf, 'PDF', Colors.red.shade400, () => _abrirUrl(item.sunatPdfUrl!)),
                 if (item.enlaceProveedor != null)
@@ -463,6 +614,51 @@ class _ComprobanteCard extends StatelessWidget {
             Text(label, style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w600)),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _actionButtonDisabled(IconData icon, String label, String tooltip) {
+    final color = Colors.grey.shade400;
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: Tooltip(
+        message: tooltip,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 13, color: color),
+            const SizedBox(width: 3),
+            Text(label, style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w600)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _proveedorChip() {
+    final label = item.proveedorLabel!;
+    final archivado = item.proveedorArchivado;
+    final color = archivado ? Colors.grey.shade600 : Colors.blueGrey;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(4),
+        border: archivado
+            ? Border.all(color: color.withValues(alpha: 0.4), width: 0.5)
+            : null,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (archivado) ...[
+            Icon(Icons.archive_outlined, size: 9, color: color),
+            const SizedBox(width: 3),
+          ],
+          Text(label,
+              style: TextStyle(fontSize: 9, color: color, fontWeight: FontWeight.w600)),
+        ],
       ),
     );
   }

@@ -32,6 +32,8 @@ class VentaModel extends Venta {
     super.metodoPago,
     super.montoRecibido,
     super.montoCambio,
+    super.bancoPago,
+    super.referenciaPago,
     super.esCredito,
     super.plazoCredito,
     super.fechaVencimientoPago,
@@ -156,6 +158,8 @@ class VentaModel extends Venta {
           : null,
       montoRecibido: _toDoubleNullable(json['montoRecibido']),
       montoCambio: _toDoubleNullable(json['montoCambio']),
+      bancoPago: json['bancoPago'] as String?,
+      referenciaPago: json['referenciaPago'] as String?,
       esCredito: json['esCredito'] as bool? ?? false,
       plazoCredito: json['plazoCredito'] as int?,
       fechaVencimientoPago: json['fechaVencimientoPago'] != null
