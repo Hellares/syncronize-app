@@ -8,6 +8,7 @@ class PagoVenta extends Equatable {
   final MetodoPago metodoPago;
   final double monto;
   final String? referencia;
+  final String? banco; // Entidad financiera (TARJETA/TRANSFERENCIA) — Ley 28194
   final DateTime fechaPago;
 
   // Pago en moneda extranjera
@@ -21,6 +22,7 @@ class PagoVenta extends Equatable {
     required this.metodoPago,
     required this.monto,
     this.referencia,
+    this.banco,
     required this.fechaPago,
     this.monedaOriginal,
     this.montoOriginal,
@@ -30,5 +32,5 @@ class PagoVenta extends Equatable {
   bool get esEnDolares => monedaOriginal == 'USD';
 
   @override
-  List<Object?> get props => [id, ventaId, metodoPago, monto, referencia, fechaPago, monedaOriginal];
+  List<Object?> get props => [id, ventaId, metodoPago, monto, referencia, banco, fechaPago, monedaOriginal];
 }

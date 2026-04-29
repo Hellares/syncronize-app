@@ -48,10 +48,17 @@ class Sede extends Equatable {
   final Map<String, dynamic>? configuracion;
 
   // Series de comprobantes por sede
+  // SUNAT exige series distintas según el documento afectado por NC/ND:
+  //   serieNotaCredito       → NC sobre Factura  (FC*)
+  //   serieNotaCreditoBoleta → NC sobre Boleta   (BC*)
+  //   serieNotaDebito        → ND sobre Factura  (FD*)
+  //   serieNotaDebitoBoleta  → ND sobre Boleta   (BD*)
   final String serieFactura;
   final String serieBoleta;
   final String serieNotaCredito;
+  final String serieNotaCreditoBoleta;
   final String serieNotaDebito;
+  final String serieNotaDebitoBoleta;
   final String? serieGuiaRemision;
 
   // Facturación electrónica (override por sede)
@@ -67,7 +74,9 @@ class Sede extends Equatable {
   final int ultimoNumeroFactura;
   final int ultimoNumeroBoleta;
   final int ultimoNumeroNotaCredito;
+  final int ultimoNumeroNotaCreditoBoleta;
   final int ultimoNumeroNotaDebito;
+  final int ultimoNumeroNotaDebitoBoleta;
   final int ultimoNumeroGuiaRemision;
 
   // Estado
@@ -108,7 +117,9 @@ class Sede extends Equatable {
     required this.serieFactura,
     required this.serieBoleta,
     required this.serieNotaCredito,
+    required this.serieNotaCreditoBoleta,
     required this.serieNotaDebito,
+    required this.serieNotaDebitoBoleta,
     this.serieGuiaRemision,
     this.rucSede,
     this.razonSocialSede,
@@ -120,7 +131,9 @@ class Sede extends Equatable {
     required this.ultimoNumeroFactura,
     required this.ultimoNumeroBoleta,
     required this.ultimoNumeroNotaCredito,
+    required this.ultimoNumeroNotaCreditoBoleta,
     required this.ultimoNumeroNotaDebito,
+    required this.ultimoNumeroNotaDebitoBoleta,
     required this.ultimoNumeroGuiaRemision,
     required this.isActive,
     this.deletedAt,
@@ -200,12 +213,16 @@ class Sede extends Equatable {
         serieFactura,
         serieBoleta,
         serieNotaCredito,
+        serieNotaCreditoBoleta,
         serieNotaDebito,
+        serieNotaDebitoBoleta,
         serieGuiaRemision,
         ultimoNumeroFactura,
         ultimoNumeroBoleta,
         ultimoNumeroNotaCredito,
+        ultimoNumeroNotaCreditoBoleta,
         ultimoNumeroNotaDebito,
+        ultimoNumeroNotaDebitoBoleta,
         ultimoNumeroGuiaRemision,
         isActive,
         deletedAt,

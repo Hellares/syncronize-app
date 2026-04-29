@@ -17,6 +17,9 @@ import '../../domain/repositories/monitor_facturacion_repository.dart';
 import '../bloc/monitor_facturacion_cubit.dart';
 import '../bloc/monitor_facturacion_state.dart';
 import '../widgets/sincronizar_series_dialog.dart';
+import '../../../facturacion/domain/entities/tipo_nota.dart';
+import '../../../facturacion/presentation/widgets/crear_nota_dialog.dart';
+import '../../../facturacion/presentation/widgets/anular_comprobante_dialog.dart';
 
 class MonitorFacturacionPage extends StatelessWidget {
   const MonitorFacturacionPage({super.key});
@@ -246,6 +249,7 @@ class _MonitorViewState extends State<_MonitorView> {
               itemBuilder: (context, i) => _ComprobanteCard(
                 item: state.comprobantes[i],
                 onReenviar: () => _reenviar(state.comprobantes[i]),
+                onNotaEmitida: () => context.read<MonitorFacturacionCubit>().cargar(page: state.currentPage),
               ),
             ),
           ),
@@ -445,8 +449,61 @@ class _MonitorViewState extends State<_MonitorView> {
 class _ComprobanteCard extends StatelessWidget {
   final ComprobanteItem item;
   final VoidCallback onReenviar;
+  final VoidCallback onNotaEmitida;
 
-  const _ComprobanteCard({required this.item, required this.onReenviar});
+  const _ComprobanteCard({
+    required this.item,
+    required this.onReenviar,
+    required this.onNotaEmitida,
+  });
+
+  bool get _puedeEmitirNota =>
+      item.esAceptado &&
+      !item.anulado &&
+      !item.proveedorArchivado &&
+      item.sedeId != null &&
+      (item.tipoComprobante == 'FACTURA' || item.tipoComprobante == 'BOLETA');
+
+  /// CDB aplica solo a Factura, NC con prefijo F (FC*) y ND con prefijo F (FD*).
+  /// Plazo SUNAT: 7 días.
+  bool get _puedeAnularConCdb {
+    if (!item.esAceptado || item.anulado || item.proveedorArchivado) return false;
+    if (item.sedeId == null) return false;
+    final dias = DateTime.now().difference(item.fechaEmision).inDays;
+    if (dias > 7) return false;
+    if (item.tipoComprobante == 'FACTURA') return true;
+    if (item.tipoComprobante == 'NOTA_CREDITO' || item.tipoComprobante == 'NOTA_DEBITO') {
+      return item.serie.startsWith('F');
+    }
+    return false;
+  }
+
+  Future<void> _emitirNota(BuildContext context, TipoNota tipo) async {
+    final result = await CrearNotaDialog.show(
+      context,
+      comprobanteOrigenId: item.id,
+      sedeId: item.sedeId!,
+      tipoNota: tipo,
+      comprobanteCodigo: item.codigoGenerado,
+      comprobanteTotal: item.total,
+      moneda: item.moneda,
+    );
+    if (result != null) onNotaEmitida();
+  }
+
+  Future<void> _anular(BuildContext context) async {
+    final result = await AnularComprobanteDialog.show(
+      context,
+      comprobanteId: item.id,
+      comprobanteCodigo: item.codigoGenerado,
+      tipoComprobante: item.tipoComprobante,
+      fechaEmision: item.fechaEmision,
+      sedeId: item.sedeId!,
+      total: item.total,
+      moneda: item.moneda,
+    );
+    if (result != null) onNotaEmitida();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -515,7 +572,9 @@ class _ComprobanteCard extends StatelessWidget {
             ],
             // Acciones
             const SizedBox(height: 6),
-            Row(
+            Wrap(
+              spacing: 4,
+              runSpacing: 4,
               children: [
                 if (item.esPendiente && !item.proveedorArchivado)
                   _actionButton(Icons.send, 'Reenviar', Colors.blue, onReenviar),
@@ -529,6 +588,15 @@ class _ComprobanteCard extends StatelessWidget {
                   _actionButton(Icons.picture_as_pdf, 'PDF', Colors.red.shade400, () => _abrirUrl(item.sunatPdfUrl!)),
                 if (item.enlaceProveedor != null)
                   _actionButton(Icons.open_in_new, 'Ver', Colors.grey.shade600, () => _abrirUrl(item.enlaceProveedor!)),
+                if (_puedeEmitirNota)
+                  _actionButton(Icons.note_add_outlined, 'N. Crédito', Colors.orange,
+                      () => _emitirNota(context, TipoNota.notaCredito)),
+                if (_puedeEmitirNota)
+                  _actionButton(Icons.add_circle_outline, 'N. Débito', Colors.purple,
+                      () => _emitirNota(context, TipoNota.notaDebito)),
+                if (_puedeAnularConCdb)
+                  _actionButton(Icons.cancel_outlined, 'Anular',
+                      Colors.red, () => _anular(context)),
                 if (item.ventaId != null)
                   _actionButton(Icons.receipt, 'Venta', Colors.indigo, () {
                     // Navigator.pushNamed(context, '/empresa/ventas/${item.ventaId}');

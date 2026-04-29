@@ -434,6 +434,20 @@ import '../../features/configuracion_documentos/domain/usecases/update_plantilla
     as _i715;
 import '../../features/configuracion_documentos/presentation/bloc/configuracion_documentos_cubit.dart'
     as _i925;
+import '../../features/configuracion_facturacion/data/datasources/configuracion_facturacion_remote_datasource.dart'
+    as _i894;
+import '../../features/configuracion_facturacion/data/repositories/configuracion_facturacion_repository_impl.dart'
+    as _i996;
+import '../../features/configuracion_facturacion/domain/repositories/configuracion_facturacion_repository.dart'
+    as _i672;
+import '../../features/configuracion_facturacion/domain/usecases/get_configuracion_facturacion_usecase.dart'
+    as _i100;
+import '../../features/configuracion_facturacion/domain/usecases/probar_conexion_usecase.dart'
+    as _i206;
+import '../../features/configuracion_facturacion/domain/usecases/update_configuracion_facturacion_usecase.dart'
+    as _i817;
+import '../../features/configuracion_facturacion/presentation/bloc/configuracion_facturacion_cubit.dart'
+    as _i861;
 import '../../features/consultas_externas/data/datasources/consultas_remote_datasource.dart'
     as _i906;
 import '../../features/consultas_externas/data/repositories/consultas_repository_impl.dart'
@@ -632,6 +646,24 @@ import '../../features/empresa_banco/presentation/bloc/conciliacion_cubit.dart'
     as _i430;
 import '../../features/empresa_banco/presentation/bloc/empresa_banco_cubit.dart'
     as _i131;
+import '../../features/facturacion/data/datasources/facturacion_remote_datasource.dart'
+    as _i689;
+import '../../features/facturacion/data/repositories/facturacion_repository_impl.dart'
+    as _i175;
+import '../../features/facturacion/domain/repositories/facturacion_repository.dart'
+    as _i354;
+import '../../features/facturacion/domain/usecases/crear_comunicacion_baja_usecase.dart'
+    as _i432;
+import '../../features/facturacion/domain/usecases/crear_nota_credito_usecase.dart'
+    as _i892;
+import '../../features/facturacion/domain/usecases/crear_nota_debito_usecase.dart'
+    as _i1038;
+import '../../features/facturacion/domain/usecases/obtener_elegibles_baja_usecase.dart'
+    as _i438;
+import '../../features/facturacion/domain/usecases/obtener_motivos_nota_usecase.dart'
+    as _i39;
+import '../../features/facturacion/presentation/bloc/crear_nota_cubit.dart'
+    as _i964;
 import '../../features/flujo_proyectado/data/datasources/flujo_proyectado_remote_datasource.dart'
     as _i629;
 import '../../features/flujo_proyectado/data/repositories/flujo_proyectado_repository_impl.dart'
@@ -746,26 +778,12 @@ import '../../features/monitor_facturacion/data/repositories/monitor_facturacion
     as _i37;
 import '../../features/monitor_facturacion/domain/repositories/monitor_facturacion_repository.dart'
     as _i1026;
+import '../../features/monitor_facturacion/domain/usecases/aplicar_sincronizacion_usecase.dart'
+    as _i911;
 import '../../features/monitor_facturacion/domain/usecases/listar_comprobantes_usecase.dart'
     as _i782;
 import '../../features/monitor_facturacion/domain/usecases/preview_sincronizacion_usecase.dart'
-    as _monfactPrevSync;
-import '../../features/monitor_facturacion/domain/usecases/aplicar_sincronizacion_usecase.dart'
-    as _monfactApliSync;
-import '../../features/configuracion_facturacion/data/datasources/configuracion_facturacion_remote_datasource.dart'
-    as _cfgFactDs;
-import '../../features/configuracion_facturacion/data/repositories/configuracion_facturacion_repository_impl.dart'
-    as _cfgFactRepoImpl;
-import '../../features/configuracion_facturacion/domain/repositories/configuracion_facturacion_repository.dart'
-    as _cfgFactRepo;
-import '../../features/configuracion_facturacion/domain/usecases/get_configuracion_facturacion_usecase.dart'
-    as _cfgFactGet;
-import '../../features/configuracion_facturacion/domain/usecases/update_configuracion_facturacion_usecase.dart'
-    as _cfgFactUpd;
-import '../../features/configuracion_facturacion/domain/usecases/probar_conexion_usecase.dart'
-    as _cfgFactPrb;
-import '../../features/configuracion_facturacion/presentation/bloc/configuracion_facturacion_cubit.dart'
-    as _cfgFactCubit;
+    as _i58;
 import '../../features/monitor_productos/data/datasources/monitor_productos_remote_datasource.dart'
     as _i746;
 import '../../features/monitor_productos/data/repositories/monitor_productos_repository_impl.dart'
@@ -1591,6 +1609,10 @@ extension GetItInjectableX on _i174.GetIt {
       () =>
           _i1057.ConfiguracionDocumentosRemoteDataSource(gh<_i667.DioClient>()),
     );
+    gh.lazySingleton<_i894.ConfiguracionFacturacionRemoteDataSource>(
+      () =>
+          _i894.ConfiguracionFacturacionRemoteDataSource(gh<_i667.DioClient>()),
+    );
     gh.lazySingleton<_i369.CotizacionRemoteDataSource>(
       () => _i369.CotizacionRemoteDataSource(gh<_i667.DioClient>()),
     );
@@ -1620,6 +1642,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i634.EmpresaBancoRemoteDataSource>(
       () => _i634.EmpresaBancoRemoteDataSource(gh<_i667.DioClient>()),
+    );
+    gh.lazySingleton<_i689.FacturacionRemoteDatasource>(
+      () => _i689.FacturacionRemoteDatasource(gh<_i667.DioClient>()),
     );
     gh.lazySingleton<_i629.FlujoProyectadoRemoteDataSource>(
       () => _i629.FlujoProyectadoRemoteDataSource(gh<_i667.DioClient>()),
@@ -2220,6 +2245,13 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i633.ConsultarRucUseCase>(
       () => _i633.ConsultarRucUseCase(gh<_i112.ConsultasRepository>()),
     );
+    gh.lazySingleton<_i672.ConfiguracionFacturacionRepository>(
+      () => _i996.ConfiguracionFacturacionRepositoryImpl(
+        gh<_i894.ConfiguracionFacturacionRemoteDataSource>(),
+        gh<_i932.NetworkInfo>(),
+        gh<_i490.ErrorHandlerService>(),
+      ),
+    );
     gh.factory<_i446.ActivarUnidadUseCase>(
       () => _i446.ActivarUnidadUseCase(gh<_i531.UnidadMedidaRepository>()),
     );
@@ -2550,6 +2582,21 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i490.ErrorHandlerService>(),
       ),
     );
+    gh.lazySingleton<_i100.GetConfiguracionFacturacionUseCase>(
+      () => _i100.GetConfiguracionFacturacionUseCase(
+        gh<_i672.ConfiguracionFacturacionRepository>(),
+      ),
+    );
+    gh.lazySingleton<_i206.ProbarConexionUseCase>(
+      () => _i206.ProbarConexionUseCase(
+        gh<_i672.ConfiguracionFacturacionRepository>(),
+      ),
+    );
+    gh.lazySingleton<_i817.UpdateConfiguracionFacturacionUseCase>(
+      () => _i817.UpdateConfiguracionFacturacionUseCase(
+        gh<_i672.ConfiguracionFacturacionRepository>(),
+      ),
+    );
     gh.lazySingleton<_i212.ClienteEmpresaRepository>(
       () => _i606.ClienteEmpresaRepositoryImpl(
         gh<_i794.ClienteEmpresaRemoteDataSource>(),
@@ -2598,6 +2645,11 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i1047.ProductoRemoteDataSource>(),
         gh<_i932.NetworkInfo>(),
         gh<_i490.ErrorHandlerService>(),
+      ),
+    );
+    gh.lazySingleton<_i354.FacturacionRepository>(
+      () => _i175.FacturacionRepositoryImpl(
+        gh<_i689.FacturacionRemoteDatasource>(),
       ),
     );
     gh.factory<_i77.GetConfiguracionMonedaUseCase>(
@@ -3161,53 +3213,19 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i911.CajaChicaListCubit>(
       () => _i911.CajaChicaListCubit(gh<_i322.ListarCajasChicasUseCase>()),
     );
+    gh.lazySingleton<_i911.AplicarSincronizacionUseCase>(
+      () => _i911.AplicarSincronizacionUseCase(
+        gh<_i1026.MonitorFacturacionRepository>(),
+      ),
+    );
     gh.lazySingleton<_i782.ListarComprobantesUseCase>(
       () => _i782.ListarComprobantesUseCase(
         gh<_i1026.MonitorFacturacionRepository>(),
       ),
     );
-    gh.lazySingleton<_monfactPrevSync.PreviewSincronizacionUseCase>(
-      () => _monfactPrevSync.PreviewSincronizacionUseCase(
+    gh.lazySingleton<_i58.PreviewSincronizacionUseCase>(
+      () => _i58.PreviewSincronizacionUseCase(
         gh<_i1026.MonitorFacturacionRepository>(),
-      ),
-    );
-    gh.lazySingleton<_monfactApliSync.AplicarSincronizacionUseCase>(
-      () => _monfactApliSync.AplicarSincronizacionUseCase(
-        gh<_i1026.MonitorFacturacionRepository>(),
-      ),
-    );
-    gh.lazySingleton<_cfgFactDs.ConfiguracionFacturacionRemoteDataSource>(
-      () => _cfgFactDs.ConfiguracionFacturacionRemoteDataSource(
-        gh<_i667.DioClient>(),
-      ),
-    );
-    gh.lazySingleton<_cfgFactRepo.ConfiguracionFacturacionRepository>(
-      () => _cfgFactRepoImpl.ConfiguracionFacturacionRepositoryImpl(
-        gh<_cfgFactDs.ConfiguracionFacturacionRemoteDataSource>(),
-        gh<_i932.NetworkInfo>(),
-        gh<_i490.ErrorHandlerService>(),
-      ),
-    );
-    gh.lazySingleton<_cfgFactGet.GetConfiguracionFacturacionUseCase>(
-      () => _cfgFactGet.GetConfiguracionFacturacionUseCase(
-        gh<_cfgFactRepo.ConfiguracionFacturacionRepository>(),
-      ),
-    );
-    gh.lazySingleton<_cfgFactUpd.UpdateConfiguracionFacturacionUseCase>(
-      () => _cfgFactUpd.UpdateConfiguracionFacturacionUseCase(
-        gh<_cfgFactRepo.ConfiguracionFacturacionRepository>(),
-      ),
-    );
-    gh.lazySingleton<_cfgFactPrb.ProbarConexionUseCase>(
-      () => _cfgFactPrb.ProbarConexionUseCase(
-        gh<_cfgFactRepo.ConfiguracionFacturacionRepository>(),
-      ),
-    );
-    gh.factory<_cfgFactCubit.ConfiguracionFacturacionCubit>(
-      () => _cfgFactCubit.ConfiguracionFacturacionCubit(
-        getUseCase: gh<_cfgFactGet.GetConfiguracionFacturacionUseCase>(),
-        updateUseCase: gh<_cfgFactUpd.UpdateConfiguracionFacturacionUseCase>(),
-        probarUseCase: gh<_cfgFactPrb.ProbarConexionUseCase>(),
       ),
     );
     gh.factory<_i309.GetConfiguracionUseCase>(
@@ -3963,6 +3981,30 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i1021.AjustarStockCubit>(
       () => _i1021.AjustarStockCubit(gh<_i132.AjustarStockUseCase>()),
     );
+    gh.factory<_i861.ConfiguracionFacturacionCubit>(
+      () => _i861.ConfiguracionFacturacionCubit(
+        getUseCase: gh<_i100.GetConfiguracionFacturacionUseCase>(),
+        updateUseCase: gh<_i817.UpdateConfiguracionFacturacionUseCase>(),
+        probarUseCase: gh<_i206.ProbarConexionUseCase>(),
+      ),
+    );
+    gh.lazySingleton<_i432.CrearComunicacionBajaUseCase>(
+      () =>
+          _i432.CrearComunicacionBajaUseCase(gh<_i354.FacturacionRepository>()),
+    );
+    gh.lazySingleton<_i892.CrearNotaCreditoUseCase>(
+      () => _i892.CrearNotaCreditoUseCase(gh<_i354.FacturacionRepository>()),
+    );
+    gh.lazySingleton<_i1038.CrearNotaDebitoUseCase>(
+      () => _i1038.CrearNotaDebitoUseCase(gh<_i354.FacturacionRepository>()),
+    );
+    gh.lazySingleton<_i438.ObtenerElegiblesBajaUseCase>(
+      () =>
+          _i438.ObtenerElegiblesBajaUseCase(gh<_i354.FacturacionRepository>()),
+    );
+    gh.lazySingleton<_i39.ObtenerMotivosNotaUseCase>(
+      () => _i39.ObtenerMotivosNotaUseCase(gh<_i354.FacturacionRepository>()),
+    );
     gh.factory<_i466.ProductoSelectorCubit>(
       () => _i466.ProductoSelectorCubit(
         gh<_i787.GetProductosDisponiblesParaComboUseCase>(),
@@ -4160,6 +4202,13 @@ extension GetItInjectableX on _i174.GetIt {
         updateProfileUseCase: gh<_i798.UpdateProfileUseCase>(),
         consultarDniUseCase: gh<_i53.ConsultarDniUseCase>(),
         authRepository: gh<_i787.AuthRepository>(),
+      ),
+    );
+    gh.factory<_i964.CrearNotaCubit>(
+      () => _i964.CrearNotaCubit(
+        gh<_i39.ObtenerMotivosNotaUseCase>(),
+        gh<_i892.CrearNotaCreditoUseCase>(),
+        gh<_i1038.CrearNotaDebitoUseCase>(),
       ),
     );
     gh.factory<_i333.MetaFinancieraCubit>(

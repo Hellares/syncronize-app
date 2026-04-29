@@ -22,7 +22,9 @@ class SedeFormFields extends StatelessWidget {
   final TextEditingController serieFacturaController;
   final TextEditingController serieBoletaController;
   final TextEditingController serieNotaCreditoController;
+  final TextEditingController serieNotaCreditoBoletaController;
   final TextEditingController serieNotaDebitoController;
+  final TextEditingController serieNotaDebitoBoletaController;
   final TextEditingController serieGuiaRemisionController;
   // Facturación electrónica por sede (opcional, override)
   final TextEditingController rucSedeController;
@@ -48,7 +50,9 @@ class SedeFormFields extends StatelessWidget {
   final int ultimoNumeroFactura;
   final int ultimoNumeroBoleta;
   final int ultimoNumeroNotaCredito;
+  final int ultimoNumeroNotaCreditoBoleta;
   final int ultimoNumeroNotaDebito;
+  final int ultimoNumeroNotaDebitoBoleta;
 
   const SedeFormFields({
     super.key,
@@ -65,7 +69,9 @@ class SedeFormFields extends StatelessWidget {
     required this.serieFacturaController,
     required this.serieBoletaController,
     required this.serieNotaCreditoController,
+    required this.serieNotaCreditoBoletaController,
     required this.serieNotaDebitoController,
+    required this.serieNotaDebitoBoletaController,
     required this.serieGuiaRemisionController,
     required this.rucSedeController,
     required this.razonSocialSedeController,
@@ -89,7 +95,9 @@ class SedeFormFields extends StatelessWidget {
     this.ultimoNumeroFactura = 0,
     this.ultimoNumeroBoleta = 0,
     this.ultimoNumeroNotaCredito = 0,
+    this.ultimoNumeroNotaCreditoBoleta = 0,
     this.ultimoNumeroNotaDebito = 0,
+    this.ultimoNumeroNotaDebitoBoleta = 0,
   });
 
   /// Determina si el tipo de sede requiere emisión de comprobantes
@@ -395,15 +403,14 @@ class SedeFormFields extends StatelessWidget {
               Expanded(
                 child: CustomText(
                   controller: serieNotaCreditoController,
-                  label: _isSerieEditable('notaCredito') ? 'Serie N. Crédito *' : 'Serie N. Crédito',
-                  hintText: 'NC01',
+                  label: _isSerieEditable('notaCredito') ? 'NC sobre Factura *' : 'NC sobre Factura',
+                  hintText: 'FC01',
                   borderColor: AppColors.blue1,
                   enabled: _isSerieEditable('notaCredito'),
                   helperText: !_isSerieEditable('notaCredito')
                       ? 'Generada automáticamente'
-                      : null,
+                      : 'Prefijo F (FC*)',
                   validator: (value){
-                    // Solo validar si el campo es editable
                     if (_isSerieEditable('notaCredito') && (value == null || value.trim().isEmpty)) {
                       return 'Requerido';
                     }
@@ -414,16 +421,59 @@ class SedeFormFields extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: CustomText(
+                  controller: serieNotaCreditoBoletaController,
+                  label: _isSerieEditable('notaCredito') ? 'NC sobre Boleta *' : 'NC sobre Boleta',
+                  hintText: 'BC01',
+                  borderColor: AppColors.blue1,
+                  enabled: _isSerieEditable('notaCredito'),
+                  helperText: !_isSerieEditable('notaCredito')
+                      ? 'Generada automáticamente'
+                      : 'Prefijo B (BC*)',
+                  validator: (value){
+                    if (_isSerieEditable('notaCredito') && (value == null || value.trim().isEmpty)) {
+                      return 'Requerido';
+                    }
+                    return null;
+                  },
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+
+          Row(
+            children: [
+              Expanded(
+                child: CustomText(
                   controller: serieNotaDebitoController,
-                  label: _isSerieEditable('notaDebito') ? 'Serie N. Débito *' : 'Serie N. Débito',
-                  hintText: 'ND01',
+                  label: _isSerieEditable('notaDebito') ? 'ND sobre Factura *' : 'ND sobre Factura',
+                  hintText: 'FD01',
                   borderColor: AppColors.blue1,
                   enabled: _isSerieEditable('notaDebito'),
                   helperText: !_isSerieEditable('notaDebito')
                       ? 'Generada automáticamente'
-                      : null,
+                      : 'Prefijo F (FD*)',
                   validator: (value){
-                    // Solo validar si el campo es editable
+                    if (_isSerieEditable('notaDebito') && (value == null || value.trim().isEmpty)) {
+                      return 'Requerido';
+                    }
+                    return null;
+                  },
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: CustomText(
+                  controller: serieNotaDebitoBoletaController,
+                  label: _isSerieEditable('notaDebito') ? 'ND sobre Boleta *' : 'ND sobre Boleta',
+                  hintText: 'BD01',
+                  borderColor: AppColors.blue1,
+                  enabled: _isSerieEditable('notaDebito'),
+                  helperText: !_isSerieEditable('notaDebito')
+                      ? 'Generada automáticamente'
+                      : 'Prefijo B (BD*)',
+                  validator: (value){
                     if (_isSerieEditable('notaDebito') && (value == null || value.trim().isEmpty)) {
                       return 'Requerido';
                     }
@@ -459,8 +509,15 @@ class SedeFormFields extends StatelessWidget {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      _correlativoInfo('N. Crédito', ultimoNumeroNotaCredito),
-                      _correlativoInfo('N. Débito', ultimoNumeroNotaDebito),
+                      _correlativoInfo('NC Factura', ultimoNumeroNotaCredito),
+                      _correlativoInfo('NC Boleta', ultimoNumeroNotaCreditoBoleta),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      _correlativoInfo('ND Factura', ultimoNumeroNotaDebito),
+                      _correlativoInfo('ND Boleta', ultimoNumeroNotaDebitoBoleta),
                     ],
                   ),
                   const SizedBox(height: 4),

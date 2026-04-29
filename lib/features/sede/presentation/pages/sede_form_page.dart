@@ -69,7 +69,9 @@ class _SedeFormViewState extends State<_SedeFormView> {
   final _serieFacturaController = TextEditingController();
   final _serieBoletaController = TextEditingController();
   final _serieNotaCreditoController = TextEditingController();
+  final _serieNotaCreditoBoletaController = TextEditingController();
   final _serieNotaDebitoController = TextEditingController();
+  final _serieNotaDebitoBoletaController = TextEditingController();
   final _serieGuiaRemisionController = TextEditingController();
   // Facturación electrónica por sede
   final _rucSedeController = TextEditingController();
@@ -136,7 +138,9 @@ class _SedeFormViewState extends State<_SedeFormView> {
     _serieFacturaController.addListener(_markAsChanged);
     _serieBoletaController.addListener(_markAsChanged);
     _serieNotaCreditoController.addListener(_markAsChanged);
+    _serieNotaCreditoBoletaController.addListener(_markAsChanged);
     _serieNotaDebitoController.addListener(_markAsChanged);
+    _serieNotaDebitoBoletaController.addListener(_markAsChanged);
     _serieGuiaRemisionController.addListener(_markAsChanged);
   }
 
@@ -173,7 +177,9 @@ class _SedeFormViewState extends State<_SedeFormView> {
     _serieFacturaController.text = sede.serieFactura;
     _serieBoletaController.text = sede.serieBoleta;
     _serieNotaCreditoController.text = sede.serieNotaCredito;
+    _serieNotaCreditoBoletaController.text = sede.serieNotaCreditoBoleta;
     _serieNotaDebitoController.text = sede.serieNotaDebito;
+    _serieNotaDebitoBoletaController.text = sede.serieNotaDebitoBoleta;
     _serieGuiaRemisionController.text = sede.serieGuiaRemision ?? '';
     _rucSedeController.text = sede.rucSede ?? '';
     _razonSocialSedeController.text = sede.razonSocialSede ?? '';
@@ -334,8 +340,14 @@ class _SedeFormViewState extends State<_SedeFormView> {
         'serieBoleta': _serieBoletaController.text.trim().toUpperCase(),
       if (_serieNotaCreditoController.text.trim().isNotEmpty)
         'serieNotaCredito': _serieNotaCreditoController.text.trim().toUpperCase(),
+      if (_serieNotaCreditoBoletaController.text.trim().isNotEmpty)
+        'serieNotaCreditoBoleta':
+            _serieNotaCreditoBoletaController.text.trim().toUpperCase(),
       if (_serieNotaDebitoController.text.trim().isNotEmpty)
         'serieNotaDebito': _serieNotaDebitoController.text.trim().toUpperCase(),
+      if (_serieNotaDebitoBoletaController.text.trim().isNotEmpty)
+        'serieNotaDebitoBoleta':
+            _serieNotaDebitoBoletaController.text.trim().toUpperCase(),
       if (_serieGuiaRemisionController.text.trim().isNotEmpty)
         'serieGuiaRemision':
             _serieGuiaRemisionController.text.trim().toUpperCase(),
@@ -383,7 +395,9 @@ class _SedeFormViewState extends State<_SedeFormView> {
     _serieFacturaController.dispose();
     _serieBoletaController.dispose();
     _serieNotaCreditoController.dispose();
+    _serieNotaCreditoBoletaController.dispose();
     _serieNotaDebitoController.dispose();
+    _serieNotaDebitoBoletaController.dispose();
     _serieGuiaRemisionController.dispose();
     super.dispose();
   }
@@ -490,8 +504,12 @@ class _SedeFormViewState extends State<_SedeFormView> {
                             serieBoletaController: _serieBoletaController,
                             serieNotaCreditoController:
                                 _serieNotaCreditoController,
+                            serieNotaCreditoBoletaController:
+                                _serieNotaCreditoBoletaController,
                             serieNotaDebitoController:
                                 _serieNotaDebitoController,
+                            serieNotaDebitoBoletaController:
+                                _serieNotaDebitoBoletaController,
                             serieGuiaRemisionController:
                                 _serieGuiaRemisionController,
                             rucSedeController: _rucSedeController,
@@ -506,7 +524,9 @@ class _SedeFormViewState extends State<_SedeFormView> {
                             ultimoNumeroFactura: _sedeActual?.ultimoNumeroFactura ?? 0,
                             ultimoNumeroBoleta: _sedeActual?.ultimoNumeroBoleta ?? 0,
                             ultimoNumeroNotaCredito: _sedeActual?.ultimoNumeroNotaCredito ?? 0,
+                            ultimoNumeroNotaCreditoBoleta: _sedeActual?.ultimoNumeroNotaCreditoBoleta ?? 0,
                             ultimoNumeroNotaDebito: _sedeActual?.ultimoNumeroNotaDebito ?? 0,
+                            ultimoNumeroNotaDebitoBoleta: _sedeActual?.ultimoNumeroNotaDebitoBoleta ?? 0,
                             onTipoSedeChanged: _handleTipoSedeChanged,
                             onIsActiveChanged: (value) {
                               setState(() {

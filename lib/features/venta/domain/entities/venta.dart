@@ -66,7 +66,10 @@ enum MetodoPago {
   yape,
   plin,
   transferencia,
-  credito;
+  credito,
+  /// Venta con >1 método distinto en sus pagos. Etiqueta UX — para reportería
+  /// honesta iterar `venta.pagos[]` y agrupar por `pago.metodoPago`.
+  mixto;
 
   String get label {
     switch (this) {
@@ -82,6 +85,8 @@ enum MetodoPago {
         return 'Transferencia';
       case MetodoPago.credito:
         return 'Crédito';
+      case MetodoPago.mixto:
+        return 'Mixto';
     }
   }
 
@@ -101,6 +106,8 @@ enum MetodoPago {
         return MetodoPago.transferencia;
       case 'CREDITO':
         return MetodoPago.credito;
+      case 'MIXTO':
+        return MetodoPago.mixto;
       default:
         return MetodoPago.efectivo;
     }
@@ -263,6 +270,17 @@ class Venta extends Equatable {
     this.comprobanteAnulado,
     this.notasRelacionadas,
   });
+
+  /// Etiqueta del método de pago lista para mostrar al usuario.
+  /// Si la venta tiene múltiples métodos en `pagos[]` o el método es MIXTO,
+  /// devuelve "Mixto (N pagos)" para no mentir con un solo método principal.
+  String? get metodoPagoDisplay {
+    final n = pagos?.length ?? 0;
+    if (metodoPago == MetodoPago.mixto || n > 1) {
+      return n > 0 ? 'Mixto ($n pagos)' : 'Mixto';
+    }
+    return metodoPago?.label;
+  }
 
   bool get esEditable => estado == EstadoVenta.borrador;
 

@@ -132,27 +132,29 @@ class SincronizarSeriesCubit extends Cubit<SincronizarSeriesState> {
     }
   }
 
+  /// Key del map de selecciones. Usamos `tipoDocumentoNombre` porque
+  /// `tipoDocumento` SUNAT no es único: NC (07) y ND (08) tienen 2 slots
+  /// cada una (sobre Factura / sobre Boleta) que comparten tipoDocumento.
   Map<String, bool> _seleccionInicial(BranchPreviewInfo branch) {
     final map = <String, bool>{};
     for (final d in branch.diffs) {
-      // Por defecto sólo las que tengan algo que cambiar y no sean conflicto
-      map[d.tipoDocumento] = d.accion.esAplicable;
+      map[d.tipoDocumentoNombre] = d.accion.esAplicable;
     }
     return map;
   }
 
-  void toggleSeleccion(String tipoDocumento) {
+  void toggleSeleccion(String tipoDocumentoNombre) {
     final s = state;
     if (s is! SincronizarSeriesPreviewReady) return;
     final branch = s.branchElegido;
     if (branch == null) return;
     DiffSerie? diff;
     for (final d in branch.diffs) {
-      if (d.tipoDocumento == tipoDocumento) { diff = d; break; }
+      if (d.tipoDocumentoNombre == tipoDocumentoNombre) { diff = d; break; }
     }
     if (diff == null || !diff.accion.esAplicable) return;
     final nuevo = Map<String, bool>.from(s.seleccionadas);
-    nuevo[tipoDocumento] = !(nuevo[tipoDocumento] ?? false);
+    nuevo[tipoDocumentoNombre] = !(nuevo[tipoDocumentoNombre] ?? false);
     emit(s.copyWith(seleccionadas: nuevo));
   }
 
@@ -161,7 +163,7 @@ class SincronizarSeriesCubit extends Cubit<SincronizarSeriesState> {
     if (s is! SincronizarSeriesPreviewReady) return;
     final nuevo = <String, bool>{};
     for (final d in s.branchElegido?.diffs ?? const <DiffSerie>[]) {
-      nuevo[d.tipoDocumento] = valor && d.accion.esAplicable;
+      nuevo[d.tipoDocumentoNombre] = valor && d.accion.esAplicable;
     }
     emit(s.copyWith(seleccionadas: nuevo));
   }
@@ -190,7 +192,7 @@ class SincronizarSeriesCubit extends Cubit<SincronizarSeriesState> {
         .where((d) =>
             d.accion.esAplicable &&
             d.serieProveedor != null &&
-            (s.seleccionadas[d.tipoDocumento] ?? false))
+            (s.seleccionadas[d.tipoDocumentoNombre] ?? false))
         .map((d) => SeleccionSerie(
               tipoDocumento: d.tipoDocumento,
               serieProveedor: d.serieProveedor!,

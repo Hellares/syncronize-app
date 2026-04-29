@@ -23,6 +23,10 @@ import '../bloc/venta_form/venta_form_cubit.dart';
 import '../bloc/venta_form/venta_form_state.dart';
 import '../widgets/flujo_documentos_widget.dart';
 import '../widgets/venta_estado_chip.dart';
+import '../../../facturacion/domain/entities/crear_nota_item.dart';
+import '../../../facturacion/domain/entities/tipo_nota.dart';
+import '../../../facturacion/presentation/widgets/crear_nota_dialog.dart';
+import '../../../facturacion/presentation/widgets/anular_comprobante_dialog.dart';
 
 class VentaDetailPage extends StatefulWidget {
   final String ventaId;
@@ -573,9 +577,9 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
           children: [
             _buildSectionHeader(Icons.payment, 'PAGO'),
             const SizedBox(height: 12),
-            if (v.metodoPago != null)
+            if (v.metodoPagoDisplay != null)
               _buildDetailRow(
-                  Icons.credit_card, 'Metodo', v.metodoPago!.label),
+                  Icons.credit_card, 'Metodo', v.metodoPagoDisplay!),
             if (v.montoRecibido != null)
               _buildDetailRow(Icons.attach_money, 'Recibido',
                   '${v.moneda} ${v.montoRecibido!.toStringAsFixed(2)}'),
@@ -1022,19 +1026,19 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
           icon: Icons.note_add_outlined,
           label: 'Nota Crédito',
           color: Colors.orange,
-          onTap: () => _showNotaCreditoDialog(context, v),
+          onTap: () => _abrirDialogNota(context, v, TipoNota.notaCredito),
         ),
         _actionChip(
           icon: Icons.add_circle_outline,
           label: 'Nota Débito',
           color: Colors.purple,
-          onTap: () => _showNotaDebitoDialog(context, v),
+          onTap: () => _abrirDialogNota(context, v, TipoNota.notaDebito),
         ),
         _actionChip(
           icon: Icons.cancel_outlined,
           label: 'Anular',
           color: Colors.red,
-          onTap: () => _showAnularDialog(context, v),
+          onTap: () => _abrirDialogAnulacion(context, v),
         ),
         _actionChip(
           icon: Icons.local_shipping,
@@ -1073,305 +1077,70 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
     );
   }
 
-  void _showNotaCreditoDialog(BuildContext context, Venta v) {
-    final motivoController = TextEditingController();
-    int tipoNota = 1;
+  Future<void> _abrirDialogNota(BuildContext context, Venta v, TipoNota tipo) async {
+    if (v.comprobanteId == null) return;
+    final itemsOrigen = (v.detalles ?? const [])
+        .map((d) => CrearNotaItem(
+              descripcion: d.descripcion,
+              cantidad: d.cantidad,
+              valorUnitario: d.precioUnitario,
+              precioUnitario: d.precioUnitario,
+              tipoAfectacion: d.tipoAfectacion,
+              igv: d.igv,
+              icbper: d.icbper,
+              subtotal: d.subtotal,
+              total: d.total,
+            ))
+        .toList();
 
-    final tipos = {
-      1: 'Anulación de la operación',
-      2: 'Anulación por error en RUC',
-      3: 'Corrección por error en descripción',
-      4: 'Descuento global',
-      5: 'Descuento por ítem',
-      6: 'Devolución total',
-      7: 'Devolución por ítem',
-      9: 'Disminución en el valor',
-      10: 'Otros conceptos',
-    };
-
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Nota de Crédito', style: TextStyle(fontSize: 16)),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Comprobante: ${v.tipoComprobante} ${v.codigoComprobante}',
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-                Text('Total: S/ ${v.total.toStringAsFixed(2)}',
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 12),
-                const Text('Tipo de nota:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 6),
-                DropdownButtonFormField<int>(
-                  value: tipoNota,
-                  isExpanded: true,
-                  decoration: const InputDecoration(
-                    isDense: true,
-                    contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    border: OutlineInputBorder(),
-                  ),
-                  style: const TextStyle(fontSize: 12, color: Colors.black87),
-                  items: tipos.entries.map((e) => DropdownMenuItem(
-                    value: e.key,
-                    child: Text(e.value, style: const TextStyle(fontSize: 11)),
-                  )).toList(),
-                  onChanged: (val) => setDialogState(() => tipoNota = val ?? 1),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: motivoController,
-                  maxLines: 2,
-                  decoration: const InputDecoration(
-                    labelText: 'Motivo',
-                    hintText: 'Describa el motivo...',
-                    border: OutlineInputBorder(),
-                    isDense: true,
-                  ),
-                  style: const TextStyle(fontSize: 12),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-              onPressed: () {
-                if (motivoController.text.trim().length < 3) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Ingrese un motivo válido (mín. 3 caracteres)')),
-                  );
-                  return;
-                }
-                Navigator.pop(ctx);
-                _ejecutarNotaCredito(v, tipoNota, motivoController.text.trim());
-              },
-              child: const Text('Generar Nota', style: TextStyle(color: Colors.white, fontSize: 12)),
-            ),
-          ],
-        ),
-      ),
+    final result = await CrearNotaDialog.show(
+      context,
+      comprobanteOrigenId: v.comprobanteId!,
+      sedeId: v.sedeId,
+      tipoNota: tipo,
+      comprobanteCodigo: '${v.tipoComprobante ?? ''} ${v.codigoComprobante ?? ''}'.trim(),
+      comprobanteTotal: v.total,
+      moneda: v.moneda,
+      itemsOrigen: itemsOrigen,
     );
-  }
 
-  void _showNotaDebitoDialog(BuildContext context, Venta v) {
-    final motivoController = TextEditingController();
-    int tipoNota = 1;
-
-    final tipos = {
-      1: 'Intereses por mora',
-      2: 'Aumento de valor',
-      3: 'Penalidades',
-    };
-
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Nota de Débito', style: TextStyle(fontSize: 16)),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Comprobante: ${v.tipoComprobante} ${v.codigoComprobante}',
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-                Text('Total: S/ ${v.total.toStringAsFixed(2)}',
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 12),
-                const Text('Tipo de nota:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 6),
-                DropdownButtonFormField<int>(
-                  value: tipoNota,
-                  isExpanded: true,
-                  decoration: const InputDecoration(
-                    isDense: true,
-                    contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    border: OutlineInputBorder(),
-                  ),
-                  style: const TextStyle(fontSize: 12, color: Colors.black87),
-                  items: tipos.entries.map((e) => DropdownMenuItem(
-                    value: e.key,
-                    child: Text(e.value, style: const TextStyle(fontSize: 11)),
-                  )).toList(),
-                  onChanged: (val) => setDialogState(() => tipoNota = val ?? 1),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: motivoController,
-                  maxLines: 2,
-                  decoration: const InputDecoration(
-                    labelText: 'Motivo',
-                    hintText: 'Describa el motivo...',
-                    border: OutlineInputBorder(),
-                    isDense: true,
-                  ),
-                  style: const TextStyle(fontSize: 12),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.purple),
-              onPressed: () {
-                if (motivoController.text.trim().length < 3) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Ingrese un motivo válido (mín. 3 caracteres)')),
-                  );
-                  return;
-                }
-                Navigator.pop(ctx);
-                _ejecutarNotaDebito(v, tipoNota, motivoController.text.trim());
-              },
-              child: const Text('Generar Nota', style: TextStyle(color: Colors.white, fontSize: 12)),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showAnularDialog(BuildContext context, Venta v) {
-    final motivoController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Anular Comprobante', style: TextStyle(fontSize: 16, color: Colors.red)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('${v.tipoComprobante} ${v.codigoComprobante}',
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-            Text('Total: S/ ${v.total.toStringAsFixed(2)}',
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-            const SizedBox(height: 8),
-            const Text('Esta acción generará una comunicación de baja ante SUNAT.',
-                style: TextStyle(fontSize: 11, color: Colors.red)),
-            const SizedBox(height: 12),
-            TextField(
-              controller: motivoController,
-              maxLines: 2,
-              decoration: const InputDecoration(
-                labelText: 'Motivo de anulación',
-                hintText: 'Ej: Error en datos del cliente',
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-              style: const TextStyle(fontSize: 12),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () {
-              if (motivoController.text.trim().length < 3) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Ingrese un motivo válido (mín. 3 caracteres)')),
-                );
-                return;
-              }
-              Navigator.pop(ctx);
-              _ejecutarAnulacion(v, motivoController.text.trim());
-            },
-            child: const Text('Anular', style: TextStyle(color: Colors.white, fontSize: 12)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _ejecutarNotaCredito(Venta v, int tipoNota, String motivo) async {
-    setState(() => _loading = true);
-    try {
-      final datasource = locator<VentaRemoteDataSource>();
-      await datasource.crearNotaCredito(
-        v.comprobanteId!,
-        sedeId: v.sedeId,
-        tipoNota: tipoNota,
-        motivo: motivo,
-      );
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Nota de crédito generada y enviada a SUNAT')),
-        );
-        _loadVenta();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _loading = false);
+    if (result != null && mounted) {
+      _loadVenta();
     }
   }
 
-  Future<void> _ejecutarNotaDebito(Venta v, int tipoNota, String motivo) async {
-    setState(() => _loading = true);
-    try {
-      final datasource = locator<VentaRemoteDataSource>();
-      await datasource.crearNotaDebito(
-        v.comprobanteId!,
-        sedeId: v.sedeId,
-        tipoNota: tipoNota,
-        motivo: motivo,
-      );
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Nota de débito generada y enviada a SUNAT')),
-        );
-        _loadVenta();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
+  Future<void> _abrirDialogAnulacion(BuildContext context, Venta v) async {
+    if (v.comprobanteId == null) return;
 
-  Future<void> _ejecutarAnulacion(Venta v, String motivo) async {
-    setState(() => _loading = true);
-    try {
-      final datasource = locator<VentaRemoteDataSource>();
-      await datasource.anularComprobante(v.comprobanteId!, motivo);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Comprobante anulado ante SUNAT')),
-        );
-        _loadVenta();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _loading = false);
+    // Solo Factura, NC con prefijo F (FC*) y ND con prefijo F (FD*) admiten CDB.
+    // Boletas y notas BC*/BD* van por Resumen Diario (Fase futura).
+    final tipo = v.tipoComprobante ?? '';
+    final codigo = v.codigoComprobante ?? '';
+    final esBoleta = tipo == 'BOLETA' || codigo.startsWith('B');
+    if (esBoleta) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'Las boletas y notas con serie B se anulan vía Resumen Diario. Funcionalidad próximamente.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    final result = await AnularComprobanteDialog.show(
+      context,
+      comprobanteId: v.comprobanteId!,
+      comprobanteCodigo: codigo,
+      tipoComprobante: tipo,
+      fechaEmision: v.fechaVenta,
+      sedeId: v.sedeId,
+      total: v.total,
+      moneda: v.moneda,
+    );
+
+    if (result != null && mounted) {
+      _loadVenta();
     }
   }
 

@@ -8,6 +8,7 @@ class PagoVentaModel extends PagoVenta {
     required super.metodoPago,
     required super.monto,
     super.referencia,
+    super.banco,
     required super.fechaPago,
     super.monedaOriginal,
     super.montoOriginal,
@@ -21,6 +22,7 @@ class PagoVentaModel extends PagoVenta {
       metodoPago: MetodoPago.fromString(json['metodoPago'] as String),
       monto: _toDouble(json['monto']),
       referencia: json['referencia'] as String?,
+      banco: json['banco'] as String?,
       fechaPago: DateTime.parse(json['fechaPago'] as String),
       monedaOriginal: json['monedaOriginal'] as String?,
       montoOriginal: json['montoOriginal'] != null ? _toDouble(json['montoOriginal']) : null,
@@ -35,6 +37,7 @@ class PagoVentaModel extends PagoVenta {
       'metodoPago': metodoPago.apiValue,
       'monto': monto,
       if (referencia != null) 'referencia': referencia,
+      if (banco != null) 'banco': banco,
       'fechaPago': fechaPago.toIso8601String(),
     };
   }

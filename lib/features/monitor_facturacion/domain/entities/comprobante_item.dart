@@ -25,6 +25,7 @@ class ComprobanteItem extends Equatable {
   final int? tipoNotaDebito;
   final String? comprobanteOrigenId;
   final String? ventaId;
+  final String? sedeId;
   /// Proveedor que emitió el comprobante: 'NUBEFACT', 'SYNCROFACT' o null (legacy).
   final String? proveedorEmisor;
 
@@ -53,6 +54,7 @@ class ComprobanteItem extends Equatable {
     this.tipoNotaDebito,
     this.comprobanteOrigenId,
     this.ventaId,
+    this.sedeId,
     this.proveedorEmisor,
   });
 

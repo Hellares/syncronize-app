@@ -297,7 +297,7 @@ class _PreviewContent extends StatelessWidget {
                   separatorBuilder: (_, __) => const SizedBox(height: 6),
                   itemBuilder: (ctx, i) => _DiffRow(
                     diff: diffs[i],
-                    seleccionada: state.seleccionadas[diffs[i].tipoDocumento] ?? false,
+                    seleccionada: state.seleccionadas[diffs[i].tipoDocumentoNombre] ?? false,
                   ),
                 ),
         ),
@@ -380,7 +380,7 @@ class _DiffRow extends StatelessWidget {
 
     return InkWell(
       onTap: aplicable
-          ? () => context.read<SincronizarSeriesCubit>().toggleSeleccion(diff.tipoDocumento)
+          ? () => context.read<SincronizarSeriesCubit>().toggleSeleccion(diff.tipoDocumentoNombre)
           : null,
       onLongPress: () {
         final serie = diff.serieProveedor ?? diff.serieLocal;

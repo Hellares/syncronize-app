@@ -72,6 +72,9 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
   final _referenciaAgregarController = TextEditingController();
   // Bancarización (Ley 28194): banco seleccionado para el pago actual.
   String? _bancoActual;
+  // Cajero confirmó la advertencia legal de pagar en efectivo sobre el umbral.
+  // Se persiste con la venta (auditable).
+  bool _aceptaRiesgoBancarizacion = false;
   String _condicionPago = 'CONTADO';
   bool get _esCredito => _condicionPago == 'CREDITO' || _condicionPago == 'MIXTO';
   int _numeroCuotas = 1;
@@ -250,7 +253,7 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
 
   // ─── Pago Actions ───
 
-  void _agregarPago() {
+  Future<void> _agregarPago() async {
     final monto = CurrencyUtilsImproved.parseToDouble(_montoAgregarController.text);
     if (monto <= 0) return;
 
@@ -261,23 +264,20 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
       return;
     }
 
-    // Validación bancarización (Ley 28194): si el total supera el umbral y el
-    // método no es efectivo, exigir referencia (y banco si aplica).
     final totalVenta = _calcularTotal();
-    final aplicaBancarizacion = requiereBancarizacion(
-      metodo: _metodoActual,
-      totalVentaPen: totalVenta,
-    );
     final ref = _referenciaAgregarController.text.trim();
-    if (aplicaBancarizacion && ref.isEmpty) {
+
+    // Validación por pago: referencia/banco según método.
+    if (requiereReferenciaPago(metodo: _metodoActual, totalVentaPen: totalVenta) && ref.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Bancarización: N° de operación obligatorio')),
+        SnackBar(content: Text('$_metodoActual requiere N° de operación')),
       );
       return;
     }
-    if (aplicaBancarizacion && requiereBancoPago(_metodoActual) && (_bancoActual == null || _bancoActual!.isEmpty)) {
+    if (requiereBancoPagoObligatorio(metodo: _metodoActual, totalVentaPen: totalVenta) &&
+        (_bancoActual == null || _bancoActual!.isEmpty)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Bancarización: debes seleccionar un banco')),
+        SnackBar(content: Text('$_metodoActual requiere seleccionar banco')),
       );
       return;
     }
@@ -285,6 +285,32 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
     final montoEnSoles = _monedaActual == 'USD'
         ? double.parse((monto * _tipoCambioVenta!).toStringAsFixed(2))
         : monto;
+
+    // Advertencia EFECTIVO sobre umbral (Ley 28194):
+    // si tras agregar este pago en efectivo la suma efectivo deja la parte
+    // bancarizada por debajo del umbral, pedir confirmación al cajero.
+    if (_metodoActual == 'EFECTIVO' &&
+        aplicaBancarizacion(totalVentaPen: totalVenta) &&
+        !_aceptaRiesgoBancarizacion) {
+      final totalEfectivoActual = _pagos
+          .where((p) => p['metodo'] == 'EFECTIVO')
+          .fold<double>(0, (s, p) => s + (p['monto'] as double));
+      final totalBancarizadoActual = _pagos
+          .where((p) => p['metodo'] != 'EFECTIVO' && p['metodo'] != 'CREDITO')
+          .fold<double>(0, (s, p) => s + (p['monto'] as double));
+      final efectivoTrasAgregar = totalEfectivoActual + montoEnSoles;
+      // El efectivo "excede lo legal" cuando lo bancarizado no cubre el umbral
+      // y aun así estaríamos sumando más efectivo.
+      if (totalBancarizadoActual < umbralBancarizacionPen && efectivoTrasAgregar > 0) {
+        final confirmado = await _confirmarRiesgoBancarizacion(
+          totalVenta: totalVenta,
+          efectivo: efectivoTrasAgregar,
+          bancarizado: totalBancarizadoActual,
+        );
+        if (!confirmado) return;
+        _aceptaRiesgoBancarizacion = true;
+      }
+    }
 
     setState(() {
       _pagos.add({
@@ -303,7 +329,80 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
     });
   }
 
-  void _removerPago(int index) => setState(() => _pagos.removeAt(index));
+  /// AlertDialog rojo de confirmación cuando el cajero quiere agregar
+  /// efectivo que viola la Ley 28194. El cliente asume el riesgo.
+  Future<bool> _confirmarRiesgoBancarizacion({
+    required double totalVenta,
+    required double efectivo,
+    required double bancarizado,
+  }) async {
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        icon: Icon(Icons.warning_amber_rounded, color: Colors.red[700], size: 36),
+        title: const Text('Ley 28194 — bancarización'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Esta venta de S/ ${totalVenta.toStringAsFixed(2)} supera el límite de '
+              'S/ ${umbralBancarizacionPen.toStringAsFixed(0)}, pero el pago en efectivo '
+              '(S/ ${efectivo.toStringAsFixed(2)}) excede lo permitido por ley.',
+              style: const TextStyle(fontSize: 13),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Parte bancarizada actual: S/ ${bancarizado.toStringAsFixed(2)} '
+              '(< S/ ${umbralBancarizacionPen.toStringAsFixed(0)}).',
+              style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.red[50],
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.red[300]!),
+              ),
+              child: Text(
+                'Consecuencias para el cliente:\n'
+                '• Pierde el derecho a deducir el IGV (crédito fiscal).\n'
+                '• El gasto puede ser observado por SUNAT.\n'
+                '• Posibles multas tributarias al cliente.',
+                style: TextStyle(fontSize: 11, color: Colors.red[900]),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '¿El cliente confirma asumir este riesgo?',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey[800]),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red[700]),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Cliente acepta riesgo', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
+  }
+
+  void _removerPago(int index) => setState(() {
+        _pagos.removeAt(index);
+        // Reset el flag de advertencia: si el cajero quiere volver a poner
+        // efectivo sobre el umbral, debe re-confirmar.
+        _aceptaRiesgoBancarizacion = false;
+      });
 
   // ─── BUILD ───
 
@@ -820,15 +919,14 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
       if (_pagos.isNotEmpty) ...{
         'metodoPago': _pagos.first['metodo'],
         'montoRecibido': _totalPagado,
-        // Bancarización: tomamos banco/referencia del primer pago (Fase 1 asume pago único principal)
-        if ((_pagos.first['banco'] as String?)?.isNotEmpty ?? false)
-          'bancoPago': _pagos.first['banco'],
-        if ((_pagos.first['referencia'] as String?)?.isNotEmpty ?? false)
-          'referenciaPago': _pagos.first['referencia'],
+        // Bancarización Fase 2: banco/referencia van por pago dentro de pagos[].
+        // Cajero confirmó la advertencia si el efectivo excede el límite legal.
+        if (_aceptaRiesgoBancarizacion) 'aceptaRiesgoBancarizacion': true,
         'pagos': _pagos.map((p) => {
           'metodoPago': p['metodo'],
           'monto': p['monto'],
           if ((p['referencia'] as String).isNotEmpty) 'referencia': p['referencia'],
+          if ((p['banco'] as String?)?.isNotEmpty ?? false) 'banco': p['banco'],
           if (p['monedaOriginal'] == 'USD') ...{
             'monedaOriginal': 'USD',
             'montoOriginal': p['montoOriginal'],

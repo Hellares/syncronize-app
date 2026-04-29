@@ -399,8 +399,8 @@ class PdfVentaGenerator {
                     '$simboloMoneda${venta.pagos!.fold(0.0, (sum, p) => sum + p.monto).toStringAsFixed(2)}',
                     color: colorCuerpo,
                   ),
-              ] else if (venta.metodoPago != null) ...[
-                _buildTotalRow('Metodo', venta.metodoPago!.label,
+              ] else if (venta.metodoPagoDisplay != null) ...[
+                _buildTotalRow('Metodo', venta.metodoPagoDisplay!,
                     color: colorCuerpo),
                 if (venta.montoRecibido != null)
                   _buildTotalRow(

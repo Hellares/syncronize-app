@@ -16,7 +16,10 @@ class MetodoPagoSelector extends StatelessWidget {
     return Wrap(
       spacing: 8,
       runSpacing: 8,
-      children: MetodoPago.values.map((metodo) {
+      children: MetodoPago.values
+          // MIXTO no es elegible manualmente — se deriva al sumar varios pagos.
+          .where((m) => m != MetodoPago.mixto)
+          .map((metodo) {
         final isSelected = selected == metodo;
         return ChoiceChip(
           label: Row(
@@ -57,6 +60,8 @@ class MetodoPagoSelector extends StatelessWidget {
         return Icons.account_balance;
       case MetodoPago.credito:
         return Icons.schedule;
+      case MetodoPago.mixto:
+        return Icons.shuffle;
     }
   }
 
@@ -74,6 +79,8 @@ class MetodoPagoSelector extends StatelessWidget {
         return Colors.indigo.shade600;
       case MetodoPago.credito:
         return Colors.orange.shade600;
+      case MetodoPago.mixto:
+        return Colors.deepPurple.shade600;
     }
   }
 }

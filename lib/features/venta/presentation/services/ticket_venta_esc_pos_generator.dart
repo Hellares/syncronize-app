@@ -153,8 +153,8 @@ class TicketVentaEscPosGenerator {
     bytes += generator.hr();
 
     // ── Pago ──
-    if (venta.metodoPago != null) {
-      bytes += generator.text('Metodo: ${venta.metodoPago!.label}');
+    if (venta.metodoPagoDisplay != null) {
+      bytes += generator.text('Metodo: ${venta.metodoPagoDisplay}');
     }
     if (venta.montoRecibido != null) {
       bytes += generator.text(
