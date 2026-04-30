@@ -322,6 +322,9 @@ class _FlujoDocumentosPageState extends State<FlujoDocumentosPage> {
     final codigo = nodo['codigo'] as String? ?? '';
     final estado = nodo['estado'] as String? ?? '';
     final sunatStatus = nodo['sunatStatus'] as String?;
+    // El backend marca `anulado=true` cuando se aplicó CDB/RC sobre el comprobante o la nota.
+    // El sunatStatus original (ACEPTADO) no cambia; la anulación es flag aparte.
+    final anulado = (nodo['anulado'] as bool?) ?? (estado == 'ANULADO');
     final fecha = nodo['fecha'] != null ? DateTime.tryParse(nodo['fecha'].toString()) : null;
     final monto = nodo['monto'];
     final moneda = nodo['moneda'] as String? ?? 'PEN';
@@ -340,18 +343,19 @@ class _FlujoDocumentosPageState extends State<FlujoDocumentosPage> {
         InkWell(
           onTap: ruta != null ? () => context.push(ruta) : null,
           borderRadius: BorderRadius.circular(8),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Conector └─▶
-              if (!esRaiz)
-                SizedBox(
-                  width: 26,
-                  height: 40,
-                  child: CustomPaint(
-                    painter: _ConnectorPainter(color: Colors.grey.shade400, isLast: isLast),
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Conector └─▶ — altura sigue la del contenido (IntrinsicHeight)
+                if (!esRaiz)
+                  SizedBox(
+                    width: 26,
+                    child: CustomPaint(
+                      painter: _ConnectorPainter(
+                          color: Colors.grey.shade400, isLast: isLast),
+                    ),
                   ),
-                ),
               // Contenido
               Expanded(
                 child: Container(
@@ -376,9 +380,21 @@ class _FlujoDocumentosPageState extends State<FlujoDocumentosPage> {
                           children: [
                             Row(
                               children: [
-                                Flexible(child: AppText(codigo, size: esRaiz ? 12 : 11, fontWeight: FontWeight.w700)),
+                                Flexible(
+                                  child: Text(
+                                    codigo,
+                                    style: TextStyle(
+                                      fontSize: esRaiz ? 12 : 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: anulado ? Colors.grey.shade600 : null,
+                                      decoration: anulado
+                                          ? TextDecoration.lineThrough
+                                          : null,
+                                    ),
+                                  ),
+                                ),
                                 const SizedBox(width: 6),
-                                _buildEstadoChip(estado, sunatStatus),
+                                _buildEstadoChip(estado, sunatStatus, anulado: anulado),
                               ],
                             ),
                             Row(
@@ -392,11 +408,38 @@ class _FlujoDocumentosPageState extends State<FlujoDocumentosPage> {
                             ),
                             if (detalle != null && detalle.isNotEmpty)
                               AppText(detalle, size: 8, color: Colors.grey.shade600),
+                            if (anulado)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.info_outline,
+                                        size: 9, color: Colors.red.shade700),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      'Anulado oficialmente ante SUNAT',
+                                      style: TextStyle(
+                                          fontSize: 8.5,
+                                          color: Colors.red.shade700,
+                                          fontWeight: FontWeight.w600),
+                                    ),
+                                  ],
+                                ),
+                              ),
                           ],
                         ),
                       ),
                       if (monto != null)
-                        AppText('$simbolo ${_formatMonto(monto)}', size: esRaiz ? 12 : 11, fontWeight: FontWeight.w700, color: config.color),
+                        Text(
+                          '$simbolo ${_formatMonto(monto)}',
+                          style: TextStyle(
+                            fontSize: esRaiz ? 12 : 11,
+                            fontWeight: FontWeight.w700,
+                            color: anulado ? Colors.grey.shade500 : config.color,
+                            decoration:
+                                anulado ? TextDecoration.lineThrough : null,
+                          ),
+                        ),
                       if (pdfUrl != null)
                         Padding(padding: const EdgeInsets.only(left: 4), child: Icon(Icons.picture_as_pdf, size: 13, color: Colors.red.shade300)),
                       if (ruta != null)
@@ -407,25 +450,48 @@ class _FlujoDocumentosPageState extends State<FlujoDocumentosPage> {
               ),
             ],
           ),
+          ),
         ),
         if (hijos.isNotEmpty)
-          Padding(
-            padding: EdgeInsets.only(left: esRaiz ? 16.0 : 26.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                for (var i = 0; i < hijos.length; i++)
-                  _buildNodo(context, hijos[i] as Map<String, dynamic>, depth + 1, isLast: i == hijos.length - 1),
-              ],
-            ),
+          Stack(
+            children: [
+              Padding(
+                padding: EdgeInsets.only(left: esRaiz ? 16.0 : 26.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (var i = 0; i < hijos.length; i++)
+                      _buildNodo(context, hijos[i] as Map<String, dynamic>, depth + 1, isLast: i == hijos.length - 1),
+                  ],
+                ),
+              ),
+              // Continuación vertical del depth actual cuando este nodo
+              // (a) no es raíz y (b) no es el último sibling. Cubre la zona
+              // de los sub-hijos para conectar con el siguiente sibling al
+              // mismo nivel de profundidad.
+              if (!esRaiz && !isLast)
+                Positioned(
+                  left: 6,
+                  top: 0,
+                  bottom: 0,
+                  child: Container(
+                    width: 1.2,
+                    color: Colors.grey.shade400,
+                  ),
+                ),
+            ],
           ),
       ],
     );
   }
 
-  Widget _buildEstadoChip(String estado, String? sunatStatus) {
-    final display = sunatStatus ?? estado;
-    final c = _estadoConfig(display);
+  Widget _buildEstadoChip(String estado, String? sunatStatus, {bool anulado = false}) {
+    // Cuando está anulado priorizamos mostrar "ANULADO" sobre el sunatStatus
+    // (que sigue siendo ACEPTADO porque la anulación es flag aparte).
+    final display = anulado ? 'ANULADO' : (sunatStatus ?? estado);
+    final c = anulado
+        ? _EC(Colors.red.shade50, Colors.red.shade300, Colors.red.shade800)
+        : _estadoConfig(display);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
       decoration: BoxDecoration(
@@ -433,7 +499,18 @@ class _FlujoDocumentosPageState extends State<FlujoDocumentosPage> {
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: c.border, width: 0.5),
       ),
-      child: Text(display, style: TextStyle(fontSize: 7.5, fontWeight: FontWeight.w700, color: c.text)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (anulado) ...[
+            Icon(Icons.cancel, size: 8, color: c.text),
+            const SizedBox(width: 2),
+          ],
+          Text(display,
+              style: TextStyle(
+                  fontSize: 7.5, fontWeight: FontWeight.w700, color: c.text)),
+        ],
+      ),
     );
   }
 
@@ -480,27 +557,39 @@ class _EC { final Color bg; final Color border; final Color text; _EC(this.bg, t
 class _ConnectorPainter extends CustomPainter {
   final Color color;
   final bool isLast;
+  // Y donde sale la flecha hacia el contenido. Fijo para que se alinee con la
+  // primera línea del nodo, sin importar cuántas líneas tenga la card.
+  static const double _elbowY = 18.0;
   _ConnectorPainter({required this.color, required this.isLast});
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = color..strokeWidth = 1.2..style = PaintingStyle.stroke;
-    // Vertical
-    canvas.drawLine(Offset(6, 0), Offset(6, size.height / 2), paint);
-    // Horizontal
-    canvas.drawLine(Offset(6, size.height / 2), Offset(size.width - 4, size.height / 2), paint);
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 1.2
+      ..style = PaintingStyle.stroke;
+    // Vertical desde el top hasta el elbow
+    canvas.drawLine(const Offset(6, 0), const Offset(6, _elbowY), paint);
+    // Horizontal hacia el contenido
+    canvas.drawLine(
+        const Offset(6, _elbowY), Offset(size.width - 4, _elbowY), paint);
     // Flecha
     final arrowPaint = Paint()..color = color..style = PaintingStyle.fill;
     final path = Path()
-      ..moveTo(size.width - 4, size.height / 2 - 3)
-      ..lineTo(size.width, size.height / 2)
-      ..lineTo(size.width - 4, size.height / 2 + 3)
+      ..moveTo(size.width - 4, _elbowY - 3)
+      ..lineTo(size.width, _elbowY)
+      ..lineTo(size.width - 4, _elbowY + 3)
       ..close();
     canvas.drawPath(path, arrowPaint);
-    // Extender vertical si no es último
-    if (!isLast) canvas.drawLine(Offset(6, size.height / 2), Offset(6, size.height), paint);
+    // Si no es el último, extender vertical hasta el bottom para que conecte
+    // con el siguiente sibling.
+    if (!isLast) {
+      canvas.drawLine(
+          const Offset(6, _elbowY), Offset(6, size.height), paint);
+    }
   }
 
   @override
-  bool shouldRepaint(_ConnectorPainter old) => color != old.color || isLast != old.isLast;
+  bool shouldRepaint(_ConnectorPainter old) =>
+      color != old.color || isLast != old.isLast;
 }

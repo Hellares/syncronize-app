@@ -3,11 +3,16 @@ import '../../../../core/di/injection_container.dart';
 import '../../../../core/utils/resource.dart';
 import '../../domain/entities/comunicacion_baja.dart';
 import '../../domain/entities/crear_comunicacion_baja_request.dart';
+import '../../domain/entities/crear_resumen_diario_request.dart';
+import '../../domain/entities/resumen_diario.dart';
 import '../../domain/usecases/crear_comunicacion_baja_usecase.dart';
+import '../../domain/usecases/crear_resumen_diario_usecase.dart';
 
-/// Dialog para emitir Comunicación de Baja (RA SUNAT) sobre UN comprobante.
-/// Aplica solo a Factura, NC con prefijo F (FC*) y ND con prefijo F (FD*).
-/// Boletas y BC*/BD* deben usar Resumen Diario (no este dialog).
+/// Dialog para anular UN comprobante. Bifurca según tipo:
+///  - **FACTURA / NC-FC* / ND-FD*** → Comunicación de Baja (RA), plazo 7 días.
+///  - **BOLETA** → Resumen Diario (RC), plazo 3 días.
+///
+/// Notas con prefijo BC*/BD* aún no se soportan (endpoint distinto en Syncrofact).
 class AnularComprobanteDialog extends StatefulWidget {
   final String comprobanteId;
   final String comprobanteCodigo;
@@ -28,8 +33,9 @@ class AnularComprobanteDialog extends StatefulWidget {
     this.moneda = 'PEN',
   });
 
-  /// Muestra el dialog. Devuelve la CDB si fue exitosa, null si se canceló.
-  static Future<ComunicacionBaja?> show(
+  /// Muestra el dialog. Devuelve el documento de anulación (CDB o RC) si fue
+  /// exitoso, null si se canceló.
+  static Future<Object?> show(
     BuildContext context, {
     required String comprobanteId,
     required String comprobanteCodigo,
@@ -39,7 +45,7 @@ class AnularComprobanteDialog extends StatefulWidget {
     required double total,
     String moneda = 'PEN',
   }) {
-    return showDialog<ComunicacionBaja>(
+    return showDialog<Object>(
       context: context,
       barrierDismissible: false,
       builder: (_) => AnularComprobanteDialog(
@@ -60,26 +66,42 @@ class AnularComprobanteDialog extends StatefulWidget {
 }
 
 class _AnularComprobanteDialogState extends State<AnularComprobanteDialog> {
-  final _motivoBajaController = TextEditingController();
+  final _motivoGeneralController = TextEditingController();
   final _motivoEspecificoController = TextEditingController();
   bool _submitting = false;
   String? _error;
 
   String get _simboloMoneda => widget.moneda == 'USD' ? '\$' : 'S/';
 
+  /// Boletas se anulan vía Resumen Diario (plazo 3 días). El resto vía CDB (7 días).
+  bool get _esBoleta => widget.tipoComprobante == 'BOLETA';
+
+  int get _plazoDias => _esBoleta ? 3 : 7;
+
+  String get _tituloDialog =>
+      _esBoleta ? 'Anular Boleta (Resumen Diario)' : 'Comunicación de Baja';
+
+  String get _mecanismoNombre => _esBoleta ? 'RC' : 'CDB';
+
+  /// Fecha de emisión en zona horaria local del dispositivo.
+  /// `widget.fechaEmision` puede venir parseada como UTC (cuando el JSON trae "Z"),
+  /// y al extraer .year/.month/.day devuelve componentes UTC — lo que provoca un
+  /// desfase de 1 día con la fecha real local del usuario.
+  DateTime get _fechaEmisionLocal => widget.fechaEmision.toLocal();
+
   int get _diasTranscurridos {
     final hoy = DateTime.now();
     final h = DateTime(hoy.year, hoy.month, hoy.day);
-    final f = DateTime(widget.fechaEmision.year, widget.fechaEmision.month,
-        widget.fechaEmision.day);
+    final f = DateTime(_fechaEmisionLocal.year, _fechaEmisionLocal.month,
+        _fechaEmisionLocal.day);
     return h.difference(f).inDays;
   }
 
-  bool get _fueraDePlazo => _diasTranscurridos > 7;
+  bool get _fueraDePlazo => _diasTranscurridos > _plazoDias;
 
   bool get _formValido =>
       !_fueraDePlazo &&
-      _motivoBajaController.text.trim().length >= 3 &&
+      _motivoGeneralController.text.trim().length >= 3 &&
       _motivoEspecificoController.text.trim().length >= 3 &&
       !_submitting;
 
@@ -90,13 +112,22 @@ class _AnularComprobanteDialogState extends State<AnularComprobanteDialog> {
       _error = null;
     });
 
+    if (_esBoleta) {
+      await _emitirRC();
+    } else {
+      await _emitirCDB();
+    }
+  }
+
+  Future<void> _emitirCDB() async {
+    final fLocal = _fechaEmisionLocal;
     final fechaRef =
-        '${widget.fechaEmision.year.toString().padLeft(4, '0')}-${widget.fechaEmision.month.toString().padLeft(2, '0')}-${widget.fechaEmision.day.toString().padLeft(2, '0')}';
+        '${fLocal.year.toString().padLeft(4, '0')}-${fLocal.month.toString().padLeft(2, '0')}-${fLocal.day.toString().padLeft(2, '0')}';
 
     final request = CrearComunicacionBajaRequest(
       sedeId: widget.sedeId,
       fechaReferencia: fechaRef,
-      motivoBaja: _motivoBajaController.text.trim(),
+      motivoBaja: _motivoGeneralController.text.trim(),
       detalles: [
         CrearComunicacionBajaDetalleRequest(
           comprobanteId: widget.comprobanteId,
@@ -114,7 +145,8 @@ class _AnularComprobanteDialogState extends State<AnularComprobanteDialog> {
       Navigator.of(context).pop(result.data);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('CDB ${result.data.numeroCompleto} emitida (${result.data.estadoSunat})'),
+          content: Text(
+              'CDB ${result.data.numeroCompleto} emitida (${result.data.estadoSunat})'),
           backgroundColor: result.data.esAceptado ? Colors.green : Colors.orange,
         ),
       );
@@ -126,9 +158,43 @@ class _AnularComprobanteDialogState extends State<AnularComprobanteDialog> {
     }
   }
 
+  Future<void> _emitirRC() async {
+    final request = CrearResumenDiarioRequest(
+      sedeId: widget.sedeId,
+      motivoAnulacion: _motivoGeneralController.text.trim(),
+      detalles: [
+        CrearResumenDiarioDetalleRequest(
+          comprobanteId: widget.comprobanteId,
+          motivoEspecifico: _motivoEspecificoController.text.trim(),
+        ),
+      ],
+    );
+
+    final usecase = locator<CrearResumenDiarioUseCase>();
+    final result = await usecase(request);
+
+    if (!mounted) return;
+
+    if (result is Success<ResumenDiario>) {
+      Navigator.of(context).pop(result.data);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              'RC ${result.data.numeroCompleto} emitido (${result.data.estadoSunat})'),
+          backgroundColor: result.data.esAceptado ? Colors.green : Colors.orange,
+        ),
+      );
+    } else if (result is Error<ResumenDiario>) {
+      setState(() {
+        _submitting = false;
+        _error = result.message;
+      });
+    }
+  }
+
   @override
   void dispose() {
-    _motivoBajaController.dispose();
+    _motivoGeneralController.dispose();
     _motivoEspecificoController.dispose();
     super.dispose();
   }
@@ -140,8 +206,10 @@ class _AnularComprobanteDialogState extends State<AnularComprobanteDialog> {
         children: [
           Icon(Icons.cancel_outlined, color: Colors.red.shade700, size: 18),
           const SizedBox(width: 8),
-          const Text('Comunicación de Baja',
-              style: TextStyle(fontSize: 16, color: Colors.red)),
+          Expanded(
+            child: Text(_tituloDialog,
+                style: const TextStyle(fontSize: 16, color: Colors.red)),
+          ),
         ],
       ),
       content: SingleChildScrollView(
@@ -161,14 +229,16 @@ class _AnularComprobanteDialogState extends State<AnularComprobanteDialog> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('${_tipoLabel(widget.tipoComprobante)} ${widget.comprobanteCodigo}',
+                    Text(
+                        '${_tipoLabel(widget.tipoComprobante)} ${widget.comprobanteCodigo}',
                         style: const TextStyle(
                             fontSize: 13, fontWeight: FontWeight.w700)),
-                    Text('Total: $_simboloMoneda ${widget.total.toStringAsFixed(2)}',
+                    Text(
+                        'Total: $_simboloMoneda ${widget.total.toStringAsFixed(2)}',
                         style: TextStyle(
                             fontSize: 11, color: Colors.grey.shade700)),
                     Text(
-                      'Emitido: ${widget.fechaEmision.day}/${widget.fechaEmision.month}/${widget.fechaEmision.year}'
+                      'Emitido: ${_fechaEmisionLocal.day}/${_fechaEmisionLocal.month}/${_fechaEmisionLocal.year}'
                       ' ($_diasTranscurridos días)',
                       style: TextStyle(
                         fontSize: 11,
@@ -191,28 +261,34 @@ class _AnularComprobanteDialogState extends State<AnularComprobanteDialog> {
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
-                    'Fuera del plazo SUNAT (7 días). Para revertir este comprobante usa Nota de Crédito.',
-                    style: TextStyle(fontSize: 11, color: Colors.orange.shade900),
+                    _esBoleta
+                        ? 'Fuera del plazo SUNAT ($_plazoDias días). Pasado este plazo no se puede anular oficialmente.'
+                        : 'Fuera del plazo SUNAT ($_plazoDias días). Para revertir este comprobante usa Nota de Crédito.',
+                    style: TextStyle(
+                        fontSize: 11, color: Colors.orange.shade900),
                   ),
                 ),
                 const SizedBox(height: 12),
               ],
-              const Text(
-                'La Comunicación de Baja anula oficialmente el comprobante ante SUNAT. '
-                'Esta acción NO se puede revertir.',
-                style: TextStyle(fontSize: 11, color: Colors.black87),
+              Text(
+                _esBoleta
+                    ? 'El Resumen Diario anula oficialmente la boleta ante SUNAT. Plazo: $_plazoDias días desde la emisión. Esta acción NO se puede revertir.'
+                    : 'La Comunicación de Baja anula oficialmente el comprobante ante SUNAT. Plazo: $_plazoDias días desde la emisión. Esta acción NO se puede revertir.',
+                style: const TextStyle(fontSize: 11, color: Colors.black87),
               ),
               const SizedBox(height: 12),
               TextField(
-                controller: _motivoBajaController,
+                controller: _motivoGeneralController,
                 enabled: !_fueraDePlazo && !_submitting,
                 maxLines: 2,
                 maxLength: 500,
                 onChanged: (_) => setState(() {}),
-                decoration: const InputDecoration(
-                  labelText: 'Motivo general de la baja',
-                  hintText: 'Ej: Anulación masiva por error administrativo',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: _esBoleta
+                      ? 'Motivo general de la anulación'
+                      : 'Motivo general de la baja',
+                  hintText: 'Ej: Anulación por error administrativo',
+                  border: const OutlineInputBorder(),
                   isDense: true,
                 ),
                 style: const TextStyle(fontSize: 12),
@@ -265,8 +341,8 @@ class _AnularComprobanteDialogState extends State<AnularComprobanteDialog> {
                   child: CircularProgressIndicator(
                       strokeWidth: 2, color: Colors.white),
                 )
-              : const Text('Emitir Baja',
-                  style: TextStyle(color: Colors.white, fontSize: 12)),
+              : Text('Emitir $_mecanismoNombre',
+                  style: const TextStyle(color: Colors.white, fontSize: 12)),
         ),
       ],
     );
@@ -276,6 +352,8 @@ class _AnularComprobanteDialogState extends State<AnularComprobanteDialog> {
     switch (tipo) {
       case 'FACTURA':
         return 'Factura';
+      case 'BOLETA':
+        return 'Boleta';
       case 'NOTA_CREDITO':
         return 'N. Crédito';
       case 'NOTA_DEBITO':

@@ -1,6 +1,7 @@
 import 'package:injectable/injectable.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/widgets/comprobante_condicion_card.dart';
+import '../../domain/entities/reversion_total.dart';
 import '../models/venta_model.dart';
 
 @lazySingleton
@@ -119,6 +120,24 @@ class VentaRemoteDataSource {
       'motivo': motivo,
     });
     return response.data as Map<String, dynamic>;
+  }
+
+  // ── Reversión total post-anulación ──
+
+  Future<ReversionTotal> crearReversionTotal(String ventaId, {String? motivo}) async {
+    final response = await _dioClient.post(
+      '/devoluciones-venta/venta/$ventaId/reversion-total',
+      data: { if (motivo != null && motivo.trim().isNotEmpty) 'motivo': motivo.trim() },
+    );
+    return ReversionTotal.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<ReversionTotal?> obtenerReversionTotal(String ventaId) async {
+    final response = await _dioClient.get(
+      '/devoluciones-venta/venta/$ventaId/reversion-total',
+    );
+    if (response.data == null) return null;
+    return ReversionTotal.fromJson(response.data as Map<String, dynamic>);
   }
 
   Future<Map<String, dynamic>> crearNotaCredito(String comprobanteId, {

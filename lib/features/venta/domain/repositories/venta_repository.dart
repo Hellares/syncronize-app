@@ -1,4 +1,5 @@
 import '../../../../core/utils/resource.dart';
+import '../entities/reversion_total.dart';
 import '../entities/venta.dart';
 
 /// Repository interface para operaciones de ventas
@@ -50,4 +51,18 @@ abstract class VentaRepository {
   Future<Resource<Map<String, dynamic>>> getResumen({String? sedeId});
 
   Future<Resource<Venta?>> buscarPorCodigo({required String codigo});
+
+  // ── Reversión total post-anulación ──
+
+  /// Procesa la reversión total de una venta cuyo comprobante (y notas) ya
+  /// fueron anulados ante SUNAT. Devuelve stock + reversa caja + cancela cuotas.
+  Future<Resource<ReversionTotal>> crearReversionTotal({
+    required String ventaId,
+    String? motivo,
+  });
+
+  /// Obtiene la reversión total ya procesada (si existe), null si no.
+  Future<Resource<ReversionTotal?>> obtenerReversionTotal({
+    required String ventaId,
+  });
 }

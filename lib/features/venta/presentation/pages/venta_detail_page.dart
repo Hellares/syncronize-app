@@ -17,8 +17,10 @@ import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_e
 import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_state.dart';
 import '../../../producto/presentation/bloc/producto_list/producto_list_cubit.dart';
 import '../../data/datasources/venta_remote_datasource.dart';
+import '../../domain/entities/reversion_total.dart';
 import '../../domain/entities/venta.dart';
 import '../../domain/usecases/get_venta_usecase.dart';
+import '../../domain/usecases/reversion_total_usecase.dart';
 import '../bloc/venta_form/venta_form_cubit.dart';
 import '../bloc/venta_form/venta_form_state.dart';
 import '../widgets/flujo_documentos_widget.dart';
@@ -39,8 +41,10 @@ class VentaDetailPage extends StatefulWidget {
 
 class _VentaDetailPageState extends State<VentaDetailPage> {
   Venta? _venta;
+  ReversionTotal? _reversion;
   bool _loading = true;
   String? _error;
+  bool _procesandoReversion = false;
 
   @override
   void initState() {
@@ -61,11 +65,23 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
         _venta = result.data;
         _loading = false;
       });
+      // Cargar reversión existente en segundo plano (no bloquea la pantalla).
+      _loadReversion();
     } else if (result is Error<Venta>) {
       setState(() {
         _error = result.message;
         _loading = false;
       });
+    }
+  }
+
+  Future<void> _loadReversion() async {
+    final result = await locator<ObtenerReversionTotalUseCase>()(
+      ventaId: widget.ventaId,
+    );
+    if (!mounted) return;
+    if (result is Success<ReversionTotal?>) {
+      setState(() => _reversion = result.data);
     }
   }
 
@@ -306,6 +322,11 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
             if (v.cotizacionCodigo != null)
               _buildDetailRow(
                   Icons.link, 'Cotizacion', v.cotizacionCodigo!),
+            // Banner de venta revertida (reversión total post-anulación)
+            if (_reversion != null) ...[
+              const SizedBox(height: 8),
+              _buildReversionBanner(_reversion!),
+            ],
             // Comprobante
             const SizedBox(height: 6),
             if (v.codigoComprobante != null) ...[
@@ -374,10 +395,21 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                 const SizedBox(height: 8),
                 _buildComprobanteActions(context, v),
               ],
+              // Acción "Devolución Total" cuando el comprobante ya está anulado.
+              // Se renderiza fuera de _buildComprobanteActions porque ese bloque
+              // se oculta al estar anulado.
+              if (v.comprobanteAnulado == true && _reversion == null) ...[
+                Builder(
+                  builder: (_) {
+                    final w = _buildReversionTotalAction(v);
+                    return w ?? const SizedBox.shrink();
+                  },
+                ),
+              ],
               // Notas de crédito/débito relacionadas
               if (v.notasRelacionadas != null && v.notasRelacionadas!.isNotEmpty) ...[
                 const SizedBox(height: 10),
-                ...v.notasRelacionadas!.map((nota) => _buildNotaCard(nota)),
+                ...v.notasRelacionadas!.map((nota) => _buildNotaCard(nota, v.sedeId)),
               ],
             ] else ...[
               Row(
@@ -896,34 +928,74 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
     );
   }
 
-  Widget _buildNotaCard(NotaRelacionada nota) {
+  Widget _buildNotaCard(NotaRelacionada nota, String sedeId) {
     final isCredito = nota.tipoComprobante == 'NOTA_CREDITO';
     final color = isCredito ? Colors.orange : Colors.purple;
-    final statusColor = nota.sunatStatus == 'ACEPTADO'
-        ? Colors.green
-        : nota.sunatStatus == 'RECHAZADO'
-            ? Colors.red
-            : Colors.amber.shade700;
+
+    // Cuando está anulada, el chip de estado pasa a "ANULADO" rojo (sobreescribe sunatStatus
+    // porque ese sigue siendo ACEPTADO oficialmente — la anulación es flag aparte).
+    final statusLabel = nota.anulado ? 'ANULADO' : (nota.sunatStatus ?? 'PENDIENTE');
+    final statusColor = nota.anulado
+        ? Colors.red.shade700
+        : (nota.sunatStatus == 'ACEPTADO'
+            ? Colors.green
+            : nota.sunatStatus == 'RECHAZADO'
+                ? Colors.red
+                : Colors.amber.shade700);
+
+    // Anular vía CDB: ACEPTADA, no anulada, dentro de plazo 7 días, serie F* (FC*/FD*).
+    final esSerieF = nota.codigoGenerado.startsWith('F');
+    final dias = nota.fechaEmision != null
+        ? DateTime.now().difference(nota.fechaEmision!.toLocal()).inDays
+        : 999;
+    final puedeAnular = nota.sunatStatus == 'ACEPTADO' &&
+        !nota.anulado &&
+        esSerieF &&
+        dias <= 7;
+    final esSerieBPendiente = nota.sunatStatus == 'ACEPTADO' &&
+        !nota.anulado &&
+        !esSerieF;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 6),
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.05),
+        // Cuando está anulada, fondo gris atenuado para señalizar visualmente.
+        color: nota.anulado
+            ? Colors.grey.shade100
+            : color.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
+        border: Border.all(
+          color: nota.anulado
+              ? Colors.red.shade200
+              : color.withValues(alpha: 0.2),
+          width: nota.anulado ? 1.2 : 1.0,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(isCredito ? Icons.remove_circle_outline : Icons.add_circle_outline, size: 14, color: color),
+              Icon(
+                nota.anulado
+                    ? Icons.cancel_outlined
+                    : (isCredito
+                        ? Icons.remove_circle_outline
+                        : Icons.add_circle_outline),
+                size: 14,
+                color: nota.anulado ? Colors.red.shade700 : color,
+              ),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
                   '${nota.tipoLabel} ${nota.codigoGenerado}',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color),
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: nota.anulado ? Colors.grey.shade600 : color,
+                    decoration: nota.anulado ? TextDecoration.lineThrough : null,
+                  ),
                 ),
               ),
               Container(
@@ -931,19 +1003,66 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                 decoration: BoxDecoration(
                   color: statusColor.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(4),
+                  border: nota.anulado
+                      ? Border.all(color: Colors.red.shade400, width: 0.8)
+                      : null,
                 ),
-                child: Text(
-                  nota.sunatStatus ?? 'PENDIENTE',
-                  style: TextStyle(fontSize: 8, color: statusColor, fontWeight: FontWeight.w600),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (nota.anulado) ...[
+                      Icon(Icons.cancel,
+                          size: 8, color: statusColor),
+                      const SizedBox(width: 2),
+                    ],
+                    Text(
+                      statusLabel,
+                      style: TextStyle(
+                          fontSize: 8,
+                          color: statusColor,
+                          fontWeight: FontWeight.w700),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
+          // Banner explicativo cuando está anulada
+          if (nota.anulado) ...[
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: Colors.red.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, size: 11, color: Colors.red.shade700),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      'Documento anulado oficialmente ante SUNAT.',
+                      style: TextStyle(
+                          fontSize: 9, color: Colors.red.shade800),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 4),
           Row(
             children: [
-              Text('Total: S/ ${nota.total.toStringAsFixed(2)}',
-                  style: TextStyle(fontSize: 10, color: Colors.grey.shade700)),
+              Text(
+                'Total: S/ ${nota.total.toStringAsFixed(2)}',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Colors.grey.shade700,
+                  decoration: nota.anulado ? TextDecoration.lineThrough : null,
+                ),
+              ),
               if (nota.sunatHash != null) ...[
                 const Spacer(),
                 Text('Hash: ${nota.sunatHash!.substring(0, nota.sunatHash!.length.clamp(0, 15))}...',
@@ -956,9 +1075,11 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
             Text('Motivo: ${nota.motivoNota}',
                 style: TextStyle(fontSize: 10, color: Colors.grey.shade600, fontStyle: FontStyle.italic)),
           ],
-          if (nota.enlaceProveedor != null || nota.sunatPdfUrl != null) ...[
+          if (nota.enlaceProveedor != null || nota.sunatPdfUrl != null || puedeAnular || esSerieBPendiente) ...[
             const SizedBox(height: 6),
-            Row(
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
               children: [
                 if (nota.sunatPdfUrl != null)
                   GestureDetector(
@@ -980,8 +1101,7 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                       ),
                     ),
                   ),
-                if (nota.enlaceProveedor != null) ...[
-                  const SizedBox(width: 6),
+                if (nota.enlaceProveedor != null)
                   GestureDetector(
                     onTap: () => _abrirUrl(nota.enlaceProveedor!),
                     child: Container(
@@ -1001,7 +1121,55 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                       ),
                     ),
                   ),
-                ],
+                if (puedeAnular)
+                  GestureDetector(
+                    onTap: () => _anularNota(context, nota, sedeId),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: Colors.red.shade200),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.cancel_outlined, size: 11, color: Colors.red.shade700),
+                          const SizedBox(width: 4),
+                          Text('Anular',
+                              style: TextStyle(
+                                  fontSize: 9,
+                                  color: Colors.red.shade700,
+                                  fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                    ),
+                  ),
+                if (esSerieBPendiente)
+                  Tooltip(
+                    message:
+                        'Notas con serie BC/BD se anulan vía Resumen Diario. Próximamente.',
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.lock_outline, size: 11, color: Colors.grey.shade500),
+                          const SizedBox(width: 4),
+                          Text('Anular (próx.)',
+                              style: TextStyle(
+                                  fontSize: 9,
+                                  color: Colors.grey.shade500,
+                                  fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                    ),
+                  ),
               ],
             ),
           ],
@@ -1018,28 +1186,48 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
   }
 
   Widget _buildComprobanteActions(BuildContext context, Venta v) {
+    // Notas activas = ACEPTADAS y no anuladas
+    final notasActivas = (v.notasRelacionadas ?? const [])
+        .where((n) => (n.sunatStatus == 'ACEPTADO') && !n.anulado)
+        .toList();
+    final ncs = notasActivas.where((n) => n.tipoComprobante == 'NOTA_CREDITO').toList();
+    final nds = notasActivas.where((n) => n.tipoComprobante == 'NOTA_DEBITO').toList();
+    final totalNCs = ncs.fold<double>(0, (s, n) => s + n.total);
+
+    // Saldo restante para emitir más NCs (no se puede exceder el total).
+    final saldoRestante = v.total - totalNCs;
+    final puedeEmitirNC = saldoRestante > 0.01;
+
+    // Anular vía CDB/RC requiere que NO haya NCs aceptadas asociadas (regla SUNAT).
+    final puedeAnular = ncs.isEmpty;
+
     return Wrap(
       spacing: 8,
       runSpacing: 6,
       children: [
-        _actionChip(
-          icon: Icons.note_add_outlined,
-          label: 'Nota Crédito',
-          color: Colors.orange,
-          onTap: () => _abrirDialogNota(context, v, TipoNota.notaCredito),
-        ),
+        if (puedeEmitirNC)
+          _actionChip(
+            icon: Icons.note_add_outlined,
+            label: 'Nota Crédito',
+            color: Colors.orange,
+            badge: ncs.isNotEmpty ? '${ncs.length}' : null,
+            onTap: () => _abrirDialogNota(context, v, TipoNota.notaCredito),
+          ),
+        // ND siempre disponible — múltiples válidas (intereses por períodos, etc.)
         _actionChip(
           icon: Icons.add_circle_outline,
           label: 'Nota Débito',
           color: Colors.purple,
+          badge: nds.isNotEmpty ? '${nds.length}' : null,
           onTap: () => _abrirDialogNota(context, v, TipoNota.notaDebito),
         ),
-        _actionChip(
-          icon: Icons.cancel_outlined,
-          label: 'Anular',
-          color: Colors.red,
-          onTap: () => _abrirDialogAnulacion(context, v),
-        ),
+        if (puedeAnular)
+          _actionChip(
+            icon: Icons.cancel_outlined,
+            label: 'Anular',
+            color: Colors.red,
+            onTap: () => _abrirDialogAnulacion(context, v),
+          ),
         _actionChip(
           icon: Icons.local_shipping,
           label: 'Guía Remisión',
@@ -1050,11 +1238,223 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
     );
   }
 
+  /// Renderiza el chip "Devolución Total" cuando el comprobante (y todas sus
+  /// notas) ya fueron anulados ante SUNAT y aún no se procesó la reversión.
+  /// Va en su propia sección porque [_buildComprobanteActions] está oculto
+  /// cuando el comprobante ya está anulado.
+  Widget? _buildReversionTotalAction(Venta v) {
+    if (v.comprobanteAnulado != true) return null;
+    if (_reversion != null) return null;
+    final notas = v.notasRelacionadas ?? const [];
+    final todasNotasAnuladas =
+        notas.every((n) => n.anulado || n.sunatStatus != 'ACEPTADO');
+    if (!todasNotasAnuladas) {
+      // Mostrar hint de qué falta para habilitar la reversión total.
+      final pendientes = notas
+          .where((n) => !n.anulado && n.sunatStatus == 'ACEPTADO')
+          .map((n) => n.codigoGenerado)
+          .toList();
+      return Container(
+        margin: const EdgeInsets.only(top: 8),
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.amber.shade50,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: Colors.amber.shade200),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.info_outline,
+                size: 14, color: Colors.amber.shade800),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                'Para procesar la Devolución Total falta anular: ${pendientes.join(", ")}',
+                style: TextStyle(
+                    fontSize: 11, color: Colors.amber.shade900),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: _actionChip(
+        icon: Icons.replay_circle_filled_outlined,
+        label: 'Devolución Total',
+        color: Colors.deepOrange,
+        onTap: () => _confirmarReversionTotal(context, v),
+      ),
+    );
+  }
+
+  Widget _buildReversionBanner(ReversionTotal r) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.red.shade50,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: Colors.red.shade300, width: 1.2),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.cancel_outlined, color: Colors.red.shade700, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'VENTA REVERTIDA',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.red.shade800,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Comprobante anulado, stock devuelto y caja reversada${r.procesadoEn != null ? ' el ${DateFormatter.formatDateTime(r.procesadoEn!)}' : ''}.',
+                  style: TextStyle(
+                      fontSize: 10, color: Colors.red.shade900),
+                ),
+                const SizedBox(height: 2),
+                Text('Devolución: ${r.codigo}',
+                    style: TextStyle(
+                        fontSize: 9,
+                        color: Colors.red.shade700,
+                        fontFamily: 'monospace')),
+                if (r.pendienteRegistroCaja) ...[
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.shade100,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      '⚠ Egreso de caja pendiente de registro manual',
+                      style: TextStyle(
+                          fontSize: 9, color: Colors.amber.shade900),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmarReversionTotal(BuildContext context, Venta v) async {
+    if (_procesandoReversion) return;
+
+    // Capturar refs sincrónicas ANTES de cualquier await — el linter no detecta
+    // los `if (!mounted)` posteriores y marca warnings espurios sino.
+    final messenger = ScaffoldMessenger.of(context);
+    final productoListCubit = _tryRead<ProductoListCubit>(context);
+    final productoSedeSearchCubit = _tryRead<ProductoSedeSearchCubit>(context);
+
+    final confirmar = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Devolución Total — confirmar',
+            style: TextStyle(fontSize: 15)),
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 400),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Esta acción es IRREVERSIBLE y ejecutará:',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 6),
+              const _BulletItem('Devolver el stock de todos los items al inventario'),
+              const _BulletItem('Registrar EGRESO en tu caja por cada método de pago'),
+              const _BulletItem('Cancelar cuotas pendientes (si era venta a crédito)'),
+              const _BulletItem('Notificar al cajero original'),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade50,
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: Colors.amber.shade200),
+                ),
+                child: Text(
+                  'Necesitas tu caja abierta. Si no, solo administradores pueden procesar (queda pendiente de cuadre).',
+                  style: TextStyle(fontSize: 10, color: Colors.amber.shade900),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.deepOrange),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Procesar reversión',
+                style: TextStyle(color: Colors.white, fontSize: 12)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar != true || !mounted) return;
+
+    setState(() => _procesandoReversion = true);
+    final result = await locator<CrearReversionTotalUseCase>()(ventaId: v.id);
+    if (!mounted) return;
+
+    setState(() => _procesandoReversion = false);
+
+    if (result is Success<ReversionTotal>) {
+      productoListCubit?.invalidateCache();
+      productoSedeSearchCubit?.clearCache();
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Reversión total ${result.data.codigo} procesada'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      _loadVenta();
+    } else if (result is Error<ReversionTotal>) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(result.message),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    }
+  }
+
+  T? _tryRead<T>(BuildContext ctx) {
+    try {
+      return ctx.read<T>();
+    } catch (_) {
+      return null;
+    }
+  }
+
   Widget _actionChip({
     required IconData icon,
     required String label,
     required Color color,
     required VoidCallback onTap,
+    String? badge,
   }) {
     return GestureDetector(
       onTap: onTap,
@@ -1071,6 +1471,24 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
             Icon(icon, size: 12, color: color),
             const SizedBox(width: 4),
             Text(label, style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w600)),
+            if (badge != null) ...[
+              const SizedBox(width: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  badge,
+                  style: const TextStyle(
+                    fontSize: 9,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -1109,19 +1527,45 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
     }
   }
 
+  /// Anula una NC/ND ya emitida. Reusa el AnularComprobanteDialog (CDB para
+  /// serie F*, RC bloqueado para serie B* hasta que Syncrofact exponga endpoint).
+  Future<void> _anularNota(
+    BuildContext context,
+    NotaRelacionada nota,
+    String sedeId,
+  ) async {
+    final fechaEmision = nota.fechaEmision ?? DateTime.now();
+    final result = await AnularComprobanteDialog.show(
+      context,
+      comprobanteId: nota.id,
+      comprobanteCodigo: nota.codigoGenerado,
+      tipoComprobante: nota.tipoComprobante,
+      fechaEmision: fechaEmision,
+      sedeId: sedeId,
+      total: nota.total,
+    );
+    if (result != null && mounted) {
+      _loadVenta();
+    }
+  }
+
   Future<void> _abrirDialogAnulacion(BuildContext context, Venta v) async {
     if (v.comprobanteId == null) return;
 
-    // Solo Factura, NC con prefijo F (FC*) y ND con prefijo F (FD*) admiten CDB.
-    // Boletas y notas BC*/BD* van por Resumen Diario (Fase futura).
+    // Soportado:
+    //  - FACTURA / NC-FC* / ND-FD* → Comunicación de Baja (RA), 7 días.
+    //  - BOLETA                    → Resumen Diario (RC), 3 días.
+    // No soportado aún: NC con serie BC*, ND con serie BD* (notas sobre boleta).
     final tipo = v.tipoComprobante ?? '';
     final codigo = v.codigoComprobante ?? '';
-    final esBoleta = tipo == 'BOLETA' || codigo.startsWith('B');
-    if (esBoleta) {
+    final esNotaSobreBoleta =
+        (tipo == 'NOTA_CREDITO' || tipo == 'NOTA_DEBITO') &&
+        codigo.startsWith('B');
+    if (esNotaSobreBoleta) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-              'Las boletas y notas con serie B se anulan vía Resumen Diario. Funcionalidad próximamente.'),
+              'Notas con serie BC/BD aún no se pueden anular desde el app. Próximamente.'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -1638,6 +2082,30 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
       motivo: result.autorizadoPorNombre.isNotEmpty
           ? 'Anulacion de venta - Autorizado por ${result.autorizadoPorNombre}'
           : 'Anulacion de venta',
+    );
+  }
+}
+
+class _BulletItem extends StatelessWidget {
+  final String text;
+  const _BulletItem(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 1),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(top: 3, right: 4),
+            child: Icon(Icons.fiber_manual_record, size: 6),
+          ),
+          Expanded(
+            child: Text(text, style: const TextStyle(fontSize: 11)),
+          ),
+        ],
+      ),
     );
   }
 }

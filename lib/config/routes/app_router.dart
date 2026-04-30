@@ -127,6 +127,7 @@ import '../../features/venta/presentation/pages/venta_analytics_page.dart';
 import '../../features/devolucion_venta/presentation/pages/devoluciones_venta_page.dart';
 import '../../features/devolucion_venta/presentation/pages/devolucion_venta_form_page.dart';
 import '../../features/devolucion_venta/presentation/pages/devolucion_venta_detail_page.dart';
+import '../../features/facturacion/presentation/pages/anulaciones_page.dart';
 import '../../features/monitor_facturacion/presentation/pages/monitor_facturacion_page.dart';
 import '../../features/monitor_facturacion/presentation/pages/reporte_correlativos_page.dart';
 import '../../features/guia_remision/presentation/pages/guias_remision_page.dart';
@@ -150,6 +151,7 @@ import '../../features/compra/presentation/pages/compra_analytics_page.dart';
 import '../../features/compra/presentation/pages/compra_export_page.dart';
 import '../../features/compra/domain/entities/orden_compra.dart';
 import '../../features/producto/presentation/pages/historial_precios_global_page.dart';
+import '../../features/producto/presentation/pages/kardex_global_page.dart';
 import '../../features/producto/presentation/pages/kardex_page.dart';
 import '../../features/compra/domain/entities/compra.dart';
 import '../../features/compra/domain/entities/lote.dart';
@@ -525,6 +527,13 @@ class AppRouter {
           final empresaId = locator<LocalStorageService>().getString(StorageConstants.tenantId) ?? '';
           return HistorialPreciosGlobalPage(empresaId: empresaId);
         },
+      ),
+      GoRoute(
+        // IMPORTANTE: la ruta sin parámetro DEBE ir antes que /:stockId para
+        // que GoRouter no la confunda con un stockId="kardex".
+        path: '/empresa/inventario/kardex',
+        name: 'empresa-kardex-global',
+        builder: (context, state) => const KardexGlobalPage(),
       ),
       GoRoute(
         path: '/empresa/inventario/kardex/:stockId',
@@ -1131,6 +1140,11 @@ class AppRouter {
         path: '/empresa/reporte-correlativos',
         name: 'empresa-reporte-correlativos',
         builder: (context, state) => const ReporteCorrelativosPage(),
+      ),
+      GoRoute(
+        path: '/empresa/anulaciones',
+        name: 'empresa-anulaciones',
+        builder: (context, state) => const AnulacionesPage(),
       ),
       GoRoute(
         path: '/empresa/configuracion-facturacion',

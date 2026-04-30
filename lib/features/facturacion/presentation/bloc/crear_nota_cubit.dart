@@ -73,6 +73,58 @@ class CrearNotaCubit extends Cubit<CrearNotaState> {
     emit(state.copyWith(cantidadesEditadas: mapa, clearError: true));
   }
 
+  // ── Items adicionales (ND con cargo) ──
+
+  void agregarItemAdicional() {
+    final lista = List<CrearNotaItem>.from(state.itemsAdicionales);
+    // Default: 1 unidad, 0 valor, IGV 18% (gravado)
+    lista.add(const CrearNotaItem(
+      descripcion: '',
+      cantidad: 1,
+      valorUnitario: 0,
+      precioUnitario: 0,
+      tipoAfectacion: '10',
+      igv: 0,
+      icbper: 0,
+      subtotal: 0,
+      total: 0,
+    ));
+    emit(state.copyWith(itemsAdicionales: lista, clearError: true));
+  }
+
+  void editarItemAdicional(int index, CrearNotaItem item) {
+    if (index < 0 || index >= state.itemsAdicionales.length) return;
+    final lista = List<CrearNotaItem>.from(state.itemsAdicionales);
+    lista[index] = _recalcularItem(item);
+    emit(state.copyWith(itemsAdicionales: lista, clearError: true));
+  }
+
+  void eliminarItemAdicional(int index) {
+    if (index < 0 || index >= state.itemsAdicionales.length) return;
+    final lista = List<CrearNotaItem>.from(state.itemsAdicionales);
+    lista.removeAt(index);
+    emit(state.copyWith(itemsAdicionales: lista, clearError: true));
+  }
+
+  /// Recalcula subtotal/igv/total/precioUnitario desde cantidad+valorUnitario+tipoAfectacion.
+  /// Asume IGV 18% para tipoAfectacion='10' (gravado). Otros tipos no llevan IGV.
+  CrearNotaItem _recalcularItem(CrearNotaItem item) {
+    final cant = item.cantidad;
+    final valorU = item.valorUnitario;
+    final ta = item.tipoAfectacion ?? '10';
+    final subtotal = (cant * valorU * 100).round() / 100;
+    final igv = ta == '10' ? (subtotal * 0.18 * 100).round() / 100 : 0.0;
+    final icbper = item.icbper ?? 0;
+    final total = ((subtotal + igv + icbper) * 100).round() / 100;
+    final precioU = cant > 0 ? (total / cant * 100).round() / 100 : 0.0;
+    return item.copyWith(
+      precioUnitario: precioU,
+      subtotal: subtotal,
+      igv: igv,
+      total: total,
+    );
+  }
+
   Future<void> emitir({required String comprobanteOrigenId, required String sedeId}) async {
     if (!state.formValido) {
       emit(state.copyWith(
@@ -82,7 +134,12 @@ class CrearNotaCubit extends Cubit<CrearNotaState> {
       return;
     }
 
-    final items = state.itemsParciales ? _construirItemsParciales() : null;
+    // Para ND con items adicionales → mandar esos.
+    // Para NC con itemsParciales → mandar lista recortada.
+    // Caso contrario → null (backend copia del origen).
+    final items = state.esNotaDebito
+        ? (state.itemsAdicionales.isNotEmpty ? state.itemsAdicionales : null)
+        : (state.itemsParciales ? _construirItemsParciales() : null);
     final request = CrearNotaRequest(
       sedeId: sedeId,
       tipoNota: state.motivoSeleccionado!,

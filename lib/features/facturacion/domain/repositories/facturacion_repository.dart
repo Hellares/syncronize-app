@@ -1,10 +1,13 @@
 import '../../../../core/utils/resource.dart';
+import '../entities/anulacion.dart';
 import '../entities/comprobante_elegible_baja.dart';
 import '../entities/comunicacion_baja.dart';
 import '../entities/crear_comunicacion_baja_request.dart';
 import '../entities/crear_nota_request.dart';
+import '../entities/crear_resumen_diario_request.dart';
 import '../entities/motivo_nota.dart';
 import '../entities/nota_emitida.dart';
+import '../entities/resumen_diario.dart';
 import '../entities/tipo_nota.dart';
 
 abstract class FacturacionRepository {
@@ -37,4 +40,31 @@ abstract class FacturacionRepository {
 
   /// Re-consulta estado de una CDB.
   Future<Resource<ComunicacionBaja>> consultarComunicacionBaja(String id);
+
+  // ── Resúmenes Diarios (RC) — anulación de boletas ──
+
+  /// Crea un RC y lo envía a SUNAT (asíncrono).
+  Future<Resource<ResumenDiario>> crearResumenDiario(
+      CrearResumenDiarioRequest request);
+
+  /// Re-consulta estado de un RC.
+  Future<Resource<ResumenDiario>> consultarResumenDiario(String id);
+
+  // ── Listados paginados (para pantalla de Anulaciones) ──
+
+  Future<Resource<AnulacionesPaginadas<ComunicacionBaja>>> listarCDBs({
+    String? estadoSunat,
+    String? fechaDesde,
+    String? fechaHasta,
+    int page,
+    int limit,
+  });
+
+  Future<Resource<AnulacionesPaginadas<ResumenDiario>>> listarRCs({
+    String? estadoSunat,
+    String? fechaDesde,
+    String? fechaHasta,
+    int page,
+    int limit,
+  });
 }

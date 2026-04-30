@@ -207,6 +207,14 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             ),
             _TileNode(
               visible: permissions?.canViewProducts ?? false,
+              title: 'Kardex',
+              icon: Icons.history,
+              iconColor: Colors.blueGrey,
+              routeMatch: const _RouteMatch.exact('/empresa/inventario/kardex'),
+              onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/inventario/kardex')),
+            ),
+            _TileNode(
+              visible: permissions?.canViewProducts ?? false,
               title: 'Inventario Fisico',
               icon: Icons.fact_check,
               iconColor: Colors.indigo,
@@ -416,6 +424,14 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               iconColor: Colors.teal,
               routeMatch: const _RouteMatch.startsWith('/empresa/monitor-facturacion'),
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/monitor-facturacion')),
+            ),
+            _TileNode(
+              visible: permissions?.canViewReports ?? false,
+              title: 'Anulaciones SUNAT',
+              icon: Icons.cancel_outlined,
+              iconColor: Colors.red.shade400,
+              routeMatch: const _RouteMatch.startsWith('/empresa/anulaciones'),
+              onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/anulaciones')),
             ),
             _TileNode(
               visible: permissions?.canViewReports ?? false,

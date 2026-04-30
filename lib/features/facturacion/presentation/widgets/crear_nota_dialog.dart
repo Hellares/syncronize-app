@@ -6,6 +6,7 @@ import '../../domain/entities/nota_emitida.dart';
 import '../../domain/entities/tipo_nota.dart';
 import '../bloc/crear_nota_cubit.dart';
 import '../bloc/crear_nota_state.dart';
+import 'items_adicionales_widget.dart';
 import 'items_selector_widget.dart';
 import 'motivo_selector_widget.dart';
 
@@ -147,7 +148,7 @@ class _CrearNotaContent extends StatelessWidget {
                           ctx.read<CrearNotaCubit>().cambiarMotivoTexto(v),
                     ),
                     const SizedBox(height: 8),
-                    if (state.itemsOrigen.isNotEmpty) _buildItemsSection(ctx, state),
+                    _buildItemsSection(ctx, state),
                   ],
                   if (state.errorMessage != null) ...[
                     const SizedBox(height: 8),
@@ -218,6 +219,70 @@ class _CrearNotaContent extends StatelessWidget {
   }
 
   Widget _buildItemsSection(BuildContext ctx, CrearNotaState state) {
+    // ND → editor de items adicionales (cargos extra: intereses, aumento valor).
+    if (state.esNotaDebito) {
+      final requiereItems = state.motivoNDRequiereItems;
+      final faltanItems = requiereItems && state.itemsAdicionales.isEmpty;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Text('Items adicionales',
+                      style: TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w600)),
+                  if (requiereItems)
+                    const Text(' *',
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.red,
+                            fontWeight: FontWeight.w700)),
+                ],
+              ),
+              Text(
+                '${state.itemsAdicionales.length} item${state.itemsAdicionales.length == 1 ? '' : 's'}',
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+              ),
+            ],
+          ),
+          if (faltanItems) ...[
+            const SizedBox(height: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: Colors.red.shade200),
+              ),
+              child: Text(
+                'Este motivo requiere al menos 1 ítem con el monto a cargar (ej. intereses, recargo, penalidad).',
+                style: TextStyle(fontSize: 11, color: Colors.red.shade800),
+              ),
+            ),
+          ],
+          const SizedBox(height: 6),
+          ItemsAdicionalesWidget(
+            items: state.itemsAdicionales,
+            moneda: moneda,
+            onAgregar: () =>
+                ctx.read<CrearNotaCubit>().agregarItemAdicional(),
+            onEditar: (i, it) =>
+                ctx.read<CrearNotaCubit>().editarItemAdicional(i, it),
+            onEliminar: (i) =>
+                ctx.read<CrearNotaCubit>().eliminarItemAdicional(i),
+          ),
+        ],
+      );
+    }
+
+    // NC → comportamiento existente (parciales / copia completa).
+    if (state.itemsOrigen.isEmpty) {
+      return const SizedBox.shrink();
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

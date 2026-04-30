@@ -2,6 +2,7 @@ import 'package:injectable/injectable.dart';
 import '../../../../core/network/network_info.dart';
 import '../../../../core/services/error_handler_service.dart';
 import '../../../../core/utils/resource.dart';
+import '../../domain/entities/reversion_total.dart';
 import '../../domain/entities/venta.dart';
 import '../../domain/repositories/venta_repository.dart';
 import '../datasources/venta_remote_datasource.dart';
@@ -215,6 +216,39 @@ class VentaRepositoryImpl implements VentaRepository {
     try {
       final venta = await _remoteDataSource.buscarPorCodigo(codigo);
       return Success(venta?.toEntity());
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Venta');
+    }
+  }
+
+  // ── Reversión total ──
+
+  @override
+  Future<Resource<ReversionTotal>> crearReversionTotal({
+    required String ventaId,
+    String? motivo,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final rev = await _remoteDataSource.crearReversionTotal(ventaId, motivo: motivo);
+      return Success(rev);
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Venta');
+    }
+  }
+
+  @override
+  Future<Resource<ReversionTotal?>> obtenerReversionTotal({
+    required String ventaId,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final rev = await _remoteDataSource.obtenerReversionTotal(ventaId);
+      return Success(rev);
     } catch (e) {
       return _errorHandler.handleException(e, context: 'Venta');
     }

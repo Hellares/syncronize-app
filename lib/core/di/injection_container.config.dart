@@ -658,6 +658,10 @@ import '../../features/facturacion/domain/usecases/crear_nota_credito_usecase.da
     as _i892;
 import '../../features/facturacion/domain/usecases/crear_nota_debito_usecase.dart'
     as _i1038;
+import '../../features/facturacion/domain/usecases/crear_resumen_diario_usecase.dart'
+    as _i882;
+import '../../features/facturacion/domain/usecases/listar_anulaciones_usecase.dart'
+    as _i900;
 import '../../features/facturacion/domain/usecases/obtener_elegibles_baja_usecase.dart'
     as _i438;
 import '../../features/facturacion/domain/usecases/obtener_motivos_nota_usecase.dart'
@@ -1400,6 +1404,8 @@ import '../../features/venta/domain/usecases/get_venta_usecase.dart' as _i436;
 import '../../features/venta/domain/usecases/get_ventas_usecase.dart' as _i213;
 import '../../features/venta/domain/usecases/procesar_pago_usecase.dart'
     as _i459;
+import '../../features/venta/domain/usecases/reversion_total_usecase.dart'
+    as _i905;
 import '../../features/venta/presentation/bloc/venta_analytics/venta_analytics_cubit.dart'
     as _i171;
 import '../../features/venta/presentation/bloc/venta_form/venta_form_cubit.dart'
@@ -2879,6 +2885,12 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i459.ProcesarPagoUseCase>(
       () => _i459.ProcesarPagoUseCase(gh<_i950.VentaRepository>()),
     );
+    gh.factory<_i905.CrearReversionTotalUseCase>(
+      () => _i905.CrearReversionTotalUseCase(gh<_i950.VentaRepository>()),
+    );
+    gh.factory<_i905.ObtenerReversionTotalUseCase>(
+      () => _i905.ObtenerReversionTotalUseCase(gh<_i950.VentaRepository>()),
+    );
     gh.factory<_i426.HorarioListCubit>(
       () => _i426.HorarioListCubit(gh<_i795.HorarioRepository>()),
     );
@@ -3997,6 +4009,21 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i1038.CrearNotaDebitoUseCase>(
       () => _i1038.CrearNotaDebitoUseCase(gh<_i354.FacturacionRepository>()),
+    );
+    gh.lazySingleton<_i882.CrearResumenDiarioUseCase>(
+      () => _i882.CrearResumenDiarioUseCase(gh<_i354.FacturacionRepository>()),
+    );
+    gh.lazySingleton<_i900.ListarCDBsUseCase>(
+      () => _i900.ListarCDBsUseCase(gh<_i354.FacturacionRepository>()),
+    );
+    gh.lazySingleton<_i900.ListarRCsUseCase>(
+      () => _i900.ListarRCsUseCase(gh<_i354.FacturacionRepository>()),
+    );
+    gh.lazySingleton<_i900.ConsultarCDBUseCase>(
+      () => _i900.ConsultarCDBUseCase(gh<_i354.FacturacionRepository>()),
+    );
+    gh.lazySingleton<_i900.ConsultarRCUseCase>(
+      () => _i900.ConsultarRCUseCase(gh<_i354.FacturacionRepository>()),
     );
     gh.lazySingleton<_i438.ObtenerElegiblesBajaUseCase>(
       () =>

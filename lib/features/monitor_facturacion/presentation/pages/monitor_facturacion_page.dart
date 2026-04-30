@@ -464,16 +464,18 @@ class _ComprobanteCard extends StatelessWidget {
       item.sedeId != null &&
       (item.tipoComprobante == 'FACTURA' || item.tipoComprobante == 'BOLETA');
 
-  /// CDB aplica solo a Factura, NC con prefijo F (FC*) y ND con prefijo F (FD*).
-  /// Plazo SUNAT: 7 días.
+  /// Anulación oficial:
+  ///  - FACTURA / NC-FC* / ND-FD* → CDB (RA), plazo 7 días.
+  ///  - BOLETA                    → RC (Resumen Diario), plazo 3 días.
+  /// NC-BC* / ND-BD* todavía no se soportan desde el app.
   bool get _puedeAnularConCdb {
     if (!item.esAceptado || item.anulado || item.proveedorArchivado) return false;
     if (item.sedeId == null) return false;
     final dias = DateTime.now().difference(item.fechaEmision).inDays;
-    if (dias > 7) return false;
-    if (item.tipoComprobante == 'FACTURA') return true;
+    if (item.tipoComprobante == 'FACTURA') return dias <= 7;
+    if (item.tipoComprobante == 'BOLETA') return dias <= 3;
     if (item.tipoComprobante == 'NOTA_CREDITO' || item.tipoComprobante == 'NOTA_DEBITO') {
-      return item.serie.startsWith('F');
+      return item.serie.startsWith('F') && dias <= 7;
     }
     return false;
   }

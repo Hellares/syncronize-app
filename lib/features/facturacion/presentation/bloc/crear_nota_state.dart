@@ -13,6 +13,11 @@ enum CrearNotaStatus {
   error,
 }
 
+/// Motivos ND (cat. SUNAT 10) que obligatoriamente deben llevar al menos
+/// 1 ítem adicional con el monto del cargo. Los motivos 10/11 (ajustes)
+/// quedan opcionales.
+const Set<int> _motivosNDRequierenItems = {1, 2, 3};
+
 class CrearNotaState extends Equatable {
   final CrearNotaStatus status;
   final TipoNota tipoNota;
@@ -34,6 +39,11 @@ class CrearNotaState extends Equatable {
   /// Cantidades editadas por item (índice → cantidad). Solo aplica con itemsParciales.
   final Map<int, double> cantidadesEditadas;
 
+  /// Items adicionales para ND (cargo adicional, intereses, ajustes de valor).
+  /// Solo se envían cuando tipoNota = NotaDebito.
+  /// Si está vacío, el backend copia los items del comprobante origen (caso ajustes IGV puro).
+  final List<CrearNotaItem> itemsAdicionales;
+
   final NotaEmitida? resultado;
   final String? errorMessage;
 
@@ -47,14 +57,43 @@ class CrearNotaState extends Equatable {
     this.itemsOrigen = const [],
     this.itemsIncluidos = const [],
     this.cantidadesEditadas = const {},
+    this.itemsAdicionales = const [],
     this.resultado,
     this.errorMessage,
   });
 
-  bool get formValido =>
+  bool get esNotaDebito => tipoNota == TipoNota.notaDebito;
+
+  /// True si el motivo ND seleccionado obliga a indicar items adicionales
+  /// (intereses 01, aumento 02, penalidades 03). Para 10/11 es opcional.
+  bool get motivoNDRequiereItems =>
+      esNotaDebito &&
       motivoSeleccionado != null &&
-      motivo.trim().length >= 3 &&
-      (!itemsParciales || itemsIncluidos.any((v) => v));
+      _motivosNDRequierenItems.contains(motivoSeleccionado);
+
+  /// Validación de items adicionales (ND): cada uno debe tener descripción
+  /// y montos numéricos > 0.
+  bool get _itemsAdicionalesValidos {
+    if (itemsAdicionales.isEmpty) return true;
+    for (final it in itemsAdicionales) {
+      if (it.descripcion.trim().isEmpty) return false;
+      if (it.cantidad <= 0) return false;
+      if (it.valorUnitario < 0) return false;
+    }
+    return true;
+  }
+
+  bool get formValido {
+    if (motivoSeleccionado == null) return false;
+    if (motivo.trim().length < 3) return false;
+    if (esNotaDebito) {
+      // Motivos 01/02/03 obligan al menos 1 item con monto.
+      if (motivoNDRequiereItems && itemsAdicionales.isEmpty) return false;
+      return _itemsAdicionalesValidos;
+    }
+    // NC: si parciales, al menos un item incluido
+    return !itemsParciales || itemsIncluidos.any((v) => v);
+  }
 
   CrearNotaState copyWith({
     CrearNotaStatus? status,
@@ -65,6 +104,7 @@ class CrearNotaState extends Equatable {
     List<CrearNotaItem>? itemsOrigen,
     List<bool>? itemsIncluidos,
     Map<int, double>? cantidadesEditadas,
+    List<CrearNotaItem>? itemsAdicionales,
     NotaEmitida? resultado,
     String? errorMessage,
     bool clearError = false,
@@ -80,6 +120,7 @@ class CrearNotaState extends Equatable {
       itemsOrigen: itemsOrigen ?? this.itemsOrigen,
       itemsIncluidos: itemsIncluidos ?? this.itemsIncluidos,
       cantidadesEditadas: cantidadesEditadas ?? this.cantidadesEditadas,
+      itemsAdicionales: itemsAdicionales ?? this.itemsAdicionales,
       resultado: clearResultado ? null : (resultado ?? this.resultado),
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
     );
@@ -96,6 +137,7 @@ class CrearNotaState extends Equatable {
         itemsOrigen,
         itemsIncluidos,
         cantidadesEditadas,
+        itemsAdicionales,
         resultado,
         errorMessage,
       ];

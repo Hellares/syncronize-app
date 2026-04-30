@@ -1,11 +1,14 @@
 import 'package:injectable/injectable.dart';
 import '../../../../core/utils/resource.dart';
+import '../../domain/entities/anulacion.dart';
 import '../../domain/entities/comprobante_elegible_baja.dart';
 import '../../domain/entities/comunicacion_baja.dart';
 import '../../domain/entities/crear_comunicacion_baja_request.dart';
 import '../../domain/entities/crear_nota_request.dart';
+import '../../domain/entities/crear_resumen_diario_request.dart';
 import '../../domain/entities/motivo_nota.dart';
 import '../../domain/entities/nota_emitida.dart';
+import '../../domain/entities/resumen_diario.dart';
 import '../../domain/entities/tipo_nota.dart';
 import '../../domain/repositories/facturacion_repository.dart';
 import '../datasources/facturacion_remote_datasource.dart';
@@ -93,6 +96,87 @@ class FacturacionRepositoryImpl implements FacturacionRepository {
       return Success<ComunicacionBaja>(result);
     } catch (e) {
       return Error('Error al consultar CDB: ${_humanize(e)}');
+    }
+  }
+
+  // ── Resúmenes Diarios (RC) ──
+
+  @override
+  Future<Resource<ResumenDiario>> crearResumenDiario(
+      CrearResumenDiarioRequest request) async {
+    try {
+      final result = await _datasource.crearResumenDiario(request);
+      return Success<ResumenDiario>(result);
+    } catch (e) {
+      return Error('Error al crear resumen diario: ${_humanize(e)}');
+    }
+  }
+
+  @override
+  Future<Resource<ResumenDiario>> consultarResumenDiario(String id) async {
+    try {
+      final result = await _datasource.consultarResumenDiario(id);
+      return Success<ResumenDiario>(result);
+    } catch (e) {
+      return Error('Error al consultar RC: ${_humanize(e)}');
+    }
+  }
+
+  @override
+  Future<Resource<AnulacionesPaginadas<ComunicacionBaja>>> listarCDBs({
+    String? estadoSunat,
+    String? fechaDesde,
+    String? fechaHasta,
+    int page = 1,
+    int limit = 20,
+  }) async {
+    try {
+      final result = await _datasource.listarCDBs(
+        estadoSunat: estadoSunat,
+        fechaDesde: fechaDesde,
+        fechaHasta: fechaHasta,
+        page: page,
+        limit: limit,
+      );
+      return Success<AnulacionesPaginadas<ComunicacionBaja>>(
+        AnulacionesPaginadas<ComunicacionBaja>(
+          data: result.data,
+          total: result.total,
+          totalPages: result.totalPages,
+          page: result.page,
+        ),
+      );
+    } catch (e) {
+      return Error('Error al listar CDBs: ${_humanize(e)}');
+    }
+  }
+
+  @override
+  Future<Resource<AnulacionesPaginadas<ResumenDiario>>> listarRCs({
+    String? estadoSunat,
+    String? fechaDesde,
+    String? fechaHasta,
+    int page = 1,
+    int limit = 20,
+  }) async {
+    try {
+      final result = await _datasource.listarRCs(
+        estadoSunat: estadoSunat,
+        fechaDesde: fechaDesde,
+        fechaHasta: fechaHasta,
+        page: page,
+        limit: limit,
+      );
+      return Success<AnulacionesPaginadas<ResumenDiario>>(
+        AnulacionesPaginadas<ResumenDiario>(
+          data: result.data,
+          total: result.total,
+          totalPages: result.totalPages,
+          page: result.page,
+        ),
+      );
+    } catch (e) {
+      return Error('Error al listar RCs: ${_humanize(e)}');
     }
   }
 
