@@ -25,6 +25,8 @@ class VentaDetalleModel extends VentaDetalle {
     super.varianteSku,
     super.servicioNombre,
     super.servicioCodigo,
+    super.origenComboId,
+    super.origenComboNombre,
   });
 
   factory VentaDetalleModel.fromJson(Map<String, dynamic> json) {
@@ -56,6 +58,8 @@ class VentaDetalleModel extends VentaDetalle {
       varianteSku: variante?['sku'] as String?,
       servicioNombre: servicio?['nombre'] as String?,
       servicioCodigo: servicio?['codigoEmpresa'] as String?,
+      origenComboId: json['origenComboId'] as String?,
+      origenComboNombre: json['origenComboNombre'] as String?,
     );
   }
 

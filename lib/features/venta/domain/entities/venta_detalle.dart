@@ -28,6 +28,12 @@ class VentaDetalle extends Equatable {
   final String? servicioNombre;
   final String? servicioCodigo;
 
+  // Trazabilidad de combo origen: cuando este detalle es un componente
+  // que se vendió como parte de un combo expandido, estos campos lo
+  // identifican. Null si se vendió suelto.
+  final String? origenComboId;
+  final String? origenComboNombre;
+
   const VentaDetalle({
     required this.id,
     required this.ventaId,
@@ -52,6 +58,8 @@ class VentaDetalle extends Equatable {
     this.varianteSku,
     this.servicioNombre,
     this.servicioCodigo,
+    this.origenComboId,
+    this.origenComboNombre,
   });
 
   String get tipoItem {
@@ -81,5 +89,7 @@ class VentaDetalle extends Equatable {
         subtotal,
         total,
         orden,
+        origenComboId,
+        origenComboNombre,
       ];
 }

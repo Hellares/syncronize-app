@@ -272,25 +272,14 @@ class PdfVentaGenerator {
                   ],
                 ),
                 pw.SizedBox(height: 2),
-                ...detalles.map((d) {
-                  final qty = d.cantidad % 1 == 0
-                      ? d.cantidad.toInt().toString()
-                      : d.cantidad.toStringAsFixed(2);
-                  // Total de línea sin ICBPER (ICBPER se muestra aparte como impuesto)
-                  final totalLinea = d.total - d.icbper;
-                  return pw.Padding(
-                    padding: const pw.EdgeInsets.only(bottom: 2),
-                    child: pw.Row(
-                      crossAxisAlignment: pw.CrossAxisAlignment.start,
-                      children: [
-                        pw.SizedBox(width: 22, child: pw.Text(qty, style: pw.TextStyle(fontSize: 7, color: colorCuerpo))),
-                        pw.Expanded(child: pw.Text(d.descripcion, style: pw.TextStyle(fontSize: 7, color: colorCuerpo))),
-                        pw.SizedBox(width: 42, child: pw.Text('$simboloMoneda${d.precioUnitario.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 7, color: colorCuerpo), textAlign: pw.TextAlign.right)),
-                        pw.SizedBox(width: 48, child: pw.Text('$simboloMoneda${totalLinea.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 7, color: colorCuerpo), textAlign: pw.TextAlign.right)),
-                      ],
-                    ),
-                  );
-                }),
+                // Renderizar items agrupando consecutivos del mismo origenComboId
+                // bajo un header con el nombre del combo y el ahorro total.
+                ..._buildDetallesConCombosAgrupados(
+                  detalles,
+                  simboloMoneda,
+                  colorPrimario,
+                  colorCuerpo,
+                ),
                 _dottedLine(color: colorPrimario),
               ],
 
@@ -515,6 +504,127 @@ class PdfVentaGenerator {
     );
 
     return pdf.save();
+  }
+
+  /// Renderiza los items de la venta agrupando consecutivos del mismo
+  /// `origenComboId` bajo un header con el nombre del combo y el "Ahorro"
+  /// total (suma de descuentos prorrateados de los componentes).
+  ///
+  /// Items sueltos (sin origenComboId) se renderizan tal cual.
+  /// Asume que los items del mismo combo están contiguos (lo está al
+  /// crearse desde el cubit, y el backend respeta `orden`).
+  static List<pw.Widget> _buildDetallesConCombosAgrupados(
+    List<dynamic> detalles, // List<VentaDetalle>
+    String simboloMoneda,
+    PdfColor colorPrimario,
+    PdfColor colorCuerpo,
+  ) {
+    final widgets = <pw.Widget>[];
+    String? lastCombo;
+
+    for (var i = 0; i < detalles.length; i++) {
+      final d = detalles[i];
+      final origen = d.origenComboId as String?;
+      final origenNombre = d.origenComboNombre as String?;
+
+      // Header del combo cuando empieza un nuevo grupo.
+      if (origen != null && origen != lastCombo) {
+        double ahorroCombo = 0;
+        for (final x in detalles) {
+          if (x.origenComboId == origen) {
+            ahorroCombo += (x.descuento as double);
+          }
+        }
+        widgets.add(pw.Padding(
+          padding: const pw.EdgeInsets.only(top: 2, bottom: 1),
+          child: pw.Row(
+            children: [
+              pw.Text('🏷 ', style: pw.TextStyle(fontSize: 7, color: colorPrimario)),
+              pw.Expanded(
+                child: pw.Text(
+                  'COMBO: ${(origenNombre ?? 'Combo').toUpperCase()}',
+                  style: pw.TextStyle(
+                    fontSize: 7,
+                    fontWeight: pw.FontWeight.bold,
+                    color: colorPrimario,
+                  ),
+                ),
+              ),
+              if (ahorroCombo > 0)
+                pw.Text(
+                  'Ahorro $simboloMoneda${ahorroCombo.toStringAsFixed(2)}',
+                  style: pw.TextStyle(
+                    fontSize: 6,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.green700,
+                  ),
+                ),
+            ],
+          ),
+        ));
+        lastCombo = origen;
+      } else if (origen == null) {
+        lastCombo = null;
+      }
+
+      final qty = d.cantidad % 1 == 0
+          ? d.cantidad.toInt().toString()
+          : d.cantidad.toStringAsFixed(2);
+      // Total de línea sin ICBPER (ICBPER se muestra aparte como impuesto)
+      final totalLinea = (d.total as double) - (d.icbper as double);
+      final descuento = d.descuento as double;
+      final esItemDeCombo = origen != null;
+
+      widgets.add(pw.Padding(
+        padding: pw.EdgeInsets.only(
+          bottom: 2,
+          left: esItemDeCombo ? 8 : 0, // sangría visual para items del combo
+        ),
+        child: pw.Row(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.SizedBox(
+              width: esItemDeCombo ? 14 : 22,
+              child: pw.Text(qty,
+                  style: pw.TextStyle(fontSize: 7, color: colorCuerpo)),
+            ),
+            pw.Expanded(
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text(d.descripcion,
+                      style: pw.TextStyle(fontSize: 6, color: colorCuerpo)),
+                  if (descuento > 0)
+                    pw.Text(
+                      'Desc $simboloMoneda${descuento.toStringAsFixed(2)}',
+                      style: pw.TextStyle(
+                          fontSize: 5, color: PdfColors.green700),
+                    ),
+                ],
+              ),
+            ),
+            pw.SizedBox(
+              width: 42,
+              child: pw.Text(
+                '$simboloMoneda${d.precioUnitario.toStringAsFixed(2)}',
+                style: pw.TextStyle(fontSize: 7, color: colorCuerpo),
+                textAlign: pw.TextAlign.right,
+              ),
+            ),
+            pw.SizedBox(
+              width: 48,
+              child: pw.Text(
+                '$simboloMoneda${totalLinea.toStringAsFixed(2)}',
+                style: pw.TextStyle(fontSize: 7, color: colorCuerpo),
+                textAlign: pw.TextAlign.right,
+              ),
+            ),
+          ],
+        ),
+      ));
+    }
+
+    return widgets;
   }
 
   /// Totales unificados formato SUNAT: Op. Gravada, Inafecta, Exonerada, Descuento, IGV, ICBPER
