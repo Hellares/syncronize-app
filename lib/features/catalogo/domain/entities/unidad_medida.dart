@@ -268,3 +268,27 @@ class EmpresaUnidadMedida extends Equatable {
     };
   }
 }
+
+/// Helpers de búsqueda sobre listas de unidades activadas en una empresa.
+extension EmpresaUnidadMedidaListExt on List<EmpresaUnidadMedida> {
+  /// Devuelve la unidad "Unidad" (NIU) si existe, probando varios criterios
+  /// para tolerar configuraciones personalizadas (UND, UNI, etc.). Si no
+  /// match alguno, retorna la primera de la lista. Lanza si la lista está
+  /// vacía — el caller debe verificar `isNotEmpty` antes.
+  EmpresaUnidadMedida findUnidadDefault() {
+    bool isUnidad(EmpresaUnidadMedida u) {
+      if (u.unidadMaestra?.codigo == 'NIU') return true;
+      final c = u.codigoEfectivo?.toUpperCase();
+      if (c == 'NIU' || c == 'UND') return true;
+      final s = u.simboloEfectivo?.toUpperCase();
+      if (s == 'UND' || s == 'UNI') return true;
+      if (u.nombreEfectivo.toUpperCase().contains('UNIDAD')) return true;
+      return false;
+    }
+
+    for (final u in this) {
+      if (isUnidad(u)) return u;
+    }
+    return first;
+  }
+}

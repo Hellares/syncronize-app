@@ -15,6 +15,9 @@ import '../../../../core/widgets/smart_appbar.dart';
 import '../../../../core/widgets/custom_dropdown.dart';
 import '../../../catalogo/presentation/bloc/categorias_empresa/categorias_empresa_cubit.dart';
 import '../../../catalogo/presentation/bloc/marcas_empresa/marcas_empresa_cubit.dart';
+import '../../../catalogo/domain/entities/unidad_medida.dart';
+import '../../../catalogo/presentation/bloc/unidades_medida/unidades_medida_cubit.dart';
+import '../../../catalogo/presentation/bloc/unidades_medida/unidades_medida_state.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_cubit.dart';
@@ -23,6 +26,7 @@ import '../../domain/entities/atributo_plantilla.dart';
 import '../../domain/entities/producto_atributo.dart';
 import '../../domain/entities/atributo_valor.dart';
 import '../../../auth/presentation/widgets/custom_button.dart';
+import '../../../auth/presentation/widgets/custom_text.dart';
 import '../bloc/producto_detail/producto_detail_cubit.dart';
 import '../bloc/producto_detail/producto_detail_state.dart';
 import '../bloc/producto_images/producto_images_cubit.dart';
@@ -46,8 +50,6 @@ import '../widgets/precio_niveles_section.dart';
 import '../widgets/configuracion_precio_selector.dart';
 import '../../data/models/precio_nivel_model.dart';
 import '../widgets/form_sections/producto_basic_info_section.dart';
-import '../widgets/form_sections/producto_inventory_section.dart';
-import '../widgets/form_sections/producto_dimensiones_section.dart';
 import '../widgets/form_sections/producto_options_section.dart';
 import '../widgets/form_sections/producto_tipo_section.dart';
 import '../widgets/form_sections/producto_categorizacion_section.dart';
@@ -122,6 +124,11 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
   /// Controller centralizado para el estado del formulario
   late final ProductoFormController _controller;
 
+  /// Card "Características de Producto" desglosable. Por defecto cerrada
+  /// para reducir el largo del form en creación; el usuario puede abrirla
+  /// si quiere configurar plantilla, peso o dimensiones.
+  bool _caracteristicasExpanded = false;
+
   @override
   void initState() {
     super.initState();
@@ -158,6 +165,19 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
               _controller.selectedSedesIds = [sedeIdInicial];
             });
           }
+        }
+
+        // Pre-seleccionar unidad de medida default (Unidad) si el cubit ya
+        // tiene las unidades cargadas. Si no, el BlocListener montado más
+        // abajo se encarga cuando emita Loaded.
+        final unidadState = context.read<UnidadMedidaCubit>().state;
+        if (unidadState is UnidadesEmpresaLoaded &&
+            unidadState.unidadesEmpresa.isNotEmpty &&
+            _controller.selectedUnidadMedidaId == null) {
+          final unidadDefault = unidadState.unidadesEmpresa.findUnidadDefault();
+          setState(() {
+            _controller.selectedUnidadMedidaId = unidadDefault.id;
+          });
         }
 
         // NO pre-llenar impuesto: null = usa el IGV global actual de la empresa.
@@ -336,7 +356,10 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
       context.read<CategoriasEmpresaCubit>().loadCategorias(empresaId);
       context.read<MarcasEmpresaCubit>().loadMarcas(empresaId);
       context.read<ConfiguracionPrecioCubit>().loadConfiguraciones();
-      // UnidadMedidaDropdown carga las unidades internamente
+      // Disparar carga de unidades acá también (el dropdown lo hace
+      // internamente, pero pre-disparar acá nos asegura que el state esté
+      // listo cuando el BlocListener intenta auto-seleccionar NIU).
+      context.read<UnidadMedidaCubit>().getUnidadesEmpresa(empresaId);
       _loadPlantillas(empresaId);
     }
   }
@@ -443,9 +466,13 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
             },
             child: Form(
               key: _controller.formKey,
-              child: ListView(
-                padding: const EdgeInsets.only(left: 12, right: 12),
+              child: Column(
                 children: [
+                  // Contenido scrollable (todas las secciones del form).
+                  Expanded(
+                    child: ListView(
+                      padding: const EdgeInsets.only(left: 12, right: 12),
+                      children: [
                 const SizedBox(height: 4),
                 ProductoBasicInfoSection(
                   nombreController: _controller.nombreController,
@@ -511,23 +538,16 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
                   },
                 ),
                 const SizedBox(height: 15),
-                // Plantilla de atributos (solo para productos simples)
                 if (!_controller.tieneVariantes && !_controller.esCombo) ...[
-                  _buildPlantillasSection(),
-                  const SizedBox(height: 15),
-                ],
-                if (!_controller.tieneVariantes && !_controller.esCombo) ...[
-                  //_buildPrecioStockInfoBanner(),
-                  const SizedBox(height: 15),
-                  _buildConfiguracionPrecioSelector(),
+                  // Card agrupada desglosable: Plantilla + Características
+                  // físicas + Dimensiones. Cerrada por defecto para acortar
+                  // el form. El admin la abre si necesita configurar.
+                  _buildCaracteristicasProductoCard(),
                   const SizedBox(height: 15),
                   if (widget.isEditing) ...[
                     _buildPrecioNivelesSection(),
                     const SizedBox(height: 15),
                   ],
-                  ProductoInventorySection(
-                    pesoController: _controller.pesoController,
-                  ),
                   const SizedBox(height: 15),
                 ] else if (_controller.tieneVariantes) ...[
                   ProductoVariantesBanner(
@@ -545,29 +565,34 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
                   ),
                   const SizedBox(height: 15),
                 ],
-                _buildImagesSection(),
-                const SizedBox(height: 15),
-                ProductoDimensionesSection(
-                  largoController: _controller.dimensionLargoController,
-                  anchoController: _controller.dimensionAnchoController,
-                  altoController: _controller.dimensionAltoController,
-                ),
-                const SizedBox(height: 15),
-                ProductoImpuestosSection(
-                  impuestoPorcentajeController: _controller.impuestoPorcentajeController,
-                  descuentoMaximoController: _controller.descuentoMaximoController,
-                  igvGlobal: () {
-                    final cs = context.read<ConfiguracionEmpresaCubit>().state;
-                    return cs is ConfiguracionEmpresaLoaded ? cs.configuracion.impuestoDefaultPorcentaje : null;
-                  }(),
-                  tipoAfectacionIgv: _controller.tipoAfectacionIgv,
-                  aplicaIcbper: _controller.aplicaIcbper,
-                  onTipoAfectacionChanged: (v) => setState(() => _controller.tipoAfectacionIgv = v),
-                  onAplicaIcbperChanged: (v) => setState(() => _controller.aplicaIcbper = v),
-                ),
-                const SizedBox(height: 15),
-                _buildMultimediaSection(),
-                const SizedBox(height: 15),
+                // Cards solo visibles en modo EDICIÓN.
+                // En CREACIÓN se ocultan para simplificar el flujo:
+                // - Imágenes: se suben después desde la lista de productos.
+                // - Impuestos: usa defaults globales de la empresa.
+                // - Video: opcional, se agrega luego en la edición.
+                if (widget.isEditing) ...[
+                  _buildImagesSection(),
+                  const SizedBox(height: 15),
+                ],
+                // ProductoDimensionesSection movida dentro de
+                // _buildCaracteristicasProductoCard (card desglosable).
+                if (widget.isEditing) ...[
+                  ProductoImpuestosSection(
+                    impuestoPorcentajeController: _controller.impuestoPorcentajeController,
+                    descuentoMaximoController: _controller.descuentoMaximoController,
+                    igvGlobal: () {
+                      final cs = context.read<ConfiguracionEmpresaCubit>().state;
+                      return cs is ConfiguracionEmpresaLoaded ? cs.configuracion.impuestoDefaultPorcentaje : null;
+                    }(),
+                    tipoAfectacionIgv: _controller.tipoAfectacionIgv,
+                    aplicaIcbper: _controller.aplicaIcbper,
+                    onTipoAfectacionChanged: (v) => setState(() => _controller.tipoAfectacionIgv = v),
+                    onAplicaIcbperChanged: (v) => setState(() => _controller.aplicaIcbper = v),
+                  ),
+                  const SizedBox(height: 15),
+                  _buildMultimediaSection(),
+                  const SizedBox(height: 15),
+                ],
                 ProductoOptionsSection(
                   visibleMarketplace: _controller.visibleMarketplace,
                   destacado: _controller.destacado,
@@ -584,12 +609,28 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
                     });
                   },
                 ),
-                const SizedBox(height: 32),
-                _buildSubmitButton(),
-                const SizedBox(height: 32),
-              ],
+                      const SizedBox(height: 16),
+                    ],
+                  ),
+                  ),
+                  // Botón fijo en la parte inferior — no se mueve con el scroll.
+                  // Borde superior sutil para separarlo visualmente del contenido.
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.6),
+                      border: Border(
+                        top: BorderSide(
+                          color: Colors.grey.withValues(alpha: 0.2),
+                          width: 0.5,
+                        ),
+                      ),
+                    ),
+                    child: _buildSubmitButton(),
+                  ),
+                ],
+              ),
             ),
-          ),
           ),
         ),
       ),
@@ -664,6 +705,26 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
       },
       child: content,
     );
+
+    // En modo creación, auto-seleccionar la unidad NIU (Unidad) cuando el
+    // cubit emita Loaded. Defensa adicional al autoSelectDefault del
+    // dropdown — más robusto porque vive en el state de la page (no se
+    // ve afectado por rebuilds del child widget tree).
+    if (!widget.isEditing) {
+      content = BlocListener<UnidadMedidaCubit, UnidadMedidaState>(
+        listener: (context, state) {
+          if (state is! UnidadesEmpresaLoaded) return;
+          if (state.unidadesEmpresa.isEmpty) return;
+          if (_controller.selectedUnidadMedidaId != null) return;
+
+          final unidadDefault = state.unidadesEmpresa.findUnidadDefault();
+          setState(() {
+            _controller.selectedUnidadMedidaId = unidadDefault.id;
+          });
+        },
+        child: content,
+      );
+    }
 
     if (widget.isEditing) {
       // Listener para cuando se carga el producto
@@ -877,6 +938,143 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
     );
   }
 
+  /// Card agrupada desglosable que contiene: Plantilla de Características,
+  /// Características Físicas (peso) y Dimensiones. Cerrada por defecto en
+  /// modo creación para que el form sea más corto. Tap en el header expande
+  /// el contenido con una animación suave.
+  Widget _buildCaracteristicasProductoCard() {
+    return GradientContainer(
+      shadowStyle: ShadowStyle.neumorphic,
+      borderColor: AppColors.blueborder,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header tappable.
+          InkWell(
+            onTap: () {
+              setState(() {
+                _caracteristicasExpanded = !_caracteristicasExpanded;
+              });
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.tune,
+                    size: 16,
+                    color: AppColors.blue1,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: AppSubtitle(
+                      'CARACTERÍSTICAS DE PRODUCTO (Opcionales)',
+                      fontSize: 11,
+                      color: AppColors.blue1,
+                    ),
+                  ),
+                  AnimatedRotation(
+                    turns: _caracteristicasExpanded ? 0.5 : 0,
+                    duration: const Duration(milliseconds: 200),
+                    child: Icon(
+                      Icons.keyboard_arrow_down,
+                      size: 18,
+                      color: AppColors.blue1,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // Contenido expandible con animación.
+          AnimatedCrossFade(
+            duration: const Duration(milliseconds: 200),
+            firstChild: const SizedBox.shrink(),
+            secondChild: Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildPlantillasSection(),
+                  const SizedBox(height: 12),
+                  // Bloque unificado de características físicas + dimensiones.
+                  // Sin GradientContainer interno: ya estamos dentro de
+                  // la card padre. 4 columnas: Peso | Largo | Ancho | Alto.
+                  AppSubtitle(
+                    'CARACTERÍSTICAS FÍSICAS Y DIMENSIONES',
+                    fontSize: 11,
+                    color: AppColors.blue1,
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: CustomText(
+                          controller: _controller.pesoController,
+                          borderColor: AppColors.blue1,
+                          label: 'Peso (kg)',
+                          hintText: '0.00',
+                          keyboardType: const TextInputType
+                              .numberWithOptions(decimal: true),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: CustomText(
+                          controller: _controller.dimensionLargoController,
+                          borderColor: AppColors.blue1,
+                          label: 'Largo (cm)',
+                          hintText: '0.0',
+                          keyboardType: const TextInputType
+                              .numberWithOptions(decimal: true),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: CustomText(
+                          controller: _controller.dimensionAnchoController,
+                          borderColor: AppColors.blue1,
+                          label: 'Ancho (cm)',
+                          hintText: '0.0',
+                          keyboardType: const TextInputType
+                              .numberWithOptions(decimal: true),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: CustomText(
+                          controller: _controller.dimensionAltoController,
+                          borderColor: AppColors.blue1,
+                          label: 'Alto (cm)',
+                          hintText: '0.0',
+                          keyboardType: const TextInputType
+                              .numberWithOptions(decimal: true),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'El stock se agregará después de crear el producto',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: AppColors.grey,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            crossFadeState: _caracteristicasExpanded
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildPlantillasSection() {
     final empresaState = context.read<EmpresaContextCubit>().state;
     if (empresaState is! EmpresaContextLoaded) {
@@ -890,7 +1088,7 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
       child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            AppSubtitle('PLANTILLA DE ATRIBUTOS'),
+            AppSubtitle('PLANTILLA DE CARACTERÍSTICAS'),
             const SizedBox(height: 8),
 
             AppSubtitle('Selecciona una plantilla para cargar automáticamente sus atributos. Esto reemplazará los atributos por categoría.', fontSize: 10, color: Colors.blueGrey,),
@@ -1057,6 +1255,7 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
     );
   }
 
+  // ignore: unused_element
   Widget _buildConfiguracionPrecioSelector() {
     return BlocBuilder<ConfiguracionPrecioCubit, ConfiguracionPrecioState>(
       builder: (context, state) {

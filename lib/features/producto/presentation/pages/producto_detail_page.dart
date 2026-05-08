@@ -15,6 +15,8 @@ import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/resource.dart';
+import '../../domain/entities/precio_nivel.dart';
+import '../../domain/repositories/precio_nivel_repository.dart';
 import '../../domain/repositories/producto_repository.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
@@ -255,6 +257,7 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
                             const SizedBox(height: 16),
 
                             if (!producto.tieneVariantes && !producto.esCombo) ...[
+                              _buildNivelesPrecioSection(producto.id),
                               _buildAtributosManagerSection(producto),
                               const SizedBox(height: 16),
                             ],
@@ -1077,6 +1080,132 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
       ),
     );
     // Cierre del PopScope
+  }
+
+  /// Sección read-only que muestra los niveles de precio configurados para
+  /// el producto (descuentos por volumen). Si no hay niveles, no renderiza
+  /// nada — para evitar ruido visual en productos sin configuración.
+  /// Para gestionar (crear/editar/eliminar) se usa el dialog "Configurar
+  /// Precios" del stock por sede.
+  Widget _buildNivelesPrecioSection(String productoId) {
+    return FutureBuilder<Resource<List<PrecioNivel>>>(
+      future: locator<PrecioNivelRepository>()
+          .getPreciosNivelProducto(productoId: productoId),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const SizedBox.shrink();
+        final result = snapshot.data!;
+        if (result is! Success<List<PrecioNivel>>) return const SizedBox.shrink();
+        final activos = result.data.where((n) => n.isActive).toList()
+          ..sort((a, b) => a.cantidadMinima.compareTo(b.cantidadMinima));
+        if (activos.isEmpty) return const SizedBox.shrink();
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 16),
+          child: GradientContainer(
+            gradient: AppGradients.blueWhiteDialog(),
+            padding: const EdgeInsets.all(12),
+            borderRadius: BorderRadius.circular(8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.auto_graph,
+                        size: 16, color: AppColors.blue1),
+                    const SizedBox(width: 6),
+                    AppSubtitle(
+                      'Precios por Volumen',
+                      fontSize: 13,
+                      color: AppColors.blue1,
+                    ),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.blue1.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        '${activos.length} ${activos.length == 1 ? 'nivel' : 'niveles'}',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.blue1,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                ...activos.map((n) => _buildNivelRow(n)),
+                const SizedBox(height: 4),
+                Text(
+                  'Para editar usa "Configurar Precios" en stock por sede.',
+                  style: TextStyle(
+                    fontSize: 9,
+                    color: Colors.grey.shade600,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildNivelRow(PrecioNivel n) {
+    final esFijo = n.tipoPrecio == TipoPrecioNivel.precioFijo;
+    final color = esFijo ? AppColors.blue1 : Colors.orange.shade700;
+    final icon = esFijo ? Icons.attach_money : Icons.percent;
+    final valor = esFijo
+        ? 'S/ ${(n.precio ?? 0).toStringAsFixed(2)}'
+        : '${(n.porcentajeDesc ?? 0).toStringAsFixed(0)}% off';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Icon(icon, size: 12, color: color),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  n.nombre,
+                  style: const TextStyle(
+                      fontSize: 11, fontWeight: FontWeight.w600),
+                ),
+                Text(
+                  n.rangoString,
+                  style: TextStyle(
+                      fontSize: 9, color: Colors.grey.shade600),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            valor,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   /// Elimina el producto (soft delete → papelera). Pide confirmación clara

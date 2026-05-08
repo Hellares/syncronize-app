@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/custom_dropdown.dart';
+import '../../../catalogo/domain/entities/unidad_medida.dart';
 import '../../../catalogo/presentation/bloc/unidades_medida/unidades_medida_cubit.dart';
 import '../../../catalogo/presentation/bloc/unidades_medida/unidades_medida_state.dart';
 
@@ -40,7 +41,12 @@ class UnidadMedidaDropdown extends StatefulWidget {
 }
 
 class _UnidadMedidaDropdownState extends State<UnidadMedidaDropdown> {
-  bool _hasAutoSelected = false;
+  /// Guarda el último id que pedimos auto-seleccionar para evitar disparar
+  /// el callback en bucle cuando el padre tarda 1 frame en propagar el
+  /// valor. Si el padre EFECTIVAMENTE persiste el valor, `selectedUnidadId`
+  /// deja de ser null y el guard `selectedUnidadId != null` corta el loop.
+  /// Si NO lo persiste, el siguiente build vuelve a intentar (defensivo).
+  String? _lastAutoSelectedId;
 
   @override
   void initState() {
@@ -52,7 +58,7 @@ class _UnidadMedidaDropdownState extends State<UnidadMedidaDropdown> {
   void didUpdateWidget(UnidadMedidaDropdown oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.empresaId != widget.empresaId) {
-      _hasAutoSelected = false;
+      _lastAutoSelectedId = null;
       _forceLoadUnidades();
     }
   }
@@ -72,23 +78,27 @@ class _UnidadMedidaDropdownState extends State<UnidadMedidaDropdown> {
   }
 
   void _tryAutoSelectDefault(UnidadesEmpresaLoaded state) {
+    // Sin auto-select, ya hay valor, o lista vacía → no-op.
     if (!widget.autoSelectDefault ||
-        _hasAutoSelected ||
         widget.selectedUnidadId != null ||
         state.unidadesEmpresa.isEmpty) {
       return;
     }
 
-    _hasAutoSelected = true;
-
     try {
-      final unidadPorDefecto = state.unidadesEmpresa.firstWhere(
-        (u) => u.unidadMaestra?.codigo == 'NIU',
-        orElse: () => state.unidadesEmpresa.first,
-      );
+      // Lógica centralizada en la extension findUnidadDefault del entity.
+      final unidadPorDefecto = state.unidadesEmpresa.findUnidadDefault();
+
+      // Evitar agendar múltiples post-frame para la misma unidad — solo
+      // re-agendar si el id calculado cambió (caso edge: lista de unidades
+      // se actualiza). El padre recibe el id 1 vez como mucho por id.
+      if (_lastAutoSelectedId == unidadPorDefecto.id) return;
+      _lastAutoSelectedId = unidadPorDefecto.id;
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
+        // Re-verificar antes de propagar: si el padre ya seteó algo
+        // entre el agendado y la ejecución, no pisar.
+        if (mounted && widget.selectedUnidadId == null) {
           widget.onChanged(unidadPorDefecto.id);
         }
       });

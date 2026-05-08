@@ -71,6 +71,10 @@ class _ProductosPageState extends State<ProductosPage>
   // Enum para los tipos de tab
   int _currentTabIndex = 0;
 
+  /// Filtro de estado: null=todos, true=solo activos, false=solo inactivos.
+  /// El backend respeta este flag (independiente de soloEliminados).
+  bool? _filtroIsActive;
+
   @override
   void initState() {
     super.initState();
@@ -131,6 +135,25 @@ class _ProductosPageState extends State<ProductosPage>
           );
           break;
       }
+
+      // Aplicar filtro de estado (chips Todos/Activos/Inactivos).
+      filtrosConTab = ProductoFiltros(
+        page: filtrosConTab.page,
+        limit: filtrosConTab.limit,
+        search: filtrosConTab.search,
+        empresaCategoriaId: filtrosConTab.empresaCategoriaId,
+        empresaMarcaId: filtrosConTab.empresaMarcaId,
+        sedeId: filtrosConTab.sedeId,
+        visibleMarketplace: filtrosConTab.visibleMarketplace,
+        destacado: filtrosConTab.destacado,
+        enOferta: filtrosConTab.enOferta,
+        stockBajo: filtrosConTab.stockBajo,
+        soloProductos: filtrosConTab.soloProductos,
+        soloCombos: filtrosConTab.soloCombos,
+        soloEliminados: filtrosConTab.soloEliminados,
+        isActive: _filtroIsActive,
+        orden: filtrosConTab.orden,
+      );
 
       context.read<ProductoListCubit>().loadProductos(
         empresaId: empresaState.context.empresa.id,
@@ -728,7 +751,9 @@ class _ProductosPageState extends State<ProductosPage>
 
                 SizedBox(height: 15),
                 _buildSearchBar(),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
+                _buildEstadoChips(),
+                const SizedBox(height: 4),
                 Expanded(child: _buildProductList()),
               ],
             ),
@@ -769,6 +794,112 @@ class _ProductosPageState extends State<ProductosPage>
           });
           _searchCubit.clear();
         },
+      ),
+    );
+  }
+
+  /// Chips de filtro por estado + contador del total. Reemplaza el badge
+  /// "X disponibles" con un selector visual: Todos | Activos | Inactivos.
+  /// El total cambia según el filtro aplicado.
+  Widget _buildEstadoChips() {
+    return BlocBuilder<ProductoListCubit, ProductoListState>(
+      builder: (context, state) {
+        final total = state is ProductoListLoaded ? state.total : null;
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          child: Row(
+            children: [
+              // Tab "Todos" ya cumple ese rol — los chips solo discriminan
+              // por estado activo/inactivo. Tap nuevamente al chip activo
+              // lo deselecciona (vuelve a mostrar todos).
+              _buildChip(
+                label: 'Activos',
+                value: true,
+                icon: Icons.check_circle_outline,
+                color: Colors.green,
+              ),
+              const SizedBox(width: 6),
+              _buildChip(
+                label: 'Inactivos',
+                value: false,
+                icon: Icons.visibility_off_outlined,
+                color: Colors.red,
+              ),
+              const Spacer(),
+              if (total != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.blue1.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                        color: AppColors.blue1.withValues(alpha: 0.3),
+                        width: 0.5),
+                  ),
+                  child: Text(
+                    '$total ${total == 1 ? 'producto' : 'productos'}',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.blue1,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildChip({
+    required String label,
+    required bool? value,
+    required IconData icon,
+    Color? color,
+  }) {
+    final selected = _filtroIsActive == value;
+    final activeColor = color ?? AppColors.blue1;
+    return InkWell(
+      onTap: () {
+        // Re-tap al mismo chip lo deselecciona (vuelve a "Todos").
+        setState(() {
+          _filtroIsActive = selected ? null : value;
+        });
+        _loadProductos();
+      },
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: selected
+              ? activeColor.withValues(alpha: 0.15)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected
+                ? activeColor
+                : Colors.grey.withValues(alpha: 0.4),
+            width: selected ? 0.6 : 0.5,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 12,
+                color: selected ? activeColor : Colors.grey.shade600),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                color: selected ? activeColor : Colors.grey.shade700,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
