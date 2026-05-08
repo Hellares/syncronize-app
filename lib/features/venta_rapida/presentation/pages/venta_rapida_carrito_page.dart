@@ -112,6 +112,7 @@ class _CarritoView extends StatelessWidget {
                           return _ComboHeaderTile(
                             nombre: row.comboNombre!,
                             total: row.comboTotal!,
+                            ahorro: row.comboAhorro!,
                             onEliminar: () => context
                                 .read<VentaRapidaCubit>()
                                 .eliminarCombo(row.comboId!),
@@ -510,6 +511,7 @@ class _CarritoRow {
   final String? comboId;
   final String? comboNombre;
   final double? comboTotal;
+  final double? comboAhorro;
   final dynamic item; // VentaDetalleInput
   final int? index; // índice en state.items (para callbacks que esperan index)
 
@@ -517,6 +519,7 @@ class _CarritoRow {
     required String this.comboId,
     required String this.comboNombre,
     required double this.comboTotal,
+    required double this.comboAhorro,
   })  : isHeader = true,
         item = null,
         index = null;
@@ -527,7 +530,8 @@ class _CarritoRow {
     this.comboId, // si pertenece a un combo
   })  : isHeader = false,
         comboNombre = null,
-        comboTotal = null;
+        comboTotal = null,
+        comboAhorro = null;
 }
 
 /// Construye la lista de rows agrupando items por `origenComboId`.
@@ -540,15 +544,22 @@ List<_CarritoRow> _buildRows(List items) {
     final it = items[i];
     final origen = it.origenComboId as String?;
     if (origen != null && origen != lastCombo) {
-      // Header del combo: calcular total sumando todos sus items.
+      // Header del combo: calcular total y ahorro sumando todos sus items.
+      // Ahorro = Σ descuentos por línea (cada item lleva el descuento
+      // prorrateado que el cubit calculó al expandir el combo).
       double total = 0;
+      double ahorro = 0;
       for (final x in items) {
-        if (x.origenComboId == origen) total += x.total as double;
+        if (x.origenComboId == origen) {
+          total += x.total as double;
+          ahorro += x.descuento as double;
+        }
       }
       rows.add(_CarritoRow.header(
         comboId: origen,
         comboNombre: (it.origenComboNombre as String?) ?? 'Combo',
         comboTotal: total,
+        comboAhorro: ahorro,
       ));
       lastCombo = origen;
     }
@@ -560,14 +571,18 @@ List<_CarritoRow> _buildRows(List items) {
 
 /// Header visual de un combo en el carrito. Muestra ícono + nombre + total
 /// y un botón "X" para eliminar el combo entero (todos sus componentes).
+/// Si hay ahorro (descuento prorrateado entre componentes > 0), también lo
+/// muestra abajo en verde como "Ahorro S/X.XX".
 class _ComboHeaderTile extends StatelessWidget {
   final String nombre;
   final double total;
+  final double ahorro;
   final VoidCallback onEliminar;
 
   const _ComboHeaderTile({
     required this.nombre,
     required this.total,
+    required this.ahorro,
     required this.onEliminar,
   });
 
@@ -576,39 +591,59 @@ class _ComboHeaderTile extends StatelessWidget {
     return Container(
       color: Colors.amber.shade100,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.local_offer, size: 16, color: Colors.amber.shade800),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text(
-              nombre.toUpperCase(),
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: Colors.amber.shade900,
+          Row(
+            children: [
+              Icon(Icons.local_offer, size: 16, color: Colors.amber.shade800),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  nombre.toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.amber.shade900,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
+              Text(
+                'S/ ${total.toStringAsFixed(2)}',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.amber.shade900,
+                ),
+              ),
+              const SizedBox(width: 8),
+              InkWell(
+                onTap: onEliminar,
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding: const EdgeInsets.all(4),
+                  child:
+                      Icon(Icons.close, size: 16, color: Colors.red.shade700),
+                ),
+              ),
+            ],
           ),
-          Text(
-            'S/ ${total.toStringAsFixed(2)}',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: Colors.amber.shade900,
+          if (ahorro > 0) ...[
+            const SizedBox(height: 2),
+            Padding(
+              padding: const EdgeInsets.only(left: 22),
+              child: Text(
+                'Ahorro S/ ${ahorro.toStringAsFixed(2)}',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.green.shade700,
+                ),
+              ),
             ),
-          ),
-          const SizedBox(width: 8),
-          InkWell(
-            onTap: onEliminar,
-            borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: const EdgeInsets.all(4),
-              child: Icon(Icons.close, size: 16, color: Colors.red.shade700),
-            ),
-          ),
+          ],
         ],
       ),
     );

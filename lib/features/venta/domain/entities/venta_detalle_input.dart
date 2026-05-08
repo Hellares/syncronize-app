@@ -96,6 +96,8 @@ class VentaDetalleInput {
         'precioIncluyeIgv': precioIncluyeIgv,
         'tipoAfectacion': tipoAfectacion,
         if (icbper > 0) 'icbper': icbper,
+        if (origenComboId != null) 'origenComboId': origenComboId,
+        if (origenComboNombre != null) 'origenComboNombre': origenComboNombre,
       };
 
   VentaDetalleInput copyWith({

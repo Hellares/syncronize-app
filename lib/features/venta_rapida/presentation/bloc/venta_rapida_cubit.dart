@@ -198,49 +198,58 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     emit(state.copyWith(clearComboPendienteOferta: true));
   }
 
-  /// Lógica pura de expansión + prorrateo. Se llama desde `_agregarCombo`
-  /// (caso sin oferta) o desde `confirmarComboPendiente` (caso con oferta
-  /// confirmada por el cajero).
+  /// Lógica pura de expansión. Se llama desde `_agregarCombo` (sin oferta)
+  /// o desde `confirmarComboPendiente` (con oferta confirmada).
+  ///
+  /// **Estrategia de precio**: cada componente se manda al backend con su
+  /// `precioUnitario` REAL (precio regular del componente) y un `descuento`
+  /// prorrateado del descuento total del combo. Razones:
+  /// 1. Transparencia: el cajero/cliente ve el precio real de cada producto
+  ///    y cuánto se ahorra con el combo.
+  /// 2. Trazabilidad: el campo `descuento` del VentaDetalle persiste,
+  ///    permitiendo reportes "¿cuánto descuento aplicamos vía combos?".
+  /// 3. Coherencia: la BD guarda precios reales — los reportes "cuánto se
+  ///    vendió de X producto" reflejan el precio normal, no el prorrateado.
+  ///
+  /// El último componente compensa centavos de redondeo para que la suma
+  /// `Σ (precioUnitario·cantidad − descuento)` sea exactamente `precioFinal`.
   void _expandirYAgregarCombo(Combo combo) {
     final precioFinal = combo.precioFinal;
     final precioRegularTotal = combo.precioRegularTotal;
+    final descuentoTotal = (precioRegularTotal - precioFinal).clamp(0, double.infinity).toDouble();
     final igvPorc = state.impuestoPorcentaje;
     final componentes = combo.componentes;
 
-    // Prorrateo proporcional: cada componente recibe parte del precioFinal
-    // del combo según su peso en el precioRegularTotal. Si precioRegularTotal
-    // es 0 (caso degenerado), distribución equitativa.
-    double subtotalAcumulado = 0;
+    double descuentoAcumulado = 0;
     final nuevos = <VentaDetalleInput>[];
     for (var i = 0; i < componentes.length; i++) {
       final c = componentes[i];
       final esUltimo = i == componentes.length - 1;
-      final precioRegularCompTotal = c.precioUnitarioRegular * c.cantidad;
+      final precioRegularComponente = c.precioUnitarioRegular;
+      final precioRegularTotalComp = precioRegularComponente * c.cantidad;
 
-      double subtotalProrrateado;
+      double descuentoComponente;
       if (esUltimo) {
-        // Compensa redondeo: el último completa la suma exacta.
-        subtotalProrrateado = precioFinal - subtotalAcumulado;
+        // El último compensa el redondeo: completa el descuento total.
+        descuentoComponente = descuentoTotal - descuentoAcumulado;
       } else if (precioRegularTotal > 0) {
-        subtotalProrrateado =
-            precioFinal * (precioRegularCompTotal / precioRegularTotal);
-        subtotalProrrateado = (subtotalProrrateado * 100).round() / 100.0;
+        descuentoComponente =
+            descuentoTotal * (precioRegularTotalComp / precioRegularTotal);
+        descuentoComponente = (descuentoComponente * 100).round() / 100.0;
       } else {
-        subtotalProrrateado = precioFinal / componentes.length;
-        subtotalProrrateado = (subtotalProrrateado * 100).round() / 100.0;
+        descuentoComponente = descuentoTotal / componentes.length;
+        descuentoComponente = (descuentoComponente * 100).round() / 100.0;
       }
-
-      final precioUnitario =
-          c.cantidad > 0 ? subtotalProrrateado / c.cantidad : 0.0;
-      subtotalAcumulado += subtotalProrrateado;
+      descuentoAcumulado += descuentoComponente;
 
       nuevos.add(VentaDetalleInput(
         productoId: c.componenteProductoId,
         varianteId: c.componenteVarianteId,
         descripcion: c.nombre,
         cantidad: c.cantidad.toDouble(),
-        precioUnitario: precioUnitario,
-        precioBase: c.precioUnitarioRegular,
+        precioUnitario: precioRegularComponente,
+        descuento: descuentoComponente,
+        precioBase: precioRegularComponente,
         porcentajeIGV: igvPorc,
         precioIncluyeIgv: true,
         tipoAfectacion: '10',
