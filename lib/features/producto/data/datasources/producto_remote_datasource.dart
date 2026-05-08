@@ -95,6 +95,28 @@ class ProductoRemoteDataSource {
     );
   }
 
+  /// Restaura un producto previamente eliminado (papelera).
+  ///
+  /// PATCH /api/productos/:id/restaurar
+  /// Backend valida que el SKU no esté en uso por otro producto activo.
+  Future<void> restaurarProducto({required String productoId}) async {
+    await _dioClient.patch(
+      '${ApiConstants.productos}/$productoId/restaurar',
+    );
+  }
+
+  /// Toggle activo/inactivo de un producto. Devuelve el nuevo estado.
+  ///
+  /// PATCH /api/productos/:id/toggle-active
+  /// No afecta deletedAt. Falla si el producto está en papelera.
+  Future<bool> toggleActiveProducto({required String productoId}) async {
+    final response = await _dioClient.patch(
+      '${ApiConstants.productos}/$productoId/toggle-active',
+    );
+    final data = response.data as Map<String, dynamic>;
+    return data['isActive'] as bool;
+  }
+
   /// Obtiene el stock total de un producto (incluyendo variantes)
   ///
   /// GET /api/productos/:id/stock-total

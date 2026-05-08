@@ -27,6 +27,10 @@ class ProductoFiltros extends Equatable {
   final bool? stockBajo;
   final bool? soloProductos;
   final bool? soloCombos;
+  /// Listar SOLO productos eliminados (papelera). true → deletedAt != null.
+  final bool? soloEliminados;
+  /// Filtrar por estado activo. null = ambos. Independiente de soloEliminados.
+  final bool? isActive;
   final OrdenProducto? orden;
 
   const ProductoFiltros({
@@ -42,6 +46,8 @@ class ProductoFiltros extends Equatable {
     this.stockBajo,
     this.soloProductos,
     this.soloCombos,
+    this.soloEliminados,
+    this.isActive,
     this.orden,
   });
 
@@ -134,6 +140,12 @@ class ProductoFiltros extends Equatable {
     if (soloCombos == true) {
       params['soloCombos'] = 'true';
     }
+    if (soloEliminados == true) {
+      params['soloEliminados'] = 'true';
+    }
+    if (isActive != null) {
+      params['isActive'] = isActive.toString();
+    }
     if (orden != null) {
       params['orden'] = _ordenToString(orden!);
     }
@@ -176,6 +188,8 @@ class ProductoFiltros extends Equatable {
         stockBajo,
         soloProductos,
         soloCombos,
+        soloEliminados,
+        isActive,
         orden,
       ];
 }

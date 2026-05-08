@@ -83,6 +83,12 @@ abstract class ProductoRepository {
     required String empresaId,
   });
 
+  /// Restaura un producto eliminado (saca de papelera).
+  Future<Resource<void>> restaurarProducto({required String productoId});
+
+  /// Toggle activo/inactivo. Devuelve el nuevo estado de isActive.
+  Future<Resource<bool>> toggleActiveProducto({required String productoId});
+
   /// Obtiene el stock total de un producto
   /// Si tiene variantes, retorna la suma de stock de todas las variantes activas
   /// Si no tiene variantes, retorna el stock del producto base

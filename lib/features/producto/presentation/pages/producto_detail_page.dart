@@ -11,8 +11,11 @@ import 'package:syncronize/core/widgets/product_image_gallery.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import 'package:syncronize/features/auth/presentation/widgets/widgets.dart';
 import 'package:syncronize/features/producto/domain/entities/producto.dart';
+import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/utils/date_formatter.dart';
+import '../../../../core/utils/resource.dart';
+import '../../domain/repositories/producto_repository.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../bloc/producto_detail/producto_detail_cubit.dart';
@@ -133,35 +136,55 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
                   empresaState.context.permissions.canManageProducts) {
                 return BlocBuilder<ProductoDetailCubit, ProductoDetailState>(
                   builder: (context, productoState) {
-                    return IconButton(
-                      icon: const Icon(Icons.edit, size: 18),
-                      onPressed: () async {
-                        // Pasar el producto completo si ya está cargado para evitar petición duplicada
-                        final productoData = productoState is ProductoDetailLoaded
-                          ? productoState.producto
-                          : null;
-
-                        // Guardar referencias antes del await para evitar usar BuildContext desactualizado
-                        final detailCubit = context.read<ProductoDetailCubit>();
-                        final empresaId = empresaState.context.empresa.id;
-
-                        // Esperar el resultado del formulario
-                        final result = await context.push(
-                          '/empresa/productos/${widget.productoId}/editar',
-                          extra: productoData,
-                        );
-
-                        // ✅ Si retorna un producto actualizado, recargarlo
-                        if (!mounted) return;
-                        if (result != null && result is Producto) {
-                          detailCubit.loadProductoFromCache(result, empresaId);
-                          // Marcar que el producto fue editado
-                          setState(() {
-                            _productoWasEdited = true;
-                          });
-                        }
-                      },
-                      tooltip: 'Editar',
+                    final productoCargado = productoState is ProductoDetailLoaded
+                        ? productoState.producto
+                        : null;
+                    return Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Toggle activo/inactivo (solo si producto está cargado).
+                        // Visible: Icons.visibility (activo) / Icons.visibility_off (inactivo).
+                        if (productoCargado != null)
+                          IconButton(
+                            icon: Icon(
+                              productoCargado.isActive
+                                  ? Icons.visibility
+                                  : Icons.visibility_off,
+                              size: 18,
+                              color: productoCargado.isActive
+                                  ? AppColors.white
+                                  : Colors.amber,
+                            ),
+                            tooltip: productoCargado.isActive
+                                ? 'Desactivar producto'
+                                : 'Activar producto',
+                            onPressed: () => _toggleActive(
+                              context,
+                              productoCargado,
+                              empresaState.context.empresa.id,
+                            ),
+                          ),
+                        IconButton(
+                          icon: const Icon(Icons.edit, size: 18),
+                          onPressed: () async {
+                            final productoData = productoCargado;
+                            final detailCubit = context.read<ProductoDetailCubit>();
+                            final empresaId = empresaState.context.empresa.id;
+                            final result = await context.push(
+                              '/empresa/productos/${widget.productoId}/editar',
+                              extra: productoData,
+                            );
+                            if (!mounted) return;
+                            if (result != null && result is Producto) {
+                              detailCubit.loadProductoFromCache(result, empresaId);
+                              setState(() {
+                                _productoWasEdited = true;
+                              });
+                            }
+                          },
+                          tooltip: 'Editar',
+                        ),
+                      ],
                     );
                   },
                 );
@@ -1043,5 +1066,75 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
       ),
     );
     // Cierre del PopScope
+  }
+
+  /// Activa o desactiva el producto (toggle isActive). Pide confirmación,
+  /// llama al endpoint y refresca el detalle + invalida el listado.
+  Future<void> _toggleActive(
+    BuildContext context,
+    Producto producto,
+    String empresaId,
+  ) async {
+    final activando = !producto.isActive;
+    final confirma = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(activando ? 'Activar producto' : 'Desactivar producto'),
+        content: Text(
+          activando
+              ? '"${producto.nombre}" volverá a estar disponible para venta '
+                  'en POS y Venta Rápida.'
+              : '"${producto.nombre}" dejará de aparecer en POS y Venta Rápida. '
+                  'No se elimina, solo se oculta. Podés volver a activarlo cuando quieras.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: activando ? Colors.green : Colors.orange,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(activando ? 'Activar' : 'Desactivar'),
+          ),
+        ],
+      ),
+    );
+    if (confirma != true) return;
+
+    final repo = locator<ProductoRepository>();
+    final detailCubit = context.read<ProductoDetailCubit>();
+    final listCubit = context.read<ProductoListCubit>();
+    final messenger = ScaffoldMessenger.of(context);
+
+    final result = await repo.toggleActiveProducto(productoId: producto.id);
+    if (!mounted) return;
+
+    if (result is Success<bool>) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            result.data ? 'Producto activado' : 'Producto desactivado',
+          ),
+          backgroundColor: result.data ? Colors.green : Colors.orange,
+        ),
+      );
+      // Recargar detalle (para que el isActive se refleje) e invalidar listado.
+      detailCubit.reload();
+      listCubit.reload();
+      setState(() {
+        _productoWasEdited = true;
+      });
+    } else if (result is Error<bool>) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(result.message),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 }

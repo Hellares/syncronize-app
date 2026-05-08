@@ -74,6 +74,7 @@ import '../../features/direccion/presentation/pages/mis_direcciones_page.dart';
 import '../../features/pos/presentation/pages/cola_pos_page.dart';
 import '../../features/pos/presentation/pages/cobrar_cotizacion_page.dart';
 import '../../features/producto/presentation/pages/productos_page.dart';
+import '../../features/producto/presentation/pages/productos_eliminados_page.dart';
 import '../../features/producto/presentation/pages/producto_detail_page.dart';
 import '../../features/producto/presentation/pages/producto_form_page.dart';
 import '../../features/producto/presentation/pages/producto_variantes_page.dart';
@@ -120,6 +121,9 @@ import '../../features/cotizacion/presentation/pages/cotizacion_form_page.dart';
 import '../../features/cotizacion/presentation/pages/cotizacion_detail_page.dart';
 import '../../features/venta/presentation/pages/ventas_page.dart';
 import '../../features/venta/presentation/pages/venta_pos_page.dart';
+import '../../features/venta_rapida/presentation/pages/venta_rapida_productos_page.dart';
+import '../../features/venta_rapida/presentation/pages/venta_rapida_carrito_page.dart';
+import '../../features/venta_rapida/presentation/pages/venta_rapida_cobro_page.dart';
 import '../../features/venta/presentation/pages/venta_detail_page.dart';
 import '../../features/venta/presentation/pages/flujo_documentos_page.dart';
 import '../../features/venta/presentation/pages/venta_ticket_preview_page.dart';
@@ -445,6 +449,11 @@ class AppRouter {
         path: '/empresa/productos/compatibilidad',
         name: 'empresa-productos-compatibilidad',
         builder: (context, state) => const ReglasCompatibilidadPage(),
+      ),
+      GoRoute(
+        path: '/empresa/productos/eliminados',
+        name: 'empresa-productos-eliminados',
+        builder: (context, state) => const ProductosEliminadosPage(),
       ),
       GoRoute(
         path: '/empresa/productos/:id',
@@ -907,6 +916,22 @@ class AppRouter {
         path: '/empresa/ventas/nueva',
         name: 'empresa-ventas-nueva',
         builder: (context, state) => const VentaPOSPage(),
+      ),
+      // Venta Rápida (POS simplificado)
+      GoRoute(
+        path: '/empresa/venta-rapida',
+        name: 'empresa-venta-rapida',
+        builder: (context, state) => const VentaRapidaProductosPage(),
+      ),
+      GoRoute(
+        path: '/empresa/venta-rapida/carrito',
+        name: 'empresa-venta-rapida-carrito',
+        builder: (context, state) => const VentaRapidaCarritoPage(),
+      ),
+      GoRoute(
+        path: '/empresa/venta-rapida/cobro',
+        name: 'empresa-venta-rapida-cobro',
+        builder: (context, state) => const VentaRapidaCobroPage(),
       ),
       // Analytics ANTES de :id para evitar que :id capture "analytics"
       GoRoute(

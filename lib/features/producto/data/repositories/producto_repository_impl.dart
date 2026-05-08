@@ -278,6 +278,33 @@ class ProductoRepositoryImpl implements ProductoRepository {
   }
 
   @override
+  Future<Resource<void>> restaurarProducto({required String productoId}) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      await _remoteDataSource.restaurarProducto(productoId: productoId);
+      return Success(null);
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Producto');
+    }
+  }
+
+  @override
+  Future<Resource<bool>> toggleActiveProducto({required String productoId}) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final isActive =
+          await _remoteDataSource.toggleActiveProducto(productoId: productoId);
+      return Success(isActive);
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Producto');
+    }
+  }
+
+  @override
   Future<Resource<int>> getStockTotal({
     required String productoId,
     required String empresaId,
