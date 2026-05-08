@@ -59,8 +59,15 @@ class VentaRapidaProductosPage extends StatelessWidget {
           }(),
         ),
         BlocProvider(
+          // Venta Rápida solo debe mostrar productos disponibles para venta
+          // (isActive=true). Productos inactivos o eliminados quedan ocultos
+          // en este flujo de cobro.
           create: (_) => locator<ProductoListCubit>()
-            ..loadProductos(empresaId: empresaId!, sedeId: sedeId),
+            ..loadProductos(
+              empresaId: empresaId!,
+              sedeId: sedeId,
+              filtros: const ProductoFiltros(isActive: true),
+            ),
         ),
       ],
       child: _ProductosView(sedeId: sedeId),
@@ -124,7 +131,7 @@ class _ProductosViewState extends State<_ProductosView> {
     _searchCtrl.text = _lastScannedCode!;
     if (!mounted) return;
     context.read<ProductoListCubit>().applyFiltros(
-          ProductoFiltros(search: _lastScannedCode),
+          ProductoFiltros(search: _lastScannedCode, isActive: true),
         );
   }
 
@@ -159,7 +166,11 @@ class _ProductosViewState extends State<_ProductosView> {
     context.read<VentaRapidaCubit>().agregarProducto(p);
     _lastScannedCode = null;
     _searchCtrl.clear();
-    context.read<ProductoListCubit>().resetFiltros(sedeId: widget.sedeId);
+    // Reset al estado base de Venta Rápida: solo productos activos.
+    context.read<ProductoListCubit>().applyFiltros(
+          const ProductoFiltros(isActive: true),
+          sedeId: widget.sedeId,
+        );
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('✓ ${p.nombre} agregado'),
@@ -272,12 +283,14 @@ class _ProductosViewState extends State<_ProductosView> {
                 // escaneado — desactivamos el auto-add.
                 _lastScannedCode = null;
                 context.read<ProductoListCubit>().applyFiltros(
-                      ProductoFiltros(search: value),
+                      ProductoFiltros(search: value, isActive: true),
                     );
               },
               onClear: () {
                 _lastScannedCode = null;
-                context.read<ProductoListCubit>().resetFiltros(
+                // Volver al listado base de Venta Rápida: solo activos.
+                context.read<ProductoListCubit>().applyFiltros(
+                      const ProductoFiltros(isActive: true),
                       sedeId: widget.sedeId,
                     );
               },

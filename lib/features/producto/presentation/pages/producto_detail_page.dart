@@ -184,6 +184,17 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
                           },
                           tooltip: 'Editar',
                         ),
+                        // Eliminar (soft delete → papelera).
+                        if (productoCargado != null)
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline, size: 18),
+                            tooltip: 'Eliminar producto',
+                            onPressed: () => _eliminar(
+                              context,
+                              productoCargado,
+                              empresaState.context.empresa.id,
+                            ),
+                          ),
                       ],
                     );
                   },
@@ -1066,6 +1077,101 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
       ),
     );
     // Cierre del PopScope
+  }
+
+  /// Elimina el producto (soft delete → papelera). Pide confirmación clara
+  /// explicando que se puede restaurar después. Al éxito navega atrás al
+  /// listado e invalida la lista para que desaparezca.
+  Future<void> _eliminar(
+    BuildContext context,
+    Producto producto,
+    String empresaId,
+  ) async {
+    final confirma = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.delete_outline, color: Colors.red.shade700),
+            const SizedBox(width: 8),
+            const Text('Eliminar producto'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '"${producto.nombre}" se moverá a la papelera.',
+              style: const TextStyle(fontSize: 13),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              '• No aparecerá en POS, Venta Rápida ni listado normal.\n'
+              '• Las ventas históricas que lo incluyen se mantienen intactas.\n'
+              '• Podés restaurarlo desde "Productos eliminados".',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.delete_outline, size: 16),
+            label: const Text('Eliminar'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red.shade600,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.of(ctx).pop(true),
+          ),
+        ],
+      ),
+    );
+    if (confirma != true) return;
+
+    final repo = locator<ProductoRepository>();
+    final listCubit = context.read<ProductoListCubit>();
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+
+    final result = await repo.eliminarProducto(
+      productoId: producto.id,
+      empresaId: empresaId,
+    );
+    if (!mounted) return;
+
+    if (result is Success<void>) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'Producto "${producto.nombre}" enviado a la papelera',
+          ),
+          backgroundColor: Colors.red.shade600,
+          action: SnackBarAction(
+            label: 'Ver papelera',
+            textColor: Colors.white,
+            onPressed: () {
+              context.push('/empresa/productos/eliminados');
+            },
+          ),
+        ),
+      );
+      listCubit.reload();
+      // Volver al listado: el producto eliminado ya no debería estar visible.
+      _productoWasEdited = true;
+      navigator.pop(_productoWasEdited);
+    } else if (result is Error<void>) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(result.message),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   /// Activa o desactiva el producto (toggle isActive). Pide confirmación,

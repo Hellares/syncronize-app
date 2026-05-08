@@ -500,6 +500,32 @@ class ProductoListTile extends StatelessWidget {
             // Stock badge
             _buildStockBadge(),
 
+            // Indicador de "no disponible para venta" (isActive=false).
+            // Solo icono compacto al lado del stock para evitar overflow
+            // del card en pantallas chicas.
+            if (!producto.isActive) ...[
+              const SizedBox(width: 6),
+              Tooltip(
+                message: 'No disponible para venta',
+                child: Container(
+                  padding: const EdgeInsets.all(3),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(
+                      color: Colors.red.withValues(alpha: 0.4),
+                      width: 0.6,
+                    ),
+                  ),
+                  child: Icon(
+                    Icons.visibility_off,
+                    size: 14,
+                    color: Colors.red[700],
+                  ),
+                ),
+              ),
+            ],
+
             // SIN PRECIO badge (solo si no tiene precio configurado y no es producto con variantes)
             if (!producto.tieneVariantes && !_tienePrecioConfigurado()) ...[
               const SizedBox(width: 8),
@@ -579,33 +605,6 @@ class ProductoListTile extends StatelessWidget {
           ],
         ),
 
-        // Línea 3: Badge de INACTIVO (si aplica)
-        if (!producto.isActive) ...[
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.red.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.visibility_off, size: 11, color: Colors.red[700]),
-                const SizedBox(width: 4),
-                Text(
-                  'INACTIVO',
-                  style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.red[700],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ],
     );
   }
