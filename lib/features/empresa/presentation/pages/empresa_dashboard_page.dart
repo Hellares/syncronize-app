@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
+import 'package:syncronize/core/utils/date_formatter.dart';
 import 'package:syncronize/core/widgets/custom_loading.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/gradient_background.dart';
@@ -21,6 +22,7 @@ import '../widgets/sedes_section.dart';
 import '../widgets/usage_limit_card.dart';
 import '../widgets/resumen_financiero_mini_cards.dart';
 import '../widgets/accesos_rapidos_section.dart';
+import '../widgets/mi_rendimiento_banner.dart';
 import '../widgets/cajas_activas_card.dart';
 import '../widgets/alertas_activas_card.dart';
 import '../widgets/ventas_sparkline_card.dart';
@@ -39,12 +41,18 @@ class EmpresaDashboardPage extends StatefulWidget {
 class _EmpresaDashboardPageState extends State<EmpresaDashboardPage> {
   int _pendientesCount = 0;
 
+  /// Flag para que la carga inicial gated (resumen + pendientes) se
+  /// dispare una sola vez por mount, no en cada rebuild.
+  bool _initialLoadDone = false;
+
   @override
   void initState() {
     super.initState();
-    // Cargar el contexto de la empresa al iniciar
+    // Cargar el contexto de la empresa al iniciar. Las cargas
+    // dependientes de permisos (pendientes, resumen financiero) se
+    // disparan desde build/refresh una vez resueltos los permisos para
+    // evitar 403 en roles operativos (cajero/vendedor).
     context.read<EmpresaContextCubit>().loadEmpresaContext();
-    _loadPendientes();
   }
 
   Future<void> _loadPendientes() async {
@@ -54,6 +62,37 @@ class _EmpresaDashboardPageState extends State<EmpresaDashboardPage> {
     if (result is Success<List<TercerizacionServicio>>) {
       setState(() => _pendientesCount = result.data.length);
     }
+  }
+
+  /// Dispara cargas que requieren permisos solo si el rol los tiene.
+  /// Se ejecuta una vez por mount. Diferido con `addPostFrameCallback`
+  /// porque se invoca desde el builder y `loadResumen` emite estados
+  /// (no se puede tocar el cubit durante build).
+  void _maybeLoadPermissionGated(
+    BuildContext ctx,
+    EmpresaContext empresaContext,
+  ) {
+    if (_initialLoadDone) return;
+    _initialLoadDone = true;
+    final p = empresaContext.permissions;
+    final puedeVerFinanzas = p.canViewReports || p.canViewStatistics;
+    final esAdmin = p.canManageUsers || p.canManageSettings;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      // Resumen financiero: solo admin/contador.
+      if (puedeVerFinanzas) {
+        final now = DateTime.now();
+        ctx.read<ResumenFinancieroCubit>().loadResumen(
+              fechaDesde: DateFormatter.toUtcIso(DateTime(now.year, now.month, 1)),
+              fechaHasta: DateFormatter.toUtcIso(now),
+            );
+      }
+      // Tercerizaciones pendientes: solo admin (gestión).
+      if (esAdmin) {
+        _loadPendientes();
+      }
+    });
   }
 
   bool _isBlocked(EmpresaContextState state) {
@@ -81,15 +120,11 @@ class _EmpresaDashboardPageState extends State<EmpresaDashboardPage> {
           body: GradientBackground(
             style: GradientStyle.minimal,
             child: BlocProvider(
-              create: (_) {
-                final now = DateTime.now();
-                final inicio = DateTime(now.year, now.month, 1);
-                return locator<ResumenFinancieroCubit>()
-                  ..loadResumen(
-                    fechaDesde: inicio.toIso8601String(),
-                    fechaHasta: now.toIso8601String(),
-                  );
-              },
+              // Provee el cubit SIN cargarlo. La carga (`loadResumen`)
+              // se hace dentro del builder, condicionada a permisos,
+              // para evitar 403 en cajero/vendedor (no tienen acceso
+              // a reportes/estadísticas).
+              create: (_) => locator<ResumenFinancieroCubit>(),
               child: BlocBuilder<EmpresaContextCubit, EmpresaContextState>(
                 builder: (context, state) {
                   if (state is EmpresaContextLoading) {
@@ -107,6 +142,11 @@ class _EmpresaDashboardPageState extends State<EmpresaDashboardPage> {
                     if (blocked) {
                       return SuscripcionVencidaScreen(empresa: empresa);
                     }
+
+                    // Carga inicial condicionada a permisos. Solo se
+                    // dispara la primera vez (cuando el cubit todavía
+                    // está en Initial) — refresh manual usa `RefreshIndicator`.
+                    _maybeLoadPermissionGated(context, state.context);
 
                     return _buildDashboard(context, state.context);
                   }
@@ -232,59 +272,94 @@ class _EmpresaDashboardPageState extends State<EmpresaDashboardPage> {
         final empresaCubit = innerContext.read<EmpresaContextCubit>();
         final resumenCubit = innerContext.read<ResumenFinancieroCubit>();
         await empresaCubit.reloadContext();
-        _loadPendientes();
-        final now = DateTime.now();
-        resumenCubit.loadResumen(
-          fechaDesde: DateTime(now.year, now.month, 1).toIso8601String(),
-          fechaHasta: now.toIso8601String(),
-        );
+        // Recarga gated: solo dispara endpoints permitidos por el rol.
+        final p = empresaContext.permissions;
+        final puedeVerFinanzas = p.canViewReports || p.canViewStatistics;
+        final esAdmin = p.canManageUsers || p.canManageSettings;
+        if (esAdmin) _loadPendientes();
+        if (puedeVerFinanzas) {
+          final now = DateTime.now();
+          resumenCubit.loadResumen(
+            fechaDesde: DateFormatter.toUtcIso(DateTime(now.year, now.month, 1)),
+            fechaHasta: DateFormatter.toUtcIso(now),
+          );
+        }
       },
-      child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Banner de suscripción vencida (período de gracia)
-            SuscripcionBanner(empresa: empresaContext.empresa),
+      child: Builder(
+        builder: (ctx) {
+          final p = empresaContext.permissions;
+          // Solo admins ven la información de gestión empresa (planes,
+          // límites, sedes, métricas financieras de toda la empresa).
+          // Operativos (vendedor/cajero) ven su rendimiento + accesos.
+          final esAdmin = p.canManageUsers || p.canManageSettings;
+          final puedeVerFinanzas = p.canViewReports || p.canViewStatistics;
 
-            // Plan de Suscripción
-            PlanSuscripcionCard(empresaContext: empresaContext),
-            const SizedBox(height: 16),
+          return SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Banner de suscripción vencida (siempre visible)
+                SuscripcionBanner(empresa: empresaContext.empresa),
 
-            // Accesos rápidos
-            const AccesosRapidosSection(),
-            const SizedBox(height: 16),
+                // Plan de Suscripción — solo admin
+                if (esAdmin) ...[
+                  PlanSuscripcionCard(empresaContext: empresaContext),
+                  const SizedBox(height: 16),
+                ],
 
-            // Resumen financiero mini cards
-            const ResumenFinancieroMiniCards(),
-            const SizedBox(height: 16),
+                // Banner "Mi rendimiento" — vendedor/cajero no-admin
+                if (MiRendimientoBanner.debeMostrar(
+                  canViewVentas: p.canViewVentas,
+                  canManageUsers: p.canManageUsers,
+                  canManageSettings: p.canManageSettings,
+                ))
+                  const MiRendimientoBanner(),
 
-            // Cajas activas
-            const CajasActivasCard(),
-            const SizedBox(height: 16),
+                // Accesos rápidos (filtrados por permisos en su widget)
+                const AccesosRapidosSection(),
+                const SizedBox(height: 16),
 
-            // Alertas activas
-            const AlertasActivasCard(),
-            const SizedBox(height: 16),
+                // Resumen financiero mini cards — admin/contador
+                if (puedeVerFinanzas) ...[
+                  const ResumenFinancieroMiniCards(),
+                  const SizedBox(height: 16),
+                ],
 
-            // Ventas sparkline
-            const VentasSparklineCard(),
-            const SizedBox(height: 16),
+                // CajasActivas, Alertas y VentasSparkline consumen el mismo
+                // ResumenFinancieroCubit (endpoint /resumen-financiero) que
+                // 403 para roles operativos. Por eso van todas gated por
+                // `puedeVerFinanzas`. Si en el futuro se necesitan en el
+                // dashboard del cajero/vendedor deberán migrarse a un
+                // endpoint propio con permiso granular.
+                if (puedeVerFinanzas) ...[
+                  if (p.canViewCaja) ...[
+                    const CajasActivasCard(),
+                    const SizedBox(height: 16),
+                  ],
+                  const AlertasActivasCard(),
+                  const SizedBox(height: 16),
+                  if (p.canViewVentas) ...[
+                    const VentasSparklineCard(),
+                    const SizedBox(height: 16),
+                  ],
+                ],
 
-            // Uso del Plan
-            if (empresaContext.planLimits != null) ...[
-              AppSubtitle('Uso del Plan', fontSize: 12),
-              const SizedBox(height: 5),
-              UsageLimitCard(planLimits: empresaContext.planLimits!),
-            ],
+                // Uso del Plan — solo admin
+                if (esAdmin && empresaContext.planLimits != null) ...[
+                  AppSubtitle('Uso del Plan', fontSize: 12),
+                  const SizedBox(height: 5),
+                  UsageLimitCard(planLimits: empresaContext.planLimits!),
+                  const SizedBox(height: 16),
+                ],
 
-            const SizedBox(height: 16),
-
-            // Sedes
-            SedesSection(empresaContext: empresaContext),
-          ],
-        ),
+                // Sedes — solo admin (gestión de sedes)
+                if (esAdmin) SedesSection(empresaContext: empresaContext),
+              ],
+            ),
+          );
+        },
       ),
     );
   }

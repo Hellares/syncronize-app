@@ -1,4 +1,5 @@
 import 'package:injectable/injectable.dart';
+import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/resource.dart';
 import '../../domain/entities/politica_descuento.dart';
 import '../../domain/repositories/descuento_repository.dart';
@@ -85,8 +86,8 @@ class DescuentoRepositoryImpl implements DescuentoRepository {
         if (descuentoMaximo != null) 'descuentoMaximo': descuentoMaximo,
         if (montoMinCompra != null) 'montoMinCompra': montoMinCompra,
         if (cantidadMaxUsos != null) 'cantidadMaxUsos': cantidadMaxUsos,
-        if (fechaInicio != null) 'fechaInicio': fechaInicio.toIso8601String(),
-        if (fechaFin != null) 'fechaFin': fechaFin.toIso8601String(),
+        if (fechaInicio != null) 'fechaInicio': DateFormatter.toUtcIso(fechaInicio),
+        if (fechaFin != null) 'fechaFin': DateFormatter.toUtcIso(fechaFin),
         if (aplicarATodos != null) 'aplicarATodos': aplicarATodos,
         if (prioridad != null) 'prioridad': prioridad,
         if (maxFamiliaresPorTrabajador != null)
@@ -133,8 +134,8 @@ class DescuentoRepositoryImpl implements DescuentoRepository {
         if (descuentoMaximo != null) 'descuentoMaximo': descuentoMaximo,
         if (montoMinCompra != null) 'montoMinCompra': montoMinCompra,
         if (cantidadMaxUsos != null) 'cantidadMaxUsos': cantidadMaxUsos,
-        if (fechaInicio != null) 'fechaInicio': fechaInicio.toIso8601String(),
-        if (fechaFin != null) 'fechaFin': fechaFin.toIso8601String(),
+        if (fechaInicio != null) 'fechaInicio': DateFormatter.toUtcIso(fechaInicio),
+        if (fechaFin != null) 'fechaFin': DateFormatter.toUtcIso(fechaFin),
         if (aplicarATodos != null) 'aplicarATodos': aplicarATodos,
         if (prioridad != null) 'prioridad': prioridad,
         if (maxFamiliaresPorTrabajador != null)

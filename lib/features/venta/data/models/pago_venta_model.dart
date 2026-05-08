@@ -1,3 +1,4 @@
+import '../../../../core/utils/date_formatter.dart';
 import '../../domain/entities/pago_venta.dart';
 import '../../domain/entities/venta.dart';
 
@@ -38,7 +39,7 @@ class PagoVentaModel extends PagoVenta {
       'monto': monto,
       if (referencia != null) 'referencia': referencia,
       if (banco != null) 'banco': banco,
-      'fechaPago': fechaPago.toIso8601String(),
+      'fechaPago': DateFormatter.toUtcIso(fechaPago),
     };
   }
 

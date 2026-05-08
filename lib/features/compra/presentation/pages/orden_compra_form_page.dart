@@ -9,6 +9,7 @@ import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import 'package:syncronize/features/auth/presentation/widgets/custom_button.dart';
 import 'package:syncronize/core/widgets/custom_dropdown.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/utils/date_formatter.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../../empresa/domain/entities/sede.dart';
@@ -85,7 +86,8 @@ class _OrdenCompraFormViewState extends State<_OrdenCompraFormView> {
       _sedeId = o.sedeId;
       _moneda = o.moneda;
       _terminosPago = o.terminosPago;
-      _fechaEntrega = o.fechaEntregaEsperada;
+      // Backend devuelve UTC; convertir a local para el picker.
+      _fechaEntrega = o.fechaEntregaEsperada?.toLocal();
 
       if (o.detalles != null) {
         for (final d in o.detalles!) {
@@ -162,7 +164,7 @@ class _OrdenCompraFormViewState extends State<_OrdenCompraFormView> {
       'sedeId': _sedeId,
       'moneda': _moneda,
       if (_fechaEntrega != null)
-        'fechaEntregaEsperada': _fechaEntrega!.toIso8601String(),
+        'fechaEntregaEsperada': DateFormatter.toUtcIso(_fechaEntrega!),
       if (_terminosPago != null) 'terminosPago': _terminosPago,
       if (_observacionesController.text.trim().isNotEmpty)
         'observaciones': _observacionesController.text.trim(),

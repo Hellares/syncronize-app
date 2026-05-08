@@ -113,8 +113,9 @@ class _PoliticaFormViewState extends State<_PoliticaFormView> {
       _prioridadController.text = politica.prioridad.toString();
       _maxFamiliaresPorTrabajadorController.text =
           politica.maxFamiliaresPorTrabajador?.toString() ?? '';
-      _fechaInicio = politica.fechaInicio;
-      _fechaFin = politica.fechaFin;
+      // Backend devuelve UTC; convertir a local para los pickers.
+      _fechaInicio = politica.fechaInicio?.toLocal();
+      _fechaFin = politica.fechaFin?.toLocal();
       _aplicarATodos = politica.aplicarATodos;
     });
   }

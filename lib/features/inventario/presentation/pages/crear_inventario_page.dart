@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:syncronize/core/di/injection_container.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
+import 'package:syncronize/core/utils/date_formatter.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/widgets/custom_button.dart';
 import 'package:syncronize/core/widgets/custom_dropdown.dart';
@@ -249,7 +250,7 @@ class _CrearInventarioPageState extends State<CrearInventarioPage> {
     };
 
     if (_fechaPlanificada != null) {
-      data['fechaPlanificada'] = _fechaPlanificada!.toIso8601String();
+      data['fechaPlanificada'] = DateFormatter.toUtcIso(_fechaPlanificada!);
     }
     if (_descripcionController.text.trim().isNotEmpty) {
       data['descripcion'] = _descripcionController.text.trim();

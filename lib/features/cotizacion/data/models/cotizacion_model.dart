@@ -1,3 +1,4 @@
+import '../../../../core/utils/date_formatter.dart';
 import '../../domain/entities/cotizacion.dart';
 import '../../domain/entities/cotizacion_detalle.dart';
 import 'cotizacion_detalle_model.dart';
@@ -131,15 +132,15 @@ class CotizacionModel extends Cotizacion {
       'descuento': descuento,
       'impuestos': impuestos,
       'total': total,
-      'fechaEmision': fechaEmision.toIso8601String(),
+      'fechaEmision': DateFormatter.toUtcIso(fechaEmision),
       if (fechaVencimiento != null)
-        'fechaVencimiento': fechaVencimiento!.toIso8601String(),
+        'fechaVencimiento': DateFormatter.toUtcIso(fechaVencimiento!),
       'estado': estado.apiValue,
       if (comprobanteId != null) 'comprobanteId': comprobanteId,
       if (observaciones != null) 'observaciones': observaciones,
       if (condiciones != null) 'condiciones': condiciones,
-      'creadoEn': creadoEn.toIso8601String(),
-      'actualizadoEn': actualizadoEn.toIso8601String(),
+      'creadoEn': DateFormatter.toUtcIso(creadoEn),
+      'actualizadoEn': DateFormatter.toUtcIso(actualizadoEn),
     };
   }
 
@@ -160,7 +161,7 @@ class CotizacionModel extends Cotizacion {
       if (observaciones != null) 'observaciones': observaciones,
       if (condiciones != null) 'condiciones': condiciones,
       if (fechaVencimiento != null)
-        'fechaVencimiento': fechaVencimiento!.toIso8601String(),
+        'fechaVencimiento': DateFormatter.toUtcIso(fechaVencimiento!),
       'detalles': detalles
               ?.map((d) => (d as CotizacionDetalleModel).toCreateJson())
               .toList() ??

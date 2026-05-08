@@ -6,6 +6,7 @@ import '../../../../core/fonts/app_text_widgets.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/theme/gradient_container.dart';
+import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/di/injection_container.dart';
@@ -44,8 +45,8 @@ class _ResumenFinancieroViewState extends State<_ResumenFinancieroView> {
 
   void _load() {
     context.read<ResumenFinancieroCubit>().loadResumen(
-          fechaDesde: _fechaDesde.toIso8601String(),
-          fechaHasta: _fechaHasta.toIso8601String(),
+          fechaDesde: DateFormatter.toUtcIso(_fechaDesde),
+          fechaHasta: DateFormatter.toUtcIso(_fechaHasta),
         );
   }
 

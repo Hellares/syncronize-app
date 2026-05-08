@@ -149,7 +149,7 @@ class _GuiaRemisionEditarPageState extends State<GuiaRemisionEditarPage> {
         _bultosController.text = (guia.numeroBultos ?? 1).toString();
 
         // Fecha
-        _fechaInicioTraslado = guia.fechaInicioTraslado;
+        _fechaInicioTraslado = guia.fechaInicioTraslado.toLocal();
 
         // Observaciones
         _observacionesController.text = guia.observaciones ?? '';

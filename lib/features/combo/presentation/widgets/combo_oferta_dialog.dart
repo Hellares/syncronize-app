@@ -44,8 +44,9 @@ class _ComboOfertaDialogState extends State<ComboOfertaDialog> {
       _precioOfertaController.text =
           widget.combo.precioOferta!.toStringAsFixed(2);
     }
-    _fechaInicioOferta = widget.combo.fechaInicioOferta;
-    _fechaFinOferta = widget.combo.fechaFinOferta;
+    // Backend devuelve UTC; convertir a local para que el picker muestre el día correcto.
+    _fechaInicioOferta = widget.combo.fechaInicioOferta?.toLocal();
+    _fechaFinOferta = widget.combo.fechaFinOferta?.toLocal();
   }
 
   @override
@@ -414,8 +415,12 @@ class _ComboOfertaDialogState extends State<ComboOfertaDialog> {
       final dto = UpdateComboOfertaDto(
         precioOferta: double.tryParse(_precioOfertaController.text) ?? 0,
         enOferta: true,
-        fechaInicioOferta: _fechaInicioOferta?.toIso8601String(),
-        fechaFinOferta: _fechaFinOferta?.toIso8601String(),
+        fechaInicioOferta: _fechaInicioOferta != null
+            ? DateFormatter.toUtcIso(_fechaInicioOferta!)
+            : null,
+        fechaFinOferta: _fechaFinOferta != null
+            ? DateFormatter.toUtcIso(_fechaFinOferta!)
+            : null,
         razon:
             _razonController.text.isNotEmpty ? _razonController.text : null,
       );

@@ -1,5 +1,6 @@
 import 'package:injectable/injectable.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/utils/date_formatter.dart';
 import '../models/reporte_incidencia_model.dart';
 import '../../domain/entities/reporte_incidencia.dart';
 
@@ -25,7 +26,7 @@ class ReporteIncidenciaRemoteDataSource {
         'titulo': titulo,
         'descripcionGeneral': descripcionGeneral,
         'tipoReporte': tipoReporte.value,
-        'fechaIncidente': fechaIncidente.toIso8601String(),
+        'fechaIncidente': DateFormatter.toUtcIso(fechaIncidente),
         'supervisorId': supervisorId,
         'observacionesFinales': observacionesFinales,
       },
@@ -49,10 +50,10 @@ class ReporteIncidenciaRemoteDataSource {
       queryParameters['tipoReporte'] = tipoReporte.value;
     }
     if (fechaDesde != null) {
-      queryParameters['fechaDesde'] = fechaDesde.toIso8601String();
+      queryParameters['fechaDesde'] = DateFormatter.toUtcIso(fechaDesde);
     }
     if (fechaHasta != null) {
-      queryParameters['fechaHasta'] = fechaHasta.toIso8601String();
+      queryParameters['fechaHasta'] = DateFormatter.toUtcIso(fechaHasta);
     }
 
     final response = await _dioClient.get(
@@ -87,7 +88,7 @@ class ReporteIncidenciaRemoteDataSource {
     }
     if (tipoReporte != null) data['tipoReporte'] = tipoReporte.value;
     if (fechaIncidente != null) {
-      data['fechaIncidente'] = fechaIncidente.toIso8601String();
+      data['fechaIncidente'] = DateFormatter.toUtcIso(fechaIncidente);
     }
     if (supervisorId != null) data['supervisorId'] = supervisorId;
     if (observacionesFinales != null) {

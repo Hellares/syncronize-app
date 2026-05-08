@@ -26,8 +26,8 @@ class DashboardFinancieroWidget extends StatelessWidget {
         final fin = DateTime(now.year, now.month, now.day, 23, 59, 59);
         return locator<ResumenFinancieroCubit>()
           ..loadResumen(
-            fechaDesde: inicio.toIso8601String(),
-            fechaHasta: fin.toIso8601String(),
+            fechaDesde: DateFormatter.toUtcIso(inicio),
+            fechaHasta: DateFormatter.toUtcIso(fin),
           );
       },
       child: _DashboardFinancieroContent(
@@ -93,8 +93,8 @@ class _DashboardFinancieroContent extends StatelessWidget {
                 final inicio = DateTime(now.year, now.month, now.day);
                 final fin = DateTime(now.year, now.month, now.day, 23, 59, 59);
                 context.read<ResumenFinancieroCubit>().loadResumen(
-                      fechaDesde: inicio.toIso8601String(),
-                      fechaHasta: fin.toIso8601String(),
+                      fechaDesde: DateFormatter.toUtcIso(inicio),
+                      fechaHasta: DateFormatter.toUtcIso(fin),
                     );
               },
               child: const Text(

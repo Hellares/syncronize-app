@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:injectable/injectable.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/utils/date_formatter.dart';
 import '../models/producto_stock_model.dart';
 import '../../domain/entities/movimiento_stock.dart';
 
@@ -44,8 +45,8 @@ class ProductoStockRemoteDataSource {
         if (precioCosto != null) 'precioCosto': precioCosto,
         if (precioOferta != null) 'precioOferta': precioOferta,
         if (enOferta != null) 'enOferta': enOferta,
-        if (fechaInicioOferta != null) 'fechaInicioOferta': fechaInicioOferta.toIso8601String(),
-        if (fechaFinOferta != null) 'fechaFinOferta': fechaFinOferta.toIso8601String(),
+        if (fechaInicioOferta != null) 'fechaInicioOferta': DateFormatter.toUtcIso(fechaInicioOferta),
+        if (fechaFinOferta != null) 'fechaFinOferta': DateFormatter.toUtcIso(fechaFinOferta),
       },
     );
 
@@ -173,9 +174,9 @@ class ProductoStockRemoteDataSource {
         'enOferta': enOferta,
         'precioIncluyeIgv': precioIncluyeIgv,
         if (fechaInicioOferta != null)
-          'fechaInicioOferta': fechaInicioOferta.toIso8601String(),
+          'fechaInicioOferta': DateFormatter.toUtcIso(fechaInicioOferta),
         if (fechaFinOferta != null)
-          'fechaFinOferta': fechaFinOferta.toIso8601String(),
+          'fechaFinOferta': DateFormatter.toUtcIso(fechaFinOferta),
         if (ubicacion != null) 'ubicacion': ubicacion,
         if (stockMinimo != null) 'stockMinimo': stockMinimo,
         if (stockMaximo != null) 'stockMaximo': stockMaximo,

@@ -172,4 +172,43 @@ class DateFormatter {
         '${localDate.hour.toString().padLeft(2, '0')}:'
         '${localDate.minute.toString().padLeft(2, '0')}';
   }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // HELPERS DE SERIALIZACIÓN HACIA EL BACKEND
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /// Serializa un DateTime al formato ISO 8601 UTC con sufijo Z.
+  ///
+  /// **Usar SIEMPRE** cuando se manda una fecha al backend. `toIso8601String()`
+  /// directamente sobre un DateTime local produce un string sin timezone que
+  /// el backend (NestJS) interpreta como UTC, causando un offset de 5 horas
+  /// hacia atrás en Perú (UTC-5).
+  ///
+  /// Ejemplo en Perú:
+  /// ```dart
+  /// final fecha = DateTime(2026, 5, 7); // local PE 00:00
+  /// fecha.toIso8601String();           // "2026-05-07T00:00:00.000"  ❌ se guarda como 06/05 19:00
+  /// DateFormatter.toUtcIso(fecha);     // "2026-05-07T05:00:00.000Z" ✅ se guarda como 07/05 00:00
+  /// ```
+  static String toUtcIso(DateTime dateTime) {
+    return dateTime.toUtc().toIso8601String();
+  }
+
+  /// Normaliza una fecha al inicio del día en hora **local**: 00:00:00.
+  ///
+  /// Útil para "fecha desde" en rangos: la fecha es válida desde la
+  /// medianoche del día seleccionado.
+  static DateTime startOfDay(DateTime dateTime) {
+    return DateTime(dateTime.year, dateTime.month, dateTime.day, 0, 0, 0);
+  }
+
+  /// Normaliza una fecha al fin del día en hora **local**: 23:59:59.
+  ///
+  /// Útil para "fecha hasta" en rangos: la fecha es válida hasta el último
+  /// segundo del día seleccionado. Sin esta normalización, una "fecha fin"
+  /// con hora 00:00 hace que el rango termine al inicio del día (= medianoche
+  /// del día anterior), no al final.
+  static DateTime endOfDay(DateTime dateTime) {
+    return DateTime(dateTime.year, dateTime.month, dateTime.day, 23, 59, 59);
+  }
 }

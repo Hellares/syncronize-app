@@ -410,10 +410,12 @@ class _HistorialCajaPageState extends State<HistorialCajaPage> {
                             setState(() {});
                             _historialCubit.loadHistorial(
                               sedeId: _selectedSedeId,
-                              fechaDesde: _dateRange?.start
-                                  .toIso8601String(),
-                              fechaHasta: _dateRange?.end
-                                  .toIso8601String(),
+                              fechaDesde: _dateRange?.start != null
+                                  ? DateFormatter.toUtcIso(_dateRange!.start)
+                                  : null,
+                              fechaHasta: _dateRange?.end != null
+                                  ? DateFormatter.toUtcIso(_dateRange!.end)
+                                  : null,
                             );
                             Navigator.of(context).pop();
                           },

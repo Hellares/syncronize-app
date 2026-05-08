@@ -1,3 +1,4 @@
+import '../../../../core/utils/date_formatter.dart';
 import '../../domain/entities/empresa.dart';
 
 /// Modelo de Empresa para la capa de datos
@@ -61,13 +62,13 @@ class EmpresaModel extends Empresa {
       if (email != null) 'email': email,
       if (planSuscripcionId != null) 'planSuscripcionId': planSuscripcionId,
       if (fechaInicioSuscripcion != null)
-        'fechaInicioSuscripcion': fechaInicioSuscripcion!.toIso8601String(),
+        'fechaInicioSuscripcion': DateFormatter.toUtcIso(fechaInicioSuscripcion!),
       if (fechaVencimiento != null)
-        'fechaVencimiento': fechaVencimiento!.toIso8601String(),
+        'fechaVencimiento': DateFormatter.toUtcIso(fechaVencimiento!),
       if (estadoSuscripcion != null) 'estadoSuscripcion': estadoSuscripcion,
       if (usuariosActuales != null) 'usuariosActuales': usuariosActuales,
-      'creadoEn': createdAt.toIso8601String(),
-      'actualizadoEn': updatedAt.toIso8601String(),
+      'creadoEn': DateFormatter.toUtcIso(createdAt),
+      'actualizadoEn': DateFormatter.toUtcIso(updatedAt),
     };
   }
 

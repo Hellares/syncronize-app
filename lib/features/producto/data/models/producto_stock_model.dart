@@ -1,3 +1,4 @@
+import 'package:syncronize/core/utils/date_formatter.dart';
 import 'package:syncronize/core/utils/type_converters.dart';
 import '../../domain/entities/producto_stock.dart';
 
@@ -106,12 +107,12 @@ class ProductoStockModel extends ProductoStock {
       if (precioCosto != null) 'precioCosto': precioCosto,
       if (precioOferta != null) 'precioOferta': precioOferta,
       'enOferta': enOferta,
-      if (fechaInicioOferta != null) 'fechaInicioOferta': fechaInicioOferta!.toIso8601String(),
-      if (fechaFinOferta != null) 'fechaFinOferta': fechaFinOferta!.toIso8601String(),
+      if (fechaInicioOferta != null) 'fechaInicioOferta': DateFormatter.toUtcIso(fechaInicioOferta!),
+      if (fechaFinOferta != null) 'fechaFinOferta': DateFormatter.toUtcIso(fechaFinOferta!),
       'precioConfigurado': precioConfigurado,
       'precioIncluyeIgv': precioIncluyeIgv,
-      'creadoEn': creadoEn.toIso8601String(),
-      'actualizadoEn': actualizadoEn.toIso8601String(),
+      'creadoEn': DateFormatter.toUtcIso(creadoEn),
+      'actualizadoEn': DateFormatter.toUtcIso(actualizadoEn),
     };
   }
 }

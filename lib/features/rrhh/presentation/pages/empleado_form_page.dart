@@ -74,7 +74,7 @@ class _EmpleadoFormPageState extends State<EmpleadoFormPage> {
       _numeroCuentaController.text = e.numeroCuenta ?? '';
       _cciController.text = e.cci ?? '';
       _tipoContrato = e.tipoContrato;
-      _fechaIngreso = e.fechaIngreso;
+      _fechaIngreso = e.fechaIngreso.toLocal();
     }
   }
 

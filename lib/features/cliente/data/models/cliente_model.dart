@@ -1,3 +1,4 @@
+import '../../../../core/utils/date_formatter.dart';
 import '../../domain/entities/cliente.dart';
 
 /// Model que representa un cliente (extends Entity)
@@ -83,9 +84,9 @@ class ClienteModel extends Cliente {
       'yaExistiaEnSistema': yaExistiaEnSistema,
       'registradoPor': registradoPor,
       'registradoPorNombre': registradoPorNombre,
-      'fechaRegistro': fechaRegistro.toIso8601String(),
-      'creadoEn': creadoEn.toIso8601String(),
-      'actualizadoEn': actualizadoEn.toIso8601String(),
+      'fechaRegistro': DateFormatter.toUtcIso(fechaRegistro),
+      'creadoEn': DateFormatter.toUtcIso(creadoEn),
+      'actualizadoEn': DateFormatter.toUtcIso(actualizadoEn),
     };
   }
 

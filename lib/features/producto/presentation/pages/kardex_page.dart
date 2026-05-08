@@ -57,8 +57,8 @@ class _KardexPageState extends State<KardexPage> {
       stockId: widget.stockId,
       limit: 200,
       tipo: _tipoFiltro?.apiValue,
-      fechaDesde: _fechaDesde?.toIso8601String(),
-      fechaHasta: _fechaHasta?.toIso8601String(),
+      fechaDesde: _fechaDesde != null ? DateFormatter.toUtcIso(_fechaDesde!) : null,
+      fechaHasta: _fechaHasta != null ? DateFormatter.toUtcIso(_fechaHasta!) : null,
     );
 
     if (!mounted) return;
@@ -127,8 +127,8 @@ class _KardexPageState extends State<KardexPage> {
                     endpoint: '/producto-stock/${widget.stockId}/movimientos/export',
                     queryParams: {
                       if (_tipoFiltro != null) 'tipo': _tipoFiltro!.apiValue,
-                      if (_fechaDesde != null) 'fechaDesde': _fechaDesde!.toIso8601String(),
-                      if (_fechaHasta != null) 'fechaHasta': _fechaHasta!.toIso8601String(),
+                      if (_fechaDesde != null) 'fechaDesde': DateFormatter.toUtcIso(_fechaDesde!),
+                      if (_fechaHasta != null) 'fechaHasta': DateFormatter.toUtcIso(_fechaHasta!),
                     },
                     fileName: 'kardex_${widget.productoNombre ?? widget.stockId}.xlsx',
                   );

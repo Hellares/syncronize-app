@@ -4,6 +4,7 @@ import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/widgets/custom_button.dart';
+import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/widgets/items_table_widget.dart';
 import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import '../../../../core/di/injection_container.dart';
@@ -937,7 +938,7 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
       if (_esCredito) ...{
         'plazoCredito': plazoDias,
         'numeroCuotas': _numeroCuotas,
-        'fechaVencimientoPago': fechaUltimaCuota.toIso8601String(),
+        'fechaVencimientoPago': DateFormatter.toUtcIso(fechaUltimaCuota),
       },
       if (_esCredito && _interesHabilitado && _porcentajeInteres > 0) ...{
         'porcentajeInteres': _porcentajeInteres,

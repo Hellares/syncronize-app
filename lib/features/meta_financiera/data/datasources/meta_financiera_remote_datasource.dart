@@ -1,5 +1,6 @@
 import 'package:injectable/injectable.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/utils/date_formatter.dart';
 import '../models/meta_financiera_model.dart';
 
 @lazySingleton
@@ -29,8 +30,8 @@ class MetaFinancieraRemoteDataSource {
       'tipo': tipo,
       'nombre': nombre,
       'montoMeta': montoMeta,
-      'fechaInicio': fechaInicio.toIso8601String(),
-      'fechaFin': fechaFin.toIso8601String(),
+      'fechaInicio': DateFormatter.toUtcIso(fechaInicio),
+      'fechaFin': DateFormatter.toUtcIso(fechaFin),
     });
     return MetaFinancieraModel.fromJson(response.data as Map<String, dynamic>);
   }

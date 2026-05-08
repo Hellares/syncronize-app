@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:syncronize/core/di/injection_container.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/app_gradients.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
-import 'package:syncronize/core/utils/date_formatter.dart';
+import 'package:syncronize/core/utils/date_formatter.dart' as date_utils;
+import 'package:syncronize/core/utils/resource.dart';
 import 'package:syncronize/core/widgets/currency/currency_formatter.dart';
 import 'package:syncronize/core/widgets/currency/currency_textfield.dart';
+import 'package:syncronize/core/widgets/date/custom_date.dart';
+import '../../domain/entities/precio_nivel.dart';
 import '../../domain/entities/producto_stock.dart';
+import '../../domain/repositories/precio_nivel_repository.dart';
+import 'precio_nivel_form_dialog.dart';
 import '../bloc/configurar_precios/configurar_precios_cubit.dart';
 import '../bloc/configurar_precios/configurar_precios_state.dart';
 import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_cubit.dart';
@@ -44,6 +50,17 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
   String _nombreImpuesto = 'IGV';
   String _simboloMoneda = 'S/';
 
+  // ── Niveles de precio (PRECIO_FIJO + PORCENTAJE_DESCUENTO) ──
+  late final PrecioNivelRepository _precioNivelRepo;
+  bool _cargandoNiveles = false;
+  /// Todos los niveles activos del producto/variante. Los fijos se editan/
+  /// agregan desde aquí; los porcentuales solo se visualizan/eliminan
+  /// (para crearlos/editarlos hay que ir al form completo del producto).
+  List<PrecioNivel> _nivelesExistentes = const [];
+  /// IDs de niveles que están siendo eliminados (para deshabilitar el
+  /// botón papelera mientras la request está en vuelo).
+  final Set<String> _eliminandoNiveles = {};
+
   @override
   void initState() {
     super.initState();
@@ -63,8 +80,10 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
       );
     }
     _enOferta = widget.stock.enOferta;
-    _fechaInicioOferta = widget.stock.fechaInicioOferta;
-    _fechaFinOferta = widget.stock.fechaFinOferta;
+    // Backend devuelve UTC (ej. "2026-05-09T04:59:59Z"). Convertir a local
+    // para que CustomDate muestre el día correcto en hora Perú.
+    _fechaInicioOferta = widget.stock.fechaInicioOferta?.toLocal();
+    _fechaFinOferta = widget.stock.fechaFinOferta?.toLocal();
     _precioIncluyeIGV = widget.stock.precioIncluyeIgv;
 
     // Leer configuración de empresa para IGV
@@ -73,6 +92,36 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
       _porcentajeIGV = configState.configuracion.impuestoDefaultPorcentaje;
       _nombreImpuesto = configState.configuracion.nombreImpuesto;
       _simboloMoneda = configState.configuracion.simboloMoneda;
+    }
+
+    // Cargar niveles de precio existentes (precio por mayor)
+    _precioNivelRepo = locator<PrecioNivelRepository>();
+    _cargarNivelesExistentes();
+  }
+
+  Future<void> _cargarNivelesExistentes() async {
+    setState(() => _cargandoNiveles = true);
+    final result = widget.stock.varianteId != null
+        ? await _precioNivelRepo.getPreciosNivelVariante(
+            varianteId: widget.stock.varianteId!,
+          )
+        : widget.stock.productoId != null
+            ? await _precioNivelRepo.getPreciosNivelProducto(
+                productoId: widget.stock.productoId!,
+              )
+            : null;
+
+    if (!mounted) return;
+
+    if (result is Success<List<PrecioNivel>>) {
+      final activos = result.data.where((n) => n.isActive).toList()
+        ..sort((a, b) => a.cantidadMinima.compareTo(b.cantidadMinima));
+      setState(() {
+        _cargandoNiveles = false;
+        _nivelesExistentes = activos;
+      });
+    } else {
+      setState(() => _cargandoNiveles = false);
     }
   }
 
@@ -84,9 +133,11 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
     super.dispose();
   }
 
-  // Helper para obtener el valor numérico del controlador
+  // Helper para obtener el valor numérico del controlador. Usa el parser de
+  // currency para que funcione con texto formateado (ej. "1,234.56") que es
+  // lo que produce CurrencyTextField al perder foco.
   double _getControllerValue(TextEditingController controller) {
-    return double.tryParse(controller.text) ?? 0.0;
+    return CurrencyUtilsImproved.parseToDouble(controller.text);
   }
 
   double _calcularPrecioBase(double precioConIGV) =>
@@ -114,16 +165,21 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
         }
       },
       child: Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
         child: GradientContainer(
           gradient: AppGradients.blueWhiteDialog(),
           padding: const EdgeInsets.only(left: 15, right: 15, top: 10),
           borderRadius: BorderRadius.circular(10.0),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Título
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Título
                 Row(
                   children: [
                     Container(
@@ -138,7 +194,7 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
                         size: 16,
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -155,11 +211,11 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
                   ],
                 ),
                 Divider(),
-                const SizedBox(height: 15),
+                const SizedBox(height: 12),
 
                 // Información del producto
                 _buildProductoInfo(),
-                const SizedBox(height: 20),
+                const SizedBox(height: 10),
 
                 // Formulario
                 Form(
@@ -167,53 +223,77 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      CurrencyTextField(
-                        label: 'Precio de Venta',
-                        controller: _precioController,
-                        borderColor: AppColors.blue1,
-                        onChanged: (_) {
-                          if (_precioIncluyeIGV) setState(() {});
-                        },
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'El precio es requerido';
-                          }
-                          final precio = CurrencyUtilsImproved.parseToDouble(value);
-                          if (precio <= 0) {
-                            return 'El precio debe ser mayor a 0';
-                          }
-                          // Validar precio >= costo
-                          final costo = _precioCostoController.currencyValue;
-                          if (costo > 0 && precio < costo) {
-                            return 'El precio debe ser ≥ al costo';
-                          }
-                          return null;
-                        },
-                      ),
-
-                      // Toggle IGV
+                      // Precio de Venta + toggle IGV en una sola fila
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          SizedBox(
-                            height: 30,
-                            width: 30,
-                            child: Checkbox(
-                              value: _precioIncluyeIGV,
-                              onChanged: (value) {
-                                setState(() {
-                                  _precioIncluyeIGV = value ?? false;
-                                });
+                          Expanded(
+                            flex: 1,
+                            child: CurrencyTextField(
+                              label: 'Precio de Venta',
+                              controller: _precioController,
+                              borderColor: AppColors.blue1,
+                              onChanged: (_) {
+                                if (_precioIncluyeIGV) setState(() {});
                               },
-                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              validator: (value) {
+                                if (value == null || value.trim().isEmpty) {
+                                  return 'El precio es requerido';
+                                }
+                                final precio = CurrencyUtilsImproved.parseToDouble(value);
+                                if (precio <= 0) {
+                                  return 'El precio debe ser mayor a 0';
+                                }
+                                // Validar precio >= costo
+                                final costo = _precioCostoController.currencyValue;
+                                if (costo > 0 && precio < costo) {
+                                  return 'El precio debe ser ≥ al costo';
+                                }
+                                return null;
+                              },
                             ),
                           ),
+                          const SizedBox(width: 8),
                           Expanded(
-                            child: GestureDetector(
-                              onTap: () => setState(() => _precioIncluyeIGV = !_precioIncluyeIGV),
-                              child: AppSubtitle(
-                                'Precio incluye $_nombreImpuesto (${_porcentajeIGV.toStringAsFixed(_porcentajeIGV.truncateToDouble() == _porcentajeIGV ? 0 : 1)}%)',
-                                fontSize: 10,
-                                color: AppColors.textPrimary,
+                            flex: 1,
+                            child: InkWell(
+                              onTap: () => setState(() =>
+                                  _precioIncluyeIGV = !_precioIncluyeIGV),
+                              borderRadius: BorderRadius.circular(6),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 4),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    SizedBox(
+                                      height: 22,
+                                      width: 22,
+                                      child: Checkbox(
+                                        value: _precioIncluyeIGV,
+                                        onChanged: (value) {
+                                          setState(() {
+                                            _precioIncluyeIGV = value ?? false;
+                                          });
+                                        },
+                                        activeColor: AppColors.blue1,
+                                        materialTapTargetSize:
+                                            MaterialTapTargetSize.shrinkWrap,
+                                        visualDensity: VisualDensity.compact,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Icon(Icons.receipt_long,
+                                        size: 13, color: AppColors.blue1),
+                                    const SizedBox(width: 4),
+                                    Flexible(
+                                      child: AppSubtitle(
+                                        'Incluye $_nombreImpuesto (${_porcentajeIGV.toStringAsFixed(_porcentajeIGV.truncateToDouble() == _porcentajeIGV ? 0 : 1)}%)',
+                                        fontSize: 10,
+                                        color: AppColors.textPrimary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
@@ -223,150 +303,180 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
                       // Desglose de precio (visible solo cuando toggle=ON y precio>0)
                       if (_precioIncluyeIGV) _buildDesgloseIGV(),
 
-                      const SizedBox(height: 16),
-                      CurrencyTextField(
-                        label: 'Precio de Costo',
-                        controller: _precioCostoController,
-                        borderColor: AppColors.blue1,
-                        allowZero: false,
-                        enabled: widget.stock.precioCosto == null || widget.stock.precioCosto == 0,
-                      ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
 
-                      // Configuración de oferta
+                      // Precio de Costo + toggle "Producto en oferta" en una sola fila
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          Checkbox(
-                            value: _enOferta,
-                            onChanged: (value) {
-                              setState(() {
-                                _enOferta = value ?? false;
-                              });
-                            },
+                          Expanded(
+                            flex: 1,
+                            child: CurrencyTextField(
+                              label: 'Precio de Costo',
+                              controller: _precioCostoController,
+                              borderColor: AppColors.blue1,
+                              allowZero: false,
+                              enabled: widget.stock.precioCosto == null || widget.stock.precioCosto == 0,
+                            ),
                           ),
-                          AppSubtitle(
-                            'Producto en oferta',
-                            fontSize: 12,
-                            color: AppColors.textPrimary,
+                          const SizedBox(width: 8),
+                          Expanded(
+                            flex: 1,
+                            child: InkWell(
+                              onTap: () =>
+                                  setState(() => _enOferta = !_enOferta),
+                              borderRadius: BorderRadius.circular(6),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 4),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    SizedBox(
+                                      height: 22,
+                                      width: 22,
+                                      child: Checkbox(
+                                        value: _enOferta,
+                                        onChanged: (value) {
+                                          setState(() {
+                                            _enOferta = value ?? false;
+                                          });
+                                        },
+                                        activeColor: AppColors.blue1,
+                                        materialTapTargetSize:
+                                            MaterialTapTargetSize.shrinkWrap,
+                                        visualDensity: VisualDensity.compact,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Icon(Icons.local_offer_outlined,
+                                        size: 13, color: AppColors.blue1),
+                                    const SizedBox(width: 4),
+                                    Flexible(
+                                      child: AppSubtitle(
+                                        'Producto en oferta',
+                                        fontSize: 10,
+                                        color: AppColors.textPrimary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
                           ),
                         ],
                       ),
 
                       if (_enOferta) ...[
-                        const SizedBox(height: 16),
-                        // Precio de oferta
-                        AppSubtitle(
-                          'Precio de Oferta *',
-                          fontSize: 12,
-                          color: AppColors.textPrimary,
-                        ),
                         const SizedBox(height: 8),
-                        TextFormField(
+                        CurrencyTextField(
+                          label: 'Precio de Oferta',
                           controller: _precioOfertaController,
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
-                          ),
-                          decoration: InputDecoration(
-                            labelText: 'Precio Oferta',
-                            hintText: 'Ingrese el precio en oferta',
-                            prefixText: 'S/ ',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
+                          borderColor: AppColors.blue1,
+                          allowZero: false,
                           validator: (value) {
-                            if (_enOferta &&
-                                _getControllerValue(_precioOfertaController) <=
-                                    0) {
+                            if (!_enOferta) return null;
+                            final oferta = CurrencyUtilsImproved.parseToDouble(
+                                value ?? '');
+                            if (oferta <= 0) {
                               return 'El precio de oferta debe ser mayor a 0';
                             }
-                            if (_enOferta &&
-                                _getControllerValue(_precioOfertaController) >=
-                                    _getControllerValue(_precioController)) {
-                              return 'El precio de oferta debe ser menor al precio normal';
+                            final venta = _precioController.currencyValue;
+                            if (venta > 0 && oferta >= venta) {
+                              return 'Debe ser < precio normal';
                             }
                             return null;
                           },
                         ),
-                        const SizedBox(height: 16),
-
-                        // Fechas de oferta
+                        const SizedBox(height: 12),
                         Row(
                           children: [
                             Expanded(
                               child: _buildDateField(
                                 'Fecha Inicio',
                                 _fechaInicioOferta,
-                                (date) =>
-                                    setState(() => _fechaInicioOferta = date),
+                                (date) => setState(() => _fechaInicioOferta =
+                                    date != null
+                                        ? date_utils.DateFormatter.startOfDay(date)
+                                        : null),
                               ),
                             ),
-                            const SizedBox(width: 12),
+                            const SizedBox(width: 10),
                             Expanded(
                               child: _buildDateField(
                                 'Fecha Fin',
                                 _fechaFinOferta,
-                                (date) =>
-                                    setState(() => _fechaFinOferta = date),
+                                (date) => setState(() => _fechaFinOferta =
+                                    date != null
+                                        ? date_utils.DateFormatter.endOfDay(date)
+                                        : null),
                               ),
                             ),
                           ],
                         ),
                       ],
+
+                      // ── Sección Precios por Volumen (gestión de niveles) ──
+                      const SizedBox(height: 8),
+                      const Divider(),
+                      _buildSeccionNiveles(),
                     ],
                   ),
                 ),
-                const SizedBox(height: 24),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
 
-                // Botones de acción
-                BlocBuilder<ConfigurarPreciosCubit, ConfigurarPreciosState>(
-                  builder: (context, state) {
-                    final isLoading = state is ConfigurarPreciosLoading;
+              // Botones de acción (fijos al fondo, fuera del scroll)
+              BlocBuilder<ConfigurarPreciosCubit, ConfigurarPreciosState>(
+                builder: (context, state) {
+                  final isLoading = state is ConfigurarPreciosLoading;
 
-                    return Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        TextButton(
-                          onPressed: isLoading
-                              ? null
-                              : () => Navigator.of(context).pop(),
-                          child: AppSubtitle(
-                            'Cancelar',
-                            fontSize: 12,
-                            color: AppColors.blue1,
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: isLoading
+                            ? null
+                            : () => Navigator.of(context).pop(),
+                        child: AppSubtitle(
+                          'Cancelar',
+                          fontSize: 12,
+                          color: AppColors.blue1,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      ElevatedButton(
+                        onPressed: isLoading ? null : _handleSubmit,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.blue1,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        ElevatedButton(
-                          onPressed: isLoading ? null : _handleSubmit,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.blue1,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 24,
-                              vertical: 12,
-                            ),
-                          ),
-                          child: isLoading
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : AppSubtitle(
-                                  'Guardar',
-                                  fontSize: 12,
+                        child: isLoading
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
                                   color: Colors.white,
                                 ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-              ],
-            ),
+                              )
+                            : AppSubtitle(
+                                'Guardar',
+                                fontSize: 12,
+                                color: Colors.white,
+                              ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
           ),
         ),
       ),
@@ -409,47 +519,13 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
     DateTime? value,
     Function(DateTime?) onChanged,
   ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        AppSubtitle(label, fontSize: 11, color: AppColors.textPrimary),
-        const SizedBox(height: 4),
-        InkWell(
-          onTap: () async {
-            final date = await showDatePicker(
-              context: context,
-              initialDate: value ?? DateTime.now(),
-              firstDate: DateTime.now(),
-              lastDate: DateTime.now().add(const Duration(days: 365)),
-            );
-            if (date != null) {
-              onChanged(date);
-            }
-          },
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              border: Border.all(color: AppColors.blue1.withValues(alpha: 0.3)),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                AppSubtitle(
-                  value != null
-                      ? DateFormatter.formatDate(value)
-                      : 'Seleccionar',
-                  fontSize: 11,
-                  color: value != null
-                      ? AppColors.textPrimary
-                      : AppColors.blue1,
-                ),
-                Icon(Icons.calendar_today, size: 14, color: AppColors.blue1),
-              ],
-            ),
-          ),
-        ),
-      ],
+    return CustomDate(
+      label: label,
+      initialDate: value,
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      borderColor: AppColors.blue1,
+      onDateSelected: onChanged,
     );
   }
 
@@ -533,11 +609,393 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
     );
   }
 
-  void _handleSubmit() {
+  Widget _buildNivelesExistentesCard() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.blueGrey.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.blueGrey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.list_alt, size: 13, color: Colors.blueGrey.shade700),
+              const SizedBox(width: 4),
+              Text(
+                'Niveles ya configurados',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.blueGrey.shade800,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '${_nivelesExistentes.length}',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Colors.blueGrey.shade600,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          ..._nivelesExistentes.map(_buildNivelExistenteRow),
+          const SizedBox(height: 4),
+          Text(
+            'Los porcentuales se crean/editan desde el formulario completo del producto.',
+            style: TextStyle(
+              fontSize: 9,
+              color: Colors.blueGrey.shade600,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNivelesEmptyCard() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.blueGrey.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.blueGrey.shade200),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.discount_outlined,
+              size: 18, color: Colors.blueGrey.shade400),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Aún no hay precios por volumen. Agrega un nivel fijo abajo '
+              '(ej. "Por Mayor" desde 6 uds., "Por Cientos" desde 100 uds.).',
+              style: TextStyle(
+                fontSize: 10,
+                color: Colors.blueGrey.shade700,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNivelExistenteRow(PrecioNivel n) {
+    final esFijo = n.tipoPrecio == TipoPrecioNivel.precioFijo;
+    final precioVenta = _precioController.currencyValue;
+    final descripcionPrecio = esFijo
+        ? '$_simboloMoneda ${(n.precio ?? 0).toStringAsFixed(2)}'
+        : '−${(n.porcentajeDesc ?? 0).toStringAsFixed(0)}%'
+            '${precioVenta > 0 ? "  ($_simboloMoneda ${n.calcularPrecioFinal(precioVenta).toStringAsFixed(2)})" : ""}';
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          // Chip de tipo
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+            decoration: BoxDecoration(
+              color:
+                  esFijo ? Colors.blue.shade100 : Colors.orange.shade100,
+              borderRadius: BorderRadius.circular(3),
+            ),
+            child: Icon(
+              esFijo ? Icons.attach_money : Icons.percent,
+              size: 9,
+              color: esFijo
+                  ? Colors.blue.shade800
+                  : Colors.orange.shade800,
+            ),
+          ),
+          const SizedBox(width: 6),
+          // Nombre + rango
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  n.nombre,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  n.rangoString,
+                  style: TextStyle(
+                    fontSize: 9,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Precio / descuento
+          Text(
+            descripcionPrecio,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: esFijo ? Colors.blue.shade800 : Colors.orange.shade800,
+            ),
+          ),
+          // Botón editar (solo fijos — los porcentuales se editan en form completo)
+          if (esFijo) ...[
+            const SizedBox(width: 4),
+            SizedBox(
+              width: 26,
+              height: 26,
+              child: IconButton(
+                icon: Icon(Icons.edit_outlined,
+                    size: 15, color: Colors.blue.shade600),
+                padding: EdgeInsets.zero,
+                tooltip: 'Editar nivel',
+                onPressed: () => _abrirNivelDialog(nivelToEdit: n),
+              ),
+            ),
+          ],
+          // Botón eliminar nivel
+          const SizedBox(width: 4),
+          SizedBox(
+            width: 26,
+            height: 26,
+            child: _eliminandoNiveles.contains(n.id)
+                ? const Center(
+                    child: SizedBox(
+                      width: 12,
+                      height: 12,
+                      child: CircularProgressIndicator(strokeWidth: 1.5),
+                    ),
+                  )
+                : IconButton(
+                    icon: Icon(Icons.delete_outline,
+                        size: 16, color: Colors.red.shade400),
+                    padding: EdgeInsets.zero,
+                    tooltip: 'Eliminar nivel',
+                    onPressed: () => _confirmarYEliminarNivel(n),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Pide confirmación al usuario y, si acepta, hace soft-delete del nivel
+  /// vía repository, refrescando la lista al final.
+  Future<void> _confirmarYEliminarNivel(PrecioNivel n) async {
+    final esFijo = n.tipoPrecio == TipoPrecioNivel.precioFijo;
+    final tipoLabel = esFijo ? 'fijo' : 'porcentual';
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Eliminar nivel de precio'),
+        content: Text(
+          '¿Seguro que quieres eliminar el nivel $tipoLabel "${n.nombre}" '
+          '(${n.rangoString})? Esta acción se puede revertir reconfigurándolo.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red.shade400,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+
+    setState(() => _eliminandoNiveles.add(n.id));
+    final result = await _precioNivelRepo.eliminarPrecioNivel(nivelId: n.id);
+    if (!mounted) return;
+
+    setState(() => _eliminandoNiveles.remove(n.id));
+
+    if (result is Error<void>) {
+      _showError('No se pudo eliminar: ${result.message}');
+      return;
+    }
+
+    // Refrescar la lista de niveles desde el backend.
+    await _cargarNivelesExistentes();
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Nivel "${n.nombre}" eliminado'),
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  /// Abre el form dialog (forzado a PRECIO_FIJO) para crear un nivel nuevo
+  /// o editar uno existente, persiste y refresca la lista.
+  Future<void> _abrirNivelDialog({PrecioNivel? nivelToEdit}) async {
+    final productoId = widget.stock.productoId;
+    final varianteId = widget.stock.varianteId;
+    if (productoId == null && varianteId == null) {
+      _showError('Producto sin ID; no se puede configurar niveles.');
+      return;
+    }
+
+    final precioBase = _precioController.currencyValue;
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => PrecioNivelFormDialog(
+        precioBase: precioBase > 0 ? precioBase : null,
+        nivelToEdit: nivelToEdit,
+        nivelesExistentes: _nivelesExistentes,
+        lockTipoPrecio: TipoPrecioNivel.precioFijo,
+        onSave: (dto) async {
+          // El form dialog ya cerró; persistimos en background.
+          if (nivelToEdit != null) {
+            final r = await _precioNivelRepo.actualizarPrecioNivel(
+              nivelId: nivelToEdit.id,
+              data: {
+                'nombre': dto.nombre,
+                'cantidadMinima': dto.cantidadMinima,
+                if (dto.cantidadMaxima != null)
+                  'cantidadMaxima': dto.cantidadMaxima,
+                'tipoPrecio': dto.tipoPrecio.value,
+                if (dto.precio != null) 'precio': dto.precio,
+                if (dto.descripcion != null) 'descripcion': dto.descripcion,
+              },
+            );
+            if (!mounted) return;
+            if (r is Error<PrecioNivel>) {
+              _showError('No se pudo actualizar: ${r.message}');
+              return;
+            }
+          } else {
+            final r = varianteId != null
+                ? await _precioNivelRepo.crearPrecioNivelVariante(
+                    varianteId: varianteId,
+                    dto: dto,
+                  )
+                : await _precioNivelRepo.crearPrecioNivelProducto(
+                    productoId: productoId!,
+                    dto: dto,
+                  );
+            if (!mounted) return;
+            if (r is Error<PrecioNivel>) {
+              final msg = r.message.toLowerCase().contains('solapa')
+                  ? 'El rango se solapa con un nivel existente.'
+                  : 'No se pudo crear: ${r.message}';
+              _showError(msg);
+              return;
+            }
+          }
+          await _cargarNivelesExistentes();
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(nivelToEdit != null
+                  ? 'Nivel "${dto.nombre}" actualizado'
+                  : 'Nivel "${dto.nombre}" creado'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildSeccionNiveles() {
+    if (_cargandoNiveles) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 12),
+        child: Center(
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Header de la sección
+        Row(
+          children: [
+            Icon(Icons.auto_graph, size: 14, color: AppColors.blue1),
+            const SizedBox(width: 4),
+            AppSubtitle(
+              'Precios por Volumen',
+              fontSize: 12,
+              color: AppColors.textPrimary,
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+
+        // Card con la lista de niveles (o estado vacío)
+        if (_nivelesExistentes.isEmpty)
+          _buildNivelesEmptyCard()
+        else
+          _buildNivelesExistentesCard(),
+
+        const SizedBox(height: 10),
+
+        // Botón para agregar un nuevo nivel fijo
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: () => _abrirNivelDialog(),
+            icon: const Icon(Icons.add, size: 16),
+            label: AppSubtitle(
+              'Agregar nivel fijo',
+              fontSize: 11,
+              color: AppColors.blue1,
+            ),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(double.infinity, 34),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              side: BorderSide(color: AppColors.blue1.withValues(alpha: 0.4)),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showError(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), backgroundColor: Colors.red),
+    );
+  }
+
+  Future<void> _handleSubmit() async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
+    // Los niveles de precio se persisten en su propio flujo (al crear/editar/
+    // eliminar desde la card). Aquí solo guardamos los precios del stock.
     final precio = _getControllerValue(_precioController);
     final precioCosto = _getControllerValue(_precioCostoController);
     final precioOferta = _getControllerValue(_precioOfertaController);

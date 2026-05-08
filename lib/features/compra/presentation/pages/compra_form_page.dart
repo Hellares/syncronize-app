@@ -9,6 +9,7 @@ import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import 'package:syncronize/features/auth/presentation/widgets/custom_button.dart';
 import 'package:syncronize/core/widgets/custom_dropdown.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/utils/date_formatter.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../../empresa/domain/entities/sede.dart';
@@ -204,7 +205,7 @@ class _CompraFormViewState extends State<_CompraFormView> {
         'proveedorId': _proveedorId,
         'sedeId': _sedeId,
         'moneda': _moneda,
-        'fechaRecepcion': _fechaRecepcion.toIso8601String(),
+        'fechaRecepcion': DateFormatter.toUtcIso(_fechaRecepcion),
         if (_terminosPago != null) 'terminosPago': _terminosPago,
         if (_tipoDocProveedorController.text.trim().isNotEmpty)
           'tipoDocumentoProveedor':

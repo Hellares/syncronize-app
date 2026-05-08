@@ -1,3 +1,4 @@
+import 'package:syncronize/core/utils/date_formatter.dart';
 import 'package:syncronize/core/utils/type_converters.dart';
 import '../../domain/entities/reporte_incidencia.dart';
 
@@ -121,11 +122,11 @@ class ReporteIncidenciaItemModel extends ReporteIncidenciaItem {
       'observaciones': observaciones,
       'estadoItem': estadoItem.value,
       'accionTomada': accionTomada?.value,
-      'fechaResolucion': fechaResolucion?.toIso8601String(),
+      'fechaResolucion': fechaResolucion != null ? DateFormatter.toUtcIso(fechaResolucion!) : null,
       'movimientoStockId': movimientoStockId,
       'transferenciaDevolucionId': transferenciaDevolucionId,
       'sedeDestinoId': sedeDestinoId,
-      'creadoEn': creadoEn.toIso8601String(),
+      'creadoEn': DateFormatter.toUtcIso(creadoEn),
     };
   }
 
@@ -242,19 +243,19 @@ class ReporteIncidenciaModel extends ReporteIncidencia {
       'supervisorId': supervisorId,
       'resolvidoPorId': resolvidoPorId,
       'aprobadoPorId': aprobadoPorId,
-      'fechaIncidente': fechaIncidente.toIso8601String(),
-      'fechaReporte': fechaReporte.toIso8601String(),
-      'fechaRevision': fechaRevision?.toIso8601String(),
-      'fechaAprobacion': fechaAprobacion?.toIso8601String(),
-      'fechaResolucion': fechaResolucion?.toIso8601String(),
+      'fechaIncidente': DateFormatter.toUtcIso(fechaIncidente),
+      'fechaReporte': DateFormatter.toUtcIso(fechaReporte),
+      'fechaRevision': fechaRevision != null ? DateFormatter.toUtcIso(fechaRevision!) : null,
+      'fechaAprobacion': fechaAprobacion != null ? DateFormatter.toUtcIso(fechaAprobacion!) : null,
+      'fechaResolucion': fechaResolucion != null ? DateFormatter.toUtcIso(fechaResolucion!) : null,
       'totalProductosAfectados': totalProductosAfectados,
       'totalCantidadAfectada': totalCantidadAfectada,
       'totalDanados': totalDanados,
       'totalPerdidos': totalPerdidos,
       'totalOtros': totalOtros,
       'observacionesFinales': observacionesFinales,
-      'creadoEn': creadoEn.toIso8601String(),
-      'actualizadoEn': actualizadoEn.toIso8601String(),
+      'creadoEn': DateFormatter.toUtcIso(creadoEn),
+      'actualizadoEn': DateFormatter.toUtcIso(actualizadoEn),
     };
   }
 
