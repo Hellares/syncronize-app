@@ -8,8 +8,12 @@ import 'package:syncronize/core/widgets/custom_checkbox_tile.dart';
 import 'package:syncronize/core/widgets/custom_dropdown.dart';
 import 'package:syncronize/core/widgets/custom_switch_tile.dart';
 import 'package:syncronize/features/auth/presentation/widgets/widgets.dart';
+import '../../../../core/utils/granular_permissions_catalog.dart';
+import '../../../../core/utils/rol_presets.dart';
 import '../../domain/entities/usuario.dart';
 import '../../domain/entities/usuario_filtros.dart';
+import '../../../empresa/presentation/widgets/accesos_rapidos_section.dart'
+    show AccesosRapidosCatalogo;
 
 /// Dialog para asignar rol y permisos a un usuario
 class AsignarRolDialog extends StatefulWidget {
@@ -38,6 +42,12 @@ class _AsignarRolDialogState extends State<AsignarRolDialog> {
   double? _limiteCreditoVenta;
   final _limiteCreditoController = TextEditingController();
   bool _isLoading = false;
+  /// IDs de accesos rápidos del dashboard ocultos para este usuario.
+  final Set<String> _accesosRapidosOcultos = {};
+  /// IDs de permisos granulares activos para este usuario (catálogo
+  /// `granular_permissions_catalog.dart`). Persiste en
+  /// `UsuarioSedeRol.permisos`.
+  final Set<String> _permisosEspeciales = {};
 
   @override
   void initState() {
@@ -54,6 +64,15 @@ class _AsignarRolDialogState extends State<AsignarRolDialog> {
     if (widget.usuario.sedes.isNotEmpty) {
       _puedeAbrirCaja = widget.usuario.puedeAbrirCaja;
       _puedeCerrarCaja = widget.usuario.puedeCerrarCaja;
+      // Cargar accesos ocultos del usuario (consolidados entre todas
+      // las sedes — si está oculto en una, se considera oculto).
+      _accesosRapidosOcultos.addAll(
+        widget.usuario.sedes.expand((s) => s.accesosRapidosOcultos),
+      );
+      // Cargar permisos granulares (consolidados entre sedes).
+      _permisosEspeciales.addAll(
+        widget.usuario.sedes.expand((s) => s.permisos),
+      );
 
       // Tomar el límite de la primera sede (asumiendo que es el mismo)
       final sedeConLimite = widget.usuario.sedes
@@ -80,6 +99,227 @@ class _AsignarRolDialogState extends State<AsignarRolDialog> {
     return RolUsuario.values.firstWhere(
       (r) => r.value == rol,
       orElse: () => RolUsuario.operador,
+    );
+  }
+
+  /// Sección de accesos rápidos visibles. El admin desmarca los que NO
+  /// quiere que el usuario vea en su dashboard. Por default todos están
+  /// marcados (= ningún oculto). Si el usuario tenía configurado algo
+  /// previo, se precarga desde `widget.usuario.sedes`.
+  Widget _buildAccesosRapidosSeleccion() {
+    return GradientContainer(
+      borderWidth: 0.6,
+      borderColor: AppColors.blueborder,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      gradient: AppGradients.blueWhiteBlue(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const AppSubtitle('Accesos rápidos visibles', fontSize: 12),
+              const Spacer(),
+              TextButton(
+                onPressed: () => setState(() => _accesosRapidosOcultos.clear()),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  minimumSize: const Size(0, 28),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: const Text('Marcar todos',
+                    style: TextStyle(fontSize: 11)),
+              ),
+              TextButton(
+                onPressed: () => setState(() {
+                  _accesosRapidosOcultos
+                    ..clear()
+                    ..addAll(AccesosRapidosCatalogo.items.map((e) => e.$1));
+                }),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  minimumSize: const Size(0, 28),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: const Text('Desmarcar todos',
+                    style: TextStyle(fontSize: 11)),
+              ),
+            ],
+          ),
+          Text(
+            'Marcá los accesos del dashboard que verá. Los desmarcados se '
+            'ocultarán solo a este usuario, sin afectar permisos del rol.',
+            style: TextStyle(fontSize: 10, color: Colors.grey.shade700),
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 4,
+            runSpacing: 0,
+            children: AccesosRapidosCatalogo.items.map((entry) {
+              final id = entry.$1;
+              final label = entry.$2;
+              final visible = !_accesosRapidosOcultos.contains(id);
+              return SizedBox(
+                width: (MediaQuery.of(context).size.width - 88) / 2,
+                child: CustomCheckboxTile(
+                  title: label,
+                  value: visible,
+                  onChanged: (value) {
+                    setState(() {
+                      if (value == true) {
+                        _accesosRapidosOcultos.remove(id);
+                      } else {
+                        _accesosRapidosOcultos.add(id);
+                      }
+                    });
+                  },
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Botón compacto "Aplicar configuración estándar de [rol]". Resetea
+  /// flags de caja, accesos ocultos y permisos especiales según el
+  /// preset definido en `rol_presets.dart`. El admin puede después
+  /// ajustar puntualmente.
+  Widget _buildAplicarPresetButton() {
+    final preset = presetParaRol(_rolSeleccionado.value);
+    final tieneAlgo = preset.puedeAbrirCaja ||
+        preset.puedeCerrarCaja ||
+        preset.accesosRapidosOcultos.isNotEmpty ||
+        preset.permisosEspeciales.isNotEmpty;
+    if (!tieneAlgo) return const SizedBox.shrink();
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: TextButton.icon(
+        onPressed: _confirmarYAplicarPreset,
+        icon: const Icon(Icons.auto_fix_high, size: 16),
+        label: Text(
+          'Aplicar configuración estándar de ${_rolSeleccionado.label}',
+          style: const TextStyle(fontSize: 11),
+        ),
+        style: TextButton.styleFrom(
+          foregroundColor: AppColors.blue1,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          minimumSize: const Size(0, 32),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmarYAplicarPreset() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('¿Aplicar configuración estándar?'),
+        content: Text(
+          'Se sobrescribirán los flags de caja, accesos rápidos visibles '
+          'y permisos especiales con la configuración predefinida para '
+          '${_rolSeleccionado.label}. Después podés ajustar manualmente.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Aplicar'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    final preset = presetParaRol(_rolSeleccionado.value);
+    setState(() {
+      _puedeAbrirCaja = preset.puedeAbrirCaja;
+      _puedeCerrarCaja = preset.puedeCerrarCaja;
+      _accesosRapidosOcultos
+        ..clear()
+        ..addAll(preset.accesosRapidosOcultos);
+      _permisosEspeciales
+        ..clear()
+        ..addAll(preset.permisosEspeciales);
+    });
+  }
+
+  /// Sección de permisos granulares (catálogo extensible).
+  /// Se renderiza agrupada por categoría — cada permiso es un checkbox
+  /// con label corto + tooltip de description. Se persiste en
+  /// `UsuarioSedeRol.permisos: String[]`.
+  Widget _buildPermisosEspeciales() {
+    final grupos = groupedGranularPermissions();
+    return GradientContainer(
+      borderWidth: 0.6,
+      borderColor: AppColors.blueborder,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      gradient: AppGradients.blueWhiteBlue(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const AppSubtitle('Permisos especiales', fontSize: 12),
+              const Spacer(),
+              TextButton(
+                onPressed: () =>
+                    setState(() => _permisosEspeciales.clear()),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  minimumSize: const Size(0, 28),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: const Text('Quitar todos',
+                    style: TextStyle(fontSize: 11)),
+              ),
+            ],
+          ),
+          Text(
+            'Capacidades adicionales por usuario que no dependen del rol. '
+            'Útil para autorizar puntualmente (descuentos, anular ventas, '
+            'ver costos, etc.).',
+            style: TextStyle(fontSize: 10, color: Colors.grey.shade700),
+          ),
+          const SizedBox(height: 6),
+          for (final entry in grupos.entries) ...[
+            Padding(
+              padding: const EdgeInsets.only(top: 6, bottom: 2),
+              child: Text(
+                entry.key.toUpperCase(),
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.blue1.withValues(alpha: 0.7),
+                  letterSpacing: 0.6,
+                ),
+              ),
+            ),
+            ...entry.value.map((perm) {
+              final activo = _permisosEspeciales.contains(perm.id);
+              return Tooltip(
+                message: perm.description,
+                child: CustomCheckboxTile(
+                  title: perm.label,
+                  value: activo,
+                  onChanged: (value) {
+                    setState(() {
+                      if (value == true) {
+                        _permisosEspeciales.add(perm.id);
+                      } else {
+                        _permisosEspeciales.remove(perm.id);
+                      }
+                    });
+                  },
+                ),
+              );
+            }),
+          ],
+        ],
+      ),
     );
   }
 
@@ -198,7 +438,10 @@ class _AsignarRolDialogState extends State<AsignarRolDialog> {
                       },
                     ),
 
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 8),
+                    _buildAplicarPresetButton(),
+
+                    const SizedBox(height: 16),
 
                     // Sedes Asignadas
                     if (widget.sedesDisponibles != null &&
@@ -291,6 +534,16 @@ class _AsignarRolDialogState extends State<AsignarRolDialog> {
                       borderColor: AppColors.blueborder,
                       sliderActiveColor: AppColors.green,
                     ),
+
+                    const SizedBox(height: 24),
+
+                    // Accesos rápidos del dashboard visibles al usuario
+                    _buildAccesosRapidosSeleccion(),
+
+                    const SizedBox(height: 24),
+
+                    // Permisos especiales (catálogo granular extensible)
+                    _buildPermisosEspeciales(),
                   ],
                 ),
               ),
@@ -365,6 +618,8 @@ class _AsignarRolDialogState extends State<AsignarRolDialog> {
       'puedeCerrarCaja': _puedeCerrarCaja,
       if (_limiteCreditoVenta != null)
         'limiteCreditoVenta': _limiteCreditoVenta,
+      'accesosRapidosOcultos': _accesosRapidosOcultos.toList(),
+      'permisos': _permisosEspeciales.toList(),
     };
 
     // print('📦 Data construida: $data');

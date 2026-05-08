@@ -169,6 +169,9 @@ class UsuarioSede extends Equatable {
   final bool puedeCerrarCaja;
   final double? limiteCreditoVenta;
   final List<String> permisos;
+  /// IDs de accesos rápidos del dashboard ocultos para este usuario en
+  /// esta sede. Override individual por encima del filtro por rol.
+  final List<String> accesosRapidosOcultos;
   final bool isActive;
 
   const UsuarioSede({
@@ -180,6 +183,7 @@ class UsuarioSede extends Equatable {
     required this.puedeCerrarCaja,
     this.limiteCreditoVenta,
     this.permisos = const [],
+    this.accesosRapidosOcultos = const [],
     required this.isActive,
   });
 
@@ -225,6 +229,7 @@ class UsuarioSede extends Equatable {
         puedeCerrarCaja,
         limiteCreditoVenta,
         permisos,
+        accesosRapidosOcultos,
         isActive,
       ];
 }

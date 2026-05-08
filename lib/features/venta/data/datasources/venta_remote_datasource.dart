@@ -136,8 +136,11 @@ class VentaRemoteDataSource {
     final response = await _dioClient.get(
       '/devoluciones-venta/venta/$ventaId/reversion-total',
     );
-    if (response.data == null) return null;
-    return ReversionTotal.fromJson(response.data as Map<String, dynamic>);
+    final data = response.data;
+    if (data == null || data is! Map<String, dynamic> || data.isEmpty) {
+      return null;
+    }
+    return ReversionTotal.fromJson(data);
   }
 
   Future<Map<String, dynamic>> crearNotaCredito(String comprobanteId, {

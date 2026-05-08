@@ -2,8 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:syncronize/core/di/injection_container.dart';
 import 'package:syncronize/core/constants/storage_constants.dart';
+import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/storage/local_storage_service.dart';
 import 'package:syncronize/core/storage/secure_storage_service.dart';
+import 'package:syncronize/core/theme/app_colors.dart';
+import 'package:syncronize/core/theme/app_gradients.dart';
+import 'package:syncronize/core/theme/gradient_container.dart';
 
 import '../../domain/entities/atributo_plantilla.dart';
 import '../../domain/entities/producto_atributo.dart';
@@ -14,7 +18,8 @@ import '../bloc/producto_atributo/producto_atributo_state.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 
-/// Diálogo para crear o editar una plantilla de atributos
+/// Diálogo para crear o editar una plantilla de atributos.
+/// Estilo unificado con el lenguaje del app (mismo que ConfigurarPreciosDialog).
 class PlantillaFormDialog extends StatefulWidget {
   final AtributoPlantilla? plantilla; // null = crear, no-null = editar
   final String empresaId;
@@ -36,14 +41,13 @@ class _PlantillaFormDialogState extends State<PlantillaFormDialog> {
   String? _icono;
   String? _categoriaId;
   List<_AtributoSeleccionado> _atributosSeleccionados = [];
-  String? _currentEmpresaId; // Track para detectar cambios de empresa
+  String? _currentEmpresaId;
 
   bool get _esEdicion => widget.plantilla != null;
 
   @override
   void initState() {
     super.initState();
-    // Guardar el empresaId inicial
     _currentEmpresaId = widget.empresaId;
 
     if (_esEdicion) {
@@ -79,21 +83,17 @@ class _PlantillaFormDialogState extends State<PlantillaFormDialog> {
       listener: (context, empresaState) {
         if (empresaState is EmpresaContextLoaded) {
           final newEmpresaId = empresaState.context.empresa.id;
-
-          // Detectar si cambió la empresa
-          if (_currentEmpresaId != null && _currentEmpresaId != newEmpresaId) {
-            // Opción 2: Actualizar los atributos con la nueva empresa
-            // (aunque el diálogo se cerrará, esto evita errores)
-            context.read<ProductoAtributoCubit>().loadAtributos(newEmpresaId);
-
-            // Opción 1: Cerrar el diálogo automáticamente
+          if (_currentEmpresaId != null &&
+              _currentEmpresaId != newEmpresaId) {
+            context
+                .read<ProductoAtributoCubit>()
+                .loadAtributos(newEmpresaId);
             Navigator.of(context).pop();
-
-            // Mostrar notificación al usuario
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Diálogo cerrado: cambiaste a ${empresaState.context.empresa.nombre}'),
-                backgroundColor: Colors.blue,
+                content: Text(
+                    'Diálogo cerrado: cambiaste a ${empresaState.context.empresa.nombre}'),
+                backgroundColor: AppColors.blue1,
                 duration: const Duration(seconds: 2),
               ),
             );
@@ -101,167 +101,398 @@ class _PlantillaFormDialogState extends State<PlantillaFormDialog> {
         }
       },
       child: BlocProvider(
-        create: (_) => locator<ProductoAtributoCubit>()..loadAtributos(widget.empresaId),
-        child: AlertDialog(
-        title: Text(_esEdicion ? 'Editar Plantilla' : 'Nueva Plantilla'),
-        content: SizedBox(
-          width: MediaQuery.of(context).size.width * 0.9,
-          child: Form(
-            key: _formKey,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Nombre
-                  TextFormField(
-                    controller: _nombreController,
-                    decoration: const InputDecoration(
-                      labelText: 'Nombre *',
-                      hintText: 'Ej: Motherboard, Procesador, RAM',
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Ingresa un nombre';
-                      }
-                      return null;
-                    },
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Descripción
-                  TextFormField(
-                    controller: _descripcionController,
-                    decoration: const InputDecoration(
-                      labelText: 'Descripción',
-                      hintText: 'Describe para qué se usa esta plantilla',
-                      border: OutlineInputBorder(),
-                    ),
-                    maxLines: 2,
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Icono (emoji picker simple)
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          'Icono: ${_icono ?? "(ninguno)"}',
-                          style: const TextStyle(fontSize: 16),
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: () => _seleccionarIcono(context),
-                        child: const Text('Cambiar'),
-                      ),
-                    ],
-                  ),
-
-                  const Divider(height: 32),
-
-                  // Atributos seleccionados
-                  const Text(
-                    'Atributos',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-
-                  if (_atributosSeleccionados.isEmpty)
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Row(
+        create: (_) => locator<ProductoAtributoCubit>()
+          ..loadAtributos(widget.empresaId),
+        child: Dialog(
+          insetPadding:
+              const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
+          child: GradientContainer(
+            gradient: AppGradients.blueWhiteDialog(),
+            padding:
+                const EdgeInsets.only(left: 15, right: 15, top: 10),
+            borderRadius: BorderRadius.circular(10.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildHeader(),
+                const Divider(),
+                const SizedBox(height: 8),
+                Flexible(
+                  child: SingleChildScrollView(
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(Icons.info_outline, size: 20),
-                          SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Agrega atributos a esta plantilla',
-                              style: TextStyle(fontSize: 13),
-                            ),
-                          ),
+                          _buildNombreField(),
+                          const SizedBox(height: 12),
+                          _buildDescripcionField(),
+                          const SizedBox(height: 12),
+                          _buildIconoPicker(),
+                          const SizedBox(height: 8),
+                          const Divider(),
+                          _buildAtributosSection(),
                         ],
                       ),
-                    )
-                  else
-                    ReorderableListView(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      onReorder: _reordenarAtributos,
-                      children: _atributosSeleccionados
-                          .asMap()
-                          .entries
-                          .map((entry) => _buildAtributoItem(entry.key, entry.value))
-                          .toList(),
                     ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _buildActions(),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
-                  const SizedBox(height: 12),
+  // ============================================
+  // HEADER
+  // ============================================
 
-                  // Botón agregar atributo
-                  BlocBuilder<ProductoAtributoCubit, ProductoAtributoState>(
-                    builder: (context, state) {
-                      return OutlinedButton.icon(
-                        onPressed: state is ProductoAtributoLoaded
-                            ? () => _mostrarSelectorAtributos(context, state.atributos)
-                            : null,
-                        icon: const Icon(Icons.add),
-                        label: const Text('Agregar atributo'),
-                      );
-                    },
+  Widget _buildHeader() {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: AppColors.bluechip,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(
+            _esEdicion
+                ? Icons.edit_note_outlined
+                : Icons.dashboard_customize_outlined,
+            color: AppColors.blue1,
+            size: 16,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              AppTitle(_esEdicion ? 'Editar Plantilla' : 'Nueva Plantilla'),
+              AppSubtitle(
+                _esEdicion
+                    ? widget.plantilla!.nombre
+                    : 'Reutiliza un set de atributos en tus productos',
+                fontSize: 10,
+                color: AppColors.blue1,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ============================================
+  // CAMPOS DE FORMULARIO
+  // ============================================
+
+  InputDecoration _buildInputDecoration({
+    required String label,
+    String? hint,
+    Widget? prefixIcon,
+    Widget? suffixIcon,
+  }) {
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      labelStyle: TextStyle(fontSize: 12, color: AppColors.blue1),
+      hintStyle:
+          TextStyle(fontSize: 11, color: Colors.grey.shade500),
+      prefixIcon: prefixIcon,
+      suffixIcon: suffixIcon,
+      isDense: true,
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide:
+            BorderSide(color: AppColors.blue1.withValues(alpha: 0.3)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide:
+            BorderSide(color: AppColors.blue1.withValues(alpha: 0.3)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide(color: AppColors.blue1, width: 1.5),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: Colors.red, width: 1),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: Colors.red, width: 1.5),
+      ),
+    );
+  }
+
+  Widget _buildNombreField() {
+    return TextFormField(
+      controller: _nombreController,
+      style: const TextStyle(fontSize: 13),
+      decoration: _buildInputDecoration(
+        label: 'Nombre *',
+        hint: 'Ej: Motherboard, Procesador, RAM',
+        prefixIcon: Icon(Icons.label_outline,
+            size: 16, color: AppColors.blue1),
+      ),
+      validator: (value) {
+        if (value == null || value.trim().isEmpty) {
+          return 'Ingresa un nombre';
+        }
+        return null;
+      },
+    );
+  }
+
+  Widget _buildDescripcionField() {
+    return TextFormField(
+      controller: _descripcionController,
+      style: const TextStyle(fontSize: 13),
+      maxLines: 2,
+      decoration: _buildInputDecoration(
+        label: 'Descripción',
+        hint: 'Describe para qué se usa esta plantilla',
+      ),
+    );
+  }
+
+  Widget _buildIconoPicker() {
+    return InkWell(
+      onTap: () => _seleccionarIcono(context),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: AppColors.blue1.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+              color: AppColors.blue1.withValues(alpha: 0.25),
+              width: 0.6),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: AppColors.blue1.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                    color: AppColors.blue1.withValues(alpha: 0.3),
+                    width: 0.6),
+              ),
+              child: _icono != null && _icono!.isNotEmpty
+                  ? Text(_icono!, style: const TextStyle(fontSize: 18))
+                  : Icon(Icons.emoji_emotions_outlined,
+                      color: AppColors.blue1, size: 18),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AppSubtitle(
+                    'Ícono',
+                    fontSize: 10,
+                    color: AppColors.blue1,
+                  ),
+                  Text(
+                    _icono != null && _icono!.isNotEmpty
+                        ? 'Seleccionado'
+                        : 'Sin ícono — toca para elegir',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey.shade700,
+                    ),
                   ),
                 ],
               ),
             ),
-          ),
+            Icon(Icons.chevron_right,
+                size: 16, color: Colors.grey.shade500),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
+      ),
+    );
+  }
+
+  // ============================================
+  // SECCIÓN ATRIBUTOS
+  // ============================================
+
+  Widget _buildAtributosSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.list_alt_outlined,
+                size: 14, color: AppColors.blue1),
+            const SizedBox(width: 4),
+            AppSubtitle(
+              'Atributos',
+              fontSize: 12,
+              color: AppColors.textPrimary,
+            ),
+            const Spacer(),
+            if (_atributosSeleccionados.isNotEmpty)
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.blue1.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(
+                      color: AppColors.blue1.withValues(alpha: 0.3),
+                      width: 0.5),
+                ),
+                child: Text(
+                  '${_atributosSeleccionados.length}',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.blue1,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (_atributosSeleccionados.isEmpty)
+          _buildAtributosEmptyCard()
+        else
+          ReorderableListView(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            buildDefaultDragHandles: false,
+            onReorder: _reordenarAtributos,
+            children: _atributosSeleccionados
+                .asMap()
+                .entries
+                .map(
+                    (entry) => _buildAtributoItem(entry.key, entry.value))
+                .toList(),
           ),
-          ElevatedButton(
-            onPressed: _guardar,
-            child: Text(_esEdicion ? 'Actualizar' : 'Crear'),
+        const SizedBox(height: 10),
+        BlocBuilder<ProductoAtributoCubit, ProductoAtributoState>(
+          builder: (context, state) {
+            return SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: state is ProductoAtributoLoaded
+                    ? () => _mostrarSelectorAtributos(
+                        context, state.atributos)
+                    : null,
+                icon: const Icon(Icons.add, size: 16),
+                label: AppSubtitle(
+                  'Agregar atributo',
+                  fontSize: 11,
+                  color: AppColors.blue1,
+                ),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 34),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 0),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  side: BorderSide(
+                      color: AppColors.blue1.withValues(alpha: 0.4)),
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAtributosEmptyCard() {
+    return Container(
+      padding:
+          const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.blueGrey.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.blueGrey.shade200),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.dashboard_customize_outlined,
+              size: 18, color: Colors.blueGrey.shade400),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Aún no hay atributos. Agrega los que esta plantilla expondrá '
+              'al crear productos.',
+              style: TextStyle(
+                fontSize: 10,
+                color: Colors.blueGrey.shade700,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
           ),
         ],
-        ),
       ),
     );
   }
 
   Widget _buildAtributoItem(int index, _AtributoSeleccionado atributo) {
     final tieneValores = atributo.valoresDisponibles.isNotEmpty;
-    final cantidadOverride = atributo.valoresOverride?.length ?? atributo.valoresDisponibles.length;
+    final cantidadOverride =
+        atributo.valoresOverride?.length ?? atributo.valoresDisponibles.length;
 
-    return Card(
+    return Padding(
       key: ValueKey(atributo.atributoId),
-      margin: const EdgeInsets.only(bottom: 8),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Container(
+        padding:
+            const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.7),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: AppColors.blue1.withValues(alpha: 0.2),
+            width: 0.6,
+          ),
+        ),
         child: Row(
           children: [
-            // Drag handle + índice
-            const Icon(Icons.drag_handle, size: 20, color: Colors.grey),
+            ReorderableDragStartListener(
+              index: index,
+              child: Icon(Icons.drag_indicator,
+                  size: 16, color: Colors.grey.shade500),
+            ),
             const SizedBox(width: 4),
-            SizedBox(
-              width: 20,
+            Container(
+              width: 22,
+              height: 22,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: AppColors.blue1.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(4),
+              ),
               child: Text(
                 '${index + 1}',
-                style: const TextStyle(fontSize: 13, color: Colors.grey),
-                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.blue1,
+                ),
               ),
             ),
             const SizedBox(width: 8),
-            // Nombre, clave y tipo
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -269,20 +500,40 @@ class _PlantillaFormDialogState extends State<PlantillaFormDialog> {
                 children: [
                   Text(
                     atributo.nombre,
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 2),
                   Row(
                     children: [
-                      Text(
-                        atributo.tipo,
-                        style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 4, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: Colors.indigo.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                        child: Text(
+                          atributo.tipo,
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.indigo.shade700,
+                          ),
+                        ),
                       ),
                       if (tieneValores) ...[
+                        const SizedBox(width: 4),
                         Text(
-                          ' • $cantidadOverride/${atributo.valoresDisponibles.length} val.',
-                          style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                          '$cantidadOverride/${atributo.valoresDisponibles.length} val.',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey.shade600,
+                          ),
                         ),
                       ],
                     ],
@@ -290,52 +541,78 @@ class _PlantillaFormDialogState extends State<PlantillaFormDialog> {
                 ],
               ),
             ),
-            // Configurar valores
             if (tieneValores)
-              IconButton(
-                icon: const Icon(Icons.tune, size: 18),
-                tooltip: 'Configurar valores',
-                onPressed: () => _editarValoresOverride(context, index, atributo),
-                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                padding: EdgeInsets.zero,
+              SizedBox(
+                width: 28,
+                height: 28,
+                child: IconButton(
+                  icon: Icon(Icons.tune,
+                      size: 15, color: AppColors.blue1),
+                  padding: EdgeInsets.zero,
+                  tooltip: 'Configurar valores',
+                  onPressed: () =>
+                      _editarValoresOverride(context, index, atributo),
+                ),
               ),
-            // Requerido toggle
-            SizedBox(
-              height: 32,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: Checkbox(
-                      value: atributo.requeridoOverride ?? false,
-                      onChanged: (value) {
-                        setState(() {
-                          _atributosSeleccionados[index] =
-                              atributo.copyWith(requeridoOverride: value);
-                        });
-                      },
-                      visualDensity: VisualDensity.compact,
-                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                  ),
-                  const SizedBox(width: 2),
-                  const Text('Req.', style: TextStyle(fontSize: 11)),
-                ],
-              ),
-            ),
-            // Eliminar
-            IconButton(
-              icon: Icon(Icons.close, size: 18, color: Colors.red.shade300),
-              onPressed: () {
+            InkWell(
+              onTap: () {
                 setState(() {
-                  _atributosSeleccionados.removeAt(index);
-                  _actualizarOrdenes();
+                  _atributosSeleccionados[index] = atributo.copyWith(
+                    requeridoOverride:
+                        !(atributo.requeridoOverride ?? false),
+                  );
                 });
               },
-              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-              padding: EdgeInsets.zero,
+              borderRadius: BorderRadius.circular(6),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: Checkbox(
+                        value: atributo.requeridoOverride ?? false,
+                        onChanged: (value) {
+                          setState(() {
+                            _atributosSeleccionados[index] = atributo
+                                .copyWith(requeridoOverride: value);
+                          });
+                        },
+                        activeColor: AppColors.blue1,
+                        materialTapTargetSize:
+                            MaterialTapTargetSize.shrinkWrap,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ),
+                    const SizedBox(width: 2),
+                    Text(
+                      'Req.',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            SizedBox(
+              width: 28,
+              height: 28,
+              child: IconButton(
+                icon: Icon(Icons.close,
+                    size: 15, color: Colors.red.shade400),
+                padding: EdgeInsets.zero,
+                tooltip: 'Eliminar',
+                onPressed: () {
+                  setState(() {
+                    _atributosSeleccionados.removeAt(index);
+                    _actualizarOrdenes();
+                  });
+                },
+              ),
             ),
           ],
         ),
@@ -343,11 +620,49 @@ class _PlantillaFormDialogState extends State<PlantillaFormDialog> {
     );
   }
 
+  // ============================================
+  // ACCIONES (footer)
+  // ============================================
+
+  Widget _buildActions() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: AppSubtitle(
+            'Cancelar',
+            fontSize: 12,
+            color: AppColors.blue1,
+          ),
+        ),
+        const SizedBox(width: 12),
+        ElevatedButton(
+          onPressed: _guardar,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.blue1,
+            padding: const EdgeInsets.symmetric(
+              horizontal: 24,
+              vertical: 12,
+            ),
+          ),
+          child: AppSubtitle(
+            _esEdicion ? 'Actualizar' : 'Crear',
+            fontSize: 12,
+            color: Colors.white,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ============================================
+  // LÓGICA
+  // ============================================
+
   void _reordenarAtributos(int oldIndex, int newIndex) {
     setState(() {
-      if (newIndex > oldIndex) {
-        newIndex -= 1;
-      }
+      if (newIndex > oldIndex) newIndex -= 1;
       final item = _atributosSeleccionados.removeAt(oldIndex);
       _atributosSeleccionados.insert(newIndex, item);
       _actualizarOrdenes();
@@ -356,47 +671,116 @@ class _PlantillaFormDialogState extends State<PlantillaFormDialog> {
 
   void _actualizarOrdenes() {
     for (var i = 0; i < _atributosSeleccionados.length; i++) {
-      _atributosSeleccionados[i] = _atributosSeleccionados[i].copyWith(orden: i);
+      _atributosSeleccionados[i] =
+          _atributosSeleccionados[i].copyWith(orden: i);
     }
   }
 
   void _seleccionarIcono(BuildContext context) {
-    final emojis = ['📱', '💻', '🖥️', '⌨️', '🖱️', '🎮', '🎧', '📷', '💾', '🔌'];
+    final emojis = [
+      '📱',
+      '💻',
+      '🖥️',
+      '⌨️',
+      '🖱️',
+      '🎮',
+      '🎧',
+      '📷',
+      '💾',
+      '🔌',
+      '⚡',
+      '🔋',
+      '📦',
+      '🛠️',
+      '🏷️',
+    ];
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Seleccionar icono'),
-        content: Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: emojis
-              .map((emoji) => InkWell(
-                    onTap: () {
-                      setState(() => _icono = emoji);
+      builder: (context) => Dialog(
+        insetPadding:
+            const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
+        child: GradientContainer(
+          gradient: AppGradients.blueWhiteDialog(),
+          padding: const EdgeInsets.all(15),
+          borderRadius: BorderRadius.circular(10.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.bluechip,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(Icons.emoji_emotions_outlined,
+                        color: AppColors.blue1, size: 16),
+                  ),
+                  const SizedBox(width: 10),
+                  AppTitle('Seleccionar ícono'),
+                ],
+              ),
+              const Divider(),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: emojis
+                    .map((emoji) => InkWell(
+                          onTap: () {
+                            setState(() => _icono = emoji);
+                            Navigator.pop(context);
+                          },
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            width: 44,
+                            height: 44,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: AppColors.blue1
+                                  .withValues(alpha: 0.05),
+                              border: Border.all(
+                                  color: AppColors.blue1
+                                      .withValues(alpha: 0.3),
+                                  width: 0.6),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(emoji,
+                                style: const TextStyle(fontSize: 22)),
+                          ),
+                        ))
+                    .toList(),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () {
+                      setState(() => _icono = null);
                       Navigator.pop(context);
                     },
-                    child: Container(
-                      width: 50,
-                      height: 50,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey.shade300),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(emoji, style: const TextStyle(fontSize: 24)),
+                    child: AppSubtitle(
+                      'Sin ícono',
+                      fontSize: 12,
+                      color: AppColors.blue1,
                     ),
-                  ))
-              .toList(),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              setState(() => _icono = null);
-              Navigator.pop(context);
-            },
-            child: const Text('Sin icono'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: AppSubtitle(
+                      'Cancelar',
+                      fontSize: 12,
+                      color: Colors.grey.shade700,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -406,133 +790,226 @@ class _PlantillaFormDialogState extends State<PlantillaFormDialog> {
     int index,
     _AtributoSeleccionado atributo,
   ) {
-    // Valores actualmente seleccionados (override o todos si no hay override)
-    final valoresActuales = atributo.valoresOverride ?? atributo.valoresDisponibles;
+    final valoresActuales =
+        atributo.valoresOverride ?? atributo.valoresDisponibles;
     final valoresSeleccionados = Set<String>.from(valoresActuales);
 
     showDialog(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Configurar valores: ${atributo.nombre}'),
-              const SizedBox(height: 4),
-              Text(
-                'Selecciona los valores que aparecerán en esta plantilla',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
-          ),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: atributo.valoresDisponibles.isEmpty
-                ? const Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Text('Este atributo no tiene valores predefinidos'),
-                  )
-                : Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Botones de selección rápida
-                      Row(
+        builder: (context, setDialogState) => Dialog(
+          insetPadding:
+              const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
+          child: GradientContainer(
+            gradient: AppGradients.blueWhiteDialog(),
+            padding: const EdgeInsets.only(
+                left: 15, right: 15, top: 10),
+            borderRadius: BorderRadius.circular(10.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.bluechip,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(Icons.tune,
+                          color: AppColors.blue1, size: 16),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          TextButton.icon(
-                            onPressed: () {
-                              setDialogState(() {
-                                valoresSeleccionados.clear();
-                                valoresSeleccionados.addAll(atributo.valoresDisponibles);
-                              });
-                            },
-                            icon: const Icon(Icons.select_all, size: 16),
-                            label: const Text('Todos'),
-                          ),
-                          TextButton.icon(
-                            onPressed: () {
-                              setDialogState(() {
-                                valoresSeleccionados.clear();
-                              });
-                            },
-                            icon: const Icon(Icons.deselect, size: 16),
-                            label: const Text('Ninguno'),
+                          AppTitle('Configurar valores'),
+                          AppSubtitle(
+                            atributo.nombre,
+                            fontSize: 10,
+                            color: AppColors.blue1,
                           ),
                         ],
                       ),
-                      const Divider(),
-                      // Lista de valores
-                      Flexible(
-                        child: ListView.builder(
-                          shrinkWrap: true,
-                          itemCount: atributo.valoresDisponibles.length,
-                          itemBuilder: (context, i) {
-                            final valor = atributo.valoresDisponibles[i];
-                            final isSelected = valoresSeleccionados.contains(valor);
-                            return CheckboxListTile(
-                              dense: true,
-                              title: Text(valor),
-                              value: isSelected,
-                              onChanged: (bool? checked) {
-                                setDialogState(() {
-                                  if (checked == true) {
-                                    valoresSeleccionados.add(valor);
-                                  } else {
-                                    valoresSeleccionados.remove(valor);
-                                  }
-                                });
-                              },
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                // Restablecer a usar todos los valores (sin override)
-                setState(() {
-                  _atributosSeleccionados[index] =
-                      atributo.copyWith(valoresOverride: null);
-                });
-                Navigator.pop(dialogContext);
-              },
-              child: const Text('Usar todos'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (valoresSeleccionados.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Debes seleccionar al menos un valor'),
-                      backgroundColor: Colors.orange,
                     ),
-                  );
-                  return;
-                }
-
-                setState(() {
-                  // Si se seleccionaron todos los valores, no usar override
-                  final todosSeleccionados =
-                      valoresSeleccionados.length == atributo.valoresDisponibles.length;
-
-                  _atributosSeleccionados[index] = atributo.copyWith(
-                    valoresOverride: todosSeleccionados
-                        ? null
-                        : valoresSeleccionados.toList()?..sort(),
-                  );
-                });
-                Navigator.pop(dialogContext);
-              },
-              child: const Text('Aplicar'),
+                  ],
+                ),
+                const Divider(),
+                const SizedBox(height: 8),
+                Flexible(
+                  child: SingleChildScrollView(
+                    child: atributo.valoresDisponibles.isEmpty
+                        ? Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Text(
+                              'Este atributo no tiene valores predefinidos',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade700,
+                              ),
+                            ),
+                          )
+                        : Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Row(
+                                children: [
+                                  TextButton.icon(
+                                    onPressed: () => setDialogState(() {
+                                      valoresSeleccionados.clear();
+                                      valoresSeleccionados.addAll(
+                                          atributo.valoresDisponibles);
+                                    }),
+                                    icon: const Icon(Icons.select_all,
+                                        size: 14),
+                                    label: AppSubtitle(
+                                      'Todos',
+                                      fontSize: 11,
+                                      color: AppColors.blue1,
+                                    ),
+                                  ),
+                                  TextButton.icon(
+                                    onPressed: () => setDialogState(() {
+                                      valoresSeleccionados.clear();
+                                    }),
+                                    icon: const Icon(Icons.deselect,
+                                        size: 14),
+                                    label: AppSubtitle(
+                                      'Ninguno',
+                                      fontSize: 11,
+                                      color: Colors.grey.shade700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const Divider(),
+                              ...atributo.valoresDisponibles.map((valor) {
+                                final isSelected =
+                                    valoresSeleccionados.contains(valor);
+                                return InkWell(
+                                  onTap: () => setDialogState(() {
+                                    if (isSelected) {
+                                      valoresSeleccionados.remove(valor);
+                                    } else {
+                                      valoresSeleccionados.add(valor);
+                                    }
+                                  }),
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 2),
+                                    child: Row(
+                                      children: [
+                                        SizedBox(
+                                          width: 22,
+                                          height: 22,
+                                          child: Checkbox(
+                                            value: isSelected,
+                                            onChanged: (checked) =>
+                                                setDialogState(() {
+                                              if (checked == true) {
+                                                valoresSeleccionados
+                                                    .add(valor);
+                                              } else {
+                                                valoresSeleccionados
+                                                    .remove(valor);
+                                              }
+                                            }),
+                                            activeColor: AppColors.blue1,
+                                            materialTapTargetSize:
+                                                MaterialTapTargetSize
+                                                    .shrinkWrap,
+                                            visualDensity:
+                                                VisualDensity.compact,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            valor,
+                                            style: const TextStyle(
+                                                fontSize: 12),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              }),
+                            ],
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () {
+                        setState(() {
+                          _atributosSeleccionados[index] =
+                              atributo.copyWith(valoresOverride: null);
+                        });
+                        Navigator.pop(dialogContext);
+                      },
+                      child: AppSubtitle(
+                        'Usar todos',
+                        fontSize: 12,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      child: AppSubtitle(
+                        'Cancelar',
+                        fontSize: 12,
+                        color: AppColors.blue1,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      onPressed: () {
+                        if (valoresSeleccionados.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                  'Debes seleccionar al menos un valor'),
+                              backgroundColor: Colors.orange,
+                            ),
+                          );
+                          return;
+                        }
+                        setState(() {
+                          final todosSeleccionados =
+                              valoresSeleccionados.length ==
+                                  atributo.valoresDisponibles.length;
+                          _atributosSeleccionados[index] =
+                              atributo.copyWith(
+                            valoresOverride: todosSeleccionados
+                                ? null
+                                : (valoresSeleccionados.toList()..sort()),
+                          );
+                        });
+                        Navigator.pop(dialogContext);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.blue1,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 18, vertical: 10),
+                      ),
+                      child: AppSubtitle(
+                        'Aplicar',
+                        fontSize: 12,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -542,74 +1019,190 @@ class _PlantillaFormDialogState extends State<PlantillaFormDialog> {
     BuildContext context,
     List<ProductoAtributo> atributosDisponibles,
   ) {
-    // Filtrar atributos ya seleccionados
     final atributosNoSeleccionados = atributosDisponibles
-        .where((a) => !_atributosSeleccionados.any((s) => s.atributoId == a.id))
+        .where((a) =>
+            !_atributosSeleccionados.any((s) => s.atributoId == a.id))
         .toList();
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Seleccionar atributos'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: atributosNoSeleccionados.isEmpty
-              ? const Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Text('No hay más atributos disponibles'),
-                )
-              : ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: atributosNoSeleccionados.length,
-                  itemBuilder: (context, index) {
-                    final atributo = atributosNoSeleccionados[index];
-                    return ListTile(
-                      title: Text(atributo.nombre),
-                      subtitle: Text('${atributo.clave} • ${atributo.tipo.value}'),
-                      onTap: () {
-                        setState(() {
-                          _atributosSeleccionados.add(_AtributoSeleccionado(
-                            atributoId: atributo.id,
-                            nombre: atributo.nombre,
-                            clave: atributo.clave,
-                            tipo: atributo.tipo.value,
-                            orden: _atributosSeleccionados.length,
-                            requeridoOverride: atributo.requerido,
-                            valoresDisponibles: atributo.valores,
-                          ));
-                        });
-                        Navigator.pop(context);
-                      },
-                    );
-                  },
+      builder: (context) => Dialog(
+        insetPadding:
+            const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
+        child: GradientContainer(
+          gradient: AppGradients.blueWhiteDialog(),
+          padding:
+              const EdgeInsets.only(left: 15, right: 15, top: 10),
+          borderRadius: BorderRadius.circular(10.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.bluechip,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(Icons.add_circle_outline,
+                        color: AppColors.blue1, size: 16),
+                  ),
+                  const SizedBox(width: 10),
+                  AppTitle('Seleccionar atributos'),
+                ],
+              ),
+              const Divider(),
+              const SizedBox(height: 8),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: atributosNoSeleccionados.isEmpty
+                      ? Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Text(
+                            'No hay más atributos disponibles',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade700,
+                            ),
+                          ),
+                        )
+                      : Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: atributosNoSeleccionados
+                              .map((atributo) => InkWell(
+                                    onTap: () {
+                                      setState(() {
+                                        _atributosSeleccionados.add(
+                                          _AtributoSeleccionado(
+                                            atributoId: atributo.id,
+                                            nombre: atributo.nombre,
+                                            clave: atributo.clave,
+                                            tipo: atributo.tipo.value,
+                                            orden:
+                                                _atributosSeleccionados
+                                                    .length,
+                                            requeridoOverride:
+                                                atributo.requerido,
+                                            valoresDisponibles:
+                                                atributo.valores,
+                                          ),
+                                        );
+                                      });
+                                      Navigator.pop(context);
+                                    },
+                                    borderRadius:
+                                        BorderRadius.circular(8),
+                                    child: Container(
+                                      margin: const EdgeInsets.only(
+                                          bottom: 6),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 10, vertical: 8),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white
+                                            .withValues(alpha: 0.7),
+                                        borderRadius:
+                                            BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: AppColors.blue1
+                                              .withValues(alpha: 0.2),
+                                          width: 0.6,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Container(
+                                            padding:
+                                                const EdgeInsets.all(6),
+                                            decoration: BoxDecoration(
+                                              color: AppColors.blue1
+                                                  .withValues(alpha: 0.1),
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                            ),
+                                            child: Icon(
+                                              Icons.label_outline,
+                                              size: 14,
+                                              color: AppColors.blue1,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 10),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment
+                                                      .start,
+                                              mainAxisSize:
+                                                  MainAxisSize.min,
+                                              children: [
+                                                Text(
+                                                  atributo.nombre,
+                                                  style:
+                                                      const TextStyle(
+                                                    fontSize: 12,
+                                                    fontWeight:
+                                                        FontWeight.w600,
+                                                  ),
+                                                ),
+                                                Text(
+                                                  '${atributo.clave} · ${atributo.tipo.value}',
+                                                  style: TextStyle(
+                                                    fontSize: 10,
+                                                    color: Colors.grey
+                                                        .shade600,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          Icon(Icons.chevron_right,
+                                              size: 16,
+                                              color: Colors.grey.shade400),
+                                        ],
+                                      ),
+                                    ),
+                                  ))
+                              .toList(),
+                        ),
                 ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cerrar'),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: AppSubtitle(
+                      'Cerrar',
+                      fontSize: 12,
+                      color: AppColors.blue1,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 
   Future<void> _guardar() async {
-    // Verificar estado de autenticación antes de enviar
     final localStorage = locator<LocalStorageService>();
     final secureStorage = locator<SecureStorageService>();
 
     final tenantId = localStorage.getString(StorageConstants.tenantId);
-    final accessToken = await secureStorage.read(key: StorageConstants.accessToken);
+    final accessToken =
+        await secureStorage.read(key: StorageConstants.accessToken);
 
-    // ✅ Verificar que el widget sigue montado después del await
     if (!mounted) return;
 
-    // Validar que exista empresa seleccionada
     if (tenantId == null || tenantId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('❌ Error: No hay empresa seleccionada. Por favor, selecciona una empresa primero.'),
+          content: Text(
+              'Error: No hay empresa seleccionada. Por favor, selecciona una empresa primero.'),
           backgroundColor: Colors.red,
           duration: Duration(seconds: 5),
         ),
@@ -617,11 +1210,11 @@ class _PlantillaFormDialogState extends State<PlantillaFormDialog> {
       return;
     }
 
-    // Validar que exista token de autenticación
     if (accessToken == null || accessToken.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('❌ Error: No estás autenticado. Por favor, inicia sesión nuevamente.'),
+          content: Text(
+              'Error: No estás autenticado. Por favor, inicia sesión nuevamente.'),
           backgroundColor: Colors.red,
           duration: Duration(seconds: 5),
         ),
@@ -649,6 +1242,7 @@ class _PlantillaFormDialogState extends State<PlantillaFormDialog> {
               valoresOverride: a.valoresOverride,
             ))
         .toList();
+
     if (_esEdicion) {
       context.read<AtributoPlantillaCubit>().actualizarPlantilla(
             plantillaId: widget.plantilla!.id,
@@ -672,13 +1266,12 @@ class _PlantillaFormDialogState extends State<PlantillaFormDialog> {
           );
     }
 
-    // ✅ Verificar mounted antes de usar Navigator
     if (!mounted) return;
     Navigator.pop(context);
   }
 }
 
-/// Clase auxiliar para manejar atributos seleccionados
+/// Clase auxiliar para manejar atributos seleccionados.
 class _AtributoSeleccionado {
   final String atributoId;
   final String nombre;
@@ -687,7 +1280,7 @@ class _AtributoSeleccionado {
   final int orden;
   final bool? requeridoOverride;
   final List<String>? valoresOverride;
-  final List<String> valoresDisponibles; // Valores del atributo global
+  final List<String> valoresDisponibles;
 
   _AtributoSeleccionado({
     required this.atributoId,
@@ -718,7 +1311,8 @@ class _AtributoSeleccionado {
       orden: orden ?? this.orden,
       requeridoOverride: requeridoOverride ?? this.requeridoOverride,
       valoresOverride: valoresOverride ?? this.valoresOverride,
-      valoresDisponibles: valoresDisponibles ?? this.valoresDisponibles,
+      valoresDisponibles:
+          valoresDisponibles ?? this.valoresDisponibles,
     );
   }
 }

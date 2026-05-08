@@ -45,6 +45,18 @@ class EmpresaPermissions extends Equatable {
   // Caja
   final bool canViewCaja;
   final bool canManageCaja;
+  /// Granular: rol CAJERO/ADMIN o flag UsuarioSedeRol.puedeAbrirCaja.
+  final bool canAbrirCaja;
+  /// Granular: rol CAJERO/ADMIN o flag UsuarioSedeRol.puedeCerrarCaja.
+  final bool canCerrarCaja;
+  /// IDs de accesos rápidos del dashboard que este usuario tiene
+  /// ocultos por configuración del admin. Override individual por
+  /// encima del filtro por rol. Vacío = ver todos los del rol.
+  final List<String> accesosRapidosOcultos;
+  /// Permisos granulares (catálogo extensible) consolidados entre las
+  /// sedes del usuario. Ej: `caja.abrir`, `venta.descuento-libre`.
+  /// Ver `core/utils/granular_permissions_catalog.dart`.
+  final List<String> granularPermissions;
 
   // RRHH
   final bool canViewEmpleados;
@@ -88,6 +100,10 @@ class EmpresaPermissions extends Equatable {
     required this.canManageCompras,
     required this.canViewCaja,
     required this.canManageCaja,
+    required this.canAbrirCaja,
+    required this.canCerrarCaja,
+    this.accesosRapidosOcultos = const [],
+    this.granularPermissions = const [],
     required this.canViewEmpleados,
     required this.canManageEmpleados,
     required this.canViewAsistencia,
@@ -137,6 +153,10 @@ class EmpresaPermissions extends Equatable {
         canManageCompras,
         canViewCaja,
         canManageCaja,
+        canAbrirCaja,
+        canCerrarCaja,
+        accesosRapidosOcultos,
+        granularPermissions,
         canViewEmpleados,
         canManageEmpleados,
         canViewAsistencia,

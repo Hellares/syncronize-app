@@ -116,6 +116,7 @@ class UsuarioSedeModel extends UsuarioSede {
     required super.puedeCerrarCaja,
     super.limiteCreditoVenta,
     super.permisos = const [],
+    super.accesosRapidosOcultos = const [],
     required super.isActive,
   });
 
@@ -134,6 +135,9 @@ class UsuarioSedeModel extends UsuarioSede {
       permisos: json['permisos'] != null
           ? List<String>.from(json['permisos'] as List)
           : [],
+      accesosRapidosOcultos: json['accesosRapidosOcultos'] != null
+          ? List<String>.from(json['accesosRapidosOcultos'] as List)
+          : const [],
       isActive: json['isActive'] as bool? ?? true,
     );
   }
@@ -149,6 +153,7 @@ class UsuarioSedeModel extends UsuarioSede {
       'puedeCerrarCaja': puedeCerrarCaja,
       'limiteCreditoVenta': limiteCreditoVenta,
       'permisos': permisos,
+      'accesosRapidosOcultos': accesosRapidosOcultos,
       'isActive': isActive,
     };
   }

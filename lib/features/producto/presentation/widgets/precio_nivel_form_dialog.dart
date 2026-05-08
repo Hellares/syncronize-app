@@ -1,5 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:syncronize/core/fonts/app_text_widgets.dart';
+import 'package:syncronize/core/theme/app_colors.dart';
+import 'package:syncronize/core/theme/app_gradients.dart';
+import 'package:syncronize/core/theme/gradient_container.dart';
+import 'package:syncronize/core/widgets/currency/currency_formatter.dart';
+import 'package:syncronize/core/widgets/currency/currency_textfield.dart';
+import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import '../../domain/entities/precio_nivel.dart';
 import '../../data/models/precio_nivel_model.dart';
 
@@ -10,12 +17,18 @@ class PrecioNivelFormDialog extends StatefulWidget {
   final List<PrecioNivel> nivelesExistentes;
   final Function(PrecioNivelDto) onSave;
 
+  /// Si está set, fuerza el tipo de precio y oculta el selector. Útil cuando
+  /// el dialog se abre desde un contexto que solo gestiona un tipo (ej. la
+  /// pantalla "Configurar Precios" que solo permite niveles PRECIO_FIJO).
+  final TipoPrecioNivel? lockTipoPrecio;
+
   const PrecioNivelFormDialog({
     super.key,
     this.precioBase,
     this.nivelToEdit,
     required this.nivelesExistentes,
     required this.onSave,
+    this.lockTipoPrecio,
   });
 
   @override
@@ -47,17 +60,21 @@ class _PrecioNivelFormDialogState extends State<PrecioNivelFormDialog> {
       }
       _tipoPrecio = nivel.tipoPrecio;
       if (nivel.precio != null) {
-        _precioController.text = nivel.precio.toString();
+        _precioController.text = nivel.precio!.toStringAsFixed(2);
       }
       if (nivel.porcentajeDesc != null) {
-        _porcentajeController.text = nivel.porcentajeDesc.toString();
+        _porcentajeController.text = nivel.porcentajeDesc!.toString();
       }
       if (nivel.descripcion != null) {
         _descripcionController.text = nivel.descripcion!;
       }
     } else {
-      // Valores por defecto para nuevo nivel
       _nombreController.text = _generarNombreSugerido();
+    }
+    // Si el caller forzó un tipo, sobrescribimos lo que sea que haya quedado
+    // (en edición respeta el del nivel; al crear nuevo, fuerza desde el inicio).
+    if (widget.lockTipoPrecio != null) {
+      _tipoPrecio = widget.lockTipoPrecio!;
     }
   }
 
@@ -73,6 +90,15 @@ class _PrecioNivelFormDialogState extends State<PrecioNivelFormDialog> {
   }
 
   String _generarNombreSugerido() {
+    if (widget.lockTipoPrecio == TipoPrecioNivel.precioFijo) {
+      final fijos = widget.nivelesExistentes
+          .where((n) => n.tipoPrecio == TipoPrecioNivel.precioFijo)
+          .length;
+      if (fijos == 0) return 'Por Mayor';
+      if (fijos == 1) return 'Por Cientos';
+      if (fijos == 2) return 'Mayoreo';
+      return 'Nivel fijo ${fijos + 1}';
+    }
     final count = widget.nivelesExistentes.length;
     if (count == 0) return 'Precio Retail';
     if (count == 1) return 'Precio por Mayor';
@@ -80,53 +106,68 @@ class _PrecioNivelFormDialogState extends State<PrecioNivelFormDialog> {
     return 'Nivel ${count + 1}';
   }
 
-  String? _validateCantidadMinima(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Ingresa la cantidad mínima';
+  /// Detecta si la cantidad mínima propuesta (junto con la máxima opcional)
+  /// solapa con algún nivel existente distinto al que se está editando.
+  PrecioNivel? _detectarSolapamiento(int cantMin, int? cantMax) {
+    final propMax = cantMax ?? (1 << 30);
+    for (final n in widget.nivelesExistentes) {
+      if (widget.nivelToEdit != null && n.id == widget.nivelToEdit!.id) {
+        continue;
+      }
+      final eMax = n.cantidadMaxima ?? (1 << 30);
+      // Dos rangos [a,b] y [c,d] solapan si a <= d && c <= b.
+      final solapa = cantMin <= eMax && n.cantidadMinima <= propMax;
+      if (solapa) return n;
     }
+    return null;
+  }
+
+  String? _validateNombre(String? value) {
+    if (value == null || value.trim().isEmpty) return 'Ingresa un nombre';
+    return null;
+  }
+
+  String? _validateCantidadMinima(String? value) {
+    if (value == null || value.isEmpty) return 'Requerido';
     final cantidad = int.tryParse(value);
-    if (cantidad == null || cantidad < 1) {
-      return 'Debe ser al menos 1';
+    if (cantidad == null || cantidad < 1) return 'Mínimo 1';
+    final cantMax = _tieneCantidadMaxima
+        ? int.tryParse(_cantidadMaximaController.text)
+        : null;
+    final solape = _detectarSolapamiento(cantidad, cantMax);
+    if (solape != null) {
+      return 'Solapa con "${solape.nombre}"';
     }
     return null;
   }
 
   String? _validateCantidadMaxima(String? value) {
     if (!_tieneCantidadMaxima) return null;
-    if (value == null || value.isEmpty) {
-      return 'Ingresa la cantidad máxima';
-    }
+    if (value == null || value.isEmpty) return 'Requerido';
     final max = int.tryParse(value);
     final min = int.tryParse(_cantidadMinimaController.text);
-    if (max == null || max < 1) {
-      return 'Debe ser al menos 1';
-    }
-    if (min != null && max <= min) {
-      return 'Debe ser mayor que el mínimo';
-    }
+    if (max == null || max < 1) return 'Mínimo 1';
+    if (min != null && max <= min) return 'Debe ser > $min';
     return null;
   }
 
   String? _validatePrecio(String? value) {
     if (_tipoPrecio != TipoPrecioNivel.precioFijo) return null;
-    if (value == null || value.isEmpty) {
-      return 'Ingresa el precio';
-    }
-    final precio = double.tryParse(value);
-    if (precio == null || precio <= 0) {
-      return 'Precio inválido';
+    final precio = CurrencyUtilsImproved.parseToDouble(value ?? '');
+    if (precio <= 0) return 'Ingresa el precio';
+    final base = widget.precioBase;
+    if (base != null && base > 0 && precio >= base) {
+      return 'Debe ser < S/ ${base.toStringAsFixed(2)}';
     }
     return null;
   }
 
   String? _validatePorcentaje(String? value) {
     if (_tipoPrecio != TipoPrecioNivel.porcentajeDescuento) return null;
-    if (value == null || value.isEmpty) {
-      return 'Ingresa el porcentaje';
-    }
+    if (value == null || value.isEmpty) return 'Ingresa el porcentaje';
     final porcentaje = double.tryParse(value);
     if (porcentaje == null || porcentaje < 0 || porcentaje > 100) {
-      return 'Debe estar entre 0 y 100';
+      return 'Entre 0 y 100';
     }
     return null;
   }
@@ -142,7 +183,7 @@ class _PrecioNivelFormDialogState extends State<PrecioNivelFormDialog> {
           : null,
       tipoPrecio: _tipoPrecio,
       precio: _tipoPrecio == TipoPrecioNivel.precioFijo
-          ? double.tryParse(_precioController.text)
+          ? CurrencyUtilsImproved.parseToDouble(_precioController.text)
           : null,
       porcentajeDesc: _tipoPrecio == TipoPrecioNivel.porcentajeDescuento
           ? double.tryParse(_porcentajeController.text)
@@ -157,233 +198,12 @@ class _PrecioNivelFormDialogState extends State<PrecioNivelFormDialog> {
     Navigator.pop(context);
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final isEditing = widget.nivelToEdit != null;
-    final precioCalculado = _calcularPrecioFinal();
-
-    return AlertDialog(
-      title: Text(isEditing ? 'Editar nivel de precio' : 'Nuevo nivel de precio'),
-      content: SingleChildScrollView(
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Nombre
-              TextFormField(
-                controller: _nombreController,
-                decoration: const InputDecoration(
-                  labelText: 'Nombre del nivel *',
-                  hintText: 'Ej: Por Mayor, Distribuidor',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Ingresa un nombre';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-
-              // Rango de cantidades
-              const Text(
-                'Rango de cantidades',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _cantidadMinimaController,
-                      decoration: const InputDecoration(
-                        labelText: 'Mínimo *',
-                        border: OutlineInputBorder(),
-                        suffixText: 'unid.',
-                      ),
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      validator: _validateCantidadMinima,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _cantidadMaximaController,
-                      decoration: const InputDecoration(
-                        labelText: 'Máximo',
-                        border: OutlineInputBorder(),
-                        suffixText: 'unid.',
-                      ),
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      enabled: _tieneCantidadMaxima,
-                      validator: _validateCantidadMaxima,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              CheckboxListTile(
-                value: _tieneCantidadMaxima,
-                onChanged: (value) {
-                  setState(() {
-                    _tieneCantidadMaxima = value ?? false;
-                    if (!_tieneCantidadMaxima) {
-                      _cantidadMaximaController.clear();
-                    }
-                  });
-                },
-                title: const Text(
-                  'Establecer cantidad máxima',
-                  style: TextStyle(fontSize: 13),
-                ),
-                contentPadding: EdgeInsets.zero,
-                dense: true,
-              ),
-              const SizedBox(height: 16),
-
-              // Tipo de precio
-              const Text(
-                'Tipo de precio',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(height: 8),
-              SegmentedButton<TipoPrecioNivel>(
-                segments: const [
-                  ButtonSegment(
-                    value: TipoPrecioNivel.precioFijo,
-                    label: Text('Precio Fijo'),
-                    icon: Icon(Icons.attach_money, size: 18),
-                  ),
-                  ButtonSegment(
-                    value: TipoPrecioNivel.porcentajeDescuento,
-                    label: Text('% Descuento'),
-                    icon: Icon(Icons.percent, size: 18),
-                  ),
-                ],
-                selected: {_tipoPrecio},
-                onSelectionChanged: (Set<TipoPrecioNivel> newSelection) {
-                  setState(() {
-                    _tipoPrecio = newSelection.first;
-                  });
-                },
-              ),
-              const SizedBox(height: 16),
-
-              // Campo de precio o porcentaje
-              if (_tipoPrecio == TipoPrecioNivel.precioFijo)
-                TextFormField(
-                  controller: _precioController,
-                  decoration: const InputDecoration(
-                    labelText: 'Precio unitario *',
-                    border: OutlineInputBorder(),
-                    prefixText: 'S/ ',
-                  ),
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
-                  ],
-                  validator: _validatePrecio,
-                  onChanged: (_) => setState(() {}),
-                )
-              else
-                TextFormField(
-                  controller: _porcentajeController,
-                  decoration: const InputDecoration(
-                    labelText: 'Porcentaje de descuento *',
-                    border: OutlineInputBorder(),
-                    suffixText: '%',
-                  ),
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
-                  ],
-                  validator: _validatePorcentaje,
-                  onChanged: (_) => setState(() {}),
-                ),
-
-              // Precio calculado (preview)
-              if (precioCalculado != null) ...[
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.info_outline, size: 18, color: Colors.green),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Precio final:',
-                              style: TextStyle(fontSize: 12),
-                            ),
-                            Text(
-                              'S/ ${precioCalculado.toStringAsFixed(2)}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                color: Colors.green,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-
-              const SizedBox(height: 16),
-
-              // Descripción
-              TextFormField(
-                controller: _descripcionController,
-                decoration: const InputDecoration(
-                  labelText: 'Descripción (opcional)',
-                  hintText: 'Ej: 10% de descuento en compras mayores a 6 unidades',
-                  border: OutlineInputBorder(),
-                ),
-                maxLines: 2,
-              ),
-            ],
-          ),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancelar'),
-        ),
-        FilledButton(
-          onPressed: _save,
-          child: Text(isEditing ? 'Actualizar' : 'Crear'),
-        ),
-      ],
-    );
-  }
-
   double? _calcularPrecioFinal() {
     if (widget.precioBase == null) return null;
 
     if (_tipoPrecio == TipoPrecioNivel.precioFijo) {
-      return double.tryParse(_precioController.text);
+      final p = CurrencyUtilsImproved.parseToDouble(_precioController.text);
+      return p > 0 ? p : null;
     } else {
       final porcentaje = double.tryParse(_porcentajeController.text);
       if (porcentaje != null) {
@@ -391,5 +211,357 @@ class _PrecioNivelFormDialogState extends State<PrecioNivelFormDialog> {
       }
     }
     return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isEditing = widget.nivelToEdit != null;
+    final precioCalculado = _calcularPrecioFinal();
+    final esFijo = _tipoPrecio == TipoPrecioNivel.precioFijo;
+    final subtitleTipo = esFijo ? 'Precio fijo' : 'Descuento porcentual';
+
+    return Dialog(
+      child: GradientContainer(
+        gradient: AppGradients.blueWhiteDialog(),
+        padding: const EdgeInsets.only(left: 15, right: 15, top: 10),
+        borderRadius: BorderRadius.circular(10.0),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header con icono + título + subtítulo
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.bluechip,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      esFijo ? Icons.attach_money : Icons.percent,
+                      color: AppColors.blue1,
+                      size: 16,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        AppTitle(
+                          isEditing ? 'Editar nivel' : 'Nuevo nivel',
+                        ),
+                        AppSubtitle(
+                          subtitleTipo,
+                          fontSize: 10,
+                          color: AppColors.blue1,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const Divider(),
+              const SizedBox(height: 10),
+
+              Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Nombre
+                    CustomText(
+                      controller: _nombreController,
+                      label: 'Nombre del nivel',
+                      hintText: 'Ej: Por Mayor, Distribuidor',
+                      borderColor: AppColors.blue1,
+                      autovalidateMode: AutovalidateModeX.disabled,
+                      validator: _validateNombre,
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Sección rango
+                    Row(
+                      children: [
+                        Icon(Icons.numbers, size: 13, color: AppColors.blue1),
+                        const SizedBox(width: 4),
+                        AppSubtitle(
+                          'Rango de cantidades',
+                          fontSize: 11,
+                          color: AppColors.textPrimary,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: CustomText(
+                            controller: _cantidadMinimaController,
+                            fieldType: FieldType.number,
+                            label: 'Mínimo',
+                            hintText: 'uds.',
+                            borderColor: AppColors.blue1,
+                            autovalidateMode: AutovalidateModeX.disabled,
+                            validator: _validateCantidadMinima,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: CustomText(
+                            controller: _cantidadMaximaController,
+                            fieldType: FieldType.number,
+                            label: 'Máximo',
+                            hintText: 'uds.',
+                            borderColor: AppColors.blue1,
+                            enabled: _tieneCantidadMaxima,
+                            autovalidateMode: AutovalidateModeX.disabled,
+                            validator: _validateCantidadMaxima,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        SizedBox(
+                          height: 30,
+                          width: 30,
+                          child: Checkbox(
+                            value: _tieneCantidadMaxima,
+                            onChanged: (value) {
+                              setState(() {
+                                _tieneCantidadMaxima = value ?? false;
+                                if (!_tieneCantidadMaxima) {
+                                  _cantidadMaximaController.clear();
+                                }
+                              });
+                            },
+                            materialTapTargetSize:
+                                MaterialTapTargetSize.shrinkWrap,
+                          ),
+                        ),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => setState(() {
+                              _tieneCantidadMaxima = !_tieneCantidadMaxima;
+                              if (!_tieneCantidadMaxima) {
+                                _cantidadMaximaController.clear();
+                              }
+                            }),
+                            child: AppSubtitle(
+                              'Establecer cantidad máxima',
+                              fontSize: 10,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    // Selector de tipo (oculto si caller fija el tipo)
+                    if (widget.lockTipoPrecio == null) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Icon(Icons.tune, size: 13, color: AppColors.blue1),
+                          const SizedBox(width: 4),
+                          AppSubtitle(
+                            'Tipo de precio',
+                            fontSize: 11,
+                            color: AppColors.textPrimary,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      _buildTipoSelector(),
+                      const SizedBox(height: 14),
+                    ] else
+                      const SizedBox(height: 14),
+
+                    // Precio fijo o porcentaje
+                    if (esFijo)
+                      CurrencyTextField(
+                        controller: _precioController,
+                        label: 'Precio unitario',
+                        borderColor: AppColors.blue1,
+                        validator: _validatePrecio,
+                        onChanged: (_) => setState(() {}),
+                      )
+                    else
+                      CustomText(
+                        controller: _porcentajeController,
+                        label: 'Porcentaje de descuento',
+                        hintText: 'Ej: 10',
+                        suffixText: '%',
+                        borderColor: AppColors.blue1,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(
+                              RegExp(r'^\d+\.?\d{0,2}')),
+                        ],
+                        autovalidateMode: AutovalidateModeX.disabled,
+                        validator: _validatePorcentaje,
+                        onChanged: (_) => setState(() {}),
+                      ),
+
+                    // Preview del precio final
+                    if (precioCalculado != null) ...[
+                      const SizedBox(height: 10),
+                      _buildPrecioFinalCard(precioCalculado),
+                    ],
+
+                    const SizedBox(height: 14),
+
+                    // Descripción
+                    CustomText(
+                      controller: _descripcionController,
+                      label: 'Descripción (opcional)',
+                      hintText: 'Ej: 10% de descuento por compra mayor',
+                      borderColor: AppColors.blue1,
+                      maxLines: 2,
+                      height: 56,
+                      autovalidateMode: AutovalidateModeX.disabled,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 18),
+
+              // Botones
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: AppSubtitle(
+                      'Cancelar',
+                      fontSize: 12,
+                      color: AppColors.blue1,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton(
+                    onPressed: _save,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.blue1,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                    ),
+                    child: AppSubtitle(
+                      isEditing ? 'Actualizar' : 'Crear',
+                      fontSize: 12,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTipoSelector() {
+    return Row(
+      children: [
+        Expanded(child: _buildTipoChip(TipoPrecioNivel.precioFijo)),
+        const SizedBox(width: 8),
+        Expanded(child: _buildTipoChip(TipoPrecioNivel.porcentajeDescuento)),
+      ],
+    );
+  }
+
+  Widget _buildTipoChip(TipoPrecioNivel tipo) {
+    final selected = _tipoPrecio == tipo;
+    final esFijo = tipo == TipoPrecioNivel.precioFijo;
+    return InkWell(
+      onTap: () => setState(() => _tipoPrecio = tipo),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColors.blue1.withValues(alpha: 0.12)
+              : Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: selected
+                ? AppColors.blue1
+                : AppColors.blue1.withValues(alpha: 0.25),
+            width: selected ? 1.2 : 0.8,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              esFijo ? Icons.attach_money : Icons.percent,
+              size: 14,
+              color: selected ? AppColors.blue1 : Colors.grey.shade600,
+            ),
+            const SizedBox(width: 6),
+            AppSubtitle(
+              esFijo ? 'Precio Fijo' : '% Descuento',
+              fontSize: 11,
+              color: selected ? AppColors.blue1 : Colors.grey.shade700,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPrecioFinalCard(double precio) {
+    final base = widget.precioBase;
+    final ahorroPct = (base != null && base > 0)
+        ? ((base - precio) / base) * 100
+        : null;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.green.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.green.shade200),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.savings_outlined,
+              size: 16, color: Colors.green.shade700),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Precio final',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.green.shade800,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Text(
+                  'S/ ${precio.toStringAsFixed(2)}'
+                  '${ahorroPct != null && ahorroPct > 0 ? "  (−${ahorroPct.toStringAsFixed(1)}%)" : ""}',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.green.shade800,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

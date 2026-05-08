@@ -120,13 +120,18 @@ class StorageLimitInfo extends Equatable {
   final int? limiteMB;
   final int actualMB;
   final int? disponibleMB;
+  /// Bytes crudos reportados por el backend; permite mostrar KB/MB/GB
+  /// con precisión en lugar de redondear todo a MB enteros.
+  final int? actualBytes;
 
   const StorageLimitInfo({
     this.limiteMB,
     this.actualMB = 0,
     this.disponibleMB,
+    this.actualBytes,
   });
 
   @override
-  List<Object?> get props => [limiteMB, actualMB, disponibleMB];
+  List<Object?> get props =>
+      [limiteMB, actualMB, disponibleMB, actualBytes];
 }

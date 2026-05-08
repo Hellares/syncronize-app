@@ -50,8 +50,48 @@ class _VentasPageState extends State<VentasPage> {
     }
   }
 
+  /// Banner discreto para roles operativos (cajero/vendedor) que aclara
+  /// que el listado solo trae sus propias ventas. Evita confusión cuando
+  /// el cajero piensa que faltan ventas — el filtrado lo hace el backend
+  /// según el rol del usuario autenticado.
+  Widget _buildBannerOperativo() {
+    return Container(
+      width: double.infinity,
+      color: AppColors.blue1.withValues(alpha: 0.08),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      child: Row(
+        children: [
+          Icon(Icons.person_outline, size: 16, color: AppColors.blue1),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Mostrando solo tus ventas',
+              style: TextStyle(
+                fontSize: 12,
+                color: AppColors.blue1,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Detectar si el usuario es operativo (cajero/vendedor) para mostrar
+    // el listado como "Mis ventas". El backend ya filtra el listado a
+    // sus propias ventas (ver venta.service.ts findAll), así que el
+    // título y el chip son solo señalización para que no piense que
+    // faltan ventas. Admin/contador ven todas con el título estándar.
+    final empresaState = context.watch<EmpresaContextCubit>().state;
+    bool esOperativo = false;
+    if (empresaState is EmpresaContextLoaded) {
+      final p = empresaState.context.permissions;
+      final esAdmin = p.canManageUsers || p.canManageSettings;
+      esOperativo = p.canViewVentas && !esAdmin;
+    }
     return BlocListener<EmpresaContextCubit, EmpresaContextState>(
       listener: (context, empresaState) {
         if (empresaState is EmpresaContextLoaded) {
@@ -64,13 +104,14 @@ class _VentasPageState extends State<VentasPage> {
       },
       child: Scaffold(
         appBar: SmartAppBar(
-          title: 'Ventas',
+          title: esOperativo ? 'Mis Ventas' : 'Ventas',
           backgroundColor: AppColors.blue1,
           foregroundColor: AppColors.white,
         ),
         body: GradientContainer(
           child: Column(
             children: [
+              if (esOperativo) _buildBannerOperativo(),
               Padding(
                 padding: const EdgeInsets.all(12),
                 child: CustomSearchField(

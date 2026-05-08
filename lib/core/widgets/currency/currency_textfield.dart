@@ -794,6 +794,10 @@ class CurrencyTextField extends StatefulWidget {
   final double? cursorWidth;
   final Color? cursorColor;
 
+  /// Si true, deshabilita el teclado del sistema pero el campo sigue
+  /// visualmente activo y editable vía controller (ej. teclado custom POS).
+  final bool readOnly;
+
   const CurrencyTextField({
     super.key,
     this.label,
@@ -804,6 +808,7 @@ class CurrencyTextField extends StatefulWidget {
     this.onChanged,
     this.onSubmitted,
     this.enabled = true,
+    this.readOnly = false,
     this.backgroundColor = AppColors.white,
     this.borderColor,
     this.borderRadius = 6.0,
@@ -1232,6 +1237,8 @@ class _CurrencyTextFieldState extends State<CurrencyTextField>
                       controller: _controller,
                       focusNode: _focusNode,
                       enabled: widget.enabled,
+                      readOnly: widget.readOnly,
+                      showCursor: true,
                       maxLines: 1,
                       keyboardType:
                           const TextInputType.numberWithOptions(decimal: true),

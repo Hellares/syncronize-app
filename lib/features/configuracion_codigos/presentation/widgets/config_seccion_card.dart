@@ -45,6 +45,14 @@ class _ConfigSeccionCardState extends State<ConfigSeccionCard> {
   late int _longitud;
   bool _incluirSede = false;
 
+  // Rango aceptado por el selector; valores fuera del rango (ej. proveedor
+  // tiene default 3 en Prisma) se clampean para evitar la aserción del
+  // CompactNumericSelector.
+  static const int _minLongitud = 4;
+  static const int _maxLongitud = 10;
+  int _clampLongitud(int v) =>
+      v < _minLongitud ? _minLongitud : (v > _maxLongitud ? _maxLongitud : v);
+
   // Opciones de separador predefinidas (siempre debe haber separador)
   final List<DropdownItem<String>> _separadorOptions = [
     DropdownItem(value: '-', label: '- (Guión)'),
@@ -56,7 +64,7 @@ class _ConfigSeccionCardState extends State<ConfigSeccionCard> {
     super.initState();
     _codigoController = TextEditingController(text: widget.seccion.codigo);
     _separador = widget.seccion.separador;
-    _longitud = widget.seccion.longitud;
+    _longitud = _clampLongitud(widget.seccion.longitud);
     _incluirSede = widget.seccion.incluirSede ?? false;
   }
 
@@ -66,7 +74,7 @@ class _ConfigSeccionCardState extends State<ConfigSeccionCard> {
     if (oldWidget.seccion != widget.seccion) {
       _codigoController.text = widget.seccion.codigo;
       _separador = widget.seccion.separador;
-      _longitud = widget.seccion.longitud;
+      _longitud = _clampLongitud(widget.seccion.longitud);
       _incluirSede = widget.seccion.incluirSede ?? false;
     }
   }
@@ -229,8 +237,8 @@ class _ConfigSeccionCardState extends State<ConfigSeccionCard> {
 
           // Selector de Longitud (solo editable si no hay registros)
           CompactNumericSelector(
-            minValue: 4,
-            maxValue: 10,
+            minValue: _minLongitud,
+            maxValue: _maxLongitud,
             initialValue: _longitud,
             onChanged: (value) {
               setState(() {

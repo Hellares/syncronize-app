@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:syncronize/core/theme/app_colors.dart';
+import 'package:syncronize/features/auth/presentation/widgets/custom_button.dart';
 import '../bloc/configuracion_codigos_cubit.dart';
 import '../bloc/configuracion_codigos_state.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../widgets/config_seccion_card.dart';
-import '../widgets/config_documentos_card.dart';
 import '../widgets/preview_codigo_dialog.dart';
 
 /// Widget que contiene la lógica de tabs y la gestión de estado de configuración de códigos.
@@ -82,24 +83,42 @@ class _ConfiguracionCodigosBodyState extends State<ConfiguracionCodigosBody> {
 
         if (state is ConfiguracionCodigosError) {
           return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                const SizedBox(height: 16),
-                Text(
-                  'Error al cargar configuración',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 8),
-                Text(state.message),
-                const SizedBox(height: 16),
-                ElevatedButton.icon(
-                  onPressed: _loadConfiguracion,
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Reintentar'),
-                ),
-              ],
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline,
+                      size: 56, color: Colors.red.shade400),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Error al cargar configuración',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.grey.shade800,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    state.message,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  CustomButton(
+                    text: 'Reintentar',
+                    icon:
+                        const Icon(Icons.refresh, size: 16, color: Colors.white),
+                    backgroundColor: AppColors.blue1,
+                    onPressed: _loadConfiguracion,
+                    height: 36,
+                  ),
+                ],
+              ),
             ),
           );
         }
@@ -353,20 +372,6 @@ class _ConfiguracionCodigosBodyState extends State<ConfiguracionCodigosBody> {
                     onPreview: () =>
                         _showPreviewDialog(context, 'INVENTARIO'),
                     isLoading: isLoading,
-                  ),
-
-                  // Tab Documentos
-                  ConfigDocumentosCard(
-                    documentos: config.documentos,
-                    isLoading: isLoading,
-                    onPreviewFactura: () =>
-                        _showPreviewDialog(context, 'FACTURA'),
-                    onPreviewBoleta: () =>
-                        _showPreviewDialog(context, 'BOLETA'),
-                    onPreviewNotaCredito: () =>
-                        _showPreviewDialog(context, 'NOTA_CREDITO'),
-                    onPreviewNotaDebito: () =>
-                        _showPreviewDialog(context, 'NOTA_DEBITO'),
                   ),
                 ],
               ),

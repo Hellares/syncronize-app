@@ -18,7 +18,9 @@ class ConfiguracionCodigos extends Equatable {
   final ConfigSeccion sedes;
   final ConfigSeccion reportesIncidencia;
   final ConfigSeccion inventarios;
-  final ConfigDocumentos documentos;
+  /// Documentos de facturación. Backend ya no lo expone porque las series y
+  /// correlativos se gestionan por sede (punto de emisión); puede venir null.
+  final ConfigDocumentos? documentos;
   final RestriccionesCodigo restricciones;
   final DateTime creadoEn;
   final DateTime actualizadoEn;
@@ -40,7 +42,7 @@ class ConfiguracionCodigos extends Equatable {
     required this.sedes,
     required this.reportesIncidencia,
     required this.inventarios,
-    required this.documentos,
+    this.documentos,
     required this.restricciones,
     required this.creadoEn,
     required this.actualizadoEn,

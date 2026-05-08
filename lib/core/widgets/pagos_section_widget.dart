@@ -21,12 +21,27 @@ String metodoLabel(String metodo) {
 const double umbralBancarizacionPen = 2000;
 const double umbralBancarizacionUsd = 500;
 
-/// Lista fija de bancos para el dropdown (Fase 1).
-/// Si crece el listado, promover a endpoint /catalogos/bancos.
+/// Lista fija de entidades financieras + tarjetas retail comunes en Perú
+/// para el dropdown (Fase 1). Incluye bancos tradicionales y tarjetas
+/// no-bancarias (retail). Si crece el listado, promover a endpoint
+/// `/catalogos/bancos`.
 const List<String> bancosPeru = [
+  // Bancos tradicionales
   'BCP', 'BBVA', 'Interbank', 'Scotiabank', 'Banco de la Nación',
-  'BanBif', 'Pichincha', 'Mi Banco', 'Caja Arequipa', 'Caja Huancayo',
+  'BanBif', 'Pichincha', 'Mi Banco',
+  // Cajas
+  'Caja Arequipa', 'Caja Huancayo',
+  // Tarjetas retail no-bancarias
+  'CMR', 'Ripley', 'Oh!', 'Tarjeta Única',
+  // Catch-all
   'Otro',
+];
+
+/// Subconjunto de los más usados — para chips de selección rápida en
+/// el numpad / panel de cobro. Ordenados por frecuencia de uso típica.
+const List<String> bancosFrecuentes = [
+  'BCP', 'BBVA', 'Interbank', 'Scotiabank',
+  'CMR', 'Ripley',
 ];
 
 /// ¿La venta supera el umbral de Ley 28194 (independiente del método)?

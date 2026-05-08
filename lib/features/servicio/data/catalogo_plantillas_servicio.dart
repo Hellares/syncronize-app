@@ -211,7 +211,7 @@ final _reparacionCelulares = CatalogoPlantilla(
 final _reparacionLaptops = CatalogoPlantilla(
   nombre: 'Reparación de Laptops',
   descripcion:
-      'Plantilla para servicio técnico de laptops/notebooks. Incluye inspección visual, estado de componentes y diagnóstico.',
+      'Plantilla para servicio técnico de laptops/notebooks. Incluye datos del equipo, estado de componentes y diagnóstico.',
   icono: Icons.laptop_mac,
   color: Colors.indigo,
   campos: [
@@ -281,14 +281,6 @@ final _reparacionLaptops = CatalogoPlantilla(
         'USB/Pendrive',
       ],
       'orden': 6,
-    },
-    {
-      'nombre': 'Inspección visual',
-      'tipoCampo': 'INSPECCION_VISUAL',
-      'categoria': 'EQUIPO_CLIENTE',
-      'esRequerido': false,
-      'descripcion': 'Marcar daños visibles en el equipo',
-      'orden': 7,
     },
     // --- DIAGNOSTICO ---
     {
@@ -463,14 +455,6 @@ final _reparacionPCs = CatalogoPlantilla(
         'Webcam',
       ],
       'orden': 6,
-    },
-    {
-      'nombre': 'Inspección visual',
-      'tipoCampo': 'INSPECCION_VISUAL',
-      'categoria': 'EQUIPO_CLIENTE',
-      'esRequerido': false,
-      'descripcion': 'Marcar daños visibles en el equipo',
-      'orden': 7,
     },
     // --- DIAGNOSTICO ---
     {
@@ -805,14 +789,6 @@ final _reparacionImpresoras = CatalogoPlantilla(
       ],
       'orden': 5,
     },
-    {
-      'nombre': 'Inspección visual',
-      'tipoCampo': 'INSPECCION_VISUAL',
-      'categoria': 'EQUIPO_CLIENTE',
-      'esRequerido': false,
-      'descripcion': 'Marcar daños visibles en el equipo',
-      'orden': 6,
-    },
     // --- DIAGNOSTICO ---
     {
       'nombre': 'Problema reportado',
@@ -943,14 +919,6 @@ final _servicioTecnicoGeneral = CatalogoPlantilla(
       'esRequerido': false,
       'placeholder': 'Lista de accesorios que deja el cliente',
       'orden': 5,
-    },
-    {
-      'nombre': 'Inspección visual',
-      'tipoCampo': 'INSPECCION_VISUAL',
-      'categoria': 'EQUIPO_CLIENTE',
-      'esRequerido': false,
-      'descripcion': 'Marcar daños visibles en el equipo',
-      'orden': 6,
     },
     // --- DIAGNOSTICO ---
     {

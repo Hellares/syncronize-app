@@ -45,10 +45,10 @@ class _BulkUploadContentState extends State<_BulkUploadContent> {
         if (state is BulkUploadTemplateDownloaded) {
           setState(() => _templateDownloaded = true);
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Plantilla guardada en: ${state.filePath}'),
+            const SnackBar(
+              content: Text('Plantilla lista. Elige dónde guardarla o ábrela en Excel.'),
               backgroundColor: Colors.green,
-              duration: const Duration(seconds: 4),
+              duration: Duration(seconds: 3),
             ),
           );
         } else if (state is BulkUploadSuccess) {

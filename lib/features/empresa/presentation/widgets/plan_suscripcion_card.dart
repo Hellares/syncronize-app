@@ -7,6 +7,7 @@ import 'package:syncronize/features/auth/presentation/widgets/widgets.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/widgets/animated_container.dart';
+import '../../data/datasources/empresa_remote_datasource.dart';
 import '../../domain/entities/empresa_context.dart';
 
 class PlanSuscripcionCard extends StatefulWidget {
@@ -26,10 +27,37 @@ class _PlanSuscripcionCardState extends State<PlanSuscripcionCard> {
   double? _tcVenta;
   bool _expandido = false;
 
+  /// Storage fresco fetcheado al montar la card. Sobrescribe lo que viene
+  /// en `empresaContext.planLimits` (que se hidrata sólo al login y queda
+  /// stale después de subir/eliminar archivos).
+  int? _freshUsadoBytes;
+  int? _freshUsadoMB;
+  int? _freshLimiteMB;
+
   @override
   void initState() {
     super.initState();
     _loadTipoCambio();
+    _refreshStorage();
+  }
+
+  Future<void> _refreshStorage() async {
+    try {
+      final empresaId = widget.empresaContext.empresa.id;
+      final response =
+          await locator<EmpresaRemoteDataSource>().getPlanLimitsInfo(empresaId);
+      if (!mounted || response == null) return;
+      final almacenamiento =
+          response['limites']?['almacenamiento'] as Map<String, dynamic>?;
+      if (almacenamiento == null) return;
+      setState(() {
+        _freshUsadoBytes = (almacenamiento['actualBytes'] as num?)?.toInt();
+        _freshUsadoMB = (almacenamiento['actualMB'] as num?)?.toInt();
+        _freshLimiteMB = (almacenamiento['limiteMB'] as num?)?.toInt();
+      });
+    } catch (_) {
+      // Falla silenciosa; nos quedamos con el valor cacheado de planLimits.
+    }
   }
 
   Future<void> _loadTipoCambio() async {
@@ -252,17 +280,28 @@ class _PlanSuscripcionCardState extends State<PlanSuscripcionCard> {
 
   Widget _buildStorageBar() {
     final storage = widget.empresaContext.planLimits?.almacenamiento;
-    final storageUsadoMB = storage?.actualMB ?? 0;
-    final storageLimiteMB = storage?.limiteMB;
+    // Preferimos el dato fresco fetcheado al montar; caemos al cache.
+    final usadoBytes = _freshUsadoBytes ?? storage?.actualBytes;
+    final storageUsadoMB = _freshUsadoMB ?? storage?.actualMB ?? 0;
+    final storageLimiteMB = _freshLimiteMB ?? storage?.limiteMB;
 
-    final porcentaje = storageLimiteMB != null && storageLimiteMB > 0
-        ? (storageUsadoMB / storageLimiteMB).clamp(0.0, 1.0)
-        : 0.0;
+    // Para la barra usamos bytes si están disponibles (precisión); si no,
+    // caemos a MB (puede sub-cuantizarse pero al menos refleja algo).
+    double porcentaje = 0;
+    if (storageLimiteMB != null && storageLimiteMB > 0) {
+      final limiteBytes = storageLimiteMB * 1024 * 1024;
+      if (usadoBytes != null && limiteBytes > 0) {
+        porcentaje = (usadoBytes / limiteBytes).clamp(0.0, 1.0);
+      } else {
+        porcentaje = (storageUsadoMB / storageLimiteMB).clamp(0.0, 1.0);
+      }
+    }
     final esCritico = porcentaje > 0.85;
 
-    final usadoLabel = storageUsadoMB >= 1024
-        ? '${(storageUsadoMB / 1024).toStringAsFixed(1)} GB'
-        : '$storageUsadoMB MB';
+    final usadoLabel = _formatStorage(
+      bytes: usadoBytes,
+      fallbackMB: storageUsadoMB,
+    );
     final limiteLabel = storageLimiteMB != null
         ? (storageLimiteMB >= 1024
             ? '${(storageLimiteMB / 1024).toStringAsFixed(0)} GB'
@@ -298,6 +337,27 @@ class _PlanSuscripcionCardState extends State<PlanSuscripcionCard> {
         ),
       ],
     );
+  }
+
+  /// Formatea storage usando `bytes` (si está disponible) → KB / MB / GB con
+  /// un decimal cuando aporta info. Cae a `fallbackMB` si no hay bytes.
+  String _formatStorage({int? bytes, required int fallbackMB}) {
+    if (bytes != null) {
+      if (bytes < 1024) return '$bytes B';
+      if (bytes < 1024 * 1024) {
+        return '${(bytes / 1024).toStringAsFixed(0)} KB';
+      }
+      final mb = bytes / (1024 * 1024);
+      if (mb < 1024) {
+        return mb >= 100
+            ? '${mb.toStringAsFixed(0)} MB'
+            : '${mb.toStringAsFixed(1)} MB';
+      }
+      return '${(mb / 1024).toStringAsFixed(2)} GB';
+    }
+    return fallbackMB >= 1024
+        ? '${(fallbackMB / 1024).toStringAsFixed(1)} GB'
+        : '$fallbackMB MB';
   }
 
   String _formatEstadoSuscripcion(String estado) {

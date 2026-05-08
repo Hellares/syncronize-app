@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import 'configuracion_codigos_body.dart';
 
@@ -20,7 +21,8 @@ class _ConfiguracionCodigosPageState extends State<ConfiguracionCodigosPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 15, vsync: this);
+    // Documentos de facturación se gestionan por sede; sólo 14 tabs.
+    _tabController = TabController(length: 14, vsync: this);
   }
 
   @override
@@ -32,6 +34,8 @@ class _ConfiguracionCodigosPageState extends State<ConfiguracionCodigosPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.transparent,
+      extendBodyBehindAppBar: true,
       appBar: SmartAppBar(
         showLogo: false,
         foregroundColor: AppColors.white,
@@ -42,7 +46,12 @@ class _ConfiguracionCodigosPageState extends State<ConfiguracionCodigosPage>
           child: _buildTabBar(),
         ),
       ),
-      body: ConfiguracionCodigosBody(tabController: _tabController),
+      body: GradientBackground(
+        style: GradientStyle.professional,
+        child: SafeArea(
+          child: ConfiguracionCodigosBody(tabController: _tabController),
+        ),
+      ),
     );
   }
 
@@ -81,7 +90,6 @@ class _ConfiguracionCodigosPageState extends State<ConfiguracionCodigosPage>
         Tab(text: 'SEDES'),
         Tab(text: 'INCIDENCIAS'),
         Tab(text: 'INVENTARIOS'),
-        Tab(text: 'DOCUMENTOS'),
       ],
     );
   }

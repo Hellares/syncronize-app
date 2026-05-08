@@ -19,7 +19,7 @@ class ConfiguracionCodigosModel extends ConfiguracionCodigos {
     required super.sedes,
     required super.reportesIncidencia,
     required super.inventarios,
-    required super.documentos,
+    super.documentos,
     required super.restricciones,
     required super.creadoEn,
     required super.actualizadoEn,
@@ -71,9 +71,11 @@ class ConfiguracionCodigosModel extends ConfiguracionCodigos {
       inventarios: ConfigSeccionModel.fromJson(
         json['inventarios'] as Map<String, dynamic>,
       ),
-      documentos: ConfigDocumentosModel.fromJson(
-        json['documentos'] as Map<String, dynamic>,
-      ),
+      documentos: json['documentos'] is Map<String, dynamic>
+          ? ConfigDocumentosModel.fromJson(
+              json['documentos'] as Map<String, dynamic>,
+            )
+          : null,
       restricciones: RestriccionesCodigoModel.fromJson(
         json['restricciones'] as Map<String, dynamic>,
       ),
@@ -101,7 +103,8 @@ class ConfiguracionCodigosModel extends ConfiguracionCodigos {
       'reportesIncidencia':
           (reportesIncidencia as ConfigSeccionModel).toJson(),
       'inventarios': (inventarios as ConfigSeccionModel).toJson(),
-      'documentos': (documentos as ConfigDocumentosModel).toJson(),
+      if (documentos != null)
+        'documentos': (documentos as ConfigDocumentosModel).toJson(),
       'restricciones': (restricciones as RestriccionesCodigoModel).toJson(),
       'creadoEn': creadoEn.toIso8601String(),
       'actualizadoEn': actualizadoEn.toIso8601String(),

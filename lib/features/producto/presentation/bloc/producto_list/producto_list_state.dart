@@ -30,7 +30,12 @@ class ProductoListLoadingMore extends ProductoListState {
   List<Object?> get props => [currentProducts];
 }
 
-/// Estado de éxito con productos cargados
+/// Estado de éxito con productos cargados.
+///
+/// `isFiltering` indica que un filtro nuevo está en curso pero los productos
+/// previos siguen visibles (sin parpadeo). La UI debe mostrar un indicador
+/// sutil (LinearProgressIndicator) en lugar de reemplazar la lista por un
+/// spinner.
 class ProductoListLoaded extends ProductoListState {
   final List<ProductoListItem> productos;
   final int total;
@@ -38,6 +43,7 @@ class ProductoListLoaded extends ProductoListState {
   final int totalPages;
   final bool hasMore;
   final ProductoFiltros filtros;
+  final bool isFiltering;
 
   const ProductoListLoaded({
     required this.productos,
@@ -46,7 +52,28 @@ class ProductoListLoaded extends ProductoListState {
     required this.totalPages,
     required this.hasMore,
     required this.filtros,
+    this.isFiltering = false,
   });
+
+  ProductoListLoaded copyWith({
+    List<ProductoListItem>? productos,
+    int? total,
+    int? currentPage,
+    int? totalPages,
+    bool? hasMore,
+    ProductoFiltros? filtros,
+    bool? isFiltering,
+  }) {
+    return ProductoListLoaded(
+      productos: productos ?? this.productos,
+      total: total ?? this.total,
+      currentPage: currentPage ?? this.currentPage,
+      totalPages: totalPages ?? this.totalPages,
+      hasMore: hasMore ?? this.hasMore,
+      filtros: filtros ?? this.filtros,
+      isFiltering: isFiltering ?? this.isFiltering,
+    );
+  }
 
   @override
   List<Object?> get props => [
@@ -56,6 +83,7 @@ class ProductoListLoaded extends ProductoListState {
         totalPages,
         hasMore,
         filtros,
+        isFiltering,
       ];
 }
 

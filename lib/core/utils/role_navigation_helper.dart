@@ -4,11 +4,18 @@ import '../di/injection_container.dart';
 
 /// Helper para determinar la ruta de navegación según el rol del usuario
 class RoleNavigationHelper {
-  /// Mapeo de rol → ruta inicial más relevante
+  /// Mapeo de rol → ruta inicial más relevante.
+  ///
+  /// Nota de diseño: VENDEDOR y CAJERO caen en el **dashboard general**
+  /// (`/empresa/dashboard`), que ya filtra los accesos rápidos por sus
+  /// permisos y muestra un banner verde "Mi rendimiento" que los lleva
+  /// a su dashboard personal con un tap. Esto evita que queden atrapados
+  /// en una pantalla específica sin poder volver a la home común.
+  ///
+  /// Solo roles con una vista 100% dedicada (CLIENTE, TECNICO, CONTADOR)
+  /// caen directo en su pantalla porque ahí está toda su operación.
   static const _roleRoutes = <String, String>{
     'CLIENTE': '/empresa/cliente',
-    'VENDEDOR': '/empresa/dashboard-vendedor',
-    'CAJERO': '/empresa/cola-pos',
     'TECNICO': '/empresa/ordenes',
     'CONTADOR': '/empresa/ventas/analytics',
   };

@@ -1,7 +1,12 @@
-
 import 'package:flutter/material.dart';
+import 'package:syncronize/core/theme/app_colors.dart';
+import 'package:syncronize/core/theme/app_gradients.dart';
+import 'package:syncronize/core/theme/gradient_container.dart';
 import '../../domain/entities/combo.dart';
 
+/// Card para mostrar un combo con el lenguaje visual del app:
+/// GradientContainer + shadow neumorphic + chips compactos +
+/// icono leading con fondo coloreado.
 class ComboCard extends StatelessWidget {
   final Combo combo;
   final VoidCallback? onTap;
@@ -18,200 +23,252 @@ class ComboCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final stockColor = combo.stockDisponible > 0 ? Colors.green : Colors.red;
+    final stockOk = combo.stockDisponible > 0 && combo.tieneStockSuficiente;
+    final stockColor = stockOk
+        ? Colors.green.shade700
+        : (combo.stockDisponible > 0
+            ? Colors.orange.shade700
+            : Colors.red.shade700);
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      Icons.inventory_2,
-                      color: Theme.of(context).primaryColor,
-                      size: 28,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          combo.nombre,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        if (combo.descripcion != null) ...[
-                          const SizedBox(height: 4),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: GradientContainer(
+        shadowStyle: ShadowStyle.neumorphic,
+        borderColor: AppColors.blueborder,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildLeadingIcon(),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
                           Text(
-                            combo.descripcion!,
+                            combo.nombre,
                             style: TextStyle(
                               fontSize: 13,
-                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
                             ),
-                            maxLines: 2,
+                            maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
+                          if (combo.descripcion != null) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              combo.descripcion!,
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.grey.shade700,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                          const SizedBox(height: 4),
+                          _buildPriceRow(),
                         ],
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // Precio con soporte de oferta
-                  if (combo.ofertaActiva == true && combo.precioOferta != null) ...[
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.attach_money, size: 16, color: Colors.grey),
-                        const SizedBox(width: 2),
-                        Text(
-                          'S/ ${(combo.precioSinOferta ?? combo.precioCalculado).toStringAsFixed(2)}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[500],
-                            decoration: TextDecoration.lineThrough,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          'S/ ${combo.precioOferta!.toStringAsFixed(2)}',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green.shade700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ] else
-                    _buildInfoChip(
-                      icon: Icons.attach_money,
-                      label: 'S/ ${combo.precioFinal.toStringAsFixed(2)}',
-                      color: Colors.green,
-                    ),
-                  _buildInfoChip(
-                    icon: Icons.inventory,
-                    label: 'Stock: ${combo.stockDisponible}',
-                    color: stockColor,
-                  ),
-                  _buildInfoChip(
-                    icon: Icons.view_list,
-                    label: '${combo.componentes.length} items',
-                    color: Colors.blue,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Chip(
-                    label: Text(
-                      _getTipoPrecioLabel(combo.tipoPrecioCombo),
-                      style: const TextStyle(fontSize: 11),
-                    ),
-                    visualDensity: VisualDensity.compact,
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  if (combo.descuentoPorcentaje != null) ...[
-                    const SizedBox(width: 8),
-                    Chip(
-                      label: Text(
-                        '-${combo.descuentoPorcentaje}%',
-                        style: const TextStyle(fontSize: 11),
                       ),
-                      backgroundColor: Colors.orange.shade100,
-                      visualDensity: VisualDensity.compact,
-                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
+                    _buildPopupMenu(),
                   ],
-                  if (combo.ofertaActiva == true) ...[
-                    const SizedBox(width: 8),
-                    Chip(
-                      label: Text(
-                        'EN OFERTA',
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: Colors.green.shade700,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      backgroundColor: Colors.green.shade50,
-                      visualDensity: VisualDensity.compact,
-                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                  ],
-                ],
-              ),
-              if (onEdit != null || onManageComponents != null) ...[
-                const Divider(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
+                ),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 4,
+                  runSpacing: 4,
                   children: [
-                    if (onManageComponents != null)
-                      TextButton.icon(
-                        onPressed: onManageComponents,
-                        icon: const Icon(Icons.view_list, size: 18),
-                        label: const Text('Componentes'),
+                    _buildChip(
+                      label: 'Stock ${combo.stockDisponible}',
+                      color: stockColor,
+                      icon: Icons.inventory_2_outlined,
+                    ),
+                    _buildChip(
+                      label: '${combo.componentes.length} items',
+                      color: AppColors.blue1,
+                      icon: Icons.view_list_outlined,
+                    ),
+                    _buildChip(
+                      label: _getTipoPrecioLabel(combo.tipoPrecioCombo),
+                      color: Colors.indigo.shade700,
+                      icon: Icons.sell_outlined,
+                    ),
+                    if (combo.descuentoPorcentaje != null &&
+                        combo.descuentoPorcentaje! > 0)
+                      _buildChip(
+                        label: '-${combo.descuentoPorcentaje!.toStringAsFixed(0)}%',
+                        color: Colors.orange.shade700,
+                        icon: Icons.discount_outlined,
                       ),
-                    if (onEdit != null) ...[
-                      const SizedBox(width: 8),
-                      TextButton.icon(
-                        onPressed: onEdit,
-                        icon: const Icon(Icons.edit, size: 18),
-                        label: const Text('Editar'),
+                    if (combo.ofertaActiva == true)
+                      _buildChip(
+                        label: 'EN OFERTA',
+                        color: Colors.green.shade700,
+                        icon: Icons.local_fire_department_outlined,
                       ),
-                    ],
+                    if (combo.tieneProblemasStock)
+                      _buildChip(
+                        label: 'Sin stock parcial',
+                        color: Colors.red.shade700,
+                        icon: Icons.warning_amber_outlined,
+                      ),
                   ],
                 ),
               ],
-            ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildInfoChip({
-    required IconData icon,
+  Widget _buildLeadingIcon() {
+    return Container(
+      width: 36,
+      height: 36,
+      decoration: BoxDecoration(
+        color: AppColors.blue1.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: AppColors.blue1.withValues(alpha: 0.3),
+          width: 0.6,
+        ),
+      ),
+      child: Icon(Icons.inventory_2_outlined,
+          color: AppColors.blue1, size: 18),
+    );
+  }
+
+  Widget _buildPriceRow() {
+    final hasOferta =
+        combo.ofertaActiva == true && combo.precioOferta != null;
+
+    if (hasOferta) {
+      final precioRegular = combo.precioSinOferta ?? combo.precioCalculado;
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'S/ ${precioRegular.toStringAsFixed(2)}',
+            style: TextStyle(
+              fontSize: 10,
+              color: Colors.grey.shade600,
+              decoration: TextDecoration.lineThrough,
+            ),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            'S/ ${combo.precioOferta!.toStringAsFixed(2)}',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: Colors.green.shade700,
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Text(
+      'S/ ${combo.precioFinal.toStringAsFixed(2)}',
+      style: TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.w700,
+        color: AppColors.blue1,
+      ),
+    );
+  }
+
+  Widget _buildChip({
     required String label,
     required Color color,
+    IconData? icon,
   }) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 16, color: color),
-        const SizedBox(width: 4),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: color,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: color.withValues(alpha: 0.3), width: 0.5),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 10, color: color),
+            const SizedBox(width: 3),
+          ],
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
           ),
-        ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPopupMenu() {
+    final hasActions = onEdit != null || onManageComponents != null;
+    if (!hasActions) return const SizedBox.shrink();
+
+    return PopupMenuButton<String>(
+      icon: Icon(Icons.more_vert, size: 18, color: Colors.grey.shade600),
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+      onSelected: (value) {
+        if (value == 'componentes') onManageComponents?.call();
+        if (value == 'editar') onEdit?.call();
+      },
+      itemBuilder: (context) => [
+        if (onManageComponents != null)
+          PopupMenuItem(
+            value: 'componentes',
+            height: 36,
+            child: Row(
+              children: [
+                Icon(Icons.view_list_outlined,
+                    color: AppColors.blue1, size: 16),
+                const SizedBox(width: 8),
+                Text(
+                  'Componentes',
+                  style: TextStyle(fontSize: 12, color: AppColors.blue1),
+                ),
+              ],
+            ),
+          ),
+        if (onEdit != null)
+          PopupMenuItem(
+            value: 'editar',
+            height: 36,
+            child: Row(
+              children: [
+                Icon(Icons.edit_outlined,
+                    color: Colors.grey.shade700, size: 16),
+                const SizedBox(width: 8),
+                Text(
+                  'Editar',
+                  style:
+                      TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                ),
+              ],
+            ),
+          ),
       ],
     );
   }
@@ -223,7 +280,7 @@ class ComboCard extends StatelessWidget {
       case TipoPrecioCombo.calculado:
         return 'Calculado';
       case TipoPrecioCombo.calculadoConDescuento:
-        return 'Con Descuento';
+        return 'C/ Descuento';
     }
   }
 }

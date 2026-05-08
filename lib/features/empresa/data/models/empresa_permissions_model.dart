@@ -24,6 +24,10 @@ class EmpresaPermissionsModel extends EmpresaPermissions {
     required super.canManageCompras,
     required super.canViewCaja,
     required super.canManageCaja,
+    required super.canAbrirCaja,
+    required super.canCerrarCaja,
+    super.accesosRapidosOcultos,
+    super.granularPermissions,
     required super.canViewEmpleados,
     required super.canManageEmpleados,
     required super.canViewAsistencia,
@@ -66,6 +70,18 @@ class EmpresaPermissionsModel extends EmpresaPermissions {
       canManageCompras: json['canManageCompras'] as bool? ?? false,
       canViewCaja: json['canViewCaja'] as bool? ?? false,
       canManageCaja: json['canManageCaja'] as bool? ?? false,
+      canAbrirCaja: json['canAbrirCaja'] as bool? ?? false,
+      canCerrarCaja: json['canCerrarCaja'] as bool? ?? false,
+      accesosRapidosOcultos:
+          (json['accesosRapidosOcultos'] as List<dynamic>?)
+                  ?.map((e) => e as String)
+                  .toList() ??
+              const [],
+      granularPermissions:
+          (json['granularPermissions'] as List<dynamic>?)
+                  ?.map((e) => e as String)
+                  .toList() ??
+              const [],
       canViewEmpleados: json['canViewEmpleados'] as bool? ?? false,
       canManageEmpleados: json['canManageEmpleados'] as bool? ?? false,
       canViewAsistencia: json['canViewAsistencia'] as bool? ?? false,
@@ -109,6 +125,10 @@ class EmpresaPermissionsModel extends EmpresaPermissions {
       'canManageCompras': canManageCompras,
       'canViewCaja': canViewCaja,
       'canManageCaja': canManageCaja,
+      'canAbrirCaja': canAbrirCaja,
+      'canCerrarCaja': canCerrarCaja,
+      'accesosRapidosOcultos': accesosRapidosOcultos,
+      'granularPermissions': granularPermissions,
       'canViewEmpleados': canViewEmpleados,
       'canManageEmpleados': canManageEmpleados,
       'canViewAsistencia': canViewAsistencia,
@@ -154,6 +174,10 @@ class EmpresaPermissionsModel extends EmpresaPermissions {
       canManageCompras: entity.canManageCompras,
       canViewCaja: entity.canViewCaja,
       canManageCaja: entity.canManageCaja,
+      canAbrirCaja: entity.canAbrirCaja,
+      canCerrarCaja: entity.canCerrarCaja,
+      accesosRapidosOcultos: entity.accesosRapidosOcultos,
+      granularPermissions: entity.granularPermissions,
       canViewEmpleados: entity.canViewEmpleados,
       canManageEmpleados: entity.canManageEmpleados,
       canViewAsistencia: entity.canViewAsistencia,

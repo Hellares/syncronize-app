@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../config/environment/env_config.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/gradient_background.dart';
@@ -112,6 +113,11 @@ class _FormView extends StatelessWidget {
                   _HeaderCard(state: state),
                   const SizedBox(height: 10),
                   _ProveedorSection(state: state),
+                  if (state.editada.proveedorActivo ==
+                      ProveedorFacturacion.syncrofact) ...[
+                    const SizedBox(height: 10),
+                    const _WebhookSection(),
+                  ],
                   const SizedBox(height: 10),
                   _DatosEmpresaSection(state: state),
                   if (state.resultadoPrueba != null) ...[
@@ -313,7 +319,7 @@ class _ProveedorSectionState extends State<_ProveedorSection> {
               onChanged: cubit.cambiarUrl,
               decoration: const InputDecoration(
                 labelText: 'URL del proveedor',
-                hintText: 'http://beta.syncrofact.net.pe/api',
+                hintText: 'https://api-beta.syncrofact.net.pe/api',
                 border: OutlineInputBorder(),
                 isDense: true,
               ),
@@ -417,6 +423,97 @@ class _ProveedorSectionState extends State<_ProveedorSection> {
       ),
     );
     if (ok == true) cubit.cambiarProveedor(nuevo);
+  }
+}
+
+// ── Sección Webhook (info para copiar al panel Syncrofact) ──
+
+class _WebhookSection extends StatelessWidget {
+  const _WebhookSection();
+
+  String get _webhookUrl => '${EnvConfig.baseUrl}/webhooks/syncrofact';
+
+  Future<void> _copiar(BuildContext context, String texto, String etiqueta) async {
+    await Clipboard.setData(ClipboardData(text: texto));
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$etiqueta copiada'),
+        duration: const Duration(seconds: 1),
+        backgroundColor: Colors.green.shade600,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GradientContainer(
+      borderColor: AppColors.blueborder,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _sectionHeader('Webhook', Icons.webhook_outlined),
+            const SizedBox(height: 8),
+            Text(
+              'Pega esta URL en el panel de Syncrofact al crear el webhook '
+              'de tu empresa. El secret te lo proporciona el administrador del sistema.',
+              style: TextStyle(fontSize: 10, color: Colors.grey.shade700),
+            ),
+            const SizedBox(height: 10),
+            _CampoCopiable(
+              label: 'URL del webhook',
+              valor: _webhookUrl,
+              onCopiar: () => _copiar(context, _webhookUrl, 'URL'),
+            ),
+            const SizedBox(height: 8),
+            _CampoCopiable(
+              label: 'Eventos a suscribir',
+              valor: 'invoice.*, daily_summary.*, communication.*',
+              onCopiar: () => _copiar(
+                context,
+                'invoice.*, daily_summary.*, communication.*',
+                'Lista de eventos',
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CampoCopiable extends StatelessWidget {
+  final String label;
+  final String valor;
+  final VoidCallback onCopiar;
+
+  const _CampoCopiable({
+    required this.label,
+    required this.valor,
+    required this.onCopiar,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InputDecorator(
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+        isDense: true,
+        suffixIcon: IconButton(
+          icon: const Icon(Icons.copy, size: 18),
+          onPressed: onCopiar,
+          tooltip: 'Copiar al portapapeles',
+        ),
+      ),
+      child: Text(
+        valor,
+        style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
   }
 }
 

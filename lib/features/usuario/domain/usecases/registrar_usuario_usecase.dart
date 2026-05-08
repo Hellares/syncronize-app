@@ -30,6 +30,7 @@ class RegistrarUsuarioUseCase {
     bool? puedeCerrarCaja,
     double? limiteCreditoVenta,
     List<String>? permisos,
+    List<String>? accesosRapidosOcultos,
     String? notas,
   }) async {
     // Validaciones
@@ -130,6 +131,10 @@ class RegistrarUsuarioUseCase {
 
     if (permisos != null && permisos.isNotEmpty) {
       data['permisos'] = permisos;
+    }
+
+    if (accesosRapidosOcultos != null) {
+      data['accesosRapidosOcultos'] = accesosRapidosOcultos;
     }
 
     if (notas != null && notas.trim().isNotEmpty) {

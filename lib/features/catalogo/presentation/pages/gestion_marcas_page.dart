@@ -1,8 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:syncronize/core/fonts/app_text_widgets.dart';
+import 'package:syncronize/core/theme/app_colors.dart';
+import 'package:syncronize/core/theme/gradient_background.dart';
+import 'package:syncronize/core/widgets/custom_search_field.dart';
+import 'package:syncronize/core/widgets/floating_button_icon.dart';
+import 'package:syncronize/core/widgets/smart_appbar.dart';
 import '../../../../core/utils/resource.dart';
+import '../../../auth/presentation/widgets/custom_button.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
+import '../../domain/entities/empresa_marca.dart';
+import '../../domain/entities/marca_maestra.dart';
 import '../bloc/marcas_empresa/marcas_empresa_cubit.dart';
 import '../bloc/marcas_empresa/marcas_empresa_state.dart';
 import '../bloc/marcas_maestras/marcas_maestras_cubit.dart';
@@ -10,19 +19,10 @@ import '../bloc/marcas_maestras/marcas_maestras_state.dart';
 import '../widgets/marca_card.dart';
 import '../widgets/marca_maestra_card.dart';
 import '../widgets/dialogs/activar_marca_dialog.dart';
-import '../widgets/dialogs/crear_marca_personalizada_dialog.dart';
 import '../widgets/dialogs/confirm_dialog.dart';
-import '../../domain/entities/empresa_marca.dart';
-import '../../domain/entities/marca_maestra.dart';
+import '../widgets/dialogs/crear_marca_personalizada_dialog.dart';
 
-/// Página completa de gestión de marcas
-///
-/// Permite:
-/// - Ver marcas activas
-/// - Ver marcas maestras disponibles
-/// - Activar marcas maestras
-/// - Crear marcas personalizadas
-/// - Desactivar marcas
+/// Página de gestión de marcas con el lenguaje visual del app.
 class GestionMarcasPage extends StatefulWidget {
   const GestionMarcasPage({super.key});
 
@@ -42,6 +42,7 @@ class _GestionMarcasPageState extends State<GestionMarcasPage>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() => setState(() {}));
     _loadData();
   }
 
@@ -78,35 +79,112 @@ class _GestionMarcasPageState extends State<GestionMarcasPage>
         }
       },
       child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Gestión de Marcas'),
-          bottom: TabBar(
-            controller: _tabController,
-            tabs: const [
-              Tab(text: 'Activas', icon: Icon(Icons.check_circle)),
-              Tab(text: 'Disponibles', icon: Icon(Icons.library_add)),
-            ],
-          ),
+        backgroundColor: Colors.transparent,
+        extendBodyBehindAppBar: true,
+        appBar: SmartAppBar(
+          title: 'Gestión de Marcas',
+          backgroundColor: AppColors.blue1,
+          foregroundColor: AppColors.white,
           actions: [
             IconButton(
-              icon: const Icon(Icons.refresh),
+              icon: const Icon(Icons.refresh, size: 20),
               onPressed: _loadData,
               tooltip: 'Actualizar',
             ),
           ],
         ),
-        body: TabBarView(
-          controller: _tabController,
-          children: [
-            _buildActivasTab(),
-            _buildDisponiblesTab(),
-          ],
+        body: GradientBackground(
+          style: GradientStyle.professional,
+          child: SafeArea(
+            child: Column(
+              children: [
+                _buildTabBar(),
+                _buildSearchBar(),
+                const SizedBox(height: 6),
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildActivasTab(),
+                      _buildDisponiblesTab(),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
-        floatingActionButton: FloatingActionButton.extended(
+        floatingActionButton: FloatingButtonIcon(
           onPressed: _mostrarDialogCrearPersonalizada,
-          icon: const Icon(Icons.add),
-          label: const Text('Crear Personalizada'),
+          icon: Icons.add,
         ),
+      ),
+    );
+  }
+
+  // ============================================
+  // HEADER: Tabs + buscador
+  // ============================================
+
+  Widget _buildTabBar() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(10, 4, 10, 4),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: AppColors.blue1.withValues(alpha: 0.2),
+          width: 0.5,
+        ),
+      ),
+      child: TabBar(
+        controller: _tabController,
+        labelColor: AppColors.blue1,
+        unselectedLabelColor: Colors.grey.shade600,
+        labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+        unselectedLabelStyle:
+            const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+        indicator: BoxDecoration(
+          color: AppColors.blue1.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppColors.blue1, width: 1),
+        ),
+        indicatorSize: TabBarIndicatorSize.tab,
+        dividerColor: Colors.transparent,
+        tabs: const [
+          Tab(
+            height: 36,
+            icon: Icon(Icons.check_circle_outline, size: 14),
+            iconMargin: EdgeInsets.only(bottom: 2),
+            child: Text('ACTIVAS'),
+          ),
+          Tab(
+            height: 36,
+            icon: Icon(Icons.library_add_outlined, size: 14),
+            iconMargin: EdgeInsets.only(bottom: 2),
+            child: Text('DISPONIBLES'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      child: CustomSearchField(
+        controller: _searchController,
+        hintText: 'Buscar marca...',
+        borderColor: AppColors.blue1,
+        onChanged: (value) {
+          setState(() => _searchQuery = value.toLowerCase());
+        },
+        onClear: () {
+          setState(() {
+            _searchQuery = '';
+            _searchController.clear();
+          });
+        },
       ),
     );
   }
@@ -127,7 +205,7 @@ class _GestionMarcasPageState extends State<GestionMarcasPage>
         }
 
         if (state is MarcasEmpresaLoaded) {
-          final marcas = state.marcas;
+          final marcas = _filterMarcas(state.marcas);
 
           if (marcas.isEmpty) {
             return _buildEmptyActivasView();
@@ -137,13 +215,17 @@ class _GestionMarcasPageState extends State<GestionMarcasPage>
             onRefresh: () async => _loadData(),
             child: Column(
               children: [
-                _buildSearchBar(),
+                _buildContadorChip(
+                  total: state.marcas.length,
+                  filtradas: marcas.length,
+                  label: 'activas',
+                ),
                 Expanded(
                   child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _filterMarcas(marcas).length,
+                    padding: const EdgeInsets.fromLTRB(10, 4, 10, 80),
+                    itemCount: marcas.length,
                     itemBuilder: (context, index) {
-                      final marca = _filterMarcas(marcas)[index];
+                      final marca = marcas[index];
                       return MarcaCard(
                         marca: marca,
                         onDesactivar: () => _confirmarDesactivar(marca),
@@ -177,20 +259,19 @@ class _GestionMarcasPageState extends State<GestionMarcasPage>
         }
 
         if (state is MarcasMaestrasLoaded) {
-          final maestras = state.marcas;
+          final maestras = _filterMaestras(state.marcas);
 
           return RefreshIndicator(
             onRefresh: () async => _loadData(),
             child: Column(
               children: [
-                _buildSearchBar(),
-                _buildFiltrosBar(),
+                _buildFiltroPopulares(state.marcas.length),
                 Expanded(
                   child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _filterMaestras(maestras).length,
+                    padding: const EdgeInsets.fromLTRB(10, 4, 10, 80),
+                    itemCount: maestras.length,
                     itemBuilder: (context, index) {
-                      final maestra = _filterMaestras(maestras)[index];
+                      final maestra = maestras[index];
                       return MarcaMaestraCard(
                         maestra: maestra,
                         onActivar: () => _mostrarDialogActivar(maestra),
@@ -210,59 +291,123 @@ class _GestionMarcasPageState extends State<GestionMarcasPage>
   }
 
   // ============================================
-  // WIDGETS AUXILIARES
+  // CHIPS / CONTADORES
   // ============================================
 
-  Widget _buildSearchBar() {
+  Widget _buildContadorChip({
+    required int total,
+    required int filtradas,
+    required String label,
+  }) {
+    final showFiltrado = filtradas != total;
     return Padding(
-      padding: const EdgeInsets.all(16),
-      child: TextField(
-        controller: _searchController,
-        decoration: InputDecoration(
-          hintText: 'Buscar marcas...',
-          prefixIcon: const Icon(Icons.search),
-          suffixIcon: _searchQuery.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(Icons.clear),
-                  onPressed: () {
-                    _searchController.clear();
-                    setState(() => _searchQuery = '');
-                  },
-                )
-              : null,
-          border: const OutlineInputBorder(),
-        ),
-        onChanged: (value) {
-          setState(() => _searchQuery = value.toLowerCase());
-        },
-      ),
-    );
-  }
-
-  Widget _buildFiltrosBar() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.fromLTRB(10, 4, 10, 4),
       child: Row(
         children: [
-          FilterChip(
-            label: const Text('Solo populares'),
-            selected: _soloPopulares,
-            onSelected: (selected) {
-              setState(() => _soloPopulares = selected);
-              context.read<MarcasMaestrasCubit>().loadMarcasMaestras(
-                    soloPopulares: _soloPopulares,
-                  );
-            },
-          ),
-          const SizedBox(width: 8),
-          Text(
-            '${_getMaestrasCount()} disponibles',
-            style: Theme.of(context).textTheme.bodySmall,
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: AppColors.blue1.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                  color: AppColors.blue1.withValues(alpha: 0.3),
+                  width: 0.5),
+            ),
+            child: Text(
+              showFiltrado ? '$filtradas de $total $label' : '$total $label',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: AppColors.blue1,
+              ),
+            ),
           ),
         ],
       ),
     );
   }
+
+  Widget _buildFiltroPopulares(int total) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(10, 4, 10, 4),
+      child: Row(
+        children: [
+          InkWell(
+            onTap: () {
+              setState(() => _soloPopulares = !_soloPopulares);
+              context
+                  .read<MarcasMaestrasCubit>()
+                  .loadMarcasMaestras(soloPopulares: _soloPopulares);
+            },
+            borderRadius: BorderRadius.circular(14),
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: _soloPopulares
+                    ? AppColors.blue1.withValues(alpha: 0.15)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: _soloPopulares
+                      ? AppColors.blue1
+                      : Colors.grey.withValues(alpha: 0.4),
+                  width: _soloPopulares ? 1 : 0.5,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.star_outline,
+                      size: 12,
+                      color: _soloPopulares
+                          ? AppColors.blue1
+                          : Colors.grey.shade600),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Solo populares',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: _soloPopulares
+                          ? FontWeight.w700
+                          : FontWeight.w500,
+                      color: _soloPopulares
+                          ? AppColors.blue1
+                          : Colors.grey.shade700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const Spacer(),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: AppColors.blue1.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                  color: AppColors.blue1.withValues(alpha: 0.3),
+                  width: 0.5),
+            ),
+            child: Text(
+              '$total disponibles',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: AppColors.blue1,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================
+  // EMPTY / ERROR
+  // ============================================
 
   Widget _buildEmptyActivasView() {
     return Center(
@@ -271,23 +416,28 @@ class _GestionMarcasPageState extends State<GestionMarcasPage>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.label_outlined, size: 80, color: Colors.grey[400]),
-            const SizedBox(height: 16),
-            Text(
+            Icon(Icons.label_outline, size: 64, color: Colors.grey.shade400),
+            const SizedBox(height: 12),
+            AppSubtitle(
               'No hay marcas activas',
-              style: TextStyle(fontSize: 20, color: Colors.grey[600]),
+              fontSize: 14,
+              color: Colors.grey.shade700,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Text(
-              'Activa marcas desde la pestaña "Disponibles"',
-              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+              'Activá marcas desde la pestaña "Disponibles"',
+              style:
+                  TextStyle(fontSize: 11, color: Colors.grey.shade500),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
+            const SizedBox(height: 16),
+            CustomButton(
+              text: 'Ver Disponibles',
+              icon: const Icon(Icons.library_add_outlined,
+                  size: 16, color: Colors.white),
+              backgroundColor: AppColors.blue1,
               onPressed: () => _tabController.animateTo(1),
-              icon: const Icon(Icons.library_add),
-              label: const Text('Ver Disponibles'),
+              height: 36,
             ),
           ],
         ),
@@ -302,18 +452,20 @@ class _GestionMarcasPageState extends State<GestionMarcasPage>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline, size: 64, color: Colors.red),
-            const SizedBox(height: 16),
+            Icon(Icons.error_outline, size: 48, color: Colors.red.shade400),
+            const SizedBox(height: 12),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 16),
+              style: const TextStyle(fontSize: 13),
             ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
+            const SizedBox(height: 16),
+            CustomButton(
+              text: 'Reintentar',
+              icon: const Icon(Icons.refresh, size: 16, color: Colors.white),
+              backgroundColor: AppColors.blue1,
               onPressed: onRetry,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Reintentar'),
+              height: 36,
             ),
           ],
         ),
@@ -327,39 +479,30 @@ class _GestionMarcasPageState extends State<GestionMarcasPage>
 
   List<EmpresaMarca> _filterMarcas(List<EmpresaMarca> marcas) {
     if (_searchQuery.isEmpty) return marcas;
-
-    return marcas.where((marca) {
-      final nombre = marca.nombreDisplay.toLowerCase();
-      final descripcion = marca.descripcionDisplay?.toLowerCase() ?? '';
-      return nombre.contains(_searchQuery) || descripcion.contains(_searchQuery);
+    return marcas.where((m) {
+      final nombre = m.nombreDisplay.toLowerCase();
+      final descripcion = m.descripcionDisplay?.toLowerCase() ?? '';
+      return nombre.contains(_searchQuery) ||
+          descripcion.contains(_searchQuery);
     }).toList();
   }
 
   List<MarcaMaestra> _filterMaestras(List<MarcaMaestra> maestras) {
     if (_searchQuery.isEmpty) return maestras;
-
-    return maestras.where((maestra) {
-      final nombre = maestra.nombre.toLowerCase();
-      final descripcion = maestra.descripcion?.toLowerCase() ?? '';
-      return nombre.contains(_searchQuery) || descripcion.contains(_searchQuery);
+    return maestras.where((m) {
+      final nombre = m.nombre.toLowerCase();
+      final descripcion = m.descripcion?.toLowerCase() ?? '';
+      return nombre.contains(_searchQuery) ||
+          descripcion.contains(_searchQuery);
     }).toList();
   }
 
   bool _isMarcaActivada(String marcaMaestraId) {
     final state = context.read<MarcasEmpresaCubit>().state;
     if (state is MarcasEmpresaLoaded) {
-      return state.marcas
-          .any((marca) => marca.marcaMaestraId == marcaMaestraId);
+      return state.marcas.any((m) => m.marcaMaestraId == marcaMaestraId);
     }
     return false;
-  }
-
-  int _getMaestrasCount() {
-    final state = context.read<MarcasMaestrasCubit>().state;
-    if (state is MarcasMaestrasLoaded) {
-      return state.marcas.length;
-    }
-    return 0;
   }
 
   // ============================================
@@ -429,7 +572,6 @@ class _GestionMarcasPageState extends State<GestionMarcasPage>
   Future<void> _desactivarMarca(EmpresaMarca marca) async {
     final cubit = context.read<MarcasEmpresaCubit>();
 
-    // Mostrar indicador de carga
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -441,28 +583,24 @@ class _GestionMarcasPageState extends State<GestionMarcasPage>
       empresaMarcaId: marca.id,
     );
 
-    // Cerrar indicador de carga
     if (mounted) Navigator.of(context).pop();
 
+    if (!mounted) return;
+
     if (result is Success) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Marca "${marca.nombreDisplay}" desactivada'),
-            backgroundColor: Colors.orange,
-          ),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Marca "${marca.nombreDisplay}" desactivada'),
+          backgroundColor: Colors.orange,
+        ),
+      );
     } else if (result is Error) {
-      final error = result;
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${error.message}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${result.message}'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 }

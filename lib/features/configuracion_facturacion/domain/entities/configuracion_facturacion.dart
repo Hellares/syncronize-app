@@ -38,8 +38,8 @@ enum ProveedorFacturacion {
     switch (this) {
       case ProveedorFacturacion.syncrofact:
         return entorno == EntornoFacturacion.produccion
-            ? 'https://syncrofact.net.pe/api'
-            : 'http://beta.syncrofact.net.pe/api';
+            ? 'https://api.syncrofact.net.pe/api'
+            : 'https://api-beta.syncrofact.net.pe/api';
       case ProveedorFacturacion.nubefact:
         // Nubefact usa URL específica por RUC — no hay default genérico.
         return '';

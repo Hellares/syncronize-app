@@ -32,6 +32,7 @@ class UsuarioFormCubit extends Cubit<UsuarioFormState> {
     bool? puedeCerrarCaja,
     double? limiteCreditoVenta,
     List<String>? permisos,
+    List<String>? accesosRapidosOcultos,
     String? notas,
   }) async {
     emit(const UsuarioFormSubmitting());
@@ -53,6 +54,7 @@ class UsuarioFormCubit extends Cubit<UsuarioFormState> {
       puedeCerrarCaja: puedeCerrarCaja,
       limiteCreditoVenta: limiteCreditoVenta,
       permisos: permisos,
+      accesosRapidosOcultos: accesosRapidosOcultos,
       notas: notas,
     );
 

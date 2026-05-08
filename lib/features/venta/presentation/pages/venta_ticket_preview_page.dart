@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -40,17 +41,69 @@ class _VentaTicketPreviewPageState extends State<VentaTicketPreviewPage> {
   bool _loading = true;
   String? _error;
 
+  /// Polling para esperar la respuesta de SUNAT cuando el comprobante
+  /// es electrónico (BOLETA/FACTURA) y aún no llegó el hash. El envío
+  /// SUNAT es async (lo dispara el backend tras el cobro), así que el
+  /// primer fetch puede llegar sin hash. Reintenta hasta el límite,
+  /// luego muestra el ticket sin hash con un botón refresh manual.
+  Timer? _pollingTimer;
+  int _pollingAttempts = 0;
+  bool _esperandoSunat = false;
+  static const int _maxPollingAttempts = 8; // ~16s en total
+  static const Duration _pollingInterval = Duration(seconds: 2);
+
   @override
   void initState() {
     super.initState();
     _loadAndGenerate();
   }
 
+  @override
+  void dispose() {
+    _pollingTimer?.cancel();
+    super.dispose();
+  }
+
+  /// Indica si la venta espera respuesta SUNAT (comprobante electrónico
+  /// sin ninguna seña de respuesta del proveedor y sin estado terminal).
+  /// Cualquiera de estos campos ya implica respuesta recibida (algunos
+  /// proveedores entregan URL antes que hash):
+  ///  - `comprobanteSunatHash`
+  ///  - `comprobanteSunatXmlUrl`
+  ///  - `comprobanteEnlaceProveedor`
+  /// Estados terminales también detienen el polling (ACEPTADO/RECHAZADO/ANULADO).
+  bool _esperaSunat(Venta v) {
+    final esElectronico =
+        v.tipoComprobante == 'BOLETA' || v.tipoComprobante == 'FACTURA';
+    if (!esElectronico) return false;
+    final hash = v.comprobanteSunatHash;
+    if (hash != null && hash.isNotEmpty) return false;
+    final xmlUrl = v.comprobanteSunatXmlUrl;
+    if (xmlUrl != null && xmlUrl.isNotEmpty) return false;
+    final enlace = v.comprobanteEnlaceProveedor;
+    if (enlace != null && enlace.isNotEmpty) return false;
+    final estado = v.comprobanteEstado;
+    if (estado == 'ACEPTADO' || estado == 'RECHAZADO' || estado == 'ANULADO') {
+      return false;
+    }
+    return true;
+  }
+
+  Future<void> _refrescarManual() async {
+    _pollingTimer?.cancel();
+    _pollingAttempts = 0;
+    await _loadAndGenerate();
+  }
+
   Future<void> _loadAndGenerate() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    // En polling subsecuente no resetear `_loading` para no parpadear el UI.
+    final esPolling = _pollingAttempts > 0;
+    if (!esPolling) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
 
     final result = await locator<GetVentaUseCase>()(ventaId: widget.ventaId);
     if (result is! Success<Venta>) {
@@ -158,16 +211,32 @@ class _VentaTicketPreviewPageState extends State<VentaTicketPreviewPage> {
       );
 
       if (!mounted) return;
+      final esperando = _esperaSunat(venta);
       setState(() {
         _venta = venta;
         _pdfBytes = pdf;
         _loading = false;
+        _esperandoSunat = esperando;
       });
+
+      // Programar siguiente intento si todavía no llegó la respuesta SUNAT.
+      // Cuando llega (o estado terminal), cancelamos el timer.
+      if (esperando && _pollingAttempts < _maxPollingAttempts) {
+        _pollingAttempts++;
+        _pollingTimer?.cancel();
+        _pollingTimer = Timer(_pollingInterval, () {
+          if (mounted) _loadAndGenerate();
+        });
+      } else {
+        _pollingTimer?.cancel();
+        _pollingTimer = null;
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _error = 'Error generando PDF: $e';
         _loading = false;
+        _esperandoSunat = false;
       });
     }
   }
@@ -182,6 +251,14 @@ class _VentaTicketPreviewPageState extends State<VentaTicketPreviewPage> {
           backgroundColor: AppColors.blue1,
           foregroundColor: Colors.white,
           actions: [
+            // Refresh manual: re-consulta la venta y regenera el PDF.
+            // Útil cuando el polling expiró sin recibir hash (corte de red,
+            // SUNAT lento) o el cajero quiere forzar update.
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: _loading ? null : _refrescarManual,
+              tooltip: 'Refrescar',
+            ),
             if (_pdfBytes != null) ...[
               IconButton(
                 icon: const Icon(Icons.share),
@@ -196,7 +273,46 @@ class _VentaTicketPreviewPageState extends State<VentaTicketPreviewPage> {
             ],
           ],
         ),
-        body: _buildBody(),
+        body: Column(
+          children: [
+            if (_esperandoSunat) _buildBannerEsperandoSunat(),
+            Expanded(child: _buildBody()),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Banner naranja discreto mientras se hace polling esperando que el
+  /// proveedor (Syncrofact/Nubefact) entregue la respuesta SUNAT con el
+  /// hash y la URL de consulta. Se oculta automáticamente cuando llega.
+  Widget _buildBannerEsperandoSunat() {
+    return Container(
+      width: double.infinity,
+      color: Colors.orange.shade50,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: Colors.orange.shade700,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Esperando confirmación SUNAT (hash + URL de consulta)...',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.orange.shade900,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -49,6 +49,14 @@ class _ServiciosPageContent extends StatelessWidget {
         backgroundColor: AppColors.blue1,
         foregroundColor: AppColors.white,
         title: 'Catalogo de Servicios',
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.auto_awesome),
+            tooltip: 'Plantillas listas para usar',
+            onPressed: () =>
+                context.push('/empresa/catalogo-plantillas-servicio'),
+          ),
+        ],
       ),
       body: GradientContainer(
         child: Column(

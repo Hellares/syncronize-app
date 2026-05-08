@@ -321,6 +321,9 @@ class CustomText extends StatefulWidget {
   final TextInputType keyboardType;
   final bool obscureText;
   final bool enabled;
+  /// Si true, deshabilita el teclado del sistema pero mantiene el campo
+  /// visualmente activo y editable vía controller (ej. teclado custom POS).
+  final bool readOnly;
   final int? maxLines;
   final int? minLines;
   final int? maxLength;
@@ -385,6 +388,7 @@ class CustomText extends StatefulWidget {
     this.keyboardType = TextInputType.text,
     bool? obscureText,
     this.enabled = true,
+    this.readOnly = false,
     this.maxLines = 1,
     this.minLines,
     this.maxLength,
@@ -1420,6 +1424,8 @@ class _CustomTextFieldState extends State<CustomText>
               keyboardType: _keyboard(),
               obscureText: _isObscured,
               enabled: widget.enabled,
+              readOnly: widget.readOnly,
+              showCursor: true,
               maxLines: widget.maxLines,
               minLines: widget.minLines,
               maxLength: widget.maxLength,
@@ -1479,7 +1485,10 @@ class _CustomTextFieldState extends State<CustomText>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (widget.label != null) Text(widget.label!, style: _labelStyle()),
+          if (widget.label != null) ...[
+            Text(widget.label!, style: _labelStyle()),
+            const SizedBox(height: 2),
+          ],
           if (showCounter) Stack(children: [field, _counter()]) else field,
           _listeningIndicator(), // Indicador "Escuchando..."
           _helperMessage(),

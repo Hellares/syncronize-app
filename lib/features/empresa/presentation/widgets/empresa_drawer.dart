@@ -8,6 +8,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../bloc/empresa_context/empresa_context_cubit.dart';
 import '../bloc/empresa_context/empresa_context_state.dart';
+import 'accesos_rapidos_section.dart' show AccesosRapidosCatalogo;
 
 class EmpresaDrawer extends StatefulWidget {
   const EmpresaDrawer({super.key});
@@ -48,10 +49,8 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               title: 'Dashboard',
               icon: Icons.dashboard,
               iconColor: AppColors.blue2,
-              routeMatch: const _RouteMatch.exact('/empresa'),
-              onTap: (ctx) => _tap(ctx, () {
-                // ctx.go('/empresa');
-              }),
+              routeMatch: const _RouteMatch.exact('/empresa/dashboard'),
+              onTap: (ctx) => _tap(ctx, () => ctx.go('/empresa/dashboard')),
             ),
             _TileNode(
               title: 'Mi Dashboard',
@@ -64,15 +63,16 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
 
             _SectionTitleNode(
               'Productos',
-              visible: permissions?.canViewProducts ?? false,
+              visible: permissions?.canManageProducts ?? false,
             ),
             _SectionNode(
-              visible: permissions?.canViewProducts ?? false,
+              visible: permissions?.canManageProducts ?? false,
               children: [
                 _TileNode(
                   title: 'Productos',
                   icon: Icons.inventory,
                   iconColor: AppColors.blue2,
+                  accesoRapidoId: AccesosRapidosCatalogo.productos,
                   routeMatch: const _RouteMatch.startsWith('/empresa/productos'),
                   onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/productos')),
                 ),
@@ -149,16 +149,23 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
                   routeMatch: const _RouteMatch.startsWith('/empresa/productos/compatibilidad'),
                   onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/productos/compatibilidad')),
                 ),
+                _TileNode(
+                  title: 'Productos Eliminados',
+                  icon: Icons.delete_sweep_outlined,
+                  iconColor: Colors.red,
+                  routeMatch: const _RouteMatch.startsWith('/empresa/productos/eliminados'),
+                  onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/productos/eliminados')),
+                ),
               ],
             ),
 
             const _DividerNode(),
 
             _SectionTitleNode('Inventario',
-              visible: permissions?.canViewProducts ?? false,
+              visible: permissions?.canManageProducts ?? false,
             ),
             _TileNode(
-              visible: permissions?.canViewProducts ?? false,
+              visible: permissions?.canManageProducts ?? false,
               title: 'Transferencias',
               icon: Icons.swap_horiz,
               iconColor: AppColors.blue2,
@@ -166,7 +173,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/inventario/transferencias')),
             ),
             _TileNode(
-              visible: permissions?.canViewProducts ?? false,
+              visible: permissions?.canManageProducts ?? false,
               title: 'Incidencias de Transferencia',
               icon: Icons.warning_amber,
               iconColor: Colors.orange,
@@ -174,7 +181,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/inventario/incidencias')),
             ),
             _TileNode(
-              visible: permissions?.canViewProducts ?? false,
+              visible: permissions?.canManageProducts ?? false,
               title: 'Reportes de Incidencia',
               icon: Icons.assignment,
               iconColor: Colors.purple,
@@ -182,7 +189,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/reportes-incidencia')),
             ),
             _TileNode(
-              visible: permissions?.canViewProducts ?? false,
+              visible: permissions?.canManageProducts ?? false,
               title: 'Stock por Sede',
               icon: Icons.inventory,
               iconColor: AppColors.blue2,
@@ -190,7 +197,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/inventario/stock-por-sede')),
             ),
             _TileNode(
-              visible: permissions?.canViewProducts ?? false,
+              visible: permissions?.canManageProducts ?? false,
               title: 'Alertas de Stock',
               icon: Icons.notifications_active,
               iconColor: Colors.red,
@@ -198,7 +205,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/inventario/alertas')),
             ),
             _TileNode(
-              visible: permissions?.canViewProducts ?? false,
+              visible: permissions?.canManageProducts ?? false,
               title: 'Historial de Precios',
               icon: Icons.price_change,
               iconColor: Colors.teal,
@@ -206,7 +213,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/inventario/historial-precios')),
             ),
             _TileNode(
-              visible: permissions?.canViewProducts ?? false,
+              visible: permissions?.canManageProducts ?? false,
               title: 'Kardex',
               icon: Icons.history,
               iconColor: Colors.blueGrey,
@@ -214,7 +221,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/inventario/kardex')),
             ),
             _TileNode(
-              visible: permissions?.canViewProducts ?? false,
+              visible: permissions?.canManageProducts ?? false,
               title: 'Inventario Fisico',
               icon: Icons.fact_check,
               iconColor: Colors.indigo,
@@ -222,7 +229,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/inventarios')),
             ),
             _TileNode(
-              visible: permissions?.canViewProducts ?? false,
+              visible: permissions?.canManageProducts ?? false,
               title: 'Stock por Ubicacion',
               icon: Icons.location_on,
               iconColor: Colors.brown,
@@ -238,7 +245,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/inventario/ubicaciones-almacen')),
             ),
             _TileNode(
-              visible: permissions?.canViewProducts ?? false,
+              visible: permissions?.canManageProducts ?? false,
               title: 'Stock Min/Max',
               icon: Icons.tune,
               iconColor: Colors.teal,
@@ -246,7 +253,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/inventario/stock-minmax')),
             ),
             _TileNode(
-              visible: permissions?.canViewProducts ?? false,
+              visible: permissions?.canManageProducts ?? false,
               title: 'Merma y Perdida',
               icon: Icons.broken_image,
               iconColor: Colors.red,
@@ -254,7 +261,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/inventario/merma-perdida')),
             ),
             _TileNode(
-              visible: permissions?.canViewProducts ?? false,
+              visible: permissions?.canManageProducts ?? false,
               title: 'Valorizacion',
               icon: Icons.attach_money,
               iconColor: Colors.green,
@@ -262,7 +269,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/inventario/valorizacion')),
             ),
             _TileNode(
-              visible: permissions?.canViewProducts ?? false,
+              visible: permissions?.canManageProducts ?? false,
               title: 'Reorden',
               icon: Icons.shopping_cart_checkout,
               iconColor: Colors.deepPurple,
@@ -270,7 +277,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/inventario/sugerencias-reorden')),
             ),
             _TileNode(
-              visible: permissions?.canViewProducts ?? false,
+              visible: permissions?.canManageProducts ?? false,
               title: 'Rotacion',
               icon: Icons.autorenew,
               iconColor: Colors.cyan,
@@ -278,15 +285,16 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/inventario/reporte-rotacion')),
             ),
             _TileNode(
-              visible: permissions?.canViewProducts ?? false,
+              visible: permissions?.canManageProducts ?? false,
               title: 'Monitor Productos',
               icon: Icons.monitor_heart,
               iconColor: Colors.deepOrange,
+              accesoRapidoId: AccesosRapidosCatalogo.monitorProductos,
               routeMatch: const _RouteMatch.startsWith('/empresa/monitor-productos'),
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/monitor-productos')),
             ),
             _TileNode(
-              visible: permissions?.canViewProducts ?? false,
+              visible: permissions?.canManageProducts ?? false,
               title: 'Códigos de Barras',
               icon: Icons.qr_code_2,
               iconColor: Colors.indigo,
@@ -302,6 +310,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               title: 'Cotizaciones',
               icon: Icons.request_quote,
               iconColor: AppColors.blue2,
+              accesoRapidoId: AccesosRapidosCatalogo.cotizaciones,
               routeMatch: const _RouteMatch.startsWith('/empresa/cotizaciones'),
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/cotizaciones')),
             ),
@@ -310,6 +319,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               title: 'Ventas',
               icon: Icons.point_of_sale,
               iconColor: AppColors.blue2,
+              accesoRapidoId: AccesosRapidosCatalogo.ventas,
               routeMatch: const _RouteMatch.startsWith('/empresa/ventas'),
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/ventas')),
             ),
@@ -318,6 +328,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               title: 'Cola POS',
               icon: Icons.queue,
               iconColor: Colors.teal,
+              accesoRapidoId: AccesosRapidosCatalogo.colaPos,
               routeMatch: const _RouteMatch.startsWith('/empresa/cola-pos'),
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/cola-pos')),
             ),
@@ -346,10 +357,13 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/cuentas-por-pagar')),
             ),
             _TileNode(
-              visible: permissions?.canViewVentas ?? false,
+              // Cuentas por Cobrar es área financiera — admin/contador/cajero,
+              // no vendedor. canViewReports cubre exactamente ese conjunto.
+              visible: permissions?.canViewReports ?? false,
               title: 'Cuentas por Cobrar',
               icon: Icons.account_balance_wallet,
               iconColor: Colors.orange,
+              accesoRapidoId: AccesosRapidosCatalogo.cuentasPorCobrar,
               routeMatch: const _RouteMatch.startsWith('/empresa/cuentas-por-cobrar'),
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/cuentas-por-cobrar')),
             ),
@@ -358,6 +372,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               title: 'Caja',
               icon: Icons.point_of_sale,
               iconColor: Colors.green,
+              accesoRapidoId: AccesosRapidosCatalogo.caja,
               routeMatch: const _RouteMatch.exact('/empresa/caja'),
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/caja')),
             ),
@@ -366,14 +381,19 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               title: 'Monitor Cajas',
               icon: Icons.monitor_heart,
               iconColor: Colors.deepOrange,
+              accesoRapidoId: AccesosRapidosCatalogo.monitorCajas,
               routeMatch: const _RouteMatch.startsWith('/empresa/caja/monitor'),
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/caja/monitor')),
             ),
             _TileNode(
-              visible: permissions?.canViewCaja ?? false,
+              // Caja Chica requiere gestión de caja (admin/cajero o flag).
+              // Además es otorgable por usuario vía accesos rápidos ocultos
+              // — el admin puede desmarcarla en el form del usuario.
+              visible: permissions?.canManageCaja ?? false,
               title: 'Caja Chica',
               icon: Icons.account_balance_wallet,
               iconColor: Colors.teal,
+              accesoRapidoId: AccesosRapidosCatalogo.cajaChica,
               routeMatch: const _RouteMatch.startsWith('/empresa/caja-chica'),
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/caja-chica')),
             ),
@@ -406,6 +426,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               title: 'Guías de Remisión',
               icon: Icons.local_shipping,
               iconColor: Colors.indigo,
+              accesoRapidoId: AccesosRapidosCatalogo.guiasRemision,
               routeMatch: const _RouteMatch.startsWith('/empresa/guias-remision'),
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/guias-remision')),
             ),
@@ -422,6 +443,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               title: 'Monitor Facturación',
               icon: Icons.receipt_long,
               iconColor: Colors.teal,
+              accesoRapidoId: AccesosRapidosCatalogo.facturacion,
               routeMatch: const _RouteMatch.startsWith('/empresa/monitor-facturacion'),
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/monitor-facturacion')),
             ),
@@ -454,6 +476,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               title: 'Resumen Financiero',
               icon: Icons.analytics,
               iconColor: Colors.deepPurple,
+              accesoRapidoId: AccesosRapidosCatalogo.finanzas,
               routeMatch: const _RouteMatch.startsWith('/empresa/resumen-financiero'),
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/resumen-financiero')),
             ),
@@ -526,6 +549,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               title: 'Servicios',
               icon: Icons.room_service,
               iconColor: AppColors.blue2,
+              accesoRapidoId: AccesosRapidosCatalogo.servicios,
               routeMatch: const _RouteMatch.startsWith('/empresa/servicios'),
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/servicios')),
             ),
@@ -534,6 +558,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               title: 'Órdenes de Servicio',
               icon: Icons.assignment,
               iconColor: AppColors.blue2,
+              accesoRapidoId: AccesosRapidosCatalogo.ordenesServicio,
               routeMatch: const _RouteMatch.startsWith('/empresa/ordenes'),
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/ordenes')),
             ),
@@ -554,7 +579,9 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/citas/clientes')),
             ),
             _TileNode(
-              visible: permissions?.canViewServices ?? false,
+              // Plantillas es configuración del catálogo — admin/técnico,
+              // no vendedor/cajero que solo consumen servicios.
+              visible: permissions?.canManageServices ?? false,
               title: 'Plantillas de Servicio',
               icon: Icons.view_list,
               iconColor: AppColors.blue2,
@@ -579,7 +606,9 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/tercerizacion')),
             ),
             _TileNode(
-              visible: permissions?.canViewClients ?? false,
+              // Vinculaciones B2B es config administrativa de empresa,
+              // no de operativos. Solo admin puro.
+              visible: permissions?.canManageSettings ?? false,
               title: 'Vinculaciones B2B',
               icon: Icons.link,
               iconColor: Colors.teal,
@@ -745,6 +774,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
               title: 'Configuración Fiscal',
               icon: Icons.settings,
               iconColor: AppColors.blue2,
+              accesoRapidoId: AccesosRapidosCatalogo.config,
               routeMatch: const _RouteMatch.startsWith('/empresa/configuracion'),
               onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/configuracion')),
             ),
@@ -840,7 +870,14 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
                   child: ListView(
                     controller: _scrollController,
                     padding: EdgeInsets.zero,
-                    children: _buildNodes(context, nodes, currentPath),
+                    children: _buildNodes(
+                      context,
+                      nodes,
+                      currentPath,
+                      // Set de accesos rápidos ocultos para este usuario.
+                      // Aplica a tiles cuyo `accesoRapidoId` coincida.
+                      permissions?.accesosRapidosOcultos.toSet() ?? const {},
+                    ),
                   ),
                 ),
               ],
@@ -860,18 +897,32 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
     BuildContext context,
     List<_DrawerNode> nodes,
     String currentPath,
+    Set<String> accesosRapidosOcultos,
   ) {
     final out = <Widget>[];
 
     for (final node in nodes) {
       if (!node.visible) continue;
+      // Filtro adicional: si es un _TileNode con `accesoRapidoId` que
+      // está oculto para este usuario, lo saltamos (igual que en el
+      // dashboard de accesos rápidos).
+      if (node is _TileNode &&
+          node.accesoRapidoId != null &&
+          accesosRapidosOcultos.contains(node.accesoRapidoId)) {
+        continue;
+      }
 
       switch (node) {
         case _DividerNode():
           out.add(const Divider(height: 14));
 
         case _SectionNode():
-          out.addAll(_buildNodes(context, node.children, currentPath));
+          out.addAll(_buildNodes(
+            context,
+            node.children,
+            currentPath,
+            accesosRapidosOcultos,
+          ));
 
         case _SectionTitleNode():
           out.add(
@@ -1046,6 +1097,7 @@ final class _TileNode extends _DrawerNode {
     required this.iconColor,
     required this.onTap,
     this.routeMatch,
+    this.accesoRapidoId,
   }) : enabled = true;
 
   final String title;
@@ -1054,6 +1106,13 @@ final class _TileNode extends _DrawerNode {
   final bool enabled;
   final void Function(BuildContext ctx) onTap;
   final _RouteMatch? routeMatch;
+
+  /// Si está seteado, este tile espeja un acceso rápido del dashboard.
+  /// Cuando el admin oculta ese acceso al usuario, también desaparece
+  /// de aquí. Items "Cuenta" (perfil, salir, sub-catálogos administra-
+  /// tivos) deben dejarlo en `null` para que solo el filtro por permiso
+  /// del rol los gobierne.
+  final String? accesoRapidoId;
 }
 
 final class _DividerNode extends _DrawerNode {

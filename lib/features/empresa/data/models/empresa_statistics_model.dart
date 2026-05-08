@@ -87,13 +87,15 @@ class StorageLimitInfoModel extends StorageLimitInfo {
     super.limiteMB,
     required super.actualMB,
     super.disponibleMB,
+    super.actualBytes,
   });
 
   factory StorageLimitInfoModel.fromJson(Map<String, dynamic> json) {
     return StorageLimitInfoModel(
-      limiteMB: json['limiteMB'] as int?,
-      actualMB: json['actualMB'] as int? ?? 0,
-      disponibleMB: json['disponibleMB'] as int?,
+      limiteMB: (json['limiteMB'] as num?)?.toInt(),
+      actualMB: (json['actualMB'] as num?)?.toInt() ?? 0,
+      disponibleMB: (json['disponibleMB'] as num?)?.toInt(),
+      actualBytes: (json['actualBytes'] as num?)?.toInt(),
     );
   }
 
@@ -101,6 +103,7 @@ class StorageLimitInfoModel extends StorageLimitInfo {
         'limiteMB': limiteMB,
         'actualMB': actualMB,
         'disponibleMB': disponibleMB,
+        if (actualBytes != null) 'actualBytes': actualBytes,
       };
 }
 
