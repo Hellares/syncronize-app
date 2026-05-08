@@ -1412,6 +1412,22 @@ import '../../features/venta/presentation/bloc/venta_form/venta_form_cubit.dart'
     as _i205;
 import '../../features/venta/presentation/bloc/venta_list/venta_list_cubit.dart'
     as _i220;
+import '../../features/venta_rapida/data/datasources/venta_rapida_remote_datasource.dart'
+    as _i370;
+import '../../features/venta_rapida/data/repositories/venta_rapida_repository_impl.dart'
+    as _i761;
+import '../../features/venta_rapida/domain/repositories/venta_rapida_repository.dart'
+    as _i569;
+import '../../features/venta_rapida/domain/usecases/buscar_cliente_por_dni_usecase.dart'
+    as _i765;
+import '../../features/venta_rapida/domain/usecases/buscar_cliente_por_ruc_usecase.dart'
+    as _i33;
+import '../../features/venta_rapida/domain/usecases/cobrar_venta_rapida_usecase.dart'
+    as _i40;
+import '../../features/venta_rapida/domain/usecases/obtener_cliente_generico_usecase.dart'
+    as _i696;
+import '../../features/venta_rapida/presentation/bloc/venta_rapida_cubit.dart'
+    as _i985;
 import '../../features/vinculacion/data/datasources/vinculacion_remote_datasource.dart'
     as _i33;
 import '../../features/vinculacion/data/repositories/vinculacion_repository_impl.dart'
@@ -1786,6 +1802,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i526.VentaRemoteDataSource>(
       () => _i526.VentaRemoteDataSource(gh<_i667.DioClient>()),
+    );
+    gh.lazySingleton<_i370.VentaRapidaRemoteDataSource>(
+      () => _i370.VentaRapidaRemoteDataSource(gh<_i667.DioClient>()),
     );
     gh.lazySingleton<_i33.VinculacionRemoteDataSource>(
       () => _i33.VinculacionRemoteDataSource(gh<_i667.DioClient>()),
@@ -2164,6 +2183,13 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i492.LibroContableRepository>(
       () => _i640.LibroContableRepositoryImpl(
         gh<_i301.LibroContableRemoteDataSource>(),
+        gh<_i932.NetworkInfo>(),
+        gh<_i490.ErrorHandlerService>(),
+      ),
+    );
+    gh.lazySingleton<_i569.VentaRapidaRepository>(
+      () => _i761.VentaRapidaRepositoryImpl(
+        gh<_i370.VentaRapidaRemoteDataSource>(),
         gh<_i932.NetworkInfo>(),
         gh<_i490.ErrorHandlerService>(),
       ),
@@ -2992,6 +3018,20 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i1058.RegistrarPagoPrestamoUseCase>(
       () => _i1058.RegistrarPagoPrestamoUseCase(gh<_i341.PrestamoRepository>()),
+    );
+    gh.lazySingleton<_i765.BuscarClientePorDniUseCase>(
+      () => _i765.BuscarClientePorDniUseCase(gh<_i569.VentaRapidaRepository>()),
+    );
+    gh.lazySingleton<_i33.BuscarClientePorRucUseCase>(
+      () => _i33.BuscarClientePorRucUseCase(gh<_i569.VentaRapidaRepository>()),
+    );
+    gh.lazySingleton<_i40.CobrarVentaRapidaUseCase>(
+      () => _i40.CobrarVentaRapidaUseCase(gh<_i569.VentaRapidaRepository>()),
+    );
+    gh.lazySingleton<_i696.ObtenerClienteGenericoUseCase>(
+      () => _i696.ObtenerClienteGenericoUseCase(
+        gh<_i569.VentaRapidaRepository>(),
+      ),
     );
     gh.factory<_i123.AtributoPlantillaCubit>(
       () => _i123.AtributoPlantillaCubit(gh<_i1006.PlantillaRepository>()),
@@ -4067,6 +4107,16 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i427.CompraAnalyticsCubit>(
       () => _i427.CompraAnalyticsCubit(gh<_i914.GetCompraAnalyticsUseCase>()),
+    );
+    gh.lazySingleton<_i985.VentaRapidaCubit>(
+      () => _i985.VentaRapidaCubit(
+        gh<_i40.CobrarVentaRapidaUseCase>(),
+        gh<_i696.ObtenerClienteGenericoUseCase>(),
+        gh<_i765.BuscarClientePorDniUseCase>(),
+        gh<_i33.BuscarClientePorRucUseCase>(),
+        gh<_i640.PrecioNivelRepository>(),
+        gh<_i200.ComboRepository>(),
+      ),
     );
     gh.factory<_i503.CajaActivaCubit>(
       () => _i503.CajaActivaCubit(

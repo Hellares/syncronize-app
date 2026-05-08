@@ -84,6 +84,15 @@ class ComponenteInfo extends Equatable {
   final String? productoNombre;
   final String? varianteNombre;
 
+  // Info de oferta del stock del componente. El precio del combo siempre se
+  // calcula sobre el precio regular (ignora oferta), pero estos campos sirven
+  // para advertir al cajero que el componente está en oferta — el cliente
+  // podría preferir comprarlo suelto que dentro del combo.
+  final bool enOferta;
+  final double? precioOferta;
+  final DateTime? fechaInicioOferta;
+  final DateTime? fechaFinOferta;
+
   const ComponenteInfo({
     required this.id,
     required this.nombre,
@@ -95,6 +104,10 @@ class ComponenteInfo extends Equatable {
     this.imagen,
     this.productoNombre,
     this.varianteNombre,
+    this.enOferta = false,
+    this.precioOferta,
+    this.fechaInicioOferta,
+    this.fechaFinOferta,
   });
 
   /// Precio efectivo dentro del combo: usa override si existe, sino el precio regular
@@ -102,6 +115,20 @@ class ComponenteInfo extends Equatable {
 
   /// Si tiene precio diferente al regular dentro del combo
   bool get tienePrecioOverride => precioEnCombo != null && precioEnCombo != precio;
+
+  /// Indica si el componente tiene oferta activa AHORA (flag enOferta + dentro
+  /// de las fechas válidas). Útil para advertir al cajero.
+  bool get ofertaActiva {
+    if (!enOferta || precioOferta == null) return false;
+    final now = DateTime.now();
+    if (fechaInicioOferta != null && now.isBefore(fechaInicioOferta!)) {
+      return false;
+    }
+    if (fechaFinOferta != null && now.isAfter(fechaFinOferta!)) {
+      return false;
+    }
+    return true;
+  }
 
   @override
   List<Object?> get props => [
@@ -115,5 +142,9 @@ class ComponenteInfo extends Equatable {
         imagen,
         productoNombre,
         varianteNombre,
+        enOferta,
+        precioOferta,
+        fechaInicioOferta,
+        fechaFinOferta,
       ];
 }

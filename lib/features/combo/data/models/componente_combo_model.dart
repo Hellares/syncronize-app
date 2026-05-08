@@ -74,6 +74,10 @@ class ComponenteInfoModel extends ComponenteInfo {
     super.imagen,
     super.productoNombre,
     super.varianteNombre,
+    super.enOferta,
+    super.precioOferta,
+    super.fechaInicioOferta,
+    super.fechaFinOferta,
   });
 
   factory ComponenteInfoModel.fromJson(Map<String, dynamic> json) {
@@ -90,6 +94,17 @@ class ComponenteInfoModel extends ComponenteInfo {
       imagen: json['imagen'] as String?,
       productoNombre: json['productoNombre'] as String?,
       varianteNombre: json['varianteNombre'] as String?,
+      // Backend devuelve UTC; convertir a local para comparar contra DateTime.now().
+      enOferta: json['enOferta'] as bool? ?? false,
+      precioOferta: json['precioOferta'] != null
+          ? (json['precioOferta'] as num).toDouble()
+          : null,
+      fechaInicioOferta: json['fechaInicioOferta'] != null
+          ? DateTime.parse(json['fechaInicioOferta'] as String).toLocal()
+          : null,
+      fechaFinOferta: json['fechaFinOferta'] != null
+          ? DateTime.parse(json['fechaFinOferta'] as String).toLocal()
+          : null,
     );
   }
 }
