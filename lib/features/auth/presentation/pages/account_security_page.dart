@@ -4,7 +4,11 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/services/session_expired_notifier.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/gradient_background.dart';
+import '../../../../core/theme/gradient_container.dart';
 import '../../../../core/utils/resource.dart';
+import '../../../../core/widgets/smart_appbar.dart';
 import '../../../../core/widgets/snack_bar_helper.dart';
 import '../bloc/account_security/account_security_cubit.dart';
 import '../bloc/auth/auth_bloc.dart';
@@ -50,12 +54,11 @@ class _AccountSecurityViewState extends State<_AccountSecurityView> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Seguridad de la cuenta'),
-        elevation: 0,
-      ),
-      body: BlocConsumer<AccountSecurityCubit, AccountSecurityState>(
+    return GradientBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: SmartAppBar(title: 'Seguridad de la cuenta'),
+        body: BlocConsumer<AccountSecurityCubit, AccountSecurityState>(
         listener: (context, state) {
           if (state.submitAttempt) _fireSubmitSignal();
 
@@ -112,146 +115,170 @@ class _AccountSecurityViewState extends State<_AccountSecurityView> {
           }
 
           return SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Header
-                Text(
-                  'Métodos de autenticación',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                // Subheader (el título principal vive en el SmartAppBar)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                  child: Text(
+                    'Administra cómo inicias sesión en tu cuenta.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade700,
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  'Administra cómo inicias sesión en tu cuenta',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.grey.shade600,
-                      ),
-                ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 12),
 
                 // Email de la cuenta (agregar / cambiar)
                 _buildEmailCard(context, state),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
 
                 // Current methods card
                 _buildCurrentMethodsCard(context, state),
 
-                const SizedBox(height: 32),
+                const SizedBox(height: 16),
 
                 // Change password card (when user already has password)
                 if (state.hasPassword) ...[
                   _buildChangePasswordCard(context),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
                 ],
 
                 // Add password section (only if user doesn't have password)
                 if (state.canAddPassword) ...[
-                  Text(
-                    'Agregar contraseña',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Agrega una contraseña para tener una opción adicional de inicio de sesión',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.grey.shade600,
-                        ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Password field
-                  CustomText(
-                    label: 'Nueva contraseña',
-                    controller: _passwordController,
-                    fieldType: FieldType.password,
-                    enabled: !isLoading,
-                    hintText: '••••••••',
-                    borderColor: Colors.blue,
-                    borderWidth: 0.6,
-                    required: true,
-                    autovalidateMode: AutovalidateModeX.afterSubmit,
-                    submitSignal: _submitSignal,
-                    externalError: state.password.error,
-                    showValidationIndicator: false,
-                    onChanged: (v) => context.read<AccountSecurityCubit>().passwordChanged(v),
-                    onSubmitted: (_) => FocusScope.of(context).nextFocus(),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Confirm password field
-                  CustomText(
-                    label: 'Confirmar contraseña',
-                    controller: _confirmPasswordController,
-                    fieldType: FieldType.password,
-                    enabled: !isLoading,
-                    hintText: '••••••••',
-                    borderColor: Colors.blue,
-                    borderWidth: 0.6,
-                    required: true,
-                    autovalidateMode: AutovalidateModeX.afterSubmit,
-                    submitSignal: _submitSignal,
-                    externalError: state.confirmPassword.error,
-                    showValidationIndicator: false,
-                    onChanged: (v) => context.read<AccountSecurityCubit>().confirmPasswordChanged(v),
-                    onSubmitted: (_) {
-                      if (!isLoading) {
-                        FocusManager.instance.primaryFocus?.unfocus();
-                        context.read<AccountSecurityCubit>().setPassword();
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Submit button
-                  CustomButton(
-                    text: 'Establecer contraseña',
-                    isLoading: isLoading,
-                    onPressed: isLoading
-                        ? null
-                        : () {
-                            FocusManager.instance.primaryFocus?.unfocus();
-                            context.read<AccountSecurityCubit>().setPassword();
-                          },
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Password requirements info
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.blue.shade200),
-                    ),
+                  GradientContainer(
+                    padding: const EdgeInsets.all(16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
                           children: [
-                            Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
+                            Icon(Icons.lock_outline,
+                                size: 20, color: AppColors.blue3),
                             const SizedBox(width: 8),
                             Text(
-                              'Requisitos de contraseña:',
+                              'Agregar contraseña',
                               style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blue.shade900,
                                 fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.blue3,
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 8),
-                        _buildRequirement('Mínimo 8 caracteres'),
-                        _buildRequirement('Al menos una letra mayúscula'),
-                        _buildRequirement('Al menos una letra minúscula'),
-                        _buildRequirement('Al menos un número'),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Suma una opción adicional de inicio de sesión.',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey.shade700,
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+
+                        // Password field
+                        CustomText(
+                          label: 'Nueva contraseña',
+                          controller: _passwordController,
+                          fieldType: FieldType.password,
+                          enabled: !isLoading,
+                          hintText: '••••••••',
+                          borderColor: AppColors.blue2,
+                          borderWidth: 0.6,
+                          required: true,
+                          autovalidateMode: AutovalidateModeX.afterSubmit,
+                          submitSignal: _submitSignal,
+                          externalError: state.password.error,
+                          showValidationIndicator: false,
+                          onChanged: (v) => context
+                              .read<AccountSecurityCubit>()
+                              .passwordChanged(v),
+                          onSubmitted: (_) =>
+                              FocusScope.of(context).nextFocus(),
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Confirm password field
+                        CustomText(
+                          label: 'Confirmar contraseña',
+                          controller: _confirmPasswordController,
+                          fieldType: FieldType.password,
+                          enabled: !isLoading,
+                          hintText: '••••••••',
+                          borderColor: AppColors.blue2,
+                          borderWidth: 0.6,
+                          required: true,
+                          autovalidateMode: AutovalidateModeX.afterSubmit,
+                          submitSignal: _submitSignal,
+                          externalError: state.confirmPassword.error,
+                          showValidationIndicator: false,
+                          onChanged: (v) => context
+                              .read<AccountSecurityCubit>()
+                              .confirmPasswordChanged(v),
+                          onSubmitted: (_) {
+                            if (!isLoading) {
+                              FocusManager.instance.primaryFocus?.unfocus();
+                              context
+                                  .read<AccountSecurityCubit>()
+                                  .setPassword();
+                            }
+                          },
+                        ),
+                        const SizedBox(height: 16),
+
+                        CustomButton(
+                          text: 'Establecer contraseña',
+                          backgroundColor: AppColors.blue2,
+                          isLoading: isLoading,
+                          onPressed: isLoading
+                              ? null
+                              : () {
+                                  FocusManager.instance.primaryFocus
+                                      ?.unfocus();
+                                  context
+                                      .read<AccountSecurityCubit>()
+                                      .setPassword();
+                                },
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Password requirements info
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.blue.shade200),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(Icons.info_outline,
+                                      color: Colors.blue.shade700, size: 16),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Requisitos:',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.blue.shade900,
+                                      fontSize: 11.5,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              _buildRequirement('Mínimo 8 caracteres'),
+                              _buildRequirement('Una mayúscula y una minúscula'),
+                              _buildRequirement('Un número'),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -261,6 +288,7 @@ class _AccountSecurityViewState extends State<_AccountSecurityView> {
           );
         },
       ),
+    ),
     );
   }
 
@@ -276,50 +304,43 @@ class _AccountSecurityViewState extends State<_AccountSecurityView> {
         authState is Authenticated ? authState.user.emailVerificado : false;
     final isLoading = state.updateEmailResponse is Loading;
 
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey.shade300),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.email_outlined,
-                    size: 20, color: Colors.grey.shade700),
-                const SizedBox(width: 8),
-                Text(
-                  'Correo electrónico',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+    return GradientContainer(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.email_outlined, size: 20, color: AppColors.blue3),
+              const SizedBox(width: 8),
+              Text(
+                'Correo electrónico',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.blue3,
                 ),
-              ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (email == null || email.isEmpty) ...[
+            Text(
+              'Tu cuenta aún no tiene un correo asociado. Agrégalo para '
+              'poder iniciar sesión con Google o recuperar la contraseña.',
+              style: TextStyle(fontSize: 11.5, color: Colors.grey.shade700),
             ),
             const SizedBox(height: 12),
-            if (email == null || email.isEmpty) ...[
-              Text(
-                'Tu cuenta aún no tiene un correo asociado. Agrégalo para '
-                'poder iniciar sesión con Google o recuperar la contraseña.',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey.shade700,
-                ),
-              ),
-              const SizedBox(height: 12),
-              CustomButton(
-                text: 'Agregar email',
-                isLoading: isLoading,
-                icon: const Icon(Icons.add, color: Colors.white, size: 18),
-                onPressed: isLoading
-                    ? null
-                    : () => _promptUpdateEmail(context, currentEmail: null),
-              ),
-            ] else ...[
+            CustomButton(
+              text: 'Agregar email',
+              backgroundColor: AppColors.blue2,
+              isLoading: isLoading,
+              icon: const Icon(Icons.add, color: Colors.white, size: 18),
+              onPressed: isLoading
+                  ? null
+                  : () => _promptUpdateEmail(context, currentEmail: null),
+            ),
+          ] else ...[
               Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -396,7 +417,6 @@ class _AccountSecurityViewState extends State<_AccountSecurityView> {
             ],
           ],
         ),
-      ),
     );
   }
 
@@ -621,96 +641,96 @@ class _AccountSecurityViewState extends State<_AccountSecurityView> {
   /// Card que ofrece cambiar la contraseña actual. Solo se muestra cuando
   /// el usuario ya tiene una contraseña configurada (`hasPassword == true`).
   Widget _buildChangePasswordCard(BuildContext context) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey.shade300),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.password_outlined,
-                    size: 20, color: Colors.grey.shade700),
-                const SizedBox(width: 8),
-                Text(
-                  'Contraseña',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+    return GradientContainer(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.password_outlined, size: 20, color: AppColors.blue3),
+              const SizedBox(width: 8),
+              Text(
+                'Contraseña',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.blue3,
                 ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Cambiar tu contraseña periódicamente ayuda a mantener tu cuenta '
-              'segura. Al cambiarla, cerraremos tus otras sesiones activas.',
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
-            ),
-            const SizedBox(height: 12),
-            OutlinedButton.icon(
-              onPressed: () => context.push('/cambiar-password'),
-              icon: const Icon(Icons.edit_outlined, size: 16),
-              label: const Text(
-                'Cambiar contraseña',
-                style: TextStyle(fontSize: 12),
               ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Cambiar tu contraseña periódicamente ayuda a mantener tu cuenta '
+            'segura. Al cambiarla, todas las sesiones se cerrarán.',
+            style: TextStyle(fontSize: 11.5, color: Colors.grey.shade700),
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: () => context.push('/cambiar-password'),
+            icon: const Icon(Icons.edit_outlined, size: 16),
+            label: const Text(
+              'Cambiar contraseña',
+              style: TextStyle(fontSize: 12),
             ),
-          ],
-        ),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.blue2,
+              side: BorderSide(color: AppColors.blue2),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildCurrentMethodsCard(BuildContext context, AccountSecurityState state) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey.shade300),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Métodos activos',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey.shade700,
-                  ),
-            ),
-            const SizedBox(height: 16),
+    return GradientContainer(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.shield_outlined, size: 20, color: AppColors.blue3),
+              const SizedBox(width: 8),
+              Text(
+                'Métodos activos',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.blue3,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
 
-            // Password method
-            _buildMethodTile(
-              context,
-              icon: Icons.lock_outline,
-              title: 'Email y contraseña',
-              subtitle: state.hasPassword
-                  ? 'Activo - Puedes iniciar sesión con tu email y contraseña'
-                  : 'No configurado',
-              isActive: state.hasPassword,
-            ),
-            const SizedBox(height: 12),
+          // Password method
+          _buildMethodTile(
+            context,
+            icon: Icons.lock_outline,
+            title: 'Email y contraseña',
+            subtitle: state.hasPassword
+                ? 'Activo · Inicia sesión con email y contraseña'
+                : 'No configurado',
+            isActive: state.hasPassword,
+          ),
+          const SizedBox(height: 8),
 
-            // Google method
-            _buildMethodTile(
-              context,
-              icon: Icons.g_mobiledata,
-              title: 'Google Sign-In',
-              subtitle: state.hasGoogle
-                  ? 'Activo - Puedes iniciar sesión con tu cuenta de Google'
-                  : 'No configurado',
-              isActive: state.hasGoogle,
-            ),
-          ],
-        ),
+          // Google method
+          _buildMethodTile(
+            context,
+            icon: Icons.g_mobiledata,
+            title: 'Google Sign-In',
+            subtitle: state.hasGoogle
+                ? 'Activo · Inicia sesión con tu cuenta de Google'
+                : 'No configurado',
+            isActive: state.hasGoogle,
+          ),
+        ],
       ),
     );
   }
