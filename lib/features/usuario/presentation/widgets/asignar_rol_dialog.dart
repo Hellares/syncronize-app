@@ -6,7 +6,6 @@ import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/widgets/monto_selector_slider.dart';
 import 'package:syncronize/core/widgets/custom_checkbox_tile.dart';
 import 'package:syncronize/core/widgets/custom_dropdown.dart';
-import 'package:syncronize/core/widgets/custom_switch_tile.dart';
 import 'package:syncronize/features/auth/presentation/widgets/widgets.dart';
 import '../../../../core/utils/granular_permissions_catalog.dart';
 import '../../../../core/utils/rol_presets.dart';
@@ -73,6 +72,16 @@ class _AsignarRolDialogState extends State<AsignarRolDialog> {
       _permisosEspeciales.addAll(
         widget.usuario.sedes.expand((s) => s.permisos),
       );
+      // Sincronizar: si el usuario tiene los flags legacy de caja
+      // activos, asegurar que también aparezcan en el catálogo
+      // granular (la UI muestra una sola sección y debe reflejar
+      // ambos sistemas).
+      if (_puedeAbrirCaja) {
+        _permisosEspeciales.add(GranularPermissionId.cajaAbrir);
+      }
+      if (_puedeCerrarCaja) {
+        _permisosEspeciales.add(GranularPermissionId.cajaCerrar);
+      }
 
       // Tomar el límite de la primera sede (asumiendo que es el mismo)
       final sedeConLimite = widget.usuario.sedes
@@ -115,10 +124,12 @@ class _AsignarRolDialogState extends State<AsignarRolDialog> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Título y atajos en filas separadas para evitar overflow en
+          // pantallas angostas (título + 2 botones + Spacer no caben).
+          const AppSubtitle('Accesos rápidos visibles', fontSize: 12),
           Row(
+            mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              const AppSubtitle('Accesos rápidos visibles', fontSize: 12),
-              const Spacer(),
               TextButton(
                 onPressed: () => setState(() => _accesosRapidosOcultos.clear()),
                 style: TextButton.styleFrom(
@@ -244,6 +255,15 @@ class _AsignarRolDialogState extends State<AsignarRolDialog> {
       _permisosEspeciales
         ..clear()
         ..addAll(preset.permisosEspeciales);
+      // Sync: si el preset prende los flags legacy, refleja en el
+      // catálogo (y al revés). Garantiza que la UI unificada muestre
+      // siempre el mismo estado para caja venga de donde venga.
+      if (_puedeAbrirCaja) {
+        _permisosEspeciales.add(GranularPermissionId.cajaAbrir);
+      }
+      if (_puedeCerrarCaja) {
+        _permisosEspeciales.add(GranularPermissionId.cajaCerrar);
+      }
     });
   }
 
@@ -266,8 +286,13 @@ class _AsignarRolDialogState extends State<AsignarRolDialog> {
               const AppSubtitle('Permisos especiales', fontSize: 12),
               const Spacer(),
               TextButton(
-                onPressed: () =>
-                    setState(() => _permisosEspeciales.clear()),
+                onPressed: () => setState(() {
+                  _permisosEspeciales.clear();
+                  // "Quitar todos" del catálogo también limpia los
+                  // flags legacy de caja para mantener consistencia.
+                  _puedeAbrirCaja = false;
+                  _puedeCerrarCaja = false;
+                }),
                 style: TextButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   minimumSize: const Size(0, 28),
@@ -311,6 +336,17 @@ class _AsignarRolDialogState extends State<AsignarRolDialog> {
                         _permisosEspeciales.add(perm.id);
                       } else {
                         _permisosEspeciales.remove(perm.id);
+                      }
+                      // Sync con flags legacy: el backend sigue
+                      // recibiendo `puedeAbrirCaja`/`puedeCerrarCaja`
+                      // (ver permissions.service `hasGranularPermission`
+                      // que hace OR entre granular y flags). Mientras
+                      // dure la migración a granular puro, mantenemos
+                      // ambos sistemas sincronizados.
+                      if (perm.id == GranularPermissionId.cajaAbrir) {
+                        _puedeAbrirCaja = value == true;
+                      } else if (perm.id == GranularPermissionId.cajaCerrar) {
+                        _puedeCerrarCaja = value == true;
                       }
                     });
                   },
@@ -478,41 +514,13 @@ class _AsignarRolDialogState extends State<AsignarRolDialog> {
                       const SizedBox(height: 24),
                     ],
 
-                    // Permisos de Caja
-                    const AppSubtitle('Permisos de Caja', fontSize: 12,),
-                    const SizedBox(height: 4),
-                    GradientContainer(
-                      borderWidth: 0.6,
-                      borderColor: AppColors.blueborder,
-                      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      gradient: AppGradients.blueWhiteBlue(),
-                      child: Column(
-                        children: [
-                          CustomSwitchTile(
-                            title: 'Pude Abrir Caja', 
-                            subtitle: 'Permite al usuario abrir cajas',
-                            value: _puedeAbrirCaja, 
-                            onChanged: (value){
-                            setState(() {
-                              _puedeAbrirCaja =  value;
-                            });
-                          },),
-                          const Divider(height: 1),
-                          CustomSwitchTile(
-                            title: 'Puede Cerrar Caja',
-                            subtitle: 'Permite al usuario cerrar cajas',
-                            value: _puedeCerrarCaja,
-                            onChanged: (value){
-                              setState(() {
-                                _puedeCerrarCaja = value;
-                              });
-                            },
-                          )
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 24),
+                    // Sección "Permisos de Caja" eliminada: los toggles
+                    // de Abrir/Cerrar caja ahora viven en "Permisos
+                    // especiales" (catálogo granular). Los flags
+                    // legacy `puedeAbrirCaja`/`puedeCerrarCaja` se
+                    // siguen sincronizando en el payload para compat
+                    // con backend (`hasGranularPermission` los une vía
+                    // OR mientras dure la migración).
 
                     // Límite de Crédito
                     MontoSelectorSlider(
