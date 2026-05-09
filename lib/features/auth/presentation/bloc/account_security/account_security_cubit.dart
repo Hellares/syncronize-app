@@ -183,10 +183,10 @@ class AccountSecurityCubit extends Cubit<AccountSecurityState> {
     }
   }
 
-  /// Agrega o cambia el email del usuario actual. Después de éxito,
-  /// dispara `CheckAuthStatusEvent` para que el `AuthBloc` rehidrate
-  /// `user.email` con `emailVerificado=false` y la card del dashboard
-  /// refleje el cambio.
+  /// Agrega o cambia el email del usuario actual. El backend revoca
+  /// TODAS las sesiones tras éxito, por lo que la UI debe disparar
+  /// logout y mandar al login (no llamamos `CheckAuthStatusEvent` ni
+  /// `init()` aquí porque el access token ya no es válido).
   ///
   /// [currentPassword] es requerido por el backend cuando la cuenta tiene
   /// contraseña configurada. Para cuentas Google-only o DNI-only sin
@@ -214,17 +214,9 @@ class AccountSecurityCubit extends Cubit<AccountSecurityState> {
 
     if (result is Success) {
       emit(state.copyWith(updateEmailResponse: Success(null)));
-      // El backend acaba de generar un token; el usuario debe esperar 60s
-      // antes de solicitar un reenvío.
-      _startResendCooldown(60);
-      // Refrescar el usuario en el AuthBloc para que el resto de la app
-      // vea el email actualizado y `emailVerificado=false`.
-      authBloc.add(const CheckAuthStatusEvent());
-      // Recargar métodos disponibles (puede impactar `availableMethods`).
-      await init();
     } else if (result is Error) {
       emit(state.copyWith(
-        updateEmailResponse: Error((result as Error).message),
+        updateEmailResponse: Error((result).message),
       ));
     }
   }

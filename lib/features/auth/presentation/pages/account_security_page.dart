@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/services/session_expired_notifier.dart';
 import '../../../../core/utils/resource.dart';
 import '../../../../core/widgets/snack_bar_helper.dart';
 import '../bloc/account_security/account_security_cubit.dart';
@@ -73,10 +74,11 @@ class _AccountSecurityViewState extends State<_AccountSecurityView> {
 
           final emailResponse = state.updateEmailResponse;
           if (emailResponse is Success) {
-            // Mostrar dialog con los dos pasos siguientes (verificar
-            // bandeja + cerrar sesión para usar el nuevo email). Se usa
-            // microtask para no abrir el dialog en medio de un rebuild
-            // del BlocConsumer.
+            // El backend revoca TODAS las sesiones tras cambiar el email.
+            // Mostramos dialog informativo con los pasos siguientes y al
+            // confirmar disparamos al notifier para hacer logout y redirect
+            // al login. Microtask para no abrir el dialog en medio del
+            // rebuild del BlocConsumer.
             final authState = context.read<AuthBloc>().state;
             final newEmail = authState is Authenticated
                 ? authState.user.email ?? ''
@@ -525,7 +527,7 @@ class _AccountSecurityViewState extends State<_AccountSecurityView> {
               const SizedBox(height: 14),
             ],
             const Text(
-              'Para completar el cambio sigue estos pasos:',
+              'Por seguridad cerramos tu sesión actual. Sigue estos pasos:',
               style: TextStyle(fontSize: 12),
             ),
             const SizedBox(height: 12),
@@ -533,32 +535,30 @@ class _AccountSecurityViewState extends State<_AccountSecurityView> {
               number: '1',
               title: 'Revisa tu bandeja de entrada',
               description:
-                  'Te enviamos un correo de verificación. Haz clic en el link para confirmar el nuevo email. Revisa también el spam si no lo ves.',
+                  'Te enviamos un correo de verificación al nuevo email. Haz clic en el link para confirmar. Revisa también la carpeta de spam.',
               color: Colors.orange,
             ),
             const SizedBox(height: 10),
             _buildStepRow(
               number: '2',
-              title: 'Cierra sesión y vuelve a iniciar',
+              title: 'Inicia sesión nuevamente',
               description:
-                  'Tu sesión actual sigue siendo válida, pero para usar el nuevo correo al iniciar sesión necesitas cerrar sesión y volver a entrar.',
+                  'Vuelve a entrar con tu nuevo email después de verificarlo.',
               color: Colors.blue,
             ),
           ],
         ),
         actionsPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogCtx),
-            child: const Text('Más tarde'),
-          ),
           ElevatedButton.icon(
             onPressed: () {
               Navigator.pop(dialogCtx);
-              context.read<AuthBloc>().add(const LogoutRequestedEvent());
+              locator<SessionExpiredNotifier>().notify(
+                'Email actualizado. Inicia sesión nuevamente.',
+              );
             },
-            icon: const Icon(Icons.logout, size: 16),
-            label: const Text('Cerrar sesión ahora'),
+            icon: const Icon(Icons.login, size: 16),
+            label: const Text('Ir a iniciar sesión'),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.blue.shade700,
               foregroundColor: Colors.white,

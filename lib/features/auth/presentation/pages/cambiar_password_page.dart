@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/services/session_expired_notifier.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/resource.dart';
 import '../../../../core/widgets/snack_bar_helper.dart';
@@ -64,13 +64,12 @@ class _CambiarPasswordViewState extends State<_CambiarPasswordView> {
           if (state.submitAttempt) _fireSubmitSignal();
           final res = state.response;
           if (res is Success) {
-            SnackBarHelper.showSuccess(
-              context,
-              'Contraseña actualizada. Las otras sesiones fueron cerradas.',
+            // El backend revoca TODAS las sesiones (incluida la actual).
+            // Disparamos al notifier para que AuthBloc haga logout y
+            // GoRouter redirija al login mostrando el motivo.
+            locator<SessionExpiredNotifier>().notify(
+              'Contraseña actualizada. Inicia sesión con la nueva.',
             );
-            Future.delayed(const Duration(milliseconds: 600), () {
-              if (context.mounted) context.pop();
-            });
           } else if (res is Error) {
             SnackBarHelper.showError(context, res.message);
           }
