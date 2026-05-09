@@ -75,10 +75,13 @@ abstract class AuthRepository {
   /// Obtener perfil del usuario
   Future<Resource<User>> getProfile();
 
-  /// Vincular cuenta actual (Google) con cuenta existente (DNI)
+  /// Vincular cuenta actual (Google) con cuenta existente (DNI).
+  /// Requiere [targetPassword] como prueba de control sobre la cuenta
+  /// destino (evita takeover si alguien conoce un DNI ajeno).
   Future<Resource<AuthResponse>> linkAccount({
     required String dni,
     required String targetPersonaId,
+    required String targetPassword,
   });
 
   /// Actualizar perfil del usuario

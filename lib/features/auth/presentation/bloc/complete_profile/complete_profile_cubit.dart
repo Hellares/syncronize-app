@@ -116,15 +116,25 @@ class CompleteProfileCubit extends Cubit<CompleteProfileState> {
     }
   }
 
-  /// Vincular cuenta actual (Google) con la cuenta existente (DNI)
-  Future<void> confirmarVinculacion() async {
+  /// Vincular cuenta actual (Google) con la cuenta existente (DNI).
+  /// [targetPassword] es la contraseña actual de la cuenta destino —
+  /// requerida por el backend como prueba de control para evitar
+  /// takeover si alguien conoce un DNI ajeno.
+  Future<void> confirmarVinculacion(String targetPassword) async {
     if (state.targetPersonaId == null) return;
+    if (targetPassword.trim().isEmpty) {
+      emit(state.copyWith(
+        linkResponse: Error('La contraseña de la cuenta destino es requerida'),
+      ));
+      return;
+    }
 
     emit(state.copyWith(isLinking: true, linkResponse: Loading()));
 
     final result = await authRepository.linkAccount(
       dni: state.dni.value.trim(),
       targetPersonaId: state.targetPersonaId!,
+      targetPassword: targetPassword,
     );
 
     if (result is Success<AuthResponse>) {

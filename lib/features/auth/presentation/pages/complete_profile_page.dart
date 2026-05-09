@@ -321,7 +321,7 @@ class _CompleteProfileViewState extends State<_CompleteProfileView> {
                                   isLoading: state.isLinking,
                                   onPressed: state.isLinking
                                       ? null
-                                      : () => context.read<CompleteProfileCubit>().confirmarVinculacion(),
+                                      : () => _promptVincular(context),
                                 ),
                               ),
                             ],
@@ -435,6 +435,134 @@ class _CompleteProfileViewState extends State<_CompleteProfileView> {
           ),
         ],
       ),
+    );
+  }
+
+  /// Abre el dialog para confirmar la vinculación con la contraseña
+  /// de la cuenta destino. El backend requiere esta prueba de control
+  /// para evitar takeover si alguien conoce un DNI ajeno.
+  Future<void> _promptVincular(BuildContext context) async {
+    final cubit = context.read<CompleteProfileCubit>();
+    final password = await showDialog<String>(
+      context: context,
+      builder: (_) => const _LinkAccountPasswordDialog(),
+    );
+    if (password != null && password.isNotEmpty) {
+      await cubit.confirmarVinculacion(password);
+    }
+  }
+}
+
+/// Dialog autocontenido para pedir la contraseña de la cuenta destino
+/// al vincular. StatefulWidget para que el TextEditingController siga
+/// el ciclo de vida del widget (mismo patrón que `_UpdateEmailDialog`).
+class _LinkAccountPasswordDialog extends StatefulWidget {
+  const _LinkAccountPasswordDialog();
+
+  @override
+  State<_LinkAccountPasswordDialog> createState() =>
+      _LinkAccountPasswordDialogState();
+}
+
+class _LinkAccountPasswordDialogState
+    extends State<_LinkAccountPasswordDialog> {
+  late final TextEditingController _controller;
+  final _formKey = GlobalKey<FormState>();
+  bool _obscure = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      title: Row(
+        children: [
+          Icon(Icons.lock_outline,
+              color: Colors.orange.shade700, size: 22),
+          const SizedBox(width: 8),
+          const Expanded(
+            child: Text('Confirmar vinculación',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+      content: SingleChildScrollView(
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Para vincular tu cuenta de Google con la cuenta existente, '
+                'ingresa la contraseña de esa cuenta. Esto verifica que sos '
+                'el dueño y previene que alguien que conozca tu DNI tome '
+                'control de tu cuenta.',
+                style:
+                    TextStyle(fontSize: 11, color: Colors.grey.shade700),
+              ),
+              const SizedBox(height: 14),
+              TextFormField(
+                controller: _controller,
+                obscureText: _obscure,
+                autofocus: true,
+                decoration: InputDecoration(
+                  labelText: 'Contraseña de la cuenta existente',
+                  hintText: '••••••••',
+                  prefixIcon: const Icon(Icons.lock_outline, size: 20),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscure ? Icons.visibility_off : Icons.visibility,
+                      size: 18,
+                    ),
+                    onPressed: () => setState(() => _obscure = !_obscure),
+                  ),
+                  isDense: true,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                validator: (value) {
+                  final v = value?.trim() ?? '';
+                  if (v.isEmpty) return 'La contraseña es requerida';
+                  if (v.length < 6) return 'Mínimo 6 caracteres';
+                  return null;
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop<String>(context, null),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton.icon(
+          onPressed: () {
+            if (_formKey.currentState?.validate() ?? false) {
+              Navigator.pop<String>(context, _controller.text);
+            }
+          },
+          icon: const Icon(Icons.link, size: 16),
+          label: const Text('Vincular'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.orange.shade700,
+            foregroundColor: Colors.white,
+          ),
+        ),
+      ],
     );
   }
 }

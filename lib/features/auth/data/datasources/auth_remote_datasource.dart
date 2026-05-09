@@ -80,6 +80,7 @@ abstract class AuthRemoteDataSource {
   Future<AuthResponseModel> linkAccount({
     required String dni,
     required String targetPersonaId,
+    required String targetPassword,
   });
 
   Future<List<SessionInfoModel>> getSessions();
@@ -365,12 +366,14 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   Future<AuthResponseModel> linkAccount({
     required String dni,
     required String targetPersonaId,
+    required String targetPassword,
   }) async {
     final response = await _client.post(
       '/auth/link-account',
       data: {
         'dni': dni,
         'targetPersonaId': targetPersonaId,
+        'targetPassword': targetPassword,
       },
     );
     return AuthResponseModel.fromJson(response.data as Map<String, dynamic>);

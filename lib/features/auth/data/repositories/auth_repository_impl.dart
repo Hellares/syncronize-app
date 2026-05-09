@@ -402,6 +402,7 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<Resource<AuthResponse>> linkAccount({
     required String dni,
     required String targetPersonaId,
+    required String targetPassword,
   }) async {
     if (!await networkInfo.isConnected) {
       return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
@@ -411,6 +412,7 @@ class AuthRepositoryImpl implements AuthRepository {
       final result = await remoteDataSource.linkAccount(
         dni: dni,
         targetPersonaId: targetPersonaId,
+        targetPassword: targetPassword,
       );
 
       final authResponse = result.toEntity();
