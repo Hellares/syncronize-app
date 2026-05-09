@@ -32,3 +32,18 @@ class UserLoggedInEvent extends AuthEvent {
 class LogoutRequestedEvent extends AuthEvent {
   const LogoutRequestedEvent();
 }
+
+/// Evento disparado por el sistema cuando la sesión se invalidó de
+/// forma involuntaria (admin la revocó, refresh token expiró, usuario
+/// desactivado por admin). El AuthBloc lo recibe del
+/// `SessionExpiredNotifier` y limpia el estado local + emite
+/// `Unauthenticated(reason)` para que la UI explique al usuario por
+/// qué fue expulsado.
+class SessionExpiredEvent extends AuthEvent {
+  final String reason;
+
+  const SessionExpiredEvent({required this.reason});
+
+  @override
+  List<Object> get props => [reason];
+}

@@ -24,8 +24,18 @@ class Authenticated extends AuthState {
   List<Object> get props => [user];
 }
 
-/// Usuario no autenticado
-class Unauthenticated extends AuthState {}
+/// Usuario no autenticado. `reason` se setea cuando la salida fue
+/// involuntaria (sesión revocada, token expirado, cuenta desactivada
+/// por admin) para que la UI pueda mostrar un mensaje explicativo. En
+/// logout normal por click del usuario `reason` es null.
+class Unauthenticated extends AuthState {
+  final String? reason;
+
+  const Unauthenticated({this.reason});
+
+  @override
+  List<Object?> get props => [reason];
+}
 
 /// Requiere selección de modo de login
 class AuthModeSelectionRequired extends AuthState {

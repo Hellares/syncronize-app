@@ -35,6 +35,13 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   bool _isListening = false;
   bool _wasAuthenticated = false;
 
+  /// Key global del ScaffoldMessenger para mostrar snackbars desde
+  /// listeners que no tienen un BuildContext "vivo" (ej: cuando la
+  /// sesión es revocada por el admin y el AuthBloc emite
+  /// `Unauthenticated` con un motivo).
+  final GlobalKey<ScaffoldMessengerState> _scaffoldMessengerKey =
+      GlobalKey<ScaffoldMessengerState>();
+
   @override
   void initState() {
     super.initState();
@@ -86,8 +93,44 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         PushNotificationService().registerTokenWithBackend();
       } else if (state is Unauthenticated && _wasAuthenticated) {
         _wasAuthenticated = false;
+        // Si la salida fue involuntaria (sesión revocada, refresh
+        // falló, cuenta desactivada), mostrar snackbar global con el
+        // motivo para que el usuario sepa por qué fue expulsado.
+        if (state.reason != null && state.reason!.isNotEmpty) {
+          _showSessionExpiredSnackbar(state.reason!);
+        }
       }
     });
+  }
+
+  void _showSessionExpiredSnackbar(String reason) {
+    final messenger = _scaffoldMessengerKey.currentState;
+    if (messenger == null) return;
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.lock_outline,
+                color: Colors.white, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                reason,
+                style: const TextStyle(fontSize: 13),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.red.shade700,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 5),
+        margin: const EdgeInsets.all(12),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+      ),
+    );
   }
 
   void _setupPushDeepLinking(GoRouter router) {
@@ -133,6 +176,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
             themeMode: ThemeMode.light,
+            scaffoldMessengerKey: _scaffoldMessengerKey,
             routerConfig: appRouter.router,
           );
         },

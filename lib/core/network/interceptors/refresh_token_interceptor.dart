@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import 'package:injectable/injectable.dart';
 import '../../constants/constants.dart';
 import '../../errors/exceptions.dart';
+import '../../services/session_expired_notifier.dart';
 import '../../storage/storage.dart';
 
 /// Interceptor para refrescar automáticamente el token cuando expira
@@ -10,6 +11,7 @@ import '../../storage/storage.dart';
 class RefreshTokenInterceptor extends QueuedInterceptorsWrapper {
   final SecureStorageService _secureStorage;
   final Dio _dio;
+  final SessionExpiredNotifier _sessionExpiredNotifier;
 
   // Lock para prevenir múltiples refreshes simultáneos
   bool _isRefreshing = false;
@@ -18,6 +20,7 @@ class RefreshTokenInterceptor extends QueuedInterceptorsWrapper {
   RefreshTokenInterceptor(
     this._secureStorage,
     @Named('authDio') this._dio,
+    this._sessionExpiredNotifier,
   );
 
   @override
@@ -63,7 +66,17 @@ class RefreshTokenInterceptor extends QueuedInterceptorsWrapper {
         // Retornar la respuesta exitosa
         return handler.resolve(response);
       } catch (e) {
-        // Si el refresh falla, propagar el error original para forzar logout
+        // Si el refresh falla, la sesión está realmente terminada
+        // (revocada por admin, refresh token expirado, usuario
+        // desactivado). Notificamos al AuthBloc para que dispare
+        // logout y expulse al usuario a la pantalla de login.
+        final reason = err.response?.data is Map &&
+                (err.response!.data as Map)['message'] is String
+            ? (err.response!.data as Map)['message'] as String
+            : 'Sesión expirada. Por favor, inicia sesión nuevamente.';
+        _sessionExpiredNotifier.notify(reason);
+
+        // Propagar el error original
         return handler.next(err);
       }
     }
