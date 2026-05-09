@@ -122,6 +122,10 @@ abstract class AuthRemoteDataSource {
   Future<SetPasswordResponseModel> setPassword({
     required String password,
   });
+
+  /// Agregar o cambiar el email de la cuenta autenticada. El email queda
+  /// con `emailVerificado=false` y se envía un nuevo correo de verificación.
+  Future<void> updateEmail({required String email});
 }
 
 /// Implementación del datasource remoto
@@ -497,5 +501,13 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     } catch (e) {
       rethrow;
     }
+  }
+
+  @override
+  Future<void> updateEmail({required String email}) async {
+    await _client.patch(
+      '/auth/email',
+      data: {'email': email},
+    );
   }
 }

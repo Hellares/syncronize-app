@@ -152,4 +152,9 @@ abstract class AuthRepository {
 
   /// Establecer contraseña para usuario autenticado (OAuth users)
   Future<Resource<SetPasswordResponse>> setPassword(String password);
+
+  /// Agregar o cambiar el email de la cuenta autenticada. Después de
+  /// éxito, el email queda no verificado y el backend envía un correo
+  /// de verificación a la nueva dirección.
+  Future<Resource<void>> updateEmail(String email);
 }

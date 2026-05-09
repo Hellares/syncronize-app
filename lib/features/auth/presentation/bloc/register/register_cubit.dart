@@ -55,6 +55,33 @@ class RegisterCubit extends Cubit<RegisterState> {
     ));
   }
 
+  /// Actualizar DNI (opcional). Cuando el usuario lo completa, la pantalla
+  /// de registro autocompleta nombres/apellidos vía RENIEC.
+  void dniChanged(String value) {
+    emit(state.copyWith(
+      dni: BlocFormItem(value: value, error: _validateDni(value)),
+      response: null,
+    ));
+  }
+
+  /// Helper para autocompletar nombre/apellido/teléfono después de un
+  /// lookup RENIEC exitoso. No afecta validaciones, sólo escribe valores.
+  void datosRenieFill({
+    required String nombres,
+    required String apellidos,
+    String? telefono,
+  }) {
+    emit(state.copyWith(
+      nombres: BlocFormItem(value: nombres, error: _validateNombres(nombres)),
+      apellidos: BlocFormItem(
+          value: apellidos, error: _validateApellidos(apellidos)),
+      telefono: telefono != null && telefono.isNotEmpty
+          ? BlocFormItem(value: telefono, error: _validateTelefono(telefono))
+          : state.telefono,
+      response: null,
+    ));
+  }
+
   /// Validaciones
   String? _validateEmail(String value) {
     if (value.isEmpty) return 'El email es requerido';
@@ -109,13 +136,23 @@ class RegisterCubit extends Cubit<RegisterState> {
     return null;
   }
 
+  /// DNI es opcional pero, si se ingresa, debe tener exactamente 8 dígitos.
+  String? _validateDni(String value) {
+    if (value.isEmpty) return null;
+    if (!RegExp(r'^\d{8}$').hasMatch(value)) {
+      return 'DNI debe tener 8 dígitos';
+    }
+    return null;
+  }
+
   /// Validar formulario completo
   bool _isFormValid() {
     return _validateEmail(state.email.value) == null &&
         _validatePassword(state.password.value) == null &&
         _validateNombres(state.nombres.value) == null &&
         _validateApellidos(state.apellidos.value) == null &&
-        _validateTelefono(state.telefono.value) == null;
+        _validateTelefono(state.telefono.value) == null &&
+        _validateDni(state.dni.value) == null;
   }
 
   /// Registrar
@@ -128,6 +165,7 @@ class RegisterCubit extends Cubit<RegisterState> {
         nombres: state.nombres.copyWith(error: _validateNombres(state.nombres.value)),
         apellidos: state.apellidos.copyWith(error: _validateApellidos(state.apellidos.value)),
         telefono: state.telefono.copyWith(error: _validateTelefono(state.telefono.value)),
+        dni: state.dni.copyWith(error: _validateDni(state.dni.value)),
       ));
       return;
     }
@@ -135,12 +173,14 @@ class RegisterCubit extends Cubit<RegisterState> {
     // Emitir Loading
     emit(state.copyWith(response: Loading()));
 
+    final dniValue = state.dni.value.trim();
     final params = RegisterParams(
       email: state.email.value.trim(),
       password: state.password.value,
       nombres: state.nombres.value.trim(),
       apellidos: state.apellidos.value.trim(),
       telefono: state.telefono.value.trim().isEmpty ? null : state.telefono.value.trim(),
+      dni: dniValue.isEmpty ? null : dniValue,
     );
 
     final result = await registerUseCase(params);

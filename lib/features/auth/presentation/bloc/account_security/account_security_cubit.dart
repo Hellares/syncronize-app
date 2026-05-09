@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
@@ -7,7 +9,9 @@ import '../../../../../core/utils/resource.dart';
 import '../../../domain/entities/auth_methods_response.dart';
 import '../../../domain/entities/set_password_response.dart';
 import '../../../domain/usecases/check_auth_methods_usecase.dart';
+import '../../../domain/usecases/resend_verification_email_usecase.dart';
 import '../../../domain/usecases/set_password_usecase.dart';
+import '../../../domain/usecases/update_email_usecase.dart';
 import '../auth/auth_bloc.dart';
 
 part 'account_security_state.dart';
@@ -16,13 +20,25 @@ part 'account_security_state.dart';
 class AccountSecurityCubit extends Cubit<AccountSecurityState> {
   final CheckAuthMethodsUseCase checkAuthMethodsUseCase;
   final SetPasswordUseCase setPasswordUseCase;
+  final UpdateEmailUseCase updateEmailUseCase;
+  final ResendVerificationEmailUseCase resendVerificationEmailUseCase;
   final AuthBloc authBloc;
+
+  Timer? _cooldownTimer;
 
   AccountSecurityCubit(
     this.checkAuthMethodsUseCase,
     this.setPasswordUseCase,
+    this.updateEmailUseCase,
+    this.resendVerificationEmailUseCase,
     this.authBloc,
   ) : super(const AccountSecurityState());
+
+  @override
+  Future<void> close() {
+    _cooldownTimer?.cancel();
+    return super.close();
+  }
 
   /// Inicializa la página cargando los métodos de autenticación disponibles
   Future<void> init() async {
@@ -165,5 +181,100 @@ class AccountSecurityCubit extends Cubit<AccountSecurityState> {
         setPasswordResponse: Error((result as Error).message),
       ));
     }
+  }
+
+  /// Agrega o cambia el email del usuario actual. Después de éxito,
+  /// dispara `CheckAuthStatusEvent` para que el `AuthBloc` rehidrate
+  /// `user.email` con `emailVerificado=false` y la card del dashboard
+  /// refleje el cambio.
+  Future<void> updateEmail(String email) async {
+    final trimmed = email.trim();
+    if (trimmed.isEmpty) {
+      emit(state.copyWith(
+        updateEmailResponse: Error('El email es requerido'),
+      ));
+      return;
+    }
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,}$');
+    if (!emailRegex.hasMatch(trimmed)) {
+      emit(state.copyWith(
+        updateEmailResponse: Error('Email inválido'),
+      ));
+      return;
+    }
+
+    emit(state.copyWith(updateEmailResponse: Loading()));
+
+    final result = await updateEmailUseCase(trimmed);
+
+    if (result is Success) {
+      emit(state.copyWith(updateEmailResponse: Success(null)));
+      // El backend acaba de generar un token; el usuario debe esperar 60s
+      // antes de solicitar un reenvío.
+      _startResendCooldown(60);
+      // Refrescar el usuario en el AuthBloc para que el resto de la app
+      // vea el email actualizado y `emailVerificado=false`.
+      authBloc.add(const CheckAuthStatusEvent());
+      // Recargar métodos disponibles (puede impactar `availableMethods`).
+      await init();
+    } else if (result is Error) {
+      emit(state.copyWith(
+        updateEmailResponse: Error((result as Error).message),
+      ));
+    }
+  }
+
+  /// Reenviar correo de verificación al email actual del usuario. Útil
+  /// cuando el correo no llegó (spam, demora SMTP) o expiró el token.
+  /// El backend aplica cooldown de 60s desde el último envío y devuelve
+  /// 400 con segundos restantes si se intenta antes.
+  Future<void> resendVerificationEmail() async {
+    final authState = authBloc.state;
+    if (authState is! Authenticated) {
+      emit(state.copyWith(
+        resendVerificationResponse: Error('Usuario no autenticado'),
+      ));
+      return;
+    }
+    final email = authState.user.email;
+    if (email == null || email.isEmpty) {
+      emit(state.copyWith(
+        resendVerificationResponse: Error('Tu cuenta no tiene email asociado'),
+      ));
+      return;
+    }
+    if (state.resendCooldownSeconds > 0) {
+      // Defensivo: el botón ya debería estar deshabilitado.
+      return;
+    }
+
+    emit(state.copyWith(resendVerificationResponse: Loading()));
+
+    final result = await resendVerificationEmailUseCase(
+      ResendVerificationEmailParams(email: email),
+    );
+
+    if (result is Success) {
+      emit(state.copyWith(resendVerificationResponse: Success(null)));
+      _startResendCooldown(60);
+    } else if (result is Error) {
+      emit(state.copyWith(
+        resendVerificationResponse: Error(result.message),
+      ));
+    }
+  }
+
+  void _startResendCooldown(int seconds) {
+    _cooldownTimer?.cancel();
+    emit(state.copyWith(resendCooldownSeconds: seconds));
+    _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      final remaining = state.resendCooldownSeconds - 1;
+      if (remaining <= 0) {
+        timer.cancel();
+        emit(state.copyWith(resendCooldownSeconds: 0));
+      } else {
+        emit(state.copyWith(resendCooldownSeconds: remaining));
+      }
+    });
   }
 }

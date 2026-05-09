@@ -7,6 +7,7 @@ class RegisterState extends Equatable {
   final BlocFormItem nombres;
   final BlocFormItem apellidos;
   final BlocFormItem telefono;
+  final BlocFormItem dni;
   final Resource? response;
   final GlobalKey<FormState>? formKey;
 
@@ -16,6 +17,7 @@ class RegisterState extends Equatable {
     this.nombres = const BlocFormItem(value: '', error: null),
     this.apellidos = const BlocFormItem(value: '', error: null),
     this.telefono = const BlocFormItem(value: '', error: null),
+    this.dni = const BlocFormItem(value: '', error: null),
     this.response,
     this.formKey,
   });
@@ -26,6 +28,7 @@ class RegisterState extends Equatable {
     BlocFormItem? nombres,
     BlocFormItem? apellidos,
     BlocFormItem? telefono,
+    BlocFormItem? dni,
     Resource? response,
     GlobalKey<FormState>? formKey,
   }) {
@@ -35,6 +38,7 @@ class RegisterState extends Equatable {
       nombres: nombres ?? this.nombres,
       apellidos: apellidos ?? this.apellidos,
       telefono: telefono ?? this.telefono,
+      dni: dni ?? this.dni,
       response: response,
       formKey: formKey ?? this.formKey,
     );
@@ -47,6 +51,7 @@ class RegisterState extends Equatable {
         nombres,
         apellidos,
         telefono,
+        dni,
         response,
       ];
 }

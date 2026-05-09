@@ -5,6 +5,7 @@ import '../../../../core/di/injection_container.dart';
 import '../../../../core/utils/resource.dart';
 import '../../../../core/widgets/snack_bar_helper.dart';
 import '../bloc/account_security/account_security_cubit.dart';
+import '../bloc/auth/auth_bloc.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/custom_text.dart';
 
@@ -68,6 +69,34 @@ class _AccountSecurityViewState extends State<_AccountSecurityView> {
           } else if (response is Error) {
             SnackBarHelper.showError(context, response.message);
           }
+
+          final emailResponse = state.updateEmailResponse;
+          if (emailResponse is Success) {
+            // Mostrar dialog con los dos pasos siguientes (verificar
+            // bandeja + cerrar sesión para usar el nuevo email). Se usa
+            // microtask para no abrir el dialog en medio de un rebuild
+            // del BlocConsumer.
+            final authState = context.read<AuthBloc>().state;
+            final newEmail = authState is Authenticated
+                ? authState.user.email ?? ''
+                : '';
+            Future.microtask(() {
+              if (!context.mounted) return;
+              _showEmailUpdatedDialog(context, newEmail);
+            });
+          } else if (emailResponse is Error) {
+            SnackBarHelper.showError(context, emailResponse.message);
+          }
+
+          final resendResponse = state.resendVerificationResponse;
+          if (resendResponse is Success) {
+            SnackBarHelper.showSuccess(
+              context,
+              'Correo de verificación reenviado. Revisa tu bandeja o spam.',
+            );
+          } else if (resendResponse is Error) {
+            SnackBarHelper.showError(context, resendResponse.message);
+          }
         },
         builder: (context, state) {
           final isLoading = state.setPasswordResponse is Loading;
@@ -98,7 +127,12 @@ class _AccountSecurityViewState extends State<_AccountSecurityView> {
                         color: Colors.grey.shade600,
                       ),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 24),
+
+                // Email de la cuenta (agregar / cambiar)
+                _buildEmailCard(context, state),
+
+                const SizedBox(height: 24),
 
                 // Current methods card
                 _buildCurrentMethodsCard(context, state),
@@ -218,6 +252,354 @@ class _AccountSecurityViewState extends State<_AccountSecurityView> {
           );
         },
       ),
+    );
+  }
+
+  /// Card del email asociado a la cuenta. Soporta dos casos:
+  /// - Cuenta DNI-only (user.email == null): CTA "Agregar email" para
+  ///   habilitar luego login con Google.
+  /// - Cuenta con email: muestra el email + estado verificado y botón
+  ///   "Cambiar email".
+  Widget _buildEmailCard(BuildContext context, AccountSecurityState state) {
+    final authState = context.watch<AuthBloc>().state;
+    final email = authState is Authenticated ? authState.user.email : null;
+    final emailVerificado =
+        authState is Authenticated ? authState.user.emailVerificado : false;
+    final isLoading = state.updateEmailResponse is Loading;
+
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.grey.shade300),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.email_outlined,
+                    size: 20, color: Colors.grey.shade700),
+                const SizedBox(width: 8),
+                Text(
+                  'Correo electrónico',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (email == null || email.isEmpty) ...[
+              Text(
+                'Tu cuenta aún no tiene un correo asociado. Agrégalo para '
+                'poder iniciar sesión con Google o recuperar la contraseña.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey.shade700,
+                ),
+              ),
+              const SizedBox(height: 12),
+              CustomButton(
+                text: 'Agregar email',
+                isLoading: isLoading,
+                icon: const Icon(Icons.add, color: Colors.white, size: 18),
+                onPressed: isLoading
+                    ? null
+                    : () => _promptUpdateEmail(context, currentEmail: null),
+              ),
+            ] else ...[
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: emailVerificado
+                      ? Colors.green.shade50
+                      : Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: emailVerificado
+                        ? Colors.green.shade200
+                        : Colors.orange.shade200,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      emailVerificado
+                          ? Icons.verified_outlined
+                          : Icons.mark_email_unread_outlined,
+                      size: 18,
+                      color: emailVerificado
+                          ? Colors.green.shade700
+                          : Colors.orange.shade700,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            email,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                              color: emailVerificado
+                                  ? Colors.green.shade900
+                                  : Colors.orange.shade900,
+                            ),
+                          ),
+                          Text(
+                            emailVerificado
+                                ? 'Verificado'
+                                : 'Sin verificar — revisa tu bandeja',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: emailVerificado
+                                  ? Colors.green.shade700
+                                  : Colors.orange.shade700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              if (!emailVerificado) ...[
+                _buildResendVerificationButton(context, state),
+                const SizedBox(height: 8),
+              ],
+              OutlinedButton.icon(
+                onPressed: isLoading
+                    ? null
+                    : () =>
+                        _promptUpdateEmail(context, currentEmail: email),
+                icon: const Icon(Icons.edit_outlined, size: 16),
+                label: Text(
+                  isLoading ? 'Procesando...' : 'Cambiar email',
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Botón compacto para pedir un reenvío del correo de verificación.
+  /// Mostrado solo si el email existe y no está verificado. Respeta el
+  /// cooldown de 60s del backend mostrando contador en el label.
+  Widget _buildResendVerificationButton(
+    BuildContext context,
+    AccountSecurityState state,
+  ) {
+    final isResending = state.resendVerificationResponse is Loading;
+    final cooldown = state.resendCooldownSeconds;
+    final disabled = isResending || cooldown > 0;
+    final label = isResending
+        ? 'Enviando...'
+        : cooldown > 0
+            ? 'Reenviar en ${cooldown}s'
+            : 'Reenviar correo de verificación';
+
+    return TextButton.icon(
+      onPressed: disabled
+          ? null
+          : () =>
+              context.read<AccountSecurityCubit>().resendVerificationEmail(),
+      icon: isResending
+          ? const SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Icon(Icons.refresh, size: 16),
+      label: Text(
+        label,
+        style: const TextStyle(fontSize: 12),
+      ),
+      style: TextButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        minimumSize: const Size(0, 32),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+    );
+  }
+
+  /// Diálogo simple con un input de email para Agregar/Cambiar.
+  /// Delega al cubit que valida formato + llama al backend.
+  Future<void> _promptUpdateEmail(
+    BuildContext context, {
+    String? currentEmail,
+  }) async {
+    final cubit = context.read<AccountSecurityCubit>();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (_) => _UpdateEmailDialog(currentEmail: currentEmail),
+    );
+    if (result != null && result.isNotEmpty) {
+      await cubit.updateEmail(result);
+    }
+  }
+
+  /// Dialog informativo post-cambio de email exitoso. Explica los dos
+  /// pasos que debe seguir el usuario:
+  ///   1) Revisar el correo y hacer clic en el link de verificación.
+  ///   2) Cerrar sesión y volver a iniciar para usar el nuevo email.
+  /// Ofrece botón "Cerrar sesión ahora" como atajo.
+  Future<void> _showEmailUpdatedDialog(
+    BuildContext context,
+    String newEmail,
+  ) async {
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14)),
+        title: Row(
+          children: [
+            Icon(Icons.mark_email_read_outlined,
+                color: Colors.green.shade700, size: 22),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Text(
+                'Email actualizado',
+                style: TextStyle(
+                    fontSize: 15, fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (newEmail.isNotEmpty) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.green.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.email_outlined,
+                        size: 16, color: Colors.green.shade700),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        newEmail,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.green.shade900,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+            ],
+            const Text(
+              'Para completar el cambio sigue estos pasos:',
+              style: TextStyle(fontSize: 12),
+            ),
+            const SizedBox(height: 12),
+            _buildStepRow(
+              number: '1',
+              title: 'Revisa tu bandeja de entrada',
+              description:
+                  'Te enviamos un correo de verificación. Haz clic en el link para confirmar el nuevo email. Revisa también el spam si no lo ves.',
+              color: Colors.orange,
+            ),
+            const SizedBox(height: 10),
+            _buildStepRow(
+              number: '2',
+              title: 'Cierra sesión y vuelve a iniciar',
+              description:
+                  'Tu sesión actual sigue siendo válida, pero para usar el nuevo correo al iniciar sesión necesitas cerrar sesión y volver a entrar.',
+              color: Colors.blue,
+            ),
+          ],
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('Más tarde'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pop(dialogCtx);
+              context.read<AuthBloc>().add(const LogoutRequestedEvent());
+            },
+            icon: const Icon(Icons.logout, size: 16),
+            label: const Text('Cerrar sesión ahora'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue.shade700,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStepRow({
+    required String number,
+    required String title,
+    required String description,
+    required MaterialColor color,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 24,
+          height: 24,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: color.shade100,
+            shape: BoxShape.circle,
+          ),
+          child: Text(
+            number,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: color.shade800,
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                description,
+                style: TextStyle(
+                    fontSize: 11, color: Colors.grey.shade700),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -350,6 +732,108 @@ class _AccountSecurityViewState extends State<_AccountSecurityView> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Diálogo con form de email autocontenido. Aislado en su propio
+/// StatefulWidget para que el `TextEditingController` siga el ciclo de
+/// vida del widget (evita "TextEditingController used after dispose"
+/// cuando el AlertDialog rebuildea durante su animación de salida).
+/// Devuelve el email validado vía `Navigator.pop` o `null` si el usuario
+/// cancela.
+class _UpdateEmailDialog extends StatefulWidget {
+  final String? currentEmail;
+
+  const _UpdateEmailDialog({this.currentEmail});
+
+  @override
+  State<_UpdateEmailDialog> createState() => _UpdateEmailDialogState();
+}
+
+class _UpdateEmailDialogState extends State<_UpdateEmailDialog> {
+  late final TextEditingController _controller;
+  final _formKey = GlobalKey<FormState>();
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.currentEmail ?? '');
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  String? _validate(String? value) {
+    final v = value?.trim() ?? '';
+    if (v.isEmpty) return 'Ingresa un email';
+    final regex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,}$');
+    if (!regex.hasMatch(v)) return 'Email inválido';
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isEditing =
+        widget.currentEmail != null && widget.currentEmail!.isNotEmpty;
+    return AlertDialog(
+      shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      title: Text(
+        isEditing ? 'Cambiar email' : 'Agregar email',
+        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+      ),
+      content: SingleChildScrollView(
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Te enviaremos un correo de verificación a la nueva '
+                'dirección. Hasta verificar, no podrás recibir notificaciones '
+                'a ese email.',
+                style:
+                    TextStyle(fontSize: 11, color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _controller,
+                keyboardType: TextInputType.emailAddress,
+                autofocus: true,
+                decoration: InputDecoration(
+                  labelText: 'Correo electrónico',
+                  hintText: 'tucorreo@ejemplo.com',
+                  prefixIcon: const Icon(Icons.email_outlined, size: 20),
+                  isDense: true,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                validator: _validate,
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop<String>(context, null),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            if (_formKey.currentState?.validate() ?? false) {
+              Navigator.pop<String>(context, _controller.text.trim());
+            }
+          },
+          child: const Text('Guardar'),
+        ),
+      ],
     );
   }
 }

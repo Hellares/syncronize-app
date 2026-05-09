@@ -710,4 +710,25 @@ class AuthRepositoryImpl implements AuthRepository {
       );
     }
   }
+
+  @override
+  Future<Resource<void>> updateEmail(String email) async {
+    if (!await networkInfo.isConnected) {
+      return Error(
+        'No hay conexión a internet',
+        errorCode: 'NETWORK_ERROR',
+      );
+    }
+
+    try {
+      await remoteDataSource.updateEmail(email: email);
+      return Success(null);
+    } catch (e) {
+      return errorHandler.handleException(
+        e,
+        context: 'UpdateEmail',
+        defaultMessage: 'Error al actualizar email',
+      );
+    }
+  }
 }

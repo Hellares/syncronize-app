@@ -12,6 +12,15 @@ class AccountSecurityState extends Equatable {
   // Estado de la operación de establecer contraseña
   final Resource? setPasswordResponse;
 
+  // Estado de la operación de actualizar email
+  final Resource? updateEmailResponse;
+
+  // Estado de la operación de reenviar verificación
+  final Resource? resendVerificationResponse;
+
+  // Cooldown de reenvío (segundos restantes). 0 = puede reenviar.
+  final int resendCooldownSeconds;
+
   // UX pro (submit intent)
   final bool submitAttempt;
 
@@ -21,6 +30,9 @@ class AccountSecurityState extends Equatable {
     this.availableMethods,
     this.isLoadingMethods = false,
     this.setPasswordResponse,
+    this.updateEmailResponse,
+    this.resendVerificationResponse,
+    this.resendCooldownSeconds = 0,
     this.submitAttempt = false,
   });
 
@@ -36,6 +48,9 @@ class AccountSecurityState extends Equatable {
     AuthMethodsResponse? availableMethods,
     bool? isLoadingMethods,
     Resource? setPasswordResponse,
+    Resource? updateEmailResponse,
+    Resource? resendVerificationResponse,
+    int? resendCooldownSeconds,
     bool? submitAttempt,
     bool clearAvailableMethods = false,
   }) {
@@ -45,6 +60,9 @@ class AccountSecurityState extends Equatable {
       availableMethods: clearAvailableMethods ? null : (availableMethods ?? this.availableMethods),
       isLoadingMethods: isLoadingMethods ?? this.isLoadingMethods,
       setPasswordResponse: setPasswordResponse,
+      updateEmailResponse: updateEmailResponse,
+      resendVerificationResponse: resendVerificationResponse,
+      resendCooldownSeconds: resendCooldownSeconds ?? this.resendCooldownSeconds,
       submitAttempt: submitAttempt ?? this.submitAttempt,
     );
   }
@@ -56,6 +74,9 @@ class AccountSecurityState extends Equatable {
         availableMethods,
         isLoadingMethods,
         setPasswordResponse,
+        updateEmailResponse,
+        resendVerificationResponse,
+        resendCooldownSeconds,
         submitAttempt,
       ];
 }
