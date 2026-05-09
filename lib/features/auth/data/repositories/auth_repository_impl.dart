@@ -274,6 +274,7 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<Resource<void>> changePassword({
     required String currentPassword,
     required String newPassword,
+    required String confirmPassword,
   }) async {
     if (!await networkInfo.isConnected) {
       return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
@@ -283,6 +284,7 @@ class AuthRepositoryImpl implements AuthRepository {
       await remoteDataSource.changePassword(
         currentPassword: currentPassword,
         newPassword: newPassword,
+        confirmPassword: confirmPassword,
       );
 
       return Success(null);
@@ -317,8 +319,9 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<Resource<void>> resetPassword({
-    required String token,
+    required String resetToken,
     required String newPassword,
+    required String confirmPassword,
   }) async {
     if (!await networkInfo.isConnected) {
       return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
@@ -326,8 +329,9 @@ class AuthRepositoryImpl implements AuthRepository {
 
     try {
       await remoteDataSource.resetPassword(
-        token: token,
+        resetToken: resetToken,
         newPassword: newPassword,
+        confirmPassword: confirmPassword,
       );
 
       return Success(null);
@@ -714,7 +718,10 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<Resource<void>> updateEmail(String email) async {
+  Future<Resource<void>> updateEmail(
+    String email, {
+    String? currentPassword,
+  }) async {
     if (!await networkInfo.isConnected) {
       return Error(
         'No hay conexión a internet',
@@ -723,7 +730,10 @@ class AuthRepositoryImpl implements AuthRepository {
     }
 
     try {
-      await remoteDataSource.updateEmail(email: email);
+      await remoteDataSource.updateEmail(
+        email: email,
+        currentPassword: currentPassword,
+      );
       return Success(null);
     } catch (e) {
       return errorHandler.handleException(

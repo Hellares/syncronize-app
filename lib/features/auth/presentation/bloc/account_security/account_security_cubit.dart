@@ -187,7 +187,11 @@ class AccountSecurityCubit extends Cubit<AccountSecurityState> {
   /// dispara `CheckAuthStatusEvent` para que el `AuthBloc` rehidrate
   /// `user.email` con `emailVerificado=false` y la card del dashboard
   /// refleje el cambio.
-  Future<void> updateEmail(String email) async {
+  ///
+  /// [currentPassword] es requerido por el backend cuando la cuenta tiene
+  /// contraseña configurada. Para cuentas Google-only o DNI-only sin
+  /// password, se puede omitir.
+  Future<void> updateEmail(String email, {String? currentPassword}) async {
     final trimmed = email.trim();
     if (trimmed.isEmpty) {
       emit(state.copyWith(
@@ -205,7 +209,8 @@ class AccountSecurityCubit extends Cubit<AccountSecurityState> {
 
     emit(state.copyWith(updateEmailResponse: Loading()));
 
-    final result = await updateEmailUseCase(trimmed);
+    final result =
+        await updateEmailUseCase(trimmed, currentPassword: currentPassword);
 
     if (result is Success) {
       emit(state.copyWith(updateEmailResponse: Success(null)));

@@ -14,22 +14,25 @@ class ResetPasswordUseCase implements UseCase<void, ResetPasswordParams> {
   @override
   Future<Resource<void>> call(ResetPasswordParams params) async {
     return await repository.resetPassword(
-      token: params.token,
+      resetToken: params.resetToken,
       newPassword: params.newPassword,
+      confirmPassword: params.confirmPassword,
     );
   }
 }
 
 /// Parámetros para resetear contraseña
 class ResetPasswordParams extends Equatable {
-  final String token;
+  final String resetToken;
   final String newPassword;
+  final String confirmPassword;
 
   const ResetPasswordParams({
-    required this.token,
+    required this.resetToken,
     required this.newPassword,
+    required this.confirmPassword,
   });
 
   @override
-  List<Object?> get props => [token, newPassword];
+  List<Object?> get props => [resetToken, newPassword, confirmPassword];
 }

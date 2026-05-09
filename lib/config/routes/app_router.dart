@@ -9,6 +9,9 @@ import '../../core/storage/local_storage_service.dart';
 import '../../core/constants/storage_constants.dart';
 import '../../features/auth/presentation/pages/account_security_page.dart';
 import '../../features/auth/presentation/pages/change_password_page.dart';
+import '../../features/auth/presentation/pages/cambiar_password_page.dart';
+import '../../features/auth/presentation/pages/forgot_password_page.dart';
+import '../../features/auth/presentation/pages/reset_password_page.dart';
 import '../../features/auth/presentation/pages/complete_profile_page.dart';
 import '../../features/auth/presentation/pages/profile_page.dart';
 import '../../features/auth/presentation/pages/create_empresa_page.dart';
@@ -253,7 +256,7 @@ class AppRouter {
       }
 
       // Rutas públicas (no requieren autenticación)
-      final publicRoutes = ['/login', '/register', '/verify-email', '/change-password', '/marketplace', '/about'];
+      final publicRoutes = ['/login', '/register', '/verify-email', '/change-password', '/forgot-password', '/reset-password', '/marketplace', '/about'];
       final isPublicDynamic = state.matchedLocation.startsWith('/producto-detalle/') ||
           state.matchedLocation.startsWith('/vendedor/');
       final isPublicRoute = publicRoutes.contains(state.matchedLocation);
@@ -308,6 +311,24 @@ class AppRouter {
         builder: (context, state) {
           final extra = state.extra as Map<String, dynamic>?;
           return ChangePasswordPage(extra: extra);
+        },
+      ),
+      GoRoute(
+        path: '/cambiar-password',
+        name: 'cambiar-password',
+        builder: (context, state) => const CambiarPasswordPage(),
+      ),
+      GoRoute(
+        path: '/forgot-password',
+        name: 'forgot-password',
+        builder: (context, state) => const ForgotPasswordPage(),
+      ),
+      GoRoute(
+        path: '/reset-password',
+        name: 'reset-password',
+        builder: (context, state) {
+          final token = state.uri.queryParameters['token'] ?? '';
+          return ResetPasswordPage(token: token);
         },
       ),
       GoRoute(

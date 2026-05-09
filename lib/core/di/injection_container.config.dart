@@ -71,13 +71,19 @@ import '../../features/auth/domain/usecases/verify_email_usecase.dart' as _i30;
 import '../../features/auth/presentation/bloc/account_security/account_security_cubit.dart'
     as _i547;
 import '../../features/auth/presentation/bloc/auth/auth_bloc.dart' as _i469;
+import '../../features/auth/presentation/bloc/change_password/change_password_cubit.dart'
+    as _i684;
 import '../../features/auth/presentation/bloc/complete_profile/complete_profile_cubit.dart'
     as _i87;
 import '../../features/auth/presentation/bloc/create_empresa/create_empresa_cubit.dart'
     as _i716;
+import '../../features/auth/presentation/bloc/forgot_password/forgot_password_cubit.dart'
+    as _i951;
 import '../../features/auth/presentation/bloc/login/login_cubit.dart' as _i65;
 import '../../features/auth/presentation/bloc/register/register_cubit.dart'
     as _i147;
+import '../../features/auth/presentation/bloc/reset_password/reset_password_cubit.dart'
+    as _i56;
 import '../../features/auth/presentation/bloc/verify_email/verify_email_cubit.dart'
     as _i815;
 import '../../features/aviso_mantenimiento/data/datasources/aviso_mantenimiento_remote_datasource.dart'
@@ -4214,6 +4220,9 @@ extension GetItInjectableX on _i174.GetIt {
         createEmpresaUseCase: gh<_i612.CreateEmpresaUseCase>(),
       ),
     );
+    gh.factory<_i684.ChangePasswordCubit>(
+      () => _i684.ChangePasswordCubit(gh<_i788.ChangePasswordUseCase>()),
+    );
     gh.factory<_i961.ListarIncidenciasCubit>(
       () => _i961.ListarIncidenciasCubit(gh<_i599.ListarIncidenciasUseCase>()),
     );
@@ -4325,6 +4334,9 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i880.GetProductosStockUseCase>(),
       ),
     );
+    gh.factory<_i56.ResetPasswordCubit>(
+      () => _i56.ResetPasswordCubit(gh<_i474.ResetPasswordUseCase>()),
+    );
     gh.factory<_i848.CheckoutCubit>(
       () => _i848.CheckoutCubit(
         gh<_i71.GetOpcionesEnvioUseCase>(),
@@ -4404,6 +4416,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i239.ServicioListCubit>(
       () => _i239.ServicioListCubit(gh<_i123.GetServiciosUseCase>()),
+    );
+    gh.factory<_i951.ForgotPasswordCubit>(
+      () => _i951.ForgotPasswordCubit(gh<_i560.ForgotPasswordUseCase>()),
     );
     gh.factory<_i547.AccountSecurityCubit>(
       () => _i547.AccountSecurityCubit(

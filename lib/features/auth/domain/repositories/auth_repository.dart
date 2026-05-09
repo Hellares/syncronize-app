@@ -49,6 +49,7 @@ abstract class AuthRepository {
   Future<Resource<void>> changePassword({
     required String currentPassword,
     required String newPassword,
+    required String confirmPassword,
   });
 
   /// Solicitar recuperación de contraseña
@@ -58,8 +59,9 @@ abstract class AuthRepository {
 
   /// Resetear contraseña con token
   Future<Resource<void>> resetPassword({
-    required String token,
+    required String resetToken,
     required String newPassword,
+    required String confirmPassword,
   });
 
   /// Verificar email
@@ -158,6 +160,7 @@ abstract class AuthRepository {
 
   /// Agregar o cambiar el email de la cuenta autenticada. Después de
   /// éxito, el email queda no verificado y el backend envía un correo
-  /// de verificación a la nueva dirección.
-  Future<Resource<void>> updateEmail(String email);
+  /// de verificación a la nueva dirección. Si la cuenta ya tiene
+  /// contraseña, [currentPassword] es requerido por el backend.
+  Future<Resource<void>> updateEmail(String email, {String? currentPassword});
 }

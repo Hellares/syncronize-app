@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/utils/resource.dart';
@@ -138,6 +139,12 @@ class _AccountSecurityViewState extends State<_AccountSecurityView> {
                 _buildCurrentMethodsCard(context, state),
 
                 const SizedBox(height: 32),
+
+                // Change password card (when user already has password)
+                if (state.hasPassword) ...[
+                  _buildChangePasswordCard(context),
+                  const SizedBox(height: 24),
+                ],
 
                 // Add password section (only if user doesn't have password)
                 if (state.canAddPassword) ...[
@@ -431,19 +438,27 @@ class _AccountSecurityViewState extends State<_AccountSecurityView> {
     );
   }
 
-  /// Diálogo simple con un input de email para Agregar/Cambiar.
+  /// Diálogo con input de email (y contraseña actual si la cuenta tiene
+  /// password) para Agregar/Cambiar el email.
   /// Delega al cubit que valida formato + llama al backend.
   Future<void> _promptUpdateEmail(
     BuildContext context, {
     String? currentEmail,
   }) async {
     final cubit = context.read<AccountSecurityCubit>();
-    final result = await showDialog<String>(
+    final requiresPassword = cubit.state.hasPassword;
+    final result = await showDialog<UpdateEmailResult>(
       context: context,
-      builder: (_) => _UpdateEmailDialog(currentEmail: currentEmail),
+      builder: (_) => _UpdateEmailDialog(
+        currentEmail: currentEmail,
+        requiresPassword: requiresPassword,
+      ),
     );
-    if (result != null && result.isNotEmpty) {
-      await cubit.updateEmail(result);
+    if (result != null && result.email.isNotEmpty) {
+      await cubit.updateEmail(
+        result.email,
+        currentPassword: result.currentPassword,
+      );
     }
   }
 
@@ -603,6 +618,54 @@ class _AccountSecurityViewState extends State<_AccountSecurityView> {
     );
   }
 
+  /// Card que ofrece cambiar la contraseña actual. Solo se muestra cuando
+  /// el usuario ya tiene una contraseña configurada (`hasPassword == true`).
+  Widget _buildChangePasswordCard(BuildContext context) {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.grey.shade300),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.password_outlined,
+                    size: 20, color: Colors.grey.shade700),
+                const SizedBox(width: 8),
+                Text(
+                  'Contraseña',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Cambiar tu contraseña periódicamente ayuda a mantener tu cuenta '
+              'segura. Al cambiarla, cerraremos tus otras sesiones activas.',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: () => context.push('/cambiar-password'),
+              icon: const Icon(Icons.edit_outlined, size: 16),
+              label: const Text(
+                'Cambiar contraseña',
+                style: TextStyle(fontSize: 12),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildCurrentMethodsCard(BuildContext context, AccountSecurityState state) {
     return Card(
       elevation: 0,
@@ -736,42 +799,66 @@ class _AccountSecurityViewState extends State<_AccountSecurityView> {
   }
 }
 
+/// Resultado del `_UpdateEmailDialog`. Si la cuenta tiene contraseña, el
+/// dialog también solicita confirmarla y la devuelve aquí. Para cuentas
+/// sin password, [currentPassword] queda null.
+class UpdateEmailResult {
+  final String email;
+  final String? currentPassword;
+  const UpdateEmailResult({required this.email, this.currentPassword});
+}
+
 /// Diálogo con form de email autocontenido. Aislado en su propio
 /// StatefulWidget para que el `TextEditingController` siga el ciclo de
 /// vida del widget (evita "TextEditingController used after dispose"
 /// cuando el AlertDialog rebuildea durante su animación de salida).
-/// Devuelve el email validado vía `Navigator.pop` o `null` si el usuario
-/// cancela.
+/// Devuelve un [UpdateEmailResult] vía `Navigator.pop` o `null` si el
+/// usuario cancela.
 class _UpdateEmailDialog extends StatefulWidget {
   final String? currentEmail;
+  final bool requiresPassword;
 
-  const _UpdateEmailDialog({this.currentEmail});
+  const _UpdateEmailDialog({
+    this.currentEmail,
+    this.requiresPassword = false,
+  });
 
   @override
   State<_UpdateEmailDialog> createState() => _UpdateEmailDialogState();
 }
 
 class _UpdateEmailDialogState extends State<_UpdateEmailDialog> {
-  late final TextEditingController _controller;
+  late final TextEditingController _emailController;
+  late final TextEditingController _passwordController;
   final _formKey = GlobalKey<FormState>();
 
   @override
   void initState() {
     super.initState();
-    _controller = TextEditingController(text: widget.currentEmail ?? '');
+    _emailController =
+        TextEditingController(text: widget.currentEmail ?? '');
+    _passwordController = TextEditingController();
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
-  String? _validate(String? value) {
+  String? _validateEmail(String? value) {
     final v = value?.trim() ?? '';
     if (v.isEmpty) return 'Ingresa un email';
     final regex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,}$');
     if (!regex.hasMatch(v)) return 'Email inválido';
+    return null;
+  }
+
+  String? _validatePassword(String? value) {
+    if (!widget.requiresPassword) return null;
+    final v = value ?? '';
+    if (v.isEmpty) return 'Ingresa tu contraseña actual';
     return null;
   }
 
@@ -802,7 +889,7 @@ class _UpdateEmailDialogState extends State<_UpdateEmailDialog> {
               ),
               const SizedBox(height: 12),
               TextFormField(
-                controller: _controller,
+                controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
                 autofocus: true,
                 decoration: InputDecoration(
@@ -814,21 +901,72 @@ class _UpdateEmailDialogState extends State<_UpdateEmailDialog> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-                validator: _validate,
+                validator: _validateEmail,
               ),
+              if (widget.requiresPassword) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade50,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: Colors.amber.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.lock_outline,
+                          size: 14, color: Colors.amber.shade800),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Por seguridad confirma con tu contraseña actual.',
+                          style: TextStyle(
+                              fontSize: 10.5,
+                              color: Colors.amber.shade900),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _passwordController,
+                  obscureText: true,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  decoration: InputDecoration(
+                    labelText: 'Contraseña actual',
+                    prefixIcon: const Icon(Icons.lock_outline, size: 20),
+                    isDense: true,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  validator: _validatePassword,
+                ),
+              ],
             ],
           ),
         ),
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.pop<String>(context, null),
+          onPressed: () =>
+              Navigator.pop<UpdateEmailResult>(context, null),
           child: const Text('Cancelar'),
         ),
         ElevatedButton(
           onPressed: () {
             if (_formKey.currentState?.validate() ?? false) {
-              Navigator.pop<String>(context, _controller.text.trim());
+              Navigator.pop<UpdateEmailResult>(
+                context,
+                UpdateEmailResult(
+                  email: _emailController.text.trim(),
+                  currentPassword: widget.requiresPassword
+                      ? _passwordController.text
+                      : null,
+                ),
+              );
             }
           },
           child: const Text('Guardar'),

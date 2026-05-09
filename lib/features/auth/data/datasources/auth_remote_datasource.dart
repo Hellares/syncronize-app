@@ -45,6 +45,7 @@ abstract class AuthRemoteDataSource {
   Future<void> changePassword({
     required String currentPassword,
     required String newPassword,
+    required String confirmPassword,
   });
 
   Future<void> forgotPassword({
@@ -52,8 +53,9 @@ abstract class AuthRemoteDataSource {
   });
 
   Future<void> resetPassword({
-    required String token,
+    required String resetToken,
     required String newPassword,
+    required String confirmPassword,
   });
 
   Future<void> verifyEmail({
@@ -126,7 +128,9 @@ abstract class AuthRemoteDataSource {
 
   /// Agregar o cambiar el email de la cuenta autenticada. El email queda
   /// con `emailVerificado=false` y se envía un nuevo correo de verificación.
-  Future<void> updateEmail({required String email});
+  /// Si la cuenta tiene contraseña, [currentPassword] es requerido por el
+  /// backend para confirmar el cambio.
+  Future<void> updateEmail({required String email, String? currentPassword});
 }
 
 /// Implementación del datasource remoto
@@ -245,6 +249,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   Future<void> changePassword({
     required String currentPassword,
     required String newPassword,
+    required String confirmPassword,
   }) async {
     try {
       await _client.post(
@@ -252,6 +257,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         data: {
           'currentPassword': currentPassword,
           'newPassword': newPassword,
+          'confirmPassword': confirmPassword,
         },
       );
     } catch (e) {
@@ -277,15 +283,17 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
 
   @override
   Future<void> resetPassword({
-    required String token,
+    required String resetToken,
     required String newPassword,
+    required String confirmPassword,
   }) async {
     try {
       await _client.post(
         ApiConstants.resetPassword,
         data: {
-          'token': token,
+          'resetToken': resetToken,
           'newPassword': newPassword,
+          'confirmPassword': confirmPassword,
         },
       );
     } catch (e) {
@@ -507,10 +515,14 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   }
 
   @override
-  Future<void> updateEmail({required String email}) async {
-    await _client.patch(
-      '/auth/email',
-      data: {'email': email},
-    );
+  Future<void> updateEmail({
+    required String email,
+    String? currentPassword,
+  }) async {
+    final data = <String, dynamic>{'email': email};
+    if (currentPassword != null && currentPassword.isNotEmpty) {
+      data['currentPassword'] = currentPassword;
+    }
+    await _client.patch('/auth/email', data: data);
   }
 }
