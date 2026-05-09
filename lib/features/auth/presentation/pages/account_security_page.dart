@@ -408,10 +408,22 @@ class _AccountSecurityViewState extends State<_AccountSecurityView> {
                     ? null
                     : () =>
                         _promptUpdateEmail(context, currentEmail: email),
-                icon: const Icon(Icons.edit_outlined, size: 16),
+                icon: isLoading
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.edit_outlined, size: 16),
                 label: Text(
                   isLoading ? 'Procesando...' : 'Cambiar email',
                   style: const TextStyle(fontSize: 12),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.blue2,
+                  side: BorderSide(color: AppColors.blue2),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 8),
                 ),
               ),
             ],
