@@ -64,6 +64,7 @@ import '../../features/auth/domain/usecases/resend_verification_email_usecase.da
 import '../../features/auth/domain/usecases/reset_password_usecase.dart'
     as _i474;
 import '../../features/auth/domain/usecases/set_password_usecase.dart' as _i726;
+import '../../features/auth/domain/usecases/update_email_usecase.dart' as _i815;
 import '../../features/auth/domain/usecases/update_profile_usecase.dart'
     as _i798;
 import '../../features/auth/domain/usecases/verify_email_usecase.dart' as _i30;
@@ -1372,6 +1373,8 @@ import '../../features/usuario/domain/usecases/get_usuario_usecase.dart'
     as _i1039;
 import '../../features/usuario/domain/usecases/get_usuarios_usecase.dart'
     as _i287;
+import '../../features/usuario/domain/usecases/reactivar_usuario_usecase.dart'
+    as _i141;
 import '../../features/usuario/domain/usecases/registrar_usuario_usecase.dart'
     as _i715;
 import '../../features/usuario/domain/usecases/update_usuario_usecase.dart'
@@ -1463,6 +1466,7 @@ import '../services/error_handler_service.dart' as _i490;
 import '../services/export_service.dart' as _i26;
 import '../services/logger_service.dart' as _i141;
 import '../services/search_history_service.dart' as _i283;
+import '../services/session_expired_notifier.dart' as _i284;
 import '../services/sistema_config_service.dart' as _i295;
 import '../services/storage_service.dart' as _i306;
 import '../storage/local_storage_service.dart' as _i744;
@@ -1491,6 +1495,10 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i895.Connectivity>(() => registerModule.connectivity);
     gh.lazySingleton<_i361.Dio>(() => registerModule.dio);
     gh.lazySingleton<_i141.LoggerService>(() => _i141.LoggerService());
+    gh.lazySingleton<_i284.SessionExpiredNotifier>(
+      () => _i284.SessionExpiredNotifier(),
+      dispose: (i) => i.dispose(),
+    );
     gh.factory<_i528.SedeSelectionCubit>(
       () => _i528.SedeSelectionCubit(gh<_i460.SharedPreferences>()),
     );
@@ -1503,12 +1511,6 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i490.ErrorHandlerService>(
       () => _i490.ErrorHandlerService(gh<_i141.LoggerService>()),
-    );
-    gh.factory<_i322.RefreshTokenInterceptor>(
-      () => _i322.RefreshTokenInterceptor(
-        gh<_i321.SecureStorageService>(),
-        gh<_i361.Dio>(instanceName: 'authDio'),
-      ),
     );
     gh.factory<_i954.SanitizedLoggingInterceptor>(
       () => _i954.SanitizedLoggingInterceptor(gh<_i141.LoggerService>()),
@@ -1524,6 +1526,13 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i966.ProductoLocalDataSource>(
       () => _i966.ProductoLocalDataSource(gh<_i744.LocalStorageService>()),
+    );
+    gh.factory<_i322.RefreshTokenInterceptor>(
+      () => _i322.RefreshTokenInterceptor(
+        gh<_i321.SecureStorageService>(),
+        gh<_i361.Dio>(instanceName: 'authDio'),
+        gh<_i284.SessionExpiredNotifier>(),
+      ),
     );
     gh.lazySingleton<_i932.NetworkInfo>(
       () => _i932.NetworkInfoImpl(gh<_i895.Connectivity>()),
@@ -2317,6 +2326,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i287.GetUsuariosUseCase>(
       () => _i287.GetUsuariosUseCase(gh<_i662.UsuarioRepository>()),
     );
+    gh.factory<_i141.ReactivarUsuarioUseCase>(
+      () => _i141.ReactivarUsuarioUseCase(gh<_i662.UsuarioRepository>()),
+    );
     gh.factory<_i715.RegistrarUsuarioUseCase>(
       () => _i715.RegistrarUsuarioUseCase(gh<_i662.UsuarioRepository>()),
     );
@@ -3000,13 +3012,6 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i86.GetLibroContableUseCase>(
       () => _i86.GetLibroContableUseCase(gh<_i492.LibroContableRepository>()),
     );
-    gh.factory<_i71.UsuarioListCubit>(
-      () => _i71.UsuarioListCubit(
-        gh<_i287.GetUsuariosUseCase>(),
-        gh<_i1054.UpdateUsuarioUseCase>(),
-        gh<_i353.DeleteUsuarioUseCase>(),
-      ),
-    );
     gh.factory<_i494.CrearPrestamoUseCase>(
       () => _i494.CrearPrestamoUseCase(gh<_i341.PrestamoRepository>()),
     );
@@ -3415,6 +3420,16 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i678.MetaFinancieraRepository>(),
       ),
     );
+    gh.lazySingleton<_i985.VentaRapidaCubit>(
+      () => _i985.VentaRapidaCubit(
+        gh<_i40.CobrarVentaRapidaUseCase>(),
+        gh<_i696.ObtenerClienteGenericoUseCase>(),
+        gh<_i765.BuscarClientePorDniUseCase>(),
+        gh<_i33.BuscarClientePorRucUseCase>(),
+        gh<_i640.PrecioNivelRepository>(),
+        gh<_i200.ComboRepository>(),
+      ),
+    );
     gh.factory<_i532.ConfirmarPedidoUseCase>(
       () => _i532.ConfirmarPedidoUseCase(gh<_i498.CheckoutRepository>()),
     );
@@ -3650,6 +3665,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i726.SetPasswordUseCase>(
       () => _i726.SetPasswordUseCase(gh<_i787.AuthRepository>()),
     );
+    gh.lazySingleton<_i815.UpdateEmailUseCase>(
+      () => _i815.UpdateEmailUseCase(gh<_i787.AuthRepository>()),
+    );
     gh.factory<_i60.CobrarPosCubit>(
       () => _i60.CobrarPosCubit(
         gh<_i384.CargarDatosCobroUseCase>(),
@@ -3873,6 +3891,14 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i157.SubirComprobantePagoUseCase>(
       () => _i157.SubirComprobantePagoUseCase(
         gh<_i656.PagoSuscripcionRepository>(),
+      ),
+    );
+    gh.factory<_i71.UsuarioListCubit>(
+      () => _i71.UsuarioListCubit(
+        gh<_i287.GetUsuariosUseCase>(),
+        gh<_i1054.UpdateUsuarioUseCase>(),
+        gh<_i353.DeleteUsuarioUseCase>(),
+        gh<_i141.ReactivarUsuarioUseCase>(),
       ),
     );
     gh.factory<_i38.CajaMovimientosCubit>(
@@ -4108,16 +4134,6 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i427.CompraAnalyticsCubit>(
       () => _i427.CompraAnalyticsCubit(gh<_i914.GetCompraAnalyticsUseCase>()),
     );
-    gh.lazySingleton<_i985.VentaRapidaCubit>(
-      () => _i985.VentaRapidaCubit(
-        gh<_i40.CobrarVentaRapidaUseCase>(),
-        gh<_i696.ObtenerClienteGenericoUseCase>(),
-        gh<_i765.BuscarClientePorDniUseCase>(),
-        gh<_i33.BuscarClientePorRucUseCase>(),
-        gh<_i640.PrecioNivelRepository>(),
-        gh<_i200.ComboRepository>(),
-      ),
-    );
     gh.factory<_i503.CajaActivaCubit>(
       () => _i503.CajaActivaCubit(
         gh<_i265.GetCajaActivaUseCase>(),
@@ -4348,6 +4364,14 @@ extension GetItInjectableX on _i174.GetIt {
       () =>
           _i279.ResolverIncidenciaCubit(gh<_i1007.ResolverIncidenciaUseCase>()),
     );
+    gh.singleton<_i469.AuthBloc>(
+      () => _i469.AuthBloc(
+        checkAuthStatus: gh<_i52.CheckAuthStatusUseCase>(),
+        getLocalUser: gh<_i386.GetLocalUserUseCase>(),
+        logout: gh<_i48.LogoutUseCase>(),
+        sessionExpiredNotifier: gh<_i284.SessionExpiredNotifier>(),
+      ),
+    );
     gh.factory<_i712.DevolucionListCubit>(
       () => _i712.DevolucionListCubit(gh<_i216.GetDevolucionesUseCase>()),
     );
@@ -4363,13 +4387,6 @@ extension GetItInjectableX on _i174.GetIt {
         procesarUseCase: gh<_i1045.ProcesarDevolucionUseCase>(),
       ),
     );
-    gh.singleton<_i469.AuthBloc>(
-      () => _i469.AuthBloc(
-        checkAuthStatus: gh<_i52.CheckAuthStatusUseCase>(),
-        getLocalUser: gh<_i386.GetLocalUserUseCase>(),
-        logout: gh<_i48.LogoutUseCase>(),
-      ),
-    );
     gh.factory<_i243.CompatibilidadCubit>(
       () => _i243.CompatibilidadCubit(
         gh<_i403.GetReglasCompatibilidadUseCase>(),
@@ -4377,13 +4394,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i397.ActualizarReglaCompatibilidadUseCase>(),
         gh<_i432.EliminarReglaCompatibilidadUseCase>(),
         gh<_i709.ValidarCompatibilidadUseCase>(),
-      ),
-    );
-    gh.factory<_i547.AccountSecurityCubit>(
-      () => _i547.AccountSecurityCubit(
-        gh<_i809.CheckAuthMethodsUseCase>(),
-        gh<_i726.SetPasswordUseCase>(),
-        gh<_i469.AuthBloc>(),
       ),
     );
     gh.factory<_i930.OrdenServicioListCubit>(
@@ -4394,6 +4404,15 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i239.ServicioListCubit>(
       () => _i239.ServicioListCubit(gh<_i123.GetServiciosUseCase>()),
+    );
+    gh.factory<_i547.AccountSecurityCubit>(
+      () => _i547.AccountSecurityCubit(
+        gh<_i809.CheckAuthMethodsUseCase>(),
+        gh<_i726.SetPasswordUseCase>(),
+        gh<_i815.UpdateEmailUseCase>(),
+        gh<_i698.ResendVerificationEmailUseCase>(),
+        gh<_i469.AuthBloc>(),
+      ),
     );
     gh.factory<_i65.LoginCubit>(
       () => _i65.LoginCubit(

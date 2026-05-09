@@ -173,4 +173,28 @@ class UsuarioRepositoryImpl implements UsuarioRepository {
       return Error(message);
     }
   }
+
+  @override
+  Future<Resource<void>> reactivarUsuario({
+    required String empresaId,
+    required String usuarioId,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error(
+        'No hay conexión a internet',
+        errorCode: 'NETWORK_ERROR',
+      );
+    }
+
+    try {
+      await _remoteDataSource.reactivarUsuario(
+        empresaId: empresaId,
+        usuarioId: usuarioId,
+      );
+      return Success(null);
+    } catch (e) {
+      final message = e.toString().replaceFirst('Exception: ', '');
+      return Error(message);
+    }
+  }
 }

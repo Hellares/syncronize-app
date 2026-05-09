@@ -164,15 +164,21 @@ class UsuarioDetailSheet extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: CustomButton(
-                    backgroundColor: AppColors.blue1,
-                    fontSize: 10,
-                    icon: Icon(Icons.person_off),
-                    text: 'Desactivar',
-                    onPressed: usuario.isActive
-                        ? () => _showDesactivarDialog(context)
-                        : null,
-                  ),
+                  child: usuario.isActive
+                      ? CustomButton(
+                          backgroundColor: AppColors.blue1,
+                          fontSize: 10,
+                          icon: const Icon(Icons.person_off),
+                          text: 'Desactivar',
+                          onPressed: () => _showDesactivarDialog(context),
+                        )
+                      : CustomButton(
+                          backgroundColor: Colors.green.shade700,
+                          fontSize: 10,
+                          icon: const Icon(Icons.person_add_alt_1),
+                          text: 'Reactivar',
+                          onPressed: () => _showReactivarDialog(context),
+                        ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -473,6 +479,69 @@ class UsuarioDetailSheet extends StatelessWidget {
               foregroundColor: Colors.white,
             ),
             child: const Text('Desactivar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Dialog de confirmación para reactivar un usuario que estaba
+  /// inactivo. Tras éxito, el cubit recarga la lista respetando el
+  /// filtro actual (si filtro es "inactivos" el usuario sigue visible
+  /// pero ya como activo; si filtro es "activos" reaparece).
+  void _showReactivarDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Reactivar Usuario'),
+        content: Text(
+          '¿Está seguro que desea reactivar a ${usuario.nombreCompleto}?\n\nEl usuario podrá iniciar sesión nuevamente y acceder a la empresa.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Reactivando usuario...'),
+                  duration: Duration(seconds: 1),
+                ),
+              );
+
+              final success =
+                  await cubit.reactivarUsuario(usuarioId: usuario.id);
+
+              if (!context.mounted) return;
+
+              if (success) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      '${usuario.nombreCompleto} ha sido reactivado',
+                    ),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Error al reactivar usuario'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green.shade700,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Reactivar'),
           ),
         ],
       ),

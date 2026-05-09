@@ -103,8 +103,8 @@ class UsuarioListTile extends StatelessWidget {
                 ChipSimple(label: 'Cliente', color: AppColors.blue,)
                 else ...[
                   ChipSimple(
-                    label:usuario.estadoFormateado,
-                    color:usuario.isActive ? Colors.green : Colors.grey,
+                    label: usuario.estadoFormateado,
+                    color: usuario.isActive ? Colors.green : Colors.red,
                   ),
                   if (usuario.tieneSedes)
                     ChipSimple(

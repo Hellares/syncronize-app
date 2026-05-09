@@ -78,4 +78,14 @@ class UsuarioRemoteDataSource {
       '${ApiConstants.usuarios}/$usuarioId',
     );
   }
+
+  /// Reactiva un usuario previamente desactivado en la empresa.
+  Future<void> reactivarUsuario({
+    required String empresaId,
+    required String usuarioId,
+  }) async {
+    await _dioClient.post(
+      '${ApiConstants.usuarios}/$usuarioId/reactivar',
+    );
+  }
 }

@@ -63,4 +63,13 @@ abstract class UsuarioRepository {
     required String empresaId,
     required String usuarioId,
   });
+
+  /// Reactiva un usuario previamente desactivado en la empresa
+  ///
+  /// [empresaId] ID de la empresa
+  /// [usuarioId] ID del usuario a reactivar
+  Future<Resource<void>> reactivarUsuario({
+    required String empresaId,
+    required String usuarioId,
+  });
 }

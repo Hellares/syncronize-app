@@ -8,6 +8,7 @@ import '../../../domain/entities/usuario_filtros.dart';
 import '../../../domain/usecases/get_usuarios_usecase.dart';
 import '../../../domain/usecases/update_usuario_usecase.dart';
 import '../../../domain/usecases/delete_usuario_usecase.dart';
+import '../../../domain/usecases/reactivar_usuario_usecase.dart';
 import 'usuario_list_state.dart';
 
 /// Cubit para manejar la lista de usuarios
@@ -16,11 +17,13 @@ class UsuarioListCubit extends Cubit<UsuarioListState> {
   final GetUsuariosUseCase _getUsuariosUseCase;
   final UpdateUsuarioUseCase _updateUsuarioUseCase;
   final DeleteUsuarioUseCase _deleteUsuarioUseCase;
+  final ReactivarUsuarioUseCase _reactivarUsuarioUseCase;
 
   UsuarioListCubit(
     this._getUsuariosUseCase,
     this._updateUsuarioUseCase,
     this._deleteUsuarioUseCase,
+    this._reactivarUsuarioUseCase,
     ) : super(const UsuarioListInitial());
 
   // Estado interno
@@ -28,13 +31,16 @@ class UsuarioListCubit extends Cubit<UsuarioListState> {
   UsuarioFiltros _currentFiltros = const UsuarioFiltros();
   List<Usuario> _allUsuarios = [];
 
-  /// Carga la lista de usuarios
+  /// Carga la lista de usuarios.
+  /// Si no se pasa `filtros`, por default lista solo usuarios ACTIVOS
+  /// en la empresa. El usuario puede cambiar a "Inactivos" o "Todos"
+  /// desde el filter sheet.
   Future<void> loadUsuarios({
     required String empresaId,
     UsuarioFiltros? filtros,
   }) async {
     _currentEmpresaId = empresaId;
-    _currentFiltros = filtros ?? const UsuarioFiltros();
+    _currentFiltros = filtros ?? const UsuarioFiltros(isActive: true);
 
     emit(const UsuarioListLoading());
 
@@ -172,13 +178,13 @@ class UsuarioListCubit extends Cubit<UsuarioListState> {
     );
   }
 
-  /// Resetea los filtros
+  /// Resetea los filtros al estado por defecto (solo activos).
   Future<void> resetFilters() async {
     if (_currentEmpresaId == null) return;
 
     await loadUsuarios(
       empresaId: _currentEmpresaId!,
-      filtros: const UsuarioFiltros(),
+      filtros: const UsuarioFiltros(isActive: true),
     );
   }
 
@@ -238,7 +244,10 @@ class UsuarioListCubit extends Cubit<UsuarioListState> {
     return false;
   }
 
-  /// Elimina (desactiva) un usuario
+  /// Elimina (desactiva) un usuario.
+  /// Tras éxito recargamos la lista respetando el filtro actual: si el
+  /// filtro es "activos" (default), el usuario desaparece; si es
+  /// "inactivos", aparece marcado como inactivo.
   Future<bool> deleteUsuario({
     required String usuarioId,
   }) async {
@@ -250,21 +259,33 @@ class UsuarioListCubit extends Cubit<UsuarioListState> {
     );
 
     if (result is Success<void>) {
-      // Remover el usuario de la lista local o marcarlo como inactivo
-      _allUsuarios.removeWhere((u) => u.id == usuarioId);
+      await loadUsuarios(
+        empresaId: _currentEmpresaId!,
+        filtros: _currentFiltros.copyWith(page: 1),
+      );
+      return true;
+    }
 
-      // Re-emitir el estado con la lista actualizada
-      final currentState = state;
-      if (currentState is UsuarioListLoaded) {
-        emit(UsuarioListLoaded(
-          usuarios: List.from(_allUsuarios),
-          total: currentState.total - 1,
-          currentPage: currentState.currentPage,
-          totalPages: currentState.totalPages,
-          hasMore: currentState.hasMore,
-        ));
-      }
+    return false;
+  }
 
+  /// Reactiva un usuario previamente desactivado.
+  /// Tras éxito recargamos la lista respetando el filtro actual.
+  Future<bool> reactivarUsuario({
+    required String usuarioId,
+  }) async {
+    if (_currentEmpresaId == null) return false;
+
+    final result = await _reactivarUsuarioUseCase(
+      empresaId: _currentEmpresaId!,
+      usuarioId: usuarioId,
+    );
+
+    if (result is Success<void>) {
+      await loadUsuarios(
+        empresaId: _currentEmpresaId!,
+        filtros: _currentFiltros.copyWith(page: 1),
+      );
       return true;
     }
 
