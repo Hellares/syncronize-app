@@ -37,17 +37,17 @@ class PosRepositoryImpl implements PosRepository {
       return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
     }
     try {
-      final results = await Future.wait([
-        _remoteDataSource.getCotizacion(cotizacionId),
-        _remoteDataSource.validarStock(cotizacionId),
-        _remoteDataSource.getTipoCambio(),
-      ]);
+      // Future.wait con tipos heterogéneos no puede ser typesafe; lanzamos
+      // las 3 promesas por separado y await en orden manual.
+      final cotPromise = _remoteDataSource.getCotizacion(cotizacionId);
+      final stockPromise = _remoteDataSource.validarStock(cotizacionId);
+      final tcPromise = _remoteDataSource.getTipoCambio();
 
-      final cotizacion = results[0] as Map<String, dynamic>;
-      final stockData = results[1] as Map<String, dynamic>;
-      final tipoCambio = results[2] as double?;
+      final cotResult = await cotPromise;
+      final stockData = await stockPromise;
+      final tipoCambio = await tcPromise;
 
-      final detalles = (cotizacion['detalles'] as List?)
+      final detalles = (cotResult.raw['detalles'] as List?)
               ?.map((d) => Map<String, dynamic>.from(d as Map))
               .toList() ??
           [];
@@ -59,7 +59,7 @@ class PosRepositoryImpl implements PosRepository {
           .toList();
 
       return Success(CobrarCotizacionData(
-        cotizacion: cotizacion,
+        cotizacion: cotResult.model.toEntity(),
         items: detalles,
         itemsSinStock: sinStock,
         tipoCambioVenta: tipoCambio,

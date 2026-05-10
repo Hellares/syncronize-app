@@ -1,5 +1,6 @@
 import 'package:injectable/injectable.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../cotizacion/data/models/cotizacion_model.dart';
 import '../../../pos/domain/entities/cotizacion_pos.dart';
 import '../../../venta/data/models/venta_model.dart';
 
@@ -62,9 +63,15 @@ class PosRemoteDataSource {
     }).toList();
   }
 
-  Future<Map<String, dynamic>> getCotizacion(String cotizacionId) async {
+  /// Devuelve el JSON crudo + el modelo tipado. La UI necesita los items
+  /// como Map mutables (carrito), pero la cabecera se expone como entidad
+  /// para tener type-safety en estado/código/cliente.
+  Future<({CotizacionModel model, Map<String, dynamic> raw})> getCotizacion(
+    String cotizacionId,
+  ) async {
     final response = await _dioClient.get('/cotizaciones/$cotizacionId');
-    return response.data as Map<String, dynamic>;
+    final raw = response.data as Map<String, dynamic>;
+    return (model: CotizacionModel.fromJson(raw), raw: raw);
   }
 
   Future<Map<String, dynamic>> validarStock(String cotizacionId) async {

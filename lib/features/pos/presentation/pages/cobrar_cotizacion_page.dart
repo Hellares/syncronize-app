@@ -22,6 +22,7 @@ import '../../../../core/widgets/numpad/numpad_controller.dart';
 import '../../../../core/widgets/numpad/pos_numpad.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../../../core/widgets/snack_bar_helper.dart';
+import '../../../cotizacion/domain/entities/cotizacion.dart';
 import '../../../cotizacion/domain/entities/cotizacion_detalle_input.dart';
 import '../../../cotizacion/presentation/widgets/cotizacion_item_selector.dart';
 import '../../../servicio/presentation/widgets/firma_digital_sheet.dart';
@@ -36,7 +37,7 @@ class CobrarCotizacionPage extends StatefulWidget {
 }
 
 class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
-  Map<String, dynamic>? _cotizacion;
+  Cotizacion? _cotizacion;
   List<Map<String, dynamic>> _items = [];
   List<Map<String, dynamic>> _itemsSinStock = [];
   List<String> _excluirDetalleIds = [];
@@ -634,8 +635,8 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
     // Código + total se muestran en el SmartAppBar; ahorra una card al inicio.
     // Si la cotización aún está PENDIENTE, mostramos un banner ámbar delgado
     // dentro del body avisando que se aprobará al cobrar.
-    final codigo = _cotizacion?['codigo']?.toString() ?? '';
-    final esPendiente = _cotizacion?['estado'] == 'PENDIENTE';
+    final codigo = _cotizacion?.codigo ?? '';
+    final esPendiente = _cotizacion?.estado == EstadoCotizacion.pendiente;
     final tituloAppBar = _isLoading || codigo.isEmpty
         ? 'Cobrar'
         : '$codigo  ·  S/ ${_total.toStringAsFixed(2)}';
@@ -741,20 +742,14 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
                               ],
                             ),
                             const SizedBox(height: 8),
-                            _infoRow(
-                                'Nombre',
-                                _cotizacion?['nombreCliente']?.toString() ??
-                                    'Sin cliente'),
-                            if (_cotizacion?['documentoCliente'] != null)
+                            _infoRow('Nombre',
+                                _cotizacion?.nombreCliente ?? 'Sin cliente'),
+                            if (_cotizacion?.documentoCliente != null)
                               _infoRow(
-                                  'Documento',
-                                  _cotizacion!['documentoCliente']
-                                      .toString()),
-                            if (_cotizacion?['telefonoCliente'] != null)
+                                  'Documento', _cotizacion!.documentoCliente!),
+                            if (_cotizacion?.telefonoCliente != null)
                               _infoRow(
-                                  'Teléfono',
-                                  _cotizacion!['telefonoCliente']
-                                      .toString()),
+                                  'Teléfono', _cotizacion!.telefonoCliente!),
                             const Divider(height: 18),
                             // ── Productos ──
                             Row(
