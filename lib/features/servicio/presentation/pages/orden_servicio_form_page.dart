@@ -35,9 +35,13 @@ class OrdenServicioFormPage extends StatefulWidget {
 }
 
 class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
-  int _currentStep = 0;
   final _formKey = GlobalKey<FormState>();
   late final String _empresaId;
+
+  /// Setter del bottom sheet abierto (si hay uno). Lo guardamos cuando se
+  /// abre la sheet para poder rebuild el contenido tras un setState del
+  /// parent (ej. seleccionar cliente desde dentro de la sheet).
+  StateSetter? _sheetSetState;
 
   // Step 0: Cliente (via bottom sheet)
   ClienteUnificadoResult? _clienteResult;
@@ -83,7 +87,13 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
 
   bool _isLoading = false;
 
-  static const _totalSteps = 5;
+  /// Helper que hace setState del parent y, si hay sheet abierta, también
+  /// rebuilda su contenido. Usar en callbacks que se disparan desde dentro
+  /// de una sheet (p. ej. al seleccionar un cliente).
+  void _emit([VoidCallback? fn]) {
+    setState(fn ?? () {});
+    _sheetSetState?.call(() {});
+  }
 
   @override
   void initState() {
@@ -131,7 +141,7 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
   }
 
   Future<void> _loadCamposPorServicio(String servicioId) async {
-    setState(() {
+    _emit(() {
       _cargandoCampos = true;
       _camposPersonalizados = [];
       _datosPersonalizados = {};
@@ -139,7 +149,7 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
     final repo = locator<PlantillaServicioRepository>();
     final result = await repo.getCamposByServicioId(servicioId);
     if (!mounted) return;
-    setState(() {
+    _emit(() {
       _cargandoCampos = false;
       if (result is Success<List<ConfiguracionCampo>>) {
         _camposPersonalizados = result.data;
@@ -156,7 +166,7 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
     );
 
     if (result != null && mounted) {
-      setState(() {
+      _emit(() {
         _clienteResult = result;
         if (result.isPersona) {
           _clienteId = result.clienteId;
@@ -198,7 +208,7 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
   }
 
   void _clearCliente() {
-    setState(() {
+    _emit(() {
       _clienteResult = null;
       _clienteId = null;
       _clienteEmpresaId = null;
@@ -217,91 +227,43 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
 
   bool get _hasCliente => _clienteId != null || _clienteEmpresaId != null;
 
-  // ─── Step validation ───
+  // ─── Validación de secciones ───
+  //
+  // Cada sección puede estar `complete` (todo lleno + válido), `required`
+  // (faltan campos obligatorios) u `optional` (siempre OK). Se usa para
+  // pintar el estado de cada card y deshabilitar el botón "Crear Orden"
+  // cuando hay required pendientes.
 
-  bool _isStepValid(int step) {
-    switch (step) {
-      case 0:
-        if (!_hasCliente) return false;
-        // Si es empresa, el contacto es obligatorio
-        if (_clienteEmpresaId != null) {
-          if (_contactoNombreController.text.trim().isEmpty) return false;
-          if (_contactoTelefonoController.text.trim().isEmpty) return false;
-        }
-        return true;
-      case 1:
-        return _tipoEquipoController.text.trim().isNotEmpty;
-      case 2:
-        return _tipoServicio.isNotEmpty;
-      default:
-        return true;
+  bool get _isClienteValid {
+    if (!_hasCliente) return false;
+    if (_clienteEmpresaId != null) {
+      if (_contactoNombreController.text.trim().isEmpty) return false;
+      if (_contactoTelefonoController.text.trim().isEmpty) return false;
     }
+    return true;
   }
 
-  void _showStepError(int step) {
-    String? errorMsg;
-    if (step == 0) {
-      if (!_hasCliente) {
-        errorMsg = 'Selecciona un cliente';
-      } else if (_clienteEmpresaId != null &&
-          _contactoNombreController.text.trim().isEmpty) {
-        errorMsg = 'Ingresa el nombre del contacto de la empresa';
-      } else if (_clienteEmpresaId != null &&
-          _contactoTelefonoController.text.trim().isEmpty) {
-        errorMsg = 'Ingresa el teléfono del contacto';
+  bool get _isEquipoValid => _tipoEquipoController.text.trim().isNotEmpty;
+
+  bool get _isServicioValid => _tipoServicio.isNotEmpty;
+
+  /// Lista de mensajes de error para mostrar al usuario si intenta crear
+  /// la orden sin completar todo lo requerido.
+  List<String> get _missingMessages {
+    final out = <String>[];
+    if (!_hasCliente) {
+      out.add('Selecciona un cliente');
+    } else if (_clienteEmpresaId != null) {
+      if (_contactoNombreController.text.trim().isEmpty) {
+        out.add('Ingresa el nombre del contacto de la empresa');
+      }
+      if (_contactoTelefonoController.text.trim().isEmpty) {
+        out.add('Ingresa el teléfono del contacto');
       }
     }
-    final messages = {
-      0: errorMsg ?? 'Selecciona un cliente',
-      1: 'Indica el tipo de equipo',
-      2: 'Selecciona el tipo de servicio',
-    };
-    final msg = messages[step];
-    if (msg != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(msg)),
-      );
-    }
-  }
-
-  void _onStepContinue() {
-    if (!_isStepValid(_currentStep)) {
-      _showStepError(_currentStep);
-      return;
-    }
-    if (_cargandoCampos) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cargando campos, espera un momento...')),
-      );
-      return;
-    }
-    if (_currentStep < _totalSteps - 1) {
-      setState(() => _currentStep++);
-    } else {
-      _submit();
-    }
-  }
-
-  void _onStepCancel() {
-    if (_currentStep > 0) {
-      setState(() => _currentStep--);
-    } else {
-      context.pop();
-    }
-  }
-
-  void _onStepTapped(int step) {
-    if (step <= _currentStep) {
-      setState(() => _currentStep = step);
-      return;
-    }
-    for (int i = _currentStep; i < step; i++) {
-      if (!_isStepValid(i)) {
-        _showStepError(i);
-        return;
-      }
-    }
-    setState(() => _currentStep = step);
+    if (!_isEquipoValid) out.add('Indica el tipo de equipo');
+    if (!_isServicioValid) out.add('Selecciona el tipo de servicio');
+    return out;
   }
 
   // ─── Build ───
@@ -316,127 +278,497 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : GradientContainer(
-              child: Form(
-                key: _formKey,
-                child: Theme(
-                  data: Theme.of(context).copyWith(
-                    colorScheme: Theme.of(context).colorScheme.copyWith(
-                      primary: AppColors.blue1,
-                      onPrimary: Colors.white,
+          : Form(
+              key: _formKey,
+              child: Column(
+                children: [
+                  Expanded(
+                    child: GradientContainer(
+                      child: ListView(
+                        padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+                        children: [
+                          _buildClienteCard(),
+                          const SizedBox(height: 8),
+                          _buildEquipoInlineSection(),
+                          const SizedBox(height: 8),
+                          _buildServicioInlineSection(),
+                          const SizedBox(height: 8),
+                          _buildDatosCard(),
+                          const SizedBox(height: 8),
+                          _buildNotasCard(),
+                        ],
+                      ),
                     ),
                   ),
-                  child: Stepper(
-                    currentStep: _currentStep,
-                    margin: const EdgeInsets.only(left: 10, right: 8, bottom: 12),
-                    connectorColor: const WidgetStatePropertyAll(AppColors.blue1),
-                    onStepContinue: _onStepContinue,
-                    onStepCancel: _onStepCancel,
-                    onStepTapped: _onStepTapped,
-                    controlsBuilder: (context, details) {
-                      return Padding(
-                        padding: const EdgeInsets.only(top: 16),
-                        child: Row(
-                          children: [
-                            if (_currentStep < _totalSteps - 1)
-                              CustomButton(
-                                text: 'Siguiente',
-                                onPressed: details.onStepContinue,
-                                backgroundColor: AppColors.blue1,
-                              ),
-                            if (_currentStep == _totalSteps - 1)
-                              CustomButton(
-                                text: 'Crear Orden',
-                                onPressed: details.onStepContinue,
-                                backgroundColor: AppColors.green,
-                              ),
-                            const SizedBox(width: 4),
-                            if (_currentStep > 0)
-                              TextButton(
-                                onPressed: details.onStepCancel,
-                                child: const Text('Anterior', style: TextStyle(fontSize: 10)),
-                              ),
-                          ],
-                        ),
-                      );
-                    },
-                    steps: [
-                      // ── Step 0: Cliente ──
-                      Step(
-                        title: AppSubtitle('CLIENTE'),
-                        subtitle: _clienteNombre.isNotEmpty
-                            ? Text(_clienteNombre)
-                            : null,
-                        isActive: _currentStep >= 0,
-                        state: _hasCliente
-                            ? StepState.complete
-                            : StepState.indexed,
-                        content: _buildClienteStep(),
-                      ),
-
-                      // ── Step 1: Equipo ──
-                      Step(
-                        title: AppSubtitle(_config?.labelSeccionEquipo ?? 'EQUIPO'),
-                        subtitle: _tipoEquipoController.text.trim().isNotEmpty
-                            ? Text([
-                                _tipoEquipoController.text.trim(),
-                                if (_marcaEquipoController.text.trim().isNotEmpty)
-                                  _marcaEquipoController.text.trim(),
-                              ].join(' - '))
-                            : null,
-                        isActive: _currentStep >= 1,
-                        state: _currentStep > 1
-                            ? StepState.complete
-                            : StepState.indexed,
-                        content: _currentStep >= 1
-                            ? _buildEquipoStep()
-                            : const SizedBox.shrink(),
-                      ),
-
-                      // ── Step 2: Servicio ──
-                      Step(
-                        title: AppSubtitle('SERVICIO'),
-                        subtitle: _servicioSeleccionado != null
-                            ? Text(_servicioSeleccionado!.nombre)
-                            : null,
-                        isActive: _currentStep >= 2,
-                        state: _currentStep > 2
-                            ? StepState.complete
-                            : StepState.indexed,
-                        content: _currentStep >= 2
-                            ? _buildServicioStep()
-                            : const SizedBox.shrink(),
-                      ),
-
-                      // ── Step 3: Campos personalizados ──
-                      Step(
-                        title: AppSubtitle('DATOS ADICIONALES'),
-                        subtitle: _camposPersonalizados.isEmpty
-                            ? const Text('Sin campos configurados')
-                            : Text('${_camposPersonalizados.length} campos'),
-                        isActive: _currentStep >= 3,
-                        state: _currentStep > 3
-                            ? StepState.complete
-                            : StepState.indexed,
-                        content: _currentStep >= 3
-                            ? _buildCamposPersonalizadosStep()
-                            : const SizedBox.shrink(),
-                      ),
-
-                      // ── Step 4: Notas + Aviso ──
-                      Step(
-                        title: AppSubtitle('NOTAS Y AVISO'),
-                        isActive: _currentStep >= 4,
-                        content: _currentStep >= 4
-                            ? _buildNotasAvisoStep()
-                            : const SizedBox.shrink(),
-                      ),
-                    ],
-                  ),
-                ),
+                  _buildSubmitBar(),
+                ],
               ),
             ),
     );
+  }
+
+  // ─── Cards (resumen + tap → bottom sheet) ───
+
+  Widget _buildClienteCard() {
+    final isEmpresa = _clienteResult?.isEmpresa ?? false;
+    String subtitle;
+    if (!_hasCliente) {
+      subtitle = 'Buscar o registrar cliente';
+    } else if (isEmpresa) {
+      final missingContact = _clienteEmpresaId != null &&
+          (_contactoNombreController.text.trim().isEmpty ||
+              _contactoTelefonoController.text.trim().isEmpty);
+      subtitle = missingContact
+          ? '$_clienteNombre · falta contacto'
+          : '$_clienteNombre · ${_contactoNombreController.text.trim()}';
+    } else {
+      subtitle = _clienteDocumento.isNotEmpty
+          ? '$_clienteNombre · $_clienteDocumento'
+          : _clienteNombre;
+    }
+    return _OrdenSeccionCard(
+      icon: Icons.person_search,
+      title: 'Cliente',
+      subtitle: subtitle,
+      state: _isClienteValid ? _SeccionState.complete : _SeccionState.required,
+      // Sin cliente → directo al selector (1 sheet en vez de 2).
+      // Con cliente → wrapper sheet con info + form de contacto si es empresa.
+      onTap: !_hasCliente
+          ? _openClienteSelector
+          : () => _openSeccion('Cliente', _buildClienteStep),
+    );
+  }
+
+  /// Sección de equipo INLINE (sin bottom sheet). Tipo y marca en una
+  /// sola fila para aprovechar el ancho. Los inputs hacen `_emit()` en
+  /// onChanged para que el badge de estado reaccione al typear.
+  Widget _buildEquipoInlineSection() {
+    final config = _config;
+    final labelTipo = config?.labelTipoEquipo ?? 'Tipo de equipo';
+    final labelMarca = config?.labelMarcaEquipo ?? 'Marca';
+    final labelSerie = config?.labelNumeroSerie ?? 'Número de serie';
+    final labelCondicion =
+        config?.labelCondicionEquipo ?? 'Condición del equipo';
+    final tituloSeccion = config?.labelSeccionEquipo ?? 'Equipo';
+
+    final borderColor = _isEquipoValid
+        ? Colors.green.shade300
+        : Colors.orange.shade300;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(8, 10, 8, 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: borderColor, width: 0.8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header: icono + título + badge estado
+          Row(
+            children: [
+              Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: AppColors.bluechip.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(Icons.devices, color: AppColors.blue1, size: 16),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  tituloSeccion,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              if (_isEquipoValid)
+                const Icon(Icons.check_circle, color: Colors.green, size: 16)
+              else
+                Icon(Icons.error_outline,
+                    color: Colors.orange.shade700, size: 16),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Tipo + Marca en una fila
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: CustomText(
+                  controller: _tipoEquipoController,
+                  label: '$labelTipo *',
+                  hintText: 'Ej. Laptop',
+                  borderColor: AppColors.blue1,
+                  prefixIcon: const Icon(Icons.devices_outlined),
+                  onChanged: (_) => _emit(),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: CustomText(
+                  controller: _marcaEquipoController,
+                  label: labelMarca,
+                  hintText: 'Ej. Dell',
+                  borderColor: AppColors.blue1,
+                  prefixIcon:
+                      const Icon(Icons.branding_watermark_outlined),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          CustomText(
+            controller: _numeroSerieController,
+            label: labelSerie,
+            hintText: 'Ingrese $labelSerie',
+            borderColor: AppColors.blue1,
+            prefixIcon: const Icon(Icons.qr_code_outlined),
+          ),
+          const SizedBox(height: 12),
+          CustomText(
+            controller: _condicionEquipoController,
+            label: labelCondicion,
+            hintText: 'Describa el estado al recibir',
+            borderColor: AppColors.blue1,
+            prefixIcon: const Icon(Icons.info_outline),
+            maxLines: null,
+            minLines: 2,
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Sección de servicio INLINE. Tipo de servicio + Prioridad en una sola
+  /// fila. Servicio del catálogo arriba (carga la plantilla de campos al
+  /// cambiar). Descripción del problema abajo, full-width con voice input.
+  Widget _buildServicioInlineSection() {
+    final borderColor = _isServicioValid
+        ? Colors.green.shade300
+        : Colors.orange.shade300;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(8, 10, 8, 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: borderColor, width: 0.8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Row(
+            children: [
+              Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: AppColors.bluechip.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(Icons.handyman, color: AppColors.blue1, size: 16),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text(
+                  'Servicio',
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500),
+                ),
+              ),
+              if (_isServicioValid)
+                const Icon(Icons.check_circle, color: Colors.green, size: 16)
+              else
+                Icon(Icons.error_outline,
+                    color: Colors.orange.shade700, size: 16),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Servicio del catálogo (opcional) — carga plantilla
+          if (_cargandoServicios)
+            const Padding(
+              padding: EdgeInsets.all(8),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (_serviciosDisponibles.isNotEmpty) ...[
+            CustomDropdown<String>(
+              label: 'Servicio del catálogo (opcional)',
+              value: _servicioSeleccionado?.id,
+              borderColor: AppColors.blue1,
+              items: [
+                const DropdownItem(value: '', label: 'Sin servicio vinculado'),
+                ..._serviciosDisponibles.map((s) => DropdownItem(
+                      value: s.id,
+                      label:
+                          '${s.nombre}${s.precio != null ? " - S/ ${s.precio!.toStringAsFixed(2)}" : ""}',
+                    )),
+              ],
+              onChanged: (v) {
+                _emit(() {
+                  _servicioSeleccionado = (v != null && v.isNotEmpty)
+                      ? _serviciosDisponibles
+                          .where((s) => s.id == v)
+                          .firstOrNull
+                      : null;
+                });
+                if (_servicioSeleccionado != null &&
+                    _servicioSeleccionado!.plantillaServicioId != null) {
+                  _loadCamposPorServicio(_servicioSeleccionado!.id);
+                } else {
+                  _emit(() {
+                    _camposPersonalizados = [];
+                    _datosPersonalizados = {};
+                  });
+                }
+              },
+            ),
+            const SizedBox(height: 12),
+          ],
+          // Tipo + Prioridad en una sola fila
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: CustomDropdown<String>(
+                  label: 'Tipo de servicio *',
+                  value: _tipoServicio,
+                  borderColor: AppColors.blue1,
+                  items: const [
+                    DropdownItem(value: 'REPARACION', label: 'Reparación'),
+                    DropdownItem(
+                        value: 'MANTENIMIENTO', label: 'Mantenimiento'),
+                    DropdownItem(value: 'INSTALACION', label: 'Instalación'),
+                    DropdownItem(value: 'DIAGNOSTICO', label: 'Diagnóstico'),
+                    DropdownItem(
+                        value: 'ACTUALIZACION', label: 'Actualización'),
+                    DropdownItem(value: 'LIMPIEZA', label: 'Limpieza'),
+                    DropdownItem(
+                        value: 'RECUPERACION_DATOS',
+                        label: 'Recuperación de Datos'),
+                    DropdownItem(
+                        value: 'CONFIGURACION', label: 'Configuración'),
+                    DropdownItem(value: 'CONSULTORIA', label: 'Consultoría'),
+                    DropdownItem(value: 'FORMACION', label: 'Formación'),
+                    DropdownItem(value: 'SOPORTE', label: 'Soporte'),
+                  ],
+                  onChanged: (v) =>
+                      _emit(() => _tipoServicio = v ?? 'REPARACION'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: CustomDropdown<String>(
+                  label: 'Prioridad *',
+                  value: _prioridad,
+                  borderColor: AppColors.blue1,
+                  items: const [
+                    DropdownItem(value: 'BAJA', label: 'Baja'),
+                    DropdownItem(value: 'NORMAL', label: 'Normal'),
+                    DropdownItem(value: 'ALTA', label: 'Alta'),
+                    DropdownItem(value: 'URGENTE', label: 'Urgente'),
+                    DropdownItem(value: 'EMERGENCIA', label: 'Emergencia'),
+                  ],
+                  onChanged: (v) => _emit(() => _prioridad = v ?? 'NORMAL'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          CustomText(
+            controller: _descripcionProblemaController,
+            label: 'Descripción del problema',
+            hintText: 'Describe el problema o motivo del servicio',
+            borderColor: AppColors.blue1,
+            prefixIcon: const Icon(Icons.report_problem_outlined),
+            enableVoiceInput: true,
+            maxLines: null,
+            minLines: 3,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDatosCard() {
+    String subtitle;
+    if (_cargandoCampos) {
+      subtitle = 'Cargando plantilla…';
+    } else if (_camposPersonalizados.isEmpty) {
+      subtitle = _servicioSeleccionado == null
+          ? 'Sin servicio · sin plantilla'
+          : 'Sin campos configurados';
+    } else {
+      final llenos = _datosPersonalizados.values
+          .where((v) => v != null && (v is! String || v.isNotEmpty))
+          .length;
+      subtitle = '${_camposPersonalizados.length} campos · $llenos llenos';
+    }
+    final disabled = _camposPersonalizados.isEmpty && !_cargandoCampos;
+    return _OrdenSeccionCard(
+      icon: Icons.list_alt,
+      title: 'Datos adicionales',
+      subtitle: subtitle,
+      state: _SeccionState.optional,
+      onTap: disabled
+          ? null
+          : () => _openSeccion(
+                'Datos adicionales',
+                _buildCamposPersonalizadosStep,
+              ),
+    );
+  }
+
+  Widget _buildNotasCard() {
+    final notas = _notasController.text.trim();
+    final partes = <String>[
+      if (notas.isNotEmpty) notas else 'Sin notas',
+      if (_incluirAviso) 'Aviso de mantenimiento ON',
+    ];
+    return _OrdenSeccionCard(
+      icon: Icons.note_outlined,
+      title: 'Notas y aviso',
+      subtitle: partes.join(' · '),
+      state: _SeccionState.optional,
+      onTap: () => _openSeccion('Notas y aviso', _buildNotasAvisoStep),
+    );
+  }
+
+  Widget _buildSubmitBar() {
+    final missing = _missingMessages;
+    final ready = missing.isEmpty;
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+        12,
+        8,
+        12,
+        12 + MediaQuery.of(context).padding.bottom,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            offset: const Offset(0, -2),
+            blurRadius: 8,
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (!ready)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Text(
+                missing.length == 1
+                    ? missing.first
+                    : 'Faltan ${missing.length} secciones por completar',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.orange.shade800,
+                  fontWeight: FontWeight.w500,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          CustomButton(
+            text: ready ? 'CREAR ORDEN' : 'Completa los campos requeridos',
+            icon: Icon(
+              ready ? Icons.check_circle : Icons.block,
+              color: Colors.white,
+              size: 18,
+            ),
+            backgroundColor: ready ? AppColors.green : Colors.grey,
+            textColor: Colors.white,
+            onPressed: ready
+                ? _submit
+                : () => ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(missing.first)),
+                    ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Abre un bottom sheet con altura fija (0.85 × screen) que muestra el
+  /// contenido del builder. Mientras está abierto, guardamos su `setState`
+  /// para que `_emit()` también lo rebuilde.
+  Future<void> _openSeccion(
+    String title,
+    Widget Function() builder,
+  ) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) {
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            _sheetSetState = setSheetState;
+            final keyboardInset = MediaQuery.viewInsetsOf(ctx).bottom;
+            return Container(
+              height: MediaQuery.of(ctx).size.height * 0.85,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Handle bar
+                  Container(
+                    margin: const EdgeInsets.only(top: 8),
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  // Header
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: AppSubtitle(
+                            title.toUpperCase(),
+                            fontSize: 12,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, size: 20),
+                          onPressed: () => Navigator.pop(sheetCtx),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  Flexible(
+                    child: SingleChildScrollView(
+                      padding: EdgeInsets.fromLTRB(
+                        16, 12, 16, 16 + keyboardInset,
+                      ),
+                      child: builder(),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+    _sheetSetState = null;
+    if (mounted) setState(() {});
   }
 
   // ─── Step 0: Cliente ───
@@ -678,145 +1010,6 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
     return state is ConfiguracionEmpresaLoaded ? state.configuracion : null;
   }
 
-  // ─── Step 1: Equipo ───
-
-  Widget _buildEquipoStep() {
-    final config = _config;
-    final labelTipo = config?.labelTipoEquipo ?? 'Tipo de equipo';
-    final labelMarca = config?.labelMarcaEquipo ?? 'Marca';
-    final labelSerie = config?.labelNumeroSerie ?? 'Número de serie';
-    final labelCondicion = config?.labelCondicionEquipo ?? 'Condición del equipo';
-
-    return Column(
-      children: [
-        CustomText(
-          controller: _tipoEquipoController,
-          label: '$labelTipo *',
-          hintText: 'Ingrese $labelTipo',
-          borderColor: AppColors.blue1,
-          prefixIcon: const Icon(Icons.devices_outlined),
-        ),
-        const SizedBox(height: 12),
-        CustomText(
-          controller: _marcaEquipoController,
-          label: labelMarca,
-          hintText: 'Ingrese $labelMarca',
-          borderColor: AppColors.blue1,
-          prefixIcon: const Icon(Icons.branding_watermark_outlined),
-        ),
-        const SizedBox(height: 12),
-        CustomText(
-          controller: _numeroSerieController,
-          label: labelSerie,
-          hintText: 'Ingrese $labelSerie',
-          borderColor: AppColors.blue1,
-          prefixIcon: const Icon(Icons.qr_code_outlined),
-        ),
-        const SizedBox(height: 12),
-        CustomText(
-          controller: _condicionEquipoController,
-          label: labelCondicion,
-          hintText: 'Describa el estado al recibir',
-          borderColor: AppColors.blue1,
-          prefixIcon: const Icon(Icons.info_outline),
-          maxLines: null,
-          minLines: 2,
-        ),
-      ],
-    );
-  }
-
-  // ─── Step 2: Servicio ───
-
-  Widget _buildServicioStep() {
-    return Column(
-      children: [
-        // Servicio del catálogo (opcional)
-        if (_cargandoServicios)
-          const Padding(
-            padding: EdgeInsets.all(8),
-            child: CircularProgressIndicator(),
-          )
-        else if (_serviciosDisponibles.isNotEmpty) ...[
-          CustomDropdown<String>(
-            label: 'Servicio del catálogo (opcional)',
-            value: _servicioSeleccionado?.id,
-            borderColor: AppColors.blue1,
-            items: [
-              const DropdownItem(value: '', label: 'Sin servicio vinculado'),
-              ..._serviciosDisponibles.map((s) => DropdownItem(
-                    value: s.id,
-                    label: '${s.nombre}${s.precio != null ? " - S/ ${s.precio!.toStringAsFixed(2)}" : ""}',
-                  )),
-            ],
-            onChanged: (v) {
-              setState(() {
-                _servicioSeleccionado = (v != null && v.isNotEmpty)
-                    ? _serviciosDisponibles.where((s) => s.id == v).firstOrNull
-                    : null;
-              });
-              if (_servicioSeleccionado != null &&
-                  _servicioSeleccionado!.plantillaServicioId != null) {
-                _loadCamposPorServicio(_servicioSeleccionado!.id);
-              } else {
-                setState(() {
-                  _camposPersonalizados = [];
-                  _datosPersonalizados = {};
-                });
-              }
-            },
-          ),
-          const SizedBox(height: 12),
-        ],
-
-        CustomDropdown<String>(
-          label: 'Tipo de servicio *',
-          value: _tipoServicio,
-          borderColor: AppColors.blue1,
-          items: const [
-            DropdownItem(value: 'REPARACION', label: 'Reparación'),
-            DropdownItem(value: 'MANTENIMIENTO', label: 'Mantenimiento'),
-            DropdownItem(value: 'INSTALACION', label: 'Instalación'),
-            DropdownItem(value: 'DIAGNOSTICO', label: 'Diagnóstico'),
-            DropdownItem(value: 'ACTUALIZACION', label: 'Actualización'),
-            DropdownItem(value: 'LIMPIEZA', label: 'Limpieza'),
-            DropdownItem(value: 'RECUPERACION_DATOS', label: 'Recuperación de Datos'),
-            DropdownItem(value: 'CONFIGURACION', label: 'Configuración'),
-            DropdownItem(value: 'CONSULTORIA', label: 'Consultoría'),
-            DropdownItem(value: 'FORMACION', label: 'Formación'),
-            DropdownItem(value: 'SOPORTE', label: 'Soporte'),
-          ],
-          onChanged: (v) => setState(() => _tipoServicio = v ?? 'REPARACION'),
-        ),
-        const SizedBox(height: 12),
-        CustomDropdown<String>(
-          label: 'Prioridad *',
-          value: _prioridad,
-          borderColor: AppColors.blue1,
-          items: const [
-            DropdownItem(value: 'BAJA', label: 'Baja'),
-            DropdownItem(value: 'NORMAL', label: 'Normal'),
-            DropdownItem(value: 'ALTA', label: 'Alta'),
-            DropdownItem(value: 'URGENTE', label: 'Urgente'),
-            DropdownItem(value: 'EMERGENCIA', label: 'Emergencia'),
-          ],
-          onChanged: (v) => setState(() => _prioridad = v ?? 'NORMAL'),
-        ),
-        const SizedBox(height: 12),
-        CustomText(
-          controller: _descripcionProblemaController,
-          label: 'Descripción del problema',
-          hintText: 'Describe el problema o motivo del servicio',
-          borderColor: AppColors.blue1,
-          prefixIcon: const Icon(Icons.report_problem_outlined),
-          enableVoiceInput: true,
-          maxLines: null,
-          minLines: 3,
-        ),
-      ],
-    );
-  }
-
   // ─── Step 3: Campos personalizados ───
 
   Widget _buildCamposPersonalizadosStep() {
@@ -846,7 +1039,7 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
       values: _datosPersonalizados,
       empresaId: _empresaId,
       onChanged: (newValues) {
-        setState(() => _datosPersonalizados = newValues);
+        _emit(() => _datosPersonalizados = newValues);
       },
     );
   }
@@ -886,7 +1079,7 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
           title: 'Incluir en avisos de mantenimiento',
           subtitle: 'Se notificará al cliente para su próximo servicio',
           value: _incluirAviso,
-          onChanged: (v) => setState(() {
+          onChanged: (v) => _emit(() {
             _incluirAviso = v;
             if (!v) {
               _fechaAvisoPersonalizado = null;
@@ -929,22 +1122,22 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
   // ─── Submit ───
 
   void _submit() async {
+    // El botón "CREAR ORDEN" solo se habilita cuando _puedeCrear es true,
+    // así que aquí ya tenemos cliente + equipo + servicio. Aún así dejamos
+    // estos guards de defensa por si se llama _submit desde otro path.
     if (!_hasCliente) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Debes seleccionar un cliente')),
       );
-      setState(() => _currentStep = 0);
       return;
     }
 
-    // Validar contacto obligatorio para empresa
     if (_clienteEmpresaId != null &&
         _contactoNombreController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content: Text('Ingresa el nombre del contacto de la empresa')),
       );
-      setState(() => _currentStep = 0);
       return;
     }
 
@@ -1032,5 +1225,110 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
         SnackBar(content: Text((result as Error).message)),
       );
     }
+  }
+}
+
+/// Estado visual de una sección del form: completa (verde), pendiente
+/// requerida (naranja), u opcional (gris, sin badge).
+enum _SeccionState { complete, required, optional }
+
+/// Card de resumen de una sección de la orden. Tap → abre bottom sheet.
+class _OrdenSeccionCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final _SeccionState state;
+  final VoidCallback? onTap;
+
+  const _OrdenSeccionCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.state,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final (badge, borderColor) = switch (state) {
+      _SeccionState.complete => (
+          const Icon(Icons.check_circle, color: Colors.green, size: 16),
+          Colors.green.shade300,
+        ),
+      _SeccionState.required => (
+          Icon(Icons.error_outline, color: Colors.orange.shade700, size: 16),
+          Colors.orange.shade300,
+        ),
+      _SeccionState.optional => (
+          const SizedBox.shrink(),
+          AppColors.blueborder,
+        ),
+    };
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Opacity(
+          opacity: onTap == null ? 0.5 : 1,
+          child: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: borderColor, width: 0.8),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    color: AppColors.bluechip.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(icon, color: AppColors.blue1, size: 16),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              title,
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                          badge,
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.grey.shade600,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right,
+                    color: Colors.grey, size: 18),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
