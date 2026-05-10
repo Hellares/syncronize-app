@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:syncronize/core/theme/gradient_container.dart';
 
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -103,7 +104,9 @@ class _FinalizarViewState extends State<_FinalizarView> {
     return Scaffold(
       appBar: SmartAppBar(
         title: 'Finalizar cotización',
-        leftIcon: Icons.arrow_back_ios,
+        backgroundColor: AppColors.blue1,
+        foregroundColor: Colors.white,
+        leftIcon: Icons.arrow_back_rounded,
         onLeftTap: () => context.pop(),
       ),
       body: BlocConsumer<CotizacionRapidaCubit, CotizacionRapidaState>(
@@ -193,7 +196,7 @@ class _FinalizarViewState extends State<_FinalizarView> {
                                       child: Text(
                                         state.nombreClienteResuelto,
                                         style: const TextStyle(
-                                          fontSize: 14,
+                                          fontSize: 12,
                                           fontWeight: FontWeight.w600,
                                         ),
                                       ),
@@ -246,11 +249,8 @@ class _FinalizarViewState extends State<_FinalizarView> {
                                       icon: const Icon(Icons.search,
                                           size: 16,
                                           color: AppColors.blue1),
-                                      isOutlined: true,
                                       borderColor: AppColors.blue1,
                                       textColor: AppColors.blue1,
-                                      height: 38,
-                                      fontSize: 12,
                                       onPressed: _seleccionarCliente,
                                     ),
                                   ),
@@ -261,11 +261,8 @@ class _FinalizarViewState extends State<_FinalizarView> {
                                       icon: Icon(Icons.people_outline,
                                           size: 16,
                                           color: Colors.grey.shade700),
-                                      isOutlined: true,
                                       borderColor: Colors.grey.shade400,
                                       textColor: Colors.grey.shade700,
-                                      height: 38,
-                                      fontSize: 12,
                                       onPressed: () => context
                                           .read<CotizacionRapidaCubit>()
                                           .setClienteGenerico(),
@@ -345,12 +342,11 @@ class _FinalizarViewState extends State<_FinalizarView> {
                   padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
                   child: CustomButton(
                     text:
-                        'CREAR COTIZACIÓN — S/ ${state.total.toStringAsFixed(2)}',
+                        'CREAR COTIZACIÓN  —  S/ ${state.total.toStringAsFixed(2)}',
                     backgroundColor: AppColors.blue1,
                     textColor: Colors.white,
                     fontWeight: FontWeight.w700,
-                    fontSize: 14,
-                    height: 48,
+                    fontSize: 12,
                     isLoading: state.procesando,
                     enabled: !state.procesando,
                     onPressed: state.procesando ? null : _crear,
@@ -372,12 +368,12 @@ class _SectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
+    return GradientContainer(
+      // decoration: BoxDecoration(
+      //   color: Colors.white,
+      //   borderRadius: BorderRadius.circular(8),
+      //   border: Border.all(color: Colors.grey.shade200),
+      // ),
       padding: const EdgeInsets.all(12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

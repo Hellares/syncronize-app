@@ -153,10 +153,10 @@ class _ClienteUnificadoSelectorState extends State<ClienteUnificadoSelector>
 
   @override
   Widget build(BuildContext context) {
+    // Altura fija — el teclado no cambia el tamaño del sheet.
+    // El scroll interno de cada form maneja el viewInsets.bottom.
     return Container(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.85,
-      ),
+      height: MediaQuery.of(context).size.height * 0.85,
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -174,77 +174,79 @@ class _ClienteUnificadoSelectorState extends State<ClienteUnificadoSelector>
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-          // Header
+          // Header + tabs en una sola fila
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
                     color: AppColors.bluechip,
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(6),
                   ),
                   child: const Icon(
                     Icons.person_search,
                     color: AppColors.blue1,
-                    size: 18,
+                    size: 16,
                   ),
                 ),
                 const SizedBox(width: 8),
                 AppSubtitle('SELECCIONAR CLIENTE', fontSize: 11),
+                const Spacer(),
+                if (_showTabs)
+                  SizedBox(
+                    width: 170,
+                    height: 28,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: TabBar(
+                        controller: _tabController,
+                        indicator: BoxDecoration(
+                          color: AppColors.blue1,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        labelColor: Colors.white,
+                        unselectedLabelColor: Colors.grey[700],
+                        labelStyle: const TextStyle(
+                            fontSize: 11, fontWeight: FontWeight.w600),
+                        unselectedLabelStyle: const TextStyle(fontSize: 11),
+                        dividerHeight: 0,
+                        labelPadding: EdgeInsets.zero,
+                        tabs: const [
+                          Tab(
+                            height: 24,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.person, size: 12),
+                                SizedBox(width: 4),
+                                Text('Persona'),
+                              ],
+                            ),
+                          ),
+                          Tab(
+                            height: 24,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.business, size: 12),
+                                SizedBox(width: 4),
+                                Text('Empresa'),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
-          // Tabs (only if both types allowed)
-          if (_showTabs) ...[
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: TabBar(
-                controller: _tabController,
-                indicator: BoxDecoration(
-                  color: AppColors.blue1,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                labelColor: Colors.white,
-                unselectedLabelColor: Colors.grey[700],
-                labelStyle:
-                    const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                unselectedLabelStyle: const TextStyle(fontSize: 12),
-                dividerHeight: 0,
-                tabs: const [
-                  Tab(
-                    height: 35,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.person, size: 16),
-                        SizedBox(width: 6),
-                        Text('Persona'),
-                      ],
-                    ),
-                  ),
-                  Tab(
-                    height: 35,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.business, size: 16),
-                        SizedBox(width: 6),
-                        Text('Empresa'),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Divider(height: 1),
-          ],
+          const Divider(height: 1),
           // Body
           Flexible(
             child: _showTabs
@@ -302,6 +304,9 @@ class _PersonaTabState extends State<_PersonaTab>
   bool _isLookingUpDni = false;
   bool _dniFieldsFilled = false;
   String? _dniError;
+  String? _nombresError;
+  String? _apellidosError;
+  String? _telefonoError;
   String? _origenDatos;
 
   @override
@@ -424,15 +429,19 @@ class _PersonaTabState extends State<_PersonaTab>
       return false;
     }
     if (nombres.isEmpty) {
-      SnackBarHelper.showError(context, 'Los nombres son obligatorios');
+      setState(() => _nombresError = 'Los nombres son obligatorios');
       return false;
     }
     if (apellidos.isEmpty) {
-      SnackBarHelper.showError(context, 'Los apellidos son obligatorios');
+      setState(() => _apellidosError = 'Los apellidos son obligatorios');
       return false;
     }
-    if (telefono.isEmpty || !RegExp(r'^\d{9}$').hasMatch(telefono)) {
-      SnackBarHelper.showError(context, 'El teléfono debe tener 9 dígitos');
+    if (telefono.isEmpty) {
+      setState(() => _telefonoError = 'Se requiere el número de teléfono');
+      return false;
+    }
+    if (!RegExp(r'^\d{9}$').hasMatch(telefono)) {
+      setState(() => _telefonoError = 'El teléfono debe tener 9 dígitos');
       return false;
     }
     return true;
@@ -528,8 +537,15 @@ class _PersonaTabState extends State<_PersonaTab>
                 size: 35,
                 icon: Icons.person_add,
                 backgroundColor: AppColors.blue1,
-                onPressed: () =>
-                    setState(() => _mode = _PersonaMode.register),
+                onPressed: () {
+                  final query = _searchController.text.trim();
+                  if (query.isNotEmpty &&
+                      RegExp(r'^\d{1,8}$').hasMatch(query)) {
+                    _dniController.text = query;
+                    if (query.length == 8) _lookupDni();
+                  }
+                  setState(() => _mode = _PersonaMode.register);
+                },
               ),
             ],
           ),
@@ -688,24 +704,31 @@ class _PersonaTabState extends State<_PersonaTab>
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
             children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back, size: 20),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                onPressed: () => setState(() => _mode = _PersonaMode.search),
+              InkWell(
+                onTap: () => setState(() => _mode = _PersonaMode.search),
+                borderRadius: BorderRadius.circular(20),
+                child: const Padding(
+                  padding: EdgeInsets.all(4),
+                  child: Icon(Icons.arrow_back, size: 18),
+                ),
               ),
               const SizedBox(width: 8),
-              AppSubtitle('REGISTRAR PERSONA', fontSize: 12),
+              AppSubtitle('REGISTRAR PERSONA', fontSize: 10),
             ],
           ),
         ),
         const Divider(height: 1),
         Flexible(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: EdgeInsets.fromLTRB(
+              16,
+              8,
+              16,
+              16 + MediaQuery.viewInsetsOf(context).bottom,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -762,28 +785,21 @@ class _PersonaTabState extends State<_PersonaTab>
                   ],
                 ),
                 if (_dniFieldsFilled) ...[
-                  const SizedBox(height: 10),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.green.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                          color: Colors.green.withValues(alpha: 0.25)),
-                    ),
+                  const SizedBox(height: 4),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 4),
                     child: Row(
                       children: [
                         const Icon(Icons.check_circle,
-                            size: 14, color: Colors.green),
-                        const SizedBox(width: 6),
-                        Expanded(
+                            size: 11, color: Colors.green),
+                        const SizedBox(width: 4),
+                        Flexible(
                           child: Text(
                             _origenDatos == 'INTERNO'
                                 ? 'Persona encontrada en el sistema'
                                 : 'Datos autocompletados desde RENIEC',
                             style: TextStyle(
-                              fontSize: 11,
+                              fontSize: 9,
                               color: Colors.green.shade700,
                               fontWeight: FontWeight.w500,
                             ),
@@ -801,6 +817,12 @@ class _PersonaTabState extends State<_PersonaTab>
                   prefixIcon: const Icon(Icons.person_outline),
                   borderColor: AppColors.blue1,
                   enabled: !_dniFieldsFilled,
+                  externalError: _nombresError,
+                  onChanged: (_) {
+                    if (_nombresError != null) {
+                      setState(() => _nombresError = null);
+                    }
+                  },
                 ),
                 const SizedBox(height: 14),
                 CustomText(
@@ -810,6 +832,12 @@ class _PersonaTabState extends State<_PersonaTab>
                   prefixIcon: const Icon(Icons.person_outline),
                   borderColor: AppColors.blue1,
                   enabled: !_dniFieldsFilled,
+                  externalError: _apellidosError,
+                  onChanged: (_) {
+                    if (_apellidosError != null) {
+                      setState(() => _apellidosError = null);
+                    }
+                  },
                 ),
                 const SizedBox(height: 14),
                 CustomText(
@@ -820,6 +848,12 @@ class _PersonaTabState extends State<_PersonaTab>
                   maxLength: 9,
                   prefixIcon: const Icon(Icons.phone_outlined),
                   borderColor: AppColors.blue1,
+                  externalError: _telefonoError,
+                  onChanged: (_) {
+                    if (_telefonoError != null) {
+                      setState(() => _telefonoError = null);
+                    }
+                  },
                 ),
                 const SizedBox(height: 14),
                 CustomText(
@@ -906,6 +940,7 @@ class _EmpresaTabState extends State<_EmpresaTab>
   bool _isLookingUpRuc = false;
   bool _rucFieldsFilled = false;
   String? _rucError;
+  String? _razonSocialError;
   bool _isRegistering = false;
   ClienteEmpresa? _empresaExistente;
 
@@ -1244,11 +1279,11 @@ class _EmpresaTabState extends State<_EmpresaTab>
     final razonSocial = _razonSocialController.text.trim();
 
     if (ruc.length != 11 || !RegExp(r'^\d{11}$').hasMatch(ruc)) {
-      SnackBarHelper.showError(context, 'El RUC debe tener 11 dígitos');
+      setState(() => _rucError = 'El RUC debe tener 11 dígitos');
       return;
     }
     if (razonSocial.isEmpty) {
-      SnackBarHelper.showError(context, 'La razón social es obligatoria');
+      setState(() => _razonSocialError = 'La razón social es obligatoria');
       return;
     }
 
@@ -1410,8 +1445,15 @@ class _EmpresaTabState extends State<_EmpresaTab>
                 size: 35,
                 icon: Icons.add_business,
                 backgroundColor: AppColors.blue1,
-                onPressed: () =>
-                    setState(() => _mode = _EmpresaMode.register),
+                onPressed: () {
+                  final query = _searchController.text.trim();
+                  if (query.isNotEmpty &&
+                      RegExp(r'^\d{1,11}$').hasMatch(query)) {
+                    _rucController.text = query;
+                    if (query.length == 11) _lookupRuc();
+                  }
+                  setState(() => _mode = _EmpresaMode.register);
+                },
               ),
             ],
           ),
@@ -1541,24 +1583,31 @@ class _EmpresaTabState extends State<_EmpresaTab>
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
             children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back, size: 20),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                onPressed: () => setState(() => _mode = _EmpresaMode.search),
+              InkWell(
+                onTap: () => setState(() => _mode = _EmpresaMode.search),
+                borderRadius: BorderRadius.circular(20),
+                child: const Padding(
+                  padding: EdgeInsets.all(4),
+                  child: Icon(Icons.arrow_back, size: 18),
+                ),
               ),
               const SizedBox(width: 8),
-              AppSubtitle('REGISTRAR EMPRESA', fontSize: 12),
+              AppSubtitle('REGISTRAR EMPRESA', fontSize: 10),
             ],
           ),
         ),
         const Divider(height: 1),
         Flexible(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: EdgeInsets.fromLTRB(
+              16,
+              8,
+              16,
+              16 + MediaQuery.viewInsetsOf(context).bottom,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1717,28 +1766,21 @@ class _EmpresaTabState extends State<_EmpresaTab>
                 ],
 
                 if (_rucFieldsFilled) ...[
-                  const SizedBox(height: 10),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.green.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                          color: Colors.green.withValues(alpha: 0.25)),
-                    ),
+                  const SizedBox(height: 4),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 4),
                     child: Row(
                       children: [
                         const Icon(Icons.check_circle,
-                            size: 14, color: Colors.green),
-                        const SizedBox(width: 6),
-                        Expanded(
+                            size: 11, color: Colors.green),
+                        const SizedBox(width: 4),
+                        Flexible(
                           child: Text(
                             'Datos autocompletados desde SUNAT'
                             '${_estadoContribuyente != null ? "  ·  $_estadoContribuyente" : ""}'
                             '${_condicionContribuyente != null ? " / $_condicionContribuyente" : ""}',
                             style: TextStyle(
-                              fontSize: 11,
+                              fontSize: 9,
                               color: Colors.green.shade700,
                               fontWeight: FontWeight.w500,
                             ),
@@ -1757,6 +1799,12 @@ class _EmpresaTabState extends State<_EmpresaTab>
                   prefixIcon: const Icon(Icons.business),
                   borderColor: AppColors.blue1,
                   enabled: !_rucFieldsFilled,
+                  externalError: _razonSocialError,
+                  onChanged: (_) {
+                    if (_razonSocialError != null) {
+                      setState(() => _razonSocialError = null);
+                    }
+                  },
                 ),
                 const SizedBox(height: 14),
                 CustomText(

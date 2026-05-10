@@ -281,7 +281,7 @@ class _CotizacionListTile extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.only(left: 14, right: 14, top: 8, bottom: 8),
+          padding: const EdgeInsets.only(left: 10, right: 10, top: 8, bottom: 8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -292,7 +292,7 @@ class _CotizacionListTile extends StatelessWidget {
                   CotizacionEstadoChip(estado: cotizacion.estado),
                   Spacer(),
                   Text(
-                    DateFormatter.formatDate(cotizacion.fechaEmision),
+                    DateFormatter.formatDateTime(cotizacion.fechaEmision),
                     style: TextStyle(
                       fontSize: 10,
                       color: Colors.grey.shade600,
@@ -302,29 +302,29 @@ class _CotizacionListTile extends StatelessWidget {
               ),
               if (cotizacion.nombre != null &&
                   cotizacion.nombre!.isNotEmpty) ...[
-                const SizedBox(height: 4),
-                AppSubtitle(cotizacion.nombre!, fontSize: 13,)
+                const SizedBox(height: 2),
+                AppSubtitle(cotizacion.nombre!, fontSize: 10,)
               ],
-              const SizedBox(height: 4),
+              const SizedBox(height: 2),
               Row(
                 children: [
-                  SizedBox(width: 70, child: AppText('Cliente:')),
-                  Expanded(child: AppText(cotizacion.nombreCliente, fontWeight: FontWeight.w400)),
+                  SizedBox(width: 70, child: AppText('Cliente:', size: 10,)),
+                  Expanded(child: AppText(cotizacion.nombreCliente, fontWeight: FontWeight.w400, size: 10,)),
                 ],
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 2),
               Row(
                 children: [
-                  SizedBox(width: 70, child: AppText('Telefono:')),
-                  Expanded(child: AppText(cotizacion.telefonoCliente ?? 'N/A', fontWeight: FontWeight.w400)),
+                  SizedBox(width: 70, child: AppText('Telefono:', size: 10,)),
+                  Expanded(child: AppText(cotizacion.telefonoCliente ?? 'N/A', fontWeight: FontWeight.w400, size: 10)),
                 ],
               ),
               if (cotizacion.sedeNombre != null) ...[
                 const SizedBox(height: 2),
                 Row(
                   children: [
-                    SizedBox(width: 70, child: AppText('Sede:')),
-                    Expanded(child: AppText(cotizacion.sedeNombre!, fontWeight: FontWeight.w400)),
+                    SizedBox(width: 70, child: AppText('Sede:', size: 10,)),
+                    Expanded(child: AppText(cotizacion.sedeNombre!, fontWeight: FontWeight.w400, size: 10)),
                   ],
                 ),
               ],
@@ -334,15 +334,15 @@ class _CotizacionListTile extends StatelessWidget {
                 children: [
                   if (cotizacion.vendedorNombre != null)
                     Text(
-                      'Vendedor: ${cotizacion.vendedorNombre}',
+                      'Vendedor:   ${cotizacion.vendedorNombre}',
                       style:
-                          TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                          TextStyle(fontSize: 9, color: Colors.grey.shade600),
                     ),
                   Text(
                     '${cotizacion.moneda} ${cotizacion.total.toStringAsFixed(2)}',
                     style: const TextStyle(
                       fontWeight: FontWeight.w500,
-                      fontSize: 13,
+                      fontSize: 9,
                     ),
                   ),
                 ],
