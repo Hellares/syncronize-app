@@ -648,24 +648,8 @@ class PdfVentaGenerator {
   static pw.Widget _dottedLine({
     PdfColor color = PdfColors.black,
     double thickness = 0.8,
-  }) {
-    return pw.Padding(
-      padding: const pw.EdgeInsets.symmetric(vertical: 4),
-      child: pw.CustomPaint(
-        size: const PdfPoint(double.infinity, 1),
-        painter: (PdfGraphics canvas, PdfPoint size) {
-          canvas
-            ..setStrokeColor(color)
-            ..setLineWidth(thickness)
-            ..setLineDashPattern([2, 2]);
-          canvas
-            ..moveTo(0, size.y / 2)
-            ..lineTo(size.x, size.y / 2)
-            ..strokePath();
-        },
-      ),
-    );
-  }
+  }) =>
+      PdfRowBuilders.dottedLine(color: color, thickness: thickness);
 
   // Venta usa padding `bottom: 1` (más compacto que cotización/compra) y
   // soporta color → pasa overrides explícitos.

@@ -2,14 +2,14 @@ import 'dart:typed_data';
 import 'package:barcode/barcode.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:syncronize/core/services/pdf/pdf_row_builders.dart';
 import '../../domain/entities/guia_remision.dart';
 
 /// Generador de PDF para Guía de Remisión Electrónica (GRE).
 ///
-/// TODO(pdf-refactor): migrar a `core/services/pdf/PdfDocumentService` +
-/// builders compartidos cuando este módulo adopte
-/// `ConfiguracionDocumentoCompleta`. Hoy mantiene su propia lógica de
-/// header/totales/footer.
+/// Ticket térmico 80mm con QR SUNAT, datos de transportista/conductor/
+/// ubigeos. No usa `PdfDocumentService` (asume A4-or-ticket dual mode);
+/// reusa solo helpers atómicos compartidos (`PdfRowBuilders.dottedLine`).
 class PdfGuiaRemisionGenerator {
   /// Resuelve ubigeo a "DEPARTAMENTO - PROVINCIA - DISTRITO"
   static String _resolverUbigeo(String? ubigeo, List<Map<String, dynamic>>? ubigeos) {
@@ -484,24 +484,8 @@ class PdfGuiaRemisionGenerator {
   static pw.Widget _dottedLine({
     PdfColor color = PdfColors.black,
     double thickness = 0.8,
-  }) {
-    return pw.Padding(
-      padding: const pw.EdgeInsets.symmetric(vertical: 4),
-      child: pw.CustomPaint(
-        size: const PdfPoint(double.infinity, 1),
-        painter: (PdfGraphics canvas, PdfPoint size) {
-          canvas
-            ..setStrokeColor(color)
-            ..setLineWidth(thickness)
-            ..setLineDashPattern([2, 2]);
-          canvas
-            ..moveTo(0, size.y / 2)
-            ..lineTo(size.x, size.y / 2)
-            ..strokePath();
-        },
-      ),
-    );
-  }
+  }) =>
+      PdfRowBuilders.dottedLine(color: color, thickness: thickness);
 
   static String _formatDate(DateTime date) {
     final d = date.isUtc ? date.toLocal() : date;

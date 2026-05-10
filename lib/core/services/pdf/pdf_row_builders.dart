@@ -100,4 +100,29 @@ class PdfRowBuilders {
       ),
     );
   }
+
+  /// Línea punteada horizontal de ancho completo (separador visual).
+  ///
+  /// Compartido entre venta-ticket y guía-remisión-ticket.
+  static pw.Widget dottedLine({
+    PdfColor color = PdfColors.black,
+    double thickness = 0.8,
+  }) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(vertical: 4),
+      child: pw.CustomPaint(
+        size: const PdfPoint(double.infinity, 1),
+        painter: (PdfGraphics canvas, PdfPoint size) {
+          canvas
+            ..setStrokeColor(color)
+            ..setLineWidth(thickness)
+            ..setLineDashPattern([2, 2]);
+          canvas
+            ..moveTo(0, size.y / 2)
+            ..lineTo(size.x, size.y / 2)
+            ..strokePath();
+        },
+      ),
+    );
+  }
 }

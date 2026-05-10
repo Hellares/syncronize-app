@@ -1,15 +1,16 @@
 import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:syncronize/core/services/pdf/pdf_row_builders.dart';
 import 'package:syncronize/core/utils/date_formatter.dart';
 import '../../domain/entities/transferencia_stock.dart';
 
 /// Servicio para generar documentos PDF de transferencias de stock.
 ///
-/// TODO(pdf-refactor): migrar a `core/services/pdf/PdfDocumentService` +
-/// builders compartidos cuando este módulo adopte
-/// `ConfiguracionDocumentoCompleta`. Hoy usa lógica legacy con su propio
-/// header/totales/footer inline.
+/// TODO(pdf-refactor): este generator usa colores hardcoded
+/// (`PdfColors.blue800` etc.) y no consume `ConfiguracionDocumentoCompleta`,
+/// por eso no usa `PdfDocumentService`/`PdfDocumentStyle`. Reusa los
+/// helpers atómicos compartidos (`PdfRowBuilders`).
 class PdfTransferenciaGenerator {
   /// Genera un PDF con el detalle completo de la transferencia
   static Future<Uint8List> generarDocumento({
@@ -444,32 +445,15 @@ class PdfTransferenciaGenerator {
     );
   }
 
-  // Helpers
-  static pw.Widget _buildInfoRow(String label, String value) {
-    return pw.Padding(
-      padding: const pw.EdgeInsets.symmetric(vertical: 2),
-      child: pw.Row(
-        children: [
-          pw.SizedBox(
-            width: 140,
-            child: pw.Text(
-              '$label:',
-              style: pw.TextStyle(
-                fontSize: 10,
-                fontWeight: pw.FontWeight.bold,
-              ),
-            ),
-          ),
-          pw.Expanded(
-            child: pw.Text(
-              value,
-              style: const pw.TextStyle(fontSize: 10),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  // Helpers — labelWidth 140 + fontSize 10 son específicos de este
+  // documento (transferencia A4 con dos columnas anchas).
+  static pw.Widget _buildInfoRow(String label, String value) =>
+      PdfRowBuilders.infoRow(
+        label: label,
+        value: value,
+        labelWidth: 140,
+        fontSize: 10,
+      );
 
   static pw.Widget _buildEstadoBadge(EstadoTransferencia estado) {
     PdfColor color;
@@ -512,20 +496,18 @@ class PdfTransferenciaGenerator {
     );
   }
 
-  static pw.Widget _buildTableCell(String text, {
+  // _buildTableCell ata isHeader → textAlign.center automáticamente
+  // (los headers van centrados, body left). El shared PdfRowBuilders.tableCell
+  // los maneja como params separados, así que computamos el align acá.
+  static pw.Widget _buildTableCell(
+    String text, {
     bool isHeader = false,
     double fontSize = 9,
-  }) {
-    return pw.Padding(
-      padding: const pw.EdgeInsets.all(6),
-      child: pw.Text(
+  }) =>
+      PdfRowBuilders.tableCell(
         text,
-        style: pw.TextStyle(
-          fontSize: fontSize,
-          fontWeight: isHeader ? pw.FontWeight.bold : pw.FontWeight.normal,
-        ),
-        textAlign: isHeader ? pw.TextAlign.center : pw.TextAlign.left,
-      ),
-    );
-  }
+        isHeader: isHeader,
+        fontSize: fontSize,
+        align: isHeader ? pw.TextAlign.center : pw.TextAlign.left,
+      );
 }

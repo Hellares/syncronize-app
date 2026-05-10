@@ -3,21 +3,16 @@ import 'package:barcode/barcode.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:syncronize/core/services/pdf/pdf_color_utils.dart';
+import 'package:syncronize/core/services/pdf/pdf_row_builders.dart';
 import 'package:syncronize/core/utils/date_formatter.dart';
 import '../../domain/entities/orden_servicio.dart';
 
-// TODO(pdf-refactor): migrar a `core/services/pdf/PdfDocumentService` +
-// builders compartidos. Mantiene su propio _hexToColor y helpers porque
-// no consume `ConfiguracionDocumentoCompleta`.
-/// Color primario por defecto
-const _defaultPrimaryHex = '#1565C0';
-
-PdfColor _hexToColor(String hex) {
-  hex = hex.replaceFirst('#', '');
-  if (hex.length == 6) hex = 'FF$hex';
-  return PdfColor.fromInt(int.parse(hex, radix: 16));
-}
-
+// TODO(pdf-refactor): este generator es ticket-térmico puro (80mm), sin
+// dual-mode A4. Por eso no usa `PdfDocumentService` (asume A4-or-ticket).
+// Reusa los helpers atómicos compartidos (hexToPdfColor, PdfRowBuilders),
+// pero su header/infoRow/divider son bespoke (fuente Oxygen embebida +
+// labelWidth 55 + dashed line), distinto del estilo cotización/compra.
 class PdfOrdenServicioGenerator {
   static Future<Uint8List> generarTicket({
     required OrdenServicio orden,
@@ -49,7 +44,7 @@ class PdfOrdenServicioGenerator {
         boldItalic: fontBold,
       ),
     );
-    final primaryColor = _hexToColor(colorPrimario ?? _defaultPrimaryHex);
+    final primaryColor = hexToPdfColor(colorPrimario ?? '');
     const fsSmall = 7.5;
     const fsTiny = 6.5;
 
@@ -574,24 +569,17 @@ class PdfOrdenServicioGenerator {
     );
   }
 
-  static pw.Widget _costRow(String label, String value, {double fs = 7, bool bold = false}) {
-    return pw.Padding(
-      padding: const pw.EdgeInsets.only(bottom: 1),
-      child: pw.Row(
-        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-        children: [
-          pw.Text(label,
-              style: pw.TextStyle(
-                  fontSize: fs,
-                  fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal)),
-          pw.Text(value,
-              style: pw.TextStyle(
-                  fontSize: fs,
-                  fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal)),
-        ],
-      ),
-    );
-  }
+  // Padding `bottom: 1` (más compacto que default `vertical: 2`) — mismo
+  // patrón que venta_ticket. Delega al PdfRowBuilders compartido.
+  static pw.Widget _costRow(String label, String value,
+          {double fs = 7, bool bold = false}) =>
+      PdfRowBuilders.totalRow(
+        label: label,
+        value: value,
+        bold: bold,
+        fontSize: fs,
+        padding: const pw.EdgeInsets.only(bottom: 1),
+      );
 
   static String _tipoServicioLabel(String tipo) {
     const labels = {
