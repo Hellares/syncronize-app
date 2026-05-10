@@ -4,13 +4,16 @@ import '../../../../../core/utils/resource.dart';
 import '../../../data/models/precio_nivel_model.dart';
 import '../../../domain/entities/precio_nivel.dart';
 import '../../../domain/repositories/precio_nivel_repository.dart';
+import '../../../domain/services/precio_nivel_cache_service.dart';
 import 'precio_nivel_state.dart';
 
 @injectable
 class PrecioNivelCubit extends Cubit<PrecioNivelState> {
   final PrecioNivelRepository _repository;
+  final PrecioNivelCacheService _cacheService;
 
-  PrecioNivelCubit(this._repository) : super(const PrecioNivelInitial());
+  PrecioNivelCubit(this._repository, this._cacheService)
+      : super(const PrecioNivelInitial());
 
   /// Inicializa con niveles vacíos
   void initialize() {
@@ -64,6 +67,7 @@ class PrecioNivelCubit extends Cubit<PrecioNivelState> {
     );
 
     if (result is Success<PrecioNivel>) {
+      _cacheService.invalidate(productoId);
       // Agregar el nuevo nivel a la lista
       final updatedNiveles = [...currentState.niveles, result.data];
       emit(PrecioNivelLoaded(niveles: updatedNiveles));
@@ -117,6 +121,8 @@ class PrecioNivelCubit extends Cubit<PrecioNivelState> {
     );
 
     if (result is Success<PrecioNivel>) {
+      final productoId = result.data.productoId;
+      if (productoId != null) _cacheService.invalidate(productoId);
       // Reemplazar el nivel actualizado en la lista
       final updatedNiveles = currentState.niveles.map((nivel) {
         return nivel.id == nivelId ? result.data : nivel;
@@ -135,11 +141,20 @@ class PrecioNivelCubit extends Cubit<PrecioNivelState> {
     final currentState = state;
     if (currentState is! PrecioNivelLoaded) return;
 
+    // Capturar productoId ANTES del request para poder invalidar después.
+    final productoId = currentState.niveles
+        .firstWhere(
+          (n) => n.id == nivelId,
+          orElse: () => currentState.niveles.first,
+        )
+        .productoId;
+
     emit(currentState.copyWith(isLoading: true));
 
     final result = await _repository.eliminarPrecioNivel(nivelId: nivelId);
 
     if (result is Success) {
+      if (productoId != null) _cacheService.invalidate(productoId);
       // Eliminar el nivel de la lista
       final updatedNiveles = currentState.niveles
           .where((nivel) => nivel.id != nivelId)

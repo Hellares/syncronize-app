@@ -917,6 +917,8 @@ import '../../features/producto/domain/repositories/plantilla_repository.dart'
     as _i1006;
 import '../../features/producto/domain/repositories/precio_nivel_repository.dart'
     as _i640;
+import '../../features/producto/domain/services/precio_nivel_cache_service.dart'
+    as _i641;
 import '../../features/producto/domain/repositories/producto_repository.dart'
     as _i398;
 import '../../features/producto/domain/repositories/producto_stock_repository.dart'
@@ -2447,6 +2449,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i593.DireccionListCubit>(
       () => _i593.DireccionListCubit(gh<_i95.DireccionRepository>()),
     );
+    gh.lazySingleton<_i641.PrecioNivelCacheService>(
+      () => _i641.PrecioNivelCacheService(gh<_i640.PrecioNivelRepository>()),
+    );
     gh.lazySingleton<_i640.PrecioNivelRepository>(
       () => _i92.PrecioNivelRepositoryImpl(
         gh<_i872.PrecioNivelRemoteDataSource>(),
@@ -3466,7 +3471,7 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i696.ObtenerClienteGenericoUseCase>(),
         gh<_i765.BuscarClientePorDniUseCase>(),
         gh<_i33.BuscarClientePorRucUseCase>(),
-        gh<_i640.PrecioNivelRepository>(),
+        gh<_i641.PrecioNivelCacheService>(),
         gh<_i200.ComboRepository>(),
       ),
     );
@@ -3950,7 +3955,10 @@ extension GetItInjectableX on _i174.GetIt {
       ),
     );
     gh.factory<_i68.PrecioNivelCubit>(
-      () => _i68.PrecioNivelCubit(gh<_i640.PrecioNivelRepository>()),
+      () => _i68.PrecioNivelCubit(
+        gh<_i640.PrecioNivelRepository>(),
+        gh<_i641.PrecioNivelCacheService>(),
+      ),
     );
     gh.factory<_i604.ActualizarProductoUseCase>(
       () => _i604.ActualizarProductoUseCase(gh<_i398.ProductoRepository>()),
@@ -4202,7 +4210,7 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i865.ActualizarCotizacionRapidaUseCase>(),
         gh<_i765.BuscarClientePorDniUseCase>(),
         gh<_i33.BuscarClientePorRucUseCase>(),
-        gh<_i640.PrecioNivelRepository>(),
+        gh<_i641.PrecioNivelCacheService>(),
         gh<_i200.ComboRepository>(),
       ),
     );

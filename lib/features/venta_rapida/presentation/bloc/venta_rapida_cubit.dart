@@ -7,7 +7,7 @@ import '../../../combo/domain/entities/combo.dart';
 import '../../../combo/domain/repositories/combo_repository.dart';
 import '../../../producto/domain/entities/precio_nivel.dart';
 import '../../../producto/domain/entities/producto_list_item.dart';
-import '../../../producto/domain/repositories/precio_nivel_repository.dart';
+import '../../../producto/domain/services/precio_nivel_cache_service.dart';
 import '../../../venta/domain/entities/venta.dart';
 import '../../../venta/domain/entities/venta_detalle_input.dart';
 import '../../domain/repositories/venta_rapida_repository.dart';
@@ -29,7 +29,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
   final ObtenerClienteGenericoUseCase _obtenerClienteGenericoUseCase;
   final BuscarClientePorDniUseCase _buscarClientePorDniUseCase;
   final BuscarClientePorRucUseCase _buscarClientePorRucUseCase;
-  final PrecioNivelRepository _precioNivelRepository;
+  final PrecioNivelCacheService _nivelCacheService;
   final ComboRepository _comboRepository;
 
   VentaRapidaCubit(
@@ -37,13 +37,9 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     this._obtenerClienteGenericoUseCase,
     this._buscarClientePorDniUseCase,
     this._buscarClientePorRucUseCase,
-    this._precioNivelRepository,
+    this._nivelCacheService,
     this._comboRepository,
   ) : super(const VentaRapidaState());
-
-  /// Cache de niveles por (productoId | varianteId) para no re-pedirlos.
-  /// Una entrada vacía significa "ya consultado y no tiene niveles".
-  final Map<String, List<PrecioNivel>> _nivelesCache = {};
 
   /// Token monotónico de búsqueda de cliente. Se usa para descartar
   /// respuestas obsoletas: si el cajero busca DNI A, lo cancela y busca DNI B,
@@ -109,7 +105,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     }
 
     // Item nuevo: precio base inicialmente; los niveles se cargan async.
-    final nivelesEnCache = _nivelesCache[producto.id];
+    final nivelesEnCache = _nivelCacheService.peek(producto.id);
     final item = VentaDetalleInput(
       productoId: producto.id,
       descripcion: producto.nombre,
@@ -271,49 +267,30 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     ));
   }
 
-  /// Devuelve los niveles de precio del producto. Usa cache si existe,
-  /// si no, los pide al backend y los guarda. Útil para previsualizaciones
-  /// (e.g. bottom sheet de precios por mayor) sin gastar requests.
-  Future<List<PrecioNivel>> getNivelesProducto(String productoId) async {
-    final cacheado = _nivelesCache[productoId];
-    if (cacheado != null) return cacheado;
-    final result = await _precioNivelRepository.getPreciosNivelProducto(
-      productoId: productoId,
-    );
-    if (result is Success<List<PrecioNivel>>) {
-      _nivelesCache[productoId] = result.data;
-      return result.data;
-    }
-    return const [];
-  }
+  /// Devuelve los niveles de precio del producto. Delegada al
+  /// `PrecioNivelCacheService` compartido con el resto de la app.
+  Future<List<PrecioNivel>> getNivelesProducto(String productoId) =>
+      _nivelCacheService.getNiveles(productoId);
 
-  /// Carga niveles del producto desde backend y actualiza el item del carrito
-  /// recalculando precio. Si la respuesta llega después de cambios al carrito,
-  /// busca por productoId (no por índice) para no afectar items movidos.
+  /// Carga niveles del producto desde backend (vía cache compartido) y
+  /// actualiza el item del carrito recalculando precio. Si la respuesta
+  /// llega después de cambios al carrito, busca por productoId (no por
+  /// índice) para no afectar items movidos.
   Future<void> _cargarNivelesYActualizar(String productoId) async {
-    final result = await _precioNivelRepository.getPreciosNivelProducto(
-      productoId: productoId,
-    );
+    final niveles = await _nivelCacheService.getNiveles(productoId);
     if (isClosed) return;
-    if (result is Success<List<PrecioNivel>>) {
-      final niveles = result.data;
-      _nivelesCache[productoId] = niveles;
 
-      // Reaplicar a TODOS los items del carrito que coincidan con este productoId
-      // (puede haber sido recreado / sumado / decrementado mientras esperábamos).
-      final items = state.items;
-      final idx = items.indexWhere((i) => i.productoId == productoId);
-      if (idx < 0) return; // item ya no está en el carrito
-      final actualizado = items[idx]
-          .copyWith(niveles: niveles)
-          .recalcularPrecioPorNiveles(items[idx].cantidad);
-      final lista = [...items];
-      lista[idx] = actualizado;
-      emit(state.copyWith(items: lista));
-    } else {
-      // Error de red: registramos cache vacío para no reintentar en bucle.
-      _nivelesCache[productoId] = const [];
-    }
+    // Reaplicar a TODOS los items del carrito que coincidan con este productoId
+    // (puede haber sido recreado / sumado / decrementado mientras esperábamos).
+    final items = state.items;
+    final idx = items.indexWhere((i) => i.productoId == productoId);
+    if (idx < 0) return; // item ya no está en el carrito
+    final actualizado = items[idx]
+        .copyWith(niveles: niveles)
+        .recalcularPrecioPorNiveles(items[idx].cantidad);
+    final lista = [...items];
+    lista[idx] = actualizado;
+    emit(state.copyWith(items: lista));
   }
 
   String _mapTipoAfectacion(String tipo) {

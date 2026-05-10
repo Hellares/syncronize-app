@@ -13,6 +13,7 @@ import 'package:syncronize/core/widgets/date/custom_date.dart';
 import '../../domain/entities/precio_nivel.dart';
 import '../../domain/entities/producto_stock.dart';
 import '../../domain/repositories/precio_nivel_repository.dart';
+import '../../domain/services/precio_nivel_cache_service.dart';
 import 'precio_nivel_form_dialog.dart';
 import '../bloc/configurar_precios/configurar_precios_cubit.dart';
 import '../bloc/configurar_precios/configurar_precios_state.dart';
@@ -52,6 +53,7 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
 
   // ── Niveles de precio (PRECIO_FIJO + PORCENTAJE_DESCUENTO) ──
   late final PrecioNivelRepository _precioNivelRepo;
+  late final PrecioNivelCacheService _nivelCacheService;
   bool _cargandoNiveles = false;
   /// Todos los niveles activos del producto/variante. Los fijos se editan/
   /// agregan desde aquí; los porcentuales solo se visualizan/eliminan
@@ -96,6 +98,7 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
 
     // Cargar niveles de precio existentes (precio por mayor)
     _precioNivelRepo = locator<PrecioNivelRepository>();
+    _nivelCacheService = locator<PrecioNivelCacheService>();
     _cargarNivelesExistentes();
   }
 
@@ -833,6 +836,11 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
       return;
     }
 
+    // Invalida cache compartido para que VR/Cot Rápida re-fetch al
+    // próximo agregar de este producto.
+    final pid = widget.stock.productoId;
+    if (pid != null) _nivelCacheService.invalidate(pid);
+
     // Refrescar la lista de niveles desde el backend.
     await _cargarNivelesExistentes();
 
@@ -857,11 +865,13 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
     }
 
     final precioBase = _precioController.currencyValue;
+    final precioCosto = _precioCostoController.currencyValue;
 
     await showDialog<void>(
       context: context,
       builder: (ctx) => PrecioNivelFormDialog(
         precioBase: precioBase > 0 ? precioBase : null,
+        precioCosto: precioCosto > 0 ? precioCosto : null,
         nivelToEdit: nivelToEdit,
         nivelesExistentes: _nivelesExistentes,
         lockTipoPrecio: TipoPrecioNivel.precioFijo,
@@ -904,6 +914,8 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
               return;
             }
           }
+          // Invalida cache compartido tras crear/actualizar.
+          if (productoId != null) _nivelCacheService.invalidate(productoId);
           await _cargarNivelesExistentes();
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(

@@ -9,7 +9,7 @@ import '../../../cotizacion/domain/entities/cotizacion.dart';
 import '../../../cotizacion/domain/entities/cotizacion_detalle.dart';
 import '../../../producto/domain/entities/precio_nivel.dart';
 import '../../../producto/domain/entities/producto_list_item.dart';
-import '../../../producto/domain/repositories/precio_nivel_repository.dart';
+import '../../../producto/domain/services/precio_nivel_cache_service.dart';
 import '../../../venta/domain/entities/venta_detalle_input.dart';
 import '../../../venta_rapida/domain/repositories/venta_rapida_repository.dart';
 import '../../../venta_rapida/domain/usecases/buscar_cliente_por_dni_usecase.dart';
@@ -33,7 +33,7 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
   final ActualizarCotizacionRapidaUseCase _actualizarCotizacionUseCase;
   final BuscarClientePorDniUseCase _buscarClientePorDniUseCase;
   final BuscarClientePorRucUseCase _buscarClientePorRucUseCase;
-  final PrecioNivelRepository _precioNivelRepository;
+  final PrecioNivelCacheService _nivelCacheService;
   final ComboRepository _comboRepository;
 
   CotizacionRapidaCubit(
@@ -41,12 +41,9 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
     this._actualizarCotizacionUseCase,
     this._buscarClientePorDniUseCase,
     this._buscarClientePorRucUseCase,
-    this._precioNivelRepository,
+    this._nivelCacheService,
     this._comboRepository,
   ) : super(const CotizacionRapidaState());
-
-  /// Cache niveles de precio por productoId. Misma estrategia que VR.
-  final Map<String, List<PrecioNivel>> _nivelesCache = {};
 
   /// Token de búsqueda de cliente para descartar respuestas obsoletas.
   int _searchSeq = 0;
@@ -130,7 +127,7 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
       return;
     }
 
-    final nivelesEnCache = _nivelesCache[producto.id];
+    final nivelesEnCache = _nivelCacheService.peek(producto.id);
     final item = VentaDetalleInput(
       productoId: producto.id,
       descripcion: producto.nombre,
@@ -348,40 +345,21 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
 
   // ── Niveles de precio ──
 
-  Future<List<PrecioNivel>> getNivelesProducto(String productoId) async {
-    final cacheado = _nivelesCache[productoId];
-    if (cacheado != null) return cacheado;
-    final result = await _precioNivelRepository.getPreciosNivelProducto(
-      productoId: productoId,
-    );
-    if (result is Success<List<PrecioNivel>>) {
-      _nivelesCache[productoId] = result.data;
-      return result.data;
-    }
-    return const [];
-  }
+  Future<List<PrecioNivel>> getNivelesProducto(String productoId) =>
+      _nivelCacheService.getNiveles(productoId);
 
   Future<void> _cargarNivelesYActualizar(String productoId) async {
-    final result = await _precioNivelRepository.getPreciosNivelProducto(
-      productoId: productoId,
-    );
+    final niveles = await _nivelCacheService.getNiveles(productoId);
     if (isClosed) return;
-    if (result is Success<List<PrecioNivel>>) {
-      final niveles = result.data;
-      _nivelesCache[productoId] = niveles;
-
-      final items = state.items;
-      final idx = items.indexWhere((i) => i.productoId == productoId);
-      if (idx < 0) return;
-      final actualizado = items[idx]
-          .copyWith(niveles: niveles)
-          .recalcularPrecioPorNiveles(items[idx].cantidad);
-      final lista = [...items];
-      lista[idx] = actualizado;
-      emit(state.copyWith(items: lista));
-    } else {
-      _nivelesCache[productoId] = const [];
-    }
+    final items = state.items;
+    final idx = items.indexWhere((i) => i.productoId == productoId);
+    if (idx < 0) return;
+    final actualizado = items[idx]
+        .copyWith(niveles: niveles)
+        .recalcularPrecioPorNiveles(items[idx].cantidad);
+    final lista = [...items];
+    lista[idx] = actualizado;
+    emit(state.copyWith(items: lista));
   }
 
   String _mapTipoAfectacion(String tipo) {
