@@ -19,6 +19,10 @@ import '../../../../core/widgets/pagos_section_widget.dart'
 import '../../../auth/presentation/widgets/custom_text.dart';
 import '../bloc/venta_rapida_cubit.dart';
 
+/// Medio centavo: error máximo de redondeo a 2 decimales en PEN. Se usa para
+/// no mostrar "falta 0.00" o "vuelto 0.00" cuando la diferencia es residual.
+const double _kPenRoundingTolerance = 0.005;
+
 class VentaRapidaCobroPage extends StatelessWidget {
   const VentaRapidaCobroPage({super.key});
 
@@ -618,8 +622,8 @@ class _CobroViewState extends State<_CobroView> {
         final totalRecibido = _calcularTotalRecibido();
         final diferencia = totalRecibido - totalCobrar;
         // Tolerancia de medio centavo para no mostrar "falta 0.00" por redondeo.
-        final faltante = diferencia < -0.005 ? -diferencia : 0.0;
-        final vuelto = diferencia > 0.005 ? diferencia : 0.0;
+        final faltante = diferencia < -_kPenRoundingTolerance ? -diferencia : 0.0;
+        final vuelto = diferencia > _kPenRoundingTolerance ? diferencia : 0.0;
 
         return Scaffold(
           appBar: AppBar(
@@ -809,11 +813,16 @@ class _CobroViewState extends State<_CobroView> {
 
                 Row(
                   children: [
-                    Radio<bool>(
-                      value: true,
-                      groupValue: true,
-                      onChanged: (_) {},
-                      activeColor: AppColors.blue1,
+                    // Indicador visual fijo (Venta Rápida es siempre Contado);
+                    // antes era un Radio deshabilitado pero la API quedó
+                    // deprecada en Flutter 3.32 a favor de RadioGroup.
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      child: Icon(
+                        Icons.radio_button_checked,
+                        size: 20,
+                        color: AppColors.blue1,
+                      ),
                     ),
                     const Text('Contado', style: TextStyle(fontSize: 12)),
                     const Spacer(),

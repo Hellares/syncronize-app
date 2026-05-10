@@ -18,7 +18,10 @@ import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_e
 import '../../../configuracion_documentos/domain/entities/configuracion_documento_completa.dart';
 import '../../../configuracion_documentos/domain/entities/plantilla_documento.dart';
 import '../../../configuracion_documentos/domain/usecases/get_configuracion_completa_usecase.dart';
+import '../../../../core/widgets/snack_bar_helper.dart';
+import '../../../cotizacion_rapida/domain/usecases/actualizar_cotizacion_rapida_usecase.dart';
 import '../../domain/entities/cotizacion.dart';
+import '../../domain/entities/cotizacion_detalle.dart';
 import '../../domain/usecases/get_cotizacion_usecase.dart';
 import '../bloc/cotizacion_form/cotizacion_form_cubit.dart';
 import '../bloc/cotizacion_form/cotizacion_form_state.dart';
@@ -41,11 +44,111 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
   Cotizacion? _cotizacion;
   bool _loading = true;
   String? _error;
+  /// Index del item que se está quitando ahora mismo. Bloquea otros taps
+  /// y muestra spinner inline en su fila.
+  int? _quitandoIndex;
 
   @override
   void initState() {
     super.initState();
     _loadCotizacion();
+  }
+
+  bool get _esEditable =>
+      _cotizacion?.estado == EstadoCotizacion.borrador;
+
+  Future<void> _confirmarYQuitarItem(int index) async {
+    if (_quitandoIndex != null) return; // ya hay otro en proceso
+    final detalle = _cotizacion!.detalles![index];
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Quitar item'),
+        content: Text(
+            '¿Quitar "${detalle.descripcion}" de la cotización?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Quitar'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    await _quitarItem(index);
+  }
+
+  /// Quita el item del índice y vuelve a guardar la cotización vía PUT.
+  /// El backend solo acepta editar BORRADOR, así que validamos antes.
+  Future<void> _quitarItem(int index) async {
+    final detalles = _cotizacion?.detalles ?? [];
+    if (detalles.length <= 1) {
+      SnackBarHelper.showError(
+        context,
+        'No puedes dejar la cotización sin items. Elimínala mejor.',
+      );
+      return;
+    }
+
+    setState(() => _quitandoIndex = index);
+
+    final payloadDetalles = <Map<String, dynamic>>[];
+    for (var i = 0; i < detalles.length; i++) {
+      if (i == index) continue;
+      payloadDetalles.add(_detalleToPayload(detalles[i]));
+    }
+
+    final result = await locator<ActualizarCotizacionRapidaUseCase>()(
+      cotizacionId: widget.cotizacionId,
+      data: {'detalles': payloadDetalles},
+    );
+
+    if (!mounted) return;
+
+    if (result is Success<Cotizacion>) {
+      setState(() {
+        _cotizacion = result.data;
+        _quitandoIndex = null;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Item quitado'),
+          backgroundColor: Colors.green.shade600,
+          duration: const Duration(seconds: 1),
+        ),
+      );
+    } else if (result is Error<Cotizacion>) {
+      setState(() => _quitandoIndex = null);
+      SnackBarHelper.showError(context, result.message);
+    }
+  }
+
+  /// Reconstruye el payload para PUT a partir de un detalle persistido.
+  /// Detecta `precioIncluyeIgv` por aritmética: si subtotalBruto ≈ total
+  /// (sin ICBPER), el precio ya incluía IGV (item manual de cotización
+  /// rápida); si no, se le sumó IGV encima (item de catálogo).
+  Map<String, dynamic> _detalleToPayload(CotizacionDetalle d) {
+    final subtotalBruto = d.cantidad * d.precioUnitario - d.descuento;
+    final totalSinIcbper = d.total - d.icbper;
+    final incluyeIgv = (subtotalBruto - totalSinIcbper).abs() < 0.5;
+    return {
+      if (d.productoId != null) 'productoId': d.productoId,
+      if (d.varianteId != null) 'varianteId': d.varianteId,
+      if (d.servicioId != null) 'servicioId': d.servicioId,
+      'descripcion': d.descripcion,
+      'cantidad': d.cantidad,
+      'precioUnitario': d.precioUnitario,
+      if (d.descuento > 0) 'descuento': d.descuento,
+      'porcentajeIGV': d.porcentajeIGV,
+      'precioIncluyeIgv': incluyeIgv,
+      'tipoAfectacion': d.tipoAfectacion,
+      if (d.icbper > 0) 'icbper': d.icbper,
+    };
   }
 
   Future<void> _loadCotizacion() async {
@@ -335,85 +438,161 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
 
   Widget _buildItemsSection(Cotizacion cot) {
     final detalles = cot.detalles ?? [];
+    final mostrarAcciones = _esEditable;
 
-    return GradientContainer(
-      borderColor: AppColors.blueborder,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildSectionHeader(
-                Icons.shopping_cart_outlined, 'ITEMS (${detalles.length})'),
-            const SizedBox(height: 12),
-            ...detalles.asMap().entries.map((entry) {
-              final index = entry.key;
-              final d = entry.value;
-              return Column(
-                children: [
-                  if (index > 0)
-                    Divider(
-                        height: 16,
-                        color: AppColors.blueborder.withValues(alpha: 0.4)),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader(
+            Icons.shopping_cart_outlined, 'ITEMS (${detalles.length})'),
+        const SizedBox(height: 10),
+        Container(
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: AppColors.blueborder.withValues(alpha: 0.5),
+              width: 0.6,
+            ),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              // ── Header ──
+              Container(
+                color: AppColors.bluechip,
+                padding: const EdgeInsets.symmetric(
+                    vertical: 8, horizontal: 8),
+                child: Row(
+                  children: [
+                    const SizedBox(
+                      width: 26,
+                      child: Center(child: _Th('#')),
+                    ),
+                    const Expanded(flex: 5, child: _Th('PRODUCTO')),
+                    const Expanded(
+                        flex: 2, child: Center(child: _Th('CANT.'))),
+                    const Expanded(
+                        flex: 3,
+                        child: Align(
+                            alignment: Alignment.centerRight,
+                            child: _Th('P. UNIT.'))),
+                    const Expanded(
+                        flex: 3,
+                        child: Align(
+                            alignment: Alignment.centerRight,
+                            child: _Th('TOTAL'))),
+                    if (mostrarAcciones)
+                      const SizedBox(width: 32),
+                  ],
+                ),
+              ),
+              // ── Body ──
+              for (var i = 0; i < detalles.length; i++)
+                Container(
+                  color: i.isEven ? Colors.white : Colors.grey.shade50,
+                  padding: const EdgeInsets.symmetric(
+                      vertical: 4, horizontal: 8),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Container(
-                        width: 24,
-                        height: 24,
-                        decoration: BoxDecoration(
-                          color: AppColors.bluechip,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
+                      SizedBox(
+                        width: 26,
                         child: Center(
                           child: Text(
-                            '${index + 1}',
-                            style: const TextStyle(
+                            '${i + 1}',
+                            style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
+                              color: Colors.grey.shade700,
+                            ),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        flex: 5,
+                        child: Text(
+                          detalles[i].descripcion,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        flex: 2,
+                        child: Center(
+                          child: Text(
+                            _fmtCantidad(detalles[i].cantidad),
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        flex: 3,
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            detalles[i].precioUnitario.toStringAsFixed(2),
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        flex: 3,
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            detalles[i].total.toStringAsFixed(2),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
                               color: AppColors.blue1,
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              d.descripcion,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              '${d.cantidad} x ${cot.moneda} ${d.precioUnitario.toStringAsFixed(2)}',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey.shade600,
-                              ),
-                            ),
-                          ],
+                      if (mostrarAcciones)
+                        SizedBox(
+                          width: 32,
+                          child: _quitandoIndex == i
+                              ? const Center(
+                                  child: SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2),
+                                  ),
+                                )
+                              : IconButton(
+                                  onPressed: _quitandoIndex != null
+                                      ? null
+                                      : () => _confirmarYQuitarItem(i),
+                                  icon: Icon(Icons.close,
+                                      size: 16,
+                                      color: Colors.red.shade400),
+                                  tooltip: 'Quitar',
+                                  padding: EdgeInsets.zero,
+                                  visualDensity: VisualDensity.compact,
+                                  constraints: const BoxConstraints(
+                                      minWidth: 28, minHeight: 28),
+                                ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      AppSubtitle(
-                        '${cot.moneda} ${d.total.toStringAsFixed(2)}',
-                        fontSize: 12,
-                        color: AppColors.blue1,
-                      ),
                     ],
                   ),
-                ],
-              );
-            }),
-          ],
+                ),
+            ],
+          ),
         ),
-      ),
+      ],
     );
+  }
+
+  /// Cantidad sin decimales innecesarios (1, 2, 3 → "1", "2", "3";
+  /// 1.5 → "1.5"). Mantiene la tabla legible para enteros.
+  static String _fmtCantidad(num n) {
+    final d = n.toDouble();
+    if (d.truncateToDouble() == d) return d.toStringAsFixed(0);
+    return d.toStringAsFixed(2);
   }
 
   // ─── Totales ───
@@ -928,6 +1107,26 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
             child: const Text('Eliminar'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Header de columna para la tabla de items: uppercase compacto,
+/// tipografía bold y gris.
+class _Th extends StatelessWidget {
+  final String text;
+  const _Th(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: TextStyle(
+        fontSize: 10,
+        fontWeight: FontWeight.w700,
+        color: Colors.grey.shade800,
+        letterSpacing: 0.3,
       ),
     );
   }

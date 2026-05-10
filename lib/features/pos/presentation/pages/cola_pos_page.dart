@@ -30,9 +30,44 @@ class _ColaPosView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: SmartAppBar.withBackButton(
-        title: 'Cola POS',
-        onBack: () => context.pop(),
+      appBar: SmartAppBar(
+        backgroundColor: AppColors.blue1,
+        foregroundColor: Colors.white,
+        title: 'Cotizaciones por cobrar',
+        leftIcon: Icons.arrow_back_rounded,
+        onLeftTap: () => context.pop(),
+        actions: [
+          // Contador reactivo al state. Reemplaza la card del header
+          // que mostraba "N cotizaciones en cola".
+          BlocBuilder<ColaPosCubit, ColaPosState>(
+            builder: (context, state) {
+              final count = state is ColaPosLoaded
+                  ? state.cotizaciones.length
+                  : 0;
+              return Padding(
+                padding: const EdgeInsets.only(right: 10),
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '$count',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.blue1,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: GradientBackground(
         child: BlocBuilder<ColaPosCubit, ColaPosState>(
@@ -79,61 +114,17 @@ class _ColaPosView extends StatelessWidget {
 
               return RefreshIndicator(
                 onRefresh: () => context.read<ColaPosCubit>().refresh(),
-                child: Column(
-                  children: [
-                    // Header con contador
-                    Container(
-                      margin: const EdgeInsets.all(14),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [AppColors.blue1, AppColors.blue1.withValues(alpha: 0.8)],
-                        ),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.point_of_sale, color: Colors.white, size: 24),
-                          const SizedBox(width: 12),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('Cotizaciones en cola',
-                                  style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
-                              Text('${state.cotizaciones.length} pendientes de cobro',
-                                  style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 11)),
-                            ],
-                          ),
-                          const Spacer(),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              '${state.cotizaciones.length}',
-                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.blue1),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // Lista
-                    Expanded(
-                      child: ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: state.cotizaciones.length,
-                        itemBuilder: (context, index) {
-                          return _CotizacionPOSCard(
-                            cotizacion: state.cotizaciones[index],
-                            posicion: index + 1,
-                          );
-                        },
-                      ),
-                    ),
-                  ],
+                // Card de header eliminada: el título "Cotizaciones por
+                // cobrar" y el contador viven ahora en el SmartAppBar.
+                child: ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(8, 12, 8, 12),
+                  itemCount: state.cotizaciones.length,
+                  itemBuilder: (context, index) {
+                    return _CotizacionPOSCard(
+                      cotizacion: state.cotizaciones[index],
+                      posicion: index + 1,
+                    );
+                  },
                 ),
               );
             }

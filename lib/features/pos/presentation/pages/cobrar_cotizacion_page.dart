@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
-import 'package:syncronize/core/widgets/custom_button.dart';
 import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/services/storage_service.dart';
@@ -14,13 +13,13 @@ import '../../domain/usecases/cargar_datos_cobro_usecase.dart';
 import '../../domain/usecases/cobrar_cotizacion_usecase.dart';
 import '../../../venta/domain/entities/venta.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_gradients.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/theme/gradient_container.dart';
 import '../../../../core/widgets/comprobante_condicion_card.dart';
 import '../../../../core/utils/caja_guard.dart';
 import '../../../../core/widgets/currency/currency_formatter.dart';
-import '../../../../core/widgets/pagos_section_widget.dart';
+import '../../../../core/widgets/numpad/numpad_controller.dart';
+import '../../../../core/widgets/numpad/pos_numpad.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../../../core/widgets/snack_bar_helper.dart';
 import '../../../cotizacion/domain/entities/cotizacion_detalle_input.dart';
@@ -50,32 +49,90 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
   // Pagos múltiples
   final List<Map<String, dynamic>> _pagos = [];
   String _metodoActual = 'EFECTIVO';
-  String _monedaActual = 'PEN'; // PEN o USD
-  double? _tipoCambioVenta; // tipo de cambio venta del día
+  // ignore: unused_field
+  String _monedaActual = 'PEN'; // mantenido por compatibilidad con dataset
+  // ignore: unused_field
+  double? _tipoCambioVenta;
   final _montoAgregarController = TextEditingController();
   final _referenciaAgregarController = TextEditingController();
   final _referenciaController = TextEditingController();
   final _observacionesController = TextEditingController();
 
+  // Numpad para captura rápida del monto recibido. El controller refleja
+  // su valor en `_montoAgregarController` para no cambiar el resto de la
+  // lógica que ya lo lee.
+  late final NumpadController _numpadController;
+
   // Comprobante
   String _tipoComprobante = 'BOLETA';
-  String _condicionPago = 'CONTADO';
+  // Cobro de cotización-a-venta siempre es CONTADO (el crédito vive en
+  // otro flujo). Lo dejamos como `final` y ocultamos el selector.
+  final String _condicionPago = 'CONTADO';
   final _plazoCreditoController = TextEditingController();
   final int _numeroCuotas = 1;
 
   // Firma
   Uint8List? _firmaBytes;
 
+  /// Métodos digitales que normalmente requieren un N° de operación.
+  /// Para no demorar al cajero, precargamos '000' como placeholder
+  /// editable. Si el cajero quiere el real, lo escribe; si no, queda '000'.
+  static const _metodosDigitales = {
+    'YAPE',
+    'PLIN',
+    'TARJETA',
+    'TRANSFERENCIA',
+  };
+
+  /// Si el método actual exige referencia y el campo está vacío,
+  /// precarga '000'. Idempotente: respeta lo que ya tipeó el cajero.
+  void _precargarReferenciaSiAplica() {
+    if (_metodosDigitales.contains(_metodoActual) &&
+        _referenciaAgregarController.text.trim().isEmpty) {
+      _referenciaAgregarController.text = '000';
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     _verificarCaja();
     _loadCotizacion();
-    _montoAgregarController.addListener(() => setState(() {}));
+    _numpadController = NumpadController(
+      textController: _montoAgregarController,
+    );
+    _montoAgregarController.addListener(_onMontoChanged);
+    _precargarReferenciaSiAplica();
+  }
+
+  /// Listener del monto del numpad. Hace dos cosas:
+  /// 1. Rebuild para refrescar display recibido/vuelto y habilitar COBRAR.
+  /// 2. Si el monto tipeado lleva el recibido a coincidir EXACTAMENTE con
+  ///    el total (no excede), auto-agrega el pago a la lista. Así el
+  ///    cajero ve el último método antes de procesar, sin tener que tocar
+  ///    "Agregar pago" o "Exacto". Si excede el total (cajero quiere dar
+  ///    vuelto en efectivo), NO auto-agrega — eso queda al COBRAR.
+  void _onMontoChanged() {
+    if (!mounted) return;
+    setState(() {});
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final monto = _numpadController.value;
+      if (monto <= 0) return;
+      final recibidoTotal = _totalPagado + monto;
+      // Cubre exacto el total (±0.005): auto-agregar.
+      if ((recibidoTotal - _total).abs() <= 0.005) {
+        _agregarPago();
+        _numpadController.clear();
+        _referenciaAgregarController.clear();
+        _precargarReferenciaSiAplica();
+      }
+    });
   }
 
   @override
   void dispose() {
+    _numpadController.dispose();
     _montoAgregarController.dispose();
     _referenciaAgregarController.dispose();
     _referenciaController.dispose();
@@ -574,16 +631,56 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
 
   @override
   Widget build(BuildContext context) {
-    final botonLabel = _isProcessing
-        ? 'Procesando...'
-        : _cotizacion?['estado'] == 'PENDIENTE'
-            ? 'Aprobar y Cobrar S/ ${_total.toStringAsFixed(2)}'
-            : 'Cobrar S/ ${_total.toStringAsFixed(2)}';
+    // Código + total se muestran en el SmartAppBar; ahorra una card al inicio.
+    // Si la cotización aún está PENDIENTE, mostramos un banner ámbar delgado
+    // dentro del body avisando que se aprobará al cobrar.
+    final codigo = _cotizacion?['codigo']?.toString() ?? '';
+    final esPendiente = _cotizacion?['estado'] == 'PENDIENTE';
+    final tituloAppBar = _isLoading || codigo.isEmpty
+        ? 'Cobrar'
+        : '$codigo  ·  S/ ${_total.toStringAsFixed(2)}';
 
     return Scaffold(
-      appBar: SmartAppBar.withBackButton(
-        title: 'Cobrar',
-        onBack: () => context.pop(),
+      appBar: SmartAppBar(
+        title: tituloAppBar,
+        leftIcon: Icons.arrow_back_rounded,
+        onLeftTap: () => context.pop(),
+        actions: [
+          // Acceso rápido a firma del cliente. Tap abre el bottom sheet
+          // de captura. Si ya hay firma, muestra un badge verde con check
+          // y long-press limpia. Reemplaza la card "Firma del cliente"
+          // que vivía en el body.
+          IconButton(
+            tooltip: _firmaBytes != null
+                ? 'Firma capturada (toca para reemplazar)'
+                : 'Capturar firma del cliente',
+            onPressed: _capturarFirma,
+            onLongPress: _firmaBytes != null
+                ? () => setState(() => _firmaBytes = null)
+                : null,
+            icon: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                const Icon(Icons.draw_outlined, size: 18,),
+                if (_firmaBytes != null)
+                  Positioned(
+                    right: -3,
+                    top: -3,
+                    child: Container(
+                      padding: const EdgeInsets.all(1),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade500,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 1),
+                      ),
+                      child: const Icon(Icons.check,
+                          size: 8, color: Colors.white),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
       ),
       body: GradientBackground(
         child: _isLoading
@@ -593,75 +690,73 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
                 : ListView(
                     padding: const EdgeInsets.all(10),
                     children: [
-                      // Código cotización
-                      GradientContainer(
-                        borderColor: AppColors.blue1,
-                        shadowStyle: ShadowStyle.colorful,
-                        padding: const EdgeInsets.all(10),
-                        child: Row(
-                          children: [
-                            Icon(Icons.receipt_long, color: AppColors.blue1, size: 20),
-                            const SizedBox(width: 10),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(_cotizacion?['codigo']?.toString() ?? '',
-                                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
-                                Text(
-                                    _cotizacion?['estado'] == 'PENDIENTE'
-                                        ? 'Cotizacion pendiente - se aprobara al cobrar'
-                                        : 'Cotizacion aprobada',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: _cotizacion?['estado'] == 'PENDIENTE'
-                                          ? Colors.amber[700]
-                                          : Colors.grey[500],
-                                    )),
-                              ],
-                            ),
-                            const Spacer(),
-                            Text('S/ ${_total.toStringAsFixed(2)}',
-                                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.blue1)),
-                          ],
+                      if (esPendiente) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.shade50,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                                color: Colors.amber.shade300, width: 0.6),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.pending_outlined,
+                                  size: 14, color: Colors.amber.shade800),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  'Cotización pendiente — se aprobará al cobrar.',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.amber.shade900,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 12),
+                        const SizedBox(height: 10),
+                      ],
 
-                      // Cliente
+                      // Cliente + Productos en una sola card unificada
+                      // (datos del cliente arriba, divider, lista de items
+                      // abajo). Reduce ruido visual al cobrar.
                       GradientContainer(
                         borderColor: AppColors.blueborder,
                         padding: const EdgeInsets.all(10),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            // ── Cliente ──
                             Row(
                               children: [
-                                Icon(Icons.person, size: 16, color: AppColors.blue1),
+                                Icon(Icons.person,
+                                    size: 16, color: AppColors.blue1),
                                 const SizedBox(width: 6),
-                                AppSubtitle(
-                                  'Cliente',
-                                  color: AppColors.blue1,
-                                ),
+                                AppSubtitle('Cliente',
+                                    color: AppColors.blue1),
                               ],
                             ),
                             const SizedBox(height: 8),
-                            _infoRow('Nombre', _cotizacion?['nombreCliente']?.toString() ?? 'Sin cliente'),
+                            _infoRow(
+                                'Nombre',
+                                _cotizacion?['nombreCliente']?.toString() ??
+                                    'Sin cliente'),
                             if (_cotizacion?['documentoCliente'] != null)
-                              _infoRow('Documento', _cotizacion!['documentoCliente'].toString()),
+                              _infoRow(
+                                  'Documento',
+                                  _cotizacion!['documentoCliente']
+                                      .toString()),
                             if (_cotizacion?['telefonoCliente'] != null)
-                              _infoRow('Teléfono', _cotizacion!['telefonoCliente'].toString()),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Items
-                      GradientContainer(
-                        borderColor: AppColors.blueborder,
-                        padding: const EdgeInsets.all(10),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
+                              _infoRow(
+                                  'Teléfono',
+                                  _cotizacion!['telefonoCliente']
+                                      .toString()),
+                            const Divider(height: 18),
+                            // ── Productos ──
                             Row(
                               children: [
                                 Icon(Icons.shopping_cart, size: 16, color: AppColors.blue1),
@@ -690,74 +785,69 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
                                 ),
                               ],
                             ),
-                            const Divider(height: 12),
-                            ..._items.asMap().entries.map((entry) {
-                              final i = entry.key;
-                              final item = entry.value;
-                              final nombre = item['descripcion']?.toString() ??
-                                  (item['producto'] as Map?)?['nombre']?.toString() ?? 'Producto';
-                              final cantidad = _toDouble(item['cantidad']);
-                              final precio = _toDouble(item['precioUnitario']);
-                              final subtotal = cantidad * precio;
-
-                              return Padding(
-                                padding: const EdgeInsets.only(bottom: 8),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Container(
-                                      width: 24, height: 24,
-                                      decoration: BoxDecoration(
-                                        color: AppColors.blue1.withValues(alpha: 0.1),
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: Center(child: Text('${cantidad.toInt()}',
-                                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.blue1))),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            children: [
-                                              Expanded(
-                                                child: Text(nombre, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-                                                    maxLines: 2, overflow: TextOverflow.ellipsis),
-                                              ),
-                                              if (_items.length > 1 && !_items.every((it) => _toDouble(it['porcentajeIGV']) == _toDouble(_items.first['porcentajeIGV'])))
-                                                Container(
-                                                  margin: const EdgeInsets.only(left: 4),
-                                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                                                  decoration: BoxDecoration(
-                                                    color: Colors.orange.shade50,
-                                                    borderRadius: BorderRadius.circular(3),
-                                                    border: Border.all(color: Colors.orange.shade300, width: 0.5),
-                                                  ),
-                                                  child: Text(
-                                                    'IGV ${_toDouble(item['porcentajeIGV']).toStringAsFixed(0)}%',
-                                                    style: TextStyle(fontSize: 8, fontWeight: FontWeight.w600, color: Colors.orange.shade700),
-                                                  ),
-                                                ),
-                                            ],
-                                          ),
-                                          Text('S/ ${precio.toStringAsFixed(2)} c/u',
-                                              style: TextStyle(fontSize: 10, color: Colors.grey[500])),
-                                        ],
-                                      ),
-                                    ),
-                                    Text('S/ ${subtotal.toStringAsFixed(2)}',
-                                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                                    const SizedBox(width: 4),
-                                    GestureDetector(
-                                      onTap: () => _removeItem(i),
-                                      child: Icon(Icons.close, size: 16, color: Colors.red[300]),
-                                    ),
-                                  ],
+                            const SizedBox(height: 8),
+                            // Tabla tipo Excel (mismo patrón que el detalle
+                            // de cotización): header bluechip + zebra
+                            // striping en el body. Última columna es la
+                            // acción ✕ para quitar el item.
+                            Container(
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: AppColors.blueborder
+                                      .withValues(alpha: 0.5),
+                                  width: 0.6,
                                 ),
-                              );
-                            }),
-                            const Divider(height: 16),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              clipBehavior: Clip.antiAlias,
+                              child: Column(
+                                children: [
+                                  // Header
+                                  Container(
+                                    color: AppColors.bluechip,
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 8, horizontal: 8),
+                                    child: const Row(
+                                      children: [
+                                        SizedBox(
+                                            width: 26,
+                                            child:
+                                                Center(child: _ThItem('#'))),
+                                        Expanded(
+                                            flex: 5,
+                                            child: _ThItem('PRODUCTO')),
+                                        Expanded(
+                                            flex: 2,
+                                            child: Center(
+                                                child: _ThItem('CANT.'))),
+                                        Expanded(
+                                            flex: 3,
+                                            child: Align(
+                                                alignment:
+                                                    Alignment.centerRight,
+                                                child:
+                                                    _ThItem('P. UNIT.'))),
+                                        Expanded(
+                                            flex: 3,
+                                            child: Align(
+                                                alignment:
+                                                    Alignment.centerRight,
+                                                child: _ThItem('TOTAL'))),
+                                        SizedBox(width: 28),
+                                      ],
+                                    ),
+                                  ),
+                                  // Body
+                                  for (var i = 0; i < _items.length; i++)
+                                    _ItemTablaRow(
+                                      index: i,
+                                      item: _items[i],
+                                      onRemove: () => _removeItem(i),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 12),
                             _resumenRow('Subtotal', _subtotal),
                             if (_impuestos > 0)
                               _resumenRow(
@@ -782,142 +872,119 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
 
                       ComprobanteCondicionCard(
                         tipoComprobante: _tipoComprobante,
-                        onComprobanteChanged: (v) => setState(() => _tipoComprobante = v),
+                        onComprobanteChanged: (v) =>
+                            setState(() => _tipoComprobante = v),
                         condicionPago: _condicionPago,
-                        onCondicionChanged: (v) => setState(() {
-                          _condicionPago = v;
-                          if (v == 'CREDITO') _pagos.clear();
-                        }),
+                        // En el cobro de cotización-a-venta siempre es CONTADO,
+                        // así que ocultamos el selector. El crédito se gestiona
+                        // desde otra pantalla (factura con plazo).
+                        onCondicionChanged: (_) {},
                         showMixto: false,
+                        showCondicionPago: false,
                       ),
                       const SizedBox(height: 12),
 
-                      if (_condicionPago != 'CREDITO') ...[
-                        PagosSectionWidget(
-                          pagos: _pagos,
-                          metodoActual: _metodoActual,
-                          onMetodoChanged: (v) => setState(() => _metodoActual = v),
-                          monedaActual: _monedaActual,
-                          onMonedaChanged: (v) => setState(() => _monedaActual = v),
-                          tipoCambioVenta: _tipoCambioVenta,
-                          saldoPendiente: _saldoPendiente,
-                          totalPagado: _totalPagado,
-                          montoController: _montoAgregarController,
-                          referenciaController: _referenciaAgregarController,
-                          onAgregarPago: _agregarPago,
-                          onRemoverPago: _removerPago,
-                        ),
-                        const SizedBox(height: 12),
-                      ],
-
-                      // Referencia y observaciones
-                      GradientContainer(
-                        borderColor: AppColors.blueborder,
-                        padding: const EdgeInsets.all(10),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(Icons.note_alt, size: 16, color: AppColors.blue1),
-                                const SizedBox(width: 6),
-                                AppSubtitle(
-                                  'Datos adicionales',
-                                  color: AppColors.blue1,
-                                ),  
-                              ],
-                            ),
-                            const SizedBox(height: 10),
-                            CustomText(
-                              controller: _referenciaController,
-                              borderColor: AppColors.blue1,
-                              label: 'Referencia de pago',
-                              hintText: 'N° operación, voucher, etc.',
-                            ),
-                            const SizedBox(height: 10),
-                            CustomText(
-                              controller: _observacionesController,
-                              borderColor: AppColors.blue1,
-                              label: 'Observaciones',
-                              hintText: 'Notas adicionales...',
-                              maxLines: 2,
-                            ),
-                          ],
-                        ),
+                      _PagoMetodoCard(
+                        total: _total,
+                        totalPagado: _totalPagado,
+                        metodoActual: _metodoActual,
+                        onMetodoChanged: (v) {
+                          setState(() => _metodoActual = v);
+                          // Si el nuevo método exige referencia y el
+                          // campo está vacío (caso típico al pasar de
+                          // EFECTIVO → YAPE), precargamos '000'.
+                          _precargarReferenciaSiAplica();
+                        },
+                        pagos: _pagos,
+                        onRemoverPago: _removerPago,
+                        numpadController: _numpadController,
+                        montoController: _montoAgregarController,
+                        referenciaController: _referenciaAgregarController,
+                        onAgregarPago: () {
+                          _agregarPago();
+                          _numpadController.clear();
+                          _referenciaAgregarController.clear();
+                          _precargarReferenciaSiAplica();
+                        },
                       ),
-
-                      // Firma del cliente
                       const SizedBox(height: 12),
-                      GradientContainer(
-                        borderColor: _firmaBytes != null ? AppColors.blue1 : AppColors.blueborder,
-                        padding: const EdgeInsets.all(10),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(Icons.draw_outlined, size: 16, color: AppColors.blue1),
-                                const SizedBox(width: 6),
-                                // const Text('Firma del cliente', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                                AppSubtitle(
-                                  'Firma del cliente',
-                                  color: AppColors.blue1,
-                                ),
-                                const Spacer(),
-                                if (_firmaBytes != null)
-                                  GestureDetector(
-                                    onTap: () => setState(() => _firmaBytes = null),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: Colors.red.shade50,
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(Icons.refresh, size: 12, color: Colors.red.shade400),
-                                          const SizedBox(width: 4),
-                                          Text('Limpiar', style: TextStyle(fontSize: 10, color: Colors.red.shade400, fontWeight: FontWeight.w600)),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                            const SizedBox(height: 10),
-                            if (_firmaBytes != null)
-                              Container(
-                                width: double.infinity,
-                                height: 100,
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: AppColors.blueborder),
-                                ),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(7),
-                                  child: Image.memory(_firmaBytes!, fit: BoxFit.contain),
-                                ),
-                              )
-                            else
-                              SizedBox(
-                                width: double.infinity,
-                                child: OutlinedButton.icon(
-                                  onPressed: _capturarFirma,
-                                  icon: const Icon(Icons.draw_outlined, size: 16),
-                                  label: const Text('Capturar firma'),
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: AppColors.blue1,
-                                    side: BorderSide(color: AppColors.blue1.withValues(alpha: 0.3)),
-                                    padding: const EdgeInsets.symmetric(vertical: 12),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
+
+                      // Card "Datos adicionales" (referencia general +
+                      // observaciones) ocultada por solicitud del usuario:
+                      // la referencia ya se captura por línea de pago, y las
+                      // observaciones rara vez se usan en cobro de cotización.
+                      // Si más adelante se necesita, reactivar este bloque.
+                      // GradientContainer(
+                      //   borderColor: AppColors.blueborder,
+                      //   padding: const EdgeInsets.all(10),
+                      //   child: Column(
+                      //     crossAxisAlignment: CrossAxisAlignment.start,
+                      //     children: [
+                      //       Row(
+                      //         children: [
+                      //           Icon(Icons.note_alt,
+                      //               size: 16, color: AppColors.blue1),
+                      //           const SizedBox(width: 6),
+                      //           AppSubtitle('Datos adicionales',
+                      //               color: AppColors.blue1),
+                      //         ],
+                      //       ),
+                      //       const SizedBox(height: 10),
+                      //       CustomText(
+                      //         controller: _referenciaController,
+                      //         borderColor: AppColors.blue1,
+                      //         label: 'Referencia de pago',
+                      //         hintText: 'N° operación, voucher, etc.',
+                      //       ),
+                      //       const SizedBox(height: 10),
+                      //       CustomText(
+                      //         controller: _observacionesController,
+                      //         borderColor: AppColors.blue1,
+                      //         label: 'Observaciones',
+                      //         hintText: 'Notas adicionales...',
+                      //         maxLines: 2,
+                      //       ),
+                      //     ],
+                      //   ),
+                      // ),
+
+                      // Card "Firma del cliente" trasladada al SmartAppBar:
+                      // ahora el cajero captura/limpia la firma desde el
+                      // icono ✏️ del header. La lógica de captura/upload
+                      // (`_capturarFirma`, `_subirFirma`, `_firmaBytes`)
+                      // sigue intacta.
+                      // const SizedBox(height: 12),
+                      // GradientContainer(
+                      //   borderColor: _firmaBytes != null
+                      //       ? AppColors.blue1
+                      //       : AppColors.blueborder,
+                      //   padding: const EdgeInsets.all(10),
+                      //   child: Column(
+                      //     crossAxisAlignment: CrossAxisAlignment.start,
+                      //     children: [
+                      //       Row(children: [
+                      //         Icon(Icons.draw_outlined,
+                      //             size: 16, color: AppColors.blue1),
+                      //         const SizedBox(width: 6),
+                      //         AppSubtitle('Firma del cliente',
+                      //             color: AppColors.blue1),
+                      //         const Spacer(),
+                      //         if (_firmaBytes != null)
+                      //           GestureDetector(
+                      //             onTap: () =>
+                      //                 setState(() => _firmaBytes = null),
+                      //             child: Container(...),
+                      //           ),
+                      //       ]),
+                      //       if (_firmaBytes != null) ...preview...
+                      //       else OutlinedButton.icon(
+                      //         onPressed: _capturarFirma,
+                      //         icon: Icon(Icons.draw_outlined),
+                      //         label: Text('Capturar firma'),
+                      //       ),
+                      //     ],
+                      //   ),
+                      // ),
 
                       // Vuelto (si aplica)
                       if (_totalPagado > _total + 0.01) ...[
@@ -941,38 +1008,34 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
                     ],
                   ),
       ),
-      bottomNavigationBar: Container(
-        padding: EdgeInsets.only(
-          left: 16,
-          right: 16,
-          top: 10,
-          bottom: MediaQuery.of(context).padding.bottom + 10,
-        ),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
-              blurRadius: 8,
-              offset: const Offset(0, -2),
+      // Solo el PosNumpad (digit grid + acciones) pegado al final.
+      // La sección de chips de método + display recibido/vuelto queda
+      // arriba dentro del scroll para no saturar el bottomNavigationBar.
+      bottomNavigationBar: _isLoading || _error != null
+          ? null
+          : SafeArea(
+              top: false,
+              child: _NumpadCobrarBar(
+                total: _total,
+                totalPagado: _totalPagado,
+                saldoPendiente: _saldoPendiente,
+                numpadController: _numpadController,
+                onExacto: () =>
+                    _numpadController.setValue(_saldoPendiente),
+                onCobrar: _isProcessing
+                    ? null
+                    : () {
+                        if (_numpadController.value > 0) {
+                          _agregarPago();
+                          _numpadController.clear();
+                          _referenciaAgregarController.clear();
+                          _precargarReferenciaSiAplica();
+                        }
+                        _procesarVenta();
+                      },
+                isProcessing: _isProcessing,
+              ),
             ),
-          ],
-        ),
-        child: SizedBox(
-          width: double.infinity,
-          height: 35,
-          child: CustomButton(
-            onPressed: _isProcessing ? null : _procesarVenta,
-            text: botonLabel,
-            icon: _isProcessing ? const SizedBox(width: 18, height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                : const Icon(Icons.point_of_sale, size: 18),
-            backgroundColor: Colors.green[600],
-            iconColor: Colors.white,
-
-          ),
-        ),
-      ),
     );
   }
 
@@ -1002,4 +1065,527 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
     );
   }
 
+}
+
+/// Tarjeta superior con chips de método + display recibido/vuelto + lista
+/// de pagos múltiples. Vive en el scroll porque se ve poco cuando el cobro
+/// es simple y no es necesario que esté sticky.
+///
+/// El numpad real (digit grid + acciones) vive en `_NumpadCobrarBar` y
+/// está pegado al fondo de la pantalla.
+class _PagoMetodoCard extends StatelessWidget {
+  final double total;
+  final double totalPagado;
+  final String metodoActual;
+  final ValueChanged<String> onMetodoChanged;
+  final List<Map<String, dynamic>> pagos;
+  final ValueChanged<int> onRemoverPago;
+  final NumpadController numpadController;
+  final TextEditingController montoController;
+  final TextEditingController referenciaController;
+  final VoidCallback onAgregarPago;
+
+  const _PagoMetodoCard({
+    required this.total,
+    required this.totalPagado,
+    required this.metodoActual,
+    required this.onMetodoChanged,
+    required this.pagos,
+    required this.onRemoverPago,
+    required this.numpadController,
+    required this.montoController,
+    required this.referenciaController,
+    required this.onAgregarPago,
+  });
+
+  static const _metodos = [
+    ('EFECTIVO', 'Efectivo', Icons.payments_outlined),
+    ('YAPE', 'Yape', Icons.qr_code_scanner_outlined),
+    ('TARJETA', 'Tarjeta', Icons.credit_card_outlined),
+    ('PLIN', 'Plin', Icons.qr_code_2_outlined),
+    ('TRANSFERENCIA', 'Transf.', Icons.account_balance_outlined),
+  ];
+
+  /// Métodos digitales que requieren un N° de operación / voucher / etc.
+  static bool _requiereReferencia(String metodo) =>
+      metodo == 'YAPE' ||
+      metodo == 'PLIN' ||
+      metodo == 'TARJETA' ||
+      metodo == 'TRANSFERENCIA';
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: numpadController,
+      builder: (_, __) {
+        final montoActual = numpadController.value;
+        final recibidoTotal = totalPagado + montoActual;
+        final faltante = (total - recibidoTotal).clamp(0, double.infinity);
+        final vuelto = (recibidoTotal - total).clamp(0, double.infinity);
+
+        return GradientContainer(
+          borderColor: AppColors.blueborder,
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              AppSubtitle('Método de Pago', color: AppColors.blue1),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 36,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _metodos.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 6),
+                  itemBuilder: (_, i) {
+                    final (value, label, icon) = _metodos[i];
+                    final selected = metodoActual == value;
+                    return GestureDetector(
+                      onTap: () => onMetodoChanged(value),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: selected ? AppColors.blue1 : Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: selected
+                                ? AppColors.blue1
+                                : Colors.grey.shade300,
+                            width: selected ? 1.5 : 0.6,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(icon,
+                                size: 14,
+                                color: selected
+                                    ? Colors.white
+                                    : Colors.grey.shade700),
+                            const SizedBox(width: 6),
+                            Text(
+                              label,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: selected
+                                    ? Colors.white
+                                    : Colors.grey.shade800,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // Display recibido / vuelto / faltante
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                      color: AppColors.blueborder, width: 0.6),
+                ),
+                child: Column(
+                  children: [
+                    _DisplayRow(
+                      label: 'Total',
+                      value: 'S/ ${total.toStringAsFixed(2)}',
+                      strong: true,
+                    ),
+                    const SizedBox(height: 2),
+                    _DisplayRow(
+                      label: 'Recibido',
+                      value: 'S/ ${recibidoTotal.toStringAsFixed(2)}',
+                      color: AppColors.blue1,
+                    ),
+                    const SizedBox(height: 2),
+                    if (vuelto > 0.005)
+                      _DisplayRow(
+                        label: 'Vuelto',
+                        value: 'S/ ${vuelto.toStringAsFixed(2)}',
+                        color: Colors.green.shade700,
+                      )
+                    else
+                      _DisplayRow(
+                        label: 'Faltante',
+                        value: 'S/ ${faltante.toStringAsFixed(2)}',
+                        color: faltante > 0.005
+                            ? Colors.red.shade600
+                            : Colors.grey.shade500,
+                      ),
+                  ],
+                ),
+              ),
+
+              // ── Inputs de Monto y Referencia + botón Agregar ──
+              // Mostramos los inputs solo cuando todavía falta monto por
+              // cubrir, contando también lo que está tipeado en el numpad.
+              // Al tocar "Exacto" el numpad se setea al saldo, recibidoTotal
+              // cubre el total y los inputs/botón se ocultan. Si el cajero
+              // quita un pago, vuelve a faltar y reaparecen.
+              if ((total - recibidoTotal) > 0.005) ...[
+                const SizedBox(height: 10),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: _requiereReferencia(metodoActual) ? 5 : 11,
+                      child: CustomText(
+                        controller: montoController,
+                        label: 'Monto',
+                        hintText: '0.00',
+                        borderColor: AppColors.blue1,
+                        readOnly: true,
+                        fieldType: FieldType.text,
+                        prefixText: 'S/ ',
+                      ),
+                    ),
+                    if (_requiereReferencia(metodoActual)) ...[
+                      const SizedBox(width: 8),
+                      Expanded(
+                        flex: 6,
+                        child: CustomText(
+                          controller: referenciaController,
+                          label: 'Referencia / N° op.',
+                          hintText: 'Ej. 8XYZ12',
+                          borderColor: AppColors.blue1,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: montoActual > 0 ? onAgregarPago : null,
+                    icon: const Icon(Icons.add_card, size: 16),
+                    label: Text(
+                      pagos.isEmpty
+                          ? 'Agregar pago'
+                          : 'Agregar otro pago',
+                      style: const TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w600),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.blue1,
+                      side: BorderSide(
+                          color: montoActual > 0
+                              ? AppColors.blue1
+                              : Colors.grey.shade300),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                  ),
+                ),
+              ] else ...[
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Icon(Icons.check_circle,
+                        size: 12, color: Colors.green.shade700),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Total cubierto. Toca COBRAR para procesar.',
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.green.shade700,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+
+              // Lista de pagos ya agregados (MIXTO)
+              if (pagos.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                AppSubtitle('Pagos registrados',
+                    color: AppColors.blue1, fontSize: 11),
+                const SizedBox(height: 6),
+                ...pagos.asMap().entries.map((entry) {
+                  final i = entry.key;
+                  final p = entry.value;
+                  final ref = (p['referencia'] as String?) ?? '';
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 4),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AppColors.bluechip,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.check_circle,
+                            size: 14, color: Colors.green.shade700),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${p['metodo']} · S/ ${(p['monto'] as num).toDouble().toStringAsFixed(2)}',
+                                style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600),
+                              ),
+                              if (ref.isNotEmpty)
+                                Text(
+                                  'Ref: $ref',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        InkWell(
+                          onTap: () => onRemoverPago(i),
+                          borderRadius: BorderRadius.circular(12),
+                          child: Padding(
+                            padding: const EdgeInsets.all(2),
+                            child: Icon(Icons.close,
+                                size: 14, color: Colors.red.shade400),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Numpad pegado al fondo: digit grid + chips quick amounts + acciones
+/// (Exacto / Otro método / COBRAR). Reactivo al `numpadController` para
+/// habilitar el COBRAR cuando el monto cubre el total.
+class _NumpadCobrarBar extends StatelessWidget {
+  final double total;
+  final double totalPagado;
+  final double saldoPendiente;
+  final NumpadController numpadController;
+  final VoidCallback onExacto;
+  final VoidCallback? onCobrar;
+  final bool isProcessing;
+
+  const _NumpadCobrarBar({
+    required this.total,
+    required this.totalPagado,
+    required this.saldoPendiente,
+    required this.numpadController,
+    required this.onExacto,
+    required this.onCobrar,
+    required this.isProcessing,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: numpadController,
+      builder: (_, __) {
+        final montoActual = numpadController.value;
+        final recibidoTotal = totalPagado + montoActual;
+
+        return PosNumpad(
+          controller: numpadController,
+          quickAmounts: const [10, 20, 50, 100, 200],
+          acciones: [
+            NumpadAction(
+              label: 'Exacto',
+              icon: Icons.check,
+              onTap: onExacto,
+            ),
+            NumpadAction(
+              label: isProcessing ? 'Procesando' : 'COBRAR',
+              icon: Icons.point_of_sale,
+              color: Colors.green.shade600,
+              destacado: true,
+              onTap: onCobrar,
+              enabled:
+                  onCobrar != null && (recibidoTotal + 0.01 >= total),
+              loading: isProcessing,
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _DisplayRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final bool strong;
+  final Color? color;
+  const _DisplayRow({
+    required this.label,
+    required this.value,
+    this.strong = false,
+    this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final style = TextStyle(
+      fontSize: strong ? 13 : 12,
+      fontWeight: strong ? FontWeight.w800 : FontWeight.w600,
+      color: color ?? Colors.black87,
+    );
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: style),
+        Text(value, style: style),
+      ],
+    );
+  }
+}
+
+/// Header de columna para la tabla de items en cobrar cotización.
+/// Mismo estilo que la tabla del detalle de cotización: uppercase compacto,
+/// peso 700 y color gris oscuro sobre el fondo bluechip.
+class _ThItem extends StatelessWidget {
+  final String text;
+  const _ThItem(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: TextStyle(
+        fontSize: 10,
+        fontWeight: FontWeight.w700,
+        color: Colors.grey.shade800,
+        letterSpacing: 0.3,
+      ),
+    );
+  }
+}
+
+/// Fila de la tabla de items con zebra striping y botón ✕ a la derecha.
+class _ItemTablaRow extends StatelessWidget {
+  final int index;
+  final Map<String, dynamic> item;
+  final VoidCallback onRemove;
+
+  const _ItemTablaRow({
+    required this.index,
+    required this.item,
+    required this.onRemove,
+  });
+
+  static String _fmtCantidad(double n) {
+    if (n.truncateToDouble() == n) return n.toStringAsFixed(0);
+    return n.toStringAsFixed(2);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final nombre = item['descripcion']?.toString() ??
+        (item['producto'] as Map?)?['nombre']?.toString() ??
+        'Producto';
+    final cantidad =
+        _CobrarCotizacionPageState._toDouble(item['cantidad']);
+    final precio = _CobrarCotizacionPageState._toDouble(
+        item['precioUnitario']);
+    final total = cantidad * precio;
+
+    return Container(
+      color: index.isEven ? Colors.white : Colors.grey.shade50,
+      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 26,
+            child: Center(
+              child: Text(
+                '${index + 1}',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey.shade700,
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 5,
+            child: Text(
+              nombre,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Center(
+              child: Text(
+                _fmtCantidad(cantidad),
+                style: const TextStyle(fontSize: 12),
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 3,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Text(
+                precio.toStringAsFixed(2),
+                style: const TextStyle(fontSize: 12),
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 3,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Text(
+                total.toStringAsFixed(2),
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.blue1,
+                ),
+              ),
+            ),
+          ),
+          SizedBox(
+            width: 28,
+            child: IconButton(
+              onPressed: onRemove,
+              icon: Icon(Icons.close,
+                  size: 14, color: Colors.red.shade400),
+              tooltip: 'Quitar',
+              padding: EdgeInsets.zero,
+              visualDensity: VisualDensity.compact,
+              constraints: const BoxConstraints(
+                  minWidth: 24, minHeight: 24),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

@@ -497,6 +497,20 @@ import '../../features/cotizacion/presentation/bloc/cotizacion_form/cotizacion_f
     as _i298;
 import '../../features/cotizacion/presentation/bloc/cotizacion_list/cotizacion_list_cubit.dart'
     as _i9;
+import '../../features/cotizacion_rapida/data/datasources/cotizacion_rapida_remote_datasource.dart'
+    as _i48;
+import '../../features/cotizacion_rapida/data/repositories/cotizacion_rapida_repository_impl.dart'
+    as _i775;
+import '../../features/cotizacion_rapida/domain/repositories/cotizacion_rapida_repository.dart'
+    as _i1065;
+import '../../features/cotizacion_rapida/domain/usecases/actualizar_cotizacion_rapida_usecase.dart'
+    as _i865;
+import '../../features/cotizacion_rapida/domain/usecases/crear_cotizacion_rapida_usecase.dart'
+    as _i431;
+import '../../features/cotizacion_rapida/domain/usecases/obtener_cotizacion_rapida_usecase.dart'
+    as _i101;
+import '../../features/cotizacion_rapida/presentation/bloc/cotizacion_rapida_cubit.dart'
+    as _i975;
 import '../../features/cuentas_por_cobrar/data/datasources/cuentas_cobrar_remote_datasource.dart'
     as _i401;
 import '../../features/cuentas_por_cobrar/data/repositories/cuentas_cobrar_repository_impl.dart'
@@ -1653,6 +1667,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i369.CotizacionRemoteDataSource>(
       () => _i369.CotizacionRemoteDataSource(gh<_i667.DioClient>()),
     );
+    gh.lazySingleton<_i48.CotizacionRapidaRemoteDataSource>(
+      () => _i48.CotizacionRapidaRemoteDataSource(gh<_i667.DioClient>()),
+    );
     gh.lazySingleton<_i401.CuentasCobrarRemoteDataSource>(
       () => _i401.CuentasCobrarRemoteDataSource(gh<_i667.DioClient>()),
     );
@@ -2017,6 +2034,13 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i511.PosRepository>(
       () => _i84.PosRepositoryImpl(
         gh<_i449.PosRemoteDataSource>(),
+        gh<_i932.NetworkInfo>(),
+        gh<_i490.ErrorHandlerService>(),
+      ),
+    );
+    gh.lazySingleton<_i1065.CotizacionRapidaRepository>(
+      () => _i775.CotizacionRapidaRepositoryImpl(
+        gh<_i48.CotizacionRapidaRemoteDataSource>(),
         gh<_i932.NetworkInfo>(),
         gh<_i490.ErrorHandlerService>(),
       ),
@@ -2521,6 +2545,21 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i26.CheckoutRemoteDataSource>(),
         gh<_i932.NetworkInfo>(),
         gh<_i490.ErrorHandlerService>(),
+      ),
+    );
+    gh.lazySingleton<_i865.ActualizarCotizacionRapidaUseCase>(
+      () => _i865.ActualizarCotizacionRapidaUseCase(
+        gh<_i1065.CotizacionRapidaRepository>(),
+      ),
+    );
+    gh.lazySingleton<_i431.CrearCotizacionRapidaUseCase>(
+      () => _i431.CrearCotizacionRapidaUseCase(
+        gh<_i1065.CotizacionRapidaRepository>(),
+      ),
+    );
+    gh.lazySingleton<_i101.ObtenerCotizacionRapidaUseCase>(
+      () => _i101.ObtenerCotizacionRapidaUseCase(
+        gh<_i1065.CotizacionRapidaRepository>(),
       ),
     );
     gh.lazySingleton<_i271.ConfiguracionCamposRepository>(
@@ -4161,6 +4200,16 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i536.IncidenciaListCubit>(
       () => _i536.IncidenciaListCubit(gh<_i288.IncidenciaRepository>()),
+    );
+    gh.lazySingleton<_i975.CotizacionRapidaCubit>(
+      () => _i975.CotizacionRapidaCubit(
+        gh<_i431.CrearCotizacionRapidaUseCase>(),
+        gh<_i865.ActualizarCotizacionRapidaUseCase>(),
+        gh<_i765.BuscarClientePorDniUseCase>(),
+        gh<_i33.BuscarClientePorRucUseCase>(),
+        gh<_i640.PrecioNivelRepository>(),
+        gh<_i200.ComboRepository>(),
+      ),
     );
     gh.factory<_i220.VentaListCubit>(
       () => _i220.VentaListCubit(gh<_i213.GetVentasUseCase>()),

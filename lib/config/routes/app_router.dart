@@ -122,6 +122,10 @@ import '../../features/reporte_incidencia/presentation/pages/agregar_item_report
 import '../../features/cotizacion/presentation/pages/cotizaciones_page.dart';
 import '../../features/cotizacion/presentation/pages/cotizacion_form_page.dart';
 import '../../features/cotizacion/presentation/pages/cotizacion_detail_page.dart';
+import '../../features/cotizacion_rapida/presentation/pages/cotizacion_rapida_productos_page.dart';
+import '../../features/cotizacion_rapida/presentation/pages/cotizacion_rapida_carrito_page.dart';
+import '../../features/cotizacion_rapida/presentation/pages/cotizacion_rapida_finalizar_page.dart';
+import '../../features/cotizacion_rapida/presentation/pages/cotizacion_rapida_editar_page.dart';
 import '../../features/venta/presentation/pages/ventas_page.dart';
 import '../../features/venta/presentation/pages/venta_pos_page.dart';
 import '../../features/venta_rapida/presentation/pages/venta_rapida_productos_page.dart';
@@ -906,10 +910,24 @@ class AppRouter {
         name: 'empresa-cotizaciones',
         builder: (context, state) => const CotizacionesPage(),
       ),
+      // Cotización Rápida (POS-style con items manuales) — punto de entrada
+      // único para crear cotizaciones nuevas. La pantalla stepper antigua
+      // (`CotizacionFormPage`) queda solo accesible para EDITAR borradores
+      // existentes vía la ruta `:id/editar`.
       GoRoute(
         path: '/empresa/cotizaciones/nueva',
         name: 'empresa-cotizaciones-nueva',
-        builder: (context, state) => const CotizacionFormPage(),
+        builder: (context, state) => const CotizacionRapidaProductosPage(),
+      ),
+      GoRoute(
+        path: '/empresa/cotizaciones/nueva/carrito',
+        name: 'empresa-cotizaciones-nueva-carrito',
+        builder: (context, state) => const CotizacionRapidaCarritoPage(),
+      ),
+      GoRoute(
+        path: '/empresa/cotizaciones/nueva/finalizar',
+        name: 'empresa-cotizaciones-nueva-finalizar',
+        builder: (context, state) => const CotizacionRapidaFinalizarPage(),
       ),
       GoRoute(
         path: '/empresa/cotizaciones/:id',
@@ -919,9 +937,21 @@ class AppRouter {
           return CotizacionDetailPage(cotizacionId: cotizacionId);
         },
       ),
+      // Edición simplificada: solo agregar/quitar items. Reusa la grid de
+      // productos en modo embebido. El stepper completo (CotizacionFormPage)
+      // queda disponible vía `:id/editar-completo` por si se necesita más
+      // adelante editar cliente/condiciones.
       GoRoute(
         path: '/empresa/cotizaciones/:id/editar',
         name: 'empresa-cotizaciones-editar',
+        builder: (context, state) {
+          final cotizacionId = state.pathParameters['id']!;
+          return CotizacionRapidaEditarPage(cotizacionId: cotizacionId);
+        },
+      ),
+      GoRoute(
+        path: '/empresa/cotizaciones/:id/editar-completo',
+        name: 'empresa-cotizaciones-editar-completo',
         builder: (context, state) {
           final cotizacionId = state.pathParameters['id']!;
           return CotizacionFormPage(cotizacionId: cotizacionId);

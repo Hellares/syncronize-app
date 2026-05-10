@@ -5,49 +5,50 @@ import 'package:injectable/injectable.dart';
 import '../../../../core/utils/resource.dart';
 import '../../../combo/domain/entities/combo.dart';
 import '../../../combo/domain/repositories/combo_repository.dart';
+import '../../../cotizacion/domain/entities/cotizacion.dart';
+import '../../../cotizacion/domain/entities/cotizacion_detalle.dart';
 import '../../../producto/domain/entities/precio_nivel.dart';
 import '../../../producto/domain/entities/producto_list_item.dart';
 import '../../../producto/domain/repositories/precio_nivel_repository.dart';
-import '../../../venta/domain/entities/venta.dart';
 import '../../../venta/domain/entities/venta_detalle_input.dart';
-import '../../domain/repositories/venta_rapida_repository.dart';
-import '../../domain/usecases/buscar_cliente_por_dni_usecase.dart';
-import '../../domain/usecases/buscar_cliente_por_ruc_usecase.dart';
-import '../../domain/usecases/cobrar_venta_rapida_usecase.dart';
-import '../../domain/usecases/obtener_cliente_generico_usecase.dart';
+import '../../../venta_rapida/domain/repositories/venta_rapida_repository.dart';
+import '../../../venta_rapida/domain/usecases/buscar_cliente_por_dni_usecase.dart';
+import '../../../venta_rapida/domain/usecases/buscar_cliente_por_ruc_usecase.dart';
+import '../../domain/usecases/actualizar_cotizacion_rapida_usecase.dart';
+import '../../domain/usecases/crear_cotizacion_rapida_usecase.dart';
 
-part 'venta_rapida_state.dart';
+part 'cotizacion_rapida_state.dart';
 
-/// Margen de un centavo: aceptamos que el monto recibido pueda quedar hasta
-/// 1 ¢ por debajo del total y aún así cobrar (pasa cuando MIXTO acumula
-/// errores de redondeo a 2 decimales en cada línea).
-const double _kPenPaymentTolerance = 0.01;
+/// Tipos de cotización (solo client-side).
+/// - SIMPLE: permite items manuales (sin productoId).
+/// - PARA_VENTA: solo items del catálogo, lista para convertir a venta directa.
+class TipoCotizacionRapida {
+  static const simple = 'SIMPLE';
+  static const paraVenta = 'PARA_VENTA';
+}
 
 @lazySingleton
-class VentaRapidaCubit extends Cubit<VentaRapidaState> {
-  final CobrarVentaRapidaUseCase _cobrarUseCase;
-  final ObtenerClienteGenericoUseCase _obtenerClienteGenericoUseCase;
+class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
+  final CrearCotizacionRapidaUseCase _crearCotizacionUseCase;
+  final ActualizarCotizacionRapidaUseCase _actualizarCotizacionUseCase;
   final BuscarClientePorDniUseCase _buscarClientePorDniUseCase;
   final BuscarClientePorRucUseCase _buscarClientePorRucUseCase;
   final PrecioNivelRepository _precioNivelRepository;
   final ComboRepository _comboRepository;
 
-  VentaRapidaCubit(
-    this._cobrarUseCase,
-    this._obtenerClienteGenericoUseCase,
+  CotizacionRapidaCubit(
+    this._crearCotizacionUseCase,
+    this._actualizarCotizacionUseCase,
     this._buscarClientePorDniUseCase,
     this._buscarClientePorRucUseCase,
     this._precioNivelRepository,
     this._comboRepository,
-  ) : super(const VentaRapidaState());
+  ) : super(const CotizacionRapidaState());
 
-  /// Cache de niveles por (productoId | varianteId) para no re-pedirlos.
-  /// Una entrada vacía significa "ya consultado y no tiene niveles".
+  /// Cache niveles de precio por productoId. Misma estrategia que VR.
   final Map<String, List<PrecioNivel>> _nivelesCache = {};
 
-  /// Token monotónico de búsqueda de cliente. Se usa para descartar
-  /// respuestas obsoletas: si el cajero busca DNI A, lo cancela y busca DNI B,
-  /// la respuesta tardía de A no debe sobreescribir el resultado de B.
+  /// Token de búsqueda de cliente para descartar respuestas obsoletas.
   int _searchSeq = 0;
 
   // ── Contexto ──
@@ -58,6 +59,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     required String vendedorId,
     double impuestoPorcentaje = 18.0,
     String moneda = 'PEN',
+    int diasVigenciaDefault = 7,
   }) {
     emit(state.copyWith(
       empresaId: empresaId,
@@ -65,16 +67,38 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       vendedorId: vendedorId,
       impuestoPorcentaje: impuestoPorcentaje,
       moneda: moneda,
+      // Solo establece la fecha por defecto si todavía no hay una elegida.
+      fechaVencimiento: state.fechaVencimiento ??
+          DateTime.now().add(Duration(days: diasVigenciaDefault)),
     ));
   }
 
-  // ── Carrito ──
+  // ── Tipo cotización ──
+
+  /// Cambiar entre SIMPLE y PARA_VENTA. Si PARA_VENTA, los items manuales
+  /// no se permiten — al cambiar, removemos los manuales existentes.
+  void setTipoCotizacion(String tipo) {
+    if (tipo != TipoCotizacionRapida.simple &&
+        tipo != TipoCotizacionRapida.paraVenta) {
+      return;
+    }
+    if (tipo == TipoCotizacionRapida.paraVenta) {
+      // Filtrar items manuales (sin productoId/varianteId/servicioId).
+      final soloCatalogo = state.items
+          .where((i) =>
+              i.productoId != null ||
+              i.varianteId != null ||
+              i.servicioId != null)
+          .toList();
+      emit(state.copyWith(tipoCotizacion: tipo, items: soloCatalogo));
+    } else {
+      emit(state.copyWith(tipoCotizacion: tipo));
+    }
+  }
+
+  // ── Carrito (items de catálogo) — clon de VR.agregarProducto ──
 
   void agregarProducto(ProductoListItem producto) {
-    // Combos se manejan por separado: se expande la lista de componentes
-    // como items individuales con `productoId` (no `comboId`). El backend
-    // procesa cada componente como una venta normal — sin lógica especial
-    // de combo. El descuento del combo se prorratea entre los componentes.
     if (producto.esCombo) {
       _agregarCombo(producto);
       return;
@@ -89,8 +113,6 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     final icbperUnit = producto.aplicaIcbper ? 0.20 : 0.0;
     final stockDisp = producto.stockEnSede(sedeId);
 
-    // Si ya está en el carrito, sumar 1 y recalcular precio según niveles.
-    // (Solo busca items que NO vengan de combo; los del combo se manipulan en grupo).
     final idx = state.items.indexWhere(
       (i) => i.productoId == producto.id && i.origenComboId == null,
     );
@@ -108,7 +130,6 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       return;
     }
 
-    // Item nuevo: precio base inicialmente; los niveles se cargan async.
     final nivelesEnCache = _nivelesCache[producto.id];
     final item = VentaDetalleInput(
       productoId: producto.id,
@@ -126,29 +147,102 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     final itemConNivel = nivelesEnCache != null
         ? item.recalcularPrecioPorNiveles(1)
         : item;
-    emit(state.copyWith(items: [...state.items, itemConNivel], clearError: true));
+    emit(state.copyWith(
+      items: [...state.items, itemConNivel],
+      clearError: true,
+    ));
 
-    // Si todavía no tenemos los niveles cacheados, los pedimos al backend.
     if (nivelesEnCache == null) {
       _cargarNivelesYActualizar(producto.id);
     }
   }
 
-  /// Expande un combo en N items de productos individuales con precio
-  /// prorrateado. El backend ve items normales (con `productoId`) y
-  /// descuenta stock de cada uno por separado — sin saber que vienen de
-  /// un combo. El cliente conserva `origenComboId` para agrupar visualmente
-  /// y para futura edición/eliminación en grupo.
-  ///
-  /// **Prorrateo**: cada componente recibe parte del precio efectivo del
-  /// combo proporcional a su precio regular. El último componente compensa
-  /// el redondeo de centavos para que la suma sea exacta.
-  ///
-  /// **Guard de oferta**: si algún componente tiene `ofertaActiva`, el combo
-  /// se deja como `comboPendienteOferta` en el state y la UI debe mostrar
-  /// un dialog. La expansión ocurre solo cuando el cajero confirma con
-  /// `confirmarComboPendiente()`. La razón es que el combo ignora ofertas
-  /// individuales — el cajero debe decidir si conviene venderlo o no.
+  /// Agrega un item manual (sin productoId). Solo permitido en modo SIMPLE.
+  void agregarItemManual({
+    required String descripcion,
+    required double cantidad,
+    required double precioUnitario,
+  }) {
+    if (state.tipoCotizacion == TipoCotizacionRapida.paraVenta) {
+      emit(state.copyWith(
+        error: 'Los items manuales no se permiten en cotización para venta',
+      ));
+      return;
+    }
+    final desc = descripcion.trim();
+    if (desc.isEmpty || cantidad <= 0 || precioUnitario < 0) {
+      emit(state.copyWith(error: 'Datos del item manual inválidos'));
+      return;
+    }
+    final igvPorc = state.impuestoPorcentaje;
+    final item = VentaDetalleInput(
+      // Sin productoId/varianteId/servicioId — el backend lo guarda como
+      // detalle puramente descriptivo. Reutilizamos VentaDetalleInput por
+      // su lógica de totales (subtotal/igv/total).
+      descripcion: desc,
+      cantidad: cantidad,
+      precioUnitario: precioUnitario,
+      precioBase: precioUnitario,
+      porcentajeIGV: igvPorc,
+      // El cajero ingresa el precio FINAL al cliente (estilo POS Perú: el
+      // precio en mostrador siempre incluye IGV). Mesa S/800 → total S/800.
+      // Si lo dejáramos en `false`, sumaría 18% encima y daría S/944.
+      precioIncluyeIgv: true,
+      tipoAfectacion: '10',
+      icbper: 0,
+    );
+    emit(state.copyWith(
+      items: [...state.items, item],
+      clearError: true,
+    ));
+  }
+
+  /// Agrega varios items manuales de una vez (batch). Eficiente cuando el
+  /// cajero compone una lista en el dialog y quiere confirmar todo junto:
+  /// emite UN solo state en lugar de N.
+  void agregarItemsManuales(
+    List<({String descripcion, double cantidad, double precioUnitario})> items,
+  ) {
+    if (state.tipoCotizacion == TipoCotizacionRapida.paraVenta) {
+      emit(state.copyWith(
+        error: 'Los items manuales no se permiten en cotización para venta',
+      ));
+      return;
+    }
+    if (items.isEmpty) return;
+    final igvPorc = state.impuestoPorcentaje;
+    final nuevos = <VentaDetalleInput>[];
+    for (final i in items) {
+      final desc = i.descripcion.trim();
+      if (desc.isEmpty || i.cantidad <= 0 || i.precioUnitario < 0) continue;
+      nuevos.add(VentaDetalleInput(
+        descripcion: desc,
+        cantidad: i.cantidad,
+        precioUnitario: i.precioUnitario,
+        precioBase: i.precioUnitario,
+        porcentajeIGV: igvPorc,
+        // Mismo criterio que `agregarItemManual`: el precio que ingresa el
+        // cajero ya incluye IGV (estilo POS Perú).
+        precioIncluyeIgv: true,
+        tipoAfectacion: '10',
+        icbper: 0,
+      ));
+    }
+    if (nuevos.isEmpty) return;
+    emit(state.copyWith(
+      items: [...state.items, ...nuevos],
+      clearError: true,
+    ));
+  }
+
+  /// True si el item del carrito es manual (no tiene FK a catálogo).
+  bool esItemManual(VentaDetalleInput item) =>
+      item.productoId == null &&
+      item.varianteId == null &&
+      item.servicioId == null;
+
+  // ── Combos (mismo patrón que VR) ──
+
   Future<void> _agregarCombo(ProductoListItem producto) async {
     final sedeId = state.sedeId;
     final empresaId = state.empresaId;
@@ -178,7 +272,6 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       return;
     }
 
-    // Si hay componentes en oferta activa, pedir confirmación antes de expandir.
     final hayOfertaActiva = combo.componentes
         .any((c) => c.componenteInfo?.ofertaActiva ?? false);
     if (hayOfertaActiva) {
@@ -189,8 +282,6 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     _expandirYAgregarCombo(combo);
   }
 
-  /// Confirmación del cajero al dialog: procede a expandir el combo en items
-  /// individuales aunque tenga componentes en oferta.
   void confirmarComboPendiente() {
     final combo = state.comboPendienteOferta;
     if (combo == null) return;
@@ -198,30 +289,15 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     _expandirYAgregarCombo(combo);
   }
 
-  /// Cancelación del cajero al dialog: descarta el combo, no se agrega nada.
   void cancelarComboPendiente() {
     emit(state.copyWith(clearComboPendienteOferta: true));
   }
 
-  /// Lógica pura de expansión. Se llama desde `_agregarCombo` (sin oferta)
-  /// o desde `confirmarComboPendiente` (con oferta confirmada).
-  ///
-  /// **Estrategia de precio**: cada componente se manda al backend con su
-  /// `precioUnitario` REAL (precio regular del componente) y un `descuento`
-  /// prorrateado del descuento total del combo. Razones:
-  /// 1. Transparencia: el cajero/cliente ve el precio real de cada producto
-  ///    y cuánto se ahorra con el combo.
-  /// 2. Trazabilidad: el campo `descuento` del VentaDetalle persiste,
-  ///    permitiendo reportes "¿cuánto descuento aplicamos vía combos?".
-  /// 3. Coherencia: la BD guarda precios reales — los reportes "cuánto se
-  ///    vendió de X producto" reflejan el precio normal, no el prorrateado.
-  ///
-  /// El último componente compensa centavos de redondeo para que la suma
-  /// `Σ (precioUnitario·cantidad − descuento)` sea exactamente `precioFinal`.
   void _expandirYAgregarCombo(Combo combo) {
     final precioFinal = combo.precioFinal;
     final precioRegularTotal = combo.precioRegularTotal;
-    final descuentoTotal = (precioRegularTotal - precioFinal).clamp(0, double.infinity).toDouble();
+    final descuentoTotal =
+        (precioRegularTotal - precioFinal).clamp(0, double.infinity).toDouble();
     final igvPorc = state.impuestoPorcentaje;
     final componentes = combo.componentes;
 
@@ -235,7 +311,6 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
 
       double descuentoComponente;
       if (esUltimo) {
-        // El último compensa el redondeo: completa el descuento total.
         descuentoComponente = descuentoTotal - descuentoAcumulado;
       } else if (precioRegularTotal > 0) {
         descuentoComponente =
@@ -271,9 +346,8 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     ));
   }
 
-  /// Devuelve los niveles de precio del producto. Usa cache si existe,
-  /// si no, los pide al backend y los guarda. Útil para previsualizaciones
-  /// (e.g. bottom sheet de precios por mayor) sin gastar requests.
+  // ── Niveles de precio ──
+
   Future<List<PrecioNivel>> getNivelesProducto(String productoId) async {
     final cacheado = _nivelesCache[productoId];
     if (cacheado != null) return cacheado;
@@ -287,9 +361,6 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     return const [];
   }
 
-  /// Carga niveles del producto desde backend y actualiza el item del carrito
-  /// recalculando precio. Si la respuesta llega después de cambios al carrito,
-  /// busca por productoId (no por índice) para no afectar items movidos.
   Future<void> _cargarNivelesYActualizar(String productoId) async {
     final result = await _precioNivelRepository.getPreciosNivelProducto(
       productoId: productoId,
@@ -299,11 +370,9 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       final niveles = result.data;
       _nivelesCache[productoId] = niveles;
 
-      // Reaplicar a TODOS los items del carrito que coincidan con este productoId
-      // (puede haber sido recreado / sumado / decrementado mientras esperábamos).
       final items = state.items;
       final idx = items.indexWhere((i) => i.productoId == productoId);
-      if (idx < 0) return; // item ya no está en el carrito
+      if (idx < 0) return;
       final actualizado = items[idx]
           .copyWith(niveles: niveles)
           .recalcularPrecioPorNiveles(items[idx].cantidad);
@@ -311,7 +380,6 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       lista[idx] = actualizado;
       emit(state.copyWith(items: lista));
     } else {
-      // Error de red: registramos cache vacío para no reintentar en bucle.
       _nivelesCache[productoId] = const [];
     }
   }
@@ -328,18 +396,16 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     }
   }
 
+  // ── Edición carrito ──
+
   void actualizarCantidad(int index, double cantidad) {
     if (index < 0 || index >= state.items.length) return;
-    // Si el usuario está editando y borra el valor (queda 0/vacío), NO eliminamos
-    // el item — solo ignoramos hasta que escriba un número válido.
     if (cantidad <= 0) return;
     final actual = state.items[index];
-    // Cap al stock disponible para no permitir vender más de lo que hay
-    // (el backend lo rechazaría al cobrar; mejor frenar acá).
-    final double stockMax = actual.stockDisponible?.toDouble() ?? double.infinity;
+    // Solo cap por stock cuando es item de catálogo (manual no tiene stock).
+    final double stockMax =
+        actual.stockDisponible?.toDouble() ?? double.infinity;
     final double cantidadFinal = cantidad > stockMax ? stockMax : cantidad;
-    // ICBPER es per-unit: lo derivamos del valor previo y reescalamos a la
-    // nueva cantidad (consistente con `decrementarProducto`).
     final icbperPerUnit =
         actual.cantidad > 0 ? actual.icbper / actual.cantidad : 0.0;
     final nueva = actual
@@ -350,24 +416,28 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     emit(state.copyWith(items: lista, clearError: true));
   }
 
+  void actualizarPrecioManual(int index, double precioUnitario) {
+    if (index < 0 || index >= state.items.length) return;
+    if (precioUnitario < 0) return;
+    final actual = state.items[index];
+    // Solo permitido editar precio en items manuales; los de catálogo usan niveles.
+    if (!esItemManual(actual)) return;
+    final lista = [...state.items];
+    lista[index] = actual.copyWith(
+      precioUnitario: precioUnitario,
+      precioBase: precioUnitario,
+      clearNivelAplicado: true,
+    );
+    emit(state.copyWith(items: lista, clearError: true));
+  }
+
   void actualizarDescuento(int index, double porcentaje) {
     if (index < 0 || index >= state.items.length) return;
     final actual = state.items[index];
-    final descuentoCalc = (actual.cantidad * actual.precioUnitario) * (porcentaje / 100);
-    final nueva = VentaDetalleInput(
-      productoId: actual.productoId,
-      descripcion: actual.descripcion,
-      cantidad: actual.cantidad,
-      precioUnitario: actual.precioUnitario,
-      descuento: descuentoCalc,
-      porcentajeIGV: actual.porcentajeIGV,
-      precioIncluyeIgv: actual.precioIncluyeIgv,
-      tipoAfectacion: actual.tipoAfectacion,
-      icbper: actual.icbper,
-      stockDisponible: actual.stockDisponible,
-    );
+    final descuentoCalc =
+        (actual.cantidad * actual.precioUnitario) * (porcentaje / 100);
     final lista = [...state.items];
-    lista[index] = nueva;
+    lista[index] = actual.copyWith(descuento: descuentoCalc);
     emit(state.copyWith(items: lista, clearError: true));
   }
 
@@ -377,12 +447,6 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     emit(state.copyWith(items: lista, clearError: true));
   }
 
-  /// Decrementa en 1 la cantidad del producto suelto en el carrito.
-  /// Si la cantidad llega a 0, elimina el item completo.
-  /// Si el producto no está (o solo está como parte de un combo), no hace nada.
-  ///
-  /// Items de combo (con `origenComboId != null`) no se decrementan acá —
-  /// se manipulan en grupo desde la UI del carrito.
   void decrementarProducto(String productoId) {
     final idx = state.items.indexWhere(
       (i) => i.productoId == productoId && i.origenComboId == null,
@@ -394,7 +458,6 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       return;
     }
     final nuevaCantidad = actual.cantidad - 1;
-    // Mantener icbper proporcional a la cantidad.
     final icbperPerUnit =
         actual.cantidad > 0 ? actual.icbper / actual.cantidad : 0.0;
     final nueva = actual
@@ -405,8 +468,6 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     emit(state.copyWith(items: lista, clearError: true));
   }
 
-  /// Elimina TODOS los items que pertenecen a un combo dado.
-  /// Útil para "quitar este combo del carrito" desde la UI.
   void eliminarCombo(String origenComboId) {
     final lista = state.items
         .where((i) => i.origenComboId != origenComboId)
@@ -417,8 +478,6 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
   void vaciarCarrito() {
     emit(state.copyWith(
       items: [],
-      pagos: [],
-      tipoComprobante: 'TICKET',
       clienteGenerico: false,
       clienteId: null,
       clienteEmpresaId: null,
@@ -426,31 +485,15 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       numeroDocCliente: '',
       nombreClienteResuelto: '',
       buscandoCliente: false,
+      observaciones: '',
+      condiciones: '',
+      nombreCotizacion: '',
       clearError: true,
-      clearVentaCompletada: true,
+      clearCotizacionCompletada: true,
     ));
   }
 
-  // ── Comprobante / Cliente ──
-
-  void setTipoComprobante(String tipo) {
-    // Las facturas SUNAT solo se emiten contra RUC. Si el cajero pasa a
-    // FACTURA y el tipo de documento previo no era RUC, lo forzamos y
-    // limpiamos el cliente resuelto (DNI ya no aplica).
-    if (tipo == 'FACTURA' && state.tipoDocCliente != 'RUC') {
-      emit(state.copyWith(
-        tipoComprobante: tipo,
-        tipoDocCliente: 'RUC',
-        clienteGenerico: false,
-        clienteId: null,
-        clienteEmpresaId: null,
-        numeroDocCliente: '',
-        nombreClienteResuelto: '',
-      ));
-      return;
-    }
-    emit(state.copyWith(tipoComprobante: tipo));
-  }
+  // ── Cliente (mismo patrón que VR) ──
 
   void setClienteGenerico() {
     emit(state.copyWith(
@@ -458,14 +501,12 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       clienteId: null,
       clienteEmpresaId: null,
       tipoDocCliente: 'DNI',
-      numeroDocCliente: '00000000',
+      numeroDocCliente: '',
       nombreClienteResuelto: '',
     ));
   }
 
   void setTipoDocCliente(String tipo) {
-    // Cambiar el tipo de documento invalida cualquier cliente resuelto previo
-    // (DNI → RUC y viceversa apuntan a entidades distintas).
     emit(state.copyWith(
       tipoDocCliente: tipo,
       clienteGenerico: false,
@@ -476,8 +517,6 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
   }
 
   void setNumeroDocCliente(String numero) {
-    // Si el cajero edita el doc, invalidamos cualquier cliente resuelto
-    // previo (cambió el doc → debe re-resolverse).
     final invalidar = numero.trim() != state.numeroDocCliente.trim();
     emit(state.copyWith(
       numeroDocCliente: numero,
@@ -488,11 +527,8 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     ));
   }
 
-  /// Busca un cliente por DNI vía RENIEC y lo registra/reutiliza en backend.
-  /// Pre-llena `clienteId` y `nombreClienteResuelto` para que `cobrar()` los use
-  /// (sin pasar por la lógica de "genérico").
   Future<void> buscarClientePorDni(String dni) async {
-    if (state.buscandoCliente) return; // guard de re-entrada
+    if (state.buscandoCliente) return;
     final dniLimpio = dni.trim();
     if (!RegExp(r'^\d{8}$').hasMatch(dniLimpio)) {
       emit(state.copyWith(error: 'El DNI debe tener 8 dígitos'));
@@ -507,7 +543,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     emit(state.copyWith(buscandoCliente: true, clearError: true));
     final result = await _buscarClientePorDniUseCase(dniLimpio);
     if (isClosed) return;
-    if (mySeq != _searchSeq) return; // llegó otra búsqueda más nueva
+    if (mySeq != _searchSeq) return;
 
     if (result is Success<ClienteResueltoDni>) {
       final c = result.data;
@@ -530,10 +566,30 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     }
   }
 
-  /// Busca un cliente empresa (B2B) por RUC vía SUNAT.
-  /// Pre-llena `clienteEmpresaId` y `nombreClienteResuelto` (= razón social).
+  /// Aplica un cliente ya resuelto (típicamente del `ClienteUnificadoSelector`)
+  /// al state. Como el bottom sheet ya hizo la búsqueda externa, solo
+  /// sincronizamos los campos sin volver a llamar al backend.
+  void aplicarClienteResuelto({
+    String? clienteId,
+    String? clienteEmpresaId,
+    required String tipoDocCliente,
+    required String numeroDocCliente,
+    required String nombreResuelto,
+  }) {
+    emit(state.copyWith(
+      buscandoCliente: false,
+      clienteGenerico: false,
+      clienteId: clienteId,
+      clienteEmpresaId: clienteEmpresaId,
+      tipoDocCliente: tipoDocCliente,
+      numeroDocCliente: numeroDocCliente,
+      nombreClienteResuelto: nombreResuelto,
+      clearError: true,
+    ));
+  }
+
   Future<void> buscarClientePorRuc(String ruc) async {
-    if (state.buscandoCliente) return; // guard de re-entrada
+    if (state.buscandoCliente) return;
     final rucLimpio = ruc.trim();
     if (!RegExp(r'^\d{11}$').hasMatch(rucLimpio)) {
       emit(state.copyWith(error: 'El RUC debe tener 11 dígitos'));
@@ -544,7 +600,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     emit(state.copyWith(buscandoCliente: true, clearError: true));
     final result = await _buscarClientePorRucUseCase(rucLimpio);
     if (isClosed) return;
-    if (mySeq != _searchSeq) return; // llegó otra búsqueda más nueva
+    if (mySeq != _searchSeq) return;
 
     if (result is Success<ClienteResueltoRuc>) {
       final c = result.data;
@@ -567,53 +623,39 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     }
   }
 
-  // ── Pagos ──
+  // ── Datos finalizar ──
 
-  void agregarPago({required String metodo, required double monto, String? banco, String? referencia}) {
-    if (monto <= 0) return;
-    final pagos = [
-      ...state.pagos,
-      {
-        'metodo': metodo,
-        'monto': monto,
-        if (banco != null) 'banco': banco,
-        if (referencia != null && referencia.isNotEmpty) 'referencia': referencia,
-      },
-    ];
-    emit(state.copyWith(pagos: pagos));
+  void setFechaVencimiento(DateTime? fecha) {
+    emit(state.copyWith(fechaVencimiento: fecha));
   }
 
-  void eliminarPago(int index) {
-    if (index < 0 || index >= state.pagos.length) return;
-    final pagos = [...state.pagos]..removeAt(index);
-    emit(state.copyWith(pagos: pagos));
+  void setNombreCotizacion(String nombre) {
+    emit(state.copyWith(nombreCotizacion: nombre));
   }
 
-  // ── Cobrar ──
+  void setObservaciones(String texto) {
+    emit(state.copyWith(observaciones: texto));
+  }
 
-  Future<void> cobrar({bool aceptaRiesgoBancarizacion = false}) async {
-    // Guard de re-entrada: evita doble-cobro si el cajero da doble-tap
-    // antes de que el botón se deshabilite por rebuild.
+  void setCondiciones(String texto) {
+    emit(state.copyWith(condiciones: texto));
+  }
+
+  // ── Crear cotización ──
+
+  Future<void> crearCotizacion() async {
     if (state.procesando) return;
     if (state.items.isEmpty) {
-      emit(state.copyWith(error: 'Agrega al menos un producto'));
+      emit(state.copyWith(error: 'Agrega al menos un item'));
       return;
     }
-    if (state.pagos.isEmpty) {
-      emit(state.copyWith(error: 'Agrega al menos un pago'));
-      return;
-    }
-    if (state.totalPagado + _kPenPaymentTolerance < state.total) {
-      emit(state.copyWith(error: 'Monto recibido insuficiente'));
+    if (state.sedeId == null || state.vendedorId == null) {
+      emit(state.copyWith(error: 'Falta contexto de sede/vendedor'));
       return;
     }
 
     emit(state.copyWith(procesando: true, clearError: true));
 
-    // 3 modos posibles para resolver el cliente vinculado a la venta:
-    //   (a) Cliente jurídico resuelto por RUC → clienteEmpresaId (B2B).
-    //   (b) Cliente persona resuelto por DNI → clienteId (EmpresaPersona).
-    //   (c) Genérico (flag, doc vacío o '00000000') → clienteId genérico.
     final docTipeado = state.numeroDocCliente.trim();
     final tieneClienteRucResuelto = state.clienteEmpresaId != null &&
         state.nombreClienteResuelto.isNotEmpty &&
@@ -621,24 +663,11 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     final tieneClienteDniResuelto = !tieneClienteRucResuelto &&
         state.clienteId != null &&
         state.nombreClienteResuelto.isNotEmpty &&
-        docTipeado != '00000000' &&
         docTipeado.isNotEmpty;
     final esGenerico = !tieneClienteRucResuelto &&
         !tieneClienteDniResuelto &&
-        (state.clienteGenerico || docTipeado.isEmpty || docTipeado == '00000000');
+        (state.clienteGenerico || docTipeado.isEmpty);
 
-    String? clienteId = tieneClienteDniResuelto ? state.clienteId : null;
-    String? clienteEmpresaId = tieneClienteRucResuelto ? state.clienteEmpresaId : null;
-    if (esGenerico) {
-      final result = await _obtenerClienteGenericoUseCase();
-      if (result is Success<String>) {
-        clienteId = result.data;
-      }
-      // Si falla resolver el genérico, seguimos sin clienteId (el backend
-      // permite venta sin cliente vinculado para tickets).
-    }
-
-    final docCliente = esGenerico ? '00000000' : docTipeado;
     final nombreCliente = esGenerico
         ? 'CLIENTES VARIOS'
         : ((tieneClienteRucResuelto || tieneClienteDniResuelto)
@@ -646,40 +675,140 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
             : docTipeado);
 
     final data = <String, dynamic>{
-      'canalVenta': 'POS',
       'sedeId': state.sedeId,
       'vendedorId': state.vendedorId,
-      if (clienteId != null) 'clienteId': clienteId,
-      if (clienteEmpresaId != null) 'clienteEmpresaId': clienteEmpresaId,
+      // Solo `clienteId` (EmpresaPersona). El backend NO acepta
+      // `clienteEmpresaId` en el DTO actual; los datos del cliente B2B
+      // resuelto por RUC quedan como snapshot (`nombreCliente, documentoCliente`).
+      if (tieneClienteDniResuelto && state.clienteId != null)
+        'clienteId': state.clienteId,
       'nombreCliente': nombreCliente,
-      if (docCliente.isNotEmpty) 'documentoCliente': docCliente,
+      if (docTipeado.isNotEmpty) 'documentoCliente': docTipeado,
       'moneda': state.moneda,
-      'tipoComprobante': state.tipoComprobante,
-      'esCredito': false,
-      if (aceptaRiesgoBancarizacion) 'aceptaRiesgoBancarizacion': true,
-      'metodoPago': state.pagos.first['metodo'],
-      'montoRecibido': state.totalPagado,
-      'pagos': state.pagos.map((p) => {
-            'metodoPago': p['metodo'],
-            'monto': p['monto'],
-            if (p['banco'] != null) 'banco': p['banco'],
-            if (p['referencia'] != null) 'referencia': p['referencia'],
-          }).toList(),
+      if (state.fechaVencimiento != null)
+        'fechaVencimiento': state.fechaVencimiento!.toIso8601String(),
+      if (state.nombreCotizacion.trim().isNotEmpty)
+        'nombre': state.nombreCotizacion.trim(),
+      if (state.observaciones.trim().isNotEmpty)
+        'observaciones': state.observaciones.trim(),
+      if (state.condiciones.trim().isNotEmpty)
+        'condiciones': state.condiciones.trim(),
       'detalles': state.items.map((item) => item.toMap()).toList(),
-      // No enviamos `observaciones` para que el ticket no muestre el texto
-      // "Venta rápida". La trazabilidad de origen se mantiene a través de
-      // `canalVenta` (POS) y otros campos.
     };
 
-    final result = await _cobrarUseCase(data: data);
+    final result = await _crearCotizacionUseCase(data: data);
     if (isClosed) return;
 
-    if (result is Success<Venta>) {
+    if (result is Success<Cotizacion>) {
       emit(state.copyWith(
         procesando: false,
-        ventaCompletadaId: result.data.id,
+        cotizacionCompletadaId: result.data.id,
       ));
-    } else if (result is Error<Venta>) {
+    } else if (result is Error<Cotizacion>) {
+      emit(state.copyWith(
+        procesando: false,
+        error: result.message,
+      ));
+    }
+  }
+
+  // ── Edición ──
+
+  /// Carga una cotización existente al state para editar sus items.
+  /// El cubit pasa a `modoEdicion=true`. Solo se permite editar si la
+  /// cotización está en BORRADOR (validación final del backend).
+  ///
+  /// El campo `precioIncluyeIgv` se infiere por aritmética (no se
+  /// persiste en BD): si `cantidad·precioUnitario − descuento ≈ total`,
+  /// el precio ya incluye IGV; si no, se le sumó IGV encima.
+  void cargarParaEdicion(Cotizacion cot) {
+    final detalles = cot.detalles ?? const <CotizacionDetalle>[];
+    final items = detalles.map((d) {
+      final subtotalBruto = d.cantidad * d.precioUnitario - d.descuento;
+      final totalSinIcbper = d.total - d.icbper;
+      final incluyeIgv = (subtotalBruto - totalSinIcbper).abs() < 0.5;
+      return VentaDetalleInput(
+        productoId: d.productoId,
+        varianteId: d.varianteId,
+        servicioId: d.servicioId,
+        descripcion: d.descripcion,
+        cantidad: d.cantidad,
+        precioUnitario: d.precioUnitario,
+        precioBase: d.precioUnitario,
+        descuento: d.descuento,
+        porcentajeIGV: d.porcentajeIGV,
+        precioIncluyeIgv: incluyeIgv,
+        tipoAfectacion: d.tipoAfectacion,
+        icbper: d.icbper,
+      );
+    }).toList();
+
+    // Inferir tipo: si todos los items tienen FK a catálogo, PARA_VENTA;
+    // si hay alguno manual, SIMPLE.
+    final hayManual = items.any((i) =>
+        i.productoId == null &&
+        i.varianteId == null &&
+        i.servicioId == null);
+    final tipo = hayManual
+        ? TipoCotizacionRapida.simple
+        : TipoCotizacionRapida.paraVenta;
+
+    emit(state.copyWith(
+      items: items,
+      modoEdicion: true,
+      cotizacionEditandoId: cot.id,
+      tipoCotizacion: tipo,
+      moneda: cot.moneda,
+      nombreCotizacion: cot.nombre ?? '',
+      observaciones: cot.observaciones ?? '',
+      condiciones: cot.condiciones ?? '',
+      fechaVencimiento: cot.fechaVencimiento,
+      clienteId: cot.clienteId,
+      // `Cotizacion` (entity Flutter) no expone clienteEmpresaId — el
+      // backend solo persiste clienteId. Si el cliente fue B2B, los datos
+      // viven en los snapshots (nombreCliente, documentoCliente).
+      numeroDocCliente: cot.documentoCliente ?? '',
+      nombreClienteResuelto: cot.nombreCliente,
+      tipoDocCliente: (cot.documentoCliente?.length == 11) ? 'RUC' : 'DNI',
+      clearError: true,
+      clearCotizacionCompletada: true,
+    ));
+  }
+
+  /// Guarda los cambios de items vía PUT /cotizaciones/:id. Solo manda
+  /// `detalles` (no toca cliente/fecha/observaciones — para eso está el
+  /// stepper viejo). El backend rechaza si la cotización ya no está en
+  /// BORRADOR.
+  Future<void> guardarEdicion() async {
+    if (state.procesando) return;
+    if (!state.modoEdicion || state.cotizacionEditandoId == null) {
+      emit(state.copyWith(error: 'No hay cotización en modo edición'));
+      return;
+    }
+    if (state.items.isEmpty) {
+      emit(state.copyWith(
+        error: 'La cotización debe tener al menos un item'));
+      return;
+    }
+
+    emit(state.copyWith(procesando: true, clearError: true));
+
+    final data = <String, dynamic>{
+      'detalles': state.items.map((it) => it.toMap()).toList(),
+    };
+
+    final result = await _actualizarCotizacionUseCase(
+      cotizacionId: state.cotizacionEditandoId!,
+      data: data,
+    );
+    if (isClosed) return;
+
+    if (result is Success<Cotizacion>) {
+      emit(state.copyWith(
+        procesando: false,
+        cotizacionCompletadaId: result.data.id,
+      ));
+    } else if (result is Error<Cotizacion>) {
       emit(state.copyWith(
         procesando: false,
         error: result.message,
@@ -696,8 +825,6 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
   void resetCompletada() {
     emit(state.copyWith(
       items: [],
-      pagos: [],
-      tipoComprobante: 'TICKET',
       clienteGenerico: false,
       clienteId: null,
       clienteEmpresaId: null,
@@ -705,8 +832,14 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       numeroDocCliente: '',
       nombreClienteResuelto: '',
       buscandoCliente: false,
+      observaciones: '',
+      condiciones: '',
+      nombreCotizacion: '',
+      tipoCotizacion: TipoCotizacionRapida.simple,
+      modoEdicion: false,
+      clearCotizacionEditandoId: true,
       clearError: true,
-      clearVentaCompletada: true,
+      clearCotizacionCompletada: true,
     ));
   }
 }

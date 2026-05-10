@@ -38,6 +38,9 @@ class ComprobanteCondicionCard extends StatelessWidget {
   final String condicionPago;
   final ValueChanged<String> onCondicionChanged;
   final bool showMixto;
+  /// Si false, oculta la sección "Condición de Pago" entera. Útil cuando
+  /// el flujo siempre es CONTADO (ej. cobro de cotización-a-venta).
+  final bool showCondicionPago;
   // Emisor (multi-RUC)
   final List<EmisorItem>? emisores;
   final EmisorItem? emisorSeleccionado;
@@ -50,6 +53,7 @@ class ComprobanteCondicionCard extends StatelessWidget {
     required this.condicionPago,
     required this.onCondicionChanged,
     this.showMixto = true,
+    this.showCondicionPago = true,
     this.emisores,
     this.emisorSeleccionado,
     this.onEmisorChanged,
@@ -91,17 +95,19 @@ class ComprobanteCondicionCard extends StatelessWidget {
               const SizedBox(height: 6),
               ...emisores!.map((e) => _emisorChip(e)),
             ],
-            const SizedBox(height: 12),
-            AppSubtitle('Condición de Pago', color: AppColors.blue1),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              children: [
-                _chip('CONTADO', 'Contado'),
-                _chip('CREDITO', 'Credito'),
-                if (showMixto) _chip('MIXTO', 'Mixto'),
-              ],
-            ),
+            if (showCondicionPago) ...[
+              const SizedBox(height: 12),
+              AppSubtitle('Condición de Pago', color: AppColors.blue1),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: [
+                  _chip('CONTADO', 'Contado'),
+                  _chip('CREDITO', 'Credito'),
+                  if (showMixto) _chip('MIXTO', 'Mixto'),
+                ],
+              ),
+            ],
           ],
         ),
       ),
