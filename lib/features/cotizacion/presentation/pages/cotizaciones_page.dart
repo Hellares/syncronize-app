@@ -71,7 +71,12 @@ class _CotizacionesPageState extends State<CotizacionesPage> {
             IconButton(
               icon: const Icon(Icons.add),
               tooltip: 'Nueva Cotización',
-              onPressed: () => context.push('/empresa/cotizaciones/nueva'),
+              onPressed: () async {
+                await context.push('/empresa/cotizaciones/nueva');
+                if (context.mounted) {
+                  context.read<CotizacionListCubit>().reload();
+                }
+              },
             ),
           ],
         ),
@@ -209,10 +214,15 @@ class _CotizacionesPageState extends State<CotizacionesPage> {
                             final cotizacion = state.cotizaciones[index];
                             return _CotizacionListTile(
                               cotizacion: cotizacion,
-                              onTap: () {
-                                context.push(
+                              onTap: () async {
+                                await context.push(
                                   '/empresa/cotizaciones/${cotizacion.id}',
                                 );
+                                if (context.mounted) {
+                                  context
+                                      .read<CotizacionListCubit>()
+                                      .reload();
+                                }
                               },
                             );
                           },
