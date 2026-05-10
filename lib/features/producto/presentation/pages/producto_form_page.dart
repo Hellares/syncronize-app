@@ -1304,12 +1304,15 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
         }
 
         if (state is PrecioNivelLoaded) {
-          // Obtener precio base del producto
+          // Obtener precio base y costo del producto
           final precioBase = double.tryParse(_controller.precioController.text);
+          final precioCosto =
+              double.tryParse(_controller.precioCostoController.text);
 
           return PrecioNivelesSection(
             niveles: state.niveles,
             precioBase: precioBase,
+            precioCosto: precioCosto,
             onNivelCreated: (dto) => _handleNivelCreated(dto),
             onNivelUpdated: (nivelId, dto) => _handleNivelUpdated(nivelId, dto),
             onNivelDeleted: (nivelId) => _handleNivelDeleted(nivelId),

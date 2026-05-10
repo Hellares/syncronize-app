@@ -13,6 +13,7 @@ import '../../data/models/precio_nivel_model.dart';
 /// Diálogo para crear o editar un nivel de precio
 class PrecioNivelFormDialog extends StatefulWidget {
   final double? precioBase;
+  final double? precioCosto;
   final PrecioNivel? nivelToEdit;
   final List<PrecioNivel> nivelesExistentes;
   final Function(PrecioNivelDto) onSave;
@@ -25,6 +26,7 @@ class PrecioNivelFormDialog extends StatefulWidget {
   const PrecioNivelFormDialog({
     super.key,
     this.precioBase,
+    this.precioCosto,
     this.nivelToEdit,
     required this.nivelesExistentes,
     required this.onSave,
@@ -70,12 +72,28 @@ class _PrecioNivelFormDialogState extends State<PrecioNivelFormDialog> {
       }
     } else {
       _nombreController.text = _generarNombreSugerido();
+      final sugerencia = _sugerirCantidadMinimaInicial();
+      if (sugerencia != null) {
+        _cantidadMinimaController.text = sugerencia.toString();
+      }
     }
     // Si el caller forzó un tipo, sobrescribimos lo que sea que haya quedado
     // (en edición respeta el del nivel; al crear nuevo, fuerza desde el inicio).
     if (widget.lockTipoPrecio != null) {
       _tipoPrecio = widget.lockTipoPrecio!;
     }
+  }
+
+  /// Sugerencia de cantidad mínima al crear un nivel nuevo: el siguiente
+  /// número después del rango más alto registrado. Si el último nivel tiene
+  /// cantidadMaxima, usa max+1; si no, usa min+1. Devuelve null si no hay
+  /// niveles previos.
+  int? _sugerirCantidadMinimaInicial() {
+    if (widget.nivelesExistentes.isEmpty) return null;
+    final ordenados = [...widget.nivelesExistentes]
+      ..sort((a, b) => a.cantidadMinima.compareTo(b.cantidadMinima));
+    final ultimo = ordenados.last;
+    return (ultimo.cantidadMaxima ?? ultimo.cantidadMinima) + 1;
   }
 
   @override
@@ -264,7 +282,13 @@ class _PrecioNivelFormDialogState extends State<PrecioNivelFormDialog> {
                 ],
               ),
               const Divider(),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
+
+              // Referencia precios del producto (venta + costo)
+              if (widget.precioBase != null || widget.precioCosto != null) ...[
+                _buildReferenciaPrecios(),
+                const SizedBox(height: 12),
+              ],
 
               Form(
                 key: _formKey,
@@ -294,6 +318,12 @@ class _PrecioNivelFormDialogState extends State<PrecioNivelFormDialog> {
                         ),
                       ],
                     ),
+                    // Chips de niveles existentes (read-only) para que el
+                    // usuario vea desde dónde puede comenzar el nuevo nivel.
+                    if (widget.nivelesExistentes.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      _buildNivelesExistentesChips(),
+                    ],
                     const SizedBox(height: 6),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -409,10 +439,17 @@ class _PrecioNivelFormDialogState extends State<PrecioNivelFormDialog> {
                         onChanged: (_) => setState(() {}),
                       ),
 
-                    // Preview del precio final
+                    // Preview del precio final — label compacto pegado al input.
                     if (precioCalculado != null) ...[
-                      const SizedBox(height: 10),
-                      _buildPrecioFinalCard(precioCalculado),
+                      const SizedBox(height: 4),
+                      _buildPrecioFinalLabel(precioCalculado),
+                      // Warning: precio final por debajo del costo → pérdida
+                      if (widget.precioCosto != null &&
+                          widget.precioCosto! > 0 &&
+                          precioCalculado < widget.precioCosto!) ...[
+                        const SizedBox(height: 6),
+                        _buildPerdidaWarning(precioCalculado),
+                      ],
                     ],
 
                     const SizedBox(height: 14),
@@ -519,45 +556,206 @@ class _PrecioNivelFormDialogState extends State<PrecioNivelFormDialog> {
     );
   }
 
-  Widget _buildPrecioFinalCard(double precio) {
+  Widget _buildNivelesExistentesChips() {
+    final ordenados = [...widget.nivelesExistentes]
+      ..sort((a, b) => a.cantidadMinima.compareTo(b.cantidadMinima));
+    final editId = widget.nivelToEdit?.id;
+    return SizedBox(
+      height: 24,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: EdgeInsets.zero,
+        itemCount: ordenados.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 6),
+        itemBuilder: (_, i) {
+          final n = ordenados[i];
+          final esActual = n.id == editId;
+          final rango = n.cantidadMaxima != null
+              ? '${n.cantidadMinima}-${n.cantidadMaxima}'
+              : '${n.cantidadMinima}+';
+          final precio = n.tipoPrecio == TipoPrecioNivel.precioFijo
+              ? (n.precio != null ? 'S/ ${n.precio!.toStringAsFixed(2)}' : null)
+              : (n.porcentajeDesc != null
+                  ? '-${n.porcentajeDesc!.toStringAsFixed(0)}%'
+                  : null);
+          final etiqueta = precio != null
+              ? '${n.nombre} · $rango · $precio'
+              : '${n.nombre} · $rango';
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: esActual
+                  ? Colors.amber.shade100
+                  : AppColors.bluechip.withValues(alpha: 0.45),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: esActual
+                    ? Colors.amber.shade400
+                    : AppColors.blue1.withValues(alpha: 0.2),
+                width: 0.6,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  etiqueta,
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                    color: esActual
+                        ? Colors.amber.shade900
+                        : AppColors.blue1,
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildReferenciaPrecios() {
     final base = widget.precioBase;
-    final ahorroPct = (base != null && base > 0)
-        ? ((base - precio) / base) * 100
-        : null;
+    final costo = widget.precioCosto;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.green.shade50,
+        color: AppColors.bluechip.withValues(alpha: 0.35),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.green.shade200),
       ),
       child: Row(
         children: [
-          Icon(Icons.savings_outlined,
-              size: 16, color: Colors.green.shade700),
+          if (base != null && base > 0)
+            Expanded(
+              child: _buildReferenciaCol(
+                label: 'Precio venta',
+                valor: 'S/ ${base.toStringAsFixed(2)}',
+                icon: Icons.sell_outlined,
+                color: AppColors.blue1,
+              ),
+            ),
+          if (base != null && base > 0 && costo != null && costo > 0)
+            Container(
+              width: 1,
+              height: 28,
+              color: AppColors.blue1.withValues(alpha: 0.2),
+              margin: const EdgeInsets.symmetric(horizontal: 8),
+            ),
+          if (costo != null && costo > 0)
+            Expanded(
+              child: _buildReferenciaCol(
+                label: 'Precio costo',
+                valor: 'S/ ${costo.toStringAsFixed(2)}',
+                icon: Icons.shopping_cart_outlined,
+                color: Colors.grey.shade700,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReferenciaCol({
+    required String label,
+    required String valor,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Row(
+      children: [
+        Icon(icon, size: 14, color: color),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 9,
+                  color: color,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Text(
+                valor,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: color,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPerdidaWarning(double precioFinal) {
+    final perdida = (widget.precioCosto ?? 0) - precioFinal;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.red.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.red.shade300, width: 0.6),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.warning_amber_rounded,
+              size: 16, color: Colors.red.shade700),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Precio final',
+                  'Pérdida de S/ ${perdida.toStringAsFixed(2)} por unidad',
                   style: TextStyle(
-                    fontSize: 10,
-                    color: Colors.green.shade800,
-                    fontWeight: FontWeight.w500,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.red.shade800,
                   ),
                 ),
                 Text(
-                  'S/ ${precio.toStringAsFixed(2)}'
-                  '${ahorroPct != null && ahorroPct > 0 ? "  (−${ahorroPct.toStringAsFixed(1)}%)" : ""}',
+                  'El precio fijo está por debajo del costo de compra',
                   style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.green.shade800,
-                    fontWeight: FontWeight.w700,
+                    fontSize: 10,
+                    color: Colors.red.shade700,
                   ),
                 ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPrecioFinalLabel(double precio) {
+    final base = widget.precioBase;
+    final ahorroPct = (base != null && base > 0)
+        ? ((base - precio) / base) * 100
+        : null;
+    return Padding(
+      padding: const EdgeInsets.only(left: 4),
+      child: Row(
+        children: [
+          Icon(Icons.savings_outlined,
+              size: 12, color: Colors.green.shade700),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              'Precio final S/ ${precio.toStringAsFixed(2)}'
+              '${ahorroPct != null && ahorroPct > 0 ? "  (−${ahorroPct.toStringAsFixed(1)}%)" : ""}',
+              style: TextStyle(
+                fontSize: 9,
+                color: Colors.green.shade800,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],

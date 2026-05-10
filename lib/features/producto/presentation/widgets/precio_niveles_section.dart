@@ -11,6 +11,7 @@ import 'precio_nivel_form_dialog.dart';
 class PrecioNivelesSection extends StatefulWidget {
   final List<PrecioNivel> niveles;
   final double? precioBase;
+  final double? precioCosto;
   final Function(PrecioNivelDto) onNivelCreated;
   final Function(String nivelId, PrecioNivelDto) onNivelUpdated;
   final Function(String nivelId) onNivelDeleted;
@@ -19,6 +20,7 @@ class PrecioNivelesSection extends StatefulWidget {
     super.key,
     required this.niveles,
     this.precioBase,
+    this.precioCosto,
     required this.onNivelCreated,
     required this.onNivelUpdated,
     required this.onNivelDeleted,
@@ -34,6 +36,7 @@ class _PrecioNivelesSectionState extends State<PrecioNivelesSection> {
       context: context,
       builder: (context) => PrecioNivelFormDialog(
         precioBase: widget.precioBase,
+        precioCosto: widget.precioCosto,
         nivelToEdit: nivelToEdit,
         nivelesExistentes: widget.niveles,
         onSave: (dto) {
