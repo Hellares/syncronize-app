@@ -471,8 +471,6 @@ import '../../features/consultas_externas/domain/usecases/consultar_ruc_usecase.
     as _i633;
 import '../../features/consultas_externas/presentation/bloc/consulta_ruc_cubit.dart'
     as _i193;
-import '../../features/cotizacion/data/datasources/cotizacion_remote_datasource.dart'
-    as _i369;
 import '../../features/cotizacion/data/repositories/cotizacion_repository_impl.dart'
     as _i843;
 import '../../features/cotizacion/domain/repositories/cotizacion_repository.dart'
@@ -1664,9 +1662,6 @@ extension GetItInjectableX on _i174.GetIt {
       () =>
           _i894.ConfiguracionFacturacionRemoteDataSource(gh<_i667.DioClient>()),
     );
-    gh.lazySingleton<_i369.CotizacionRemoteDataSource>(
-      () => _i369.CotizacionRemoteDataSource(gh<_i667.DioClient>()),
-    );
     gh.lazySingleton<_i48.CotizacionRapidaRemoteDataSource>(
       () => _i48.CotizacionRapidaRemoteDataSource(gh<_i667.DioClient>()),
     );
@@ -2795,7 +2790,7 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i823.CotizacionRepository>(
       () => _i843.CotizacionRepositoryImpl(
-        gh<_i369.CotizacionRemoteDataSource>(),
+        gh<_i48.CotizacionRapidaRemoteDataSource>(),
         gh<_i932.NetworkInfo>(),
         gh<_i490.ErrorHandlerService>(),
       ),

@@ -7,7 +7,6 @@ import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/app_gradients.dart';
 import 'package:syncronize/core/widgets/custom_filter_chip.dart';
 import 'package:syncronize/core/widgets/custom_search_field.dart';
-import 'package:syncronize/core/widgets/floating_button_text.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import '../../../../core/theme/gradient_container.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
@@ -70,8 +69,9 @@ class _CotizacionesPageState extends State<CotizacionesPage> {
           foregroundColor: AppColors.white,
           actions: [
             IconButton(
-              icon: const Icon(Icons.filter_list),
-              onPressed: _showFilterDialog,
+              icon: const Icon(Icons.add),
+              tooltip: 'Nueva Cotización',
+              onPressed: () => context.push('/empresa/cotizaciones/nueva'),
             ),
           ],
         ),
@@ -227,13 +227,6 @@ class _CotizacionesPageState extends State<CotizacionesPage> {
             ],
           ),
         ),
-        floatingActionButton: FloatingButtonText(
-          label: 'Nueva Cotización',
-          icon: Icons.add,
-          onPressed: () {
-            context.push('/empresa/cotizaciones/nueva');
-          },
-        ),
       ),
     );
   }
@@ -241,22 +234,6 @@ class _CotizacionesPageState extends State<CotizacionesPage> {
   void _filterByEstado(EstadoCotizacion? estado) {
     setState(() => _filtroEstado = estado);
     context.read<CotizacionListCubit>().filterByEstado(estado);
-  }
-
-  void _showFilterDialog() {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Filtros'),
-        content: const Text('Filtros adicionales (fecha, sede, etc.)'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cerrar'),
-          ),
-        ],
-      ),
-    );
   }
 }
 

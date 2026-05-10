@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:syncronize/core/theme/gradient_container.dart';
 
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -145,7 +144,7 @@ class _FinalizarViewState extends State<_FinalizarView> {
               children: [
                 Expanded(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(8),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -196,7 +195,7 @@ class _FinalizarViewState extends State<_FinalizarView> {
                                       child: Text(
                                         state.nombreClienteResuelto,
                                         style: const TextStyle(
-                                          fontSize: 12,
+                                          fontSize: 11,
                                           fontWeight: FontWeight.w600,
                                         ),
                                       ),
@@ -246,6 +245,7 @@ class _FinalizarViewState extends State<_FinalizarView> {
                                   Expanded(
                                     child: CustomButton(
                                       text: 'Buscar cliente',
+                                      height: 30,
                                       icon: const Icon(Icons.search,
                                           size: 16,
                                           color: AppColors.blue1),
@@ -258,6 +258,7 @@ class _FinalizarViewState extends State<_FinalizarView> {
                                   Expanded(
                                     child: CustomButton(
                                       text: 'Genérico',
+                                      height: 30,
                                       icon: Icon(Icons.people_outline,
                                           size: 16,
                                           color: Colors.grey.shade700),
@@ -368,12 +369,12 @@ class _SectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GradientContainer(
-      // decoration: BoxDecoration(
-      //   color: Colors.white,
-      //   borderRadius: BorderRadius.circular(8),
-      //   border: Border.all(color: Colors.grey.shade200),
-      // ),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
       padding: const EdgeInsets.all(12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

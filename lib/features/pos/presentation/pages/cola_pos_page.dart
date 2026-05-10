@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_gradients.dart';
 import '../../../../core/theme/gradient_background.dart';
@@ -225,7 +227,8 @@ class _CotizacionPOSCardState extends State<_CotizacionPOSCard> {
                       ],
                     ),
                     const SizedBox(height: 2),
-                    Text(c.nombreCliente, style: TextStyle(fontSize: 10, color: Colors.grey[600])),
+                    //Text(c.nombreCliente, style: TextStyle(fontSize: 10, color: Colors.grey[600])),
+                    AppSubtitle(c.nombreCliente,  color: AppColors.blue1, maxLines: 1, overflow: TextOverflow.ellipsis)
                   ],
                 ),
               ),
@@ -241,18 +244,37 @@ class _CotizacionPOSCardState extends State<_CotizacionPOSCard> {
           ),
           const SizedBox(height: 6),
 
-          // Vendedor + sede
+          // Vendedor + sede + fecha/hora
           Row(
             children: [
               Icon(Icons.person_outline, size: 12, color: Colors.grey[700]),
               const SizedBox(width: 4),
-              Text(c.vendedor, style: TextStyle(fontSize: 10, color: Colors.grey[700]), overflow: TextOverflow.ellipsis),
+              Flexible(
+                child: Text(
+                  c.vendedor,
+                  style: TextStyle(fontSize: 9, color: Colors.grey[700]),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
               if (c.sede != null) ...[
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 Icon(Icons.store, size: 12, color: Colors.grey[700]),
                 const SizedBox(width: 4),
-                Text(c.sede!, style: TextStyle(fontSize: 10, color: Colors.grey[700])),
+                Flexible(
+                  child: Text(
+                    c.sede!,
+                    style: TextStyle(fontSize: 10, color: Colors.grey[700]),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
               ],
+              const SizedBox(width: 8),
+              Icon(Icons.schedule, size: 12, color: Colors.grey[700]),
+              const SizedBox(width: 4),
+              Text(
+                DateFormatter.formatDateTime(c.creadoEn),
+                style: TextStyle(fontSize: 10, color: Colors.grey[700]),
+              ),
             ],
           ),
 
@@ -301,6 +323,7 @@ class _CotizacionPOSCardState extends State<_CotizacionPOSCard> {
           SizedBox(
 
             child: CustomButton(
+              height: 32,
               onPressed: () async {
                 final result = await context.push('/empresa/cola-pos/cobrar/${c.id}');
                 if (result == true && context.mounted) {
@@ -308,7 +331,7 @@ class _CotizacionPOSCardState extends State<_CotizacionPOSCard> {
                 }
               },
               text: c.esPendiente ? 'Aprobar y Cobrar' : 'Cobrar',
-              icon: c.esPendiente ? Icon(Icons.flash_on) : Icon(Icons.point_of_sale),
+              icon: c.esPendiente ? Icon(Icons.flash_on, size: 18,) : Icon(Icons.point_of_sale, size: 18,),
               backgroundColor: esUrgente
                   ? Colors.orange
                   : c.esPendiente

@@ -2,13 +2,13 @@ import 'package:injectable/injectable.dart';
 import '../../../../core/network/network_info.dart';
 import '../../../../core/services/error_handler_service.dart';
 import '../../../../core/utils/resource.dart';
+import '../../../cotizacion_rapida/data/datasources/cotizacion_rapida_remote_datasource.dart';
 import '../../domain/entities/cotizacion.dart';
 import '../../domain/repositories/cotizacion_repository.dart';
-import '../datasources/cotizacion_remote_datasource.dart';
 
 @LazySingleton(as: CotizacionRepository)
 class CotizacionRepositoryImpl implements CotizacionRepository {
-  final CotizacionRemoteDataSource _remoteDataSource;
+  final CotizacionRapidaRemoteDataSource _remoteDataSource;
   final NetworkInfo _networkInfo;
   final ErrorHandlerService _errorHandler;
 
@@ -30,7 +30,7 @@ class CotizacionRepositoryImpl implements CotizacionRepository {
     }
 
     try {
-      final cotizacion = await _remoteDataSource.crearCotizacion(data);
+      final cotizacion = await _remoteDataSource.crear(data);
       return Success(cotizacion.toEntity());
     } catch (e) {
       return _errorHandler.handleException(e, context: 'Cotizacion');
@@ -54,7 +54,7 @@ class CotizacionRepositoryImpl implements CotizacionRepository {
     }
 
     try {
-      final cotizaciones = await _remoteDataSource.getCotizaciones(
+      final cotizaciones = await _remoteDataSource.listar(
         sedeId: sedeId,
         estado: estado,
         fechaDesde: fechaDesde,
@@ -82,7 +82,7 @@ class CotizacionRepositoryImpl implements CotizacionRepository {
     }
 
     try {
-      final cotizacion = await _remoteDataSource.getCotizacion(cotizacionId);
+      final cotizacion = await _remoteDataSource.obtener(cotizacionId);
       return Success(cotizacion.toEntity());
     } catch (e) {
       return _errorHandler.handleException(e, context: 'Cotizacion');
@@ -103,7 +103,7 @@ class CotizacionRepositoryImpl implements CotizacionRepository {
 
     try {
       final cotizacion =
-          await _remoteDataSource.actualizarCotizacion(cotizacionId, data);
+          await _remoteDataSource.actualizar(cotizacionId, data);
       return Success(cotizacion.toEntity());
     } catch (e) {
       return _errorHandler.handleException(e, context: 'Cotizacion');
@@ -143,8 +143,7 @@ class CotizacionRepositoryImpl implements CotizacionRepository {
     }
 
     try {
-      final cotizacion =
-          await _remoteDataSource.duplicarCotizacion(cotizacionId);
+      final cotizacion = await _remoteDataSource.duplicar(cotizacionId);
       return Success(cotizacion.toEntity());
     } catch (e) {
       return _errorHandler.handleException(e, context: 'Cotizacion');
@@ -163,7 +162,7 @@ class CotizacionRepositoryImpl implements CotizacionRepository {
     }
 
     try {
-      await _remoteDataSource.eliminarCotizacion(cotizacionId);
+      await _remoteDataSource.eliminar(cotizacionId);
       return Success(null);
     } catch (e) {
       return _errorHandler.handleException(e, context: 'Cotizacion');
