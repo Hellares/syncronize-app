@@ -4,6 +4,12 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import '../../domain/entities/guia_remision.dart';
 
+/// Generador de PDF para Guía de Remisión Electrónica (GRE).
+///
+/// TODO(pdf-refactor): migrar a `core/services/pdf/PdfDocumentService` +
+/// builders compartidos cuando este módulo adopte
+/// `ConfiguracionDocumentoCompleta`. Hoy mantiene su propia lógica de
+/// header/totales/footer.
 class PdfGuiaRemisionGenerator {
   /// Resuelve ubigeo a "DEPARTAMENTO - PROVINCIA - DISTRITO"
   static String _resolverUbigeo(String? ubigeo, List<Map<String, dynamic>>? ubigeos) {

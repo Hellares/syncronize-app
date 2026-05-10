@@ -6,6 +6,9 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:syncronize/core/utils/date_formatter.dart';
 import '../../domain/entities/orden_servicio.dart';
 
+// TODO(pdf-refactor): migrar a `core/services/pdf/PdfDocumentService` +
+// builders compartidos. Mantiene su propio _hexToColor y helpers porque
+// no consume `ConfiguracionDocumentoCompleta`.
 /// Color primario por defecto
 const _defaultPrimaryHex = '#1565C0';
 

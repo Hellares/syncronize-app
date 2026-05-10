@@ -1,22 +1,15 @@
 import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:syncronize/core/services/pdf/builders/pdf_header_builder.dart';
+import 'package:syncronize/core/services/pdf/builders/pdf_party_builder.dart';
+import 'package:syncronize/core/services/pdf/builders/pdf_totales_builder.dart';
+import 'package:syncronize/core/services/pdf/pdf_document_service.dart';
+import 'package:syncronize/core/services/pdf/pdf_document_style.dart';
+import 'package:syncronize/core/services/pdf/pdf_row_builders.dart';
 import 'package:syncronize/core/utils/date_formatter.dart';
 import '../../domain/entities/cotizacion.dart';
 import '../../../configuracion_documentos/domain/entities/configuracion_documento_completa.dart';
-import '../../../configuracion_documentos/domain/entities/plantilla_documento.dart';
-
-/// Convierte un color hex (#RRGGBB) a PdfColor
-PdfColor _hexToColor(String hex) {
-  hex = hex.replaceFirst('#', '');
-  if (hex.length == 6) {
-    hex = 'FF$hex';
-  }
-  return PdfColor.fromInt(int.parse(hex, radix: 16));
-}
-
-/// Color primario por defecto si no hay config
-const _defaultPrimaryHex = '#1565C0';
 
 /// Servicio para generar documentos PDF de cotizaciones
 class PdfCotizacionGenerator {
@@ -40,82 +33,39 @@ class PdfCotizacionGenerator {
     double porcentajeImpuesto = 18.0,
     ConfiguracionDocumentoCompleta? documentConfig,
   }) async {
-    final pdf = pw.Document();
-
-    // Colores dinamicos desde configuracion
-    final primaryColor = _hexToColor(
-      documentConfig?.colorPrimarioEfectivo ?? _defaultPrimaryHex,
+    final style = PdfDocumentStyle.fromConfig(
+      documentConfig: documentConfig,
+      empresaNombre: empresaNombre,
+      empresaRuc: empresaRuc,
+      empresaDireccion: empresaDireccion,
+      empresaTelefono: empresaTelefono,
+      defaultMarginMm: 10.0,
     );
-    // Datos de empresa desde configuracion (con fallbacks)
-    final config = documentConfig?.configuracion;
-    final plantilla = documentConfig?.plantilla;
-
-    final effectiveEmpresaNombre =
-        config?.nombreComercial ?? empresaNombre;
-    final effectiveRuc = config?.ruc ?? empresaRuc;
-    final effectiveDireccion =
-        documentConfig?.direccionEfectiva ?? config?.direccion ?? empresaDireccion;
-    final effectiveTelefono =
-        documentConfig?.telefonoEfectivo ?? config?.telefono ?? empresaTelefono;
-
-    // Margenes dinamicos
-    final marginTop = (plantilla?.margenSuperior ?? 10.0) * PdfPageFormat.mm;
-    final marginBottom = (plantilla?.margenInferior ?? 10.0) * PdfPageFormat.mm;
-    final marginLeft = (plantilla?.margenIzquierdo ?? 10.0) * PdfPageFormat.mm;
-    final marginRight = (plantilla?.margenDerecho ?? 10.0) * PdfPageFormat.mm;
-
-    // Flags de visibilidad
-    final showLogo = plantilla?.mostrarLogo ?? true;
-    final showDatosEmpresa = plantilla?.mostrarDatosEmpresa ?? true;
-    final showDatosCliente = plantilla?.mostrarDatosCliente ?? true;
-    final showDetalles = plantilla?.mostrarDetalles ?? true;
-    final showTotales = plantilla?.mostrarTotales ?? true;
-    final showObservaciones = plantilla?.mostrarObservaciones ?? true;
-    final showCondiciones = plantilla?.mostrarCondiciones ?? true;
-    final showFirma = plantilla?.mostrarFirma ?? true;
-    final showPiePagina = plantilla?.mostrarPiePagina ?? true;
-
-    // Texto pie de pagina
-    final footerText =
-        config?.textoPiePagina ?? 'Gracias por su preferencia';
-    final showPaginacion = config?.mostrarPaginacion ?? true;
-
-    // Formato de papel dinámico
-    final formatoPapel = plantilla?.formatoPapel ?? FormatoPapel.A4;
-    final isTicket = formatoPapel.isTicket;
-
-    // Espaciado dinámico
+    final primaryColor = style.colorPrimario;
+    final isTicket = style.formatoPapel.isTicket;
     final sectionSpacing = isTicket ? 8.0 : 20.0;
     final smallSpacing = isTicket ? 6.0 : 12.0;
 
-    final margin = pw.EdgeInsets.only(
-      top: marginTop,
-      bottom: marginBottom,
-      left: marginLeft,
-      right: marginRight,
-    );
-
-    // Contenido principal (sin footer — se agrega diferente según tipo de página)
-    final contentWidgets = <pw.Widget>[
+    final bodyWidgets = <pw.Widget>[
       _buildHeader(
-        empresaNombre: effectiveEmpresaNombre,
-        empresaRuc: effectiveRuc,
-        empresaDireccion: effectiveDireccion,
-        empresaTelefono: effectiveTelefono,
-        sedeNombre: documentConfig?.sede?.nombre,
-        logo: showLogo ? logoEmpresa : null,
+        empresaNombre: style.empresaNombre,
+        empresaRuc: style.empresaRuc,
+        empresaDireccion: style.empresaDireccion,
+        empresaTelefono: style.empresaTelefono,
+        sedeNombre: style.sedeNombre,
+        logo: style.showLogo ? logoEmpresa : null,
         cotizacion: cotizacion,
         primaryColor: primaryColor,
-        showDatosEmpresa: showDatosEmpresa,
+        showDatosEmpresa: style.showDatosEmpresa,
         isTicket: isTicket,
       ),
       pw.SizedBox(height: sectionSpacing),
-      if (showDatosCliente) ...[
+      if (style.showDatosCliente) ...[
         _buildClienteInfo(cotizacion,
             primaryColor: primaryColor, isTicket: isTicket),
         pw.SizedBox(height: sectionSpacing),
       ],
-      if (showDetalles) ...[
+      if (style.showDetalles) ...[
         _buildDetallesTable(
           cotizacion,
           modoCliente: modoCliente,
@@ -124,13 +74,13 @@ class PdfCotizacionGenerator {
         ),
         pw.SizedBox(height: sectionSpacing),
       ],
-      if (showTotales)
+      if (style.showTotales)
         _buildTotalesSection(cotizacion,
             modoCliente: modoCliente,
             nombreImpuesto: nombreImpuesto,
             porcentajeImpuesto: porcentajeImpuesto,
             isTicket: isTicket),
-      if (showObservaciones &&
+      if (style.showObservaciones &&
           cotizacion.observaciones != null &&
           cotizacion.observaciones!.isNotEmpty) ...[
         pw.SizedBox(height: sectionSpacing),
@@ -140,69 +90,25 @@ class PdfCotizacionGenerator {
           isTicket: isTicket,
         ),
       ],
-      if (showCondiciones &&
+      if (style.showCondiciones &&
           cotizacion.condiciones != null &&
           cotizacion.condiciones!.isNotEmpty) ...[
         pw.SizedBox(height: smallSpacing),
         _buildCondiciones(cotizacion.condiciones!, isTicket: isTicket),
       ],
-      if (showFirma && !isTicket) ...[
+      if (style.showFirma && !isTicket) ...[
         pw.SizedBox(height: 30),
         _buildFirmasSection(cotizacion),
       ],
     ];
 
-    if (isTicket) {
-      // Ticket: página única con altura ajustada al contenido
-      final ticketWidth = formatoPapel == FormatoPapel.TICKET_80MM
-          ? 80 * PdfPageFormat.mm
-          : 58 * PdfPageFormat.mm;
-
-      // Agregar footer como parte del contenido para ticket
-      if (showPiePagina) {
-        contentWidgets.add(_buildFooter(
-          cotizacion,
-          1,
-          1,
-          footerText: footerText,
-          showPaginacion: false,
-          isTicket: true,
-        ));
-      }
-
-      pdf.addPage(
-        pw.Page(
-          pageFormat: PdfPageFormat(ticketWidth, double.infinity),
-          margin: margin,
-          build: (context) => pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            mainAxisSize: pw.MainAxisSize.min,
-            children: contentWidgets,
-          ),
-        ),
-      );
-    } else {
-      // A4: MultiPage con paginación normal
-      pdf.addPage(
-        pw.MultiPage(
-          pageFormat: PdfPageFormat.a4,
-          margin: margin,
-          build: (context) => contentWidgets,
-          footer: showPiePagina
-              ? (context) => _buildFooter(
-                    cotizacion,
-                    context.pageNumber,
-                    context.pagesCount,
-                    footerText: footerText,
-                    showPaginacion: showPaginacion,
-                    isTicket: false,
-                  )
-              : null,
-        ),
-      );
-    }
-
-    return pdf.save();
+    return PdfDocumentService.build(
+      style: style,
+      bodyWidgets: bodyWidgets,
+      footerText: style.textoPiePagina ?? 'Gracias por su preferencia',
+      showPaginacion:
+          documentConfig?.configuracion.mostrarPaginacion ?? true,
+    );
   }
 
   /// Encabezado con datos de empresa y titulo
@@ -218,124 +124,25 @@ class PdfCotizacionGenerator {
     bool showDatosEmpresa = true,
     bool isTicket = false,
   }) {
-    final titleFontSize = isTicket ? 10.0 : 16.0;
-    final codeFontSize = isTicket ? 9.0 : 13.0;
-    final detailFontSize = isTicket ? 7.0 : 9.0;
-    final logoHeight = isTicket ? 30.0 : 50.0;
-    final logoWidth = isTicket ? 70.0 : 120.0;
-
-    final empresaInfo = pw.Column(
-      crossAxisAlignment:
-          isTicket ? pw.CrossAxisAlignment.center : pw.CrossAxisAlignment.start,
-      children: [
-        if (logo != null)
-          pw.Image(
-            pw.MemoryImage(logo),
-            height: logoHeight,
-            width: logoWidth,
-            fit: pw.BoxFit.contain,
-          )
-        else
-          pw.Text(
-            empresaNombre,
-            style: pw.TextStyle(
-              fontSize: titleFontSize,
-              fontWeight: pw.FontWeight.bold,
-            ),
-            textAlign: isTicket ? pw.TextAlign.center : pw.TextAlign.left,
-          ),
-        if (showDatosEmpresa) ...[
-          if (sedeNombre != null) ...[
-            pw.SizedBox(height: 2),
-            pw.Text('Sede: $sedeNombre',
-                style: pw.TextStyle(fontSize: detailFontSize)),
-          ],
-          if (empresaRuc != null) ...[
-            pw.SizedBox(height: isTicket ? 1 : 3),
-            pw.Text('RUC: $empresaRuc',
-                style: pw.TextStyle(fontSize: detailFontSize)),
-          ],
-          if (empresaDireccion != null) ...[
-            pw.SizedBox(height: isTicket ? 1 : 2),
-            pw.Text(empresaDireccion,
-                style: pw.TextStyle(fontSize: detailFontSize),
-                textAlign: isTicket ? pw.TextAlign.center : pw.TextAlign.left),
-          ],
-          if (empresaTelefono != null) ...[
-            pw.SizedBox(height: isTicket ? 1 : 2),
-            pw.Text('Tel: $empresaTelefono',
-                style: pw.TextStyle(fontSize: detailFontSize)),
-          ],
-        ],
-      ],
-    );
-
-    final cotizacionInfo = pw.Container(
-      width: isTicket ? double.infinity : null,
-      padding: pw.EdgeInsets.all(isTicket ? 6 : 12),
-      decoration: pw.BoxDecoration(
-        border: pw.Border.all(color: primaryColor, width: isTicket ? 1 : 2),
-        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
-      ),
-      child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.center,
-        children: [
-          pw.Text(
-            'COTIZACION',
-            style: pw.TextStyle(
-              fontSize: titleFontSize,
-              fontWeight: pw.FontWeight.bold,
-              color: primaryColor,
-            ),
-          ),
-          pw.SizedBox(height: isTicket ? 3 : 6),
-          pw.Text(
-            cotizacion.codigo,
-            style: pw.TextStyle(
-              fontSize: codeFontSize,
-              fontWeight: pw.FontWeight.bold,
-            ),
-          ),
-          pw.SizedBox(height: isTicket ? 2 : 4),
-          pw.Text(
-            'Fecha: ${DateFormatter.formatDate(cotizacion.fechaEmision)}',
-            style: pw.TextStyle(fontSize: detailFontSize),
-          ),
-          if (cotizacion.fechaVencimiento != null) ...[
-            pw.SizedBox(height: isTicket ? 1 : 2),
-            pw.Text(
-              'Vence: ${DateFormatter.formatDate(cotizacion.fechaVencimiento!)}',
-              style: pw.TextStyle(fontSize: detailFontSize),
-            ),
-          ],
-          pw.SizedBox(height: isTicket ? 2 : 4),
-          pw.Text(
-            'Moneda: ${cotizacion.moneda}',
-            style: pw.TextStyle(fontSize: detailFontSize),
-          ),
-        ],
-      ),
-    );
-
-    // Ticket: stack vertically, todo centrado y ancho completo. A4: side by side
-    if (isTicket) {
-      return pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-        children: [
-          empresaInfo,
-          pw.SizedBox(height: 6),
-          cotizacionInfo,
-        ],
-      );
-    }
-
-    return pw.Row(
-      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        pw.Expanded(child: empresaInfo),
-        cotizacionInfo,
-      ],
+    final lines = <String>[
+      'Fecha: ${DateFormatter.formatDate(cotizacion.fechaEmision)}',
+      if (cotizacion.fechaVencimiento != null)
+        'Vence: ${DateFormatter.formatDate(cotizacion.fechaVencimiento!)}',
+      'Moneda: ${cotizacion.moneda}',
+    ];
+    return PdfHeaderBuilder.build(
+      empresaNombre: empresaNombre,
+      empresaRuc: empresaRuc,
+      empresaDireccion: empresaDireccion,
+      empresaTelefono: empresaTelefono,
+      sedeNombre: sedeNombre,
+      logo: logo,
+      tipoDocumento: 'COTIZACION',
+      codigo: cotizacion.codigo,
+      documentLines: lines,
+      primaryColor: primaryColor,
+      showDatosEmpresa: showDatosEmpresa,
+      isTicket: isTicket,
     );
   }
 
@@ -345,128 +152,35 @@ class PdfCotizacionGenerator {
     required PdfColor primaryColor,
     bool isTicket = false,
   }) {
-    // Derive a light tint from primaryColor for background
-    final lightBg = PdfColor(
-      primaryColor.red,
-      primaryColor.green,
-      primaryColor.blue,
-      0.08,
-    );
-
-    final titleSize = isTicket ? 9.0 : 13.0;
-    final labelSize = isTicket ? 8.0 : 10.0;
-    final padding = isTicket ? 8.0 : 15.0;
-
-    final allClientFields = <pw.Widget>[
-      _buildInfoRow('Cliente', cotizacion.nombreCliente, isTicket: isTicket),
+    final fields = <PdfPartyField>[
+      PdfPartyField('Cliente', cotizacion.nombreCliente),
       if (cotizacion.documentoCliente != null)
-        _buildInfoRow('Documento', cotizacion.documentoCliente!,
-            isTicket: isTicket),
+        PdfPartyField('Documento', cotizacion.documentoCliente!),
       if (cotizacion.emailCliente != null)
-        _buildInfoRow('Email', cotizacion.emailCliente!, isTicket: isTicket),
+        PdfPartyField('Email', cotizacion.emailCliente!),
       if (cotizacion.telefonoCliente != null)
-        _buildInfoRow('Telefono', cotizacion.telefonoCliente!,
-            isTicket: isTicket),
+        PdfPartyField('Telefono', cotizacion.telefonoCliente!),
       if (cotizacion.direccionCliente != null)
-        _buildInfoRow('Direccion', cotizacion.direccionCliente!,
-            isTicket: isTicket),
+        PdfPartyField('Direccion', cotizacion.direccionCliente!),
       if (cotizacion.vendedorNombre != null)
-        _buildInfoRow('Vendedor', cotizacion.vendedorNombre!,
-            isTicket: isTicket),
+        PdfPartyField('Vendedor', cotizacion.vendedorNombre!),
     ];
 
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        // Nombre de la cotizacion
-        if (cotizacion.nombre != null && cotizacion.nombre!.isNotEmpty) ...[
-          pw.Container(
-            width: double.infinity,
-            padding: pw.EdgeInsets.symmetric(
-                horizontal: isTicket ? 6 : 12, vertical: isTicket ? 4 : 8),
-            decoration: pw.BoxDecoration(
-              color: lightBg,
-              borderRadius:
-                  const pw.BorderRadius.all(pw.Radius.circular(4)),
-            ),
-            child: pw.Text(
-              cotizacion.nombre!,
-              style: pw.TextStyle(
-                fontSize: titleSize,
-                fontWeight: pw.FontWeight.bold,
-                color: primaryColor,
-              ),
-            ),
-          ),
-          pw.SizedBox(height: isTicket ? 6 : 12),
-        ],
-        // Datos del cliente
-        pw.Container(
-          padding: pw.EdgeInsets.all(padding),
-          decoration: pw.BoxDecoration(
-            border: pw.Border.all(color: PdfColors.grey400),
-            borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
-          ),
-          child: pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.Text(
-                'DATOS DEL CLIENTE',
-                style: pw.TextStyle(
-                  fontSize: labelSize,
-                  fontWeight: pw.FontWeight.bold,
-                  color: primaryColor,
-                ),
-              ),
-              pw.SizedBox(height: isTicket ? 4 : 8),
-              pw.Divider(color: PdfColors.grey300),
-              pw.SizedBox(height: isTicket ? 4 : 8),
-              if (isTicket)
-                pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: allClientFields,
-                )
-              else
-                pw.Row(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    pw.Expanded(
-                      child: pw.Column(
-                        crossAxisAlignment: pw.CrossAxisAlignment.start,
-                        children: [
-                          _buildInfoRow(
-                              'Cliente', cotizacion.nombreCliente),
-                          if (cotizacion.documentoCliente != null)
-                            _buildInfoRow(
-                                'Documento', cotizacion.documentoCliente!),
-                          if (cotizacion.emailCliente != null)
-                            _buildInfoRow(
-                                'Email', cotizacion.emailCliente!),
-                        ],
-                      ),
-                    ),
-                    pw.Expanded(
-                      child: pw.Column(
-                        crossAxisAlignment: pw.CrossAxisAlignment.start,
-                        children: [
-                          if (cotizacion.telefonoCliente != null)
-                            _buildInfoRow(
-                                'Telefono', cotizacion.telefonoCliente!),
-                          if (cotizacion.direccionCliente != null)
-                            _buildInfoRow(
-                                'Direccion', cotizacion.direccionCliente!),
-                          if (cotizacion.vendedorNombre != null)
-                            _buildInfoRow(
-                                'Vendedor', cotizacion.vendedorNombre!),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-            ],
-          ),
-        ),
-      ],
+    pw.Widget? header;
+    if (cotizacion.nombre != null && cotizacion.nombre!.isNotEmpty) {
+      header = PdfPartyBuilder.banner(
+        text: cotizacion.nombre!,
+        primaryColor: primaryColor,
+        isTicket: isTicket,
+      );
+    }
+
+    return PdfPartyBuilder.build(
+      title: 'DATOS DEL CLIENTE',
+      fields: fields,
+      primaryColor: primaryColor,
+      isTicket: isTicket,
+      headerBlock: header,
     );
   }
 
@@ -658,56 +372,18 @@ class PdfCotizacionGenerator {
     String nombreImpuesto = 'IGV',
     double porcentajeImpuesto = 18.0,
     bool isTicket = false,
-  }) {
-    final totalFontSize = isTicket ? 9.0 : 13.0;
-    final rowFontSize = isTicket ? 7.0 : 10.0;
-    final containerPadding = isTicket ? 6.0 : 12.0;
-
-    final totalesContent = pw.Container(
-      width: isTicket ? double.infinity : 220,
-      padding: pw.EdgeInsets.all(containerPadding),
-      decoration: pw.BoxDecoration(
-        border: pw.Border.all(color: PdfColors.grey400),
-        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
-      ),
-      child: pw.Column(
-        children: [
-          if (!modoCliente) ...[
-            _buildTotalRow('Subtotal',
-                '${cotizacion.moneda} ${_formatMonto(cotizacion.subtotal)}',
-                fontSize: rowFontSize),
-            if (cotizacion.descuento > 0)
-              _buildTotalRow('Descuento',
-                  '- ${cotizacion.moneda} ${_formatMonto(cotizacion.descuento)}',
-                  fontSize: rowFontSize),
-            _buildTotalRow(
-                '$nombreImpuesto (${porcentajeImpuesto.toStringAsFixed(0)}%)',
-                '${cotizacion.moneda} ${_formatMonto(cotizacion.impuestos)}',
-                fontSize: rowFontSize),
-            pw.Divider(color: PdfColors.grey400),
-            pw.SizedBox(height: isTicket ? 2 : 4),
-          ],
-          _buildTotalRow(
-            'TOTAL',
-            '${cotizacion.moneda} ${_formatMonto(cotizacion.total)}',
-            bold: true,
-            fontSize: totalFontSize,
-          ),
-        ],
-      ),
-    );
-
-    if (isTicket) {
-      return totalesContent;
-    }
-
-    return pw.Row(
-      children: [
-        pw.Expanded(child: pw.SizedBox()),
-        totalesContent,
-      ],
-    );
-  }
+  }) =>
+      PdfTotalesBuilder.simple(
+        moneda: cotizacion.moneda,
+        subtotal: cotizacion.subtotal,
+        descuento: cotizacion.descuento,
+        impuestos: cotizacion.impuestos,
+        total: cotizacion.total,
+        nombreImpuesto: nombreImpuesto,
+        porcentajeImpuesto: porcentajeImpuesto,
+        isTicket: isTicket,
+        hideBreakdown: modoCliente,
+      );
 
   /// Observaciones
   static pw.Widget _buildObservaciones(
@@ -830,91 +506,12 @@ class PdfCotizacionGenerator {
     );
   }
 
-  /// Footer
-  static pw.Widget _buildFooter(
-    Cotizacion cotizacion,
-    int pageNumber,
-    int totalPages, {
-    String footerText = 'Gracias por su preferencia',
-    bool showPaginacion = true,
-    bool isTicket = false,
-  }) {
-    final fontSize = isTicket ? 6.0 : 8.0;
-
-    if (isTicket) {
-      return pw.Container(
-        margin: const pw.EdgeInsets.only(top: 6),
-        padding: const pw.EdgeInsets.symmetric(vertical: 4),
-        decoration: const pw.BoxDecoration(
-          border: pw.Border(top: pw.BorderSide(color: PdfColors.grey400)),
-        ),
-        child: pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.center,
-          children: [
-            pw.Text(footerText, style: pw.TextStyle(fontSize: fontSize)),
-            pw.SizedBox(height: 2),
-            pw.Text(
-              'Generado: ${DateFormatter.formatDateTime(DateTime.now())}',
-              style: pw.TextStyle(fontSize: fontSize),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return pw.Container(
-      margin: const pw.EdgeInsets.only(top: 20),
-      padding: const pw.EdgeInsets.symmetric(vertical: 8),
-      decoration: const pw.BoxDecoration(
-        border: pw.Border(top: pw.BorderSide(color: PdfColors.grey400)),
-      ),
-      child: pw.Row(
-        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-        children: [
-          pw.Text(footerText, style: pw.TextStyle(fontSize: fontSize)),
-          if (showPaginacion)
-            pw.Text(
-              'Pagina $pageNumber de $totalPages',
-              style: pw.TextStyle(fontSize: fontSize),
-            ),
-          pw.Text(
-            'Generado: ${DateFormatter.formatDateTime(DateTime.now())}',
-            style: pw.TextStyle(fontSize: fontSize),
-          ),
-        ],
-      ),
-    );
-  }
-
   // ==================== HELPERS ====================
 
-  static pw.Widget _buildInfoRow(String label, String value,
-      {bool isTicket = false}) {
-    final fontSize = isTicket ? 7.0 : 9.0;
-    final labelWidth = isTicket ? 50.0 : 70.0;
-    return pw.Padding(
-      padding: pw.EdgeInsets.symmetric(vertical: isTicket ? 1 : 2),
-      child: pw.Row(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          pw.SizedBox(
-            width: labelWidth,
-            child: pw.Text(
-              '$label:',
-              style: pw.TextStyle(
-                fontSize: fontSize,
-                fontWeight: pw.FontWeight.bold,
-              ),
-            ),
-          ),
-          pw.Expanded(
-            child: pw.Text(value, style: pw.TextStyle(fontSize: fontSize)),
-          ),
-        ],
-      ),
-    );
-  }
-
+  // _buildInfoRow y _buildTotalRow ya no son usados — los call sites
+  // delegan directamente a los builders compuestos
+  // (PdfPartyBuilder/PdfTotalesBuilder). Solo queda _buildTableCell
+  // porque la tabla de detalles aún lo usa.
   static pw.Widget _buildTableCell(
     String text, {
     bool isHeader = false,
@@ -922,50 +519,15 @@ class PdfCotizacionGenerator {
     PdfColor? color,
     pw.TextAlign align = pw.TextAlign.left,
     double padding = 6,
-  }) {
-    return pw.Padding(
-      padding: pw.EdgeInsets.all(padding),
-      child: pw.Text(
+  }) =>
+      PdfRowBuilders.tableCell(
         text,
-        style: pw.TextStyle(
-          fontSize: fontSize,
-          fontWeight: isHeader ? pw.FontWeight.bold : pw.FontWeight.normal,
-          color: color,
-        ),
-        textAlign: align,
-      ),
-    );
-  }
-
-  static pw.Widget _buildTotalRow(
-    String label,
-    String value, {
-    bool bold = false,
-    double fontSize = 10,
-  }) {
-    return pw.Padding(
-      padding: const pw.EdgeInsets.symmetric(vertical: 2),
-      child: pw.Row(
-        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-        children: [
-          pw.Text(
-            label,
-            style: pw.TextStyle(
-              fontSize: fontSize,
-              fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
-            ),
-          ),
-          pw.Text(
-            value,
-            style: pw.TextStyle(
-              fontSize: fontSize,
-              fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+        isHeader: isHeader,
+        fontSize: fontSize,
+        color: color,
+        align: align,
+        padding: padding,
+      );
 
   static String _formatMonto(double value) {
     return value.toStringAsFixed(2);

@@ -4,7 +4,12 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:syncronize/core/utils/date_formatter.dart';
 import '../../domain/entities/transferencia_stock.dart';
 
-/// Servicio para generar documentos PDF de transferencias de stock
+/// Servicio para generar documentos PDF de transferencias de stock.
+///
+/// TODO(pdf-refactor): migrar a `core/services/pdf/PdfDocumentService` +
+/// builders compartidos cuando este módulo adopte
+/// `ConfiguracionDocumentoCompleta`. Hoy usa lógica legacy con su propio
+/// header/totales/footer inline.
 class PdfTransferenciaGenerator {
   /// Genera un PDF con el detalle completo de la transferencia
   static Future<Uint8List> generarDocumento({

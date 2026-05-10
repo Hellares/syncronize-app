@@ -1,21 +1,16 @@
 import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:syncronize/core/services/pdf/builders/pdf_header_builder.dart';
+import 'package:syncronize/core/services/pdf/builders/pdf_party_builder.dart';
+import 'package:syncronize/core/services/pdf/builders/pdf_totales_builder.dart';
+import 'package:syncronize/core/services/pdf/pdf_document_service.dart';
+import 'package:syncronize/core/services/pdf/pdf_document_style.dart';
+import 'package:syncronize/core/services/pdf/pdf_row_builders.dart';
 import 'package:syncronize/core/utils/date_formatter.dart';
 import '../../domain/entities/compra.dart';
 import '../../domain/entities/orden_compra.dart';
 import '../../../configuracion_documentos/domain/entities/configuracion_documento_completa.dart';
-import '../../../configuracion_documentos/domain/entities/plantilla_documento.dart';
-
-PdfColor _hexToColor(String hex) {
-  hex = hex.replaceFirst('#', '');
-  if (hex.length == 6) {
-    hex = 'FF$hex';
-  }
-  return PdfColor.fromInt(int.parse(hex, radix: 16));
-}
-
-const _defaultPrimaryHex = '#1565C0';
 
 class PdfCompraGenerator {
   // ==================== COMPRA (RECEPCION) ====================
@@ -31,55 +26,26 @@ class PdfCompraGenerator {
     double porcentajeImpuesto = 18.0,
     ConfiguracionDocumentoCompleta? documentConfig,
   }) async {
-    final pdf = pw.Document();
-
-    final primaryColor = _hexToColor(
-      documentConfig?.colorPrimarioEfectivo ?? _defaultPrimaryHex,
+    final style = PdfDocumentStyle.fromConfig(
+      documentConfig: documentConfig,
+      empresaNombre: empresaNombre,
+      empresaRuc: empresaRuc,
+      empresaDireccion: empresaDireccion,
+      empresaTelefono: empresaTelefono,
+      defaultMarginMm: 10.0,
     );
-    final config = documentConfig?.configuracion;
-    final plantilla = documentConfig?.plantilla;
-
-    final effectiveEmpresaNombre = config?.nombreComercial ?? empresaNombre;
-    final effectiveRuc = config?.ruc ?? empresaRuc;
-    final effectiveDireccion =
-        documentConfig?.direccionEfectiva ?? config?.direccion ?? empresaDireccion;
-    final effectiveTelefono =
-        documentConfig?.telefonoEfectivo ?? config?.telefono ?? empresaTelefono;
-
-    final marginTop = (plantilla?.margenSuperior ?? 10.0) * PdfPageFormat.mm;
-    final marginBottom = (plantilla?.margenInferior ?? 10.0) * PdfPageFormat.mm;
-    final marginLeft = (plantilla?.margenIzquierdo ?? 10.0) * PdfPageFormat.mm;
-    final marginRight = (plantilla?.margenDerecho ?? 10.0) * PdfPageFormat.mm;
-
-    final showLogo = plantilla?.mostrarLogo ?? true;
-    final showDatosEmpresa = plantilla?.mostrarDatosEmpresa ?? true;
-    final showDetalles = plantilla?.mostrarDetalles ?? true;
-    final showTotales = plantilla?.mostrarTotales ?? true;
-    final showObservaciones = plantilla?.mostrarObservaciones ?? true;
-    final showPiePagina = plantilla?.mostrarPiePagina ?? true;
-
-    final footerText = config?.textoPiePagina ?? 'Gracias por su preferencia';
-    final showPaginacion = config?.mostrarPaginacion ?? true;
-
-    final formatoPapel = plantilla?.formatoPapel ?? FormatoPapel.A4;
-    final isTicket = formatoPapel.isTicket;
+    final primaryColor = style.colorPrimario;
+    final isTicket = style.formatoPapel.isTicket;
     final sectionSpacing = isTicket ? 8.0 : 20.0;
 
-    final margin = pw.EdgeInsets.only(
-      top: marginTop,
-      bottom: marginBottom,
-      left: marginLeft,
-      right: marginRight,
-    );
-
-    final contentWidgets = <pw.Widget>[
+    final bodyWidgets = <pw.Widget>[
       _buildHeader(
-        empresaNombre: effectiveEmpresaNombre,
-        empresaRuc: effectiveRuc,
-        empresaDireccion: effectiveDireccion,
-        empresaTelefono: effectiveTelefono,
-        sedeNombre: documentConfig?.sede?.nombre ?? compra.sedeNombre,
-        logo: showLogo ? logoEmpresa : null,
+        empresaNombre: style.empresaNombre,
+        empresaRuc: style.empresaRuc,
+        empresaDireccion: style.empresaDireccion,
+        empresaTelefono: style.empresaTelefono,
+        sedeNombre: style.sedeNombre ?? compra.sedeNombre,
+        logo: style.showLogo ? logoEmpresa : null,
         titulo: 'COMPRA',
         codigo: compra.codigo,
         fechaLabel: 'Recepcion',
@@ -87,7 +53,7 @@ class PdfCompraGenerator {
         moneda: compra.moneda,
         estado: compra.estadoTexto,
         primaryColor: primaryColor,
-        showDatosEmpresa: showDatosEmpresa,
+        showDatosEmpresa: style.showDatosEmpresa,
         isTicket: isTicket,
       ),
       pw.SizedBox(height: sectionSpacing),
@@ -104,11 +70,11 @@ class PdfCompraGenerator {
         isTicket: isTicket,
       ),
       pw.SizedBox(height: sectionSpacing),
-      if (showDetalles) ...[
+      if (style.showDetalles) ...[
         _buildDetallesCompraTable(compra, primaryColor: primaryColor, isTicket: isTicket),
         pw.SizedBox(height: sectionSpacing),
       ],
-      if (showTotales)
+      if (style.showTotales)
         _buildTotalesSection(
           moneda: compra.moneda,
           subtotal: compra.subtotal,
@@ -119,7 +85,7 @@ class PdfCompraGenerator {
           porcentajeImpuesto: porcentajeImpuesto,
           isTicket: isTicket,
         ),
-      if (showObservaciones &&
+      if (style.showObservaciones &&
           compra.observaciones != null &&
           compra.observaciones!.isNotEmpty) ...[
         pw.SizedBox(height: sectionSpacing),
@@ -127,42 +93,13 @@ class PdfCompraGenerator {
       ],
     ];
 
-    if (isTicket) {
-      final ticketWidth = formatoPapel == FormatoPapel.TICKET_80MM
-          ? 80 * PdfPageFormat.mm
-          : 58 * PdfPageFormat.mm;
-
-      if (showPiePagina) {
-        contentWidgets.add(_buildFooter(1, 1,
-            footerText: footerText, showPaginacion: false, isTicket: true));
-      }
-
-      pdf.addPage(pw.Page(
-        pageFormat: PdfPageFormat(ticketWidth, double.infinity),
-        margin: margin,
-        build: (context) => pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
-          mainAxisSize: pw.MainAxisSize.min,
-          children: contentWidgets,
-        ),
-      ));
-    } else {
-      pdf.addPage(pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: margin,
-        build: (context) => contentWidgets,
-        footer: showPiePagina
-            ? (context) => _buildFooter(
-                  context.pageNumber, context.pagesCount,
-                  footerText: footerText,
-                  showPaginacion: showPaginacion,
-                  isTicket: false,
-                )
-            : null,
-      ));
-    }
-
-    return pdf.save();
+    return PdfDocumentService.build(
+      style: style,
+      bodyWidgets: bodyWidgets,
+      footerText: style.textoPiePagina ?? 'Gracias por su preferencia',
+      showPaginacion:
+          documentConfig?.configuracion.mostrarPaginacion ?? true,
+    );
   }
 
   // ==================== ORDEN DE COMPRA ====================
@@ -178,58 +115,27 @@ class PdfCompraGenerator {
     double porcentajeImpuesto = 18.0,
     ConfiguracionDocumentoCompleta? documentConfig,
   }) async {
-    final pdf = pw.Document();
-
-    final primaryColor = _hexToColor(
-      documentConfig?.colorPrimarioEfectivo ?? _defaultPrimaryHex,
+    final style = PdfDocumentStyle.fromConfig(
+      documentConfig: documentConfig,
+      empresaNombre: empresaNombre,
+      empresaRuc: empresaRuc,
+      empresaDireccion: empresaDireccion,
+      empresaTelefono: empresaTelefono,
+      defaultMarginMm: 10.0,
     );
-    final config = documentConfig?.configuracion;
-    final plantilla = documentConfig?.plantilla;
-
-    final effectiveEmpresaNombre = config?.nombreComercial ?? empresaNombre;
-    final effectiveRuc = config?.ruc ?? empresaRuc;
-    final effectiveDireccion =
-        documentConfig?.direccionEfectiva ?? config?.direccion ?? empresaDireccion;
-    final effectiveTelefono =
-        documentConfig?.telefonoEfectivo ?? config?.telefono ?? empresaTelefono;
-
-    final marginTop = (plantilla?.margenSuperior ?? 10.0) * PdfPageFormat.mm;
-    final marginBottom = (plantilla?.margenInferior ?? 10.0) * PdfPageFormat.mm;
-    final marginLeft = (plantilla?.margenIzquierdo ?? 10.0) * PdfPageFormat.mm;
-    final marginRight = (plantilla?.margenDerecho ?? 10.0) * PdfPageFormat.mm;
-
-    final showLogo = plantilla?.mostrarLogo ?? true;
-    final showDatosEmpresa = plantilla?.mostrarDatosEmpresa ?? true;
-    final showDetalles = plantilla?.mostrarDetalles ?? true;
-    final showTotales = plantilla?.mostrarTotales ?? true;
-    final showObservaciones = plantilla?.mostrarObservaciones ?? true;
-    final showCondiciones = plantilla?.mostrarCondiciones ?? true;
-    final showFirma = plantilla?.mostrarFirma ?? true;
-    final showPiePagina = plantilla?.mostrarPiePagina ?? true;
-
-    final footerText = config?.textoPiePagina ?? 'Gracias por su preferencia';
-    final showPaginacion = config?.mostrarPaginacion ?? true;
-
-    final formatoPapel = plantilla?.formatoPapel ?? FormatoPapel.A4;
-    final isTicket = formatoPapel.isTicket;
+    final primaryColor = style.colorPrimario;
+    final isTicket = style.formatoPapel.isTicket;
     final sectionSpacing = isTicket ? 8.0 : 20.0;
     final smallSpacing = isTicket ? 6.0 : 12.0;
 
-    final margin = pw.EdgeInsets.only(
-      top: marginTop,
-      bottom: marginBottom,
-      left: marginLeft,
-      right: marginRight,
-    );
-
-    final contentWidgets = <pw.Widget>[
+    final bodyWidgets = <pw.Widget>[
       _buildHeader(
-        empresaNombre: effectiveEmpresaNombre,
-        empresaRuc: effectiveRuc,
-        empresaDireccion: effectiveDireccion,
-        empresaTelefono: effectiveTelefono,
-        sedeNombre: documentConfig?.sede?.nombre ?? orden.sedeNombre,
-        logo: showLogo ? logoEmpresa : null,
+        empresaNombre: style.empresaNombre,
+        empresaRuc: style.empresaRuc,
+        empresaDireccion: style.empresaDireccion,
+        empresaTelefono: style.empresaTelefono,
+        sedeNombre: style.sedeNombre ?? orden.sedeNombre,
+        logo: style.showLogo ? logoEmpresa : null,
         titulo: 'ORDEN DE COMPRA',
         codigo: orden.codigo,
         fechaLabel: 'Emision',
@@ -238,7 +144,7 @@ class PdfCompraGenerator {
         moneda: orden.moneda,
         estado: orden.estadoTexto,
         primaryColor: primaryColor,
-        showDatosEmpresa: showDatosEmpresa,
+        showDatosEmpresa: style.showDatosEmpresa,
         isTicket: isTicket,
       ),
       pw.SizedBox(height: sectionSpacing),
@@ -254,11 +160,11 @@ class PdfCompraGenerator {
         isTicket: isTicket,
       ),
       pw.SizedBox(height: sectionSpacing),
-      if (showDetalles) ...[
+      if (style.showDetalles) ...[
         _buildDetallesOrdenTable(orden, primaryColor: primaryColor, isTicket: isTicket),
         pw.SizedBox(height: sectionSpacing),
       ],
-      if (showTotales)
+      if (style.showTotales)
         _buildTotalesSection(
           moneda: orden.moneda,
           subtotal: orden.subtotal,
@@ -269,60 +175,31 @@ class PdfCompraGenerator {
           porcentajeImpuesto: porcentajeImpuesto,
           isTicket: isTicket,
         ),
-      if (showObservaciones &&
+      if (style.showObservaciones &&
           orden.observaciones != null &&
           orden.observaciones!.isNotEmpty) ...[
         pw.SizedBox(height: sectionSpacing),
         _buildObservaciones(orden.observaciones!, primaryColor: primaryColor, isTicket: isTicket),
       ],
-      if (showCondiciones &&
+      if (style.showCondiciones &&
           orden.condiciones != null &&
           orden.condiciones!.isNotEmpty) ...[
         pw.SizedBox(height: smallSpacing),
         _buildCondiciones(orden.condiciones!, isTicket: isTicket),
       ],
-      if (showFirma && !isTicket) ...[
+      if (style.showFirma && !isTicket) ...[
         pw.SizedBox(height: 30),
         _buildFirmasSection(),
       ],
     ];
 
-    if (isTicket) {
-      final ticketWidth = formatoPapel == FormatoPapel.TICKET_80MM
-          ? 80 * PdfPageFormat.mm
-          : 58 * PdfPageFormat.mm;
-
-      if (showPiePagina) {
-        contentWidgets.add(_buildFooter(1, 1,
-            footerText: footerText, showPaginacion: false, isTicket: true));
-      }
-
-      pdf.addPage(pw.Page(
-        pageFormat: PdfPageFormat(ticketWidth, double.infinity),
-        margin: margin,
-        build: (context) => pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
-          mainAxisSize: pw.MainAxisSize.min,
-          children: contentWidgets,
-        ),
-      ));
-    } else {
-      pdf.addPage(pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: margin,
-        build: (context) => contentWidgets,
-        footer: showPiePagina
-            ? (context) => _buildFooter(
-                  context.pageNumber, context.pagesCount,
-                  footerText: footerText,
-                  showPaginacion: showPaginacion,
-                  isTicket: false,
-                )
-            : null,
-      ));
-    }
-
-    return pdf.save();
+    return PdfDocumentService.build(
+      style: style,
+      bodyWidgets: bodyWidgets,
+      footerText: style.textoPiePagina ?? 'Gracias por su preferencia',
+      showPaginacion:
+          documentConfig?.configuracion.mostrarPaginacion ?? true,
+    );
   }
 
   // ==================== WIDGETS COMPARTIDOS ====================
@@ -345,103 +222,26 @@ class PdfCompraGenerator {
     bool showDatosEmpresa = true,
     bool isTicket = false,
   }) {
-    final titleFontSize = isTicket ? 10.0 : 16.0;
-    final codeFontSize = isTicket ? 9.0 : 13.0;
-    final detailFontSize = isTicket ? 7.0 : 9.0;
-    final logoHeight = isTicket ? 30.0 : 50.0;
-    final logoWidth = isTicket ? 70.0 : 120.0;
-
-    final empresaInfo = pw.Column(
-      crossAxisAlignment: isTicket ? pw.CrossAxisAlignment.center : pw.CrossAxisAlignment.start,
-      children: [
-        if (logo != null)
-          pw.Image(
-            pw.MemoryImage(logo),
-            height: logoHeight,
-            width: logoWidth,
-            fit: pw.BoxFit.contain,
-          )
-        else
-          pw.Text(
-            empresaNombre,
-            style: pw.TextStyle(fontSize: titleFontSize, fontWeight: pw.FontWeight.bold),
-            textAlign: isTicket ? pw.TextAlign.center : pw.TextAlign.left,
-          ),
-        if (showDatosEmpresa) ...[
-          if (sedeNombre != null) ...[
-            pw.SizedBox(height: 2),
-            pw.Text('Sede: $sedeNombre', style: pw.TextStyle(fontSize: detailFontSize)),
-          ],
-          if (empresaRuc != null) ...[
-            pw.SizedBox(height: isTicket ? 1 : 3),
-            pw.Text('RUC: $empresaRuc', style: pw.TextStyle(fontSize: detailFontSize)),
-          ],
-          if (empresaDireccion != null) ...[
-            pw.SizedBox(height: isTicket ? 1 : 2),
-            pw.Text(empresaDireccion,
-                style: pw.TextStyle(fontSize: detailFontSize),
-                textAlign: isTicket ? pw.TextAlign.center : pw.TextAlign.left),
-          ],
-          if (empresaTelefono != null) ...[
-            pw.SizedBox(height: isTicket ? 1 : 2),
-            pw.Text('Tel: $empresaTelefono', style: pw.TextStyle(fontSize: detailFontSize)),
-          ],
-        ],
-      ],
-    );
-
-    final documentInfo = pw.Container(
-      width: isTicket ? double.infinity : null,
-      padding: pw.EdgeInsets.all(isTicket ? 6 : 12),
-      decoration: pw.BoxDecoration(
-        border: pw.Border.all(color: primaryColor, width: isTicket ? 1 : 2),
-        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
-      ),
-      child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.center,
-        children: [
-          pw.Text(
-            titulo,
-            style: pw.TextStyle(
-              fontSize: titleFontSize,
-              fontWeight: pw.FontWeight.bold,
-              color: primaryColor,
-            ),
-          ),
-          pw.SizedBox(height: isTicket ? 3 : 6),
-          pw.Text(codigo,
-              style: pw.TextStyle(fontSize: codeFontSize, fontWeight: pw.FontWeight.bold)),
-          pw.SizedBox(height: isTicket ? 2 : 4),
-          pw.Text(
-            '$fechaLabel: ${DateFormatter.formatDate(fecha)}',
-            style: pw.TextStyle(fontSize: detailFontSize),
-          ),
-          if (fechaEntrega != null) ...[
-            pw.SizedBox(height: isTicket ? 1 : 2),
-            pw.Text(
-              'Entrega: ${DateFormatter.formatDate(fechaEntrega)}',
-              style: pw.TextStyle(fontSize: detailFontSize),
-            ),
-          ],
-          pw.SizedBox(height: isTicket ? 2 : 4),
-          pw.Text('Estado: $estado', style: pw.TextStyle(fontSize: detailFontSize)),
-          pw.SizedBox(height: isTicket ? 1 : 2),
-          pw.Text('Moneda: $moneda', style: pw.TextStyle(fontSize: detailFontSize)),
-        ],
-      ),
-    );
-
-    if (isTicket) {
-      return pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-        children: [empresaInfo, pw.SizedBox(height: 6), documentInfo],
-      );
-    }
-
-    return pw.Row(
-      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [pw.Expanded(child: empresaInfo), documentInfo],
+    final lines = <String>[
+      '$fechaLabel: ${DateFormatter.formatDate(fecha)}',
+      if (fechaEntrega != null)
+        'Entrega: ${DateFormatter.formatDate(fechaEntrega)}',
+      'Estado: $estado',
+      'Moneda: $moneda',
+    ];
+    return PdfHeaderBuilder.build(
+      empresaNombre: empresaNombre,
+      empresaRuc: empresaRuc,
+      empresaDireccion: empresaDireccion,
+      empresaTelefono: empresaTelefono,
+      sedeNombre: sedeNombre,
+      logo: logo,
+      tipoDocumento: titulo,
+      codigo: codigo,
+      documentLines: lines,
+      primaryColor: primaryColor,
+      showDatosEmpresa: showDatosEmpresa,
+      isTicket: isTicket,
     );
   }
 
@@ -460,9 +260,6 @@ class PdfCompraGenerator {
     required PdfColor primaryColor,
     bool isTicket = false,
   }) {
-    final labelSize = isTicket ? 8.0 : 10.0;
-    final padding = isTicket ? 8.0 : 15.0;
-
     String? docFactura;
     if (tipoDocumento != null) {
       final serie = serieDocumento ?? '';
@@ -470,72 +267,33 @@ class PdfCompraGenerator {
       docFactura = '$tipoDocumento $serie-$numero'.trim();
     }
 
-    final allFields = <pw.Widget>[
-      _buildInfoRow('Proveedor', nombreProveedor, isTicket: isTicket),
+    final fields = <PdfPartyField>[
+      PdfPartyField('Proveedor', nombreProveedor),
       if (documentoProveedor != null && documentoProveedor.isNotEmpty)
-        _buildInfoRow('RUC/DNI', documentoProveedor, isTicket: isTicket),
+        PdfPartyField('RUC/DNI', documentoProveedor),
       if (emailProveedor != null && emailProveedor.isNotEmpty)
-        _buildInfoRow('Email', emailProveedor, isTicket: isTicket),
+        PdfPartyField('Email', emailProveedor),
       if (telefonoProveedor != null && telefonoProveedor.isNotEmpty)
-        _buildInfoRow('Telefono', telefonoProveedor, isTicket: isTicket),
+        PdfPartyField('Telefono', telefonoProveedor),
       if (direccionProveedor != null && direccionProveedor.isNotEmpty)
-        _buildInfoRow('Direccion', direccionProveedor, isTicket: isTicket),
-      if (docFactura != null)
-        _buildInfoRow('Doc. Proveedor', docFactura, isTicket: isTicket),
+        PdfPartyField('Direccion', direccionProveedor),
+      if (docFactura != null) PdfPartyField('Doc. Proveedor', docFactura),
       if (terminosPago != null && terminosPago.isNotEmpty)
-        _buildInfoRow('Terminos Pago', terminosPago, isTicket: isTicket),
+        PdfPartyField('Terminos Pago', terminosPago),
       if (diasCredito != null)
-        _buildInfoRow('Dias Credito', '$diasCredito dias', isTicket: isTicket),
+        PdfPartyField('Dias Credito', '$diasCredito dias'),
       if (fechaVencimientoPago != null)
-        _buildInfoRow('Venc. Pago', DateFormatter.formatDate(fechaVencimientoPago),
-            isTicket: isTicket),
+        PdfPartyField(
+            'Venc. Pago', DateFormatter.formatDate(fechaVencimientoPago)),
     ];
 
-    return pw.Container(
-      padding: pw.EdgeInsets.all(padding),
-      decoration: pw.BoxDecoration(
-        border: pw.Border.all(color: PdfColors.grey400),
-        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
-      ),
-      child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          pw.Text(
-            'DATOS DEL PROVEEDOR',
-            style: pw.TextStyle(
-              fontSize: labelSize,
-              fontWeight: pw.FontWeight.bold,
-              color: primaryColor,
-            ),
-          ),
-          pw.SizedBox(height: isTicket ? 4 : 8),
-          pw.Divider(color: PdfColors.grey300),
-          pw.SizedBox(height: isTicket ? 4 : 8),
-          if (isTicket)
-            pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: allFields,
-            )
-          else
-            pw.Row(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                pw.Expanded(
-                  child: pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: allFields.take((allFields.length / 2).ceil()).toList(),
-                  ),
-                ),
-                pw.Expanded(
-                  child: pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: allFields.skip((allFields.length / 2).ceil()).toList(),
-                  ),
-                ),
-              ],
-            ),
-        ],
-      ),
+    return PdfPartyBuilder.build(
+      title: 'DATOS DEL PROVEEDOR',
+      fields: fields,
+      primaryColor: primaryColor,
+      isTicket: isTicket,
+      // Compra usa labelWidth ligeramente más ancho (55/80 vs 50/70 default)
+      infoRowLabelWidth: isTicket ? 55.0 : 80.0,
     );
   }
 
@@ -750,42 +508,17 @@ class PdfCompraGenerator {
     String nombreImpuesto = 'IGV',
     double porcentajeImpuesto = 18.0,
     bool isTicket = false,
-  }) {
-    final totalFontSize = isTicket ? 9.0 : 13.0;
-    final rowFontSize = isTicket ? 7.0 : 10.0;
-    final containerPadding = isTicket ? 6.0 : 12.0;
-
-    final totalesContent = pw.Container(
-      width: isTicket ? double.infinity : 220,
-      padding: pw.EdgeInsets.all(containerPadding),
-      decoration: pw.BoxDecoration(
-        border: pw.Border.all(color: PdfColors.grey400),
-        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
-      ),
-      child: pw.Column(
-        children: [
-          _buildTotalRow('Subtotal', '$moneda ${_formatMonto(subtotal)}', fontSize: rowFontSize),
-          if (descuento > 0)
-            _buildTotalRow('Descuento', '- $moneda ${_formatMonto(descuento)}', fontSize: rowFontSize),
-          _buildTotalRow(
-            '$nombreImpuesto (${porcentajeImpuesto.toStringAsFixed(0)}%)',
-            '$moneda ${_formatMonto(impuestos)}',
-            fontSize: rowFontSize,
-          ),
-          pw.Divider(color: PdfColors.grey400),
-          pw.SizedBox(height: isTicket ? 2 : 4),
-          _buildTotalRow('TOTAL', '$moneda ${_formatMonto(total)}',
-              bold: true, fontSize: totalFontSize),
-        ],
-      ),
-    );
-
-    if (isTicket) return totalesContent;
-
-    return pw.Row(
-      children: [pw.Expanded(child: pw.SizedBox()), totalesContent],
-    );
-  }
+  }) =>
+      PdfTotalesBuilder.simple(
+        moneda: moneda,
+        subtotal: subtotal,
+        descuento: descuento,
+        impuestos: impuestos,
+        total: total,
+        nombreImpuesto: nombreImpuesto,
+        porcentajeImpuesto: porcentajeImpuesto,
+        isTicket: isTicket,
+      );
 
   static pw.Widget _buildObservaciones(
     String observaciones, {
@@ -875,73 +608,11 @@ class PdfCompraGenerator {
     );
   }
 
-  static pw.Widget _buildFooter(
-    int pageNumber,
-    int totalPages, {
-    String footerText = 'Gracias por su preferencia',
-    bool showPaginacion = true,
-    bool isTicket = false,
-  }) {
-    final fontSize = isTicket ? 6.0 : 8.0;
-
-    if (isTicket) {
-      return pw.Container(
-        margin: const pw.EdgeInsets.only(top: 6),
-        padding: const pw.EdgeInsets.symmetric(vertical: 4),
-        decoration: const pw.BoxDecoration(
-          border: pw.Border(top: pw.BorderSide(color: PdfColors.grey400)),
-        ),
-        child: pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.center,
-          children: [
-            pw.Text(footerText, style: pw.TextStyle(fontSize: fontSize)),
-            pw.SizedBox(height: 2),
-            pw.Text('Generado: ${DateFormatter.formatDateTime(DateTime.now())}',
-                style: pw.TextStyle(fontSize: fontSize)),
-          ],
-        ),
-      );
-    }
-
-    return pw.Container(
-      margin: const pw.EdgeInsets.only(top: 20),
-      padding: const pw.EdgeInsets.symmetric(vertical: 8),
-      decoration: const pw.BoxDecoration(
-        border: pw.Border(top: pw.BorderSide(color: PdfColors.grey400)),
-      ),
-      child: pw.Row(
-        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-        children: [
-          pw.Text(footerText, style: pw.TextStyle(fontSize: fontSize)),
-          if (showPaginacion)
-            pw.Text('Pagina $pageNumber de $totalPages', style: pw.TextStyle(fontSize: fontSize)),
-          pw.Text('Generado: ${DateFormatter.formatDateTime(DateTime.now())}',
-              style: pw.TextStyle(fontSize: fontSize)),
-        ],
-      ),
-    );
-  }
-
   // ==================== HELPERS ====================
 
-  static pw.Widget _buildInfoRow(String label, String value, {bool isTicket = false}) {
-    final fontSize = isTicket ? 7.0 : 9.0;
-    final labelWidth = isTicket ? 55.0 : 80.0;
-    return pw.Padding(
-      padding: pw.EdgeInsets.symmetric(vertical: isTicket ? 1 : 2),
-      child: pw.Row(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          pw.SizedBox(
-            width: labelWidth,
-            child: pw.Text('$label:', style: pw.TextStyle(fontSize: fontSize, fontWeight: pw.FontWeight.bold)),
-          ),
-          pw.Expanded(child: pw.Text(value, style: pw.TextStyle(fontSize: fontSize))),
-        ],
-      ),
-    );
-  }
-
+  // _buildInfoRow y _buildTotalRow ya no se usan — call sites delegan
+  // directamente a builders compuestos. Queda _buildTableCell porque la
+  // tabla de detalles aún lo usa.
   static pw.Widget _buildTableCell(
     String text, {
     bool isHeader = false,
@@ -949,33 +620,15 @@ class PdfCompraGenerator {
     PdfColor? color,
     pw.TextAlign align = pw.TextAlign.left,
     double padding = 6,
-  }) {
-    return pw.Padding(
-      padding: pw.EdgeInsets.all(padding),
-      child: pw.Text(
+  }) =>
+      PdfRowBuilders.tableCell(
         text,
-        style: pw.TextStyle(
-          fontSize: fontSize,
-          fontWeight: isHeader ? pw.FontWeight.bold : pw.FontWeight.normal,
-          color: color,
-        ),
-        textAlign: align,
-      ),
-    );
-  }
-
-  static pw.Widget _buildTotalRow(String label, String value, {bool bold = false, double fontSize = 10}) {
-    return pw.Padding(
-      padding: const pw.EdgeInsets.symmetric(vertical: 2),
-      child: pw.Row(
-        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-        children: [
-          pw.Text(label, style: pw.TextStyle(fontSize: fontSize, fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal)),
-          pw.Text(value, style: pw.TextStyle(fontSize: fontSize, fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal)),
-        ],
-      ),
-    );
-  }
+        isHeader: isHeader,
+        fontSize: fontSize,
+        color: color,
+        align: align,
+        padding: padding,
+      );
 
   static String _formatMonto(double value) => value.toStringAsFixed(2);
 

@@ -2,12 +2,13 @@ import 'dart:typed_data';
 import 'package:barcode/barcode.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import '../../../../core/services/pdf/pdf_document_style.dart';
+import '../../../../core/services/pdf/pdf_row_builders.dart';
 import '../../../../core/utils/number_to_words.dart';
 import '../../../configuracion_documentos/domain/entities/configuracion_documento_completa.dart';
 import '../../domain/entities/venta.dart';
 
 class PdfVentaGenerator {
-  /// Convierte color hex (#RRGGBB) a PdfColor
   /// Genera cadenaQR en formato SUNAT-compliant:
   /// RUC|TIPO_DOC|SERIE|NUMERO|IGV|TOTAL|FECHA|TIPO_DOC_CLIENTE|NUM_DOC_CLIENTE|HASH|
   static String _generarQrSunat(Venta venta, String? ruc) {
@@ -54,13 +55,6 @@ class PdfVentaGenerator {
     return '${ruc ?? ''}|$tipoDocSunat|$serie|$numero|$igv|$total|$fecha|$tipoDocCliente|$docCliente|$hash|';
   }
 
-  static PdfColor _hexToColor(String hex) {
-    hex = hex.replaceFirst('#', '');
-    if (hex.length == 6) hex = 'FF$hex';
-    final intVal = int.tryParse(hex, radix: 16) ?? 0xFF1565C0;
-    return PdfColor.fromInt(intVal);
-  }
-
   static Future<Uint8List> generarTicket({
     required Venta venta,
     required String empresaNombre,
@@ -78,29 +72,33 @@ class PdfVentaGenerator {
     final pdf = pw.Document();
     final detalles = venta.detalles ?? [];
 
-    // Colores desde configuración o defaults
-    final colorPrimario = documentConfig != null
-        ? _hexToColor(documentConfig.colorPrimarioEfectivo)
-        : PdfColors.black;
-    final colorCuerpo = documentConfig != null
-        ? _hexToColor(documentConfig.colorCuerpoEfectivo)
-        : PdfColors.black;
+    // Estilo unificado: colores + márgenes + flags. Venta usa defaults
+    // distintos a cotización/compra (4mm margen, body color negro, primary
+    // negro cuando no hay config).
+    final style = PdfDocumentStyle.fromConfig(
+      documentConfig: documentConfig,
+      empresaNombre: empresaNombre,
+      empresaRuc: empresaRuc,
+      empresaDireccion: direccionFiscal,
+      defaultPrimaryColor: PdfColors.black,
+      defaultBodyColor: PdfColors.black,
+      defaultMarginMm: 4.0,
+    );
+    final colorPrimario = style.colorPrimario;
+    final colorCuerpo = style.colorCuerpo;
+    final mostrarLogo = style.showLogo;
+    final mostrarDatosEmpresa = style.showDatosEmpresa;
+    final mostrarDatosCliente = style.showDatosCliente;
+    final mostrarDetalles = style.showDetalles;
+    final mostrarTotales = style.showTotales;
+    final mostrarObservaciones = style.showObservaciones;
+    final mostrarPiePagina = style.showPiePagina;
+    final textoPie = style.textoPiePagina ?? 'Gracias por su compra!';
 
-    // Plantilla
-    final plantilla = documentConfig?.plantilla;
-    final mostrarLogo = plantilla?.mostrarLogo ?? true;
-    final mostrarDatosEmpresa = plantilla?.mostrarDatosEmpresa ?? true;
-    final mostrarDatosCliente = plantilla?.mostrarDatosCliente ?? true;
-    final mostrarDetalles = plantilla?.mostrarDetalles ?? true;
-    final mostrarTotales = plantilla?.mostrarTotales ?? true;
-    final mostrarObservaciones = plantilla?.mostrarObservaciones ?? true;
-    final mostrarPiePagina = plantilla?.mostrarPiePagina ?? true;
-    final textoPie = documentConfig?.configuracion.textoPiePagina ??
-        'Gracias por su compra!';
-
-    // Márgenes
-    final margenH = (plantilla?.margenIzquierdo ?? 4) * PdfPageFormat.mm;
-    final margenV = (plantilla?.margenSuperior ?? 4) * PdfPageFormat.mm;
+    // Márgenes (venta solo usa horizontal/vertical simétricos del valor de
+    // margenIzquierdo/margenSuperior — preserva esa semántica histórica).
+    final margenH = style.marginLeftPt;
+    final margenV = style.marginTopPt;
 
     // Datos de empresa: nombre comercial (título) + razón social + RUC (del emisor)
     final nombreEmpresaFinal =
@@ -669,17 +667,15 @@ class PdfVentaGenerator {
     );
   }
 
+  // Venta usa padding `bottom: 1` (más compacto que cotización/compra) y
+  // soporta color → pasa overrides explícitos.
   static pw.Widget _buildTotalRow(String label, String value,
-      {PdfColor color = PdfColors.black, double fontSize = 8}) {
-    return pw.Padding(
-      padding: const pw.EdgeInsets.only(bottom: 1),
-      child: pw.Row(
-        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-        children: [
-          pw.Text(label, style: pw.TextStyle(fontSize: fontSize, color: color)),
-          pw.Text(value, style: pw.TextStyle(fontSize: fontSize, color: color)),
-        ],
-      ),
-    );
-  }
+          {PdfColor color = PdfColors.black, double fontSize = 8}) =>
+      PdfRowBuilders.totalRow(
+        label: label,
+        value: value,
+        fontSize: fontSize,
+        color: color,
+        padding: const pw.EdgeInsets.only(bottom: 1),
+      );
 }
