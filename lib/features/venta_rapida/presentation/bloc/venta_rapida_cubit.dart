@@ -1,12 +1,18 @@
+import 'dart:async';
+
 import 'package:equatable/equatable.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
+import '../../../../core/services/realtime_sync_service.dart';
 import '../../../../core/utils/resource.dart';
 import '../../../combo/domain/entities/combo.dart';
 import '../../../combo/domain/repositories/combo_repository.dart';
 import '../../../producto/domain/entities/precio_nivel.dart';
 import '../../../producto/domain/entities/producto_list_item.dart';
+import '../../../producto/domain/entities/producto_stock.dart';
+import '../../../producto/domain/repositories/producto_stock_repository.dart';
 import '../../../producto/domain/services/precio_nivel_cache_service.dart';
 import '../../../venta/domain/entities/venta.dart';
 import '../../../venta/domain/entities/venta_detalle_input.dart';
@@ -31,6 +37,8 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
   final BuscarClientePorRucUseCase _buscarClientePorRucUseCase;
   final PrecioNivelCacheService _nivelCacheService;
   final ComboRepository _comboRepository;
+  final ProductoStockRepository _stockRepository;
+  final RealtimeSyncService _realtimeSync;
 
   VentaRapidaCubit(
     this._cobrarUseCase,
@@ -39,7 +47,11 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     this._buscarClientePorRucUseCase,
     this._nivelCacheService,
     this._comboRepository,
-  ) : super(const VentaRapidaState());
+    this._stockRepository,
+    this._realtimeSync,
+  ) : super(const VentaRapidaState()) {
+    _suscribirRealtime();
+  }
 
   /// Token monotónico de búsqueda de cliente. Se usa para descartar
   /// respuestas obsoletas: si el cajero busca DNI A, lo cancela y busca DNI B,
@@ -859,6 +871,221 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     if (state.error != null) {
       emit(state.copyWith(clearError: true));
     }
+  }
+
+  // ── Sync realtime del carrito (capa 1: FCM data-only) ──
+  //
+  // Cuando el backend emite FCM (`PRECIO_CAMBIADO` / `NIVELES_CAMBIADOS` /
+  // `STOCK_CAMBIADO`), el [RealtimeSyncService] emite un evento en su stream
+  // y la grilla de productos ya se refresca. Acá también sincronizamos los
+  // items del carrito: re-fetch precio + niveles + stock por sede.
+  //
+  // Sin esto, los items del carrito mantenían el `precioUnitario` viejo
+  // hasta el cobro: el server-side rechazaba con 409 y la capa 3 (dialog)
+  // resolvía. Esa cadena sigue cubriendo el caso si FCM falla; este sync
+  // simplemente mejora la UX: el cajero ve el precio nuevo en el carrito
+  // antes de tocar "Cobrar".
+
+  StreamSubscription<RealtimeEvent>? _realtimeSub;
+  Timer? _realtimeDebounce;
+  final Set<String> _pendingProductoIds = {};
+  bool _pendingSyncAll = false;
+  int _syncSeq = 0;
+
+  void _suscribirRealtime() {
+    _realtimeSub = _realtimeSync.events.listen(_onRealtimeEvent);
+  }
+
+  void _onRealtimeEvent(RealtimeEvent event) {
+    // Mientras se procesa un cobro NO tocamos el carrito — el payload ya
+    // viaja al servidor. Si el precio difiere, capa 2 lo rechaza con 409 y
+    // capa 3 dispara el dialog amigable. Mutar el state mid-cobro causaría
+    // inconsistencia entre lo enviado y lo mostrado.
+    if (state.procesando) return;
+
+    final evtEmpresaId = _empresaIdFromEvent(event);
+    final evtSedeId = _sedeIdFromEvent(event);
+    final evtProductoId = _productoIdFromEvent(event);
+
+    // Filtrado defensivo:
+    //  - Si el evento trae empresaId y NO matchea la del carrito → ignorar
+    //    (otro tenant suscrito al mismo topic no debería pasar, pero por
+    //    si acaso).
+    //  - Si trae sedeId y no matchea la sede del carrito → ignorar (cambio
+    //    de precio en otra sede no afecta).
+    if (state.empresaId != null &&
+        evtEmpresaId != null &&
+        state.empresaId != evtEmpresaId) {
+      return;
+    }
+    if (state.sedeId != null &&
+        evtSedeId != null &&
+        state.sedeId != evtSedeId) {
+      return;
+    }
+
+    // Acumular productoIds afectados y debouncear: si caen N eventos en
+    // ráfaga (admin haciendo varios cambios) se procesan en una sola pasada.
+    if (evtProductoId == null) {
+      _pendingSyncAll = true;
+    } else {
+      _pendingProductoIds.add(evtProductoId);
+    }
+    _realtimeDebounce?.cancel();
+    _realtimeDebounce = Timer(const Duration(milliseconds: 500), _flushSync);
+  }
+
+  String? _empresaIdFromEvent(RealtimeEvent e) {
+    if (e is RealtimePrecioCambiado) return e.empresaId;
+    if (e is RealtimeStockCambiado) return e.empresaId;
+    if (e is RealtimeNivelesCambiados) return e.empresaId;
+    return null;
+  }
+
+  String? _sedeIdFromEvent(RealtimeEvent e) {
+    if (e is RealtimePrecioCambiado) return e.sedeId;
+    if (e is RealtimeStockCambiado) return e.sedeId;
+    return null; // niveles no son por sede
+  }
+
+  String? _productoIdFromEvent(RealtimeEvent e) {
+    if (e is RealtimePrecioCambiado) return e.productoId;
+    if (e is RealtimeStockCambiado) return e.productoId;
+    if (e is RealtimeNivelesCambiados) return e.productoId;
+    return null;
+  }
+
+  Future<void> _flushSync() async {
+    final productoIds = _pendingProductoIds.toSet();
+    final syncAll = _pendingSyncAll;
+    _pendingProductoIds.clear();
+    _pendingSyncAll = false;
+    if (productoIds.isEmpty && !syncAll) return;
+    await _sincronizarItemsCarrito(productoIds, syncAll);
+  }
+
+  /// Identifica los items del carrito afectados por el cambio FCM, re-fetch
+  /// niveles + precio + stock por sede y reaplica con `recalcularPrecioPorNiveles`.
+  ///
+  /// Items combo (`origenComboId != null`) NO se tocan: el precio del combo
+  /// se prorratea al armar el combo y no debe re-cotizarse cada vez que el
+  /// admin tocó un precio individual. El backend ya valida el combo entero
+  /// al cobrar.
+  Future<void> _sincronizarItemsCarrito(
+    Set<String> productoIds,
+    bool syncAll,
+  ) async {
+    final items = state.items;
+    if (items.isEmpty) return;
+
+    final mySeq = ++_syncSeq;
+
+    // Items afectados: filtramos por productoId (excluyendo combos).
+    final afectados = <int>[];
+    final productosAfectados = <String>{};
+    for (var i = 0; i < items.length; i++) {
+      final item = items[i];
+      final pid = item.productoId;
+      if (pid == null) continue;
+      if (item.origenComboId != null) continue;
+      if (syncAll || productoIds.contains(pid)) {
+        afectados.add(i);
+        productosAfectados.add(pid);
+      }
+    }
+    if (afectados.isEmpty) return;
+
+    // 1. Invalidar y refetch niveles (el RealtimeSyncService ya invalidó
+    //    para el productoId del evento, pero acá cubrimos también el caso
+    //    syncAll y somos idempotentes).
+    for (final pid in productosAfectados) {
+      _nivelCacheService.invalidate(pid);
+    }
+    final nivelesEntries = await Future.wait(
+      productosAfectados.map(
+        (pid) => _nivelCacheService
+            .getNiveles(pid)
+            .then((n) => MapEntry(pid, n)),
+      ),
+    );
+    if (isClosed || mySeq != _syncSeq) return;
+    final nivelesPorProducto = Map<String, List<PrecioNivel>>.fromEntries(
+      nivelesEntries,
+    );
+
+    // 2. Refetch precio + stock por sede para cada item afectado.
+    final sedeId = state.sedeId;
+    final preciosNuevos = <int, double>{};
+    final stockNuevo = <int, int>{};
+    if (sedeId != null) {
+      final stockEntries = await Future.wait(
+        afectados.map((idx) async {
+          final item = items[idx];
+          final pid = item.productoId;
+          if (pid == null) return null;
+          final result = item.varianteId != null
+              ? await _stockRepository.getStockVarianteEnSede(
+                  varianteId: item.varianteId!,
+                  sedeId: sedeId,
+                )
+              : await _stockRepository.getStockProductoEnSede(
+                  productoId: pid,
+                  sedeId: sedeId,
+                );
+          if (result is Success<ProductoStock>) {
+            return MapEntry(idx, result.data);
+          }
+          return null;
+        }),
+      );
+      if (isClosed || mySeq != _syncSeq) return;
+      for (final entry in stockEntries) {
+        if (entry == null) continue;
+        final s = entry.value;
+        final precioEf = s.precioEfectivo;
+        if (precioEf != null) preciosNuevos[entry.key] = precioEf;
+        stockNuevo[entry.key] = s.stockActual;
+      }
+    }
+
+    // 3. Aplicar nuevo precio base + niveles + stock disponible a cada item.
+    //    `recalcularPrecioPorNiveles` deja `precioUnitario` final ya con el
+    //    nivel correcto para la cantidad actual.
+    final nuevos = [...state.items];
+    var huboCambios = false;
+    for (final idx in afectados) {
+      // Defender contra el caso `items` cambió de tamaño entre el snapshot
+      // y ahora (eliminarItem/agregarProducto en paralelo).
+      if (idx >= nuevos.length) continue;
+      final item = nuevos[idx];
+      final pid = item.productoId;
+      if (pid == null) continue;
+      final nivelesNuevos = nivelesPorProducto[pid] ?? item.niveles;
+      final precioNuevo =
+          preciosNuevos[idx] ?? item.precioBase ?? item.precioUnitario;
+      final stockNvo = stockNuevo[idx] ?? item.stockDisponible;
+      final actualizado = item
+          .copyWith(
+            precioBase: precioNuevo,
+            precioUnitario: precioNuevo,
+            niveles: nivelesNuevos,
+            stockDisponible: stockNvo,
+          )
+          .recalcularPrecioPorNiveles(item.cantidad);
+      nuevos[idx] = actualizado;
+      huboCambios = true;
+    }
+    if (!huboCambios) return;
+    debugPrint(
+        '[VentaRapida] Carrito sincronizado por FCM: ${afectados.length} item(s)');
+    emit(state.copyWith(items: nuevos));
+  }
+
+  @override
+  Future<void> close() {
+    _realtimeDebounce?.cancel();
+    _realtimeSub?.cancel();
+    return super.close();
   }
 
   void resetCompletada() {

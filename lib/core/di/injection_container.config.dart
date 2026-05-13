@@ -4367,16 +4367,6 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i56.ResetPasswordCubit>(
       () => _i56.ResetPasswordCubit(gh<_i474.ResetPasswordUseCase>()),
     );
-    gh.lazySingleton<_i985.VentaRapidaCubit>(
-      () => _i985.VentaRapidaCubit(
-        gh<_i40.CobrarVentaRapidaUseCase>(),
-        gh<_i696.ObtenerClienteGenericoUseCase>(),
-        gh<_i765.BuscarClientePorDniUseCase>(),
-        gh<_i33.BuscarClientePorRucUseCase>(),
-        gh<_i574.PrecioNivelCacheService>(),
-        gh<_i200.ComboRepository>(),
-      ),
-    );
     gh.factory<_i848.CheckoutCubit>(
       () => _i848.CheckoutCubit(
         gh<_i71.GetOpcionesEnvioUseCase>(),
@@ -4495,6 +4485,18 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i815.VerifyEmailCubit>(
       () => _i815.VerifyEmailCubit(
         verifyEmailUseCase: gh<_i30.VerifyEmailUseCase>(),
+      ),
+    );
+    gh.lazySingleton<_i985.VentaRapidaCubit>(
+      () => _i985.VentaRapidaCubit(
+        gh<_i40.CobrarVentaRapidaUseCase>(),
+        gh<_i696.ObtenerClienteGenericoUseCase>(),
+        gh<_i765.BuscarClientePorDniUseCase>(),
+        gh<_i33.BuscarClientePorRucUseCase>(),
+        gh<_i574.PrecioNivelCacheService>(),
+        gh<_i200.ComboRepository>(),
+        gh<_i262.ProductoStockRepository>(),
+        gh<_i805.RealtimeSyncService>(),
       ),
     );
     return this;
