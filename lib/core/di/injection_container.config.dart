@@ -917,14 +917,14 @@ import '../../features/producto/domain/repositories/plantilla_repository.dart'
     as _i1006;
 import '../../features/producto/domain/repositories/precio_nivel_repository.dart'
     as _i640;
-import '../../features/producto/domain/services/precio_nivel_cache_service.dart'
-    as _i641;
 import '../../features/producto/domain/repositories/producto_repository.dart'
     as _i398;
 import '../../features/producto/domain/repositories/producto_stock_repository.dart'
     as _i262;
 import '../../features/producto/domain/repositories/transferencia_stock_repository.dart'
     as _i812;
+import '../../features/producto/domain/services/precio_nivel_cache_service.dart'
+    as _i574;
 import '../../features/producto/domain/usecases/actualizar_precios_producto_stock_usecase.dart'
     as _i395;
 import '../../features/producto/domain/usecases/actualizar_producto_usecase.dart'
@@ -1485,6 +1485,7 @@ import '../services/autorizacion_service.dart' as _i90;
 import '../services/error_handler_service.dart' as _i490;
 import '../services/export_service.dart' as _i26;
 import '../services/logger_service.dart' as _i141;
+import '../services/realtime_sync_service.dart' as _i805;
 import '../services/search_history_service.dart' as _i283;
 import '../services/session_expired_notifier.dart' as _i284;
 import '../services/sistema_config_service.dart' as _i295;
@@ -1950,6 +1951,13 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i593.GuiaRemisionRemoteDatasource>(),
       ),
     );
+    gh.lazySingleton<_i823.CotizacionRepository>(
+      () => _i843.CotizacionRepositoryImpl(
+        gh<_i48.CotizacionRapidaRemoteDataSource>(),
+        gh<_i932.NetworkInfo>(),
+        gh<_i490.ErrorHandlerService>(),
+      ),
+    );
     gh.factory<_i479.GetClienteUseCase>(
       () => _i479.GetClienteUseCase(gh<_i37.ClienteRepository>()),
     );
@@ -2090,6 +2098,35 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i795.ClienteFormCubit>(
       () => _i795.ClienteFormCubit(gh<_i213.RegistrarClienteUseCase>()),
+    );
+    gh.lazySingleton<_i343.CrearCotizacionUseCase>(
+      () => _i343.CrearCotizacionUseCase(gh<_i823.CotizacionRepository>()),
+    );
+    gh.factory<_i1016.ActualizarCotizacionUseCase>(
+      () =>
+          _i1016.ActualizarCotizacionUseCase(gh<_i823.CotizacionRepository>()),
+    );
+    gh.factory<_i716.CambiarEstadoCotizacionUseCase>(
+      () => _i716.CambiarEstadoCotizacionUseCase(
+        gh<_i823.CotizacionRepository>(),
+      ),
+    );
+    gh.factory<_i499.DuplicarCotizacionUseCase>(
+      () => _i499.DuplicarCotizacionUseCase(gh<_i823.CotizacionRepository>()),
+    );
+    gh.factory<_i965.EliminarCotizacionUseCase>(
+      () => _i965.EliminarCotizacionUseCase(gh<_i823.CotizacionRepository>()),
+    );
+    gh.factory<_i813.GetCotizacionUseCase>(
+      () => _i813.GetCotizacionUseCase(gh<_i823.CotizacionRepository>()),
+    );
+    gh.factory<_i232.GetCotizacionesUseCase>(
+      () => _i232.GetCotizacionesUseCase(gh<_i823.CotizacionRepository>()),
+    );
+    gh.factory<_i76.ValidarCompatibilidadCotizacionUseCase>(
+      () => _i76.ValidarCompatibilidadCotizacionUseCase(
+        gh<_i823.CotizacionRepository>(),
+      ),
     );
     gh.factory<_i475.ProductoImagesCubit>(
       () => _i475.ProductoImagesCubit(gh<_i306.StorageService>()),
@@ -2449,8 +2486,16 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i593.DireccionListCubit>(
       () => _i593.DireccionListCubit(gh<_i95.DireccionRepository>()),
     );
-    gh.lazySingleton<_i641.PrecioNivelCacheService>(
-      () => _i641.PrecioNivelCacheService(gh<_i640.PrecioNivelRepository>()),
+    gh.factory<_i298.CotizacionFormCubit>(
+      () => _i298.CotizacionFormCubit(
+        crearCotizacionUseCase: gh<_i343.CrearCotizacionUseCase>(),
+        actualizarCotizacionUseCase: gh<_i1016.ActualizarCotizacionUseCase>(),
+        cambiarEstadoUseCase: gh<_i716.CambiarEstadoCotizacionUseCase>(),
+        duplicarCotizacionUseCase: gh<_i499.DuplicarCotizacionUseCase>(),
+        eliminarCotizacionUseCase: gh<_i965.EliminarCotizacionUseCase>(),
+        validarCompatibilidadUseCase:
+            gh<_i76.ValidarCompatibilidadCotizacionUseCase>(),
+      ),
     );
     gh.lazySingleton<_i640.PrecioNivelRepository>(
       () => _i92.PrecioNivelRepositoryImpl(
@@ -2791,13 +2836,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i1056.GetMarcasEmpresaUseCase>(),
         gh<_i895.ActivarMarcaUseCase>(),
         gh<_i405.DesactivarMarcaUseCase>(),
-      ),
-    );
-    gh.lazySingleton<_i823.CotizacionRepository>(
-      () => _i843.CotizacionRepositoryImpl(
-        gh<_i48.CotizacionRapidaRemoteDataSource>(),
-        gh<_i932.NetworkInfo>(),
-        gh<_i490.ErrorHandlerService>(),
       ),
     );
     gh.factory<_i224.ActualizarCantidadUseCase>(
@@ -3455,6 +3493,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i193.ConsultaRucCubit>(
       () => _i193.ConsultaRucCubit(gh<_i633.ConsultarRucUseCase>()),
     );
+    gh.factory<_i9.CotizacionListCubit>(
+      () => _i9.CotizacionListCubit(gh<_i232.GetCotizacionesUseCase>()),
+    );
     gh.factory<_i615.CrearMetaFinancieraUseCase>(
       () => _i615.CrearMetaFinancieraUseCase(
         gh<_i678.MetaFinancieraRepository>(),
@@ -3463,16 +3504,6 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i930.GetMetasFinancierasUseCase>(
       () => _i930.GetMetasFinancierasUseCase(
         gh<_i678.MetaFinancieraRepository>(),
-      ),
-    );
-    gh.lazySingleton<_i985.VentaRapidaCubit>(
-      () => _i985.VentaRapidaCubit(
-        gh<_i40.CobrarVentaRapidaUseCase>(),
-        gh<_i696.ObtenerClienteGenericoUseCase>(),
-        gh<_i765.BuscarClientePorDniUseCase>(),
-        gh<_i33.BuscarClientePorRucUseCase>(),
-        gh<_i641.PrecioNivelCacheService>(),
-        gh<_i200.ComboRepository>(),
       ),
     );
     gh.factory<_i532.ConfirmarPedidoUseCase>(
@@ -3648,35 +3679,6 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i835.AgregarItemCubit>(
       () => _i835.AgregarItemCubit(gh<_i87.AgregarItemUsecase>()),
-    );
-    gh.lazySingleton<_i343.CrearCotizacionUseCase>(
-      () => _i343.CrearCotizacionUseCase(gh<_i823.CotizacionRepository>()),
-    );
-    gh.factory<_i1016.ActualizarCotizacionUseCase>(
-      () =>
-          _i1016.ActualizarCotizacionUseCase(gh<_i823.CotizacionRepository>()),
-    );
-    gh.factory<_i716.CambiarEstadoCotizacionUseCase>(
-      () => _i716.CambiarEstadoCotizacionUseCase(
-        gh<_i823.CotizacionRepository>(),
-      ),
-    );
-    gh.factory<_i499.DuplicarCotizacionUseCase>(
-      () => _i499.DuplicarCotizacionUseCase(gh<_i823.CotizacionRepository>()),
-    );
-    gh.factory<_i965.EliminarCotizacionUseCase>(
-      () => _i965.EliminarCotizacionUseCase(gh<_i823.CotizacionRepository>()),
-    );
-    gh.factory<_i813.GetCotizacionUseCase>(
-      () => _i813.GetCotizacionUseCase(gh<_i823.CotizacionRepository>()),
-    );
-    gh.factory<_i232.GetCotizacionesUseCase>(
-      () => _i232.GetCotizacionesUseCase(gh<_i823.CotizacionRepository>()),
-    );
-    gh.factory<_i76.ValidarCompatibilidadCotizacionUseCase>(
-      () => _i76.ValidarCompatibilidadCotizacionUseCase(
-        gh<_i823.CotizacionRepository>(),
-      ),
     );
     gh.factory<_i1047.AdelantoCubit>(
       () => _i1047.AdelantoCubit(gh<_i345.AdelantoRepository>()),
@@ -3954,11 +3956,8 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i750.AnularMovimientoUseCase>(),
       ),
     );
-    gh.factory<_i68.PrecioNivelCubit>(
-      () => _i68.PrecioNivelCubit(
-        gh<_i640.PrecioNivelRepository>(),
-        gh<_i641.PrecioNivelCacheService>(),
-      ),
+    gh.lazySingleton<_i574.PrecioNivelCacheService>(
+      () => _i574.PrecioNivelCacheService(gh<_i640.PrecioNivelRepository>()),
     );
     gh.factory<_i604.ActualizarProductoUseCase>(
       () => _i604.ActualizarProductoUseCase(gh<_i398.ProductoRepository>()),
@@ -4068,17 +4067,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i1038.GetRendicionUseCase>(),
         gh<_i505.AprobarRendicionUseCase>(),
         gh<_i437.RechazarRendicionUseCase>(),
-      ),
-    );
-    gh.factory<_i298.CotizacionFormCubit>(
-      () => _i298.CotizacionFormCubit(
-        crearCotizacionUseCase: gh<_i343.CrearCotizacionUseCase>(),
-        actualizarCotizacionUseCase: gh<_i1016.ActualizarCotizacionUseCase>(),
-        cambiarEstadoUseCase: gh<_i716.CambiarEstadoCotizacionUseCase>(),
-        duplicarCotizacionUseCase: gh<_i499.DuplicarCotizacionUseCase>(),
-        eliminarCotizacionUseCase: gh<_i965.EliminarCotizacionUseCase>(),
-        validarCompatibilidadUseCase:
-            gh<_i76.ValidarCompatibilidadCotizacionUseCase>(),
       ),
     );
     gh.factory<_i227.ProductoListCubit>(
@@ -4203,16 +4191,6 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i536.IncidenciaListCubit>(
       () => _i536.IncidenciaListCubit(gh<_i288.IncidenciaRepository>()),
-    );
-    gh.lazySingleton<_i975.CotizacionRapidaCubit>(
-      () => _i975.CotizacionRapidaCubit(
-        gh<_i431.CrearCotizacionRapidaUseCase>(),
-        gh<_i865.ActualizarCotizacionRapidaUseCase>(),
-        gh<_i765.BuscarClientePorDniUseCase>(),
-        gh<_i33.BuscarClientePorRucUseCase>(),
-        gh<_i641.PrecioNivelCacheService>(),
-        gh<_i200.ComboRepository>(),
-      ),
     );
     gh.factory<_i220.VentaListCubit>(
       () => _i220.VentaListCubit(gh<_i213.GetVentasUseCase>()),
@@ -4389,6 +4367,16 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i56.ResetPasswordCubit>(
       () => _i56.ResetPasswordCubit(gh<_i474.ResetPasswordUseCase>()),
     );
+    gh.lazySingleton<_i985.VentaRapidaCubit>(
+      () => _i985.VentaRapidaCubit(
+        gh<_i40.CobrarVentaRapidaUseCase>(),
+        gh<_i696.ObtenerClienteGenericoUseCase>(),
+        gh<_i765.BuscarClientePorDniUseCase>(),
+        gh<_i33.BuscarClientePorRucUseCase>(),
+        gh<_i574.PrecioNivelCacheService>(),
+        gh<_i200.ComboRepository>(),
+      ),
+    );
     gh.factory<_i848.CheckoutCubit>(
       () => _i848.CheckoutCubit(
         gh<_i71.GetOpcionesEnvioUseCase>(),
@@ -4421,9 +4409,6 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i147.RegisterCubit>(
       () => _i147.RegisterCubit(registerUseCase: gh<_i941.RegisterUseCase>()),
     );
-    gh.factory<_i9.CotizacionListCubit>(
-      () => _i9.CotizacionListCubit(gh<_i232.GetCotizacionesUseCase>()),
-    );
     gh.factory<_i279.ResolverIncidenciaCubit>(
       () =>
           _i279.ResolverIncidenciaCubit(gh<_i1007.ResolverIncidenciaUseCase>()),
@@ -4435,6 +4420,9 @@ extension GetItInjectableX on _i174.GetIt {
         logout: gh<_i48.LogoutUseCase>(),
         sessionExpiredNotifier: gh<_i284.SessionExpiredNotifier>(),
       ),
+    );
+    gh.lazySingleton<_i805.RealtimeSyncService>(
+      () => _i805.RealtimeSyncService(gh<_i574.PrecioNivelCacheService>()),
     );
     gh.factory<_i712.DevolucionListCubit>(
       () => _i712.DevolucionListCubit(gh<_i216.GetDevolucionesUseCase>()),
@@ -4466,11 +4454,27 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i13.ProductoSedeSearchCubit>(
       () => _i13.ProductoSedeSearchCubit(gh<_i202.GetProductosUseCase>()),
     );
+    gh.factory<_i68.PrecioNivelCubit>(
+      () => _i68.PrecioNivelCubit(
+        gh<_i640.PrecioNivelRepository>(),
+        gh<_i574.PrecioNivelCacheService>(),
+      ),
+    );
     gh.factory<_i239.ServicioListCubit>(
       () => _i239.ServicioListCubit(gh<_i123.GetServiciosUseCase>()),
     );
     gh.factory<_i951.ForgotPasswordCubit>(
       () => _i951.ForgotPasswordCubit(gh<_i560.ForgotPasswordUseCase>()),
+    );
+    gh.lazySingleton<_i975.CotizacionRapidaCubit>(
+      () => _i975.CotizacionRapidaCubit(
+        gh<_i431.CrearCotizacionRapidaUseCase>(),
+        gh<_i865.ActualizarCotizacionRapidaUseCase>(),
+        gh<_i765.BuscarClientePorDniUseCase>(),
+        gh<_i33.BuscarClientePorRucUseCase>(),
+        gh<_i574.PrecioNivelCacheService>(),
+        gh<_i200.ComboRepository>(),
+      ),
     );
     gh.factory<_i547.AccountSecurityCubit>(
       () => _i547.AccountSecurityCubit(

@@ -10,7 +10,10 @@ import 'core/di/injection_container.dart';
 import 'core/network/dio_client.dart';
 import 'core/presentation/widgets/app_initializer.dart';
 import 'core/services/push_notification_service.dart';
+import 'core/services/realtime_sync_service.dart';
 import 'features/auth/presentation/bloc/auth/auth_bloc.dart';
+import 'features/empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
+import 'features/empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import 'features/servicio/presentation/widgets/mensajes_orden_widget.dart';
 
 void main() {
@@ -52,6 +55,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _authSubscription?.cancel();
+    _empresaSubscription?.cancel();
     super.dispose();
   }
 
@@ -156,6 +160,47 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     PushNotificationService().onMensajeReceived = () {
       MensajesOrdenWidget.triggerRefresh();
     };
+
+    // Wire-up data-only messages al RealtimeSyncService. Estos NO
+    // disparan UI (sin notificación visible) — solo invalidan cache y
+    // emiten al stream para que listeners (grilla de productos, etc.)
+    // reaccionen.
+    final realtime = locator<RealtimeSyncService>();
+    PushNotificationService().onRealtimeData = (data) {
+      realtime.handleRealtimeData(data);
+    };
+  }
+
+  /// Suscribe al topic FCM `empresa-${empresaId}` cada vez que cambia
+  /// el `EmpresaContext` (login, switch-tenant). Desuscribe en logout.
+  StreamSubscription? _empresaSubscription;
+  String? _empresaIdActual;
+  void _listenEmpresaContext(EmpresaContextCubit empresaCubit) {
+    _empresaSubscription?.cancel();
+    final realtime = locator<RealtimeSyncService>();
+
+    // Estado actual si ya está cargado
+    final initial = empresaCubit.state;
+    if (initial is EmpresaContextLoaded) {
+      _empresaIdActual = initial.context.empresa.id;
+      realtime.bind(_empresaIdActual!);
+    }
+
+    _empresaSubscription = empresaCubit.stream.listen((state) {
+      if (state is EmpresaContextLoaded) {
+        final nuevoId = state.context.empresa.id;
+        if (nuevoId != _empresaIdActual) {
+          _empresaIdActual = nuevoId;
+          realtime.bind(nuevoId);
+        }
+      } else if (state is EmpresaContextInitial ||
+          state is EmpresaContextError) {
+        if (_empresaIdActual != null) {
+          _empresaIdActual = null;
+          realtime.unbind();
+        }
+      }
+    });
   }
 
   @override
@@ -165,9 +210,11 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       child: Builder(
         builder: (context) {
           final authBloc = context.read<AuthBloc>();
+          final empresaCubit = context.read<EmpresaContextCubit>();
           final appRouter = AppRouter(authBloc: authBloc);
 
           _listenAuthChanges(authBloc);
+          _listenEmpresaContext(empresaCubit);
           _setupPushDeepLinking(appRouter.router);
 
           return MaterialApp.router(

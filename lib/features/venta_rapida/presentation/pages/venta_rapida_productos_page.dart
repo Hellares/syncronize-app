@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/services/realtime_sync_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/barcode_scanner_sheet.dart';
 import '../../../../core/widgets/custom_search_field.dart';
@@ -93,14 +96,39 @@ class _ProductosViewState extends State<_ProductosView> {
   /// al carrito y se limpia el search. Patrón típico POS con scanner.
   String? _lastScannedCode;
 
+  /// Listener al stream de [RealtimeSyncService]. Cuando llega un FCM
+  /// data-only (precio/stock/niveles cambiados) hacemos reload del
+  /// catálogo con debounce de 500ms para no spamear si caen N eventos
+  /// en ráfaga (ej. admin haciendo varios cambios consecutivos).
+  StreamSubscription<RealtimeEvent>? _realtimeSubscription;
+  Timer? _realtimeReloadDebounce;
+
   @override
   void initState() {
     super.initState();
     _scrollCtrl.addListener(_onScroll);
+    _suscribirRealtime();
+  }
+
+  void _suscribirRealtime() {
+    final realtime = locator<RealtimeSyncService>();
+    _realtimeSubscription = realtime.events.listen((event) {
+      // Cualquier evento (PRECIO/STOCK/NIVELES) implica que el catálogo
+      // local puede estar desactualizado. Reload con debounce.
+      _realtimeReloadDebounce?.cancel();
+      _realtimeReloadDebounce = Timer(const Duration(milliseconds: 500), () {
+        if (!mounted) return;
+        try {
+          context.read<ProductoListCubit>().reload();
+        } catch (_) {/* cubit no disponible en este momento */}
+      });
+    });
   }
 
   @override
   void dispose() {
+    _realtimeReloadDebounce?.cancel();
+    _realtimeSubscription?.cancel();
     _scrollCtrl.removeListener(_onScroll);
     _scrollCtrl.dispose();
     _searchCtrl.dispose();
@@ -579,6 +607,22 @@ class _ProductoCard extends StatelessWidget {
     return 0;
   }
 
+  /// Devuelve los datos del item en carrito (precio con nivel aplicado y
+  /// nombre del nivel) para que la card refleje el precio efectivo en vez
+  /// del precio base. Si el producto no está en el carrito, devuelve null.
+  ({double precioUnitario, String? nivelAplicado})? _itemInfoEnCarrito(
+      VentaRapidaState state) {
+    for (final i in state.items) {
+      if (i.productoId == producto.id) {
+        return (
+          precioUnitario: i.precioUnitario,
+          nivelAplicado: i.nivelAplicado,
+        );
+      }
+    }
+    return null;
+  }
+
   void _abrirZoom(BuildContext context) {
     final imagen = producto.imagenPrincipal;
     if (imagen == null || imagen.isEmpty) return;
@@ -614,11 +658,24 @@ class _ProductoCard extends StatelessWidget {
       buildWhen: (prev, curr) {
         final prevQty = _qtyEnCarrito(prev);
         final currQty = _qtyEnCarrito(curr);
-        return prevQty != currQty;
+        if (prevQty != currQty) return true;
+        // También rebuild si cambió el nivel aplicado o el precio del item
+        // (ej. niveles llegaron del backend tras la primera adición).
+        final prevInfo = _itemInfoEnCarrito(prev);
+        final currInfo = _itemInfoEnCarrito(curr);
+        return prevInfo?.precioUnitario != currInfo?.precioUnitario ||
+            prevInfo?.nivelAplicado != currInfo?.nivelAplicado;
       },
       builder: (context, state) {
         final cantidadEnCarrito = _qtyEnCarrito(state);
         final estaEnCarrito = cantidadEnCarrito > 0;
+        // Precio mostrado: si el producto está en carrito y un nivel aplica,
+        // usamos `precioUnitario` del item (ya recalculado por el cubit).
+        // Si no, mostramos el precio base/efectivo del catálogo.
+        final infoCarrito = _itemInfoEnCarrito(state);
+        final precioMostrado = infoCarrito?.precioUnitario ?? precio;
+        final nivelAplicado = infoCarrito?.nivelAplicado;
+        final precioConNivelAplicado = nivelAplicado != null;
         // Stock disponible real (descontando lo que ya está en el carrito).
         // Esto evita que el cajero vea "Stock: 5" cuando ya agregó las 5.
         final stockDisponible =
@@ -769,7 +826,11 @@ class _ProductoCard extends StatelessWidget {
                                       height: 0.8,
                                       color: AppColors.blue1.withValues(alpha: 0.05),
                                     ),
-                                    // Bloque inferior: UND + precio
+                                    // Bloque inferior: UND/nivel + precio
+                                    // Si hay nivel aplicado por cantidad, en
+                                    // vez de "UND" mostramos el nombre del
+                                    // nivel (ej "Por Mayor") y el precio
+                                    // pasa a azul para destacar el cambio.
                                     Padding(
                                       padding: const EdgeInsets.symmetric(
                                           horizontal: 6, vertical: 6),
@@ -777,20 +838,32 @@ class _ProductoCard extends StatelessWidget {
                                         mainAxisAlignment:
                                             MainAxisAlignment.spaceBetween,
                                         children: [
-                                          Text(
-                                            'UND',
-                                            style: TextStyle(
-                                              fontSize: 7,
-                                              color: Colors.grey.shade600,
-                                              fontWeight: FontWeight.w500,
+                                          Flexible(
+                                            child: Text(
+                                              precioConNivelAplicado
+                                                  ? nivelAplicado.toUpperCase()
+                                                  : 'UND',
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                fontSize: 7,
+                                                color: precioConNivelAplicado
+                                                    ? AppColors.blue1
+                                                    : Colors.grey.shade600,
+                                                fontWeight:
+                                                    FontWeight.w700,
+                                                letterSpacing: 0.3,
+                                              ),
                                             ),
                                           ),
                                           Text(
-                                            'S/ ${precio.toStringAsFixed(2)}',
+                                            'S/ ${precioMostrado.toStringAsFixed(2)}',
                                             style: TextStyle(
                                               fontSize: 10,
-                                              fontWeight: FontWeight.w600,
-                                              color: Colors.grey.shade800,
+                                              fontWeight: FontWeight.w700,
+                                              color: precioConNivelAplicado
+                                                  ? AppColors.blue1
+                                                  : Colors.grey.shade800,
                                             ),
                                           ),
                                         ],

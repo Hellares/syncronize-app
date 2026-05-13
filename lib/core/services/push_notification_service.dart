@@ -53,6 +53,12 @@ class PushNotificationService {
   /// Callback para cuando se recibe un mensaje de servicio/cita (foreground)
   void Function()? onMensajeReceived;
 
+  /// Callback para mensajes data-only de sincronización en tiempo real
+  /// (PRECIO_CAMBIADO, STOCK_CAMBIADO, NIVELES_CAMBIADOS). El handler
+  /// recibe el `data` crudo del mensaje FCM. Wireeado al
+  /// `RealtimeSyncService` desde main.
+  void Function(Map<String, dynamic> data)? onRealtimeData;
+
   /// Canal de notificaciones Android
   static const AndroidNotificationChannel _channel = AndroidNotificationChannel(
     'syncronize_default',
@@ -155,11 +161,26 @@ class PushNotificationService {
   void _handleForegroundMessage(RemoteMessage message) {
     debugPrint('[FCM] Foreground message: ${message.messageId}');
 
+    final tipo = message.data['tipo']?.toString();
+
+    // Mensajes de sincronización en tiempo real (data-only, sin
+    // notification visible). Estos NO deben mostrar nada al usuario:
+    // solo invalidar cache / refrescar listas en background.
+    const realtimeTipos = {
+      'PRECIO_CAMBIADO',
+      'STOCK_CAMBIADO',
+      'NIVELES_CAMBIADOS',
+    };
+    if (tipo != null && realtimeTipos.contains(tipo)) {
+      onRealtimeData?.call(Map<String, dynamic>.from(message.data));
+      return; // No mostrar local notification ni tocar badge
+    }
+
     // Notificar a la campana para actualizar badge
     onNotificationReceived?.call();
 
     // Si es un mensaje, refrescar el widget de mensajes
-    if (message.data['tipo'] == 'MENSAJE') {
+    if (tipo == 'MENSAJE') {
       onMensajeReceived?.call();
     }
 
