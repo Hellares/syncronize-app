@@ -42,6 +42,8 @@ class VentaModel extends Venta {
     super.sedeNombre,
     super.vendedorNombre,
     super.cajeroNombre,
+    super.vendedorAlias,
+    super.cajeroAlias,
     super.clienteNombreCompleto,
     super.cotizacionCodigo,
     super.detalles,
@@ -81,21 +83,31 @@ class VentaModel extends Venta {
     final count = json['_count'] as Map<String, dynamic>?;
 
     String? vendedorNombre;
+    String? vendedorAlias;
     if (vendedor != null) {
       final persona = vendedor['persona'] as Map<String, dynamic>?;
       if (persona != null) {
         vendedorNombre =
             '${persona['nombres'] ?? ''} ${persona['apellidos'] ?? ''}'.trim();
       }
+      final alias = vendedor['aliasTicket'] as String?;
+      if (alias != null && alias.trim().isNotEmpty) {
+        vendedorAlias = alias.trim();
+      }
     }
 
     String? cajeroNombre;
+    String? cajeroAlias;
     final cajero = json['cajero'] as Map<String, dynamic>?;
     if (cajero != null) {
       final persona = cajero['persona'] as Map<String, dynamic>?;
       if (persona != null) {
         cajeroNombre =
             '${persona['nombres'] ?? ''} ${persona['apellidos'] ?? ''}'.trim();
+      }
+      final alias = cajero['aliasTicket'] as String?;
+      if (alias != null && alias.trim().isNotEmpty) {
+        cajeroAlias = alias.trim();
       }
     }
 
@@ -168,6 +180,8 @@ class VentaModel extends Venta {
       sedeNombre: sede?['nombre'] as String?,
       vendedorNombre: vendedorNombre,
       cajeroNombre: cajeroNombre,
+      vendedorAlias: vendedorAlias,
+      cajeroAlias: cajeroAlias,
       clienteNombreCompleto: clienteNombreCompleto,
       cotizacionCodigo: cotizacion?['codigo'] as String?,
       detalles: detalles,

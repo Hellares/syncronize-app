@@ -184,18 +184,25 @@ class OrdenTecnico extends Equatable {
   final String? nombre;
   final String? apellido;
   final String? email;
+  /// Alias del usuario para tickets (ej: "JP"). Si null → usa nombre + apellido.
+  final String? aliasTicket;
 
   const OrdenTecnico({
     required this.id,
     this.nombre,
     this.apellido,
     this.email,
+    this.aliasTicket,
   });
 
   String get nombreCompleto => [nombre, apellido].where((e) => e != null && e.isNotEmpty).join(' ');
 
+  /// Lo que se imprime en ticket/PDF. Prefiere alias; si no hay, nombre completo.
+  String get nombreParaTicket =>
+      (aliasTicket != null && aliasTicket!.isNotEmpty) ? aliasTicket! : nombreCompleto;
+
   @override
-  List<Object?> get props => [id, nombre];
+  List<Object?> get props => [id, nombre, aliasTicket];
 }
 
 class OrdenModeloEquipo extends Equatable {

@@ -34,6 +34,7 @@ class CotizacionModel extends Cotizacion {
     required super.actualizadoEn,
     super.sedeNombre,
     super.vendedorNombre,
+    super.vendedorAlias,
     super.clienteNombreCompleto,
     super.detalles,
     super.cantidadDetalles,
@@ -46,13 +47,18 @@ class CotizacionModel extends Cotizacion {
     final cliente = json['cliente'] as Map<String, dynamic>?;
     final count = json['_count'] as Map<String, dynamic>?;
 
-    // Extraer nombre del vendedor
+    // Extraer nombre del vendedor + alias opcional (para PDF/ticket)
     String? vendedorNombre;
+    String? vendedorAlias;
     if (vendedor != null) {
       final persona = vendedor['persona'] as Map<String, dynamic>?;
       if (persona != null) {
         vendedorNombre =
             '${persona['nombres'] ?? ''} ${persona['apellidos'] ?? ''}'.trim();
+      }
+      final alias = vendedor['aliasTicket'] as String?;
+      if (alias != null && alias.trim().isNotEmpty) {
+        vendedorAlias = alias.trim();
       }
     }
 
@@ -106,6 +112,7 @@ class CotizacionModel extends Cotizacion {
       actualizadoEn: DateTime.parse(json['actualizadoEn'] as String),
       sedeNombre: sede?['nombre'] as String?,
       vendedorNombre: vendedorNombre,
+      vendedorAlias: vendedorAlias,
       clienteNombreCompleto: clienteNombreCompleto,
       detalles: detalles,
       cantidadDetalles: count?['detalles'] as int?,

@@ -7,6 +7,7 @@ import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/app_gradients.dart';
 import 'package:syncronize/core/widgets/custom_filter_chip.dart';
 import 'package:syncronize/core/widgets/custom_search_field.dart';
+import 'package:syncronize/core/widgets/date/custom_date.dart' hide DateFormatter;
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import '../../../../core/theme/gradient_container.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
@@ -44,8 +45,15 @@ class _VentasPageState extends State<VentasPage> {
     final empresaState = context.read<EmpresaContextCubit>().state;
     if (empresaState is EmpresaContextLoaded) {
       _currentEmpresaId = empresaState.context.empresa.id;
+      // Default: ventas del día de hoy. El cajero/vendedor entra a "Mis
+      // Ventas" 20 veces al día y casi siempre quiere ver SOLO lo del día.
+      // Si necesita ver más, usa el picker o "Limpiar fechas" para ver todo.
+      final hoy = DateTime.now();
+      final inicioHoy = DateTime(hoy.year, hoy.month, hoy.day);
       context.read<VentaListCubit>().loadVentas(
             empresaId: _currentEmpresaId!,
+            fechaDesde: inicioHoy,
+            fechaHasta: inicioHoy,
           );
     }
   }
@@ -107,72 +115,164 @@ class _VentasPageState extends State<VentasPage> {
           title: esOperativo ? 'Mis Ventas' : 'Ventas',
           backgroundColor: AppColors.blue1,
           foregroundColor: AppColors.white,
+          actions: [
+            // Icono de filtro de estado — abre bottom sheet con los chips.
+            // Badge naranja si hay un estado activo (visible incluso scrolleando).
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                IconButton(
+                  tooltip: 'Filtrar por estado',
+                  icon: const Icon(Icons.filter_list_rounded, size: 22),
+                  onPressed: _mostrarFiltroEstados,
+                ),
+                if (_filtroEstado != null)
+                  Positioned(
+                    right: 8,
+                    top: 8,
+                    child: Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: Colors.orange,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
         ),
         body: GradientContainer(
           child: Column(
             children: [
               if (esOperativo) _buildBannerOperativo(),
               Padding(
-                padding: const EdgeInsets.all(12),
-                child: CustomSearchField(
-                  controller: _searchController,
-                  borderColor: AppColors.blue1,
-                  hintText: 'Buscar por codigo, cliente...',
-                  onChanged: (query) {
-                    context.read<VentaListCubit>().search(query);
-                  },
-                  onSubmitted: (query) {
-                    context.read<VentaListCubit>().search(query);
-                  },
-                  onClear: () {
-                    context.read<VentaListCubit>().search('');
-                  },
-                ),
-              ),
-
-              SizedBox(
-                height: 30,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                child: Row(
                   children: [
-                    CustomFilterChip(
-                      label: 'Todos',
-                      selected: _filtroEstado == null,
-                      onSelected: () => _filterByEstado(null),
-                      showCheckmark: true,
+                    Expanded(
+                      child: CustomSearchField(
+                        controller: _searchController,
+                        borderColor: AppColors.blue1,
+                        hintText: 'Buscar por codigo, cliente...',
+                        onChanged: (query) {
+                          context.read<VentaListCubit>().search(query);
+                        },
+                        onSubmitted: (query) {
+                          context.read<VentaListCubit>().search(query);
+                        },
+                        onClear: () {
+                          context.read<VentaListCubit>().search('');
+                        },
+                      ),
                     ),
-                    const SizedBox(width: 6),
-                    ...EstadoVenta.values.map((e) => Padding(
-                          padding: const EdgeInsets.only(right: 6),
-                          child: CustomFilterChip(
-                            showCheckmark: true,
-                            label: e.label,
-                            selected: _filtroEstado == e,
-                            onSelected: () => _filterByEstado(e),
-                          ),
-                        )),
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      width: 130,
+                      child: BlocBuilder<VentaListCubit, VentaListState>(
+                        buildWhen: (a, b) =>
+                            a is VentaListLoaded && b is VentaListLoaded &&
+                            (a.filtroFechaDesde != b.filtroFechaDesde ||
+                                a.filtroFechaHasta != b.filtroFechaHasta),
+                        builder: (context, state) {
+                          DateRange? initial;
+                          if (state is VentaListLoaded &&
+                              (state.filtroFechaDesde != null ||
+                                  state.filtroFechaHasta != null)) {
+                            initial = DateRange(
+                              startDate: state.filtroFechaDesde,
+                              endDate: state.filtroFechaHasta,
+                            );
+                          }
+                          return CustomDate(
+                            key: ValueKey(
+                                '${initial?.startDate}_${initial?.endDate}'),
+                            dateType: DateFieldType.dateRange,
+                            initialDateRange: initial,
+                            borderColor: AppColors.blue1,
+                            hintText: 'Fecha',
+                            height: 35,
+                            // El "X días seleccionados" rompía la altura
+                            // del Row al aparecer bajo el input.
+                            showDaysSelectedLabel: false,
+                            onDateRangeSelected: (range) {
+                              context.read<VentaListCubit>().filterByFechas(
+                                    range?.startDate,
+                                    range?.endDate,
+                                  );
+                            },
+                          );
+                        },
+                      ),
+                    ),
                   ],
                 ),
               ),
+
+              _buildAtajosFecha(),
               const SizedBox(height: 8),
 
               BlocBuilder<VentaListCubit, VentaListState>(
                 builder: (context, state) {
-                  if (state is VentaListLoaded) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: AppText(
+                  if (state is! VentaListLoaded) return const SizedBox.shrink();
+
+                  // Sumatoria cliente-side: el endpoint devuelve la lista
+                  // completa (sin paginación), así que `state.ventas` ya
+                  // refleja todo lo que cae bajo los filtros vigentes.
+                  final total = state.ventas.fold<double>(
+                    0,
+                    (sum, v) => sum + v.total,
+                  );
+                  // Para empresas peruanas todo es PEN. Si hay mezcla de
+                  // monedas, mostrar el símbolo de la primera (degradación
+                  // gradual aceptable — caso muy raro).
+                  final moneda = state.ventas.isNotEmpty
+                      ? state.ventas.first.moneda
+                      : 'S/';
+
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        AppText(
                           '${state.ventas.length} venta${state.ventas.length != 1 ? 's' : ''}',
                           fontWeight: FontWeight.w400,
                           color: Colors.grey.shade600,
                         ),
-                      ),
-                    );
-                  }
-                  return const SizedBox.shrink();
+                        if (state.ventas.isNotEmpty)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: AppColors.blue1.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: AppColors.blue1.withValues(alpha: 0.3),
+                                width: 0.5,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.payments_outlined,
+                                    size: 12, color: AppColors.blue1),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Total: $moneda ${total.toStringAsFixed(2)}',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.blue1,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  );
                 },
               ),
               const SizedBox(height: 4),
@@ -256,24 +356,223 @@ class _VentasPageState extends State<VentasPage> {
             ],
           ),
         ),
-        floatingActionButton: _buildFab(context),
       ),
-    );
-  }
-
-  Widget _buildFab(BuildContext context) {
-    return FloatingActionButton.extended(
-      onPressed: () => context.push('/empresa/ventas/nueva'),
-      icon: const Icon(Icons.add),
-      label: const Text('Nueva Venta'),
-      backgroundColor: AppColors.blue1,
-      foregroundColor: Colors.white,
     );
   }
 
   void _filterByEstado(EstadoVenta? estado) {
     setState(() => _filtroEstado = estado);
     context.read<VentaListCubit>().filterByEstado(estado);
+  }
+
+  /// Bottom sheet con los chips de estado. Reemplaza la fila inline que
+  /// vivía bajo el search — libera espacio vertical en pantallas chicas
+  /// y deja el cuerpo del listado más limpio.
+  Future<void> _mostrarFiltroEstados() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetCtx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Handle visual
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Icon(Icons.filter_list_rounded,
+                        size: 18, color: AppColors.blue1),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Filtrar por estado',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.blue1,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                // Tap directo aplica + cierra. Más rápido que tener un
+                // botón "Aplicar" abajo.
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    CustomFilterChip(
+                      label: 'Todos',
+                      selected: _filtroEstado == null,
+                      onSelected: () {
+                        Navigator.pop(sheetCtx);
+                        _filterByEstado(null);
+                      },
+                      showCheckmark: true,
+                    ),
+                    ...EstadoVenta.values.map((e) => CustomFilterChip(
+                          showCheckmark: true,
+                          label: e.label,
+                          selected: _filtroEstado == e,
+                          onSelected: () {
+                            Navigator.pop(sheetCtx);
+                            _filterByEstado(e);
+                          },
+                        )),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// Fila scrolleable con atajos rápidos de fecha. El backend recibe
+  /// fechas precisas (ISO UTC), acá solo precalculamos rangos típicos
+  /// para ahorrar taps en el picker.
+  Widget _buildAtajosFecha() {
+    return BlocBuilder<VentaListCubit, VentaListState>(
+      buildWhen: (a, b) =>
+          a is VentaListLoaded && b is VentaListLoaded &&
+          (a.filtroFechaDesde != b.filtroFechaDesde ||
+              a.filtroFechaHasta != b.filtroFechaHasta),
+      builder: (context, state) {
+        final hayFiltro = state is VentaListLoaded &&
+            (state.filtroFechaDesde != null ||
+                state.filtroFechaHasta != null);
+
+        return SizedBox(
+          height: 28,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            children: [
+              _atajoChip('Hoy', _rangoHoy),
+              const SizedBox(width: 6),
+              _atajoChip('Ayer', _rangoAyer),
+              const SizedBox(width: 6),
+              _atajoChip('Esta semana', _rangoEstaSemana),
+              const SizedBox(width: 6),
+              _atajoChip('Este mes', _rangoEsteMes),
+              if (hayFiltro) ...[
+                const SizedBox(width: 10),
+                InkWell(
+                  onTap: () => context
+                      .read<VentaListCubit>()
+                      .filterByFechas(null, null),
+                  borderRadius: BorderRadius.circular(14),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: Colors.red.shade300,
+                        width: 0.6,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.close,
+                            size: 12, color: Colors.red.shade600),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Limpiar fechas',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.red.shade700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _atajoChip(String label, ({DateTime desde, DateTime hasta}) Function() compute) {
+    return InkWell(
+      onTap: () {
+        final r = compute();
+        context.read<VentaListCubit>().filterByFechas(r.desde, r.hasta);
+      },
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: Colors.grey.withValues(alpha: 0.4),
+            width: 0.5,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w500,
+            color: Colors.grey.shade700,
+          ),
+        ),
+      ),
+    );
+  }
+
+  ({DateTime desde, DateTime hasta}) _rangoHoy() {
+    final hoy = DateTime.now();
+    final d = DateTime(hoy.year, hoy.month, hoy.day);
+    return (desde: d, hasta: d);
+  }
+
+  ({DateTime desde, DateTime hasta}) _rangoAyer() {
+    final ayer = DateTime.now().subtract(const Duration(days: 1));
+    final d = DateTime(ayer.year, ayer.month, ayer.day);
+    return (desde: d, hasta: d);
+  }
+
+  /// Lunes a domingo de la semana actual (ISO: lunes = 1).
+  ({DateTime desde, DateTime hasta}) _rangoEstaSemana() {
+    final hoy = DateTime.now();
+    final base = DateTime(hoy.year, hoy.month, hoy.day);
+    final lunes = base.subtract(Duration(days: base.weekday - 1));
+    final domingo = lunes.add(const Duration(days: 6));
+    return (desde: lunes, hasta: domingo);
+  }
+
+  ({DateTime desde, DateTime hasta}) _rangoEsteMes() {
+    final hoy = DateTime.now();
+    final inicio = DateTime(hoy.year, hoy.month, 1);
+    // Día 0 del mes siguiente = último día del mes actual.
+    final fin = DateTime(hoy.year, hoy.month + 1, 0);
+    return (desde: inicio, hasta: fin);
   }
 }
 

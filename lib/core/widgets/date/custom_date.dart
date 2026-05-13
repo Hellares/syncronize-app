@@ -283,6 +283,12 @@ class CustomDate extends StatefulWidget {
   final bool allowSameDay;
   final double? borderWidth;
 
+  /// Si `true` (default), muestra "X días seleccionados" bajo el input
+  /// cuando hay un rango completo. Apagarlo en layouts compactos donde
+  /// el widget vive en un `Row` al lado de otros inputs y el crecimiento
+  /// vertical rompe la alineación.
+  final bool showDaysSelectedLabel;
+
   const CustomDate({
     super.key,
     this.label,
@@ -319,6 +325,7 @@ class CustomDate extends StatefulWidget {
     this.minRangeDays,
     this.allowSameDay = true,
     this.borderWidth = 0.5,
+    this.showDaysSelectedLabel = true,
   }) : assert(
           !(dateType == DateFieldType.time && timeMode != TimeMode.none),
           'DateFieldType.time no debe usarse con TimeMode distinto de none',
@@ -806,7 +813,8 @@ class _CustomDateState extends State<CustomDate>
             );
           },
         ),
-        if (widget.dateType == DateFieldType.dateRange &&
+        if (widget.showDaysSelectedLabel &&
+            widget.dateType == DateFieldType.dateRange &&
             _selectedRange != null &&
             _selectedRange!.isComplete) ...[
           const SizedBox(height: 4),

@@ -120,7 +120,7 @@ class TicketEscPosGenerator {
     if (orden.tecnico != null) {
       bytes += generator.row([
         PosColumn(text: 'Tecnico:', width: 4, styles: const PosStyles(bold: true)),
-        PosColumn(text: orden.tecnico!.nombreCompleto, width: 8),
+        PosColumn(text: orden.tecnico!.nombreParaTicket, width: 8),
       ]);
     }
 

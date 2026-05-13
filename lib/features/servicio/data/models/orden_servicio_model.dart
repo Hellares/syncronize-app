@@ -202,15 +202,20 @@ class OrdenTecnicoModel extends OrdenTecnico {
     super.nombre,
     super.apellido,
     super.email,
+    super.aliasTicket,
   });
 
   factory OrdenTecnicoModel.fromJson(Map<String, dynamic> json) {
     final persona = json['persona'] as Map<String, dynamic>?;
+    final alias = json['aliasTicket'] as String?;
     return OrdenTecnicoModel(
       id: json['id'] as String,
       nombre: persona?['nombres'] as String? ?? json['nombre'] as String?,
       apellido: persona?['apellidos'] as String? ?? json['apellido'] as String?,
       email: json['email'] as String?,
+      aliasTicket: (alias != null && alias.trim().isNotEmpty)
+          ? alias.trim()
+          : null,
     );
   }
 }

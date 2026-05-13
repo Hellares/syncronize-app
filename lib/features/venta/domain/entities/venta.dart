@@ -164,6 +164,11 @@ class Venta extends Equatable {
   final String? sedeNombre;
   final String? vendedorNombre;
   final String? cajeroNombre;
+  /// Alias corto del vendedor para tickets (ej: "JP"). Null = sin alias
+  /// configurado, el ticket cae a `vendedorNombre`.
+  final String? vendedorAlias;
+  /// Alias corto del cajero para tickets. Mismo patrón que `vendedorAlias`.
+  final String? cajeroAlias;
   final String? clienteNombreCompleto;
   final String? cotizacionCodigo;
   final List<VentaDetalle>? detalles;
@@ -233,6 +238,8 @@ class Venta extends Equatable {
     this.sedeNombre,
     this.vendedorNombre,
     this.cajeroNombre,
+    this.vendedorAlias,
+    this.cajeroAlias,
     this.clienteNombreCompleto,
     this.cotizacionCodigo,
     this.detalles,

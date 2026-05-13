@@ -76,6 +76,20 @@ class UsuarioDetailSheet extends StatelessWidget {
                 _buildInfoRow(Icons.badge, 'DNI', usuario.dni),
                 _buildInfoRow(Icons.phone, 'Teléfono', usuario.telefono ?? '-'),
                 _buildInfoRow(Icons.email, 'Email', usuario.email ?? '-'),
+                // Alias para ticket — solo aplica a roles que aparecen en
+                // tickets (cajero/vendedor/técnico). Mostrar siempre que NO
+                // sea cliente para que el admin descubra la funcionalidad.
+                if (!_esCliente)
+                  InkWell(
+                    onTap: () => _showEditarAliasDialog(context),
+                    child: _buildInfoRow(
+                      Icons.badge_outlined,
+                      'Alias ticket',
+                      usuario.aliasTicket?.isNotEmpty == true
+                          ? '${usuario.aliasTicket}  ✎'
+                          : 'Sin alias  ✎',
+                    ),
+                  ),
                 if (usuario.direccion != null && usuario.direccion!.isNotEmpty)
                   _buildInfoRow(Icons.home, 'Dirección', usuario.direccion!),
                 if (usuario.distrito != null && usuario.distrito!.isNotEmpty)
@@ -546,5 +560,92 @@ class UsuarioDetailSheet extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  /// Dialog mínimo para asignar/cambiar/limpiar el alias del usuario que
+  /// se imprime en tickets. Reusa `cubit.updateUsuario` con un body parcial
+  /// `{aliasTicket: ...}` — el endpoint PATCH /usuarios/:id ya lo acepta.
+  Future<void> _showEditarAliasDialog(BuildContext context) async {
+    final controller = TextEditingController(text: usuario.aliasTicket ?? '');
+    final formKey = GlobalKey<FormState>();
+
+    final result = await showDialog<String?>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Alias para ticket',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Lo verá el cliente en su ticket en lugar del nombre completo. '
+                'Dejalo vacío para mostrar el nombre.',
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: controller,
+                autofocus: true,
+                maxLength: 30,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  hintText: 'JP, Caja 1, Juana...',
+                  isDense: true,
+                ),
+                validator: (v) {
+                  final trimmed = (v ?? '').trim();
+                  if (trimmed.length > 30) return 'Máximo 30 caracteres';
+                  return null;
+                },
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (!formKey.currentState!.validate()) return;
+              Navigator.pop(dialogCtx, controller.text.trim());
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.blue1,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == null) return; // cancelado
+    // String vacío = limpiar alias (backend lo guarda como null).
+    final ok = await cubit.updateUsuario(
+      usuarioId: usuario.id,
+      data: {'aliasTicket': result},
+    );
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(ok
+            ? (result.isEmpty
+                ? 'Alias eliminado'
+                : 'Alias guardado: $result')
+            : 'No se pudo guardar el alias'),
+        backgroundColor: ok ? Colors.green.shade700 : Colors.red.shade700,
+      ),
+    );
+    if (ok && context.mounted) {
+      // Cerrar el sheet para que al reabrir muestre el nuevo valor.
+      Navigator.pop(context);
+    }
   }
 }

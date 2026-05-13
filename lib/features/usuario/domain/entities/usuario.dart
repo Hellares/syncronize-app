@@ -10,6 +10,9 @@ class Usuario extends Equatable {
   final String nombreCompleto;
   final String? email;
   final String? telefono;
+  /// Alias corto que se muestra al cliente en tickets (venta, cotización,
+  /// orden de servicio) en vez del nombre completo. Null = sin alias.
+  final String? aliasTicket;
   final String? direccion;
   final String? distrito;
   final String? provincia;
@@ -38,6 +41,7 @@ class Usuario extends Equatable {
     required this.nombreCompleto,
     this.email,
     this.telefono,
+    this.aliasTicket,
     this.direccion,
     this.distrito,
     this.provincia,

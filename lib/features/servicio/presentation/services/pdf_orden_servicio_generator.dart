@@ -185,7 +185,7 @@ class PdfOrdenServicioGenerator {
             _infoRow('Estado', _estadoLabel(orden.estado), fs: fsSmall),
             _infoRow('Prioridad', orden.prioridad, fs: fsSmall),
             if (orden.tecnico != null)
-              _infoRow('Tecnico', orden.tecnico!.nombreCompleto, fs: fsSmall),
+              _infoRow('Tecnico', orden.tecnico!.nombreParaTicket, fs: fsSmall),
 
             // ── Equipo ──
             if (orden.tipoEquipo != null || orden.marcaEquipo != null || orden.numeroSerie != null) ...[

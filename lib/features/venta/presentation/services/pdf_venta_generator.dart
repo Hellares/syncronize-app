@@ -198,13 +198,15 @@ class PdfVentaGenerator {
               if (venta.vendedorNombre != null)
                 pw.Align(
                   alignment: pw.Alignment.centerLeft,
-                  child: pw.Text('Vendedor: ${venta.vendedorNombre}',
+                  child: pw.Text(
+                      'Vendedor: ${venta.vendedorAlias ?? venta.vendedorNombre}',
                       style: pw.TextStyle(fontSize: 6, color: colorCuerpo)),
                 ),
               if (venta.cajeroNombre != null)
                 pw.Align(
                   alignment: pw.Alignment.centerLeft,
-                  child: pw.Text('Cajero: ${venta.cajeroNombre}',
+                  child: pw.Text(
+                      'Cajero: ${venta.cajeroAlias ?? venta.cajeroNombre}',
                       style: pw.TextStyle(fontSize: 6, color: colorCuerpo)),
                 ),
 

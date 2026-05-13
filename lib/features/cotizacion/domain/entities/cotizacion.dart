@@ -97,6 +97,9 @@ class Cotizacion extends Equatable {
   // Relaciones
   final String? sedeNombre;
   final String? vendedorNombre;
+  /// Alias corto del vendedor para el PDF/ticket de cotización.
+  /// Si es null, se usa `vendedorNombre`.
+  final String? vendedorAlias;
   final String? clienteNombreCompleto;
   final List<CotizacionDetalle>? detalles;
   final int? cantidadDetalles;
@@ -130,6 +133,7 @@ class Cotizacion extends Equatable {
     required this.actualizadoEn,
     this.sedeNombre,
     this.vendedorNombre,
+    this.vendedorAlias,
     this.clienteNombreCompleto,
     this.detalles,
     this.cantidadDetalles,

@@ -163,7 +163,8 @@ class PdfCotizacionGenerator {
       if (cotizacion.direccionCliente != null)
         PdfPartyField('Direccion', cotizacion.direccionCliente!),
       if (cotizacion.vendedorNombre != null)
-        PdfPartyField('Vendedor', cotizacion.vendedorNombre!),
+        PdfPartyField(
+            'Vendedor', cotizacion.vendedorAlias ?? cotizacion.vendedorNombre!),
     ];
 
     pw.Widget? header;
@@ -468,7 +469,8 @@ class PdfCotizacionGenerator {
     return pw.Row(
       mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
       children: [
-        _buildFirmaBox('VENDEDOR', cotizacion.vendedorNombre ?? ''),
+        _buildFirmaBox(
+            'VENDEDOR', cotizacion.vendedorAlias ?? cotizacion.vendedorNombre ?? ''),
         _buildFirmaBox('CLIENTE', cotizacion.nombreCliente),
       ],
     );
