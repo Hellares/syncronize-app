@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -47,8 +45,6 @@ import 'agregar_stock_inicial_page.dart';
 import 'bulk_upload_productos_page.dart';
 // Import para SearchDelegate
 // import '../search_delegate/producto_search_delegate.dart';
-import '../bloc/producto_search/producto_search_cubit.dart';
-import '../bloc/producto_search/producto_search_state.dart';
 
 class ProductosPage extends StatefulWidget {
   const ProductosPage({super.key});
@@ -62,11 +58,12 @@ class _ProductosPageState extends State<ProductosPage>
   final _scrollController = ScrollController();
   final _searchController = TextEditingController();
   late TabController _tabController;
-  late ProductoSearchCubit _searchCubit;
   final ProductoFiltros _filtros = const ProductoFiltros();
   String? _currentEmpresaId;
-  String _searchQuery = '';
-  bool _useServerSearch = false; // Controla si usar búsqueda en servidor
+  /// Query actual del buscador. Va directo al backend vía `applyFiltros`
+  /// (sin filtrado local) para que paginación, `hasMore` y empty state
+  /// reflejen el resultado real del servidor.
+  String _search = '';
 
   // Enum para los tipos de tab
   int _currentTabIndex = 0;
@@ -78,7 +75,6 @@ class _ProductosPageState extends State<ProductosPage>
   @override
   void initState() {
     super.initState();
-    _searchCubit = locator<ProductoSearchCubit>();
     _tabController = TabController(length: 3, vsync: this);
     _tabController.addListener(_onTabChanged);
     _scrollController.addListener(_onScroll);
@@ -90,7 +86,6 @@ class _ProductosPageState extends State<ProductosPage>
     _scrollController.dispose();
     _searchController.dispose();
     _tabController.dispose();
-    _searchCubit.clear();
     super.dispose();
   }
 
@@ -136,11 +131,14 @@ class _ProductosPageState extends State<ProductosPage>
           break;
       }
 
-      // Aplicar filtro de estado (chips Todos/Activos/Inactivos).
+      // Aplicar filtro de estado (chips Todos/Activos/Inactivos) + search
+      // del buscador. El backend hace match contra nombre/código/categoría/
+      // marca; aquí solo pasamos el query trimmeado (null si está vacío).
+      final searchQuery = _search.trim();
       filtrosConTab = ProductoFiltros(
         page: filtrosConTab.page,
         limit: filtrosConTab.limit,
-        search: filtrosConTab.search,
+        search: searchQuery.isEmpty ? null : searchQuery,
         empresaCategoriaId: filtrosConTab.empresaCategoriaId,
         empresaMarcaId: filtrosConTab.empresaMarcaId,
         sedeId: filtrosConTab.sedeId,
@@ -155,11 +153,16 @@ class _ProductosPageState extends State<ProductosPage>
         orden: filtrosConTab.orden,
       );
 
+      // `keepListWhileFiltering: true` mantiene la lista visible y solo
+      // marca isFiltering=true — evita parpadeo del listado al cambiar
+      // search/tab/chip. En la primera carga el cubit está en Initial,
+      // así que igual emite Loading.
       context.read<ProductoListCubit>().loadProductos(
-        empresaId: empresaState.context.empresa.id,
-        sedeId: sedeId,
-        filtros: filtrosConTab,
-      );
+            empresaId: empresaState.context.empresa.id,
+            sedeId: sedeId,
+            filtros: filtrosConTab,
+            keepListWhileFiltering: true,
+          );
     }
   }
 
@@ -257,73 +260,13 @@ class _ProductosPageState extends State<ProductosPage>
   //   );
   // }
 
-  /// Filtrado local de productos por búsqueda
-  /// Si no hay resultados locales, automáticamente busca en servidor
+  /// Búsqueda contra el servidor. El `CustomSearchField` ya aplica debounce
+  /// interno (default 500ms) y `ProductoListCubit._requestSeq` descarta
+  /// respuestas obsoletas si el usuario sigue tipeando.
   void _onSearchChanged(String value) {
-    final query = value.trim();
-    setState(() {
-      _searchQuery = query.toLowerCase();
-      _useServerSearch = false; // Inicialmente búsqueda local
-    });
-
-    // Si el query es muy corto, no buscar en servidor
-    if (query.length < 3) {
-      _searchCubit.clear();
-      return;
-    }
-
-    // Verificar si hay resultados locales
-    final productoListState = context.read<ProductoListCubit>().state;
-    if (productoListState is ProductoListLoaded) {
-      final productosLocales = productoListState.productos.where((producto) {
-        final searchText =
-            '${producto.nombre} ${producto.codigoEmpresa} ${producto.categoriaNombre ?? ''} ${producto.marcaNombre ?? ''}'
-                .toLowerCase();
-        return searchText.contains(_searchQuery);
-      }).toList();
-
-      // Si NO hay resultados locales, buscar automáticamente en servidor
-      if (productosLocales.isEmpty && query.isNotEmpty) {
-        _triggerServerSearch(query);
-      } else {
-        // Hay resultados locales, limpiar búsqueda de servidor
-        _searchCubit.clear();
-      }
-    }
-  }
-
-  /// Dispara búsqueda en servidor (automática o manual)
-  void _triggerServerSearch(String query) {
-    final empresaState = context.read<EmpresaContextCubit>().state;
-    if (empresaState is! EmpresaContextLoaded) return;
-
-    final sedeState = context.read<SedeSelectionCubit>().state;
-    final sedeId = sedeState is SedeSelected ? sedeState.sedeId : null;
-
-    setState(() {
-      _useServerSearch = true;
-    });
-
-    _searchCubit.search(
-      query: query,
-      empresaId: empresaState.context.empresa.id,
-      sedeId: sedeId,
-    );
-  }
-
-  /// Búsqueda en servidor (al presionar Enter - fuerza búsqueda)
-  void _onSearchSubmitted(String value) {
-    final query = value.trim();
-    if (query.isEmpty) {
-      setState(() {
-        _useServerSearch = false;
-      });
-      _searchCubit.clear();
-      return;
-    }
-
-    // Forzar búsqueda en servidor
-    _triggerServerSearch(query);
+    if (_search == value) return;
+    setState(() => _search = value);
+    _loadProductos();
   }
 
   Future<void> _showArchivoManager(
@@ -786,14 +729,7 @@ class _ProductosPageState extends State<ProductosPage>
         hintText: 'Buscar producto...',
         borderColor: AppColors.blue1,
         onChanged: _onSearchChanged,
-        onSubmitted: _onSearchSubmitted,
-        onClear: () {
-          setState(() {
-            _searchQuery = '';
-            _useServerSearch = false;
-          });
-          _searchCubit.clear();
-        },
+        onClear: () => _onSearchChanged(''),
       ),
     );
   }
@@ -905,38 +841,6 @@ class _ProductosPageState extends State<ProductosPage>
   }
 
   Widget _buildProductList() {
-    // Si está usando búsqueda en servidor, mostrar resultados del SearchCubit
-    if (_useServerSearch) {
-      return BlocBuilder<ProductoSearchCubit, ProductoSearchState>(
-        bloc: _searchCubit,
-        builder: (context, searchState) {
-          if (searchState is ProductoSearchLoading) {
-            return CustomLoading.small(message: 'Buscando en servidor...');
-          }
-
-          if (searchState is ProductoSearchError) {
-            return _buildErrorView(searchState.message);
-          }
-
-          if (searchState is ProductoSearchLoaded) {
-            final productos = searchState.productos;
-
-            if (productos.isEmpty) {
-              return _buildEmptySearchView();
-            }
-
-            return _buildProductListView(
-              productos,
-              hasMore: searchState.hasMore,
-            );
-          }
-
-          return _buildEmptyView();
-        },
-      );
-    }
-
-    // Búsqueda local en productos ya cargados
     return BlocBuilder<ProductoListCubit, ProductoListState>(
       builder: (context, state) {
         if (state is ProductoListLoading) {
@@ -947,93 +851,27 @@ class _ProductosPageState extends State<ProductosPage>
           return _buildErrorView(state.message);
         }
 
+        // Loaded → puede tener isFiltering=true mientras se aplica un filtro
+        // nuevo (search/tab/chip). Mantener la lista actual + barra fina.
         if (state is ProductoListLoaded) {
-          // Filtrar productos por búsqueda local
-          final productos = _searchQuery.isEmpty
-              ? state.productos
-              : state.productos.where((producto) {
-                  final searchText =
-                      '${producto.nombre} ${producto.codigoEmpresa} ${producto.categoriaNombre ?? ''} ${producto.marcaNombre ?? ''}'
-                          .toLowerCase();
-                  return searchText.contains(_searchQuery);
-                }).toList();
-
-          if (productos.isEmpty) {
-            return _buildEmptyLocalSearchView();
+          if (state.productos.isEmpty) {
+            return _search.trim().isEmpty
+                ? _buildEmptyView()
+                : _buildEmptySearchView();
           }
-
-          return _buildProductListView(productos, hasMore: state.hasMore);
+          return _buildProductListView(
+            state.productos,
+            hasMore: state.hasMore,
+            isFiltering: state.isFiltering,
+          );
         }
 
         if (state is ProductoListLoadingMore) {
-          final productos = state.currentProducts;
-
-          return RefreshIndicator(
-            onRefresh: () async {
-              _loadProductos();
-            },
-            child: ListView.builder(
-              controller: _scrollController,
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              itemCount: productos.length + 1,
-              itemBuilder: (context, index) {
-                if (index >= productos.length) {
-                  return const Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Center(child: CircularProgressIndicator()),
-                  );
-                }
-
-                final producto = productos[index];
-                final empresaContext = context
-                    .read<EmpresaContextCubit>()
-                    .state;
-
-                // Si no hay empresa cargada, no renderizar el tile
-                if (empresaContext is! EmpresaContextLoaded) {
-                  return const SizedBox.shrink();
-                }
-
-                final sedeId = _getSedeIdActual(empresaContext.context.sedes);
-
-                return ProductoListTile(
-                  producto: producto,
-                  sedeId: sedeId,
-                  onTap: () async {
-                    // Navegar a la página correcta según el tipo
-                    if (producto.esCombo) {
-                      context.push(
-                        '/empresa/combos/${producto.id}?empresaId=${empresaContext.context.empresa.id}',
-                      );
-                    } else {
-                      // Intentar obtener el producto completo del cache (evita petición duplicada)
-                      final productoCompleto = context
-                          .read<ProductoListCubit>()
-                          .getProductoFromCache(producto.id);
-
-                      // Esperar el resultado del detalle
-                      final result = await context.push(
-                        '/empresa/productos/${producto.id}?sedeId=$sedeId',
-                        extra:
-                            productoCompleto, // ✅ Pasar producto completo del cache
-                      );
-
-                      // ✅ Si retorna true (producto fue editado), recargar la lista
-                      if (result == true && mounted) {
-                        _loadProductos();
-                      }
-                    }
-                  },
-                  onManageFiles: () =>
-                      _showArchivoManager(producto.id, producto.nombre),
-                  onViewVariants: producto.tieneVariantes
-                      ? () => _showVariantes(producto.id, producto.nombre)
-                      : null,
-                  onStockDoubleTap: () => _handleStockDoubleTap(producto),
-                  onPrecioTap: () => _handlePrecioTap(producto),
-                );
-              },
-            ),
+          return _buildProductListView(
+            state.currentProducts,
+            hasMore: true,
+            isFiltering: false,
+            cargandoMas: true,
           );
         }
 
@@ -1063,31 +901,6 @@ class _ProductosPageState extends State<ProductosPage>
     );
   }
 
-  Widget _buildEmptyLocalSearchView() {
-    // Este widget ya no debería mostrarse porque automáticamente
-    // busca en servidor cuando no hay resultados locales
-    // Pero lo dejamos por si acaso (queries muy cortos < 3 caracteres)
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.search_off, size: 80, color: Colors.grey[400]),
-          const SizedBox(height: 16),
-          Text(
-            'No se encontró "$_searchQuery"',
-            style: TextStyle(fontSize: 18, color: Colors.grey[600]),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Escribe al menos 3 caracteres para buscar',
-            style: TextStyle(fontSize: 14, color: Colors.grey[500]),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildEmptySearchView() {
     return Center(
       child: Column(
@@ -1101,7 +914,7 @@ class _ProductosPageState extends State<ProductosPage>
           ),
           const SizedBox(height: 8),
           Text(
-            'para "$_searchQuery"',
+            'para "${_search.trim()}"',
             style: TextStyle(fontSize: 14, color: Colors.grey[500]),
             textAlign: TextAlign.center,
           ),
@@ -1113,82 +926,84 @@ class _ProductosPageState extends State<ProductosPage>
   Widget _buildProductListView(
     List<ProductoListItem> productos, {
     bool hasMore = false,
+    bool isFiltering = false,
+    bool cargandoMas = false,
   }) {
-    return RefreshIndicator(
-      onRefresh: () async {
-        if (_useServerSearch) {
-          _onSearchSubmitted(_searchController.text);
-        } else {
-          _loadProductos();
-        }
-      },
-      child: ListView.builder(
-        controller: _scrollController,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        cacheExtent: 500,
-        itemCount: productos.length + (hasMore ? 1 : 0),
-        itemBuilder: (context, index) {
-          if (index >= productos.length) {
-            // Cargar más productos del servidor si es búsqueda en servidor
-            if (_useServerSearch && hasMore) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                _searchCubit.loadMore();
-              });
-            }
-            return const Padding(
-              padding: EdgeInsets.all(16),
-              child: Center(child: CircularProgressIndicator()),
-            );
-          }
+    return Column(
+      children: [
+        // Barra fina mientras se aplica un filtro nuevo (search/tab/chip),
+        // sin parpadear la lista. Igual que en Venta Rápida.
+        SizedBox(
+          height: 2,
+          child: isFiltering
+              ? const LinearProgressIndicator(
+                  minHeight: 2,
+                  backgroundColor: Colors.transparent,
+                )
+              : null,
+        ),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: () async => _loadProductos(),
+            child: ListView.builder(
+              controller: _scrollController,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              cacheExtent: 500,
+              itemCount: productos.length + (cargandoMas || hasMore ? 1 : 0),
+              itemBuilder: (context, index) {
+                if (index >= productos.length) {
+                  return const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                }
 
-          final producto = productos[index];
-          final empresaContext = context.read<EmpresaContextCubit>().state;
+                final producto = productos[index];
+                final empresaContext =
+                    context.read<EmpresaContextCubit>().state;
 
-          if (empresaContext is! EmpresaContextLoaded) {
-            return const SizedBox.shrink();
-          }
+                if (empresaContext is! EmpresaContextLoaded) {
+                  return const SizedBox.shrink();
+                }
 
-          final sedeId = _getSedeIdActual(empresaContext.context.sedes);
+                final sedeId = _getSedeIdActual(empresaContext.context.sedes);
 
-          return ProductoListTile(
-            producto: producto,
-            sedeId: sedeId,
-            onTap: () async {
-              if (producto.esCombo) {
-                context.push(
-                  '/empresa/combos/${producto.id}?empresaId=${empresaContext.context.empresa.id}',
-                );
-              } else {
-                final productoCompleto = _useServerSearch
-                    ? _searchCubit.getProductoFromCache(producto.id)
-                    : context.read<ProductoListCubit>().getProductoFromCache(
-                        producto.id,
+                return ProductoListTile(
+                  producto: producto,
+                  sedeId: sedeId,
+                  onTap: () async {
+                    if (producto.esCombo) {
+                      context.push(
+                        '/empresa/combos/${producto.id}?empresaId=${empresaContext.context.empresa.id}',
+                      );
+                    } else {
+                      final productoCompleto = context
+                          .read<ProductoListCubit>()
+                          .getProductoFromCache(producto.id);
+
+                      final result = await context.push(
+                        '/empresa/productos/${producto.id}?sedeId=$sedeId',
+                        extra: productoCompleto,
                       );
 
-                final result = await context.push(
-                  '/empresa/productos/${producto.id}?sedeId=$sedeId',
-                  extra: productoCompleto,
+                      if (result == true && mounted) {
+                        _loadProductos();
+                      }
+                    }
+                  },
+                  onManageFiles: () =>
+                      _showArchivoManager(producto.id, producto.nombre),
+                  onViewVariants: producto.tieneVariantes
+                      ? () => _showVariantes(producto.id, producto.nombre)
+                      : null,
+                  onStockDoubleTap: () => _handleStockDoubleTap(producto),
+                  onPrecioTap: () => _handlePrecioTap(producto),
                 );
-
-                if (result == true && mounted) {
-                  if (_useServerSearch) {
-                    _onSearchSubmitted(_searchController.text);
-                  } else {
-                    _loadProductos();
-                  }
-                }
-              }
-            },
-            onManageFiles: () =>
-                _showArchivoManager(producto.id, producto.nombre),
-            onViewVariants: producto.tieneVariantes
-                ? () => _showVariantes(producto.id, producto.nombre)
-                : null,
-            onStockDoubleTap: () => _handleStockDoubleTap(producto),
-            onPrecioTap: () => _handlePrecioTap(producto),
-          );
-        },
-      ),
+              },
+            ),
+          ),
+        ),
+      ],
     );
   }
 
