@@ -252,7 +252,7 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
       onRefresh: _loadVenta,
       color: AppColors.blue1,
       child: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 16),
         children: [
           _buildHeaderSection(v),
           const SizedBox(height: 12),
@@ -260,13 +260,7 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
           const SizedBox(height: 12),
           _buildItemsSection(v),
           const SizedBox(height: 12),
-          _buildTotalesSection(v),
-          const SizedBox(height: 12),
           _buildPagoSection(v),
-          if (v.pagos != null && v.pagos!.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            _buildPagosHistorialSection(v),
-          ],
           if (v.cuotas != null && v.cuotas!.isNotEmpty) ...[
             const SizedBox(height: 12),
             _buildCuotasSection(),
@@ -287,33 +281,33 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
     return GradientContainer(
       borderColor: AppColors.blueborder,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
                     color: AppColors.bluechip,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Icon(Icons.point_of_sale,
-                      color: AppColors.blue1, size: 20),
+                      color: AppColors.blue1, size: 16),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 Expanded(
-                  child: AppSubtitle(v.codigo, fontSize: 15),
+                  child: AppSubtitle(v.codigo, fontSize: 11),
                 ),
                 VentaEstadoChip(estado: v.estado),
               ],
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
             _buildDetailRow(
                 Icons.calendar_today, 'Fecha', DateFormatter.formatDateTime(v.fechaVenta)),
-            _buildDetailRow(
-                Icons.monetization_on_outlined, 'Moneda', v.moneda),
+            // _buildDetailRow(
+            //     Icons.monetization_on_outlined, 'Moneda', v.moneda),
             if (v.sedeNombre != null)
               _buildDetailRow(Icons.store_outlined, 'Sede', v.sedeNombre!),
             if (v.vendedorNombre != null)
@@ -449,12 +443,12 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
     return GradientContainer(
       borderColor: AppColors.blueborder,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildSectionHeader(Icons.person_outline, 'CLIENTE'),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             _buildDetailRow(Icons.person, 'Nombre', v.nombreCliente),
             if (v.documentoCliente != null)
               _buildDetailRow(
@@ -477,138 +471,248 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
   Widget _buildItemsSection(Venta v) {
     final detalles = v.detalles ?? [];
 
-    return GradientContainer(
-      borderColor: AppColors.blueborder,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildSectionHeader(
-                Icons.shopping_cart_outlined, 'ITEMS (${detalles.length})'),
-            const SizedBox(height: 12),
-            ...detalles.asMap().entries.map((entry) {
-              final index = entry.key;
-              final d = entry.value;
-              return Column(
-                children: [
-                  if (index > 0)
-                    Divider(
-                        height: 16,
-                        color: AppColors.blueborder.withValues(alpha: 0.4)),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader(
+            Icons.shopping_cart_outlined, 'ITEMS (${detalles.length})'),
+        const SizedBox(height: 5),
+        Container(
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: AppColors.blueborder.withValues(alpha: 0.5),
+              width: 0.6,
+            ),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              // ── Header ──
+              Container(
+                color: AppColors.bluechip,
+                padding: const EdgeInsets.symmetric(
+                    vertical: 6, horizontal: 8),
+                child: const Row(
+                  children: [
+                    SizedBox(
+                      width: 26,
+                      child: Center(child: _Th('#')),
+                    ),
+                    Expanded(flex: 5, child: _Th('PRODUCTO')),
+                    Expanded(
+                        flex: 2, child: Center(child: _Th('CANT.'))),
+                    Expanded(
+                        flex: 3,
+                        child: Align(
+                            alignment: Alignment.centerRight,
+                            child: _Th('P. UNIT.'))),
+                    Expanded(
+                        flex: 3,
+                        child: Align(
+                            alignment: Alignment.centerRight,
+                            child: _Th('TOTAL'))),
+                  ],
+                ),
+              ),
+              // ── Body con zebra striping ──
+              for (var i = 0; i < detalles.length; i++)
+                Container(
+                  color: i.isEven ? Colors.white : Colors.grey.shade50,
+                  padding: const EdgeInsets.symmetric(
+                      vertical: 4, horizontal: 8),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Container(
-                        width: 24,
-                        height: 24,
-                        decoration: BoxDecoration(
-                          color: AppColors.bluechip,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
+                      SizedBox(
+                        width: 26,
                         child: Center(
                           child: Text(
-                            '${index + 1}',
-                            style: const TextStyle(
+                            '${i + 1}',
+                            style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
+                              color: Colors.grey.shade700,
+                            ),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        flex: 5,
+                        child: Text(
+                          detalles[i].descripcion,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        flex: 2,
+                        child: Center(
+                          child: Text(
+                            _fmtCantidad(detalles[i].cantidad),
+                            style: const TextStyle(fontSize: 10),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        flex: 3,
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            detalles[i].precioUnitario.toStringAsFixed(2),
+                            style: const TextStyle(fontSize: 10),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        flex: 3,
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            detalles[i].total.toStringAsFixed(2),
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
                               color: AppColors.blue1,
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              d.descripcion,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              '${d.cantidad} x ${v.moneda} ${d.precioUnitario.toStringAsFixed(2)}',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey.shade600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      AppSubtitle(
-                        '${v.moneda} ${d.total.toStringAsFixed(2)}',
-                        fontSize: 12,
-                        color: AppColors.blue1,
-                      ),
                     ],
                   ),
-                ],
-              );
-            }),
-          ],
+                ),
+              // ── Footer: subtotal / descuento / IGV / TOTAL ──
+              // Cierra la tabla como factura: alineado a la derecha,
+              // con borde superior fuerte para separarlo del body.
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border(
+                    top: BorderSide(
+                      color: AppColors.blueborder.withValues(alpha: 0.5),
+                      width: 0.6,
+                    ),
+                  ),
+                ),
+                padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
+                child: Column(
+                  children: [
+                    _buildFooterRow(
+                      'Subtotal',
+                      '${v.moneda} ${v.subtotal.toStringAsFixed(2)}',
+                    ),
+                    if (v.descuento > 0)
+                      _buildFooterRow(
+                        'Descuento',
+                        '-${v.moneda} ${v.descuento.toStringAsFixed(2)}',
+                        color: Colors.red.shade600,
+                      ),
+                    _buildFooterRow(
+                      _getNombreImpuesto(),
+                      '${v.moneda} ${v.impuestos.toStringAsFixed(2)}',
+                    ),
+                  ],
+                ),
+              ),
+              // Total destacado — barra propia con fondo bluechip
+              Container(
+                decoration: BoxDecoration(
+                  color: AppColors.bluechip,
+                  border: Border(
+                    top: BorderSide(
+                      color: AppColors.blueborder.withValues(alpha: 0.5),
+                      width: 0.6,
+                    ),
+                  ),
+                ),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'TOTAL',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.blue1,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    Text(
+                      '${v.moneda} ${v.total.toStringAsFixed(2)}',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.blue1,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
+      ],
+    );
+  }
+
+  /// Fila del footer de la tabla de items (subtotal, descuento, IGV).
+  /// Alineada a la derecha con label + monto en ancho fijo.
+  Widget _buildFooterRow(String label, String value, {Color? color}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          Text(
+            '$label:',
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.grey.shade700,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(width: 10),
+          SizedBox(
+            width: 110,
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: color ?? Colors.grey.shade800,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildTotalesSection(Venta v) {
-    return GradientContainer(
-      borderColor: AppColors.blueborder,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            _buildTotalRow(
-                'Subtotal', '${v.moneda} ${v.subtotal.toStringAsFixed(2)}'),
-            if (v.descuento > 0) ...[
-              const SizedBox(height: 4),
-              _buildTotalRow(
-                  'Descuento',
-                  '-${v.moneda} ${v.descuento.toStringAsFixed(2)}',
-                  color: Colors.red),
-            ],
-            const SizedBox(height: 4),
-            _buildTotalRow(_getNombreImpuesto(),
-                '${v.moneda} ${v.impuestos.toStringAsFixed(2)}'),
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Divider(
-                  height: 1,
-                  color: AppColors.blueborder.withValues(alpha: 0.5)),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const AppSubtitle('TOTAL', fontSize: 14),
-                AppSubtitle(
-                  '${v.moneda} ${v.total.toStringAsFixed(2)}',
-                  fontSize: 16,
-                  color: AppColors.blue1,
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
+  /// Cantidad sin decimales innecesarios (1, 2, 3 → "1", "2", "3";
+  /// 1.5 → "1.5"). Mantiene la tabla legible para enteros.
+  static String _fmtCantidad(num n) {
+    final d = n.toDouble();
+    if (d.truncateToDouble() == d) return d.toStringAsFixed(0);
+    return d.toStringAsFixed(2);
   }
 
   Widget _buildPagoSection(Venta v) {
+    final tieneHistorial = v.pagos != null && v.pagos!.isNotEmpty;
     return GradientContainer(
       borderColor: AppColors.blueborder,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildSectionHeader(Icons.payment, 'PAGO'),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
+            // Resumen
             if (v.metodoPagoDisplay != null)
               _buildDetailRow(
                   Icons.credit_card, 'Metodo', v.metodoPagoDisplay!),
@@ -629,60 +733,81 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
             if (v.saldoPendiente > 0)
               _buildDetailRow(Icons.warning_amber, 'Pendiente',
                   '${v.moneda} ${v.saldoPendiente.toStringAsFixed(2)}'),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPagosHistorialSection(Venta v) {
-    return GradientContainer(
-      borderColor: AppColors.blueborder,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildSectionHeader(Icons.history, 'HISTORIAL DE PAGOS'),
-            const SizedBox(height: 12),
-            ...v.pagos!.map((pago) {
-              // Usar DateFormatter para formato consistente
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            pago.metodoPago.label,
-                            style: const TextStyle(
-                                fontSize: 12, fontWeight: FontWeight.w600),
-                          ),
-                          Text(
-                            DateFormatter.formatDateTime(pago.fechaPago),
-                            style: TextStyle(
-                                fontSize: 10, color: Colors.grey.shade600),
-                          ),
-                          if (pago.referencia != null)
+            // Historial inline (solo si hay pagos registrados). Va dentro
+            // del MISMO card que el resumen — separado por un divisor +
+            // subtítulo, no por otra tarjeta aparte.
+            if (tieneHistorial) ...[
+              const SizedBox(height: 10),
+              Divider(
+                  height: 1,
+                  color: AppColors.blueborder.withValues(alpha: 0.5)),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Icon(Icons.history, size: 14, color: AppColors.blue1),
+                  const SizedBox(width: 6),
+                  Text(
+                    'HISTORIAL',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.blue1,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    '(${v.pagos!.length})',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.grey.shade600,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              ...v.pagos!.map((pago) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
                             Text(
-                              'Ref: ${pago.referencia}',
-                              style: TextStyle(
-                                  fontSize: 10, color: Colors.grey.shade500),
+                              pago.metodoPago.label,
+                              style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600),
                             ),
-                        ],
+                            Text(
+                              DateFormatter.formatDateTime(pago.fechaPago),
+                              style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.grey.shade600),
+                            ),
+                            if (pago.referencia != null)
+                              Text(
+                                'Ref: ${pago.referencia}',
+                                style: TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.grey.shade500),
+                              ),
+                          ],
+                        ),
                       ),
-                    ),
-                    Text(
-                      '${v.moneda} ${pago.monto.toStringAsFixed(2)}',
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w600, fontSize: 13),
-                    ),
-                  ],
-                ),
-              );
-            }),
+                      Text(
+                        '${v.moneda} ${pago.monto.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w600, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            ],
           ],
         ),
       ),
@@ -923,7 +1048,7 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
       children: [
         Icon(icon, size: 16, color: AppColors.blue1),
         const SizedBox(width: 8),
-        AppSubtitle(title, fontSize: 12),
+        AppSubtitle(title, fontSize: 11),
       ],
     );
   }
@@ -1686,7 +1811,7 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
           Icon(icon, size: 14, color: Colors.grey.shade500),
           const SizedBox(width: 8),
           SizedBox(
-            width: 85,
+            width: 80,
             child: Text(
               label,
               style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
@@ -1696,7 +1821,7 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
             child: Text(
               value,
               style: const TextStyle(
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: FontWeight.w500,
               ),
               overflow: TextOverflow.ellipsis,
@@ -1704,24 +1829,6 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildTotalRow(String label, String value, {Color? color}) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(label,
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-            color: color,
-          ),
-        ),
-      ],
     );
   }
 
@@ -2105,6 +2212,26 @@ class _BulletItem extends StatelessWidget {
             child: Text(text, style: const TextStyle(fontSize: 11)),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Header de columna para la tabla de items: uppercase compacto,
+/// tipografía bold y gris. Mismo estilo que el detalle de cotización.
+class _Th extends StatelessWidget {
+  final String text;
+  const _Th(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: TextStyle(
+        fontSize: 10,
+        fontWeight: FontWeight.w700,
+        color: Colors.grey.shade800,
+        letterSpacing: 0.3,
       ),
     );
   }

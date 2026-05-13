@@ -648,6 +648,22 @@ class _ProductoCard extends StatelessWidget {
     return 0;
   }
 
+  /// Devuelve el precio + nivel aplicado del item en carrito, para que la
+  /// card refleje el precio efectivo en vez del precio base cuando se
+  /// alcanza un umbral de cantidad (ej. "Por Mayor" a partir de 3 uds).
+  ({double precioUnitario, String? nivelAplicado})? _itemInfoEnCarrito(
+      CotizacionRapidaState state) {
+    for (final i in state.items) {
+      if (i.productoId == producto.id) {
+        return (
+          precioUnitario: i.precioUnitario,
+          nivelAplicado: i.nivelAplicado,
+        );
+      }
+    }
+    return null;
+  }
+
   void _abrirPreciosMayor(BuildContext context) {
     final cubit = context.read<CotizacionRapidaCubit>();
     showPreciosMayorSheet(
@@ -670,11 +686,24 @@ class _ProductoCard extends StatelessWidget {
       buildWhen: (prev, curr) {
         final prevQty = _qtyEnCarrito(prev);
         final currQty = _qtyEnCarrito(curr);
-        return prevQty != currQty;
+        if (prevQty != currQty) return true;
+        // También rebuild si cambió el nivel aplicado o el precio del item
+        // (ej. niveles llegaron del backend tras la primera adición).
+        final prevInfo = _itemInfoEnCarrito(prev);
+        final currInfo = _itemInfoEnCarrito(curr);
+        return prevInfo?.precioUnitario != currInfo?.precioUnitario ||
+            prevInfo?.nivelAplicado != currInfo?.nivelAplicado;
       },
       builder: (context, state) {
         final cantidadEnCarrito = _qtyEnCarrito(state);
         final estaEnCarrito = cantidadEnCarrito > 0;
+        // Precio mostrado: si el producto está en carrito y un nivel aplica,
+        // usamos `precioUnitario` del item (ya recalculado por el cubit).
+        // Si no, mostramos el precio base/efectivo del catálogo.
+        final infoCarrito = _itemInfoEnCarrito(state);
+        final precioMostrado = infoCarrito?.precioUnitario ?? precio;
+        final nivelAplicado = infoCarrito?.nivelAplicado;
+        final precioConNivelAplicado = nivelAplicado != null;
         final stockDisponible =
             (stockTotal - cantidadEnCarrito).clamp(0, double.infinity).toInt();
         final agotado = stockDisponible <= 0;
@@ -810,6 +839,10 @@ class _ProductoCard extends StatelessWidget {
                                       color: AppColors.blue1
                                           .withValues(alpha: 0.05),
                                     ),
+                                    // Bloque inferior: UND/nivel + precio.
+                                    // Si hay nivel aplicado por cantidad,
+                                    // "UND" cambia al nombre del nivel y
+                                    // todo se tiñe en azul1 para destacarlo.
                                     Padding(
                                       padding: const EdgeInsets.symmetric(
                                           horizontal: 6, vertical: 6),
@@ -817,20 +850,31 @@ class _ProductoCard extends StatelessWidget {
                                         mainAxisAlignment:
                                             MainAxisAlignment.spaceBetween,
                                         children: [
-                                          Text(
-                                            'UND',
-                                            style: TextStyle(
-                                              fontSize: 7,
-                                              color: Colors.grey.shade600,
-                                              fontWeight: FontWeight.w500,
+                                          Flexible(
+                                            child: Text(
+                                              precioConNivelAplicado
+                                                  ? nivelAplicado.toUpperCase()
+                                                  : 'UND',
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                fontSize: 7,
+                                                color: precioConNivelAplicado
+                                                    ? AppColors.blue1
+                                                    : Colors.grey.shade600,
+                                                fontWeight: FontWeight.w700,
+                                                letterSpacing: 0.3,
+                                              ),
                                             ),
                                           ),
                                           Text(
-                                            'S/ ${precio.toStringAsFixed(2)}',
+                                            'S/ ${precioMostrado.toStringAsFixed(2)}',
                                             style: TextStyle(
                                               fontSize: 10,
-                                              fontWeight: FontWeight.w600,
-                                              color: Colors.grey.shade800,
+                                              fontWeight: FontWeight.w700,
+                                              color: precioConNivelAplicado
+                                                  ? AppColors.blue1
+                                                  : Colors.grey.shade800,
                                             ),
                                           ),
                                         ],

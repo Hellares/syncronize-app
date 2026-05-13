@@ -324,15 +324,13 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
       onRefresh: _loadCotizacion,
       color: AppColors.blue1,
       child: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 16),
         children: [
           _buildHeaderSection(cot),
           const SizedBox(height: 12),
           _buildClienteSection(cot),
           const SizedBox(height: 12),
           _buildItemsSection(cot),
-          const SizedBox(height: 12),
-          _buildTotalesSection(cot),
           if (cot.observaciones != null || cot.condiciones != null) ...[
             const SizedBox(height: 12),
             _buildNotasSection(cot),
@@ -349,32 +347,32 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
     return GradientContainer(
       borderColor: AppColors.blueborder,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
                     color: AppColors.bluechip,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Icon(Icons.description_outlined,
-                      color: AppColors.blue1, size: 20),
+                      color: AppColors.blue1, size: 16),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      AppSubtitle(cot.codigo, fontSize: 15),
+                      AppSubtitle(cot.codigo, fontSize: 11),
                       if (cot.nombre != null)
                         Text(
                           cot.nombre!,
                           style: TextStyle(
-                              fontSize: 11, color: Colors.grey.shade600),
+                              fontSize: 10, color: Colors.grey.shade600),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -384,14 +382,12 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
                 CotizacionEstadoChip(estado: cot.estado),
               ],
             ),
-            const SizedBox(height: 14),
-            _buildDetailRow(
-                Icons.calendar_today, 'Emision', DateFormatter.formatDateTime(cot.fechaEmision)),
+            const SizedBox(height: 12),
+            _buildDetailRow(Icons.calendar_today, 'Emision',
+                DateFormatter.formatDateTime(cot.fechaEmision)),
             if (cot.fechaVencimiento != null)
               _buildDetailRow(Icons.event, 'Vencimiento',
                   DateFormatter.formatDateTime(cot.fechaVencimiento!)),
-            _buildDetailRow(
-                Icons.monetization_on_outlined, 'Moneda', cot.moneda),
             if (cot.sedeNombre != null)
               _buildDetailRow(Icons.store_outlined, 'Sede', cot.sedeNombre!),
             if (cot.vendedorNombre != null)
@@ -513,7 +509,7 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
                         child: Text(
                           detalles[i].descripcion,
                           style: const TextStyle(
-                            fontSize: 12,
+                            fontSize: 10,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -523,7 +519,7 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
                         child: Center(
                           child: Text(
                             _fmtCantidad(detalles[i].cantidad),
-                            style: const TextStyle(fontSize: 12),
+                            style: const TextStyle(fontSize: 10),
                           ),
                         ),
                       ),
@@ -533,7 +529,7 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
                           alignment: Alignment.centerRight,
                           child: Text(
                             detalles[i].precioUnitario.toStringAsFixed(2),
-                            style: const TextStyle(fontSize: 12),
+                            style: const TextStyle(fontSize: 10),
                           ),
                         ),
                       ),
@@ -544,7 +540,7 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
                           child: Text(
                             detalles[i].total.toStringAsFixed(2),
                             style: const TextStyle(
-                              fontSize: 12,
+                              fontSize: 10,
                               fontWeight: FontWeight.w700,
                               color: AppColors.blue1,
                             ),
@@ -580,10 +576,112 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
                     ],
                   ),
                 ),
+              // ── Footer: subtotal / descuento / IGV / TOTAL ──
+              // Cierra la tabla como factura, dentro del mismo Container.
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border(
+                    top: BorderSide(
+                      color: AppColors.blueborder.withValues(alpha: 0.5),
+                      width: 0.6,
+                    ),
+                  ),
+                ),
+                padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
+                child: Column(
+                  children: [
+                    _buildFooterRow(
+                      'Subtotal',
+                      '${cot.moneda} ${cot.subtotal.toStringAsFixed(2)}',
+                    ),
+                    if (cot.descuento > 0)
+                      _buildFooterRow(
+                        'Descuento',
+                        '-${cot.moneda} ${cot.descuento.toStringAsFixed(2)}',
+                        color: Colors.red.shade600,
+                      ),
+                    _buildFooterRow(
+                      _getNombreImpuesto(),
+                      '${cot.moneda} ${cot.impuestos.toStringAsFixed(2)}',
+                    ),
+                  ],
+                ),
+              ),
+              // Total destacado — barra propia con fondo bluechip.
+              Container(
+                decoration: BoxDecoration(
+                  color: AppColors.bluechip,
+                  border: Border(
+                    top: BorderSide(
+                      color: AppColors.blueborder.withValues(alpha: 0.5),
+                      width: 0.6,
+                    ),
+                  ),
+                ),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'TOTAL',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.blue1,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    Text(
+                      '${cot.moneda} ${cot.total.toStringAsFixed(2)}',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.blue1,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
       ],
+    );
+  }
+
+  /// Fila del footer de la tabla de items (subtotal, descuento, IGV).
+  /// Alineada a la derecha con label gris + monto en ancho fijo 110 px.
+  Widget _buildFooterRow(String label, String value, {Color? color}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          Text(
+            '$label:',
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.grey.shade700,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(width: 10),
+          SizedBox(
+            width: 110,
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: color ?? Colors.grey.shade800,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -596,47 +694,6 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
   }
 
   // ─── Totales ───
-
-  Widget _buildTotalesSection(Cotizacion cot) {
-    return GradientContainer(
-      borderColor: AppColors.blueborder,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            _buildTotalRow('Subtotal',
-                '${cot.moneda} ${cot.subtotal.toStringAsFixed(2)}'),
-            if (cot.descuento > 0) ...[
-              const SizedBox(height: 4),
-              _buildTotalRow('Descuento',
-                  '-${cot.moneda} ${cot.descuento.toStringAsFixed(2)}',
-                  color: Colors.red),
-            ],
-            const SizedBox(height: 4),
-            _buildTotalRow(_getNombreImpuesto(),
-                '${cot.moneda} ${cot.impuestos.toStringAsFixed(2)}'),
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Divider(
-                  height: 1,
-                  color: AppColors.blueborder.withValues(alpha: 0.5)),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const AppSubtitle('TOTAL', fontSize: 14),
-                AppSubtitle(
-                  '${cot.moneda} ${cot.total.toStringAsFixed(2)}',
-                  fontSize: 16,
-                  color: AppColors.blue1,
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   // ─── Notas ───
 
@@ -872,25 +929,6 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
     );
   }
 
-  Widget _buildTotalRow(String label, String value, {Color? color}) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
-        ),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-            color: color,
-          ),
-        ),
-      ],
-    );
-  }
 
   // ─── Acciones ───
 

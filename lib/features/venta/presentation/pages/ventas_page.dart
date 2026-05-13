@@ -606,7 +606,7 @@ class _VentaListTile extends StatelessWidget {
                   VentaEstadoChip(estado: venta.estado),
                   const Spacer(),
                   Text(
-                    DateFormatter.formatDate(venta.fechaVenta),
+                    DateFormatter.formatDateTime(venta.fechaVenta),
                     style: TextStyle(
                       fontSize: 10,
                       color: Colors.grey.shade600,
@@ -620,7 +620,7 @@ class _VentaListTile extends StatelessWidget {
                   SizedBox(width: 70, child: AppText('Cliente:')),
                   Expanded(
                       child: AppText(venta.nombreCliente,
-                          fontWeight: FontWeight.w400)),
+                          fontWeight: FontWeight.w500, size: 10,)),
                 ],
               ),
               if (venta.telefonoCliente != null) ...[
@@ -669,13 +669,13 @@ class _VentaListTile extends StatelessWidget {
                     Text(
                       'Vendedor: ${venta.vendedorNombre}',
                       style: TextStyle(
-                          fontSize: 10, color: Colors.grey.shade600),
+                          fontSize: 9, color: Colors.grey.shade600),
                     ),
                   Text(
                     '${venta.moneda} ${venta.total.toStringAsFixed(2)}',
                     style: const TextStyle(
                       fontWeight: FontWeight.w500,
-                      fontSize: 8,
+                      fontSize: 12,
                     ),
                   ),
                 ],
