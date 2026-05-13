@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -744,11 +745,13 @@ class _ProductoCard extends StatelessWidget {
                                     borderRadius: BorderRadius.circular(4),
                                     child:
                                         imagen != null && imagen.isNotEmpty
-                                            ? Image.network(
-                                                imagen,
+                                            ? CachedNetworkImage(
+                                                imageUrl: imagen,
                                                 fit: BoxFit.cover,
-                                                cacheWidth: 200,
-                                                errorBuilder: (_, __, ___) =>
+                                                memCacheWidth: 200,
+                                                placeholder: (_, __) =>
+                                                    _placeholder(),
+                                                errorWidget: (_, __, ___) =>
                                                     _placeholder(),
                                               )
                                             : _placeholder(),

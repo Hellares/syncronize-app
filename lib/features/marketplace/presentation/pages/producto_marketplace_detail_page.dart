@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:syncronize/core/fonts/app_fonts.dart';
@@ -398,10 +399,13 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
                 final img = imagenes[index] as Map<String, dynamic>;
                 return Padding(
                   padding: const EdgeInsets.all(16),
-                  child: Image.network(
-                    img['url'] as String? ?? '',
+                  child: CachedNetworkImage(
+                    imageUrl: img['url'] as String? ?? '',
                     fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => Center(
+                    placeholder: (_, __) => const Center(
+                      child: CircularProgressIndicator(),
+                    ),
+                    errorWidget: (_, __, ___) => Center(
                       child: Icon(Icons.broken_image_outlined, size: 64, color: Colors.grey.shade300),
                     ),
                   ),
@@ -465,10 +469,11 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(4),
-                        child: Image.network(
-                          (img['thumbnail'] ?? img['url']) as String? ?? '',
+                        child: CachedNetworkImage(
+                          imageUrl: (img['thumbnail'] ?? img['url']) as String? ?? '',
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Icon(Icons.image, size: 16, color: Colors.grey.shade300),
+                          placeholder: (_, __) => const SizedBox.shrink(),
+                          errorWidget: (_, __, ___) => Icon(Icons.image, size: 16, color: Colors.grey.shade300),
                         ),
                       ),
                     ),
@@ -508,8 +513,9 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
                   radius: 26,
                   backgroundColor: AppColors.blue2.withValues(alpha: 0.08),
                   child: logo != null
-                      ? ClipOval(child: Image.network(logo, width: 48, height: 48, fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => _empresaInitial(nombre)))
+                      ? ClipOval(child: CachedNetworkImage(imageUrl: logo, width: 48, height: 48, fit: BoxFit.cover,
+                          placeholder: (_, __) => _empresaInitial(nombre),
+                          errorWidget: (_, __, ___) => _empresaInitial(nombre)))
                       : _empresaInitial(nombre),
                 ),
                 const SizedBox(width: 14),

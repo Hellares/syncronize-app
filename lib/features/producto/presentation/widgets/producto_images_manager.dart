@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
@@ -372,15 +373,12 @@ class ProductoImagesManager extends StatelessWidget {
   Widget _buildThumbnail(ProductoImage image) {
     // Si hay URL (imagen ya subida)
     if (image.urlThumbnail != null || image.url != null) {
-      return Image.network(
-        image.urlThumbnail ?? image.url!,
+      return CachedNetworkImage(
+        imageUrl: image.urlThumbnail ?? image.url!,
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
+        placeholder: (context, url) => _buildPlaceholder(Colors.grey[300]!),
+        errorWidget: (context, url, error) {
           return _buildPlaceholder(Colors.red[100]!);
-        },
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) return child;
-          return _buildPlaceholder(Colors.grey[300]!);
         },
       );
     }

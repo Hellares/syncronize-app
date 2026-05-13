@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/di/injection_container.dart';
@@ -223,10 +224,11 @@ class _MisSolicitudesPageState extends State<MisSolicitudesPage> {
                   child: solicitud.empresa?.logo != null
                       ? ClipRRect(
                           borderRadius: BorderRadius.circular(8),
-                          child: Image.network(
-                            solicitud.empresa!.logo!,
+                          child: CachedNetworkImage(
+                            imageUrl: solicitud.empresa!.logo!,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => const Icon(
+                            placeholder: (_, __) => const SizedBox.shrink(),
+                            errorWidget: (_, __, ___) => const Icon(
                               Icons.store,
                               color: AppColors.blue3,
                               size: 18,

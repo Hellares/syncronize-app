@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -277,7 +278,23 @@ class _EmpresaSwitchBottomSheetState extends State<EmpresaSwitchBottomSheet> {
                     backgroundColor:
                         isActive ? Colors.blue : Colors.grey.shade300,
                     child: empresa.logo != null
-                        ? Image.network(empresa.logo!)
+                        ? CachedNetworkImage(
+                            imageUrl: empresa.logo!,
+                            placeholder: (_, __) => Text(
+                              empresa.nombre[0].toUpperCase(),
+                              style: TextStyle(
+                                color: isActive ? Colors.white : Colors.grey.shade700,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            errorWidget: (_, __, ___) => Text(
+                              empresa.nombre[0].toUpperCase(),
+                              style: TextStyle(
+                                color: isActive ? Colors.white : Colors.grey.shade700,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          )
                         : Text(
                             empresa.nombre[0].toUpperCase(),
                             style: TextStyle(

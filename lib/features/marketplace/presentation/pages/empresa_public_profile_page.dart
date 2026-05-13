@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:syncronize/core/fonts/app_fonts.dart';
@@ -187,11 +188,20 @@ class _EmpresaPublicProfilePageState extends State<EmpresaPublicProfilePage> {
                 children: [
                   // Fondo: banner o gradiente
                   if (bannerUrl != null)
-                    Image.network(
-                      bannerUrl,
+                    CachedNetworkImage(
+                      imageUrl: bannerUrl,
                       fit: BoxFit.fitWidth,
                       alignment: Alignment.topCenter,
-                      errorBuilder: (_, __, ___) => Container(
+                      placeholder: (_, __) => Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [AppColors.blue1, AppColors.blue2],
+                          ),
+                        ),
+                      ),
+                      errorWidget: (_, __, ___) => Container(
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             begin: Alignment.topCenter,
@@ -238,8 +248,9 @@ class _EmpresaPublicProfilePageState extends State<EmpresaPublicProfilePage> {
                                 radius: 32,
                                 backgroundColor: Colors.white,
                                 child: logo != null
-                                    ? ClipOval(child: Image.network(logo, width: 58, height: 58, fit: BoxFit.cover,
-                                        errorBuilder: (_, __, ___) => _initial(nombre)))
+                                    ? ClipOval(child: CachedNetworkImage(imageUrl: logo, width: 58, height: 58, fit: BoxFit.cover,
+                                        placeholder: (_, __) => _initial(nombre),
+                                        errorWidget: (_, __, ___) => _initial(nombre)))
                                     : _initial(nombre),
                               ),
                               const SizedBox(width: 16),
@@ -781,8 +792,9 @@ class _EmpresaPublicProfilePageState extends State<EmpresaPublicProfilePage> {
                   onTap: () => _showFullScreenImage(context, imagenes, i),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(6),
-                    child: Image.network(imagenes[i], width: 90, height: 70, fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(width: 90, height: 70, color: Colors.grey[200],
+                    child: CachedNetworkImage(imageUrl: imagenes[i], width: 90, height: 70, fit: BoxFit.cover,
+                      placeholder: (_, __) => Container(width: 90, height: 70, color: Colors.grey[200]),
+                      errorWidget: (_, __, ___) => Container(width: 90, height: 70, color: Colors.grey[200],
                         child: const Icon(Icons.image, size: 20))),
                   ),
                 ),
@@ -844,10 +856,11 @@ class _EmpresaPublicProfilePageState extends State<EmpresaPublicProfilePage> {
               minScale: 0.5,
               maxScale: 4.0,
               child: Center(
-                child: Image.network(
-                  imagenes[i],
+                child: CachedNetworkImage(
+                  imageUrl: imagenes[i],
                   fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => const Icon(Icons.image, size: 48, color: Colors.grey),
+                  placeholder: (_, __) => const Center(child: CircularProgressIndicator(color: Colors.white)),
+                  errorWidget: (_, __, ___) => const Icon(Icons.image, size: 48, color: Colors.grey),
                 ),
               ),
             ),

@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:syncronize/core/fonts/app_fonts.dart';
@@ -391,12 +392,13 @@ class _EmpresaCard extends StatelessWidget {
                       child: empresa.logo != null
                           ? ClipRRect(
                               borderRadius: BorderRadius.circular(12),
-                              child: Image.network(
-                                empresa.logo!,
+                              child: CachedNetworkImage(
+                                imageUrl: empresa.logo!,
                                 width: 52,
                                 height: 52,
                                 fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => _buildInitial(),
+                                placeholder: (_, __) => _buildInitial(),
+                                errorWidget: (_, __, ___) => _buildInitial(),
                               ),
                             )
                           : _buildInitial(),

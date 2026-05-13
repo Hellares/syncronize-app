@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:syncronize/core/widgets/info_chip.dart';
@@ -998,10 +999,11 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(9),
-              child: Image.network(
-                url,
+              child: CachedNetworkImage(
+                imageUrl: url,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => _imagePlaceholder(),
+                placeholder: (_, __) => _imagePlaceholder(),
+                errorWidget: (_, __, ___) => _imagePlaceholder(),
               ),
             ),
           ),
@@ -1073,17 +1075,14 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
               child: InteractiveViewer(
                 minScale: 0.5,
                 maxScale: 4.0,
-                child: Image.network(
-                  url,
+                child: CachedNetworkImage(
+                  imageUrl: url,
                   fit: BoxFit.contain,
-                  loadingBuilder: (_, child, progress) {
-                    if (progress == null) return child;
-                    return const SizedBox(
-                      height: 200,
-                      child: Center(child: CircularProgressIndicator(color: Colors.white)),
-                    );
-                  },
-                  errorBuilder: (_, __, ___) => const SizedBox(
+                  placeholder: (_, __) => const SizedBox(
+                    height: 200,
+                    child: Center(child: CircularProgressIndicator(color: Colors.white)),
+                  ),
+                  errorWidget: (_, __, ___) => const SizedBox(
                     height: 200,
                     child: Center(child: Icon(Icons.broken_image, color: Colors.white54, size: 48)),
                   ),
@@ -2404,10 +2403,11 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(7),
-                    child: Image.network(
-                      _firmaArchivos.first.url,
+                    child: CachedNetworkImage(
+                      imageUrl: _firmaArchivos.first.url,
                       fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => const Center(
+                      placeholder: (_, __) => const SizedBox.shrink(),
+                      errorWidget: (_, __, ___) => const Center(
                         child: Icon(Icons.broken_image, color: Colors.grey),
                       ),
                     ),

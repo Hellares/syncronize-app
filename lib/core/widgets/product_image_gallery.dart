@@ -1,5 +1,6 @@
 // lib/features/product/presentation/widgets/product_image_gallery.dart
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/app_gradients.dart';
@@ -616,33 +617,22 @@ class _ProductImageGalleryState extends State<ProductImageGallery> {
         onTap: () => _openImagePreview(url, imageIndex),
         child: Hero(
           tag: tag ?? imageIndex,
-          child: Image.network(
-            url,
+          child: CachedNetworkImage(
+            imageUrl: url,
             fit: BoxFit.contain,
-            loadingBuilder: (context, child, progress) {
-              if (progress == null) return child;
-              final value = progress.expectedTotalBytes != null
-                  ? progress.cumulativeBytesLoaded / progress.expectedTotalBytes!
-                  : null;
+            fadeInDuration: const Duration(milliseconds: 200),
+            placeholder: (context, _) {
               return Container(
                 color: Colors.white.withValues(alpha: 0.35),
                 alignment: Alignment.center,
-                child: SizedBox(
+                child: const SizedBox(
                   width: 28,
                   height: 28,
-                  child: CircularProgressIndicator(value: value),
+                  child: CircularProgressIndicator(),
                 ),
               );
             },
-            frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-              if (wasSynchronouslyLoaded) return child;
-              return AnimatedOpacity(
-                opacity: frame == null ? 0 : 1,
-                duration: const Duration(milliseconds: 200),
-                child: child,
-              );
-            },
-            errorBuilder: (context, error, stackTrace) {
+            errorWidget: (context, _, __) {
               return Container(
                 color: Colors.grey[200],
                 padding: const EdgeInsets.all(12),
@@ -707,7 +697,18 @@ class _ImagePreviewDialog extends StatelessWidget {
                 boundaryMargin: const EdgeInsets.all(20),
                 minScale: 0.5,
                 maxScale: 4,
-                child: Image.network(imageUrl, fit: BoxFit.contain),
+                child: CachedNetworkImage(
+                  imageUrl: imageUrl,
+                  fit: BoxFit.contain,
+                  placeholder: (_, __) => const Center(
+                    child: CircularProgressIndicator(color: Colors.white),
+                  ),
+                  errorWidget: (_, __, ___) => const Icon(
+                    Icons.broken_image,
+                    color: Colors.white54,
+                    size: 64,
+                  ),
+                ),
               ),
             ),
           ),

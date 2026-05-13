@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/di/injection_container.dart';
@@ -185,12 +186,13 @@ class _MisPedidosViewState extends State<_MisPedidosView> {
                       pedido.empresa.logo!.isNotEmpty)
                     ClipRRect(
                       borderRadius: BorderRadius.circular(6),
-                      child: Image.network(
-                        pedido.empresa.logo!,
+                      child: CachedNetworkImage(
+                        imageUrl: pedido.empresa.logo!,
                         width: 36,
                         height: 36,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => _buildEmpresaPlaceholder(),
+                        placeholder: (_, __) => _buildEmpresaPlaceholder(),
+                        errorWidget: (_, __, ___) => _buildEmpresaPlaceholder(),
                       ),
                     )
                   else

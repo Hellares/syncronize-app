@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../domain/entities/available_company.dart';
@@ -118,10 +119,15 @@ class _CompanyCard extends StatelessWidget {
                 child: company.logo != null
                     ? ClipRRect(
                         borderRadius: BorderRadius.circular(8),
-                        child: Image.network(
-                          company.logo!,
+                        child: CachedNetworkImage(
+                          imageUrl: company.logo!,
                           fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
+                          placeholder: (_, __) => const Icon(
+                            Icons.business,
+                            size: 32,
+                            color: Colors.grey,
+                          ),
+                          errorWidget: (context, url, error) {
                             return const Icon(
                               Icons.business,
                               size: 32,

@@ -1,5 +1,6 @@
 
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
@@ -154,22 +155,19 @@ class _SorteoBannerCard extends StatelessWidget {
             fit: StackFit.expand,
             children: [
               // Imagen
-              Image.network(
-                imageUrl,
+              CachedNetworkImage(
+                imageUrl: imageUrl,
                 fit: BoxFit.cover,
-                loadingBuilder: (context, child, progress) {
-                  if (progress == null) return child;
-                  return Container(
-                    color: Colors.grey.shade200,
-                    alignment: Alignment.center,
-                    child: const SizedBox(
-                      height: 24,
-                      width: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  );
-                },
-                errorBuilder: (context, error, stack) {
+                placeholder: (context, url) => Container(
+                  color: Colors.grey.shade200,
+                  alignment: Alignment.center,
+                  child: const SizedBox(
+                    height: 24,
+                    width: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+                errorWidget: (context, url, error) {
                   return Container(
                     color: Colors.grey.shade200,
                     alignment: Alignment.center,

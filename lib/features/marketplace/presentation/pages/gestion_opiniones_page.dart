@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -331,9 +332,12 @@ class _OpinionEmpresaCard extends StatelessWidget {
                   separatorBuilder: (_, __) => const SizedBox(width: 6),
                   itemBuilder: (_, i) => ClipRRect(
                     borderRadius: BorderRadius.circular(6),
-                    child: Image.network(
-                      imagenes[i], width: 56, height: 56, fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
+                    child: CachedNetworkImage(
+                      imageUrl: imagenes[i], width: 56, height: 56, fit: BoxFit.cover,
+                      placeholder: (_, __) => Container(
+                        width: 56, height: 56, color: Colors.grey[200],
+                      ),
+                      errorWidget: (_, __, ___) => Container(
                         width: 56, height: 56, color: Colors.grey[200],
                         child: const Icon(Icons.image, size: 20),
                       ),

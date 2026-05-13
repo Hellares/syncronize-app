@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -452,12 +453,16 @@ class _OpinionCard extends StatelessWidget {
                     onTap: () => _showImageDialog(ctx, imagenes[i]),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(8),
-                      child: Image.network(
-                        imagenes[i],
+                      child: CachedNetworkImage(
+                        imageUrl: imagenes[i],
                         width: 72,
                         height: 72,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(
+                        placeholder: (_, __) => Container(
+                          width: 72, height: 72,
+                          color: Colors.grey[200],
+                        ),
+                        errorWidget: (_, __, ___) => Container(
                           width: 72, height: 72,
                           color: Colors.grey[200],
                           child: const Icon(Icons.image, size: 24),
@@ -480,7 +485,18 @@ class _OpinionCard extends StatelessWidget {
       builder: (_) => Dialog(
         child: ClipRRect(
           borderRadius: BorderRadius.circular(12),
-          child: Image.network(url, fit: BoxFit.contain),
+          child: CachedNetworkImage(
+            imageUrl: url,
+            fit: BoxFit.contain,
+            placeholder: (_, __) => const SizedBox(
+              height: 200,
+              child: Center(child: CircularProgressIndicator()),
+            ),
+            errorWidget: (_, __, ___) => const SizedBox(
+              height: 200,
+              child: Center(child: Icon(Icons.broken_image)),
+            ),
+          ),
         ),
       ),
     );

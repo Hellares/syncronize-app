@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:syncronize/core/di/injection_container.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
@@ -194,12 +195,17 @@ class _ProductoVariantesSectionState extends State<ProductoVariantesSection> {
                 if (_getVarianteCompleta(variante).imagenPrincipal != null) ...[
                   ClipRRect(
                     borderRadius: BorderRadius.circular(6),
-                    child: Image.network(
-                      _getVarianteCompleta(variante).thumbnailPrincipal!,
+                    child: CachedNetworkImage(
+                      imageUrl: _getVarianteCompleta(variante).thumbnailPrincipal!,
                       width: 40,
                       height: 40,
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
+                      placeholder: (_, __) => Container(
+                        width: 40,
+                        height: 40,
+                        color: Colors.grey[300],
+                      ),
+                      errorWidget: (context, url, error) {
                         return Container(
                           width: 40,
                           height: 40,

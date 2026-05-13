@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
@@ -805,10 +806,11 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
       return Image.file(_selectedLogoFile!, width: 100, height: 100, fit: BoxFit.contain);
     }
     if (_currentLogoUrl != null && _currentLogoUrl!.isNotEmpty) {
-      return Image.network(
-        _currentLogoUrl!,
+      return CachedNetworkImage(
+        imageUrl: _currentLogoUrl!,
         width: 100, height: 100, fit: BoxFit.contain,
-        errorBuilder: (_, __, ___) => _buildLogoPlaceholder(),
+        placeholder: (_, __) => _buildLogoPlaceholder(),
+        errorWidget: (_, __, ___) => _buildLogoPlaceholder(),
       );
     }
     return _buildLogoPlaceholder();
@@ -1202,8 +1204,9 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
                         ? Stack(
                             fit: StackFit.expand,
                             children: [
-                              Image.network(_currentBannerUrl!, fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => _bannerPlaceholder()),
+                              CachedNetworkImage(imageUrl: _currentBannerUrl!, fit: BoxFit.cover,
+                                placeholder: (_, __) => _bannerPlaceholder(),
+                                errorWidget: (_, __, ___) => _bannerPlaceholder()),
                               Positioned(
                                 bottom: 6,
                                 right: 6,
@@ -1286,8 +1289,9 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
                       child: Stack(
                         fit: StackFit.expand,
                         children: [
-                          Image.network(b['url'], fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(color: Colors.grey[200], child: const Icon(Icons.image))),
+                          CachedNetworkImage(imageUrl: b['url'], fit: BoxFit.cover,
+                            placeholder: (_, __) => Container(color: Colors.grey[200]),
+                            errorWidget: (_, __, ___) => Container(color: Colors.grey[200], child: const Icon(Icons.image))),
                           Positioned(
                             top: 2, right: 2,
                             child: GestureDetector(

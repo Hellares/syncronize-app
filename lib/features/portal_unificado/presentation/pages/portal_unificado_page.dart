@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
@@ -136,12 +137,19 @@ class _EmpresaActividadCard extends StatelessWidget {
                   backgroundColor: AppColors.bluechip,
                   child: empresa.empresa.logo != null
                       ? ClipOval(
-                          child: Image.network(
-                            empresa.empresa.logo!,
+                          child: CachedNetworkImage(
+                            imageUrl: empresa.empresa.logo!,
                             width: 36,
                             height: 36,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Text(
+                            placeholder: (_, __) => Text(
+                              empresa.empresa.nombre[0].toUpperCase(),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.blue1,
+                              ),
+                            ),
+                            errorWidget: (_, __, ___) => Text(
                               empresa.empresa.nombre[0].toUpperCase(),
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,

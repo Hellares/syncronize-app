@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/di/injection_container.dart';
@@ -431,12 +432,17 @@ class _SolicitudFormPageState extends State<SolicitudFormPage> {
             leading: ClipRRect(
               borderRadius: BorderRadius.circular(4),
               child: imagenUrl != null
-                  ? Image.network(
-                      imagenUrl,
+                  ? CachedNetworkImage(
+                      imageUrl: imagenUrl,
                       width: 36,
                       height: 36,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
+                      placeholder: (_, __) => Container(
+                        width: 36,
+                        height: 36,
+                        color: AppColors.greyLight,
+                      ),
+                      errorWidget: (_, __, ___) => Container(
                         width: 36,
                         height: 36,
                         color: AppColors.greyLight,
@@ -543,12 +549,17 @@ class _SolicitudFormPageState extends State<SolicitudFormPage> {
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
             child: item.imagenUrl != null
-                ? Image.network(
-                    item.imagenUrl!,
+                ? CachedNetworkImage(
+                    imageUrl: item.imagenUrl!,
                     width: 44,
                     height: 44,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
+                    placeholder: (_, __) => Container(
+                      width: 44,
+                      height: 44,
+                      color: AppColors.greyLight,
+                    ),
+                    errorWidget: (_, __, ___) => Container(
                       width: 44,
                       height: 44,
                       color: AppColors.greyLight,

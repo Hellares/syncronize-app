@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -252,10 +253,11 @@ class _SolicitudDetailPageState extends State<SolicitudDetailPage> {
             child: solicitud.empresa!.logo != null
                 ? ClipRRect(
                     borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      solicitud.empresa!.logo!,
+                    child: CachedNetworkImage(
+                      imageUrl: solicitud.empresa!.logo!,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const Icon(
+                      placeholder: (_, __) => const SizedBox.shrink(),
+                      errorWidget: (_, __, ___) => const Icon(
                         Icons.store,
                         color: AppColors.blue3,
                         size: 20,
@@ -317,12 +319,17 @@ class _SolicitudDetailPageState extends State<SolicitudDetailPage> {
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
             child: item.imagenUrl != null
-                ? Image.network(
-                    item.imagenUrl!,
+                ? CachedNetworkImage(
+                    imageUrl: item.imagenUrl!,
                     width: 48,
                     height: 48,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
+                    placeholder: (_, __) => Container(
+                      width: 48,
+                      height: 48,
+                      color: AppColors.greyLight,
+                    ),
+                    errorWidget: (_, __, ___) => Container(
                       width: 48,
                       height: 48,
                       color: AppColors.greyLight,

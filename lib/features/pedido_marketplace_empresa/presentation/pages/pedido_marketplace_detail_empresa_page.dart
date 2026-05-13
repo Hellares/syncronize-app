@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/utils/date_formatter.dart';
@@ -167,8 +168,9 @@ class _DetailView extends StatelessWidget {
                           if (item.imagenUrl != null) ...[
                             ClipRRect(
                               borderRadius: BorderRadius.circular(6),
-                              child: Image.network(item.imagenUrl!, width: 40, height: 40, fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => const SizedBox(width: 40, height: 40)),
+                              child: CachedNetworkImage(imageUrl: item.imagenUrl!, width: 40, height: 40, fit: BoxFit.cover,
+                                placeholder: (_, __) => const SizedBox(width: 40, height: 40),
+                                errorWidget: (_, __, ___) => const SizedBox(width: 40, height: 40)),
                             ),
                             const SizedBox(width: 10),
                           ],
@@ -216,8 +218,9 @@ class _DetailView extends StatelessWidget {
                     const SizedBox(height: 10),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(8),
-                      child: Image.network(p.comprobantePagoUrl!, width: double.infinity, fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) => Container(height: 100, color: Colors.grey.shade200,
+                      child: CachedNetworkImage(imageUrl: p.comprobantePagoUrl!, width: double.infinity, fit: BoxFit.contain,
+                        placeholder: (_, __) => Container(height: 100, color: Colors.grey.shade200),
+                        errorWidget: (_, __, ___) => Container(height: 100, color: Colors.grey.shade200,
                           child: const Center(child: Text('Error al cargar imagen')))),
                     ),
                   ],

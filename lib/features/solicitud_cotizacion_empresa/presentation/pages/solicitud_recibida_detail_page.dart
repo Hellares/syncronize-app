@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -191,8 +192,9 @@ class _DetailView extends StatelessWidget {
           if (item.imagenUrl != null) ...[
             ClipRRect(
               borderRadius: BorderRadius.circular(6),
-              child: Image.network(item.imagenUrl!, width: 40, height: 40, fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(width: 40, height: 40, color: Colors.grey.shade200,
+              child: CachedNetworkImage(imageUrl: item.imagenUrl!, width: 40, height: 40, fit: BoxFit.cover,
+                placeholder: (_, __) => Container(width: 40, height: 40, color: Colors.grey.shade200),
+                errorWidget: (_, __, ___) => Container(width: 40, height: 40, color: Colors.grey.shade200,
                   child: const Icon(Icons.image, size: 16, color: Colors.grey))),
             ),
             const SizedBox(width: 10),

@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
@@ -319,10 +320,11 @@ class _ConfiguracionDocumentosPageState
                     child: _logoUrl != null && _logoUrl!.isNotEmpty
                         ? ClipRRect(
                             borderRadius: BorderRadius.circular(7),
-                            child: Image.network(
-                              _logoUrl!,
+                            child: CachedNetworkImage(
+                              imageUrl: _logoUrl!,
                               fit: BoxFit.contain,
-                              errorBuilder: (_, __, ___) => Icon(Icons.broken_image, size: 28, color: Colors.grey.shade300),
+                              placeholder: (_, __) => const SizedBox.shrink(),
+                              errorWidget: (_, __, ___) => Icon(Icons.broken_image, size: 28, color: Colors.grey.shade300),
                             ),
                           )
                         : Column(

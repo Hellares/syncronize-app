@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/di/injection_container.dart';
@@ -172,12 +173,13 @@ class _PedidoDetailPageState extends State<PedidoDetailPage> {
           if (pedido.empresa.logo != null && pedido.empresa.logo!.isNotEmpty)
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: Image.network(
-                pedido.empresa.logo!,
+              child: CachedNetworkImage(
+                imageUrl: pedido.empresa.logo!,
                 width: 48,
                 height: 48,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => _buildEmpresaPlaceholder(48),
+                placeholder: (_, __) => _buildEmpresaPlaceholder(48),
+                errorWidget: (_, __, ___) => _buildEmpresaPlaceholder(48),
               ),
             )
           else
@@ -287,12 +289,13 @@ class _PedidoDetailPageState extends State<PedidoDetailPage> {
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: detalle.imagenUrl != null && detalle.imagenUrl!.isNotEmpty
-                ? Image.network(
-                    detalle.imagenUrl!,
+                ? CachedNetworkImage(
+                    imageUrl: detalle.imagenUrl!,
                     width: 56,
                     height: 56,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _buildProductoPlaceholder(),
+                    placeholder: (_, __) => _buildProductoPlaceholder(),
+                    errorWidget: (_, __, ___) => _buildProductoPlaceholder(),
                   )
                 : _buildProductoPlaceholder(),
           ),
@@ -407,12 +410,21 @@ class _PedidoDetailPageState extends State<PedidoDetailPage> {
           const SizedBox(height: 12),
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
-            child: Image.network(
-              pedido.comprobantePagoUrl!,
+            child: CachedNetworkImage(
+              imageUrl: pedido.comprobantePagoUrl!,
               width: double.infinity,
               height: 250,
               fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => Container(
+              placeholder: (_, __) => Container(
+                height: 100,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppColors.greyLight.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Center(child: CircularProgressIndicator()),
+              ),
+              errorWidget: (_, __, ___) => Container(
                 height: 100,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(

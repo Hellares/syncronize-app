@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
@@ -441,8 +442,9 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
                           width: double.infinity,
                           color: Colors.grey.shade50,
                           child: imagen != null
-                              ? Image.network(imagen, fit: BoxFit.contain,
-                                  errorBuilder: (_, __, ___) => const Icon(Icons.inventory_2_outlined, color: Colors.grey))
+                              ? CachedNetworkImage(imageUrl: imagen, fit: BoxFit.contain,
+                                  placeholder: (_, __) => const SizedBox.shrink(),
+                                  errorWidget: (_, __, ___) => const Icon(Icons.inventory_2_outlined, color: Colors.grey))
                               : const Icon(Icons.inventory_2_outlined, color: Colors.grey),
                         ),
                         Padding(

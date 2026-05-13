@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../../domain/entities/available_company.dart';
 
@@ -145,10 +146,11 @@ class _CompanyTile extends StatelessWidget {
               child: company.logo != null && company.logo!.isNotEmpty
                   ? ClipRRect(
                       borderRadius: BorderRadius.circular(12),
-                      child: Image.network(
-                        company.logo!,
+                      child: CachedNetworkImage(
+                        imageUrl: company.logo!,
                         fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
+                        placeholder: (_, __) => _buildDefaultLogo(),
+                        errorWidget: (context, url, error) {
                           return _buildDefaultLogo();
                         },
                       ),

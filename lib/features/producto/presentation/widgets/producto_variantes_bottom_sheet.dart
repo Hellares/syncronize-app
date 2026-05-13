@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:syncronize/core/fonts/app_fonts.dart';
@@ -344,10 +345,11 @@ class _ProductoVariantesBottomSheetState extends State<ProductoVariantesBottomSh
                                 topLeft: Radius.circular(8),
                                 bottomLeft: Radius.circular(8),
                               ),
-                              child: Image.network(
-                                variante.imagenPrincipal!,
+                              child: CachedNetworkImage(
+                                imageUrl: variante.imagenPrincipal!,
                                 fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
+                                placeholder: (_, __) => _buildImagePlaceholder(),
+                                errorWidget: (context, url, error) {
                                   return _buildImagePlaceholder();
                                 },
                               ),

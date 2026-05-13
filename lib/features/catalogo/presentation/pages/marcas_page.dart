@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
@@ -89,12 +90,13 @@ class _MarcasPageState extends State<MarcasPage> {
                         leading: marca.logoDisplay != null
                             ? ClipRRect(
                                 borderRadius: BorderRadius.circular(8),
-                                child: Image.network(
-                                  marca.logoDisplay!,
+                                child: CachedNetworkImage(
+                                  imageUrl: marca.logoDisplay!,
                                   width: 48,
                                   height: 48,
                                   fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) {
+                                  placeholder: (_, __) => _buildPlaceholderLogo(),
+                                  errorWidget: (context, url, error) {
                                     return _buildPlaceholderLogo();
                                   },
                                 ),

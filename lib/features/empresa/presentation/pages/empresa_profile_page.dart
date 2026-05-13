@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -214,12 +215,14 @@ class _EmpresaProfilePageState extends State<EmpresaProfilePage> {
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(12.5),
                       child: empresa.logo != null && empresa.logo!.isNotEmpty
-                          ? Image.network(
-                              empresa.logo!,
+                          ? CachedNetworkImage(
+                              imageUrl: empresa.logo!,
                               width: 84,
                               height: 84,
                               fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) =>
+                              placeholder: (_, __) =>
+                                  _buildInitial(empresa.nombre),
+                              errorWidget: (_, __, ___) =>
                                   _buildInitial(empresa.nombre),
                             )
                           : _buildInitial(empresa.nombre),

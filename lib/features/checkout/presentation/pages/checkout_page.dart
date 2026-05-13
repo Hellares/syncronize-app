@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -322,8 +323,9 @@ class _CheckoutViewState extends State<_CheckoutView> {
                     ClipRRect(
                       borderRadius: BorderRadius.circular(6),
                       child: imagenUrl != null
-                          ? Image.network(imagenUrl, width: 36, height: 36, fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Container(width: 36, height: 36, color: Colors.grey.shade200,
+                          ? CachedNetworkImage(imageUrl: imagenUrl, width: 36, height: 36, fit: BoxFit.cover,
+                              placeholder: (_, __) => Container(width: 36, height: 36, color: Colors.grey.shade200),
+                              errorWidget: (_, __, ___) => Container(width: 36, height: 36, color: Colors.grey.shade200,
                                 child: const Icon(Icons.image, size: 16, color: Colors.grey)))
                           : Container(width: 36, height: 36, color: Colors.grey.shade200,
                               child: const Icon(Icons.image, size: 16, color: Colors.grey)),

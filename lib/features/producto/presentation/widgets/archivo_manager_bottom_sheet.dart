@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
@@ -490,21 +491,13 @@ class _ArchivoManagerBottomSheetState extends State<ArchivoManagerBottomSheet> {
         );
       } else if (archivo.urlThumbnail != null || archivo.url != null) {
         // Imagen del servidor
-        return Image.network(
-          archivo.urlThumbnail ?? archivo.url!,
+        return CachedNetworkImage(
+          imageUrl: archivo.urlThumbnail ?? archivo.url!,
           fit: BoxFit.cover,
-          loadingBuilder: (context, child, loadingProgress) {
-            if (loadingProgress == null) return child;
-            return Center(
-              child: CircularProgressIndicator(
-                value: loadingProgress.expectedTotalBytes != null
-                    ? loadingProgress.cumulativeBytesLoaded /
-                        loadingProgress.expectedTotalBytes!
-                    : null,
-              ),
-            );
-          },
-          errorBuilder: (context, error, stackTrace) => _buildPlaceholder(archivo),
+          placeholder: (context, url) => const Center(
+            child: CircularProgressIndicator(),
+          ),
+          errorWidget: (context, url, error) => _buildPlaceholder(archivo),
         );
       }
     }
@@ -1144,26 +1137,18 @@ class _ImageViewerDialogState extends State<_ImageViewerDialog> {
       );
     } else if (widget.archivo.url != null) {
       // Imagen remota
-      return Image.network(
-        widget.archivo.url!,
+      return CachedNetworkImage(
+        imageUrl: widget.archivo.url!,
         fit: BoxFit.contain,
         filterQuality: FilterQuality.high,
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) return child;
-          return Container(
-            height: 300,
-            color: Colors.grey.shade200,
-            child: Center(
-              child: CircularProgressIndicator(
-                value: loadingProgress.expectedTotalBytes != null
-                    ? loadingProgress.cumulativeBytesLoaded /
-                        loadingProgress.expectedTotalBytes!
-                    : null,
-              ),
-            ),
-          );
-        },
-        errorBuilder: (context, error, stackTrace) {
+        placeholder: (context, url) => Container(
+          height: 300,
+          color: Colors.grey.shade200,
+          child: const Center(
+            child: CircularProgressIndicator(),
+          ),
+        ),
+        errorWidget: (context, url, error) {
           return Container(
             height: 300,
             color: Colors.grey.shade200,

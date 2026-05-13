@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -659,12 +660,13 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
                         if (producto.marca.logo != null) ...[
                           ClipRRect(
                             borderRadius: BorderRadius.circular(4),
-                            child: Image.network(
-                              producto.marca.logo!,
+                            child: CachedNetworkImage(
+                              imageUrl: producto.marca.logo!,
                               width: 24,
                               height: 24,
                               fit: BoxFit.contain,
-                              errorBuilder: (context, error, stackTrace) {
+                              placeholder: (_, __) => const SizedBox.shrink(),
+                              errorWidget: (context, url, error) {
                                 return const Icon(Icons.business, size: 24);
                               },
                             ),

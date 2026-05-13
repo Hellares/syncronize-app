@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
@@ -724,12 +725,16 @@ class SedeFormFields extends StatelessWidget {
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(8),
-                        child: Image.network(
-                          imagenes[index],
+                        child: CachedNetworkImage(
+                          imageUrl: imagenes[index],
                           width: 80,
                           height: 80,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
+                          placeholder: (_, __) => Container(
+                            width: 80, height: 80,
+                            color: Colors.grey[200],
+                          ),
+                          errorWidget: (_, __, ___) => Container(
                             width: 80, height: 80,
                             color: Colors.grey[200],
                             child: const Icon(Icons.image, size: 24),

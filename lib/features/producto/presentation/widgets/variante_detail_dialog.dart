@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:syncronize/core/fonts/app_fonts.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
@@ -306,12 +307,16 @@ class _VarianteDetailContentState extends State<_VarianteDetailContent> {
           topLeft: Radius.circular(8),
           topRight: Radius.circular(8),
         ),
-        child: Image.network(
-          imagenes.first.url,
+        child: CachedNetworkImage(
+          imageUrl: imagenes.first.url,
           height: 180,
           width: double.infinity,
           fit: BoxFit.contain,
-          errorBuilder: (context, error, stackTrace) => Container(
+          placeholder: (_, __) => Container(
+            height: 100,
+            color: Colors.grey[200],
+          ),
+          errorWidget: (context, url, error) => Container(
             height: 100,
             color: Colors.grey[200],
             child: Icon(Icons.inventory_2_outlined, size: 48, color: Colors.grey[400]),
@@ -336,11 +341,12 @@ class _VarianteDetailContentState extends State<_VarianteDetailContent> {
                 setState(() => _currentImageIndex = index);
               },
               itemBuilder: (context, index) {
-                return Image.network(
-                  imagenes[index].url,
+                return CachedNetworkImage(
+                  imageUrl: imagenes[index].url,
                   width: double.infinity,
                   fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) => Container(
+                  placeholder: (_, __) => Container(color: Colors.grey[200]),
+                  errorWidget: (context, url, error) => Container(
                     color: Colors.grey[200],
                     child: Icon(Icons.inventory_2_outlined, size: 48, color: Colors.grey[400]),
                   ),
