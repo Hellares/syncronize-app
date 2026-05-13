@@ -48,6 +48,13 @@ class VentaRapidaState extends Equatable {
   /// precioCliente, precioServer, nivelAplicado?}.
   final List<Map<String, dynamic>>? preciosDesactualizados;
 
+  /// Lista de productos sin stock suficiente al momento del cobro
+  /// (otro cajero los vendió, hubo merma, transferencia, etc).
+  ///
+  /// Cada item: {descripcion, productoId?, varianteId?, comboId?,
+  /// cantidadSolicitada, stockDisponible}.
+  final List<Map<String, dynamic>>? stockInsuficiente;
+
   const VentaRapidaState({
     this.empresaId,
     this.sedeId,
@@ -69,6 +76,7 @@ class VentaRapidaState extends Equatable {
     this.ventaCompletadaId,
     this.comboPendienteOferta,
     this.preciosDesactualizados,
+    this.stockInsuficiente,
   });
 
   // Totales calculados
@@ -112,6 +120,8 @@ class VentaRapidaState extends Equatable {
     bool clearComboPendienteOferta = false,
     List<Map<String, dynamic>>? preciosDesactualizados,
     bool clearPreciosDesactualizados = false,
+    List<Map<String, dynamic>>? stockInsuficiente,
+    bool clearStockInsuficiente = false,
   }) {
     return VentaRapidaState(
       empresaId: empresaId ?? this.empresaId,
@@ -140,6 +150,9 @@ class VentaRapidaState extends Equatable {
       preciosDesactualizados: clearPreciosDesactualizados
           ? null
           : (preciosDesactualizados ?? this.preciosDesactualizados),
+      stockInsuficiente: clearStockInsuficiente
+          ? null
+          : (stockInsuficiente ?? this.stockInsuficiente),
     );
   }
 
@@ -149,6 +162,6 @@ class VentaRapidaState extends Equatable {
         items, tipoComprobante, clienteGenerico, clienteId, clienteEmpresaId,
         tipoDocCliente, numeroDocCliente, nombreClienteResuelto, buscandoCliente,
         pagos, procesando, error, ventaCompletadaId, comboPendienteOferta,
-        preciosDesactualizados,
+        preciosDesactualizados, stockInsuficiente,
       ];
 }

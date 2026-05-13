@@ -43,9 +43,10 @@ class VentaRapidaRepositoryImpl implements VentaRapidaRepository {
     }
   }
 
-  /// Devuelve un `Error<Venta>` con `errorCode: PRECIO_DESACTUALIZADO` y
-  /// las divergencias si la excepción dada representa un 409 del backend.
-  /// Si no es ese caso, devuelve null y el caller cae al handler genérico.
+  /// Devuelve un `Error<Venta>` con un `errorCode` estructurado si la
+  /// excepción representa un 409 del backend con `code:
+  /// PRECIO_DESACTUALIZADO` o `STOCK_INSUFICIENTE`. Si no es ninguno,
+  /// devuelve null y el caller cae al handler genérico.
   Error<Venta>? _extractPriceConflict(Object e) {
     Map<String, dynamic>? body;
     String? message;
@@ -67,7 +68,11 @@ class VentaRapidaRepositoryImpl implements VentaRapidaRepository {
       }
     }
 
-    if (body == null || body['code'] != 'PRECIO_DESACTUALIZADO') return null;
+    if (body == null) return null;
+    final code = body['code'];
+    if (code != 'PRECIO_DESACTUALIZADO' && code != 'STOCK_INSUFICIENTE') {
+      return null;
+    }
 
     final divergencias = body['divergencias'] is List
         ? List<Map<String, dynamic>>.from(
@@ -79,9 +84,11 @@ class VentaRapidaRepositoryImpl implements VentaRapidaRepository {
     return Error(
       (body['message'] as String?) ??
           message ??
-          'Los precios cambiaron. Refrescá el carrito.',
+          (code == 'STOCK_INSUFICIENTE'
+              ? 'Stock insuficiente. Ajustá el carrito.'
+              : 'Los precios cambiaron. Refrescá el carrito.'),
       statusCode: 409,
-      errorCode: 'PRECIO_DESACTUALIZADO',
+      errorCode: code as String,
       details: {'divergencias': divergencias},
     );
   }

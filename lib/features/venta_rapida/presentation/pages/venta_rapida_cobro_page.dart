@@ -568,6 +568,12 @@ class _CobroViewState extends State<_CobroView> {
           _mostrarDialogPreciosDesactualizados(
             context, state.preciosDesactualizados!);
         }
+        if (state.stockInsuficiente != null) {
+          // El backend rechazó la venta porque otro cajero vendió ese
+          // stock primero. Mostrar dialog con cantidades pedidas vs
+          // disponibles + acción "Ajustar al disponible".
+          _mostrarDialogStockInsuficiente(context, state.stockInsuficiente!);
+        }
         if (state.error != null) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -1165,10 +1171,174 @@ class _CobroViewState extends State<_CobroView> {
       cubit.descartarAvisoPreciosDesactualizados();
     }
   }
+
+  /// Muestra un dialog cuando el backend rechaza el cobro con
+  /// `STOCK_INSUFICIENTE` (otro cajero vendió ese stock antes, o hubo
+  /// merma/transferencia mientras tanto). Lista los productos afectados
+  /// con la cantidad pedida vs la disponible y ofrece dos acciones:
+  ///  - "Ajustar al disponible": cambia la cantidad de cada item al
+  ///    stock real (o lo elimina si el disponible es 0).
+  ///  - "Cancelar": mantiene el carrito; útil si el cajero ya hizo el
+  ///    cobro físico y necesita resolver la operación manualmente.
+  Future<void> _mostrarDialogStockInsuficiente(
+    BuildContext context,
+    List<Map<String, dynamic>> divergencias,
+  ) async {
+    final accion = await showDialog<_AccionStock>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.inventory_2_outlined,
+                color: Colors.red.shade700, size: 22),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Text(
+                'Stock insuficiente',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: 320,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                divergencias.length == 1
+                    ? '1 producto sin stock suficiente:'
+                    : '${divergencias.length} productos sin stock suficiente:',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+              ),
+              const SizedBox(height: 10),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 260),
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: divergencias.map((d) {
+                      final desc = (d['descripcion'] as String?) ?? 'Item';
+                      final pedida = (d['cantidadSolicitada'] as num?)
+                              ?.toDouble() ??
+                          0;
+                      final disp =
+                          (d['stockDisponible'] as num?)?.toInt() ?? 0;
+                      final sinStock = disp <= 0;
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 6),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: sinStock
+                              ? Colors.red.shade50
+                              : Colors.orange.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: sinStock
+                                ? Colors.red.shade200
+                                : Colors.orange.shade200,
+                            width: 0.5,
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              desc,
+                              style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600),
+                            ),
+                            const SizedBox(height: 2),
+                            Row(
+                              children: [
+                                Text(
+                                  'Pediste ${pedida.toStringAsFixed(pedida.truncateToDouble() == pedida ? 0 : 2)}  ·  ',
+                                  style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.grey.shade700),
+                                ),
+                                Icon(Icons.arrow_forward,
+                                    size: 12,
+                                    color: sinStock
+                                        ? Colors.red.shade700
+                                        : Colors.orange.shade700),
+                                const SizedBox(width: 4),
+                                Text(
+                                  sinStock
+                                      ? 'Sin stock'
+                                      : 'Disponible: $disp',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: sinStock
+                                        ? Colors.red.shade700
+                                        : Colors.orange.shade800,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () =>
+                Navigator.pop(dialogCtx, _AccionStock.cancelar),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(dialogCtx, _AccionStock.ajustar),
+            icon: const Icon(Icons.tune, size: 16),
+            label: const Text('Ajustar al disponible'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.blue1,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (!context.mounted) return;
+    final cubit = context.read<VentaRapidaCubit>();
+    if (accion == _AccionStock.ajustar) {
+      await cubit.ajustarCarritoAStockDisponible();
+      if (!context.mounted) return;
+      // También refrescar el catálogo para que las cards reflejen el
+      // stock real (otra venta lo bajó).
+      try {
+        context.read<ProductoListCubit>().reload();
+      } catch (_) {/* cubit puede no estar en el árbol */}
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+              'Carrito ajustado al stock disponible. Revisá y volvé a cobrar.'),
+          backgroundColor: Colors.orange.shade700,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    } else {
+      cubit.descartarAvisoStockInsuficiente();
+    }
+  }
 }
 
 /// Acción elegida en el dialog de precios desactualizados.
 enum _AccionPrecios { aplicar, cancelar }
+
+/// Acción elegida en el dialog de stock insuficiente.
+enum _AccionStock { ajustar, cancelar }
 
 class _BotonBuscarDocumento extends StatelessWidget {
   final bool habilitado;

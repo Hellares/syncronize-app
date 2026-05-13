@@ -657,9 +657,11 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
         ventaCompletadaId: result.data.id,
       ));
     } else if (result is Error<Venta>) {
-      // Si el backend rechazó la venta porque el precio cambió, exponer
-      // las divergencias en el state para que la UI muestre dialog con
-      // botón "Refrescar carrito" en vez de un snackbar de error genérico.
+      // Errores estructurados del backend que abren un dialog específico:
+      //  - PRECIO_DESACTUALIZADO: admin cambió precio/nivel mientras se
+      //    armaba el carrito → ofrecer aplicar precios nuevos.
+      //  - STOCK_INSUFICIENTE: otro cajero vendió ese stock antes → ofrecer
+      //    ajustar la cantidad al disponible (o cancelar).
       if (result.errorCode == 'PRECIO_DESACTUALIZADO') {
         final divergencias = (result.details?['divergencias'] as List?)
                 ?.whereType<Map>()
@@ -669,6 +671,18 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
         emit(state.copyWith(
           procesando: false,
           preciosDesactualizados: divergencias,
+        ));
+        return;
+      }
+      if (result.errorCode == 'STOCK_INSUFICIENTE') {
+        final divergencias = (result.details?['divergencias'] as List?)
+                ?.whereType<Map>()
+                .map((m) => Map<String, dynamic>.from(m))
+                .toList() ??
+            <Map<String, dynamic>>[];
+        emit(state.copyWith(
+          procesando: false,
+          stockInsuficiente: divergencias,
         ));
         return;
       }
@@ -752,6 +766,93 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
   /// Solo limpia el flag, mantiene los items con su precio cliente original.
   void descartarAvisoPreciosDesactualizados() {
     emit(state.copyWith(clearPreciosDesactualizados: true));
+  }
+
+  /// Ajusta las cantidades del carrito al stock disponible que el backend
+  /// reportó en el 409 STOCK_INSUFICIENTE. Para cada divergencia:
+  ///  - Si `stockDisponible == 0` → quita el item del carrito.
+  ///  - Si > 0 → reemplaza la cantidad por el disponible y recalcula
+  ///    precio según niveles (porque la nueva cantidad puede caer fuera
+  ///    de un nivel "Por Mayor").
+  /// También refresca el cache de niveles del producto por si el admin
+  /// también tocó algún nivel mientras tanto.
+  Future<void> ajustarCarritoAStockDisponible() async {
+    final divergencias = state.stockInsuficiente;
+    if (divergencias == null || divergencias.isEmpty) {
+      emit(state.copyWith(clearStockInsuficiente: true));
+      return;
+    }
+
+    String keyFor(String? prodId, String? varId, String? comboId) =>
+        '${prodId ?? comboId ?? ''}::${varId ?? ''}';
+
+    final mapaDisponibles = <String, int>{};
+    for (final d in divergencias) {
+      final k = keyFor(d['productoId'] as String?, d['varianteId'] as String?,
+          d['comboId'] as String?);
+      final s = d['stockDisponible'];
+      if (s is num) mapaDisponibles[k] = s.toInt();
+    }
+
+    // Re-fetch niveles de los productos afectados (defensive — el admin
+    // pudo haber cambiado niveles también; el recalculo del precio
+    // necesita la config actual).
+    final productosAfectados = divergencias
+        .map((d) => d['productoId'] as String?)
+        .whereType<String>()
+        .toSet();
+    for (final pid in productosAfectados) {
+      _nivelCacheService.invalidate(pid);
+    }
+    final fetched = await Future.wait(
+      productosAfectados.map(
+        (pid) =>
+            _nivelCacheService.getNiveles(pid).then((n) => MapEntry(pid, n)),
+      ),
+    );
+    final nivelesPorProducto = Map<String, List<PrecioNivel>>.fromEntries(
+      fetched,
+    );
+
+    // Ajustar cada item: quitar si stockDisponible=0, sino recalcular
+    // con nueva cantidad y niveles frescos.
+    final nuevos = <VentaDetalleInput>[];
+    for (final item in state.items) {
+      final k = keyFor(item.productoId, item.varianteId, null);
+      final disponible = mapaDisponibles[k];
+      if (disponible == null) {
+        nuevos.add(item);
+        continue;
+      }
+      if (disponible <= 0) {
+        // Cero stock → quitar del carrito.
+        continue;
+      }
+      final nivelesNuevos = item.productoId != null
+          ? (nivelesPorProducto[item.productoId!] ?? item.niveles)
+          : item.niveles;
+      nuevos.add(
+        item
+            .copyWith(
+              cantidad: disponible.toDouble(),
+              niveles: nivelesNuevos,
+              stockDisponible: disponible,
+            )
+            .recalcularPrecioPorNiveles(disponible.toDouble()),
+      );
+    }
+
+    emit(state.copyWith(
+      items: nuevos,
+      clearStockInsuficiente: true,
+    ));
+  }
+
+  /// El cajero cancela el cobro tras ver el dialog de stock insuficiente.
+  /// Mantiene el carrito como está — el cajero quizás quiere comunicar al
+  /// cliente que esos productos no están y resolver manualmente.
+  void descartarAvisoStockInsuficiente() {
+    emit(state.copyWith(clearStockInsuficiente: true));
   }
 
   void clearError() {
