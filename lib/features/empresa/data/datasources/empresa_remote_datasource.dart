@@ -141,7 +141,7 @@ class EmpresaRemoteDataSource {
   Future<Map<String, dynamic>?> getPlanLimitsInfo(String empresaId) async {
     try {
       final response = await _dioClient.get(
-        '/productos/atributos-plantillas/limits-info',
+        '/producto-atributo-plantillas/limits-info',
       );
       return response.data as Map<String, dynamic>?;
     } catch (_) {

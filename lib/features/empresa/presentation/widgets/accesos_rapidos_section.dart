@@ -228,14 +228,6 @@ class AccesosRapidosSection extends StatelessWidget {
           route: '/empresa/guias-remision',
           puedeVer: (p) => p.canManageInvoices,
         ),
-        _AccesoItem(
-          id: AccesosRapidosCatalogo.config,
-          icon: Icons.settings,
-          label: 'Config',
-          color: Colors.grey.shade600,
-          route: '/empresa/configuracion',
-          puedeVer: (p) => p.canManageSettings,
-        ),
       ];
   }
 

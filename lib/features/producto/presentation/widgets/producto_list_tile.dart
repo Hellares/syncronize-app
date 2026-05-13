@@ -280,7 +280,7 @@ class ProductoListTile extends StatelessWidget {
               child: Text(
                 producto.nombre,
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 10,
                   fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
                   fontWeight: FontWeight.bold,
                 ),

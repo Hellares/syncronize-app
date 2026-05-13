@@ -296,7 +296,7 @@ class _EmpresaDashboardPageState extends State<EmpresaDashboardPage> {
 
           return SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(8),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
