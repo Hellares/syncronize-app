@@ -5,6 +5,7 @@ import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/app_gradients.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/features/auth/presentation/widgets/custom_button.dart';
+import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 
 import '../../domain/entities/usuario.dart';
 import '../bloc/usuario_list/usuario_list_cubit.dart';
@@ -562,8 +563,8 @@ class UsuarioDetailSheet extends StatelessWidget {
     );
   }
 
-  /// Dialog mínimo para asignar/cambiar/limpiar el alias del usuario que
-  /// se imprime en tickets. Reusa `cubit.updateUsuario` con un body parcial
+  /// Dialog para asignar/cambiar/limpiar el alias del usuario que se
+  /// imprime en tickets. Reusa `cubit.updateUsuario` con un body parcial
   /// `{aliasTicket: ...}` — el endpoint PATCH /usuarios/:id ya lo acepta.
   Future<void> _showEditarAliasDialog(BuildContext context) async {
     final controller = TextEditingController(text: usuario.aliasTicket ?? '');
@@ -571,58 +572,151 @@ class UsuarioDetailSheet extends StatelessWidget {
 
     final result = await showDialog<String?>(
       context: context,
-      builder: (dialogCtx) => AlertDialog(
+      barrierColor: Colors.black.withValues(alpha: 0.5),
+      builder: (dialogCtx) => Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Alias para ticket',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-        content: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Lo verá el cliente en su ticket en lugar del nombre completo. '
-                'Dejalo vacío para mostrar el nombre.',
-                style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: controller,
-                autofocus: true,
-                maxLength: 30,
-                textCapitalization: TextCapitalization.words,
-                decoration: const InputDecoration(
-                  border: OutlineInputBorder(),
-                  hintText: 'JP, Caja 1, Juana...',
-                  isDense: true,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            gradient: AppGradients.blueWhiteBlue(),
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+          child: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header con icono + título
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(7),
+                      decoration: BoxDecoration(
+                        color: AppColors.blue1.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(Icons.badge_outlined,
+                          size: 16, color: AppColors.blue1),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Alias para ticket',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.blue1,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                validator: (v) {
-                  final trimmed = (v ?? '').trim();
-                  if (trimmed.length > 30) return 'Máximo 30 caracteres';
-                  return null;
-                },
-              ),
-            ],
+                const SizedBox(height: 4),
+                Padding(
+                  padding: const EdgeInsets.only(left: 38),
+                  child: Text(
+                    usuario.nombreCompleto,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.grey.shade600,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                // Mensaje explicativo
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: Colors.amber.withValues(alpha: 0.35),
+                      width: 0.5,
+                    ),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.info_outline,
+                          size: 12, color: Colors.amber.shade800),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Lo verá el cliente en el ticket en lugar del '
+                          'nombre completo. Dejalo vacío para mostrar el '
+                          'nombre real.',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey.shade800,
+                            height: 1.3,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+                // Input
+                CustomText(
+                  controller: controller,
+                  label: 'Alias',
+                  hintText: 'JP, Caja 1, Juana...',
+                  borderColor: AppColors.blue1,
+                  maxLength: 30,
+                  textCase: TextCase.normal,
+                  prefixIcon: Icon(Icons.short_text,
+                      size: 16, color: AppColors.blue1),
+                  validator: (v) {
+                    final trimmed = (v ?? '').trim();
+                    if (trimmed.length > 30) return 'Máximo 30 caracteres';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 14),
+                // Botones
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(dialogCtx),
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.grey.shade600,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 8),
+                      ),
+                      child: const Text(
+                        'Cancelar',
+                        style: TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // CustomButton internamente usa `SizedBox(double.infinity)`,
+                    // así que requiere un ancho acotado cuando vive dentro de
+                    // un Row.
+                    SizedBox(
+                      width: 130,
+                      child: CustomButton(
+                        text: 'Guardar',
+                        backgroundColor: AppColors.blue1,
+                        fontSize: 12,
+                        icon: const Icon(Icons.check, size: 14),
+                        onPressed: () {
+                          if (!formKey.currentState!.validate()) return;
+                          Navigator.pop(dialogCtx, controller.text.trim());
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogCtx),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (!formKey.currentState!.validate()) return;
-              Navigator.pop(dialogCtx, controller.text.trim());
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.blue1,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Guardar'),
-          ),
-        ],
       ),
     );
 
