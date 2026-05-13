@@ -271,6 +271,10 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // resizeToAvoidBottomInset queda en true (default) para que el body
+      // no se quede tapado por el teclado, pero el botón sticky vive en
+      // bottomNavigationBar para que se quede fijo abajo y el teclado pase
+      // por delante (no lo empuje hacia arriba sobre el formulario).
       appBar: SmartAppBar(
         title: 'Nueva Orden de Servicio',
         backgroundColor: AppColors.blue1,
@@ -280,30 +284,24 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
           ? const Center(child: CircularProgressIndicator())
           : Form(
               key: _formKey,
-              child: Column(
-                children: [
-                  Expanded(
-                    child: GradientContainer(
-                      child: ListView(
-                        padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-                        children: [
-                          _buildClienteCard(),
-                          const SizedBox(height: 8),
-                          _buildEquipoInlineSection(),
-                          const SizedBox(height: 8),
-                          _buildServicioInlineSection(),
-                          const SizedBox(height: 8),
-                          _buildDatosCard(),
-                          const SizedBox(height: 8),
-                          _buildNotasCard(),
-                        ],
-                      ),
-                    ),
-                  ),
-                  _buildSubmitBar(),
-                ],
+              child: GradientContainer(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+                  children: [
+                    _buildClienteCard(),
+                    const SizedBox(height: 8),
+                    _buildEquipoInlineSection(),
+                    const SizedBox(height: 8),
+                    _buildServicioInlineSection(),
+                    const SizedBox(height: 8),
+                    _buildDatosCard(),
+                    const SizedBox(height: 8),
+                    _buildNotasCard(),
+                  ],
+                ),
               ),
             ),
+      bottomNavigationBar: _isLoading ? null : _buildSubmitBar(),
     );
   }
 
@@ -328,7 +326,7 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
     }
     return _OrdenSeccionCard(
       icon: Icons.person_search,
-      title: 'Cliente',
+      title: 'CLIENTE',
       subtitle: subtitle,
       state: _isClienteValid ? _SeccionState.complete : _SeccionState.required,
       // Sin cliente → directo al selector (1 sheet en vez de 2).
@@ -359,7 +357,7 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
       padding: const EdgeInsets.fromLTRB(8, 10, 8, 10),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(6),
         border: Border.all(color: borderColor, width: 0.8),
       ),
       child: Column(
@@ -369,15 +367,15 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
           Row(
             children: [
               Container(
-                width: 30,
-                height: 30,
+                width: 26,
+                height: 26,
                 decoration: BoxDecoration(
                   color: AppColors.bluechip.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(6),
                 ),
-                child: Icon(Icons.devices, color: AppColors.blue1, size: 16),
+                child: Icon(Icons.devices, color: AppColors.blue1, size: 14),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 6),
               Expanded(
                 child: Text(
                   tituloSeccion,
@@ -394,7 +392,7 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
                     color: Colors.orange.shade700, size: 16),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           // Tipo + Marca en una fila
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -422,7 +420,7 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           CustomText(
             controller: _numeroSerieController,
             label: labelSerie,
@@ -430,7 +428,7 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
             borderColor: AppColors.blue1,
             prefixIcon: const Icon(Icons.qr_code_outlined),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           CustomText(
             controller: _condicionEquipoController,
             label: labelCondicion,
@@ -457,7 +455,7 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
       padding: const EdgeInsets.fromLTRB(8, 10, 8, 10),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(6),
         border: Border.all(color: borderColor, width: 0.8),
       ),
       child: Column(
@@ -467,18 +465,18 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
           Row(
             children: [
               Container(
-                width: 30,
-                height: 30,
+                width: 26,
+                height: 26,
                 decoration: BoxDecoration(
                   color: AppColors.bluechip.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(6),
                 ),
-                child: Icon(Icons.handyman, color: AppColors.blue1, size: 16),
+                child: Icon(Icons.handyman, color: AppColors.blue1, size: 14),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 6),
               const Expanded(
                 child: Text(
-                  'Servicio',
+                  'SERVICIO',
                   style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500),
                 ),
               ),
@@ -489,7 +487,7 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
                     color: Colors.orange.shade700, size: 16),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           // Servicio del catálogo (opcional) — carga plantilla
           if (_cargandoServicios)
             const Padding(
@@ -528,7 +526,7 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
                 }
               },
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
           ],
           // Tipo + Prioridad en una sola fila
           Row(
@@ -579,7 +577,7 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           CustomText(
             controller: _descripcionProblemaController,
             label: 'Descripción del problema',
@@ -788,7 +786,7 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
               color: Colors.green.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(6),
               border: Border.all(color: Colors.green.withValues(alpha: 0.25)),
             ),
             child: Row(
@@ -831,7 +829,7 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
               ],
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           // Info card
           Container(
             width: double.infinity,
@@ -1269,28 +1267,28 @@ class _OrdenSeccionCard extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(6),
         child: Opacity(
           opacity: onTap == null ? 0.5 : 1,
           child: Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(6),
               border: Border.all(color: borderColor, width: 0.8),
             ),
             child: Row(
               children: [
                 Container(
-                  width: 30,
-                  height: 30,
+                  width: 26,
+                  height: 26,
                   decoration: BoxDecoration(
                     color: AppColors.bluechip.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(6),
                   ),
                   child: Icon(icon, color: AppColors.blue1, size: 16),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
