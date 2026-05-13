@@ -1,5 +1,7 @@
+import 'package:dio/dio.dart';
 import 'package:injectable/injectable.dart';
 
+import '../../../../core/errors/exceptions.dart';
 import '../../../../core/network/network_info.dart';
 import '../../../../core/services/error_handler_service.dart';
 import '../../../../core/utils/resource.dart';
@@ -28,8 +30,60 @@ class VentaRapidaRepositoryImpl implements VentaRapidaRepository {
       final venta = await _remote.cobrar(data);
       return Success(venta.toEntity());
     } catch (e) {
+      // Detección del 409 `PRECIO_DESACTUALIZADO` antes del handler
+      // genérico. El error real que llega al catch es un `DioException`
+      // (Dio lo re-envuelve cuando el interceptor `throw`s) con
+      // `error: ServerException` adentro. Por eso desempaquetamos:
+      //   - Si es DioException con error ServerException → leer esa.
+      //   - Si es DioException con response 409 → leer response.data directo.
+      //   - Si es ServerException directa → leer su `data`.
+      final priceConflict = _extractPriceConflict(e);
+      if (priceConflict != null) return priceConflict;
       return _errorHandler.handleException(e, context: 'VentaRapida');
     }
+  }
+
+  /// Devuelve un `Error<Venta>` con `errorCode: PRECIO_DESACTUALIZADO` y
+  /// las divergencias si la excepción dada representa un 409 del backend.
+  /// Si no es ese caso, devuelve null y el caller cae al handler genérico.
+  Error<Venta>? _extractPriceConflict(Object e) {
+    Map<String, dynamic>? body;
+    String? message;
+
+    if (e is DioException) {
+      if (e.response?.statusCode == 409 && e.response?.data is Map) {
+        body = Map<String, dynamic>.from(e.response!.data as Map);
+      } else if (e.error is ServerException) {
+        final inner = e.error as ServerException;
+        if (inner.statusCode == 409 && inner.data != null) {
+          body = inner.data;
+          message = inner.message;
+        }
+      }
+    } else if (e is ServerException) {
+      if (e.statusCode == 409 && e.data != null) {
+        body = e.data;
+        message = e.message;
+      }
+    }
+
+    if (body == null || body['code'] != 'PRECIO_DESACTUALIZADO') return null;
+
+    final divergencias = body['divergencias'] is List
+        ? List<Map<String, dynamic>>.from(
+            (body['divergencias'] as List)
+                .whereType<Map>()
+                .map((m) => Map<String, dynamic>.from(m)),
+          )
+        : <Map<String, dynamic>>[];
+    return Error(
+      (body['message'] as String?) ??
+          message ??
+          'Los precios cambiaron. Refrescá el carrito.',
+      statusCode: 409,
+      errorCode: 'PRECIO_DESACTUALIZADO',
+      details: {'divergencias': divergencias},
+    );
   }
 
   @override

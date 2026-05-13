@@ -108,9 +108,22 @@ class ErrorInterceptor extends Interceptor {
         );
 
       case 409:
+        // Propagar el body original cuando es un Map para que el catch
+        // del repository pueda leer códigos estructurados como
+        // `code: PRECIO_DESACTUALIZADO` y abrir un dialog específico
+        // en lugar de un snackbar de error genérico.
+        //
+        // OJO: usamos `is Map` (no `Map<String, dynamic>`) porque algunos
+        // releases de Dio devuelven `Map<dynamic, dynamic>` y el cast
+        // estricto fallaría.
+        Map<String, dynamic>? errorData;
+        if (err.response?.data is Map) {
+          errorData = Map<String, dynamic>.from(err.response!.data as Map);
+        }
         throw ServerException(
           message: sanitizedMessage,
           statusCode: statusCode,
+          data: errorData,
         );
 
       case 422:

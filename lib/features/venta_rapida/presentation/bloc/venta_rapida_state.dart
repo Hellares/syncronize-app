@@ -39,6 +39,15 @@ class VentaRapidaState extends Equatable {
   /// confirma → `confirmarComboPendiente()`. Si cancela → `cancelarComboPendiente()`.
   final Combo? comboPendienteOferta;
 
+  /// Lista de productos cuyo precio cambió en el backend entre el momento
+  /// que el cajero los agregó al carrito y el momento del cobro. Cuando
+  /// no es null, la UI muestra un dialog con la lista (precio viejo vs
+  /// nuevo) y pide refrescar antes de reintentar.
+  ///
+  /// Cada item: {descripcion, productoId?, varianteId?, comboId?, cantidad,
+  /// precioCliente, precioServer, nivelAplicado?}.
+  final List<Map<String, dynamic>>? preciosDesactualizados;
+
   const VentaRapidaState({
     this.empresaId,
     this.sedeId,
@@ -59,6 +68,7 @@ class VentaRapidaState extends Equatable {
     this.error,
     this.ventaCompletadaId,
     this.comboPendienteOferta,
+    this.preciosDesactualizados,
   });
 
   // Totales calculados
@@ -100,6 +110,8 @@ class VentaRapidaState extends Equatable {
     bool clearVentaCompletada = false,
     Combo? comboPendienteOferta,
     bool clearComboPendienteOferta = false,
+    List<Map<String, dynamic>>? preciosDesactualizados,
+    bool clearPreciosDesactualizados = false,
   }) {
     return VentaRapidaState(
       empresaId: empresaId ?? this.empresaId,
@@ -125,6 +137,9 @@ class VentaRapidaState extends Equatable {
       comboPendienteOferta: clearComboPendienteOferta
           ? null
           : (comboPendienteOferta ?? this.comboPendienteOferta),
+      preciosDesactualizados: clearPreciosDesactualizados
+          ? null
+          : (preciosDesactualizados ?? this.preciosDesactualizados),
     );
   }
 
@@ -134,5 +149,6 @@ class VentaRapidaState extends Equatable {
         items, tipoComprobante, clienteGenerico, clienteId, clienteEmpresaId,
         tipoDocCliente, numeroDocCliente, nombreClienteResuelto, buscandoCliente,
         pagos, procesando, error, ventaCompletadaId, comboPendienteOferta,
+        preciosDesactualizados,
       ];
 }

@@ -17,6 +17,7 @@ import '../../../../core/widgets/pagos_section_widget.dart'
         requiereBancoPago,
         umbralBancarizacionPen;
 import '../../../auth/presentation/widgets/custom_text.dart';
+import '../../../producto/presentation/bloc/producto_list/producto_list_cubit.dart';
 import '../bloc/venta_rapida_cubit.dart';
 
 /// Medio centavo: error máximo de redondeo a 2 decimales en PEN. Se usa para
@@ -559,6 +560,14 @@ class _CobroViewState extends State<_CobroView> {
   Widget build(BuildContext context) {
     return BlocConsumer<VentaRapidaCubit, VentaRapidaState>(
       listener: (context, state) {
+        if (state.preciosDesactualizados != null) {
+          // El backend rechazó la venta porque el precio cambió. Mostrar
+          // dialog con la lista de productos afectados (cantidad, precio
+          // viejo vs nuevo) y dos opciones: aplicar los nuevos precios al
+          // carrito o cancelar.
+          _mostrarDialogPreciosDesactualizados(
+            context, state.preciosDesactualizados!);
+        }
         if (state.error != null) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -977,7 +986,189 @@ class _CobroViewState extends State<_CobroView> {
     if (metodoElegido == null || !context.mounted) return;
     _agregarOtraFila(metodoElegido);
   }
+
+  /// Muestra un dialog con la lista de productos cuyo precio cambió en el
+  /// backend mientras el cajero tenía el carrito armado (admin actualizó el
+  /// precio). El cajero puede elegir:
+  ///  - "Actualizar precios": aplica los precios nuevos al carrito (los
+  ///    items quedan recalculados con los niveles según la cantidad). El
+  ///    cajero ve el nuevo total y decide si reintentar el cobro.
+  ///  - "Cancelar": cierra el dialog sin tocar el carrito. Sirve si el
+  ///    cajero ya cobró al cliente en efectivo con el precio viejo y
+  ///    necesita resolver la diferencia manualmente antes.
+  /// El dialog NO reintenta el cobro automáticamente — la decisión vuelve
+  /// al cajero para evitar cargos no deseados.
+  Future<void> _mostrarDialogPreciosDesactualizados(
+    BuildContext context,
+    List<Map<String, dynamic>> divergencias,
+  ) async {
+    final accion = await showDialog<_AccionPrecios>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.warning_amber_rounded,
+                color: Colors.orange.shade700, size: 22),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Text(
+                'Precios actualizados',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: 320,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                divergencias.length == 1
+                    ? '1 producto del carrito tiene un precio nuevo:'
+                    : '${divergencias.length} productos del carrito tienen precios nuevos:',
+                style: TextStyle(
+                    fontSize: 12, color: Colors.grey.shade700),
+              ),
+              const SizedBox(height: 10),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 240),
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: divergencias.map((d) {
+                      final desc = (d['descripcion'] as String?) ?? 'Item';
+                      final viejo = (d['precioCliente'] as num?)?.toDouble() ?? 0;
+                      final nuevo = (d['precioServer'] as num?)?.toDouble() ?? 0;
+                      final cant = (d['cantidad'] as num?)?.toDouble() ?? 0;
+                      final subio = nuevo > viejo;
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 6),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                              color: Colors.grey.shade200, width: 0.5),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              desc,
+                              style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600),
+                            ),
+                            const SizedBox(height: 2),
+                            Row(
+                              children: [
+                                Text(
+                                  '${cant.toStringAsFixed(cant.truncateToDouble() == cant ? 0 : 2)} u  ·  ',
+                                  style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.grey.shade600),
+                                ),
+                                Text(
+                                  'S/ ${viejo.toStringAsFixed(2)}',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey.shade600,
+                                    decoration: TextDecoration.lineThrough,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Icon(
+                                  subio
+                                      ? Icons.arrow_upward
+                                      : Icons.arrow_downward,
+                                  size: 12,
+                                  color: subio
+                                      ? Colors.red.shade600
+                                      : Colors.green.shade700,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'S/ ${nuevo.toStringAsFixed(2)}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: subio
+                                        ? Colors.red.shade700
+                                        : Colors.green.shade700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () =>
+                Navigator.pop(dialogCtx, _AccionPrecios.cancelar),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () =>
+                Navigator.pop(dialogCtx, _AccionPrecios.aplicar),
+            icon: const Icon(Icons.refresh, size: 16),
+            label: const Text('Actualizar precios'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.blue1,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (!context.mounted) return;
+    final cubit = context.read<VentaRapidaCubit>();
+    if (accion == _AccionPrecios.aplicar) {
+      // `aplicarPreciosNuevosDeBackend` ahora es async porque también
+      // re-fetchea los niveles (Por Mayor, Por Cientos, etc.) por si el
+      // admin los cambió. Se espera para que el snackbar se muestre con
+      // el carrito ya actualizado.
+      await cubit.aplicarPreciosNuevosDeBackend();
+      // Refrescar el catálogo de productos para que cuando el cajero
+      // vuelva a la grilla (o vacíe el carrito y re-agregue), los cards
+      // muestren el precio nuevo en vez del cacheado. Sin esto, el
+      // precio queda "desfasado" en el catálogo hasta el próximo
+      // pull-to-refresh manual.
+      if (!context.mounted) return;
+      try {
+        context.read<ProductoListCubit>().reload();
+      } catch (_) {
+        // El cubit puede no estar en el árbol según la ruta de navegación.
+        // Si no está, el catálogo se refresca cuando el usuario vuelva.
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+              'Carrito actualizado. Revisá el total y volvé a cobrar.'),
+          backgroundColor: Colors.orange.shade700,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    } else {
+      cubit.descartarAvisoPreciosDesactualizados();
+    }
+  }
 }
+
+/// Acción elegida en el dialog de precios desactualizados.
+enum _AccionPrecios { aplicar, cancelar }
 
 class _BotonBuscarDocumento extends StatelessWidget {
   final bool habilitado;

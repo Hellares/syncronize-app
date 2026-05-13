@@ -49,7 +49,7 @@ class VentaFormCubit extends Cubit<VentaFormState> {
         message: 'Venta creada exitosamente',
       ));
     } else if (result is Error<Venta>) {
-      emit(VentaFormError(result.message));
+      _emitError(result);
     }
   }
 
@@ -70,7 +70,7 @@ class VentaFormCubit extends Cubit<VentaFormState> {
         message: 'Venta creada desde cotizacion exitosamente',
       ));
     } else if (result is Error<Venta>) {
-      emit(VentaFormError(result.message));
+      _emitError(result);
     }
   }
 
@@ -85,8 +85,29 @@ class VentaFormCubit extends Cubit<VentaFormState> {
         message: 'Venta cobrada exitosamente',
       ));
     } else if (result is Error<Venta>) {
-      emit(VentaFormError(result.message));
+      _emitError(result);
     }
+  }
+
+  /// Mapea un `Resource.Error` al estado correcto. Si el backend rechazó
+  /// la venta porque los precios cambiaron (409 PRECIO_DESACTUALIZADO),
+  /// emite `VentaPreciosDesactualizados` con la lista de productos
+  /// afectados para que la UI muestre un dialog específico. Cualquier
+  /// otro error cae al genérico `VentaFormError`.
+  void _emitError(Error<Venta> result) {
+    if (result.errorCode == 'PRECIO_DESACTUALIZADO') {
+      final divergencias = (result.details?['divergencias'] as List?)
+              ?.whereType<Map>()
+              .map((m) => Map<String, dynamic>.from(m))
+              .toList() ??
+          <Map<String, dynamic>>[];
+      emit(VentaPreciosDesactualizados(
+        message: result.message,
+        divergencias: divergencias,
+      ));
+      return;
+    }
+    emit(VentaFormError(result.message));
   }
 
   Future<void> actualizarVenta(String id, Map<String, dynamic> data) async {

@@ -2,10 +2,17 @@
 class ServerException implements Exception {
   final String message;
   final int? statusCode;
+  /// Payload original del response (cuando es un Map). Permite que el
+  /// catch del repository acceda a códigos de error estructurados
+  /// (ej. `code: PRECIO_DESACTUALIZADO`) y datos asociados, sin perder
+  /// la información cuando el interceptor convierte DioException →
+  /// ServerException.
+  final Map<String, dynamic>? data;
 
   const ServerException({
     required this.message,
     this.statusCode,
+    this.data,
   });
 
   @override

@@ -657,11 +657,101 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
         ventaCompletadaId: result.data.id,
       ));
     } else if (result is Error<Venta>) {
+      // Si el backend rechazó la venta porque el precio cambió, exponer
+      // las divergencias en el state para que la UI muestre dialog con
+      // botón "Refrescar carrito" en vez de un snackbar de error genérico.
+      if (result.errorCode == 'PRECIO_DESACTUALIZADO') {
+        final divergencias = (result.details?['divergencias'] as List?)
+                ?.whereType<Map>()
+                .map((m) => Map<String, dynamic>.from(m))
+                .toList() ??
+            <Map<String, dynamic>>[];
+        emit(state.copyWith(
+          procesando: false,
+          preciosDesactualizados: divergencias,
+        ));
+        return;
+      }
       emit(state.copyWith(
         procesando: false,
         error: result.message,
       ));
     }
+  }
+
+  /// Sincroniza el carrito con los precios actuales del backend después de
+  /// que un cobro fue rechazado por `PRECIO_DESACTUALIZADO`. Además del
+  /// precio base, **refresca los niveles cacheados** de cada producto
+  /// afectado: si el admin modificó/eliminó/agregó un nivel "Por Mayor",
+  /// el cliente debe volver a fetchear los niveles para no aplicar uno
+  /// obsoleto en el próximo cobro (sería un bucle: re-cobro → 409 → ...).
+  Future<void> aplicarPreciosNuevosDeBackend() async {
+    final divergencias = state.preciosDesactualizados;
+    if (divergencias == null || divergencias.isEmpty) {
+      emit(state.copyWith(clearPreciosDesactualizados: true));
+      return;
+    }
+
+    // 1. Indexar por (productoId|comboId, varianteId) para buscar rápido.
+    String keyFor(String? prodId, String? varId, String? comboId) =>
+        '${prodId ?? comboId ?? ''}::${varId ?? ''}';
+    final mapaPrecios = <String, double>{};
+    for (final d in divergencias) {
+      final k = keyFor(d['productoId'] as String?, d['varianteId'] as String?,
+          d['comboId'] as String?);
+      final p = d['precioServer'];
+      if (p is num) mapaPrecios[k] = p.toDouble();
+    }
+
+    // 2. Invalidar y re-fetch los niveles de cada producto afectado.
+    //    La invalidación borra el cache local; el `getNiveles` siguiente
+    //    dispara fetch al backend con la configuración actual.
+    final productosAfectados = divergencias
+        .map((d) => d['productoId'] as String?)
+        .whereType<String>()
+        .toSet();
+    for (final pid in productosAfectados) {
+      _nivelCacheService.invalidate(pid);
+    }
+    final fetched = await Future.wait(
+      productosAfectados.map(
+        (pid) =>
+            _nivelCacheService.getNiveles(pid).then((n) => MapEntry(pid, n)),
+      ),
+    );
+    final nivelesPorProducto = Map<String, List<PrecioNivel>>.fromEntries(
+      fetched,
+    );
+
+    // 3. Aplicar nuevo precio base + nuevos niveles a cada item. Después
+    //    recalcular `precioUnitario` con la cantidad actual usando los
+    //    niveles nuevos.
+    final nuevos = state.items.map((item) {
+      final k = keyFor(item.productoId, item.varianteId, null);
+      final precioNuevo = mapaPrecios[k];
+      if (precioNuevo == null) return item;
+      final nivelesNuevos = item.productoId != null
+          ? (nivelesPorProducto[item.productoId!] ?? item.niveles)
+          : item.niveles;
+      return item
+          .copyWith(
+            precioBase: precioNuevo,
+            precioUnitario: precioNuevo,
+            niveles: nivelesNuevos,
+          )
+          .recalcularPrecioPorNiveles(item.cantidad);
+    }).toList();
+
+    emit(state.copyWith(
+      items: nuevos,
+      clearPreciosDesactualizados: true,
+    ));
+  }
+
+  /// El cajero cancela el cobro tras ver el dialog de precios desactualizados.
+  /// Solo limpia el flag, mantiene los items con su precio cliente original.
+  void descartarAvisoPreciosDesactualizados() {
+    emit(state.copyWith(clearPreciosDesactualizados: true));
   }
 
   void clearError() {
