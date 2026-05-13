@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -702,11 +703,13 @@ class _ProductoCard extends StatelessWidget {
                                   child: ClipRRect(
                                     borderRadius: BorderRadius.circular(4),
                                     child: imagen != null && imagen.isNotEmpty
-                                        ? Image.network(
-                                            imagen,
+                                        ? CachedNetworkImage(
+                                            imageUrl: imagen,
                                             fit: BoxFit.cover,
-                                            cacheWidth: 200,
-                                            errorBuilder: (_, __, ___) =>
+                                            memCacheWidth: 200,
+                                            placeholder: (_, __) =>
+                                                _placeholder(),
+                                            errorWidget: (_, __, ___) =>
                                                 _placeholder(),
                                           )
                                         : _placeholder(),
@@ -959,16 +962,15 @@ class _ImagenZoomDialogState extends State<_ImagenZoomDialog> {
                 minScale: 1.0,
                 maxScale: 5.0,
                 child: Center(
-                  child: Image.network(
-                    widget.imagenes[i],
+                  child: CachedNetworkImage(
+                    imageUrl: widget.imagenes[i],
                     fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => const Center(
+                    placeholder: (_, __) => const Center(
+                      child: CircularProgressIndicator(color: Colors.white),
+                    ),
+                    errorWidget: (_, __, ___) => const Center(
                       child: Icon(Icons.broken_image, color: Colors.white54, size: 64),
                     ),
-                    loadingBuilder: (_, child, progress) {
-                      if (progress == null) return child;
-                      return const Center(child: CircularProgressIndicator(color: Colors.white));
-                    },
                   ),
                 ),
               );
