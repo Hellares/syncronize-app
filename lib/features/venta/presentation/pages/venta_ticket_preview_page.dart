@@ -41,6 +41,14 @@ class _VentaTicketPreviewPageState extends State<VentaTicketPreviewPage> {
   bool _loading = true;
   String? _error;
 
+  // Identidad efectiva (sede override > empresa) para reusar en _printBluetooth.
+  // Sin esto, el ticket Bluetooth caía a empresa.direccionFiscal aunque la
+  // sede tuviera direccionFiscalSede propia.
+  String? _rucEfectivo;
+  String? _direccionFiscalEfectiva;
+  String? _nombreComercialEfectivo;
+  String? _telefonoEfectivo;
+
   /// Polling para esperar la respuesta de SUNAT cuando el comprobante
   /// es electrónico (BOLETA/FACTURA) y aún no llegó el hash. El envío
   /// SUNAT es async (lo dispara el backend tras el cobro), así que el
@@ -157,6 +165,7 @@ class _VentaTicketPreviewPageState extends State<VentaTicketPreviewPage> {
     String? razonSocialEfectiva;
     String? nombreComercialEfectivo;
     String? direccionFiscalEfectiva;
+    String? telefonoEfectivo;
     try {
       final datasource = locator<VentaRemoteDataSource>();
       // Usar sede del comprobante (emisor) si existe, sino sede de la venta
@@ -166,6 +175,7 @@ class _VentaTicketPreviewPageState extends State<VentaTicketPreviewPage> {
       razonSocialEfectiva = config['razonSocial'] as String?;
       nombreComercialEfectivo = config['nombreComercial'] as String?;
       direccionFiscalEfectiva = config['direccionFiscal'] as String?;
+      telefonoEfectivo = config['telefono'] as String?;
     } catch (_) {}
 
     // Logo: prioridad configuración de documentos > logo de empresa
@@ -217,6 +227,10 @@ class _VentaTicketPreviewPageState extends State<VentaTicketPreviewPage> {
         _pdfBytes = pdf;
         _loading = false;
         _esperandoSunat = esperando;
+        _rucEfectivo = rucEfectivo;
+        _direccionFiscalEfectiva = direccionFiscalEfectiva;
+        _nombreComercialEfectivo = nombreComercialEfectivo;
+        _telefonoEfectivo = telefonoEfectivo;
       });
 
       // Programar siguiente intento si todavía no llegó la respuesta SUNAT.
@@ -445,10 +459,12 @@ class _VentaTicketPreviewPageState extends State<VentaTicketPreviewPage> {
 
     final bytes = await TicketVentaEscPosGenerator.generate(
       venta: _venta!,
-      empresaNombre: empresa.nombre,
-      empresaRuc: empresa.ruc,
-      empresaDireccion: empresa.direccionFiscal,
-      empresaTelefono: empresa.telefono,
+      // Identidad efectiva: sede > empresa. La sede puede tener
+      // direccionFiscalSede/rucSede/razonSocialSede y debe ganar sobre empresa.
+      empresaNombre: _nombreComercialEfectivo ?? empresa.nombre,
+      empresaRuc: _rucEfectivo ?? empresa.ruc,
+      empresaDireccion: _direccionFiscalEfectiva ?? empresa.direccionFiscal,
+      empresaTelefono: _telefonoEfectivo ?? empresa.telefono,
       nombreImpuesto: nombreImpuesto,
     );
 

@@ -1,6 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 import '../../../../../core/utils/resource.dart';
+import '../../../../../core/utils/date_formatter.dart';
 import '../../../domain/entities/venta.dart';
 import '../../../domain/usecases/get_ventas_usecase.dart';
 import 'venta_list_state.dart';
@@ -125,20 +126,18 @@ class VentaListCubit extends Cubit<VentaListState> {
     );
   }
 
-  /// Convierte una fecha local al inicio del día en UTC ISO 8601.
-  /// El backend hace `new Date(string)` y compara con `fechaVenta` (timestamp
-  /// con TZ). Para que "1 mayo" incluya las ventas del día completo, mandamos
-  /// 00:00:00 del día en UTC.
+  /// Convierte una fecha local al inicio del día (00:00 hora local) en UTC.
+  /// Usar `DateTime.utc(y,m,d)` directo plantaba los números locales en UTC,
+  /// corriendo el rango por el offset TZ (en Perú: filtro "Hoy" buscaba ayer
+  /// 19:00 → hoy 18:59 UTC, perdiendo ventas de la noche).
   String? _toUtcIsoDayStart(DateTime? date) {
     if (date == null) return null;
-    return DateTime.utc(date.year, date.month, date.day).toIso8601String();
+    return DateFormatter.toUtcIso(DateFormatter.startOfDay(date));
   }
 
-  /// Convierte una fecha local al fin del día (23:59:59.999) en UTC ISO 8601.
-  /// Garantiza que las ventas del último día del rango queden incluidas.
+  /// Convierte una fecha local al fin del día (23:59:59 hora local) en UTC.
   String? _toUtcIsoDayEnd(DateTime? date) {
     if (date == null) return null;
-    return DateTime.utc(date.year, date.month, date.day, 23, 59, 59, 999)
-        .toIso8601String();
+    return DateFormatter.toUtcIso(DateFormatter.endOfDay(date));
   }
 }
