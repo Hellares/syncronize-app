@@ -29,7 +29,9 @@ abstract class CajaRepository {
     required String cajaId,
   });
 
-  Future<Resource<void>> cerrarCaja({
+  /// Devuelve la caja recien cerrada con su `cierre` incluido (para
+  /// que la UI pueda imprimir el resumen de cierre inmediatamente).
+  Future<Resource<Caja>> cerrarCaja({
     required String cajaId,
     required List<Map<String, dynamic>> conteos,
     String? observaciones,

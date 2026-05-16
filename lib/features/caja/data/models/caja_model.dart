@@ -1,4 +1,5 @@
 import '../../domain/entities/caja.dart';
+import 'cierre_caja_model.dart';
 
 class CajaModel extends Caja {
   const CajaModel({
@@ -13,6 +14,7 @@ class CajaModel extends Caja {
     super.fechaCierre,
     required super.estado,
     super.observaciones,
+    super.cierre,
   });
 
   factory CajaModel.fromJson(Map<String, dynamic> json) {
@@ -31,6 +33,8 @@ class CajaModel extends Caja {
       }
     }
 
+    final cierreJson = json['cierre'] as Map<String, dynamic>?;
+
     return CajaModel(
       id: json['id'] as String,
       codigo: json['codigo'] as String? ?? '',
@@ -45,6 +49,7 @@ class CajaModel extends Caja {
           : null,
       estado: EstadoCaja.fromString(json['estado'] as String),
       observaciones: json['observaciones'] as String?,
+      cierre: cierreJson != null ? CierreCajaModel.fromJson(cierreJson) : null,
     );
   }
 

@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
+import 'cierre_caja.dart';
 
 /// Estados posibles de una caja
 enum EstadoCaja {
@@ -51,6 +52,7 @@ class Caja extends Equatable {
   final DateTime? fechaCierre;
   final EstadoCaja estado;
   final String? observaciones;
+  final CierreCaja? cierre;
 
   const Caja({
     required this.id,
@@ -64,6 +66,7 @@ class Caja extends Equatable {
     this.fechaCierre,
     required this.estado,
     this.observaciones,
+    this.cierre,
   });
 
   bool get estaAbierta => estado == EstadoCaja.abierta;
@@ -81,5 +84,6 @@ class Caja extends Equatable {
         fechaCierre,
         estado,
         observaciones,
+        cierre,
       ];
 }

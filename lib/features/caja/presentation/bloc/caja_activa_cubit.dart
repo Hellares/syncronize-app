@@ -73,9 +73,13 @@ class CajaActivaCubit extends Cubit<CajaActivaState> {
     );
     if (isClosed) return;
 
-    if (result is Success<void>) {
+    if (result is Success<Caja>) {
+      // Emitimos primero el estado transitorio con la caja+cierre para
+      // que el listener de la page pueda imprimir el resumen. Despues
+      // pasamos a SinCaja para que el dashboard general reaccione.
+      emit(CajaActivaRecienCerrada(result.data));
       emit(const CajaActivaSinCaja());
-    } else if (result is Error<void>) {
+    } else if (result is Error<Caja>) {
       emit(CajaActivaError(result.message));
     }
   }

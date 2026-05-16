@@ -105,7 +105,7 @@ class CajaRepositoryImpl implements CajaRepository {
   }
 
   @override
-  Future<Resource<void>> cerrarCaja({
+  Future<Resource<Caja>> cerrarCaja({
     required String cajaId,
     required List<Map<String, dynamic>> conteos,
     String? observaciones,
@@ -114,12 +114,12 @@ class CajaRepositoryImpl implements CajaRepository {
       return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
     }
     try {
-      await _remoteDataSource.cerrarCaja(
+      final caja = await _remoteDataSource.cerrarCaja(
         cajaId: cajaId,
         conteos: conteos,
         observaciones: observaciones,
       );
-      return Success(null);
+      return Success(caja.toEntity());
     } catch (e) {
       return _errorHandler.handleException(e, context: 'Caja');
     }

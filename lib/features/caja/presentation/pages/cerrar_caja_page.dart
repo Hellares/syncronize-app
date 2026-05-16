@@ -1,18 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
+import 'package:syncronize/core/di/injection_container.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/widgets/custom_button.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import 'package:syncronize/core/widgets/snack_bar_helper.dart';
+import 'package:syncronize/features/empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
+import 'package:syncronize/features/empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
+import 'package:syncronize/features/impresoras/domain/services/impresoras_manager.dart';
+import '../../domain/entities/caja.dart';
 import '../../domain/entities/movimiento_caja.dart';
 import '../../domain/entities/resumen_caja.dart';
 import '../bloc/caja_activa_cubit.dart';
 import '../bloc/caja_activa_state.dart';
 import '../bloc/caja_movimientos_cubit.dart';
 import '../bloc/caja_movimientos_state.dart';
+import '../services/cierre_caja_esc_pos_generator.dart';
 
 class CerrarCajaPage extends StatefulWidget {
   final String cajaId;
@@ -46,6 +52,63 @@ class _CerrarCajaPageState extends State<CerrarCajaPage> {
     super.dispose();
   }
 
+  /// Auto-impresion del resumen de cierre tras cerrar caja con exito.
+  /// Silenciosa si no hay impresora principal configurada; nunca rompe
+  /// el flujo de cierre (errores se notifican por snackbar).
+  Future<void> _imprimirResumenCierre(Caja caja) async {
+    if (caja.cierre == null) return;
+    try {
+      // Capturamos el empresa state ANTES del primer await para evitar
+      // usar el context cruzando async gaps.
+      final empresaState = context.read<EmpresaContextCubit>().state;
+
+      final manager = locator<ImpresorasManager>();
+      final principal = await manager.getPrincipal();
+      if (principal == null) return;
+
+      String empresaNombre = '';
+      String? razonSocial;
+      String? ruc;
+      String? direccion;
+      String? telefono;
+      String? sedeNombre = caja.sedeNombre;
+      if (empresaState is EmpresaContextLoaded) {
+        final empresa = empresaState.context.empresa;
+        empresaNombre = empresa.nombre;
+        razonSocial = empresa.razonSocial;
+        ruc = empresa.ruc;
+        direccion = empresa.direccionFiscal;
+        telefono = empresa.telefono;
+      }
+
+      final bytes = await CierreCajaEscPosGenerator.generate(
+        caja: caja,
+        cierre: caja.cierre!,
+        empresaNombre: empresaNombre,
+        empresaRazonSocial: razonSocial,
+        empresaRuc: ruc,
+        empresaDireccion: direccion,
+        empresaTelefono: telefono,
+        sedeNombre: sedeNombre,
+        paperWidth: principal.anchoPapel.mm,
+      );
+
+      final ok = await manager.imprimirEnPrincipal(bytes);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(ok
+              ? 'Resumen de cierre impreso en ${principal.nombre}'
+              : 'No se pudo imprimir el resumen automaticamente'),
+          backgroundColor: ok ? Colors.green : Colors.orange,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    } catch (_) {
+      // Silencioso: la impresion no debe romper el flujo de cierre.
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final currencyFormat = NumberFormat.currency(
@@ -56,6 +119,13 @@ class _CerrarCajaPageState extends State<CerrarCajaPage> {
 
     return BlocListener<CajaActivaCubit, CajaActivaState>(
       listener: (context, state) {
+        if (state is CajaActivaRecienCerrada) {
+          // Disparamos auto-impresion del resumen. No await: el listener
+          // no puede ser async (Bloc) y de todos modos no debe bloquear
+          // la transicion a SinCaja → pop. La impresion corre en
+          // background y avisa por snackbar.
+          _imprimirResumenCierre(state.caja);
+        }
         if (state is CajaActivaSinCaja) {
           SnackBarHelper.showSuccess(context, 'Caja cerrada exitosamente');
           Navigator.of(context).pop();

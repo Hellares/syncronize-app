@@ -1,5 +1,6 @@
 import 'package:injectable/injectable.dart';
 import '../../../../core/utils/resource.dart';
+import '../entities/caja.dart';
 import '../repositories/caja_repository.dart';
 
 @injectable
@@ -8,7 +9,7 @@ class CerrarCajaUseCase {
 
   CerrarCajaUseCase(this._repository);
 
-  Future<Resource<void>> call({
+  Future<Resource<Caja>> call({
     required String cajaId,
     required List<Map<String, dynamic>> conteos,
     String? observaciones,

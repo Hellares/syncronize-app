@@ -82,7 +82,7 @@ class CajaRemoteDataSource {
         .toList();
   }
 
-  Future<void> cerrarCaja({
+  Future<CajaModel> cerrarCaja({
     required String cajaId,
     required List<Map<String, dynamic>> conteos,
     String? observaciones,
@@ -94,7 +94,16 @@ class CajaRemoteDataSource {
       data['observaciones'] = observaciones;
     }
 
-    await _dioClient.post('$_basePath/$cajaId/cerrar', data: data);
+    final response =
+        await _dioClient.post('$_basePath/$cajaId/cerrar', data: data);
+
+    // Backend devuelve `{ caja, cierre }`. Inyectamos el cierre dentro
+    // de la caja para que CajaModel lo parsee como propiedad de Caja
+    // (mismo shape que getHistorial.cierre).
+    final body = response.data as Map<String, dynamic>;
+    final cajaJson = Map<String, dynamic>.from(body['caja'] as Map);
+    cajaJson['cierre'] = body['cierre'];
+    return CajaModel.fromJson(cajaJson);
   }
 
   Future<List<CajaModel>> getHistorial({
