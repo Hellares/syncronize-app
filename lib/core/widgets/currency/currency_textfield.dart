@@ -817,7 +817,7 @@ class CurrencyTextField extends StatefulWidget {
     this.labelStyle,
     this.hintStyle,
     this.filled = true,
-    this.height = 35,
+    this.height = 33,
     this.borderWidth = 0.5,
     this.currencySymbol = 'S/',
     this.decimalPlaces = 2,

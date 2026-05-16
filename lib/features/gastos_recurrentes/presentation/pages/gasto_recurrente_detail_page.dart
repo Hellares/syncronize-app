@@ -404,24 +404,73 @@ class _GastoRecurrenteDetailPageState extends State<GastoRecurrenteDetailPage> {
   }
 
   Future<void> _confirmarAnularPago(PagoGastoRecurrente p) async {
-    final motivoCtrl = TextEditingController();
-    final ok = await showDialog<bool>(
+    final motivo = await showDialog<String>(
       context: context,
-      builder: (dialogCtx) => AlertDialog(
-        title: const Text('Anular pago'),
-        content: Column(
+      builder: (_) => _AnularPagoMotivoDialog(pago: p, money: _money),
+    );
+
+    if (motivo == null || !mounted) return;
+
+    final r = await _repo.anularPago(pagoId: p.id, motivo: motivo);
+    if (!mounted) return;
+    if (r is Success<PagoGastoRecurrente>) {
+      SnackBarHelper.showSuccess(context, 'Pago anulado');
+      _cargar();
+    } else if (r is Error<PagoGastoRecurrente>) {
+      SnackBarHelper.showError(context, r.message);
+    }
+  }
+}
+
+/// Dialog separado con StatefulWidget para que el TextEditingController viva
+/// dentro del state y se libere correctamente cuando el dialog se cierra
+/// (evita el crash `TextEditingController was used after being disposed` que
+/// ocurría cuando el dialog seguía animándose tras el pop).
+class _AnularPagoMotivoDialog extends StatefulWidget {
+  final PagoGastoRecurrente pago;
+  final NumberFormat money;
+  const _AnularPagoMotivoDialog({required this.pago, required this.money});
+
+  @override
+  State<_AnularPagoMotivoDialog> createState() => _AnularPagoMotivoDialogState();
+}
+
+class _AnularPagoMotivoDialogState extends State<_AnularPagoMotivoDialog> {
+  final _motivoCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _motivoCtrl.dispose();
+    super.dispose();
+  }
+
+  void _confirmar() {
+    if (_motivoCtrl.text.trim().length < 3) {
+      SnackBarHelper.showError(context, 'Motivo de al menos 3 caracteres');
+      return;
+    }
+    Navigator.of(context).pop(_motivoCtrl.text.trim());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = widget.pago;
+    return AlertDialog(
+      title: const Text('Anular pago'),
+      content: SingleChildScrollView(
+        child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Vas a anular el pago de ${_money.format(p.montoReal)} del período ${p.periodo}. '
+              'Vas a anular el pago de ${widget.money.format(p.montoReal)} del período ${p.periodo}. '
               'Se ${p.fuente == FuentePagoGasto.caja ? "anulará el movimiento de caja" : "devolverá el monto al saldo del banco"}. '
               'Después podrás registrar uno nuevo.',
               style: const TextStyle(fontSize: 13),
             ),
             const SizedBox(height: 14),
             TextField(
-              controller: motivoCtrl,
+              controller: _motivoCtrl,
               decoration: const InputDecoration(
                 labelText: 'Motivo *',
                 hintText: 'Ej: monto incorrecto',
@@ -433,41 +482,18 @@ class _GastoRecurrenteDetailPageState extends State<GastoRecurrenteDetailPage> {
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogCtx).pop(false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () {
-              if (motivoCtrl.text.trim().length < 3) {
-                SnackBarHelper.showError(dialogCtx, 'Motivo de al menos 3 caracteres');
-                return;
-              }
-              Navigator.of(dialogCtx).pop(true);
-            },
-            style: TextButton.styleFrom(foregroundColor: AppColors.red),
-            child: const Text('Anular'),
-          ),
-        ],
       ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancelar'),
+        ),
+        TextButton(
+          onPressed: _confirmar,
+          style: TextButton.styleFrom(foregroundColor: AppColors.red),
+          child: const Text('Anular'),
+        ),
+      ],
     );
-
-    if (ok != true || !mounted) {
-      motivoCtrl.dispose();
-      return;
-    }
-
-    final motivo = motivoCtrl.text.trim();
-    motivoCtrl.dispose();
-
-    final r = await _repo.anularPago(pagoId: p.id, motivo: motivo);
-    if (!mounted) return;
-    if (r is Success<PagoGastoRecurrente>) {
-      SnackBarHelper.showSuccess(context, 'Pago anulado');
-      _cargar();
-    } else if (r is Error<PagoGastoRecurrente>) {
-      SnackBarHelper.showError(context, r.message);
-    }
   }
 }
