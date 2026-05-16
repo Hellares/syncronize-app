@@ -709,6 +709,8 @@ import '../../features/gastos_recurrentes/presentation/bloc/gasto_form_cubit.dar
     as _i662;
 import '../../features/gastos_recurrentes/presentation/bloc/pagar_cubit.dart'
     as _i555;
+import '../../features/gastos_recurrentes/presentation/bloc/reportes_cubit.dart'
+    as _i571;
 import '../../features/generador_barcode/data/datasources/barcode_remote_datasource.dart'
     as _i15;
 import '../../features/generador_barcode/data/repositories/barcode_repository_impl.dart'
@@ -2035,6 +2037,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i555.PagarGastoCubit>(
       () => _i555.PagarGastoCubit(gh<_i48.GastosRecurrentesRepository>()),
+    );
+    gh.factory<_i571.ReportesGastosCubit>(
+      () => _i571.ReportesGastosCubit(gh<_i48.GastosRecurrentesRepository>()),
     );
     gh.factory<_i169.SedesSelectorCubit>(
       () => _i169.SedesSelectorCubit(gh<_i873.GetSedesUseCase>()),

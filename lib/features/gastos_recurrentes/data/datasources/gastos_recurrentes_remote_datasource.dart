@@ -9,6 +9,7 @@ import '../../domain/entities/pago_gasto_recurrente.dart';
 import '../models/dashboard_gastos_model.dart';
 import '../models/gasto_recurrente_model.dart';
 import '../models/pago_gasto_recurrente_model.dart';
+import '../models/reporte_gastos_model.dart';
 
 @lazySingleton
 class GastosRecurrentesRemoteDataSource {
@@ -101,6 +102,14 @@ class GastosRecurrentesRemoteDataSource {
 
   Future<void> eliminar(String id) async {
     await _dioClient.delete('$_basePath/$id');
+  }
+
+  Future<ReporteGastosModel> reportes({int meses = 12}) async {
+    final res = await _dioClient.get(
+      '$_basePath/reportes',
+      queryParameters: {'meses': meses},
+    );
+    return ReporteGastosModel.fromJson(res.data as Map<String, dynamic>);
   }
 
   Future<DashboardGastosModel> dashboard({String? periodo, String? sedeId}) async {

@@ -2,6 +2,7 @@ import '../../../../core/utils/resource.dart';
 import '../entities/dashboard_gastos.dart';
 import '../entities/gasto_recurrente.dart';
 import '../entities/pago_gasto_recurrente.dart';
+import '../entities/reporte_gastos.dart';
 
 abstract class GastosRecurrentesRepository {
   Future<Resource<List<GastoRecurrente>>> listar({
@@ -43,6 +44,8 @@ abstract class GastosRecurrentesRepository {
   Future<Resource<void>> eliminar(String id);
 
   Future<Resource<DashboardGastos>> dashboard({String? periodo, String? sedeId});
+
+  Future<Resource<ReporteGastos>> reportes({int meses = 12});
 
   Future<Resource<PagoGastoRecurrente>> pagar({
     required String gastoId,

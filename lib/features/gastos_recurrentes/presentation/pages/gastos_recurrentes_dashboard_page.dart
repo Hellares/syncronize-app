@@ -14,6 +14,7 @@ import '../bloc/dashboard_state.dart';
 import '../widgets/pagar_gasto_dialog.dart';
 import 'gasto_recurrente_detail_page.dart';
 import 'gasto_recurrente_form_page.dart';
+import 'gastos_recurrentes_reportes_page.dart';
 
 class GastosRecurrentesDashboardPage extends StatelessWidget {
   const GastosRecurrentesDashboardPage({super.key});
@@ -43,6 +44,15 @@ class _Body extends StatelessWidget {
         title: 'Gastos Recurrentes',
         backgroundColor: AppColors.blue1,
         foregroundColor: AppColors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.insert_chart_outlined),
+            tooltip: 'Reportes',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const GastosRecurrentesReportesPage()),
+            ),
+          ),
+        ],
       ),
       floatingActionButton: Builder(
         builder: (innerContext) => FloatingActionButton(

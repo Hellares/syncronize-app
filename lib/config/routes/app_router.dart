@@ -44,6 +44,7 @@ import '../../features/caja_chica/presentation/pages/caja_chica_page.dart';
 import '../../features/gastos_recurrentes/presentation/pages/gastos_recurrentes_dashboard_page.dart';
 import '../../features/gastos_recurrentes/presentation/pages/gasto_recurrente_form_page.dart';
 import '../../features/gastos_recurrentes/presentation/pages/gasto_recurrente_detail_page.dart';
+import '../../features/gastos_recurrentes/presentation/pages/gastos_recurrentes_reportes_page.dart';
 import '../../features/caja_chica/presentation/pages/caja_chica_detail_page.dart';
 import '../../features/caja_chica/presentation/pages/crear_caja_chica_page.dart';
 import '../../features/caja_chica/presentation/pages/nuevo_gasto_page.dart';
@@ -1217,6 +1218,11 @@ class AppRouter {
         name: 'empresa-gastos-recurrentes-editar',
         builder: (context, state) =>
             GastoRecurrenteFormPage(gastoId: state.pathParameters['id']),
+      ),
+      GoRoute(
+        path: '/empresa/gastos-recurrentes/reportes/general',
+        name: 'empresa-gastos-recurrentes-reportes',
+        builder: (context, state) => const GastosRecurrentesReportesPage(),
       ),
       // Rutas de agentes bancarios
       GoRoute(

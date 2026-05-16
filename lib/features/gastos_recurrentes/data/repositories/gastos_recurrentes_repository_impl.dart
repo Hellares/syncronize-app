@@ -5,6 +5,7 @@ import '../../../../core/utils/resource.dart';
 import '../../domain/entities/dashboard_gastos.dart';
 import '../../domain/entities/gasto_recurrente.dart';
 import '../../domain/entities/pago_gasto_recurrente.dart';
+import '../../domain/entities/reporte_gastos.dart';
 import '../../domain/repositories/gastos_recurrentes_repository.dart';
 import '../datasources/gastos_recurrentes_remote_datasource.dart';
 
@@ -117,6 +118,10 @@ class GastosRecurrentesRepositoryImpl implements GastosRecurrentesRepository {
   @override
   Future<Resource<DashboardGastos>> dashboard({String? periodo, String? sedeId}) =>
       _guard(() => _ds.dashboard(periodo: periodo, sedeId: sedeId));
+
+  @override
+  Future<Resource<ReporteGastos>> reportes({int meses = 12}) =>
+      _guard(() => _ds.reportes(meses: meses));
 
   @override
   Future<Resource<PagoGastoRecurrente>> pagar({
