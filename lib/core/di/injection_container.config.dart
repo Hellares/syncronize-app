@@ -697,6 +697,18 @@ import '../../features/flujo_proyectado/domain/usecases/get_flujo_proyectado_use
     as _i889;
 import '../../features/flujo_proyectado/presentation/bloc/flujo_proyectado_cubit.dart'
     as _i1073;
+import '../../features/gastos_recurrentes/data/datasources/gastos_recurrentes_remote_datasource.dart'
+    as _i247;
+import '../../features/gastos_recurrentes/data/repositories/gastos_recurrentes_repository_impl.dart'
+    as _i544;
+import '../../features/gastos_recurrentes/domain/repositories/gastos_recurrentes_repository.dart'
+    as _i48;
+import '../../features/gastos_recurrentes/presentation/bloc/dashboard_cubit.dart'
+    as _i540;
+import '../../features/gastos_recurrentes/presentation/bloc/gasto_form_cubit.dart'
+    as _i662;
+import '../../features/gastos_recurrentes/presentation/bloc/pagar_cubit.dart'
+    as _i555;
 import '../../features/generador_barcode/data/datasources/barcode_remote_datasource.dart'
     as _i15;
 import '../../features/generador_barcode/data/repositories/barcode_repository_impl.dart'
@@ -1701,6 +1713,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i629.FlujoProyectadoRemoteDataSource>(
       () => _i629.FlujoProyectadoRemoteDataSource(gh<_i667.DioClient>()),
     );
+    gh.lazySingleton<_i247.GastosRecurrentesRemoteDataSource>(
+      () => _i247.GastosRecurrentesRemoteDataSource(gh<_i667.DioClient>()),
+    );
     gh.lazySingleton<_i15.BarcodeRemoteDataSource>(
       () => _i15.BarcodeRemoteDataSource(gh<_i667.DioClient>()),
     );
@@ -1883,6 +1898,13 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i932.NetworkInfo>(),
       ),
     );
+    gh.lazySingleton<_i48.GastosRecurrentesRepository>(
+      () => _i544.GastosRecurrentesRepositoryImpl(
+        gh<_i247.GastosRecurrentesRemoteDataSource>(),
+        gh<_i932.NetworkInfo>(),
+        gh<_i490.ErrorHandlerService>(),
+      ),
+    );
     gh.factory<_i1062.CreateSedeUseCase>(
       () => _i1062.CreateSedeUseCase(gh<_i419.SedeRepository>()),
     );
@@ -2004,6 +2026,15 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i37.MonitorFacturacionRepositoryImpl(
         gh<_i448.MonitorFacturacionRemoteDatasource>(),
       ),
+    );
+    gh.factory<_i540.DashboardGastosCubit>(
+      () => _i540.DashboardGastosCubit(gh<_i48.GastosRecurrentesRepository>()),
+    );
+    gh.factory<_i662.GastoFormCubit>(
+      () => _i662.GastoFormCubit(gh<_i48.GastosRecurrentesRepository>()),
+    );
+    gh.factory<_i555.PagarGastoCubit>(
+      () => _i555.PagarGastoCubit(gh<_i48.GastosRecurrentesRepository>()),
     );
     gh.factory<_i169.SedesSelectorCubit>(
       () => _i169.SedesSelectorCubit(gh<_i873.GetSedesUseCase>()),

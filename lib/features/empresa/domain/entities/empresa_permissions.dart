@@ -77,6 +77,10 @@ class EmpresaPermissions extends Equatable {
   final bool canManagePaymentMethods;
   final bool canChangePlan;
 
+  // Gastos Recurrentes
+  final bool canViewGastosRecurrentes;
+  final bool canManageGastosRecurrentes;
+
   const EmpresaPermissions({
     required this.canViewUsers,
     required this.canManageUsers,
@@ -120,6 +124,8 @@ class EmpresaPermissions extends Equatable {
     required this.canManageSettings,
     required this.canManagePaymentMethods,
     required this.canChangePlan,
+    this.canViewGastosRecurrentes = false,
+    this.canManageGastosRecurrentes = false,
   });
 
   /// Indica si el usuario es administrador (tiene permisos completos)
@@ -173,5 +179,7 @@ class EmpresaPermissions extends Equatable {
         canManageSettings,
         canManagePaymentMethods,
         canChangePlan,
+        canViewGastosRecurrentes,
+        canManageGastosRecurrentes,
       ];
 }

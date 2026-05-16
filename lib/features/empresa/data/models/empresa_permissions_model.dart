@@ -44,6 +44,8 @@ class EmpresaPermissionsModel extends EmpresaPermissions {
     required super.canManageSettings,
     required super.canManagePaymentMethods,
     required super.canChangePlan,
+    super.canViewGastosRecurrentes,
+    super.canManageGastosRecurrentes,
   });
 
   factory EmpresaPermissionsModel.fromJson(Map<String, dynamic> json) {
@@ -98,6 +100,8 @@ class EmpresaPermissionsModel extends EmpresaPermissions {
       canManageSettings: json['canManageSettings'] as bool? ?? false,
       canManagePaymentMethods: json['canManagePaymentMethods'] as bool? ?? false,
       canChangePlan: json['canChangePlan'] as bool? ?? false,
+      canViewGastosRecurrentes: json['canViewGastosRecurrentes'] as bool? ?? false,
+      canManageGastosRecurrentes: json['canManageGastosRecurrentes'] as bool? ?? false,
     );
   }
 
@@ -145,6 +149,8 @@ class EmpresaPermissionsModel extends EmpresaPermissions {
       'canManageSettings': canManageSettings,
       'canManagePaymentMethods': canManagePaymentMethods,
       'canChangePlan': canChangePlan,
+      'canViewGastosRecurrentes': canViewGastosRecurrentes,
+      'canManageGastosRecurrentes': canManageGastosRecurrentes,
     };
   }
 
@@ -194,6 +200,8 @@ class EmpresaPermissionsModel extends EmpresaPermissions {
       canManageSettings: entity.canManageSettings,
       canManagePaymentMethods: entity.canManagePaymentMethods,
       canChangePlan: entity.canChangePlan,
+      canViewGastosRecurrentes: entity.canViewGastosRecurrentes,
+      canManageGastosRecurrentes: entity.canManageGastosRecurrentes,
     );
   }
 }

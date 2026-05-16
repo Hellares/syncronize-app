@@ -605,6 +605,14 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/caja-chica')),
           ),
           tile(
+            title: 'Gastos Recurrentes',
+            icon: Icons.event_repeat,
+            iconColor: Colors.deepPurple,
+            visible: can(permissions?.canViewGastosRecurrentes),
+            routeMatch: const _RouteMatch.startsWith('/empresa/gastos-recurrentes'),
+            onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/gastos-recurrentes')),
+          ),
+          tile(
             title: 'Cuentas Bancarias',
             icon: Icons.account_balance,
             visible: can(permissions?.canViewReports),
