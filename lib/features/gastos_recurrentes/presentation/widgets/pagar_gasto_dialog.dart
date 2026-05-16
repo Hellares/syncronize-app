@@ -192,6 +192,7 @@ class _DialogContentState extends State<_DialogContent> {
     final money = NumberFormat.currency(locale: 'es_PE', symbol: 'S/ ');
 
     return Dialog(
+      backgroundColor: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       child: BlocConsumer<PagarGastoCubit, PagarGastoState>(
@@ -215,12 +216,12 @@ class _DialogContentState extends State<_DialogContent> {
               children: [
                 // Header
                 Container(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 8, 12),
+                  padding: const EdgeInsets.fromLTRB(12, 6, 8, 10),
                   decoration: const BoxDecoration(
                     color: AppColors.blue1,
                     borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(16),
-                      topRight: Radius.circular(16),
+                      topLeft: Radius.circular(12),
+                      topRight: Radius.circular(12),
                     ),
                   ),
                   child: Row(
@@ -233,7 +234,7 @@ class _DialogContentState extends State<_DialogContent> {
                               'Marcar pagado',
                               style: TextStyle(
                                 color: AppColors.white,
-                                fontSize: 16,
+                                fontSize: 14,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -346,6 +347,8 @@ class _DialogContentState extends State<_DialogContent> {
                     ),
                   ),
                   child: CustomButton(
+                    borderColor: AppColors.blue1,
+                    textColor: AppColors.blue1,
                     text: 'Registrar pago',
                     onPressed: (enviando || subiendo || _cargandoFuentes) ? null : _submit,
                     isLoading: enviando,
@@ -532,20 +535,32 @@ class _DialogContentState extends State<_DialogContent> {
     }
     return Row(
       children: [
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: () => _adjuntarFoto(source: ImageSource.camera),
-            icon: const Icon(Icons.photo_camera, size: 18),
-            label: const Text('Foto'),
+        const Icon(Icons.attach_file, size: 16, color: AppColors.textSecondary),
+        const SizedBox(width: 6),
+        const Expanded(
+          child: Text(
+            'Adjuntar comprobante',
+            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
           ),
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: () => _adjuntarFoto(source: ImageSource.gallery),
-            icon: const Icon(Icons.image, size: 18),
-            label: const Text('Galería'),
-          ),
+        IconButton(
+          onPressed: () => _adjuntarFoto(source: ImageSource.camera),
+          icon: const Icon(Icons.photo_camera_outlined, size: 20),
+          color: AppColors.blue1,
+          tooltip: 'Cámara',
+          visualDensity: VisualDensity.compact,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+        ),
+        const SizedBox(width: 4),
+        IconButton(
+          onPressed: () => _adjuntarFoto(source: ImageSource.gallery),
+          icon: const Icon(Icons.image_outlined, size: 20),
+          color: AppColors.blue1,
+          tooltip: 'Galería',
+          visualDensity: VisualDensity.compact,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
         ),
       ],
     );

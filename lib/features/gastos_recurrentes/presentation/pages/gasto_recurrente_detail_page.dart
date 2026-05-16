@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:syncronize/core/di/injection_container.dart';
@@ -7,6 +8,7 @@ import 'package:syncronize/core/utils/date_formatter.dart';
 import 'package:syncronize/core/utils/resource.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import 'package:syncronize/core/widgets/snack_bar_helper.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../domain/entities/gasto_recurrente.dart';
 import '../../domain/entities/pago_gasto_recurrente.dart';
 import '../../domain/repositories/gastos_recurrentes_repository.dart';
@@ -265,7 +267,7 @@ class _GastoRecurrenteDetailPageState extends State<GastoRecurrenteDetailPage> {
     final dimColor = isAnulado ? AppColors.textSecondary : null;
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.only(left: 8, right: 2, top: 2, bottom: 6),
       decoration: BoxDecoration(
         color: isAnulado
             ? AppColors.red.withValues(alpha: 0.04)
@@ -354,8 +356,10 @@ class _GastoRecurrenteDetailPageState extends State<GastoRecurrenteDetailPage> {
                       decoration: isAnulado ? TextDecoration.lineThrough : null,
                     ),
                   ),
-                  if (p.comprobanteUrl != null)
-                    const Icon(Icons.attach_file, size: 14, color: AppColors.textSecondary),
+                  if (p.comprobanteUrl != null) ...[
+                    const SizedBox(height: 4),
+                    _comprobanteThumb(p.comprobanteUrl!),
+                  ],
                 ],
               ),
               if (!isAnulado)
@@ -365,7 +369,7 @@ class _GastoRecurrenteDetailPageState extends State<GastoRecurrenteDetailPage> {
                   tooltip: 'Anular pago',
                   visualDensity: VisualDensity.compact,
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
                   onPressed: () => _confirmarAnularPago(p),
                 ),
             ],
@@ -401,6 +405,140 @@ class _GastoRecurrenteDetailPageState extends State<GastoRecurrenteDetailPage> {
         ],
       ),
     );
+  }
+
+  bool _isImageUrl(String url) {
+    final lower = url.toLowerCase().split('?').first;
+    return lower.endsWith('.jpg') ||
+        lower.endsWith('.jpeg') ||
+        lower.endsWith('.png') ||
+        lower.endsWith('.webp') ||
+        lower.endsWith('.gif') ||
+        lower.endsWith('.heic');
+  }
+
+  Widget _comprobanteThumb(String url) {
+    if (_isImageUrl(url)) {
+      return InkWell(
+        onTap: () => _abrirImagenFullscreen(url),
+        borderRadius: BorderRadius.circular(6),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: CachedNetworkImage(
+            imageUrl: url,
+            width: 56,
+            height: 42,
+            fit: BoxFit.cover,
+            placeholder: (_, __) => Container(
+              width: 56,
+              height: 42,
+              color: AppColors.grey.withValues(alpha: 0.15),
+              child: const Center(
+                child: SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 1.5),
+                ),
+              ),
+            ),
+            errorWidget: (_, __, ___) => Container(
+              width: 56,
+              height: 42,
+              color: AppColors.red.withValues(alpha: 0.08),
+              child: const Icon(Icons.broken_image_outlined,
+                  size: 18, color: AppColors.red),
+            ),
+          ),
+        ),
+      );
+    }
+    return InkWell(
+      onTap: () => _abrirEnNavegador(url),
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: AppColors.blue1.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.insert_drive_file_outlined, size: 14, color: AppColors.blue1),
+            SizedBox(width: 4),
+            Text('Ver',
+                style: TextStyle(fontSize: 11, color: AppColors.blue1, fontWeight: FontWeight.w600)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _abrirImagenFullscreen(String url) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogCtx) => Dialog(
+        backgroundColor: Colors.black,
+        insetPadding: EdgeInsets.zero,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: InteractiveViewer(
+                minScale: 0.8,
+                maxScale: 5,
+                child: Center(
+                  child: CachedNetworkImage(
+                    imageUrl: url,
+                    fit: BoxFit.contain,
+                    placeholder: (_, __) => const Center(
+                      child: CircularProgressIndicator(color: Colors.white),
+                    ),
+                    errorWidget: (_, __, ___) => const Center(
+                      child: Icon(Icons.broken_image_outlined,
+                          color: Colors.white, size: 64),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 32,
+              right: 16,
+              child: Material(
+                color: Colors.black54,
+                shape: const CircleBorder(),
+                child: IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white),
+                  onPressed: () => Navigator.of(dialogCtx).pop(),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 32,
+              left: 16,
+              child: Material(
+                color: Colors.black54,
+                shape: const CircleBorder(),
+                child: IconButton(
+                  icon: const Icon(Icons.open_in_browser, color: Colors.white),
+                  tooltip: 'Abrir en navegador',
+                  onPressed: () => _abrirEnNavegador(url),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _abrirEnNavegador(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
+    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!ok && mounted) {
+      SnackBarHelper.showError(context, 'No se pudo abrir el comprobante');
+    }
   }
 
   Future<void> _confirmarAnularPago(PagoGastoRecurrente p) async {
@@ -456,6 +594,7 @@ class _AnularPagoMotivoDialogState extends State<_AnularPagoMotivoDialog> {
   Widget build(BuildContext context) {
     final p = widget.pago;
     return AlertDialog(
+      backgroundColor: Colors.white,
       title: const Text('Anular pago'),
       content: SingleChildScrollView(
         child: Column(
