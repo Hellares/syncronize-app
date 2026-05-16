@@ -7,8 +7,11 @@ import 'package:intl/intl.dart';
 import 'package:syncronize/core/di/injection_container.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/utils/resource.dart';
+import 'package:syncronize/core/widgets/currency/currency_textfield.dart';
 import 'package:syncronize/core/widgets/custom_button.dart';
+import 'package:syncronize/core/widgets/custom_dropdown.dart';
 import 'package:syncronize/core/widgets/snack_bar_helper.dart';
+import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import 'package:syncronize/features/caja/data/datasources/caja_remote_datasource.dart';
 import 'package:syncronize/features/empresa_banco/domain/entities/empresa_banco.dart';
 import 'package:syncronize/features/empresa_banco/domain/repositories/empresa_banco_repository.dart';
@@ -259,20 +262,23 @@ class _DialogContentState extends State<_DialogContent> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          TextFormField(
+                          CurrencyTextField(
                             controller: _montoCtrl,
-                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                            decoration: InputDecoration(
-                              labelText: 'Monto real *',
-                              prefixText: 'S/ ',
-                              helperText: 'Estimado: ${money.format(widget.gasto.montoEstimado)}',
-                              border: const OutlineInputBorder(),
+                            label: 'Monto real',
+                            borderColor: AppColors.blue1,
+                            hintText: '0.00',
+                            requiredField: true,
+                          ),
+                          const SizedBox(height: 4),
+                          Padding(
+                            padding: const EdgeInsets.only(left: 4),
+                            child: Text(
+                              'Estimado: ${money.format(widget.gasto.montoEstimado)}',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: AppColors.textSecondary,
+                              ),
                             ),
-                            validator: (v) {
-                              final n = double.tryParse((v ?? '').replaceAll(',', '.'));
-                              if (n == null || n <= 0) return 'Monto inválido';
-                              return null;
-                            },
                           ),
                           const SizedBox(height: 14),
                           _fuenteSelector(),
@@ -287,32 +293,43 @@ class _DialogContentState extends State<_DialogContent> {
                           else
                             _bancoDropdown(),
                           const SizedBox(height: 12),
-                          DropdownButtonFormField<MetodoPagoGasto>(
-                            initialValue: _metodosValidos.contains(_metodo)
+                          CustomDropdown<MetodoPagoGasto>(
+                            label: 'Método de pago',
+                            borderColor: AppColors.blue1,
+                            hintText: 'Selecciona el método',
+                            value: _metodosValidos.contains(_metodo)
                                 ? _metodo
                                 : _metodosValidos.first,
-                            decoration: const InputDecoration(
-                              labelText: 'Método de pago *',
-                              border: OutlineInputBorder(),
-                            ),
                             items: _metodosValidos
-                                .map((m) => DropdownMenuItem(value: m, child: Text(m.label)))
+                                .map(
+                                  (m) => DropdownItem<MetodoPagoGasto>(
+                                    value: m,
+                                    label: m.label,
+                                    leading: Icon(
+                                      _metodoIcon(m),
+                                      size: 16,
+                                      color: AppColors.blue1,
+                                    ),
+                                  ),
+                                )
                                 .toList(),
                             onChanged: (v) {
                               if (v != null) setState(() => _metodo = v);
                             },
+                            validator: (v) => v == null ? 'Requerido' : null,
                           ),
                           const SizedBox(height: 14),
                           _comprobanteSection(subiendo),
                           const SizedBox(height: 12),
-                          TextFormField(
+                          CustomText(
                             controller: _notasCtrl,
+                            label: 'Notas (opcional)',
+                            hintText: 'Detalles del pago',
+                            borderColor: AppColors.blue1,
                             maxLines: 2,
                             maxLength: 500,
-                            decoration: const InputDecoration(
-                              labelText: 'Notas (opcional)',
-                              border: OutlineInputBorder(),
-                            ),
+                            height: null,
+                            enableVoiceInput: true,
                           ),
                         ],
                       ),
@@ -427,26 +444,42 @@ class _DialogContentState extends State<_DialogContent> {
         ),
       );
     }
-    return DropdownButtonFormField<String>(
-      initialValue: _bancoId,
-      isExpanded: true,
-      decoration: const InputDecoration(
-        labelText: 'Cuenta bancaria *',
-        border: OutlineInputBorder(),
-      ),
+    return CustomDropdown<String>(
+      label: 'Cuenta bancaria',
+      borderColor: AppColors.blue1,
+      hintText: 'Selecciona una cuenta',
+      value: _bancoId,
+      dropdownStyle: _bancos.length > 6
+          ? DropdownStyle.searchable
+          : DropdownStyle.standard,
+      showSearchBox: _bancos.length > 6,
       items: _bancos
           .map(
-            (b) => DropdownMenuItem<String>(
+            (b) => DropdownItem<String>(
               value: b.id,
-              child: Text(
-                '${b.nombreBanco} · ${b.numeroCuenta}${b.esPrincipal ? ' ★' : ''}',
-                overflow: TextOverflow.ellipsis,
-              ),
+              label: '${b.nombreBanco} · ${b.numeroCuenta}${b.esPrincipal ? ' ★' : ''}',
+              leading: const Icon(Icons.account_balance, size: 16, color: AppColors.blue1),
             ),
           )
           .toList(),
       onChanged: (v) => setState(() => _bancoId = v),
+      validator: (v) => v == null ? 'Selecciona una cuenta' : null,
     );
+  }
+
+  IconData _metodoIcon(MetodoPagoGasto m) {
+    switch (m) {
+      case MetodoPagoGasto.efectivo:
+        return Icons.payments;
+      case MetodoPagoGasto.tarjeta:
+        return Icons.credit_card;
+      case MetodoPagoGasto.yape:
+        return Icons.phone_iphone;
+      case MetodoPagoGasto.plin:
+        return Icons.phone_iphone;
+      case MetodoPagoGasto.transferencia:
+        return Icons.swap_horiz;
+    }
   }
 
   Widget _comprobanteSection(bool subiendo) {
