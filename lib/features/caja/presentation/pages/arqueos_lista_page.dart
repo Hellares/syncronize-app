@@ -8,8 +8,6 @@ import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/utils/date_formatter.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
-import 'package:syncronize/features/empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
-import 'package:syncronize/features/empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import 'package:syncronize/features/impresoras/domain/services/impresoras_manager.dart';
 
 import '../../domain/entities/arqueo_caja.dart';
@@ -17,6 +15,7 @@ import '../../domain/entities/caja.dart';
 import '../bloc/arqueos_caja_cubit.dart';
 import '../bloc/arqueos_caja_state.dart';
 import '../services/arqueo_caja_esc_pos_generator.dart';
+import '../services/caja_ticket_data.dart';
 
 class ArqueosListaPage extends StatefulWidget {
   final Caja caja;
@@ -253,7 +252,7 @@ class _ArqueosListaPageState extends State<ArqueosListaPage> {
 
   Future<void> _reimprimir(ArqueoCaja a) async {
     try {
-      final empresaState = context.read<EmpresaContextCubit>().state;
+      final ticketData = await resolverCajaTicketData(context, widget.caja);
       final manager = locator<ImpresorasManager>();
       final principal = await manager.getPrincipal();
       if (!mounted) return;
@@ -267,26 +266,16 @@ class _ArqueosListaPageState extends State<ArqueosListaPage> {
         return;
       }
 
-      String empresaNombre = '';
-      String? razonSocial, ruc, direccion, telefono;
-      if (empresaState is EmpresaContextLoaded) {
-        final empresa = empresaState.context.empresa;
-        empresaNombre = empresa.nombre;
-        razonSocial = empresa.razonSocial;
-        ruc = empresa.ruc;
-        direccion = empresa.direccionFiscal;
-        telefono = empresa.telefono;
-      }
-
       final bytes = await ArqueoCajaEscPosGenerator.generate(
         caja: widget.caja,
         arqueo: a,
-        empresaNombre: empresaNombre,
-        empresaRazonSocial: razonSocial,
-        empresaRuc: ruc,
-        empresaDireccion: direccion,
-        empresaTelefono: telefono,
+        empresaNombre: ticketData.empresaNombre,
+        empresaRazonSocial: ticketData.razonSocial,
+        empresaRuc: ticketData.ruc,
+        empresaDireccion: ticketData.direccion,
+        empresaTelefono: ticketData.telefono,
         sedeNombre: widget.caja.sedeNombre,
+        logoEmpresa: ticketData.logoBytes,
         paperWidth: principal.anchoPapel.mm,
       );
 

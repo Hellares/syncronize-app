@@ -13,6 +13,7 @@ import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state
 import '../../domain/entities/caja.dart';
 import '../bloc/caja_historial_cubit.dart';
 import '../bloc/caja_historial_state.dart';
+import '../services/caja_ticket_data.dart';
 import '../services/cierre_caja_esc_pos_generator.dart';
 
 class HistorialCajaPage extends StatefulWidget {
@@ -276,7 +277,7 @@ class _HistorialCajaPageState extends State<HistorialCajaPage> {
   Future<void> _reimprimirResumen(Caja caja) async {
     if (caja.cierre == null) return;
     try {
-      final empresaState = context.read<EmpresaContextCubit>().state;
+      final ticketData = await resolverCajaTicketData(context, caja);
 
       final manager = locator<ImpresorasManager>();
       final principal = await manager.getPrincipal();
@@ -291,29 +292,16 @@ class _HistorialCajaPageState extends State<HistorialCajaPage> {
         return;
       }
 
-      String empresaNombre = '';
-      String? razonSocial;
-      String? ruc;
-      String? direccion;
-      String? telefono;
-      if (empresaState is EmpresaContextLoaded) {
-        final empresa = empresaState.context.empresa;
-        empresaNombre = empresa.nombre;
-        razonSocial = empresa.razonSocial;
-        ruc = empresa.ruc;
-        direccion = empresa.direccionFiscal;
-        telefono = empresa.telefono;
-      }
-
       final bytes = await CierreCajaEscPosGenerator.generate(
         caja: caja,
         cierre: caja.cierre!,
-        empresaNombre: empresaNombre,
-        empresaRazonSocial: razonSocial,
-        empresaRuc: ruc,
-        empresaDireccion: direccion,
-        empresaTelefono: telefono,
+        empresaNombre: ticketData.empresaNombre,
+        empresaRazonSocial: ticketData.razonSocial,
+        empresaRuc: ticketData.ruc,
+        empresaDireccion: ticketData.direccion,
+        empresaTelefono: ticketData.telefono,
         sedeNombre: caja.sedeNombre,
+        logoEmpresa: ticketData.logoBytes,
         paperWidth: principal.anchoPapel.mm,
       );
 
