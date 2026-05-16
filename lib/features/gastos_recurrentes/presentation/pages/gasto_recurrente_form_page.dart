@@ -202,7 +202,7 @@ class _FormViewState extends State<_FormView> {
                             borderColor: AppColors.blue1,
                             hintText: '0.00',
                             requiredField: true,
-                            allowZero: false,
+                            //allowZero: false,
                           ),
                         ),
                         const SizedBox(width: 10),
@@ -217,11 +217,11 @@ class _FormViewState extends State<_FormView> {
                             fieldType: FieldType.number,
                             maxLength: 2,
                             autovalidateMode: AutovalidateModeX.onUnfocus,
-                            validator: (v) {
-                              final n = int.tryParse(v ?? '');
-                              if (n == null || n < 1 || n > 31) return '1 a 31';
-                              return null;
-                            },
+                            // validator: (v) {
+                            //   final n = int.tryParse(v ?? '');
+                            //   if (n == null || n < 1 || n > 31) return '1 a 31';
+                            //   return null;
+                            // },
                           ),
                         ),
                       ],
@@ -281,6 +281,8 @@ class _FormViewState extends State<_FormView> {
                     ),
                     const SizedBox(height: 24),
                     CustomButton(
+                      borderColor: AppColors.blue1,
+                      textColor: AppColors.blue1,
                       text: widget.isEdit ? 'Guardar cambios' : 'Crear gasto',
                       onPressed: saving ? null : _submit,
                       isLoading: saving,

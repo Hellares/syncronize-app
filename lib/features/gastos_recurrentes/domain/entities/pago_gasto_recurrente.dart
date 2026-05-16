@@ -99,6 +99,10 @@ class PagoGastoRecurrente extends Equatable {
   final String? comprobanteUrl;
   final String? notas;
   final String? registradoPorNombre;
+  final bool anulado;
+  final String? motivoAnulacion;
+  final String? anuladoPorNombre;
+  final DateTime? fechaAnulacion;
 
   const PagoGastoRecurrente({
     required this.id,
@@ -115,6 +119,10 @@ class PagoGastoRecurrente extends Equatable {
     this.comprobanteUrl,
     this.notas,
     this.registradoPorNombre,
+    this.anulado = false,
+    this.motivoAnulacion,
+    this.anuladoPorNombre,
+    this.fechaAnulacion,
   });
 
   @override
@@ -129,5 +137,7 @@ class PagoGastoRecurrente extends Equatable {
         bancoId,
         movimientoCajaId,
         comprobanteUrl,
+        anulado,
+        fechaAnulacion,
       ];
 }

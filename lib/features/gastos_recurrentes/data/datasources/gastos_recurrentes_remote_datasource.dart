@@ -153,10 +153,12 @@ class GastosRecurrentesRemoteDataSource {
     String gastoId, {
     int? take,
     int? skip,
+    bool incluirAnulados = false,
   }) async {
     final qp = <String, dynamic>{};
     if (take != null) qp['take'] = take;
     if (skip != null) qp['skip'] = skip;
+    if (incluirAnulados) qp['incluirAnulados'] = 'true';
 
     final res = await _dioClient.get(
       '$_basePath/$gastoId/pagos',
@@ -164,6 +166,17 @@ class GastosRecurrentesRemoteDataSource {
     );
     final items = (res.data['items'] as List).cast<Map<String, dynamic>>();
     return items.map((e) => PagoGastoRecurrenteModel.fromJson(e)).toList();
+  }
+
+  Future<PagoGastoRecurrenteModel> anularPago({
+    required String pagoId,
+    required String motivo,
+  }) async {
+    final res = await _dioClient.post(
+      '$_basePath/pagos/$pagoId/anular',
+      data: {'motivo': motivo},
+    );
+    return PagoGastoRecurrenteModel.fromJson(res.data as Map<String, dynamic>);
   }
 
   Future<ComprobanteUploadResult> uploadComprobante(String filePath) async {

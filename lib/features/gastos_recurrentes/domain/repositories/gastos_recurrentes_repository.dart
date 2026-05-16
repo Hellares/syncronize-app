@@ -63,6 +63,12 @@ abstract class GastosRecurrentesRepository {
     String gastoId, {
     int? take,
     int? skip,
+    bool incluirAnulados,
+  });
+
+  Future<Resource<PagoGastoRecurrente>> anularPago({
+    required String pagoId,
+    required String motivo,
   });
 
   Future<Resource<ComprobanteUploadResult>> uploadComprobante({

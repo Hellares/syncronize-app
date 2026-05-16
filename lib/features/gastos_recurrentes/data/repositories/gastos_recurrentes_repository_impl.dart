@@ -153,11 +153,25 @@ class GastosRecurrentesRepositoryImpl implements GastosRecurrentesRepository {
     String gastoId, {
     int? take,
     int? skip,
+    bool incluirAnulados = false,
   }) =>
       _guard(() async {
-        final items = await _ds.listarPagos(gastoId, take: take, skip: skip);
+        final items = await _ds.listarPagos(
+          gastoId,
+          take: take,
+          skip: skip,
+          incluirAnulados: incluirAnulados,
+        );
         return items.map((m) => m.toEntity()).toList();
       });
+
+  @override
+  Future<Resource<PagoGastoRecurrente>> anularPago({
+    required String pagoId,
+    required String motivo,
+  }) =>
+      _guard(() async =>
+          (await _ds.anularPago(pagoId: pagoId, motivo: motivo)).toEntity());
 
   @override
   Future<Resource<ComprobanteUploadResult>> uploadComprobante({

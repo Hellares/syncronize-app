@@ -16,12 +16,17 @@ class PagoGastoRecurrenteModel extends PagoGastoRecurrente {
     super.comprobanteUrl,
     super.notas,
     super.registradoPorNombre,
+    super.anulado,
+    super.motivoAnulacion,
+    super.anuladoPorNombre,
+    super.fechaAnulacion,
   });
 
   factory PagoGastoRecurrenteModel.fromJson(Map<String, dynamic> json) {
     final banco = json['banco'] as Map<String, dynamic>?;
     final mov = json['movimientoCaja'] as Map<String, dynamic>?;
     final reg = json['registradoPor'] as Map<String, dynamic>?;
+    final anu = json['anuladoPor'] as Map<String, dynamic>?;
     String? nombreRegistrador;
     if (reg != null) {
       final persona = reg['persona'] as Map<String, dynamic>?;
@@ -29,6 +34,15 @@ class PagoGastoRecurrenteModel extends PagoGastoRecurrente {
         nombreRegistrador =
             '${persona['nombres'] ?? ''} ${persona['apellidos'] ?? ''}'.trim();
         if (nombreRegistrador.isEmpty) nombreRegistrador = null;
+      }
+    }
+    String? nombreAnulador;
+    if (anu != null) {
+      final persona = anu['persona'] as Map<String, dynamic>?;
+      if (persona != null) {
+        nombreAnulador =
+            '${persona['nombres'] ?? ''} ${persona['apellidos'] ?? ''}'.trim();
+        if (nombreAnulador.isEmpty) nombreAnulador = null;
       }
     }
 
@@ -47,6 +61,12 @@ class PagoGastoRecurrenteModel extends PagoGastoRecurrente {
       comprobanteUrl: json['comprobanteUrl'] as String?,
       notas: json['notas'] as String?,
       registradoPorNombre: nombreRegistrador,
+      anulado: json['anulado'] as bool? ?? false,
+      motivoAnulacion: json['motivoAnulacion'] as String?,
+      anuladoPorNombre: nombreAnulador,
+      fechaAnulacion: json['fechaAnulacion'] != null
+          ? DateTime.tryParse(json['fechaAnulacion'] as String)
+          : null,
     );
   }
 
