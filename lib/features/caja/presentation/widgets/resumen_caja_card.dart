@@ -58,7 +58,7 @@ class ResumenCajaCard extends StatelessWidget {
             AppColors.red,
           ),
           const Divider(height: 20),
-          // Saldo Efectivo (fisico en gaveta): solo EFECTIVO + apertura.
+          // Saldo en Caja: lo fisico en la gaveta (EFECTIVO + apertura).
           // Es lo que el cajero deberia contar al cerrar.
           _buildResumenRow(
             'Saldo en Caja',
@@ -66,16 +66,25 @@ class ResumenCajaCard extends StatelessWidget {
             resumen.saldoEfectivo >= 0 ? AppColors.green : AppColors.red,
             isBold: true,
           ),
-          // Total operado del dia: incluye efectivo + digitales (YAPE, PLIN,
-          // TARJETA, TRANSFERENCIA). No esta en la gaveta — sirve solo para
-          // ver el movimiento total. Si coincide con saldoEfectivo (porque
-          // todo fue efectivo) lo ocultamos para no duplicar info.
+          // Medios Digitales = saldo total - efectivo. Cubre YAPE, PLIN,
+          // TARJETA, TRANSFERENCIA. Si no hubo cobros digitales, ocultamos
+          // las dos lineas para no llenar de ruido.
           if ((resumen.saldo - resumen.saldoEfectivo).abs() > 0.01) ...[
-            const SizedBox(height: 4),
+            const SizedBox(height: 8),
             _buildResumenRow(
-              'Total operado',
+              'Medios Digitales',
+              currencyFormat.format(resumen.saldo - resumen.saldoEfectivo),
+              AppColors.blue2,
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Divider(height: 1, thickness: 0.5),
+            ),
+            _buildResumenRow(
+              'Total Operado',
               currencyFormat.format(resumen.saldo),
-              AppColors.textSecondary,
+              AppColors.blue1,
+              isBold: true,
             ),
           ],
           // Detalles por metodo de pago
