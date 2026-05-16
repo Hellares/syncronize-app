@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:syncronize/core/di/injection_container.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/utils/resource.dart';
+import 'package:syncronize/core/widgets/currency/currency_textfield.dart';
 import 'package:syncronize/core/widgets/custom_button.dart';
+import 'package:syncronize/core/widgets/custom_dropdown.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import 'package:syncronize/core/widgets/snack_bar_helper.dart';
+import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import 'package:syncronize/features/categoria_gasto/domain/entities/categoria_gasto.dart';
 import 'package:syncronize/features/categoria_gasto/domain/repositories/categoria_gasto_repository.dart';
 import '../../domain/entities/gasto_recurrente.dart';
@@ -104,7 +106,15 @@ class _FormViewState extends State<_FormView> {
       return;
     }
     final monto = double.tryParse(_montoCtrl.text.replaceAll(',', '.')) ?? 0;
+    if (monto <= 0) {
+      SnackBarHelper.showError(context, 'El monto debe ser mayor a 0');
+      return;
+    }
     final dia = int.tryParse(_diaCtrl.text) ?? 0;
+    if (dia < 1 || dia > 31) {
+      SnackBarHelper.showError(context, 'El día de vencimiento debe estar entre 1 y 31');
+      return;
+    }
     final notas = _notasCtrl.text.trim();
     final cubit = context.read<GastoFormCubit>();
 
@@ -166,15 +176,18 @@ class _FormViewState extends State<_FormView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    TextFormField(
+                    CustomText(
                       controller: _nombreCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Nombre *',
-                        hintText: 'Ej: Recibo Luz local SJL',
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: (v) =>
-                          (v == null || v.trim().isEmpty) ? 'Requerido' : null,
+                      label: 'Nombre',
+                      hintText: 'Ej: Recibo Luz local SJL',
+                      required: true,
+                      borderColor: AppColors.blue1,
+                      maxLength: 120,
+                      autovalidateMode: AutovalidateModeX.onUnfocus,
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) return 'Requerido';
+                        return null;
+                      },
                     ),
                     const SizedBox(height: 14),
                     _categoriasField(),
@@ -183,38 +196,30 @@ class _FormViewState extends State<_FormView> {
                       children: [
                         Expanded(
                           flex: 3,
-                          child: TextFormField(
+                          child: CurrencyTextField(
                             controller: _montoCtrl,
-                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                            decoration: const InputDecoration(
-                              labelText: 'Monto estimado *',
-                              prefixText: 'S/ ',
-                              border: OutlineInputBorder(),
-                            ),
-                            validator: (v) {
-                              final n = double.tryParse((v ?? '').replaceAll(',', '.'));
-                              if (n == null || n <= 0) return 'Monto inválido';
-                              return null;
-                            },
+                            label: 'Monto estimado',
+                            borderColor: AppColors.blue1,
+                            hintText: '0.00',
+                            requiredField: true,
+                            allowZero: false,
                           ),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
                           flex: 2,
-                          child: TextFormField(
+                          child: CustomText(
                             controller: _diaCtrl,
-                            keyboardType: TextInputType.number,
-                            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                            decoration: const InputDecoration(
-                              labelText: 'Día venc. *',
-                              hintText: '1-31',
-                              border: OutlineInputBorder(),
-                            ),
+                            label: 'Día vencimiento',
+                            hintText: '1-31',
+                            required: true,
+                            borderColor: AppColors.blue1,
+                            fieldType: FieldType.number,
+                            maxLength: 2,
+                            autovalidateMode: AutovalidateModeX.onUnfocus,
                             validator: (v) {
                               final n = int.tryParse(v ?? '');
-                              if (n == null || n < 1 || n > 31) {
-                                return '1 a 31';
-                              }
+                              if (n == null || n < 1 || n > 31) return '1 a 31';
                               return null;
                             },
                           ),
@@ -222,42 +227,59 @@ class _FormViewState extends State<_FormView> {
                       ],
                     ),
                     const SizedBox(height: 14),
-                    DropdownButtonFormField<FrecuenciaGasto>(
-                      initialValue: _frecuencia,
-                      decoration: const InputDecoration(
-                        labelText: 'Frecuencia *',
-                        border: OutlineInputBorder(),
-                      ),
+                    CustomDropdown<FrecuenciaGasto>(
+                      label: 'Frecuencia',
+                      value: _frecuencia,
+                      borderColor: AppColors.blue1,
+                      hintText: 'Selecciona la frecuencia',
                       items: FrecuenciaGasto.values
-                          .map((f) => DropdownMenuItem(value: f, child: Text(f.label)))
+                          .map((f) => DropdownItem<FrecuenciaGasto>(
+                                value: f,
+                                label: f.label,
+                                leading: Icon(
+                                  _frecuenciaIcon(f),
+                                  size: 16,
+                                  color: AppColors.blue1,
+                                ),
+                              ))
                           .toList(),
-                      onChanged: (v) => setState(() => _frecuencia = v ?? FrecuenciaGasto.mensual),
+                      onChanged: (v) {
+                        if (v != null) setState(() => _frecuencia = v);
+                      },
+                      validator: (v) => v == null ? 'Requerido' : null,
                     ),
                     const SizedBox(height: 14),
-                    if (widget.isEdit)
+                    if (widget.isEdit) ...[
                       SwitchListTile(
                         value: _activo,
                         onChanged: (v) => setState(() => _activo = v),
-                        title: const Text('Activo'),
+                        title: const Text(
+                          'Activo',
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                        ),
                         subtitle: Text(
                           _activo
                               ? 'Aparece en el dashboard y dispara alertas'
                               : 'Oculto del dashboard, no alerta',
-                          style: const TextStyle(fontSize: 12),
+                          style: const TextStyle(fontSize: 11),
                         ),
                         contentPadding: EdgeInsets.zero,
+                        dense: true,
+                        activeThumbColor: AppColors.blue1,
                       ),
-                    if (widget.isEdit) const SizedBox(height: 8),
-                    TextFormField(
+                      const SizedBox(height: 8),
+                    ],
+                    CustomText(
                       controller: _notasCtrl,
+                      label: 'Notas (opcional)',
+                      hintText: 'Detalles o referencias internas',
+                      borderColor: AppColors.blue1,
                       maxLines: 3,
                       maxLength: 500,
-                      decoration: const InputDecoration(
-                        labelText: 'Notas (opcional)',
-                        border: OutlineInputBorder(),
-                      ),
+                      height: null,
+                      enableVoiceInput: true,
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 24),
                     CustomButton(
                       text: widget.isEdit ? 'Guardar cambios' : 'Crear gasto',
                       onPressed: saving ? null : _submit,
@@ -274,6 +296,19 @@ class _FormViewState extends State<_FormView> {
         ),
       ),
     );
+  }
+
+  IconData _frecuenciaIcon(FrecuenciaGasto f) {
+    switch (f) {
+      case FrecuenciaGasto.mensual:
+        return Icons.calendar_view_month;
+      case FrecuenciaGasto.bimestral:
+        return Icons.calendar_view_week;
+      case FrecuenciaGasto.trimestral:
+        return Icons.calendar_today;
+      case FrecuenciaGasto.anual:
+        return Icons.event_note;
+    }
   }
 
   Widget _categoriasField() {
@@ -335,29 +370,24 @@ class _FormViewState extends State<_FormView> {
       );
     }
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         Expanded(
-          child: DropdownButtonFormField<String>(
-            initialValue: _categoriaId,
-            decoration: const InputDecoration(
-              labelText: 'Categoría *',
-              border: OutlineInputBorder(),
-            ),
-            isExpanded: true,
+          child: CustomDropdown<String>(
+            label: 'Categoría',
+            value: _categoriaId,
+            borderColor: AppColors.blue1,
+            hintText: 'Selecciona una categoría',
+            dropdownStyle: _categorias.length > 8
+                ? DropdownStyle.searchable
+                : DropdownStyle.standard,
+            showSearchBox: _categorias.length > 8,
             items: _categorias
                 .map(
-                  (c) => DropdownMenuItem<String>(
+                  (c) => DropdownItem<String>(
                     value: c.id,
-                    child: Row(
-                      children: [
-                        Icon(c.iconData, size: 18, color: c.colorValue),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(c.nombre, overflow: TextOverflow.ellipsis),
-                        ),
-                      ],
-                    ),
+                    label: c.nombre,
+                    leading: Icon(c.iconData, size: 16, color: c.colorValue),
                   ),
                 )
                 .toList(),
@@ -366,11 +396,16 @@ class _FormViewState extends State<_FormView> {
           ),
         ),
         const SizedBox(width: 6),
-        IconButton(
-          onPressed: _gestionarCategorias,
-          icon: const Icon(Icons.add_circle_outline),
-          color: AppColors.blue1,
-          tooltip: 'Crear/gestionar categorías',
+        Padding(
+          padding: const EdgeInsets.only(bottom: 2),
+          child: IconButton(
+            onPressed: _gestionarCategorias,
+            icon: const Icon(Icons.add_circle_outline),
+            color: AppColors.blue1,
+            tooltip: 'Crear/gestionar categorías',
+            iconSize: 22,
+            visualDensity: VisualDensity.compact,
+          ),
         ),
       ],
     );
