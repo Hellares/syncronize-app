@@ -408,13 +408,20 @@ class _HistorialCajaPageState extends State<HistorialCajaPage> {
                           ),
                           onPressed: () {
                             setState(() {});
+                            // DateRangePicker devuelve start/end a las 00:00.
+                            // Para incluir el dia completo del "hasta" hay
+                            // que pasar endOfDay; si solo pasamos .end con
+                            // lte, perdemos lo cerrado durante ese dia.
                             _historialCubit.loadHistorial(
                               sedeId: _selectedSedeId,
                               fechaDesde: _dateRange?.start != null
-                                  ? DateFormatter.toUtcIso(_dateRange!.start)
+                                  ? DateFormatter.toUtcIso(
+                                      DateFormatter.startOfDay(
+                                          _dateRange!.start))
                                   : null,
                               fechaHasta: _dateRange?.end != null
-                                  ? DateFormatter.toUtcIso(_dateRange!.end)
+                                  ? DateFormatter.toUtcIso(
+                                      DateFormatter.endOfDay(_dateRange!.end))
                                   : null,
                             );
                             Navigator.of(context).pop();
