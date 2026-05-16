@@ -42,6 +42,8 @@ import '../../features/solicitud_cotizacion_empresa/presentation/pages/solicitud
 import '../../features/caja/presentation/pages/caja_page.dart';
 import '../../features/caja_chica/presentation/pages/caja_chica_page.dart';
 import '../../features/gastos_recurrentes/presentation/pages/gastos_recurrentes_dashboard_page.dart';
+import '../../features/gastos_recurrentes/presentation/pages/gasto_recurrente_form_page.dart';
+import '../../features/gastos_recurrentes/presentation/pages/gasto_recurrente_detail_page.dart';
 import '../../features/caja_chica/presentation/pages/caja_chica_detail_page.dart';
 import '../../features/caja_chica/presentation/pages/crear_caja_chica_page.dart';
 import '../../features/caja_chica/presentation/pages/nuevo_gasto_page.dart';
@@ -1198,6 +1200,23 @@ class AppRouter {
         path: '/empresa/gastos-recurrentes',
         name: 'empresa-gastos-recurrentes',
         builder: (context, state) => const GastosRecurrentesDashboardPage(),
+      ),
+      GoRoute(
+        path: '/empresa/gastos-recurrentes/nuevo',
+        name: 'empresa-gastos-recurrentes-nuevo',
+        builder: (context, state) => const GastoRecurrenteFormPage(),
+      ),
+      GoRoute(
+        path: '/empresa/gastos-recurrentes/:id',
+        name: 'empresa-gastos-recurrentes-detail',
+        builder: (context, state) =>
+            GastoRecurrenteDetailPage(gastoId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/empresa/gastos-recurrentes/:id/editar',
+        name: 'empresa-gastos-recurrentes-editar',
+        builder: (context, state) =>
+            GastoRecurrenteFormPage(gastoId: state.pathParameters['id']),
       ),
       // Rutas de agentes bancarios
       GoRoute(

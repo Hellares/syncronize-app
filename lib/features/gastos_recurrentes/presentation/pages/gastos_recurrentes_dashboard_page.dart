@@ -11,6 +11,9 @@ import '../../domain/entities/dashboard_gastos.dart';
 import '../../domain/entities/pago_gasto_recurrente.dart';
 import '../bloc/dashboard_cubit.dart';
 import '../bloc/dashboard_state.dart';
+import '../widgets/pagar_gasto_dialog.dart';
+import 'gasto_recurrente_detail_page.dart';
+import 'gasto_recurrente_form_page.dart';
 
 class GastosRecurrentesDashboardPage extends StatelessWidget {
   const GastosRecurrentesDashboardPage({super.key});
@@ -41,7 +44,20 @@ class _Body extends StatelessWidget {
         backgroundColor: AppColors.blue1,
         foregroundColor: AppColors.white,
       ),
-      // TODO: FAB para crear nuevo gasto cuando se cablee el form
+      floatingActionButton: Builder(
+        builder: (innerContext) => FloatingActionButton(
+          backgroundColor: AppColors.blue1,
+          onPressed: () async {
+            final created = await Navigator.of(innerContext).push<bool>(
+              MaterialPageRoute(builder: (_) => const GastoRecurrenteFormPage()),
+            );
+            if (created == true && innerContext.mounted) {
+              innerContext.read<DashboardGastosCubit>().reload();
+            }
+          },
+          child: const Icon(Icons.add, color: AppColors.white),
+        ),
+      ),
       body: GradientContainer(
         child: BlocConsumer<DashboardGastosCubit, DashboardGastosState>(
           listener: (context, state) {
@@ -239,8 +255,21 @@ class _Body extends StatelessWidget {
     final g = item.gasto;
     final pago = item.pagoPeriodo;
     final monto = pago?.montoReal ?? g.montoEstimado;
+    final periodo = (context.read<DashboardGastosCubit>().state as DashboardGastosLoaded).periodo;
 
-    return GradientContainer(
+    return InkWell(
+      onTap: () async {
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => GastoRecurrenteDetailPage(gastoId: g.id),
+          ),
+        );
+        if (context.mounted) {
+          context.read<DashboardGastosCubit>().reload();
+        }
+      },
+      borderRadius: BorderRadius.circular(8),
+      child: GradientContainer(
       padding: const EdgeInsets.all(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -322,9 +351,15 @@ class _Body extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 TextButton.icon(
-                  onPressed: () {
-                    // TODO Fase 6c: abrir PagarGastoDialog
-                    SnackBarHelper.showInfo(context, 'Dialog de pago — pendiente (Fase 6c)');
+                  onPressed: () async {
+                    final ok = await PagarGastoDialog.show(
+                      context,
+                      gasto: g,
+                      periodo: periodo,
+                    );
+                    if (ok == true && context.mounted) {
+                      context.read<DashboardGastosCubit>().reload();
+                    }
                   },
                   icon: const Icon(Icons.payments_outlined, size: 16),
                   label: const Text('Marcar pagado'),
@@ -334,6 +369,7 @@ class _Body extends StatelessWidget {
             ),
           ],
         ],
+      ),
       ),
     );
   }
