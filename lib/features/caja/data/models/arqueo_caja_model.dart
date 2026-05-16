@@ -16,6 +16,7 @@ class ArqueoCajaModel extends ArqueoCaja {
     required super.diferencia,
     super.detalles,
     super.observaciones,
+    super.desgloseEfectivo,
     required super.realizadoPorId,
     super.realizadoPorNombre,
     super.autorizadoPorId,
@@ -59,6 +60,7 @@ class ArqueoCajaModel extends ArqueoCaja {
       diferencia: _toDouble(json['diferencia']),
       detalles: detalles,
       observaciones: json['observaciones'] as String?,
+      desgloseEfectivo: _parseDesglose(json['desgloseEfectivo']),
       realizadoPorId: json['realizadoPorId'] as String,
       realizadoPorNombre: _parsePersonaNombre(json['realizadoPor']),
       autorizadoPorId: json['autorizadoPorId'] as String?,
@@ -68,6 +70,22 @@ class ArqueoCajaModel extends ArqueoCaja {
       alertaEnviada: json['alertaEnviada'] as bool? ?? false,
       fechaArqueo: DateTime.parse(json['fechaArqueo'] as String),
     );
+  }
+
+  static Map<double, int>? _parseDesglose(dynamic raw) {
+    if (raw is! Map<String, dynamic>) return null;
+    final result = <double, int>{};
+    raw.forEach((k, v) {
+      final denom = double.tryParse(k);
+      final cantidad = v is int
+          ? v
+          : v is double
+              ? v.toInt()
+              : int.tryParse(v.toString()) ?? 0;
+      if (denom != null && cantidad > 0) result[denom] = cantidad;
+    });
+    if (result.isEmpty) return null;
+    return result;
   }
 
   static String? _parsePersonaNombre(dynamic user) {

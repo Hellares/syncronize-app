@@ -206,6 +206,7 @@ class CajaRepositoryImpl implements CajaRepository {
     String? observaciones,
     String? autorizadoPorId,
     String? turnoEntregadoAId,
+    Map<String, int>? desgloseEfectivo,
   }) async {
     if (!await _networkInfo.isConnected) {
       return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
@@ -218,6 +219,7 @@ class CajaRepositoryImpl implements CajaRepository {
         observaciones: observaciones,
         autorizadoPorId: autorizadoPorId,
         turnoEntregadoAId: turnoEntregadoAId,
+        desgloseEfectivo: desgloseEfectivo,
       );
       return Success(arqueo);
     } catch (e) {

@@ -83,6 +83,9 @@ class ArqueoCaja extends Equatable {
   final double diferencia;
   final List<DetalleCierreMetodo> detalles;
   final String? observaciones;
+  /// Desglose opcional billetes/monedas. Map de denominacion a cantidad.
+  /// Ej: {200: 1, 100: 3, 50: 2, ..., 0.10: 50}.
+  final Map<double, int>? desgloseEfectivo;
   final String realizadoPorId;
   final String? realizadoPorNombre;
   final String? autorizadoPorId;
@@ -105,6 +108,7 @@ class ArqueoCaja extends Equatable {
     required this.diferencia,
     this.detalles = const [],
     this.observaciones,
+    this.desgloseEfectivo,
     required this.realizadoPorId,
     this.realizadoPorNombre,
     this.autorizadoPorId,

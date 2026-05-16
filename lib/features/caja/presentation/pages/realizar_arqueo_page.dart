@@ -23,6 +23,7 @@ import '../bloc/arqueos_caja_state.dart';
 import '../bloc/caja_movimientos_cubit.dart';
 import '../bloc/caja_movimientos_state.dart';
 import '../services/arqueo_caja_esc_pos_generator.dart';
+import '../widgets/desglose_efectivo_sheet.dart';
 
 /// Formulario para crear un arqueo de caja (conteo sin cerrar).
 /// Recibe el cubit ya provisto desde el caller.
@@ -277,6 +278,7 @@ class _RealizarArqueoPageState extends State<RealizarArqueoPage> {
 
   String? _sucesorId;
   String? _sucesorNombre;
+  Map<double, int>? _desgloseEfectivo;
 
   Widget _buildSucesorPicker() {
     return InkWell(
@@ -415,6 +417,7 @@ class _RealizarArqueoPageState extends State<RealizarArqueoPage> {
         double.tryParse(controller.text.replaceAll(',', '.')) ?? 0;
     final diferencia = conteoValue - esperado;
     final hasDif = controller.text.isNotEmpty && diferencia != 0;
+    final esEfectivo = metodo == MetodoPago.efectivo;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -432,8 +435,31 @@ class _RealizarArqueoPageState extends State<RealizarArqueoPage> {
                   fontSize: 13,
                   color: AppColors.blue3,
                 ),
+                if (esEfectivo) ...[
+                  const Spacer(),
+                  TextButton.icon(
+                    onPressed: () => _abrirDesgloseSheet(controller),
+                    icon: const Icon(Icons.payments_rounded, size: 14),
+                    label: Text(
+                      _desgloseEfectivo == null
+                          ? 'Contar billetes'
+                          : 'Editar desglose',
+                      style: const TextStyle(fontSize: 11),
+                    ),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.blue1,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 0),
+                      minimumSize: const Size(0, 28),
+                    ),
+                  ),
+                ],
               ],
             ),
+            if (esEfectivo && _desgloseEfectivo != null) ...[
+              const SizedBox(height: 4),
+              _buildResumenDesglose(currencyFormat),
+            ],
             const SizedBox(height: 8),
             Row(
               children: [
@@ -521,6 +547,56 @@ class _RealizarArqueoPageState extends State<RealizarArqueoPage> {
     );
   }
 
+  Future<void> _abrirDesgloseSheet(TextEditingController conteoEfectivo) async {
+    final result = await showDesgloseEfectivoSheet(
+      context,
+      initial: _desgloseEfectivo,
+    );
+    if (result == null) return;
+    setState(() {
+      if (result.cantidades.isEmpty) {
+        _desgloseEfectivo = null;
+        return;
+      }
+      _desgloseEfectivo = result.cantidades;
+      // Auto-completar el conteo del EFECTIVO con el total del desglose.
+      conteoEfectivo.text = result.total.toStringAsFixed(2);
+    });
+  }
+
+  Widget _buildResumenDesglose(NumberFormat currency) {
+    if (_desgloseEfectivo == null || _desgloseEfectivo!.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    // Ordenamos denominaciones de mayor a menor.
+    final entries = _desgloseEfectivo!.entries.toList()
+      ..sort((a, b) => b.key.compareTo(a.key));
+    return Wrap(
+      spacing: 6,
+      runSpacing: 4,
+      children: entries.map((e) {
+        final label = e.key >= 1
+            ? 'S/${e.key.toInt()} x${e.value}'
+            : 'S/${e.key.toStringAsFixed(2)} x${e.value}';
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: AppColors.bluechip,
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: AppColors.blue3,
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
   Future<void> _submit() async {
     if (_tipo == TipoArqueoCaja.relevo && _sucesorId == null) {
       SnackBarHelper.showError(
@@ -538,6 +614,17 @@ class _RealizarArqueoPageState extends State<RealizarArqueoPage> {
       };
     }).toList();
 
+    // Convertimos Map<double, int> a Map<String, int> para serializar
+    // (las keys JSON son strings).
+    final desgloseSerializado = _desgloseEfectivo == null
+        ? null
+        : _desgloseEfectivo!.map(
+            (k, v) => MapEntry(
+              k >= 1 ? k.toInt().toString() : k.toStringAsFixed(2),
+              v,
+            ),
+          );
+
     setState(() => _isCreating = true);
     await context.read<ArqueosCajaCubit>().crearArqueo(
           cajaId: widget.caja.id,
@@ -547,6 +634,7 @@ class _RealizarArqueoPageState extends State<RealizarArqueoPage> {
               ? _observacionesController.text
               : null,
           turnoEntregadoAId: _sucesorId,
+          desgloseEfectivo: desgloseSerializado,
         );
   }
 

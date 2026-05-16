@@ -152,6 +152,7 @@ class CajaRemoteDataSource {
     String? observaciones,
     String? autorizadoPorId,
     String? turnoEntregadoAId,
+    Map<String, int>? desgloseEfectivo,
   }) async {
     final data = <String, dynamic>{
       'tipo': tipoApiValue,
@@ -162,6 +163,9 @@ class CajaRemoteDataSource {
     }
     if (autorizadoPorId != null) data['autorizadoPorId'] = autorizadoPorId;
     if (turnoEntregadoAId != null) data['turnoEntregadoAId'] = turnoEntregadoAId;
+    if (desgloseEfectivo != null && desgloseEfectivo.isNotEmpty) {
+      data['desgloseEfectivo'] = desgloseEfectivo;
+    }
 
     final response = await _dioClient.post(
       '$_basePath/$cajaId/arqueo',

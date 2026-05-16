@@ -34,6 +34,7 @@ class ArqueosCajaCubit extends Cubit<ArqueosCajaState> {
     String? observaciones,
     String? autorizadoPorId,
     String? turnoEntregadoAId,
+    Map<String, int>? desgloseEfectivo,
   }) async {
     emit(const ArqueosCajaCreating());
     final result = await _crearArqueoUseCase(
@@ -43,6 +44,7 @@ class ArqueosCajaCubit extends Cubit<ArqueosCajaState> {
       observaciones: observaciones,
       autorizadoPorId: autorizadoPorId,
       turnoEntregadoAId: turnoEntregadoAId,
+      desgloseEfectivo: desgloseEfectivo,
     );
     if (isClosed) return null;
     if (result is Success<ArqueoCaja>) {

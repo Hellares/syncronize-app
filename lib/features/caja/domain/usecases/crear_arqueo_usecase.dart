@@ -16,6 +16,7 @@ class CrearArqueoUseCase {
     String? observaciones,
     String? autorizadoPorId,
     String? turnoEntregadoAId,
+    Map<String, int>? desgloseEfectivo,
   }) {
     return _repository.crearArqueo(
       cajaId: cajaId,
@@ -24,6 +25,7 @@ class CrearArqueoUseCase {
       observaciones: observaciones,
       autorizadoPorId: autorizadoPorId,
       turnoEntregadoAId: turnoEntregadoAId,
+      desgloseEfectivo: desgloseEfectivo,
     );
   }
 }

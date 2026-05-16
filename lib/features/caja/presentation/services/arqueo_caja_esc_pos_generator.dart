@@ -181,6 +181,31 @@ class ArqueoCajaEscPosGenerator {
       }
     }
 
+    // ── Desglose efectivo (billetes y monedas) ──
+    final desglose = arqueo.desgloseEfectivo;
+    if (desglose != null && desglose.isNotEmpty) {
+      bytes += generator.hr(ch: '-');
+      bytes += generator.text(
+        'DESGLOSE EFECTIVO',
+        styles: const PosStyles(bold: true),
+      );
+      final entries = desglose.entries.toList()
+        ..sort((a, b) => b.key.compareTo(a.key));
+      for (final e in entries) {
+        final denomLabel = e.key >= 1
+            ? 'S/${e.key.toInt()}'
+            : 'S/${e.key.toStringAsFixed(2)}';
+        final subtotal = e.key * e.value;
+        bytes += generator.text(
+          _row(
+            '  $denomLabel  x${e.value}',
+            _money(subtotal),
+            charsPerLine,
+          ),
+        );
+      }
+    }
+
     // ── Observaciones ──
     final obs = arqueo.observaciones?.trim();
     if (obs != null && obs.isNotEmpty) {

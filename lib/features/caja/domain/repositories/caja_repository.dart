@@ -65,6 +65,7 @@ abstract class CajaRepository {
     String? observaciones,
     String? autorizadoPorId,
     String? turnoEntregadoAId,
+    Map<String, int>? desgloseEfectivo,
   });
 
   /// Listar arqueos de una caja.
