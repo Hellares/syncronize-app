@@ -144,6 +144,15 @@ class TicketVentaEscPosGenerator {
     if (cajero != null && cajero.isNotEmpty) {
       bytes += generator.text('Cajero: $cajero');
     }
+    // Codigo interno de venta (VTA-SED-XXXXX). En tickets simples ya se
+    // imprime arriba como codigo principal (no hay codigoComprobante),
+    // pero en boleta/factura el principal pasa a ser B001-XXX/F001-XXX
+    // y el codigo interno desaparece. Lo agregamos aqui para que el
+    // cajero siempre pueda referenciar la venta internamente.
+    if (venta.codigoComprobante != null &&
+        venta.codigoComprobante != venta.codigo) {
+      bytes += generator.text('Cod. venta: ${venta.codigo}');
+    }
 
     bytes += generator.hr(ch: '-');
 
