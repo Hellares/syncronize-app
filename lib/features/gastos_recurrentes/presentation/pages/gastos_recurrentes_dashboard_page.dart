@@ -140,7 +140,7 @@ class _Body extends StatelessWidget {
     final parts = periodo.split('-');
     final anio = int.tryParse(parts[0]) ?? DateTime.now().year;
     final mes = int.tryParse(parts[1]) ?? DateTime.now().month;
-    final label = DateFormat.yMMMM('es_PE').format(DateTime(anio, mes));
+    final label = '${_mesLargo(mes)} $anio';
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
@@ -157,7 +157,7 @@ class _Body extends StatelessWidget {
           Expanded(
             child: Center(
               child: Text(
-                label[0].toUpperCase() + label.substring(1),
+                label,
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -177,6 +177,14 @@ class _Body extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _mesLargo(int m) {
+    const meses = [
+      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+    ];
+    return meses[(m - 1).clamp(0, 11)];
   }
 
   Widget _resumenCards(DashboardGastosResumen r) {

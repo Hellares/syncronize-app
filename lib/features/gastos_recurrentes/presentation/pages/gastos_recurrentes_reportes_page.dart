@@ -30,6 +30,11 @@ class _Body extends StatelessWidget {
   static final _money = NumberFormat.currency(locale: 'es_PE', symbol: 'S/ ', decimalDigits: 2);
   static final _moneyCompact = NumberFormat.compactCurrency(locale: 'es_PE', symbol: 'S/');
 
+  static const _mesesLargos = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+  ];
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -92,7 +97,7 @@ class _Body extends StatelessWidget {
     final parts = mes.periodo.split('-');
     final anio = int.parse(parts[0]);
     final m = int.parse(parts[1]);
-    final mesLabel = DateFormat.yMMMM('es_PE').format(DateTime(anio, m));
+    final mesLabel = '${_mesesLargos[(m - 1).clamp(0, 11)]} $anio';
 
     return GradientContainer(
       padding: const EdgeInsets.all(16),
@@ -104,7 +109,7 @@ class _Body extends StatelessWidget {
               const Icon(Icons.calendar_today, color: AppColors.blue1, size: 18),
               const SizedBox(width: 8),
               Text(
-                'Total operativo · ${mesLabel[0].toUpperCase()}${mesLabel.substring(1)}',
+                'Total operativo · $mesLabel',
                 style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
               ),
             ],

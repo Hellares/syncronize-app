@@ -22,7 +22,9 @@ class GastoRecurrenteDetailPage extends StatefulWidget {
 class _GastoRecurrenteDetailPageState extends State<GastoRecurrenteDetailPage> {
   final _repo = locator<GastosRecurrentesRepository>();
   static final _money = NumberFormat.currency(locale: 'es_PE', symbol: 'S/ ');
-  static final _fechaFmt = DateFormat('dd/MM/yyyy HH:mm', 'es_PE');
+  // No pasamos locale a DateFormat: el codebase no llama initializeDateFormatting('es_PE').
+  // Patrón dd/MM/yyyy HH:mm es agnóstico de locale.
+  static final _fechaFmt = DateFormat('dd/MM/yyyy HH:mm');
 
   GastoRecurrente? _gasto;
   List<PagoGastoRecurrente> _pagos = [];
