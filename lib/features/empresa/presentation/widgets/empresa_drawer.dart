@@ -613,16 +613,6 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/gastos-recurrentes')),
           ),
           tile(
-            title: 'Impresoras',
-            icon: Icons.print,
-            iconColor: Colors.indigo,
-            // Config local del celular del cajero — visible para todo el que
-            // pueda hacer ventas en caja (cajero, admin).
-            visible: can(permissions?.canManageCaja),
-            routeMatch: const _RouteMatch.startsWith('/empresa/impresoras'),
-            onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/impresoras')),
-          ),
-          tile(
             title: 'Cuentas Bancarias',
             icon: Icons.account_balance,
             visible: can(permissions?.canViewReports),
@@ -980,6 +970,18 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
         icon: Icons.storefront,
         routeMatch: const _RouteMatch.startsWith('/marketplace'),
         onTap: (ctx) => _tap(ctx, () => ctx.go('/marketplace')),
+      ),
+      // Impresoras: config local del celular del cajero (no es de la
+      // empresa sino del dispositivo). Lo dejamos al final del drawer
+      // junto a Mi Perfil/Marketplace para no confundirlo con un modulo
+      // operativo de la empresa.
+      tile(
+        title: 'Impresoras',
+        icon: Icons.print,
+        iconColor: Colors.indigo,
+        visible: can(permissions?.canManageCaja),
+        routeMatch: const _RouteMatch.startsWith('/empresa/impresoras'),
+        onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/impresoras')),
       ),
     ];
   }
