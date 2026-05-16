@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
+import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 
 /// Denominaciones de soles peruanos: billetes (200, 100, 50, 20, 10) y
 /// monedas (5, 2, 1, 0.50, 0.20, 0.10). De mayor a menor para que el
@@ -283,20 +283,11 @@ class _DesgloseEfectivoSheetState extends State<_DesgloseEfectivoSheet> {
         const SizedBox(width: 10),
         SizedBox(
           width: 70,
-          child: TextField(
+          child: CustomText(
             controller: _controllers[denom],
-            keyboardType: TextInputType.number,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            textAlign: TextAlign.center,
-            decoration: InputDecoration(
-              hintText: '0',
-              isDense: true,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-            ),
+            fieldType: FieldType.number,
+            hintText: '0',
+            height: 38,
             onChanged: (_) => setState(() {}),
           ),
         ),

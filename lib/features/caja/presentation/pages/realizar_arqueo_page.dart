@@ -10,6 +10,7 @@ import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/widgets/custom_button.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import 'package:syncronize/core/widgets/snack_bar_helper.dart';
+import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import 'package:syncronize/features/empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import 'package:syncronize/features/empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import 'package:syncronize/features/impresoras/domain/services/impresoras_manager.dart';
@@ -246,18 +247,12 @@ class _RealizarArqueoPageState extends State<RealizarArqueoPage> {
           }),
 
           const SizedBox(height: 16),
-          TextFormField(
+          CustomText(
+            label: 'Observaciones (opcional)',
             controller: _observacionesController,
             maxLines: 3,
-            decoration: InputDecoration(
-              labelText: 'Observaciones (opcional)',
-              prefixIcon: const Icon(Icons.note_rounded),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            ),
+            height: null, // multiline: deja crecer
+            prefixIcon: const Icon(Icons.note_rounded),
           ),
           const SizedBox(height: 24),
           SizedBox(
@@ -486,21 +481,14 @@ class _RealizarArqueoPageState extends State<RealizarArqueoPage> {
                   ),
                 ),
                 Expanded(
-                  child: TextFormField(
+                  child: CustomText(
+                    label: 'Conteo',
                     controller: controller,
                     keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true),
-                    decoration: InputDecoration(
-                      labelText: 'Conteo',
-                      prefixText: 'S/ ',
-                      isDense: true,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 10),
+                      decimal: true,
                     ),
-                    style: const TextStyle(fontSize: 13),
+                    prefixText: 'S/ ',
+                    height: 38,
                     onChanged: (_) => setState(() {}),
                   ),
                 ),
