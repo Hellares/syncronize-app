@@ -266,6 +266,7 @@ class MovimientoCaja extends Equatable {
   final String? categoriaGastoNombre;
   final bool esManual;
   final DateTime fechaMovimiento;
+  final String? ventaId;
   final String? ventaCodigo;
   final String? pedidoCodigo;
   final bool anulado;
@@ -283,6 +284,7 @@ class MovimientoCaja extends Equatable {
     this.categoriaGastoNombre,
     this.esManual = false,
     required this.fechaMovimiento,
+    this.ventaId,
     this.ventaCodigo,
     this.pedidoCodigo,
     this.anulado = false,
@@ -302,6 +304,7 @@ class MovimientoCaja extends Equatable {
         categoriaGastoNombre,
         esManual,
         fechaMovimiento,
+        ventaId,
         ventaCodigo,
         pedidoCodigo,
         anulado,

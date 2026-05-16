@@ -25,16 +25,16 @@ class ResumenCajaCard extends StatelessWidget {
     );
 
     return GradientContainer(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const AppSubtitle(
-            'Resumen de Caja',
-            fontSize: 16,
+            'RESUMEN DE CAJA',
+            fontSize: 11,
             color: AppColors.blue3,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           // Monto apertura
           if (montoApertura > 0) ...[
             _buildResumenRow(
@@ -94,7 +94,7 @@ class ResumenCajaCard extends StatelessWidget {
             const SizedBox(height: 12),
             const AppSubtitle(
               'Por Metodo de Pago',
-              fontSize: 13,
+              fontSize: 12,
               color: AppColors.textSecondary,
             ),
             const SizedBox(height: 8),
@@ -113,7 +113,7 @@ class ResumenCajaCard extends StatelessWidget {
                       child: Text(
                         detalle.metodoPago.label,
                         style: const TextStyle(
-                          fontSize: 13,
+                          fontSize: 11,
                           color: AppColors.textSecondary,
                         ),
                       ),
@@ -121,7 +121,7 @@ class ResumenCajaCard extends StatelessWidget {
                     Text(
                       currencyFormat.format(detalle.saldo),
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: 12,
                         fontWeight: FontWeight.w600,
                         color: detalle.saldo >= 0
                             ? AppColors.green
@@ -150,7 +150,7 @@ class ResumenCajaCard extends StatelessWidget {
         Text(
           label,
           style: TextStyle(
-            fontSize: isBold ? 15 : 14,
+            fontSize: isBold ? 13 : 12,
             fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
             color: AppColors.textPrimary,
           ),
@@ -158,7 +158,7 @@ class ResumenCajaCard extends StatelessWidget {
         Text(
           value,
           style: TextStyle(
-            fontSize: isBold ? 17 : 14,
+            fontSize: isBold ? 15 : 12,
             fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
             color: valueColor,
           ),

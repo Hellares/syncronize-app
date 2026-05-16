@@ -9,6 +9,8 @@ import 'package:syncronize/core/widgets/smart_appbar.dart';
 import '../../domain/entities/movimiento_caja.dart';
 import '../bloc/caja_movimientos_cubit.dart';
 import '../bloc/caja_movimientos_state.dart';
+import '../utils/movimiento_grouping.dart';
+import '../widgets/movimiento_group_card.dart';
 import 'nuevo_movimiento_page.dart';
 
 class MovimientosCajaPage extends StatefulWidget {
@@ -86,6 +88,14 @@ class _MovimientosCajaPageState extends State<MovimientosCajaPage> {
                             .toList()
                         : state.movimientos;
 
+                    // Agrupamos ventas multi-pago: una venta con 3 pagos
+                    // se ve como 1 entrada con chips de cada metodo. Los
+                    // demas (manuales, devoluciones, etc) siguen siendo
+                    // grupos de 1 y mantienen el card detallado original
+                    // (long-press para anular, badge ANULADO, motivo).
+                    final groups =
+                        groupMovimientosByVenta(filteredMovimientos);
+
                     if (filteredMovimientos.isEmpty) {
                       return Center(
                         child: Column(
@@ -121,11 +131,24 @@ class _MovimientosCajaPageState extends State<MovimientosCajaPage> {
                           horizontal: 16,
                           vertical: 8,
                         ),
-                        itemCount: filteredMovimientos.length,
+                        itemCount: groups.length,
                         separatorBuilder: (_, __) => const SizedBox(height: 8),
                         itemBuilder: (context, index) {
+                          final g = groups[index];
+                          if (g.isGrouped) {
+                            return GradientContainer(
+                              padding: const EdgeInsets.all(10),
+                              child: MovimientoGroupCard(
+                                group: g,
+                                currencyFormat: currencyFormat,
+                              ),
+                            );
+                          }
+                          // Movimiento individual: conservamos card
+                          // detallado original (long-press anular, badge
+                          // ANULADO, motivo, descripcion completa).
                           return _buildMovimientoCard(
-                            filteredMovimientos[index],
+                            g.first,
                             currencyFormat,
                           );
                         },

@@ -13,6 +13,7 @@ class MovimientoCajaModel extends MovimientoCaja {
     super.categoriaGastoNombre,
     super.esManual,
     required super.fechaMovimiento,
+    super.ventaId,
     super.ventaCodigo,
     super.pedidoCodigo,
     super.anulado,
@@ -37,6 +38,7 @@ class MovimientoCajaModel extends MovimientoCaja {
       categoriaGastoNombre: categoriaGasto?['nombre'] as String?,
       esManual: json['esManual'] as bool? ?? false,
       fechaMovimiento: DateTime.parse(json['fechaMovimiento'] as String),
+      ventaId: venta?['id'] as String? ?? json['ventaId'] as String?,
       ventaCodigo: venta?['codigo'] as String? ?? json['ventaCodigo'] as String?,
       pedidoCodigo:
           pedido?['codigo'] as String? ?? json['pedidoCodigo'] as String?,

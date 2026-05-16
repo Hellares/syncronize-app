@@ -16,11 +16,12 @@ import 'package:syncronize/core/widgets/snack_bar_helper.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../domain/entities/caja.dart';
-import '../../domain/entities/movimiento_caja.dart';
 import '../bloc/caja_activa_cubit.dart';
 import '../bloc/caja_activa_state.dart';
 import '../bloc/caja_movimientos_cubit.dart';
 import '../bloc/caja_movimientos_state.dart';
+import '../utils/movimiento_grouping.dart';
+import '../widgets/movimiento_group_card.dart';
 import '../widgets/resumen_caja_card.dart';
 import 'cerrar_caja_page.dart';
 import 'historial_caja_page.dart';
@@ -104,6 +105,27 @@ class _CajaViewState extends State<_CajaView> {
           ),
         ],
       ),
+      // Boton "Cerrar Caja" fijo abajo: no se mezcla con el scroll del
+      // dashboard ni el cajero tiene que scrollear hasta el fondo para
+      // cerrar. Solo se muestra cuando hay caja abierta.
+      bottomNavigationBar: BlocBuilder<CajaActivaCubit, CajaActivaState>(
+        builder: (context, state) {
+          if (state is! CajaActivaAbierta) return const SizedBox.shrink();
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+              child: SizedBox(
+                width: double.infinity,
+                child: CustomButton(
+                  text: 'Cerrar Caja',
+                  backgroundColor: AppColors.red,
+                  onPressed: () => _navigateToCerrarCaja(context, state.caja.id),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
       body: GradientContainer(
         child: BlocConsumer<CajaActivaCubit, CajaActivaState>(
           listener: (context, state) {
@@ -178,7 +200,7 @@ class _CajaViewState extends State<_CajaView> {
           const SizedBox(height: 40),
           Icon(
             Icons.point_of_sale_rounded,
-            size: 80,
+            size: 70,
             color: AppColors.blue1.withValues(alpha: 0.6),
           ),
           const SizedBox(height: 20),
@@ -317,7 +339,7 @@ class _CajaViewState extends State<_CajaView> {
           children: [
             // Caja info card
             GradientContainer(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -332,7 +354,7 @@ class _CajaViewState extends State<_CajaView> {
                         child: const Icon(
                           Icons.point_of_sale_rounded,
                           color: AppColors.green,
-                          size: 20,
+                          size: 18,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -342,7 +364,7 @@ class _CajaViewState extends State<_CajaView> {
                           children: [
                             AppSubtitle(
                               caja.codigo,
-                              fontSize: 14,
+                              fontSize: 12,
                               color: AppColors.blue3,
                             ),
                             const SizedBox(height: 2),
@@ -413,7 +435,7 @@ class _CajaViewState extends State<_CajaView> {
                 ],
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
 
             // Quick action buttons
             Row(
@@ -427,7 +449,7 @@ class _CajaViewState extends State<_CajaView> {
                     () => _navigateToNuevoMovimiento(context, caja.id),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
                 Expanded(
                   child: _buildQuickAction(
                     context,
@@ -439,7 +461,7 @@ class _CajaViewState extends State<_CajaView> {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 10),
 
             // Resumen card
             BlocBuilder<CajaMovimientosCubit, CajaMovimientosState>(
@@ -466,8 +488,13 @@ class _CajaViewState extends State<_CajaView> {
             BlocBuilder<CajaMovimientosCubit, CajaMovimientosState>(
               builder: (context, movState) {
                 if (movState is CajaMovimientosLoaded) {
-                  final recentMovimientos = movState.movimientos.take(5).toList();
-                  if (recentMovimientos.isEmpty) {
+                  // Agrupamos por venta primero, luego cortamos a 5 GRUPOS
+                  // (no 5 movimientos), asi una venta multi-pago cuenta
+                  // como 1 entrada y no monopoliza la lista de recientes.
+                  final groups = groupMovimientosByVenta(movState.movimientos)
+                      .take(5)
+                      .toList();
+                  if (groups.isEmpty) {
                     return GradientContainer(
                       padding: const EdgeInsets.all(24),
                       child: Center(
@@ -483,7 +510,7 @@ class _CajaViewState extends State<_CajaView> {
                             const Text(
                               'Sin movimientos aun',
                               style: TextStyle(
-                                fontSize: 14,
+                                fontSize: 12,
                                 color: AppColors.textSecondary,
                               ),
                             ),
@@ -494,7 +521,7 @@ class _CajaViewState extends State<_CajaView> {
                   }
 
                   return GradientContainer(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(10),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -502,18 +529,20 @@ class _CajaViewState extends State<_CajaView> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             const AppSubtitle(
-                              'Movimientos Recientes',
-                              fontSize: 14,
+                              'MOVIMIENTOS RECIENTES',
+                              fontSize: 11,
                               color: AppColors.blue3,
                             ),
-                            if (movState.movimientos.length > 5)
+                            if (movState.movimientos.length >
+                                groups.fold<int>(
+                                    0, (s, g) => s + g.items.length))
                               GestureDetector(
                                 onTap: () =>
                                     _navigateToMovimientos(context, caja.id),
                                 child: const Text(
                                   'Ver todos',
                                   style: TextStyle(
-                                    fontSize: 13,
+                                    fontSize: 11,
                                     color: AppColors.blue2,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -522,8 +551,12 @@ class _CajaViewState extends State<_CajaView> {
                           ],
                         ),
                         const SizedBox(height: 12),
-                        ...recentMovimientos.map(
-                          (mov) => _buildMovimientoItem(mov, currencyFormat),
+                        ...groups.map(
+                          (g) => MovimientoGroupCard(
+                            group: g,
+                            currencyFormat: currencyFormat,
+                            compact: true,
+                          ),
                         ),
                       ],
                     ),
@@ -531,17 +564,6 @@ class _CajaViewState extends State<_CajaView> {
                 }
                 return const SizedBox.shrink();
               },
-            ),
-            const SizedBox(height: 24),
-
-            // Cerrar Caja button
-            SizedBox(
-              width: double.infinity,
-              child: CustomButton(
-                text: 'Cerrar Caja',
-                backgroundColor: AppColors.red,
-                onPressed: () => _navigateToCerrarCaja(context, caja.id),
-              ),
             ),
             const SizedBox(height: 16),
           ],
@@ -623,15 +645,15 @@ class _CajaViewState extends State<_CajaView> {
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: GradientContainer(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
         child: Column(
           children: [
-            Icon(icon, color: color, size: 28),
-            const SizedBox(height: 8),
+            Icon(icon, color: color, size: 22),
+            const SizedBox(height: 6),
             Text(
               label,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: FontWeight.w600,
                 color: color,
               ),
@@ -639,66 +661,6 @@ class _CajaViewState extends State<_CajaView> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildMovimientoItem(
-    MovimientoCaja mov,
-    NumberFormat currencyFormat,
-  ) {
-    final isIngreso = mov.tipo == TipoMovimientoCaja.ingreso;
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: mov.tipo.color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              mov.categoria.icon,
-              size: 18,
-              color: mov.tipo.color,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  mov.descripcion ?? mov.categoria.label,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textPrimary,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                Text(
-                  '${mov.metodoPago.label} - ${DateFormatter.formatDateTime(mov.fechaMovimiento)}',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Text(
-            '${isIngreso ? '+' : '-'} ${currencyFormat.format(mov.monto)}',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: isIngreso ? AppColors.green : AppColors.red,
-            ),
-          ),
-        ],
       ),
     );
   }
