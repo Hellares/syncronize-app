@@ -2,6 +2,7 @@ import 'package:injectable/injectable.dart';
 import '../../../../core/network/network_info.dart';
 import '../../../../core/services/error_handler_service.dart';
 import '../../../../core/utils/resource.dart';
+import '../../domain/entities/arqueo_caja.dart';
 import '../../domain/entities/caja.dart';
 import '../../domain/entities/caja_monitor.dart';
 import '../../domain/entities/movimiento_caja.dart';
@@ -192,6 +193,46 @@ class CajaRepositoryImpl implements CajaRepository {
     try {
       final data = await _remoteDataSource.getMonitor(sedeId: sedeId);
       return Success(CajaMonitorDataModel.fromJson(data));
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Caja');
+    }
+  }
+
+  @override
+  Future<Resource<ArqueoCaja>> crearArqueo({
+    required String cajaId,
+    required TipoArqueoCaja tipo,
+    required List<Map<String, dynamic>> conteos,
+    String? observaciones,
+    String? autorizadoPorId,
+    String? turnoEntregadoAId,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final arqueo = await _remoteDataSource.crearArqueo(
+        cajaId: cajaId,
+        tipoApiValue: tipo.apiValue,
+        conteos: conteos,
+        observaciones: observaciones,
+        autorizadoPorId: autorizadoPorId,
+        turnoEntregadoAId: turnoEntregadoAId,
+      );
+      return Success(arqueo);
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Caja');
+    }
+  }
+
+  @override
+  Future<Resource<List<ArqueoCaja>>> getArqueos({required String cajaId}) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final arqueos = await _remoteDataSource.getArqueos(cajaId);
+      return Success(arqueos);
     } catch (e) {
       return _errorHandler.handleException(e, context: 'Caja');
     }

@@ -1,0 +1,588 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
+
+import 'package:syncronize/core/di/injection_container.dart';
+import 'package:syncronize/core/fonts/app_text_widgets.dart';
+import 'package:syncronize/core/network/dio_client.dart';
+import 'package:syncronize/core/theme/app_colors.dart';
+import 'package:syncronize/core/theme/gradient_container.dart';
+import 'package:syncronize/core/widgets/custom_button.dart';
+import 'package:syncronize/core/widgets/smart_appbar.dart';
+import 'package:syncronize/core/widgets/snack_bar_helper.dart';
+import 'package:syncronize/features/empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
+import 'package:syncronize/features/empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
+import 'package:syncronize/features/impresoras/domain/services/impresoras_manager.dart';
+
+import '../../domain/entities/arqueo_caja.dart';
+import '../../domain/entities/caja.dart';
+import '../../domain/entities/movimiento_caja.dart';
+import '../../domain/entities/resumen_caja.dart';
+import '../bloc/arqueos_caja_cubit.dart';
+import '../bloc/arqueos_caja_state.dart';
+import '../bloc/caja_movimientos_cubit.dart';
+import '../bloc/caja_movimientos_state.dart';
+import '../services/arqueo_caja_esc_pos_generator.dart';
+
+/// Formulario para crear un arqueo de caja (conteo sin cerrar).
+/// Recibe el cubit ya provisto desde el caller.
+class RealizarArqueoPage extends StatefulWidget {
+  final Caja caja;
+
+  const RealizarArqueoPage({super.key, required this.caja});
+
+  @override
+  State<RealizarArqueoPage> createState() => _RealizarArqueoPageState();
+}
+
+class _RealizarArqueoPageState extends State<RealizarArqueoPage> {
+  TipoArqueoCaja _tipo = TipoArqueoCaja.rutinario;
+  final _observacionesController = TextEditingController();
+  final Map<MetodoPago, TextEditingController> _conteoControllers = {};
+  bool _isCreating = false;
+
+  @override
+  void initState() {
+    super.initState();
+    for (final m in MetodoPago.values) {
+      _conteoControllers[m] = TextEditingController();
+    }
+    // Cargamos movimientos al entrar para tener resumen actualizado.
+    context
+        .read<CajaMovimientosCubit>()
+        .loadMovimientos(widget.caja.id);
+  }
+
+  @override
+  void dispose() {
+    _observacionesController.dispose();
+    for (final c in _conteoControllers.values) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final currencyFormat = NumberFormat.currency(
+      locale: 'es_PE',
+      symbol: 'S/ ',
+      decimalDigits: 2,
+    );
+
+    return BlocListener<ArqueosCajaCubit, ArqueosCajaState>(
+      listener: (context, state) {
+        if (state is ArqueosCajaLoaded && state.recienCreado != null) {
+          _imprimirComprobante(state.recienCreado!);
+          SnackBarHelper.showSuccess(context, 'Arqueo registrado');
+          Navigator.of(context).pop(state.recienCreado);
+        }
+        if (state is ArqueosCajaError) {
+          setState(() => _isCreating = false);
+          SnackBarHelper.showError(context, state.message);
+        }
+      },
+      child: Scaffold(
+        appBar: SmartAppBar(
+          title: 'Arqueo de Caja',
+          backgroundColor: AppColors.blue1,
+          foregroundColor: AppColors.white,
+        ),
+        body: GradientContainer(
+          child: BlocBuilder<CajaMovimientosCubit, CajaMovimientosState>(
+            builder: (context, movState) {
+              if (movState is CajaMovimientosLoading) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (movState is CajaMovimientosLoaded &&
+                  movState.resumen != null) {
+                return _buildForm(movState.resumen!, currencyFormat);
+              }
+              return const Center(
+                child: Text(
+                  'No se pudo cargar el resumen',
+                  style: TextStyle(color: AppColors.textSecondary),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildForm(ResumenCaja resumen, NumberFormat currencyFormat) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Selector de tipo ──
+          const AppSubtitle(
+            'Tipo de Arqueo',
+            fontSize: 14,
+            color: AppColors.blue3,
+          ),
+          const SizedBox(height: 8),
+          ...TipoArqueoCaja.values.map((tipo) {
+            final selected = tipo == _tipo;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: InkWell(
+                onTap: () => setState(() => _tipo = tipo),
+                borderRadius: BorderRadius.circular(10),
+                child: GradientContainer(
+                  padding: const EdgeInsets.all(12),
+                  borderColor: selected ? tipo.color : null,
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: tipo.color.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(tipo.icon, color: tipo.color, size: 22),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              tipo.label,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color:
+                                    selected ? tipo.color : AppColors.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              tipo.descripcion,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Radio<TipoArqueoCaja>(
+                        value: tipo,
+                        groupValue: _tipo,
+                        onChanged: (v) => setState(() => _tipo = v!),
+                        activeColor: tipo.color,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }),
+
+          if (_tipo == TipoArqueoCaja.relevo) ...[
+            const SizedBox(height: 12),
+            _buildSucesorPicker(),
+          ],
+
+          const SizedBox(height: 16),
+          const Divider(height: 1),
+          const SizedBox(height: 16),
+
+          // ── Resumen del sistema ──
+          GradientContainer(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const AppSubtitle(
+                  'Resumen del Sistema',
+                  fontSize: 14,
+                  color: AppColors.blue3,
+                ),
+                const SizedBox(height: 10),
+                _row('Total Ingresos', currencyFormat.format(resumen.totalIngresos),
+                    AppColors.green),
+                const SizedBox(height: 4),
+                _row('Total Egresos', currencyFormat.format(resumen.totalEgresos),
+                    AppColors.red),
+                const Divider(height: 16),
+                _row('Saldo en Caja',
+                    currencyFormat.format(resumen.saldoEfectivo), AppColors.green,
+                    bold: true),
+                if ((resumen.saldo - resumen.saldoEfectivo).abs() > 0.01) ...[
+                  const SizedBox(height: 4),
+                  _row(
+                      'Total Operado',
+                      currencyFormat.format(resumen.saldo),
+                      AppColors.blue1,
+                      bold: true),
+                ],
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 16),
+          const AppSubtitle(
+            'Conteo Fisico por Metodo',
+            fontSize: 14,
+            color: AppColors.blue3,
+          ),
+          const SizedBox(height: 8),
+          ...MetodoPago.values.map((metodo) {
+            final detalle = resumen.detalles
+                .where((d) => d.metodoPago == metodo)
+                .toList();
+            final esperado =
+                detalle.isNotEmpty ? detalle.first.saldo : 0.0;
+            // Mostramos EFECTIVO siempre + otros con saldo > 0
+            if (esperado == 0 && metodo != MetodoPago.efectivo) {
+              return const SizedBox.shrink();
+            }
+            return _buildConteoCard(metodo, esperado, currencyFormat);
+          }),
+
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: _observacionesController,
+            maxLines: 3,
+            decoration: InputDecoration(
+              labelText: 'Observaciones (opcional)',
+              prefixIcon: const Icon(Icons.note_rounded),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            child: CustomButton(
+              text: 'Registrar Arqueo',
+              backgroundColor: _tipo.color,
+              height: 48,
+              isLoading: _isCreating,
+              onPressed: _isCreating ? null : _submit,
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+
+  String? _sucesorId;
+  String? _sucesorNombre;
+
+  Widget _buildSucesorPicker() {
+    return InkWell(
+      onTap: _showSucesorPicker,
+      borderRadius: BorderRadius.circular(10),
+      child: GradientContainer(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            const Icon(Icons.swap_horiz_rounded, color: AppColors.blue1),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Recibe el turno',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  Text(
+                    _sucesorNombre ?? 'Seleccionar usuario...',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: _sucesorNombre != null
+                          ? AppColors.textPrimary
+                          : AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded,
+                color: AppColors.textSecondary),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showSucesorPicker() async {
+    // Cargamos usuarios de la empresa via DioClient (no hay un cache
+    // global de "usuarios de la empresa" en EmpresaContext, asi que lo
+    // pedimos puntualmente).
+    List<Map<String, dynamic>> usuarios = [];
+    try {
+      final dio = locator<DioClient>();
+      final response = await dio.get('/usuarios');
+      final raw = response.data;
+      if (raw is Map && raw['data'] is List) {
+        usuarios = (raw['data'] as List).cast<Map<String, dynamic>>();
+      } else if (raw is List) {
+        usuarios = raw.cast<Map<String, dynamic>>();
+      }
+    } catch (e) {
+      if (!mounted) return;
+      SnackBarHelper.showError(context, 'No se pudieron cargar usuarios: $e');
+      return;
+    }
+    if (!mounted) return;
+    if (usuarios.isEmpty) {
+      SnackBarHelper.showError(context, 'No hay otros usuarios disponibles.');
+      return;
+    }
+
+    await showModalBottomSheet(
+      context: context,
+      builder: (sheet) {
+        return SafeArea(
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: usuarios.length,
+            itemBuilder: (_, idx) {
+              final u = usuarios[idx];
+              final id = u['id'] as String? ?? '';
+              if (id == widget.caja.usuarioId) {
+                return const SizedBox.shrink();
+              }
+              final persona = u['persona'] as Map<String, dynamic>?;
+              final nombre = persona != null
+                  ? '${persona['nombres'] ?? ''} ${persona['apellidos'] ?? ''}'
+                      .trim()
+                  : (u['email'] as String? ?? id);
+              return ListTile(
+                leading: const Icon(Icons.person_rounded),
+                title: Text(nombre.isEmpty ? id : nombre),
+                onTap: () {
+                  setState(() {
+                    _sucesorId = id;
+                    _sucesorNombre = nombre.isEmpty ? id : nombre;
+                  });
+                  Navigator.pop(sheet);
+                },
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _row(String label, String value, Color color, {bool bold = false}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: bold ? 14 : 12,
+            fontWeight: bold ? FontWeight.bold : FontWeight.w500,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: bold ? 15 : 13,
+            fontWeight: FontWeight.w700,
+            color: color,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildConteoCard(
+    MetodoPago metodo,
+    double esperado,
+    NumberFormat currencyFormat,
+  ) {
+    final controller = _conteoControllers[metodo]!;
+    final conteoValue =
+        double.tryParse(controller.text.replaceAll(',', '.')) ?? 0;
+    final diferencia = conteoValue - esperado;
+    final hasDif = controller.text.isNotEmpty && diferencia != 0;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: GradientContainer(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(metodo.icon, size: 18, color: AppColors.blue3),
+                const SizedBox(width: 6),
+                AppSubtitle(
+                  metodo.label,
+                  fontSize: 13,
+                  color: AppColors.blue3,
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Esperado',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      Text(
+                        currencyFormat.format(esperado),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.blue3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: TextFormField(
+                    controller: controller,
+                    keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true),
+                    decoration: InputDecoration(
+                      labelText: 'Conteo',
+                      prefixText: 'S/ ',
+                      isDense: true,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 10),
+                    ),
+                    style: const TextStyle(fontSize: 13),
+                    onChanged: (_) => setState(() {}),
+                  ),
+                ),
+              ],
+            ),
+            if (hasDif) ...[
+              const SizedBox(height: 6),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: (diferencia > 0 ? AppColors.green : AppColors.red)
+                      .withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      diferencia > 0
+                          ? Icons.arrow_upward_rounded
+                          : Icons.arrow_downward_rounded,
+                      size: 12,
+                      color:
+                          diferencia > 0 ? AppColors.green : AppColors.red,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${diferencia > 0 ? 'Sobrante' : 'Faltante'}: ${currencyFormat.format(diferencia.abs())}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color:
+                            diferencia > 0 ? AppColors.green : AppColors.red,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _submit() async {
+    if (_tipo == TipoArqueoCaja.relevo && _sucesorId == null) {
+      SnackBarHelper.showError(
+          context, 'Selecciona el usuario que recibe el turno.');
+      return;
+    }
+
+    final conteos = MetodoPago.values.map((metodo) {
+      final value = double.tryParse(
+              _conteoControllers[metodo]!.text.replaceAll(',', '.')) ??
+          0.0;
+      return {
+        'metodoPago': metodo.apiValue,
+        'conteoFisico': value,
+      };
+    }).toList();
+
+    setState(() => _isCreating = true);
+    await context.read<ArqueosCajaCubit>().crearArqueo(
+          cajaId: widget.caja.id,
+          tipo: _tipo,
+          conteos: conteos,
+          observaciones: _observacionesController.text.isNotEmpty
+              ? _observacionesController.text
+              : null,
+          turnoEntregadoAId: _sucesorId,
+        );
+  }
+
+  Future<void> _imprimirComprobante(ArqueoCaja arqueo) async {
+    try {
+      final empresaState = context.read<EmpresaContextCubit>().state;
+      final manager = locator<ImpresorasManager>();
+      final principal = await manager.getPrincipal();
+      if (principal == null) return;
+
+      String empresaNombre = '';
+      String? razonSocial, ruc, direccion, telefono;
+      if (empresaState is EmpresaContextLoaded) {
+        final empresa = empresaState.context.empresa;
+        empresaNombre = empresa.nombre;
+        razonSocial = empresa.razonSocial;
+        ruc = empresa.ruc;
+        direccion = empresa.direccionFiscal;
+        telefono = empresa.telefono;
+      }
+
+      final bytes = await ArqueoCajaEscPosGenerator.generate(
+        caja: widget.caja,
+        arqueo: arqueo,
+        empresaNombre: empresaNombre,
+        empresaRazonSocial: razonSocial,
+        empresaRuc: ruc,
+        empresaDireccion: direccion,
+        empresaTelefono: telefono,
+        sedeNombre: widget.caja.sedeNombre,
+        paperWidth: principal.anchoPapel.mm,
+      );
+
+      await manager.imprimirEnPrincipal(bytes);
+    } catch (_) {
+      // Silencioso.
+    }
+  }
+}

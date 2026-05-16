@@ -1,5 +1,6 @@
 import 'package:injectable/injectable.dart';
 import '../../../../core/network/dio_client.dart';
+import '../models/arqueo_caja_model.dart';
 import '../models/caja_model.dart';
 import '../models/movimiento_caja_model.dart';
 import '../models/resumen_caja_model.dart';
@@ -142,6 +143,39 @@ class CajaRemoteDataSource {
       '$_basePath/$cajaId/movimiento/$movimientoId/anular',
       data: {'autorizadoPorId': autorizadoPorId, 'motivo': motivo},
     );
+  }
+
+  Future<ArqueoCajaModel> crearArqueo({
+    required String cajaId,
+    required String tipoApiValue,
+    required List<Map<String, dynamic>> conteos,
+    String? observaciones,
+    String? autorizadoPorId,
+    String? turnoEntregadoAId,
+  }) async {
+    final data = <String, dynamic>{
+      'tipo': tipoApiValue,
+      'conteos': conteos,
+    };
+    if (observaciones != null && observaciones.isNotEmpty) {
+      data['observaciones'] = observaciones;
+    }
+    if (autorizadoPorId != null) data['autorizadoPorId'] = autorizadoPorId;
+    if (turnoEntregadoAId != null) data['turnoEntregadoAId'] = turnoEntregadoAId;
+
+    final response = await _dioClient.post(
+      '$_basePath/$cajaId/arqueo',
+      data: data,
+    );
+    return ArqueoCajaModel.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<List<ArqueoCajaModel>> getArqueos(String cajaId) async {
+    final response = await _dioClient.get('$_basePath/$cajaId/arqueos');
+    final data = response.data as List;
+    return data
+        .map((e) => ArqueoCajaModel.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   Future<Map<String, dynamic>> getMonitor({String? sedeId}) async {

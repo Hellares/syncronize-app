@@ -115,8 +115,10 @@ import '../../features/caja/domain/usecases/abrir_caja_usecase.dart' as _i600;
 import '../../features/caja/domain/usecases/anular_movimiento_usecase.dart'
     as _i750;
 import '../../features/caja/domain/usecases/cerrar_caja_usecase.dart' as _i575;
+import '../../features/caja/domain/usecases/crear_arqueo_usecase.dart' as _i659;
 import '../../features/caja/domain/usecases/crear_movimiento_usecase.dart'
     as _i290;
+import '../../features/caja/domain/usecases/get_arqueos_usecase.dart' as _i1047;
 import '../../features/caja/domain/usecases/get_caja_activa_usecase.dart'
     as _i265;
 import '../../features/caja/domain/usecases/get_historial_usecase.dart'
@@ -125,6 +127,7 @@ import '../../features/caja/domain/usecases/get_monitor_usecase.dart' as _i519;
 import '../../features/caja/domain/usecases/get_movimientos_usecase.dart'
     as _i259;
 import '../../features/caja/domain/usecases/get_resumen_usecase.dart' as _i413;
+import '../../features/caja/presentation/bloc/arqueos_caja_cubit.dart' as _i337;
 import '../../features/caja/presentation/bloc/caja_activa_cubit.dart' as _i503;
 import '../../features/caja/presentation/bloc/caja_historial_cubit.dart'
     as _i849;
@@ -3893,8 +3896,14 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i575.CerrarCajaUseCase>(
       () => _i575.CerrarCajaUseCase(gh<_i742.CajaRepository>()),
     );
+    gh.factory<_i659.CrearArqueoUseCase>(
+      () => _i659.CrearArqueoUseCase(gh<_i742.CajaRepository>()),
+    );
     gh.factory<_i290.CrearMovimientoUseCase>(
       () => _i290.CrearMovimientoUseCase(gh<_i742.CajaRepository>()),
+    );
+    gh.factory<_i1047.GetArqueosUseCase>(
+      () => _i1047.GetArqueosUseCase(gh<_i742.CajaRepository>()),
     );
     gh.factory<_i265.GetCajaActivaUseCase>(
       () => _i265.GetCajaActivaUseCase(gh<_i742.CajaRepository>()),
@@ -4504,6 +4513,12 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i951.ForgotPasswordCubit>(
       () => _i951.ForgotPasswordCubit(gh<_i560.ForgotPasswordUseCase>()),
+    );
+    gh.factory<_i337.ArqueosCajaCubit>(
+      () => _i337.ArqueosCajaCubit(
+        gh<_i659.CrearArqueoUseCase>(),
+        gh<_i1047.GetArqueosUseCase>(),
+      ),
     );
     gh.lazySingleton<_i975.CotizacionRapidaCubit>(
       () => _i975.CotizacionRapidaCubit(

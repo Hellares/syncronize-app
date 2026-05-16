@@ -20,13 +20,16 @@ import '../bloc/caja_activa_cubit.dart';
 import '../bloc/caja_activa_state.dart';
 import '../bloc/caja_movimientos_cubit.dart';
 import '../bloc/caja_movimientos_state.dart';
+import '../bloc/arqueos_caja_cubit.dart';
 import '../utils/movimiento_grouping.dart';
 import '../widgets/movimiento_group_card.dart';
 import '../widgets/resumen_caja_card.dart';
+import 'arqueos_lista_page.dart';
 import 'cerrar_caja_page.dart';
 import 'historial_caja_page.dart';
 import 'movimientos_caja_page.dart';
 import 'nuevo_movimiento_page.dart';
+import 'realizar_arqueo_page.dart';
 
 class CajaPage extends StatelessWidget {
   const CajaPage({super.key});
@@ -90,7 +93,21 @@ class _CajaViewState extends State<_CajaView> {
         backgroundColor: AppColors.blue1,
         foregroundColor: AppColors.white,
         actions: [
+          // Acceso a arqueos solo cuando hay caja abierta (mira el estado
+          // del cubit del padre, no recrea uno).
+          BlocBuilder<CajaActivaCubit, CajaActivaState>(
+            builder: (context, state) {
+              if (state is! CajaActivaAbierta) return const SizedBox.shrink();
+              return IconButton(
+                tooltip: 'Arqueos de esta caja',
+                icon: const Icon(Icons.fact_check_outlined),
+                onPressed: () =>
+                    _navigateToArqueosLista(context, state.caja),
+              );
+            },
+          ),
           IconButton(
+            tooltip: 'Historial de cajas',
             icon: const Icon(Icons.history_rounded),
             onPressed: () {
               Navigator.of(context).push(
@@ -449,7 +466,7 @@ class _CajaViewState extends State<_CajaView> {
                     () => _navigateToNuevoMovimiento(context, caja.id),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 Expanded(
                   child: _buildQuickAction(
                     context,
@@ -457,6 +474,16 @@ class _CajaViewState extends State<_CajaView> {
                     Icons.list_alt_rounded,
                     AppColors.blue1,
                     () => _navigateToMovimientos(context, caja.id),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildQuickAction(
+                    context,
+                    'Arqueo',
+                    Icons.fact_check_rounded,
+                    AppColors.green,
+                    () => _navigateToRealizarArqueo(context, caja),
                   ),
                 ),
               ],
@@ -686,6 +713,32 @@ class _CajaViewState extends State<_CajaView> {
         builder: (_) => BlocProvider.value(
           value: context.read<CajaMovimientosCubit>(),
           child: MovimientosCajaPage(cajaId: cajaId),
+        ),
+      ),
+    );
+  }
+
+  void _navigateToRealizarArqueo(BuildContext context, Caja caja) {
+    final movCubit = context.read<CajaMovimientosCubit>();
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => MultiBlocProvider(
+          providers: [
+            BlocProvider.value(value: movCubit),
+            BlocProvider(create: (_) => locator<ArqueosCajaCubit>()),
+          ],
+          child: RealizarArqueoPage(caja: caja),
+        ),
+      ),
+    ).then((_) => movCubit.loadMovimientos(caja.id));
+  }
+
+  void _navigateToArqueosLista(BuildContext context, Caja caja) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => BlocProvider(
+          create: (_) => locator<ArqueosCajaCubit>(),
+          child: ArqueosListaPage(caja: caja),
         ),
       ),
     );

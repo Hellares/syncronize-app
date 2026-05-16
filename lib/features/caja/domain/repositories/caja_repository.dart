@@ -1,4 +1,5 @@
 import '../../../../core/utils/resource.dart';
+import '../entities/arqueo_caja.dart';
 import '../entities/caja.dart';
 import '../entities/caja_monitor.dart';
 import '../entities/movimiento_caja.dart';
@@ -55,4 +56,17 @@ abstract class CajaRepository {
   });
 
   Future<Resource<CajaMonitorData>> getMonitor({String? sedeId});
+
+  /// Crear arqueo de caja (conteo intermedio sin cerrar).
+  Future<Resource<ArqueoCaja>> crearArqueo({
+    required String cajaId,
+    required TipoArqueoCaja tipo,
+    required List<Map<String, dynamic>> conteos,
+    String? observaciones,
+    String? autorizadoPorId,
+    String? turnoEntregadoAId,
+  });
+
+  /// Listar arqueos de una caja.
+  Future<Resource<List<ArqueoCaja>>> getArqueos({required String cajaId});
 }
