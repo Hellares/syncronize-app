@@ -735,6 +735,12 @@ import '../../features/guia_remision/domain/usecases/enviar_guia_remision_usecas
     as _i605;
 import '../../features/guia_remision/domain/usecases/listar_guias_remision_usecase.dart'
     as _i934;
+import '../../features/impresoras/domain/services/impresoras_manager.dart'
+    as _i473;
+import '../../features/impresoras/presentation/bloc/impresora_form_cubit.dart'
+    as _i602;
+import '../../features/impresoras/presentation/bloc/impresoras_list_cubit.dart'
+    as _i577;
 import '../../features/inventario/data/datasources/inventario_remote_datasource.dart'
     as _i319;
 import '../../features/inventario/data/repositories/inventario_repository_impl.dart'
@@ -1534,6 +1540,7 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i284.SessionExpiredNotifier(),
       dispose: (i) => i.dispose(),
     );
+    gh.lazySingleton<_i473.ImpresorasManager>(() => _i473.ImpresorasManager());
     gh.factory<_i528.SedeSelectionCubit>(
       () => _i528.SedeSelectionCubit(gh<_i460.SharedPreferences>()),
     );
@@ -1561,6 +1568,12 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i966.ProductoLocalDataSource>(
       () => _i966.ProductoLocalDataSource(gh<_i744.LocalStorageService>()),
+    );
+    gh.factory<_i602.ImpresoraFormCubit>(
+      () => _i602.ImpresoraFormCubit(gh<_i473.ImpresorasManager>()),
+    );
+    gh.factory<_i577.ImpresorasListCubit>(
+      () => _i577.ImpresorasListCubit(gh<_i473.ImpresorasManager>()),
     );
     gh.factory<_i322.RefreshTokenInterceptor>(
       () => _i322.RefreshTokenInterceptor(

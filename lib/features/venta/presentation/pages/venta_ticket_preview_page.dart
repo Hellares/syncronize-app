@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:syncronize/features/impresoras/domain/services/impresoras_manager.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:http/http.dart' as http;
 import 'package:printing/printing.dart';
@@ -41,10 +42,16 @@ class _VentaTicketPreviewPageState extends State<VentaTicketPreviewPage> {
   bool _loading = true;
   String? _error;
 
+  // Logo de la empresa ya descargado para reusar en impresión Bluetooth
+  // (manual y auto). Cargado una sola vez en _loadAndGenerate; sin esto
+  // el ticket ESC-POS salía sin logo aunque la empresa tenga uno.
+  Uint8List? _logoBytes;
+
   // Identidad efectiva (sede override > empresa) para reusar en _printBluetooth.
   // Sin esto, el ticket Bluetooth caía a empresa.direccionFiscal aunque la
   // sede tuviera direccionFiscalSede propia.
   String? _rucEfectivo;
+  String? _razonSocialEfectiva;
   String? _direccionFiscalEfectiva;
   String? _nombreComercialEfectivo;
   String? _telefonoEfectivo;
@@ -59,6 +66,11 @@ class _VentaTicketPreviewPageState extends State<VentaTicketPreviewPage> {
   bool _esperandoSunat = false;
   static const int _maxPollingAttempts = 8; // ~16s en total
   static const Duration _pollingInterval = Duration(seconds: 2);
+
+  /// Bandera para que la auto-impresión sólo se dispare en la PRIMERA
+  /// carga (el polling SUNAT re-llama _loadAndGenerate y no queremos
+  /// imprimir varias copias en cada intento).
+  bool _autoPrintIntentado = false;
 
   @override
   void initState() {
@@ -225,9 +237,11 @@ class _VentaTicketPreviewPageState extends State<VentaTicketPreviewPage> {
       setState(() {
         _venta = venta;
         _pdfBytes = pdf;
+        _logoBytes = logoBytes;
         _loading = false;
         _esperandoSunat = esperando;
         _rucEfectivo = rucEfectivo;
+        _razonSocialEfectiva = razonSocialEfectiva;
         _direccionFiscalEfectiva = direccionFiscalEfectiva;
         _nombreComercialEfectivo = nombreComercialEfectivo;
         _telefonoEfectivo = telefonoEfectivo;
@@ -244,6 +258,22 @@ class _VentaTicketPreviewPageState extends State<VentaTicketPreviewPage> {
       } else {
         _pollingTimer?.cancel();
         _pollingTimer = null;
+      }
+
+      // Auto-impresión: solo en la primera carga (no en polling SUNAT).
+      // No bloquea el flujo: corre en background y si falla muestra
+      // snackbar discreto sin afectar la pantalla del ticket.
+      if (!esPolling && !_autoPrintIntentado) {
+        _autoPrintIntentado = true;
+        unawaited(_intentarAutoImprimir(
+          empresaNombre: nombreComercialEfectivo ?? empresa.nombre,
+          empresaRazonSocial: razonSocialEfectiva,
+          empresaRuc: rucEfectivo ?? empresa.ruc,
+          empresaDireccion: direccionFiscalEfectiva ?? empresa.direccionFiscal,
+          empresaTelefono: telefonoEfectivo ?? empresa.telefono,
+          sedeNombre: venta.sedeNombre,
+          nombreImpuesto: nombreImpuesto,
+        ));
       }
     } catch (e) {
       if (!mounted) return;
@@ -443,6 +473,67 @@ class _VentaTicketPreviewPageState extends State<VentaTicketPreviewPage> {
     );
   }
 
+  /// Si hay impresora principal configurada con autoImprimirVentaRapida=true,
+  /// genera los bytes ESC-POS y los manda silenciosamente. UI muestra
+  /// snackbar discreto al resultado sin bloquear nada.
+  Future<void> _intentarAutoImprimir({
+    required String empresaNombre,
+    required String? empresaRazonSocial,
+    required String? empresaRuc,
+    required String? empresaDireccion,
+    required String? empresaTelefono,
+    required String? sedeNombre,
+    required String nombreImpuesto,
+  }) async {
+    if (_venta == null) return;
+    try {
+      final manager = locator<ImpresorasManager>();
+      final principal = await manager.getPrincipal();
+      if (principal == null || !principal.autoImprimirVentaRapida) return;
+
+      final bytes = await TicketVentaEscPosGenerator.generate(
+        venta: _venta!,
+        empresaNombre: empresaNombre,
+        empresaRazonSocial: empresaRazonSocial,
+        empresaRuc: empresaRuc,
+        empresaDireccion: empresaDireccion,
+        empresaTelefono: empresaTelefono,
+        sedeNombre: sedeNombre,
+        logoEmpresa: _logoBytes,
+        // CRÍTICO: respetar ancho real configurado en la impresora.
+        // Si default 80 va a una térmica de 58mm, las columnas calculadas
+        // (12*ratio sobre 48 chars) no caben y se aplastan a la derecha.
+        paperWidth: principal.anchoPapel.mm,
+        nombreImpuesto: nombreImpuesto,
+      );
+
+      final ok = await manager.imprimirEnPrincipal(bytes);
+      if (!mounted) return;
+      if (ok) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Ticket impreso en ${principal.nombre}'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'No se pudo imprimir automáticamente en ${principal.nombre}. '
+              'Usa el botón de imprimir si la impresora está disponible.',
+            ),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (_) {
+      // Silencioso: la auto-impresión nunca debe romper el flujo de la venta.
+    }
+  }
+
   Future<void> _printBluetooth() async {
     if (_venta == null) return;
 
@@ -457,14 +548,24 @@ class _VentaTicketPreviewPageState extends State<VentaTicketPreviewPage> {
       nombreImpuesto = configState.configuracion.nombreImpuesto;
     }
 
+    // Respetar el ancho de papel de la impresora principal configurada
+    // (sino el ESC-POS sale para 80mm aunque la térmica sea de 58mm
+    // y las columnas se aplastan a la derecha).
+    final principal = await locator<ImpresorasManager>().getPrincipal();
+    final paperWidth = principal?.anchoPapel.mm ?? 80;
+
     final bytes = await TicketVentaEscPosGenerator.generate(
       venta: _venta!,
       // Identidad efectiva: sede > empresa. La sede puede tener
       // direccionFiscalSede/rucSede/razonSocialSede y debe ganar sobre empresa.
       empresaNombre: _nombreComercialEfectivo ?? empresa.nombre,
+      empresaRazonSocial: _razonSocialEfectiva,
       empresaRuc: _rucEfectivo ?? empresa.ruc,
       empresaDireccion: _direccionFiscalEfectiva ?? empresa.direccionFiscal,
       empresaTelefono: _telefonoEfectivo ?? empresa.telefono,
+      sedeNombre: _venta?.sedeNombre,
+      logoEmpresa: _logoBytes,
+      paperWidth: paperWidth,
       nombreImpuesto: nombreImpuesto,
     );
 

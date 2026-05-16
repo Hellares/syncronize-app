@@ -59,9 +59,12 @@ class ResumenCajaCard extends StatelessWidget {
           ),
           const Divider(height: 20),
           // Saldo
+          // resumen.saldo del backend ya incluye montoApertura (apertura+
+          // ingresos-egresos). Sumar montoApertura de nuevo lo duplicaba:
+          // user abría con 100, sin movimientos, y veía "Saldo en Caja 200".
           _buildResumenRow(
             'Saldo en Caja',
-            currencyFormat.format(resumen.saldo + montoApertura),
+            currencyFormat.format(resumen.saldo),
             resumen.saldo >= 0 ? AppColors.green : AppColors.red,
             isBold: true,
           ),

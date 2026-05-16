@@ -45,6 +45,8 @@ import '../../features/gastos_recurrentes/presentation/pages/gastos_recurrentes_
 import '../../features/gastos_recurrentes/presentation/pages/gasto_recurrente_form_page.dart';
 import '../../features/gastos_recurrentes/presentation/pages/gasto_recurrente_detail_page.dart';
 import '../../features/gastos_recurrentes/presentation/pages/gastos_recurrentes_reportes_page.dart';
+import '../../features/impresoras/presentation/pages/impresoras_list_page.dart';
+import '../../features/impresoras/presentation/pages/impresora_form_page.dart';
 import '../../features/caja_chica/presentation/pages/caja_chica_detail_page.dart';
 import '../../features/caja_chica/presentation/pages/crear_caja_chica_page.dart';
 import '../../features/caja_chica/presentation/pages/nuevo_gasto_page.dart';
@@ -1223,6 +1225,23 @@ class AppRouter {
         path: '/empresa/gastos-recurrentes/reportes/general',
         name: 'empresa-gastos-recurrentes-reportes',
         builder: (context, state) => const GastosRecurrentesReportesPage(),
+      ),
+      // Impresoras térmicas (config local del dispositivo)
+      GoRoute(
+        path: '/empresa/impresoras',
+        name: 'empresa-impresoras',
+        builder: (context, state) => const ImpresorasListPage(),
+      ),
+      GoRoute(
+        path: '/empresa/impresoras/nueva',
+        name: 'empresa-impresoras-nueva',
+        builder: (context, state) => const ImpresoraFormPage(),
+      ),
+      GoRoute(
+        path: '/empresa/impresoras/:id',
+        name: 'empresa-impresoras-editar',
+        builder: (context, state) =>
+            ImpresoraFormPage(impresoraId: state.pathParameters['id']),
       ),
       // Rutas de agentes bancarios
       GoRoute(
