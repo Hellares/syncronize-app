@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:syncronize/core/di/injection_container.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
@@ -312,37 +313,77 @@ class _FormViewState extends State<_FormView> {
           color: AppColors.orange.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
         ),
-        child: const Text(
-          'No hay categorías de tipo EGRESO. Créalas primero en Categorías de Gasto.',
-          style: TextStyle(fontSize: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'No hay categorías de tipo EGRESO en tu empresa todavía.',
+              style: TextStyle(fontSize: 12),
+            ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: _gestionarCategorias,
+                icon: const Icon(Icons.add, size: 16),
+                label: const Text('Gestionar categorías'),
+                style: TextButton.styleFrom(foregroundColor: AppColors.blue1),
+              ),
+            ),
+          ],
         ),
       );
     }
-    return DropdownButtonFormField<String>(
-      initialValue: _categoriaId,
-      decoration: const InputDecoration(
-        labelText: 'Categoría *',
-        border: OutlineInputBorder(),
-      ),
-      isExpanded: true,
-      items: _categorias
-          .map(
-            (c) => DropdownMenuItem<String>(
-              value: c.id,
-              child: Row(
-                children: [
-                  Icon(c.iconData, size: 18, color: c.colorValue),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(c.nombre, overflow: TextOverflow.ellipsis),
-                  ),
-                ],
-              ),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(
+          child: DropdownButtonFormField<String>(
+            initialValue: _categoriaId,
+            decoration: const InputDecoration(
+              labelText: 'Categoría *',
+              border: OutlineInputBorder(),
             ),
-          )
-          .toList(),
-      onChanged: (v) => setState(() => _categoriaId = v),
-      validator: (v) => v == null ? 'Selecciona una categoría' : null,
+            isExpanded: true,
+            items: _categorias
+                .map(
+                  (c) => DropdownMenuItem<String>(
+                    value: c.id,
+                    child: Row(
+                      children: [
+                        Icon(c.iconData, size: 18, color: c.colorValue),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(c.nombre, overflow: TextOverflow.ellipsis),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+                .toList(),
+            onChanged: (v) => setState(() => _categoriaId = v),
+            validator: (v) => v == null ? 'Selecciona una categoría' : null,
+          ),
+        ),
+        const SizedBox(width: 6),
+        IconButton(
+          onPressed: _gestionarCategorias,
+          icon: const Icon(Icons.add_circle_outline),
+          color: AppColors.blue1,
+          tooltip: 'Crear/gestionar categorías',
+        ),
+      ],
     );
+  }
+
+  Future<void> _gestionarCategorias() async {
+    await context.push('/empresa/categorias-gasto');
+    if (!mounted) return;
+    // Al volver, recargar las categorías por si el user creó alguna.
+    setState(() {
+      _cargandoCategorias = true;
+      _categoriaError = null;
+    });
+    await _cargarCategorias();
   }
 }
