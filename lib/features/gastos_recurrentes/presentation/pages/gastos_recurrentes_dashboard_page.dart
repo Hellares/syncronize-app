@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:syncronize/core/di/injection_container.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
+import 'package:syncronize/core/utils/date_formatter.dart';
 import 'package:syncronize/core/widgets/custom_button.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import 'package:syncronize/core/widgets/snack_bar_helper.dart';
@@ -140,7 +141,7 @@ class _Body extends StatelessWidget {
     final parts = periodo.split('-');
     final anio = int.tryParse(parts[0]) ?? DateTime.now().year;
     final mes = int.tryParse(parts[1]) ?? DateTime.now().month;
-    final label = '${_mesLargo(mes)} $anio';
+    final label = DateFormatter.formatMonthYear(mes, anio);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
@@ -179,13 +180,6 @@ class _Body extends StatelessWidget {
     );
   }
 
-  String _mesLargo(int m) {
-    const meses = [
-      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
-    ];
-    return meses[(m - 1).clamp(0, 11)];
-  }
 
   Widget _resumenCards(DashboardGastosResumen r) {
     return Padding(

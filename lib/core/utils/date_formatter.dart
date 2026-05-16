@@ -173,6 +173,45 @@ class DateFormatter {
         '${localDate.minute.toString().padLeft(2, '0')}';
   }
 
+  /// Nombres de meses en español (sin depender de initializeDateFormatting).
+  static const _mesesEs = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+  ];
+
+  /// Nombres cortos de meses en español.
+  static const _mesesCortosEs = [
+    'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
+    'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic',
+  ];
+
+  /// Devuelve "Mayo 2026". Locale-agnóstico (no requiere
+  /// `initializeDateFormatting`, que el AppInitializer del proyecto no llama).
+  ///
+  /// `month` 1..12.
+  static String formatMonthYear(int month, int year) {
+    final m = month.clamp(1, 12);
+    return '${_mesesEs[m - 1]} $year';
+  }
+
+  /// Devuelve "May 26" (mes corto + año en 2 dígitos). Útil para ejes de chart.
+  static String formatMonthYearShort(int month, int year) {
+    final m = month.clamp(1, 12);
+    final y2 = year.toString().padLeft(4, '0').substring(2);
+    return '${_mesesCortosEs[m - 1]} $y2';
+  }
+
+  /// Parsea un período "YYYY-MM" y lo formatea como "Mayo 2026".
+  /// Si el formato es inválido, devuelve el input tal cual.
+  static String formatMonthYearFromPeriodo(String periodo) {
+    final parts = periodo.split('-');
+    if (parts.length != 2) return periodo;
+    final year = int.tryParse(parts[0]);
+    final month = int.tryParse(parts[1]);
+    if (year == null || month == null) return periodo;
+    return formatMonthYear(month, year);
+  }
+
   // ═══════════════════════════════════════════════════════════════════════
   // HELPERS DE SERIALIZACIÓN HACIA EL BACKEND
   // ═══════════════════════════════════════════════════════════════════════

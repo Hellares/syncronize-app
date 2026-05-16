@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:syncronize/core/di/injection_container.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
+import 'package:syncronize/core/utils/date_formatter.dart';
 import 'package:syncronize/core/widgets/custom_button.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import 'package:syncronize/core/widgets/snack_bar_helper.dart';
@@ -29,11 +30,6 @@ class _Body extends StatelessWidget {
 
   static final _money = NumberFormat.currency(locale: 'es_PE', symbol: 'S/ ', decimalDigits: 2);
   static final _moneyCompact = NumberFormat.compactCurrency(locale: 'es_PE', symbol: 'S/');
-
-  static const _mesesLargos = [
-    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -94,10 +90,7 @@ class _Body extends StatelessWidget {
   }
 
   Widget _cardTotalMesActual(BuildContext context, ReporteMesActual mes) {
-    final parts = mes.periodo.split('-');
-    final anio = int.parse(parts[0]);
-    final m = int.parse(parts[1]);
-    final mesLabel = '${_mesesLargos[(m - 1).clamp(0, 11)]} $anio';
+    final mesLabel = DateFormatter.formatMonthYearFromPeriodo(mes.periodo);
 
     return GradientContainer(
       padding: const EdgeInsets.all(16),
@@ -243,10 +236,13 @@ class _Body extends StatelessWidget {
                         final i = value.toInt();
                         if (i < 0 || i >= evolucion.length) return const SizedBox.shrink();
                         final partes = evolucion[i].periodo.split('-');
+                        final mes = int.tryParse(partes[1]) ?? 1;
+                        final anio = int.tryParse(partes[0]) ?? DateTime.now().year;
+                        final label = DateFormatter.formatMonthYearShort(mes, anio);
                         return Padding(
                           padding: const EdgeInsets.only(top: 6),
                           child: Text(
-                            '${_mesCorto(int.parse(partes[1]))}\n${partes[0].substring(2)}',
+                            label.replaceFirst(' ', '\n'),
                             style: const TextStyle(fontSize: 10, color: AppColors.textSecondary),
                             textAlign: TextAlign.center,
                           ),
@@ -351,11 +347,6 @@ class _Body extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  String _mesCorto(int m) {
-    const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-    return meses[(m - 1).clamp(0, 11)];
   }
 
   Color? _parseColor(String? hex) {

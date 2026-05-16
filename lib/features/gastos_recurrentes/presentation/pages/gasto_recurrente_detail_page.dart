@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:syncronize/core/di/injection_container.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
+import 'package:syncronize/core/utils/date_formatter.dart';
 import 'package:syncronize/core/utils/resource.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import 'package:syncronize/core/widgets/snack_bar_helper.dart';
@@ -22,9 +23,6 @@ class GastoRecurrenteDetailPage extends StatefulWidget {
 class _GastoRecurrenteDetailPageState extends State<GastoRecurrenteDetailPage> {
   final _repo = locator<GastosRecurrentesRepository>();
   static final _money = NumberFormat.currency(locale: 'es_PE', symbol: 'S/ ');
-  // No pasamos locale a DateFormat: el codebase no llama initializeDateFormatting('es_PE').
-  // Patrón dd/MM/yyyy HH:mm es agnóstico de locale.
-  static final _fechaFmt = DateFormat('dd/MM/yyyy HH:mm');
 
   GastoRecurrente? _gasto;
   List<PagoGastoRecurrente> _pagos = [];
@@ -207,7 +205,7 @@ class _GastoRecurrenteDetailPageState extends State<GastoRecurrenteDetailPage> {
           if (g.sedeNombre != null) _kv('Sede', g.sedeNombre!),
           if (g.proveedorNombre != null) _kv('Proveedor', g.proveedorNombre!),
           if (g.ultimoPagoEn != null)
-            _kv('Último pago registrado', _fechaFmt.format(g.ultimoPagoEn!.toLocal())),
+            _kv('Último pago registrado', DateFormatter.formatDateTime(g.ultimoPagoEn!)),
           if (g.notas != null && g.notas!.isNotEmpty) ...[
             const SizedBox(height: 8),
             Text(
@@ -281,7 +279,7 @@ class _GastoRecurrenteDetailPageState extends State<GastoRecurrenteDetailPage> {
                   ],
                 ),
                 Text(
-                  _fechaFmt.format(p.fechaPago.toLocal()),
+                  DateFormatter.formatDateTime(p.fechaPago),
                   style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
                 ),
                 if (p.bancoNombre != null)
