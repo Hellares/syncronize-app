@@ -202,8 +202,8 @@ class _CajaMonitorPageState extends State<CajaMonitorPage> {
           ),
           Expanded(
             child: _buildMiniMetric(
-              label: 'Saldo Total',
-              value: currencyFormat.format(resumen.totalSaldo),
+              label: 'Efectivo en Cajas',
+              value: currencyFormat.format(resumen.totalSaldoEfectivo),
               color: AppColors.blue1,
             ),
           ),
@@ -436,8 +436,8 @@ class _CajaMonitorPageState extends State<CajaMonitorPage> {
               ),
               Expanded(
                 child: _buildMiniMetric(
-                  label: 'Saldo',
-                  value: currencyFormat.format(caja.saldoActual),
+                  label: 'En Caja',
+                  value: currencyFormat.format(caja.saldoEfectivo),
                   color: AppColors.blue2,
                 ),
               ),

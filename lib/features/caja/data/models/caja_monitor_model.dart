@@ -10,6 +10,7 @@ class CajaMonitorDataModel {
       totalIngresos: _toDouble(resumenJson['totalIngresos']),
       totalEgresos: _toDouble(resumenJson['totalEgresos']),
       totalSaldo: _toDouble(resumenJson['totalSaldo']),
+      totalSaldoEfectivo: _toDouble(resumenJson['totalSaldoEfectivo']),
     );
 
     final cajas = cajasJson.map((c) {
@@ -31,6 +32,7 @@ class CajaMonitorDataModel {
         totalIngresos: _toDouble(caja['totalIngresos']),
         totalEgresos: _toDouble(caja['totalEgresos']),
         saldoActual: _toDouble(caja['saldoActual']),
+        saldoEfectivo: _toDouble(caja['saldoEfectivo']),
         totalMovimientos: count?['movimientos'] as int? ?? 0,
         ultimoMovimiento: ultimoMov != null
             ? UltimoMovimiento(

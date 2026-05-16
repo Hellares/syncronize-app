@@ -34,6 +34,7 @@ class ResumenCajaModel extends ResumenCaja {
     required super.totalIngresos,
     required super.totalEgresos,
     required super.saldo,
+    required super.saldoEfectivo,
     required super.detalles,
   });
 
@@ -44,10 +45,28 @@ class ResumenCajaModel extends ResumenCaja {
             ResumenMetodoPagoModel.fromJson(e as Map<String, dynamic>))
         .toList();
 
+    // Fallback: si el backend aun no expone saldoEfectivo (deploy en curso),
+    // derivamos del detalle EFECTIVO; si tampoco hay, cae a 0.
+    final saldoEfectivoBackend = json['saldoEfectivo'];
+    final saldoEfectivo = saldoEfectivoBackend != null
+        ? _toDouble(saldoEfectivoBackend)
+        : detalles
+            .firstWhere(
+              (d) => d.metodoPago == MetodoPago.efectivo,
+              orElse: () => const ResumenMetodoPagoModel(
+                metodoPago: MetodoPago.efectivo,
+                totalIngresos: 0,
+                totalEgresos: 0,
+                saldo: 0,
+              ),
+            )
+            .saldo;
+
     return ResumenCajaModel(
       totalIngresos: _toDouble(json['totalIngresos']),
       totalEgresos: _toDouble(json['totalEgresos']),
       saldo: _toDouble(json['saldo']),
+      saldoEfectivo: saldoEfectivo,
       detalles: detalles,
     );
   }

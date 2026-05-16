@@ -58,16 +58,26 @@ class ResumenCajaCard extends StatelessWidget {
             AppColors.red,
           ),
           const Divider(height: 20),
-          // Saldo
-          // resumen.saldo del backend ya incluye montoApertura (apertura+
-          // ingresos-egresos). Sumar montoApertura de nuevo lo duplicaba:
-          // user abría con 100, sin movimientos, y veía "Saldo en Caja 200".
+          // Saldo Efectivo (fisico en gaveta): solo EFECTIVO + apertura.
+          // Es lo que el cajero deberia contar al cerrar.
           _buildResumenRow(
             'Saldo en Caja',
-            currencyFormat.format(resumen.saldo),
-            resumen.saldo >= 0 ? AppColors.green : AppColors.red,
+            currencyFormat.format(resumen.saldoEfectivo),
+            resumen.saldoEfectivo >= 0 ? AppColors.green : AppColors.red,
             isBold: true,
           ),
+          // Total operado del dia: incluye efectivo + digitales (YAPE, PLIN,
+          // TARJETA, TRANSFERENCIA). No esta en la gaveta — sirve solo para
+          // ver el movimiento total. Si coincide con saldoEfectivo (porque
+          // todo fue efectivo) lo ocultamos para no duplicar info.
+          if ((resumen.saldo - resumen.saldoEfectivo).abs() > 0.01) ...[
+            const SizedBox(height: 4),
+            _buildResumenRow(
+              'Total operado',
+              currencyFormat.format(resumen.saldo),
+              AppColors.textSecondary,
+            ),
+          ],
           // Detalles por metodo de pago
           if (resumen.detalles.isNotEmpty) ...[
             const SizedBox(height: 16),
