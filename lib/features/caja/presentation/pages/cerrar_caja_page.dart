@@ -8,6 +8,7 @@ import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/widgets/custom_button.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import 'package:syncronize/core/widgets/snack_bar_helper.dart';
+import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import 'package:syncronize/features/impresoras/domain/services/impresoras_manager.dart';
 import '../../domain/entities/caja.dart';
 import '../../domain/entities/movimiento_caja.dart';
@@ -256,21 +257,13 @@ class _CerrarCajaPageState extends State<CerrarCajaPage> {
           const SizedBox(height: 16),
 
           // Observaciones
-          TextFormField(
+          CustomText(
+            label: 'Observaciones (opcional)',
+            hintText: 'Notas sobre el cierre de caja...',
             controller: _observacionesController,
             maxLines: 3,
-            decoration: InputDecoration(
-              labelText: 'Observaciones (opcional)',
-              hintText: 'Notas sobre el cierre de caja...',
-              prefixIcon: const Icon(Icons.note_rounded),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
-              ),
-            ),
+            height: null,
+            prefixIcon: const Icon(Icons.note_rounded),
           ),
           const SizedBox(height: 24),
 
@@ -346,23 +339,13 @@ class _CerrarCajaPageState extends State<CerrarCajaPage> {
                   ),
                 ),
                 Expanded(
-                  child: TextFormField(
+                  child: CustomText(
+                    label: 'Conteo Fisico',
                     controller: controller,
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
-                    decoration: InputDecoration(
-                      labelText: 'Conteo Fisico',
-                      prefixText: 'S/ ',
-                      isDense: true,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 10,
-                      ),
-                    ),
-                    style: const TextStyle(fontSize: 14),
+                    prefixText: 'S/ ',
+                    height: 38,
                     onChanged: (_) => setState(() {}),
                   ),
                 ),
