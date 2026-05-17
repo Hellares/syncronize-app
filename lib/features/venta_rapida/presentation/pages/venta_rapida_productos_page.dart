@@ -906,10 +906,11 @@ class _ProductoCard extends StatelessWidget {
                 // Badge LIQUIDACIÓN (top-left) cuando el producto está en
                 // liquidación activa en la sede. Naranja oscuro para
                 // diferenciarlo de la oferta normal y dejar claro al cajero
-                // que el precio puede estar bajo costo.
-                if (producto.enLiquidacionEnSede(sedeId))
+                // que el precio puede estar bajo costo. Considera tanto
+                // producto base como variantes liquidadas.
+                if (producto.tieneLiquidacionActivaEnSede(sedeId))
                   Positioned(
-                    top: 6,
+                    top: 33,
                     left: 6,
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),

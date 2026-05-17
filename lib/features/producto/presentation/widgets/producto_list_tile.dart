@@ -141,7 +141,8 @@ class ProductoListTile extends StatelessWidget {
               // Badge LIQUIDACIÓN (top-left sobre la imagen) — naranja
               // oscuro para distinguir de ofertas regulares y dejar claro
               // al gestor que el producto está en remate bajo costo.
-              if (producto.enLiquidacionEnSede(sedeId))
+              // Considera tanto producto base como variantes liquidadas.
+              if (producto.tieneLiquidacionActivaEnSede(sedeId))
                 Positioned(
                   top: 4,
                   left: 4,

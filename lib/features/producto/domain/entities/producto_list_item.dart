@@ -52,6 +52,15 @@ class ProductoListItem extends Equatable with StockPorSedeMixin {
     return stockTotal;
   }
 
+  /// True si el producto base O alguna de sus variantes está en liquidación
+  /// activa en la sede. Usado para mostrar badge "LIQ." en el card padre
+  /// aunque la liquidación esté configurada a nivel variante.
+  bool tieneLiquidacionActivaEnSede(String sedeId) {
+    if (enLiquidacionEnSede(sedeId)) return true;
+    if (variantes == null) return false;
+    return variantes!.any((v) => v.enLiquidacionEnSede(sedeId));
+  }
+
   @override
   List<Object?> get props => [
         id,
