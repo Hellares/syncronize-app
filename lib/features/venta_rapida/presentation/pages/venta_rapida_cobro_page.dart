@@ -374,45 +374,12 @@ class _CobroViewState extends State<_CobroView> {
         lineasPerdida.fold<double>(0, (s, d) => s + d.perdidaLinea);
 
     if (requierenAutorizacion.isEmpty) {
-      // Todas las líneas están en liquidación válida — solo informar.
-      final ok = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          icon: Icon(Icons.local_fire_department,
-              color: Colors.deepOrange.shade700, size: 32),
-          title: const Text('Venta con pérdida (liquidación)'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '${lineasPerdida.length} producto(s) en liquidación se venderán bajo costo.',
-                style: const TextStyle(fontSize: 12),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Pérdida total: S/ ${perdidaTotal.toStringAsFixed(2)}',
-                style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.red.shade700),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancelar')),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Cobrar igual'),
-            ),
-          ],
-        ),
-      );
-      return ok == true
-          ? const _VentaBajoCostoResult()
-          : const _VentaBajoCostoResult(cancelar: true);
+      // Todas las lineas estan en liquidacion activa: la autorizacion
+      // gerencial ya fue dada al activar la liquidacion del producto, y
+      // la perdida quedara registrada en VentaDetalle.margenSnapshot +
+      // motivoLiquidacionSnapshot para el reporte. No tiene sentido
+      // pedir confirmacion al cajero en cada venta.
+      return const _VentaBajoCostoResult();
     }
 
     // Hay líneas con margen negativo SIN liquidación → autorización gerencial.
