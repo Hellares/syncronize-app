@@ -75,7 +75,7 @@ class _ProductosPageState extends State<ProductosPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(_onTabChanged);
     _scrollController.addListener(_onScroll);
     _loadProductos();
@@ -115,18 +115,28 @@ class _ProductosPageState extends State<ProductosPage>
           filtrosConTab = _filtros.copyWith(
             clearSoloProductos: true,
             clearSoloCombos: true,
+            clearEnLiquidacion: true,
           );
           break;
         case 1: // Productos
           filtrosConTab = _filtros.copyWith(
             soloProductos: true,
             clearSoloCombos: true,
+            clearEnLiquidacion: true,
           );
           break;
         case 2: // Combos
           filtrosConTab = _filtros.copyWith(
             clearSoloProductos: true,
             soloCombos: true,
+            clearEnLiquidacion: true,
+          );
+          break;
+        case 3: // Liquidación
+          filtrosConTab = _filtros.copyWith(
+            clearSoloProductos: true,
+            clearSoloCombos: true,
+            enLiquidacion: true,
           );
           break;
       }
@@ -145,6 +155,7 @@ class _ProductosPageState extends State<ProductosPage>
         visibleMarketplace: filtrosConTab.visibleMarketplace,
         destacado: filtrosConTab.destacado,
         enOferta: filtrosConTab.enOferta,
+        enLiquidacion: filtrosConTab.enLiquidacion,
         stockBajo: filtrosConTab.stockBajo,
         soloProductos: filtrosConTab.soloProductos,
         soloCombos: filtrosConTab.soloCombos,
@@ -697,6 +708,7 @@ class _ProductosPageState extends State<ProductosPage>
                       Tab(text: 'TODOS'),
                       Tab(text: 'PRODUCTOS'),
                       Tab(text: 'COMBOS'),
+                      Tab(text: 'LIQUIDACIÓN'),
                     ],
                   ),
                 ),

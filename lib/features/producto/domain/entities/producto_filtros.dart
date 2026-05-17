@@ -24,6 +24,9 @@ class ProductoFiltros extends Equatable {
   final bool? visibleMarketplace;
   final bool? destacado;
   final bool? enOferta;
+  /// Filtrar productos con liquidación activa en al menos una sede (o en
+  /// la sede indicada por `sedeId` si se proporciona).
+  final bool? enLiquidacion;
   final bool? stockBajo;
   final bool? soloProductos;
   final bool? soloCombos;
@@ -43,6 +46,7 @@ class ProductoFiltros extends Equatable {
     this.visibleMarketplace,
     this.destacado,
     this.enOferta,
+    this.enLiquidacion,
     this.stockBajo,
     this.soloProductos,
     this.soloCombos,
@@ -64,6 +68,7 @@ class ProductoFiltros extends Equatable {
     bool? visibleMarketplace,
     bool? destacado,
     bool? enOferta,
+    bool? enLiquidacion,
     bool? stockBajo,
     bool? soloProductos,
     bool? soloCombos,
@@ -76,6 +81,7 @@ class ProductoFiltros extends Equatable {
     bool clearVisibleMarketplace = false,
     bool clearDestacado = false,
     bool clearEnOferta = false,
+    bool clearEnLiquidacion = false,
     bool clearStockBajo = false,
     bool clearSoloProductos = false,
     bool clearSoloCombos = false,
@@ -91,6 +97,7 @@ class ProductoFiltros extends Equatable {
       visibleMarketplace: clearVisibleMarketplace ? null : (visibleMarketplace ?? this.visibleMarketplace),
       destacado: clearDestacado ? null : (destacado ?? this.destacado),
       enOferta: clearEnOferta ? null : (enOferta ?? this.enOferta),
+      enLiquidacion: clearEnLiquidacion ? null : (enLiquidacion ?? this.enLiquidacion),
       stockBajo: clearStockBajo ? null : (stockBajo ?? this.stockBajo),
       soloProductos: clearSoloProductos ? null : (soloProductos ?? this.soloProductos),
       soloCombos: clearSoloCombos ? null : (soloCombos ?? this.soloCombos),
@@ -130,6 +137,9 @@ class ProductoFiltros extends Equatable {
     }
     if (enOferta != null) {
       params['enOferta'] = enOferta.toString();
+    }
+    if (enLiquidacion != null) {
+      params['enLiquidacion'] = enLiquidacion.toString();
     }
     if (stockBajo != null) {
       params['stockBajo'] = stockBajo.toString();
@@ -185,6 +195,7 @@ class ProductoFiltros extends Equatable {
         visibleMarketplace,
         destacado,
         enOferta,
+        enLiquidacion,
         stockBajo,
         soloProductos,
         soloCombos,
