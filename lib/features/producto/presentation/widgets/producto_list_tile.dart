@@ -138,6 +138,46 @@ class ProductoListTile extends StatelessWidget {
                 ],
               ),
 
+              // Badge LIQUIDACIÓN (top-left sobre la imagen) — naranja
+              // oscuro para distinguir de ofertas regulares y dejar claro
+              // al gestor que el producto está en remate bajo costo.
+              if (producto.enLiquidacionEnSede(sedeId))
+                Positioned(
+                  top: 4,
+                  left: 4,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.deepOrange.shade700,
+                      borderRadius: BorderRadius.circular(4),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.2),
+                          blurRadius: 2,
+                        ),
+                      ],
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.local_fire_department,
+                            size: 10, color: Colors.white),
+                        SizedBox(width: 2),
+                        Text(
+                          'LIQ.',
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
               // Botón de gestionar archivos (oculto para variantes)
               if (onManageFiles != null && !producto.tieneVariantes)
                 Positioned(
