@@ -50,11 +50,16 @@ class ValidationException implements Exception {
   final String message;
   final Map<String, List<String>>? errors;
   final String? errorCode;
+  /// Body completo del response cuando el backend devuelve un error 400
+  /// estructurado (ej. `{code, message, perdidaTotal, lineas: [...]}`).
+  /// Permite que los cubits emitan estados con contexto rico.
+  final Map<String, dynamic>? data;
 
   const ValidationException({
     required this.message,
     this.errors,
     this.errorCode,
+    this.data,
   });
 
   @override

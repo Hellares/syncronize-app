@@ -114,6 +114,7 @@ class ErrorHandlerService {
         exception.message,
         errorCode: exception.errorCode ?? 'VALIDATION_ERROR',
         statusCode: 400,
+        details: exception.data,
       );
     }
 

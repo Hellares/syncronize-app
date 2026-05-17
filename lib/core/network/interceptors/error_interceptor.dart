@@ -65,9 +65,17 @@ class ErrorInterceptor extends Interceptor {
 
     switch (statusCode) {
       case 400:
-        // Bad Request - puede incluir errores de validación
+        // Bad Request - puede incluir errores de validación o un código
+        // estructurado (`code: VENTA_BAJO_COSTO_NO_AUTORIZADA`, etc.)
+        // Propagamos el body completo en `data` para que el cubit pueda
+        // emitir estados con contexto rico (igual que el patrón de 409).
+        Map<String, dynamic>? structuredData;
+        if (err.response?.data is Map) {
+          structuredData = Map<String, dynamic>.from(err.response!.data as Map);
+        }
         final backendErrorCode = sanitizedData is Map<String, dynamic>
-            ? sanitizedData['errorCode'] as String?
+            ? (sanitizedData['code'] as String?) ??
+                (sanitizedData['errorCode'] as String?)
             : null;
         if (sanitizedData is Map<String, dynamic> &&
             sanitizedData.containsKey('errors')) {
@@ -75,6 +83,7 @@ class ErrorInterceptor extends Interceptor {
           throw ValidationException(
             message: sanitizedMessage,
             errorCode: backendErrorCode,
+            data: structuredData,
             errors: errors?.map(
               (key, value) => MapEntry(
                 key,
@@ -86,6 +95,7 @@ class ErrorInterceptor extends Interceptor {
         throw ValidationException(
           message: sanitizedMessage,
           errorCode: backendErrorCode,
+          data: structuredData,
         );
 
       case 401:

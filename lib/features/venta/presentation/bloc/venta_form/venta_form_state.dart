@@ -57,6 +57,35 @@ class VentaPreciosDesactualizados extends VentaFormState {
   List<Object?> get props => [message, divergencias];
 }
 
+/// Estado emitido cuando el backend rechaza la venta con HTTP 400 porque
+/// hay líneas con margen negativo (venta bajo costo) que NO están en
+/// liquidación y no fueron autorizadas por un gerente/admin.
+///
+/// La página debe abrir el dialog de autorización (DNI+password) y
+/// reintentar la venta con `ventaBajoCostoAutorizadaPorId`.
+class VentaBajoCostoNoAutorizada extends VentaFormState {
+  final String message;
+  final double perdidaTotal;
+  /// Cada item: {descripcion, productoId?, varianteId?, cantidad,
+  /// precioUnitario, precioCosto, margenUnitario, perdidaLinea}.
+  final List<Map<String, dynamic>> lineas;
+  /// Data original que se intentó cobrar — para reintentar con autorización.
+  final Map<String, dynamic> dataOriginal;
+  /// True si se intentó `crearYCobrar` (vs `crearVenta` borrador).
+  final bool esCobro;
+
+  const VentaBajoCostoNoAutorizada({
+    required this.message,
+    required this.perdidaTotal,
+    required this.lineas,
+    required this.dataOriginal,
+    required this.esCobro,
+  });
+
+  @override
+  List<Object?> get props => [message, perdidaTotal, lineas, esCobro];
+}
+
 class VentaConfirmada extends VentaFormState {
   final Venta venta;
 

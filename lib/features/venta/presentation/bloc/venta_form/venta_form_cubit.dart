@@ -38,7 +38,14 @@ class VentaFormCubit extends Cubit<VentaFormState> {
         _anularVentaUseCase = anularVentaUseCase,
         super(const VentaFormInitial());
 
+  /// Data del último intento de cobro/borrador — se guarda para reintento
+  /// tras autorización gerencial (estado VentaBajoCostoNoAutorizada).
+  Map<String, dynamic>? _ultimaData;
+  bool _ultimaEsCobro = false;
+
   Future<void> crearVenta(Map<String, dynamic> data) async {
+    _ultimaData = data;
+    _ultimaEsCobro = false;
     emit(const VentaFormLoading());
     final result = await _crearVentaUseCase(data: data);
     if (isClosed) return;
@@ -75,6 +82,8 @@ class VentaFormCubit extends Cubit<VentaFormState> {
   }
 
   Future<void> crearYCobrar(Map<String, dynamic> data) async {
+    _ultimaData = data;
+    _ultimaEsCobro = true;
     emit(const VentaFormLoading());
     final result = await _crearYCobrarVentaUseCase(data: data);
     if (isClosed) return;
@@ -107,7 +116,42 @@ class VentaFormCubit extends Cubit<VentaFormState> {
       ));
       return;
     }
+    if (result.errorCode == 'VENTA_BAJO_COSTO_NO_AUTORIZADA' &&
+        _ultimaData != null) {
+      final lineas = (result.details?['lineas'] as List?)
+              ?.whereType<Map>()
+              .map((m) => Map<String, dynamic>.from(m))
+              .toList() ??
+          <Map<String, dynamic>>[];
+      final perdida = (result.details?['perdidaTotal'] as num?)?.toDouble() ?? 0;
+      emit(VentaBajoCostoNoAutorizada(
+        message: result.message,
+        perdidaTotal: perdida,
+        lineas: lineas,
+        dataOriginal: _ultimaData!,
+        esCobro: _ultimaEsCobro,
+      ));
+      return;
+    }
     emit(VentaFormError(result.message));
+  }
+
+  /// Reintenta la última venta con `ventaBajoCostoAutorizadaPorId` adjunto.
+  /// Llamar desde la page tras validar la autorización gerencial.
+  Future<void> reintentarConAutorizacionBajoCosto(String autorizadoPorId) async {
+    if (_ultimaData == null) {
+      emit(const VentaFormError('No hay venta pendiente para reintentar'));
+      return;
+    }
+    final dataConAuth = {
+      ..._ultimaData!,
+      'ventaBajoCostoAutorizadaPorId': autorizadoPorId,
+    };
+    if (_ultimaEsCobro) {
+      await crearYCobrar(dataConAuth);
+    } else {
+      await crearVenta(dataConAuth);
+    }
   }
 
   Future<void> actualizarVenta(String id, Map<String, dynamic> data) async {

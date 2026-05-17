@@ -424,6 +424,9 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
               SnackBar(content: Text(state.message), backgroundColor: Colors.red),
             );
           }
+          if (state is VentaBajoCostoNoAutorizada) {
+            _manejarVentaBajoCosto(context, state);
+          }
         },
         child: BlocListener<ConfiguracionEmpresaCubit, ConfiguracionEmpresaState>(
           listener: (context, state) {
@@ -985,6 +988,92 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
     };
 
     context.read<VentaFormCubit>().crearVenta(data);
+  }
+
+  /// Maneja el estado VentaBajoCostoNoAutorizada emitido por el cubit
+  /// cuando el backend rechaza la venta (400) por margen negativo sin
+  /// liquidacion ni autorizacion. Muestra dialog con detalle por linea,
+  /// pide autorizacion gerencial y reintenta.
+  Future<void> _manejarVentaBajoCosto(
+    BuildContext context,
+    VentaBajoCostoNoAutorizada state,
+  ) async {
+    final detalle = state.lineas.map((l) {
+      final desc = l['descripcion']?.toString() ?? '';
+      final perdida = (l['perdidaLinea'] as num?)?.toDouble() ?? 0;
+      return '• $desc → pérdida S/ ${perdida.toStringAsFixed(2)}';
+    }).join('\n');
+
+    final confirmado = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: Icon(Icons.warning_amber_rounded,
+            color: Colors.deepOrange.shade700, size: 36),
+        title: const Text('Venta bajo costo'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${state.lineas.length} producto(s) se venden bajo costo y NO están en liquidación.',
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.deepOrange.shade50,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.deepOrange.shade200),
+              ),
+              child: Text(detalle, style: const TextStyle(fontSize: 11)),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Pérdida total: S/ ${state.perdidaTotal.toStringAsFixed(2)}',
+              style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.red.shade700),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Para continuar se requiere autorización de GERENTE o ADMIN.',
+              style: TextStyle(fontSize: 11, color: Colors.black54),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(ctx, true),
+            icon: const Icon(Icons.admin_panel_settings),
+            label: const Text('Autorizar'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.deepOrange.shade700,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmado != true || !mounted) return;
+
+    final auth = await showAutorizacionDialog(
+      context,
+      operacion: 'VENTA_BAJO_COSTO',
+      titulo: 'Autorizar venta bajo costo',
+      descripcion:
+          'Un GERENTE o ADMINISTRADOR debe autorizar esta venta con pérdida total S/ ${state.perdidaTotal.toStringAsFixed(2)}.',
+    );
+    if (auth == null || !mounted) return;
+
+    context
+        .read<VentaFormCubit>()
+        .reintentarConAutorizacionBajoCosto(auth.autorizadoPorId);
   }
 }
 
