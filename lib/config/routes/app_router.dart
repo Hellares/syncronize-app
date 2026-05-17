@@ -101,6 +101,8 @@ import '../../features/producto/presentation/pages/incidencias_transferencias_pa
 import '../../features/producto/presentation/pages/reglas_compatibilidad_page.dart';
 import '../../features/producto/presentation/pages/configurar_stock_minmax_page.dart';
 import '../../features/producto/presentation/pages/merma_perdida_page.dart';
+import '../../features/producto/presentation/pages/liquidaciones_page.dart';
+import '../../features/producto/presentation/pages/reporte_liquidaciones_page.dart';
 import '../../features/producto/presentation/pages/valorizacion_inventario_page.dart';
 import '../../features/producto/presentation/pages/sugerencias_reorden_page.dart';
 import '../../features/producto/presentation/pages/reporte_rotacion_page.dart';
@@ -622,6 +624,16 @@ class AppRouter {
         path: '/empresa/inventario/merma-perdida',
         name: 'empresa-merma-perdida',
         builder: (context, state) => const MermaPerdidaPage(),
+      ),
+      GoRoute(
+        path: '/empresa/inventario/liquidaciones',
+        name: 'empresa-liquidaciones',
+        builder: (context, state) => const LiquidacionesPage(),
+      ),
+      GoRoute(
+        path: '/empresa/reportes/liquidaciones',
+        name: 'empresa-reporte-liquidaciones',
+        builder: (context, state) => const ReporteLiquidacionesPage(),
       ),
       GoRoute(
         path: '/empresa/inventario/valorizacion',

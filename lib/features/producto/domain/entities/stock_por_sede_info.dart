@@ -22,6 +22,12 @@ class StockPorSedeInfo extends Equatable {
   final DateTime? fechaInicioOferta;
   final DateTime? fechaFinOferta;
 
+  // Liquidación (remate bajo costo)
+  final bool enLiquidacion;
+  final double? precioLiquidacion;
+  final DateTime? fechaInicioLiquidacion;
+  final DateTime? fechaFinLiquidacion;
+
   // Estado de configuración de precio
   final bool precioConfigurado;
   final bool precioIncluyeIgv;
@@ -40,9 +46,22 @@ class StockPorSedeInfo extends Equatable {
     this.enOferta = false,
     this.fechaInicioOferta,
     this.fechaFinOferta,
+    this.enLiquidacion = false,
+    this.precioLiquidacion,
+    this.fechaInicioLiquidacion,
+    this.fechaFinLiquidacion,
     this.precioConfigurado = false,
     this.precioIncluyeIgv = true,
   });
+
+  /// Verifica si la liquidación está vigente.
+  bool get isLiquidacionActiva {
+    if (!enLiquidacion || precioLiquidacion == null) return false;
+    final now = DateTime.now();
+    if (fechaInicioLiquidacion != null && now.isBefore(fechaInicioLiquidacion!)) return false;
+    if (fechaFinLiquidacion != null && now.isAfter(fechaFinLiquidacion!)) return false;
+    return true;
+  }
 
   /// Verifica si el stock está bajo el mínimo
   bool get esBajoMinimo {
@@ -78,16 +97,18 @@ class StockPorSedeInfo extends Equatable {
     return true;
   }
 
-  /// Obtiene el precio efectivo a mostrar (con oferta si aplica)
+  /// Obtiene el precio efectivo a mostrar (liquidación > oferta > base).
   double? get precioEfectivo {
     if (!precioConfigurado || precio == null) return null;
+    if (isLiquidacionActiva && precioLiquidacion != null) return precioLiquidacion;
     return isOfertaActiva && precioOferta != null ? precioOferta : precio;
   }
 
-  /// Calcula el porcentaje de descuento de la oferta
+  /// Calcula el porcentaje de descuento del precio efectivo respecto al base.
   double? get porcentajeDescuento {
-    if (!isOfertaActiva || precioOferta == null || precio == null || precio! == 0) return null;
-    return ((precio! - precioOferta!) / precio!) * 100;
+    final efectivo = precioEfectivo;
+    if (efectivo == null || precio == null || precio! == 0 || efectivo >= precio!) return null;
+    return ((precio! - efectivo) / precio!) * 100;
   }
 
   @override
@@ -105,6 +126,10 @@ class StockPorSedeInfo extends Equatable {
         enOferta,
         fechaInicioOferta,
         fechaFinOferta,
+        enLiquidacion,
+        precioLiquidacion,
+        fechaInicioLiquidacion,
+        fechaFinLiquidacion,
         precioConfigurado,
         precioIncluyeIgv,
       ];

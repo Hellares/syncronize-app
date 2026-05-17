@@ -641,6 +641,15 @@ class _ProductosPageState extends State<ProductosPage>
                     );
                   },
                 ),
+                NavigationMenuItem(
+                  id: 'liquidaciones',
+                  label: 'Liquidaciones',
+                  icon: Icons.local_fire_department,
+                  iconColor: Colors.deepOrange,
+                  onTap: () {
+                    context.push('/empresa/inventario/liquidaciones');
+                  },
+                ),
               ],
             ),
             // IconButton(

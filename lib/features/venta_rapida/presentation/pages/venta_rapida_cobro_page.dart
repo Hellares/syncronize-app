@@ -16,9 +16,20 @@ import '../../../../core/widgets/pagos_section_widget.dart'
         bancosPeru,
         requiereBancoPago,
         umbralBancarizacionPen;
+import '../../../../core/widgets/autorizacion_dialog.dart';
 import '../../../auth/presentation/widgets/custom_text.dart';
 import '../../../producto/presentation/bloc/producto_list/producto_list_cubit.dart';
+import '../../../venta/domain/entities/venta_detalle_input.dart';
 import '../bloc/venta_rapida_cubit.dart';
+
+/// Resultado del guard de venta bajo costo. `cancelar=true` aborta el
+/// cobro; `autorizadoPorId` viaja al cubit cuando se autorizó manualmente
+/// una venta con margen negativo.
+class _VentaBajoCostoResult {
+  final String? autorizadoPorId;
+  final bool cancelar;
+  const _VentaBajoCostoResult({this.autorizadoPorId, this.cancelar = false});
+}
 
 /// Medio centavo: error máximo de redondeo a 2 decimales en PEN. Se usa para
 /// no mostrar "falta 0.00" o "vuelto 0.00" cuando la diferencia es residual.
@@ -305,6 +316,12 @@ class _CobroViewState extends State<_CobroView> {
     final cubit = context.read<VentaRapidaCubit>();
     final state = cubit.state;
 
+    // Guard venta bajo costo: si hay líneas con margen negativo que NO
+    // están en liquidación, pedimos autorización gerencial. Las líneas
+    // en liquidación pasan automáticamente con resumen informativo.
+    final autorizacion = await _confirmarVentaBajoCosto(context, state.items);
+    if (autorizacion.cancelar) return;
+
     // Total efectivo + total bancarizado (no-EFECTIVO/CREDITO).
     final totalEfectivo = state.pagos
         .where((p) => p['metodo'] == 'EFECTIVO')
@@ -327,7 +344,150 @@ class _CobroViewState extends State<_CobroView> {
     }
 
     if (!context.mounted) return;
-    cubit.cobrar(aceptaRiesgoBancarizacion: aceptaRiesgo);
+    cubit.cobrar(
+      aceptaRiesgoBancarizacion: aceptaRiesgo,
+      ventaBajoCostoAutorizadaPorId: autorizacion.autorizadoPorId,
+    );
+  }
+
+  /// Detecta líneas con margen negativo y devuelve:
+  /// - `cancelado` si el usuario abandona el flujo
+  /// - `_VentaBajoCostoResult(autorizadoPorId)` si autorizó (o si solo
+  ///   había líneas en liquidación y aceptó el resumen)
+  /// - `_VentaBajoCostoResult.skip` si no hay líneas con margen negativo
+  Future<_VentaBajoCostoResult> _confirmarVentaBajoCosto(
+    BuildContext context,
+    List<VentaDetalleInput> items,
+  ) async {
+    final lineasPerdida = items
+        .where((d) {
+          final m = d.margenUnitario;
+          return m != null && m < 0 && (d.precioCostoSnapshot ?? 0) > 0;
+        })
+        .toList();
+
+    if (lineasPerdida.isEmpty) return const _VentaBajoCostoResult();
+
+    final requierenAutorizacion =
+        lineasPerdida.where((d) => !d.enLiquidacion).toList();
+    final perdidaTotal =
+        lineasPerdida.fold<double>(0, (s, d) => s + d.perdidaLinea);
+
+    if (requierenAutorizacion.isEmpty) {
+      // Todas las líneas están en liquidación válida — solo informar.
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          icon: Icon(Icons.local_fire_department,
+              color: Colors.deepOrange.shade700, size: 32),
+          title: const Text('Venta con pérdida (liquidación)'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${lineasPerdida.length} producto(s) en liquidación se venderán bajo costo.',
+                style: const TextStyle(fontSize: 12),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Pérdida total: S/ ${perdidaTotal.toStringAsFixed(2)}',
+                style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red.shade700),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancelar')),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Cobrar igual'),
+            ),
+          ],
+        ),
+      );
+      return ok == true
+          ? const _VentaBajoCostoResult()
+          : const _VentaBajoCostoResult(cancelar: true);
+    }
+
+    // Hay líneas con margen negativo SIN liquidación → autorización gerencial.
+    final detalle = requierenAutorizacion.map((d) {
+      final m = d.margenUnitario!;
+      return '• ${d.descripcion}  →  pérdida S/ ${(-m * d.cantidad).toStringAsFixed(2)}';
+    }).join('\n');
+
+    final confirmado = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: Icon(Icons.warning_amber_rounded,
+            color: Colors.deepOrange.shade700, size: 36),
+        title: const Text('Venta bajo costo'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${requierenAutorizacion.length} producto(s) se venden bajo costo y NO están en liquidación.',
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.deepOrange.shade50,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.deepOrange.shade200),
+              ),
+              child: Text(detalle, style: const TextStyle(fontSize: 11)),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Pérdida total: S/ ${perdidaTotal.toStringAsFixed(2)}',
+              style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.red.shade700),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Para continuar se requiere autorización de GERENTE o ADMIN.',
+              style: TextStyle(fontSize: 11, color: Colors.black54),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar')),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(ctx, true),
+            icon: const Icon(Icons.admin_panel_settings),
+            label: const Text('Autorizar'),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.deepOrange.shade700,
+                foregroundColor: Colors.white),
+          ),
+        ],
+      ),
+    );
+    if (confirmado != true || !context.mounted) {
+      return const _VentaBajoCostoResult(cancelar: true);
+    }
+
+    final auth = await showAutorizacionDialog(
+      context,
+      operacion: 'VENTA_BAJO_COSTO',
+      titulo: 'Autorizar venta bajo costo',
+      descripcion:
+          'Un GERENTE o ADMINISTRADOR debe autorizar esta venta con pérdida total S/ ${perdidaTotal.toStringAsFixed(2)}.',
+    );
+    if (auth == null) return const _VentaBajoCostoResult(cancelar: true);
+    return _VentaBajoCostoResult(autorizadoPorId: auth.autorizadoPorId);
   }
 
   /// Dialog Ley 28194: explica al cajero las consecuencias para el

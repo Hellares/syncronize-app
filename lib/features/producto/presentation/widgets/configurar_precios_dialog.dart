@@ -15,6 +15,7 @@ import '../../domain/entities/producto_stock.dart';
 import '../../domain/repositories/precio_nivel_repository.dart';
 import '../../domain/services/precio_nivel_cache_service.dart';
 import 'precio_nivel_form_dialog.dart';
+import 'gestionar_liquidacion_dialog.dart';
 import '../bloc/configurar_precios/configurar_precios_cubit.dart';
 import '../bloc/configurar_precios/configurar_precios_state.dart';
 import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_cubit.dart';
@@ -417,6 +418,11 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
                           ],
                         ),
                       ],
+
+                      // ── Sección Liquidación (remate bajo costo) ──
+                      const SizedBox(height: 8),
+                      const Divider(),
+                      _buildSeccionLiquidacion(),
 
                       // ── Sección Precios por Volumen (gestión de niveles) ──
                       const SizedBox(height: 8),
@@ -929,6 +935,77 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
           );
         },
       ),
+    );
+  }
+
+  /// Estado local del stock que refleja los cambios de liquidación tras
+  /// abrir el dialog. Si es null se usa widget.stock.
+  ProductoStock? _liquidacionStockOverride;
+  ProductoStock get _stockEfectivo => _liquidacionStockOverride ?? widget.stock;
+
+  Widget _buildSeccionLiquidacion() {
+    final stock = _stockEfectivo;
+    final activa = stock.isLiquidacionActiva;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.local_fire_department,
+                size: 16, color: Colors.deepOrange.shade700),
+            const SizedBox(width: 6),
+            AppSubtitle('Liquidación', fontSize: 13, color: AppColors.textPrimary),
+            const Spacer(),
+            if (activa)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.deepOrange.shade100,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  'ACTIVA',
+                  style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.deepOrange.shade900),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Text(
+          activa
+              ? 'Liquidación activa: S/ ${stock.precioLiquidacion!.toStringAsFixed(2)} (${stock.motivoLiquidacion?.label ?? '—'})'
+              : 'Remate por debajo de costo con motivo justificado y autorización gerencial.',
+          style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: () async {
+              final result = await showDialog<ProductoStock>(
+                context: context,
+                builder: (_) => GestionarLiquidacionDialog(stock: stock),
+              );
+              if (result != null && mounted) {
+                setState(() => _liquidacionStockOverride = result);
+              }
+            },
+            icon: Icon(
+              activa ? Icons.settings : Icons.local_fire_department,
+              size: 16,
+              color: Colors.deepOrange.shade700,
+            ),
+            label: Text(activa ? 'Gestionar liquidación' : 'Activar liquidación'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.deepOrange.shade700,
+              side: BorderSide(color: Colors.deepOrange.shade200),
+            ),
+          ),
+        ),
+      ],
     );
   }
 

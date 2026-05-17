@@ -467,4 +467,73 @@ class ProductoStockRepositoryImpl implements ProductoStockRepository {
       return _errorHandler.handleException(e, context: 'ProductoStock');
     }
   }
+
+  // ===== LIQUIDACIÓN =====
+
+  @override
+  Future<Resource<ProductoStock>> activarLiquidacion({
+    required String productoStockId,
+    required double precioLiquidacion,
+    required MotivoLiquidacion motivo,
+    required String autorizadoPorId,
+    DateTime? fechaFin,
+    String? observaciones,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final stock = await _remoteDataSource.activarLiquidacion(
+        productoStockId: productoStockId,
+        precioLiquidacion: precioLiquidacion,
+        motivo: motivo,
+        autorizadoPorId: autorizadoPorId,
+        fechaFin: fechaFin,
+        observaciones: observaciones,
+      );
+      return Success(stock);
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Liquidacion');
+    }
+  }
+
+  @override
+  Future<Resource<ProductoStock>> desactivarLiquidacion({
+    required String productoStockId,
+    String? razon,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final stock = await _remoteDataSource.desactivarLiquidacion(
+        productoStockId: productoStockId,
+        razon: razon,
+      );
+      return Success(stock);
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Liquidacion');
+    }
+  }
+
+  @override
+  Future<Resource<Map<String, dynamic>>> listarLiquidaciones({
+    String? sedeId,
+    int page = 1,
+    int limit = 50,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final data = await _remoteDataSource.listarLiquidaciones(
+        sedeId: sedeId,
+        page: page,
+        limit: limit,
+      );
+      return Success(data);
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Liquidacion');
+    }
+  }
 }

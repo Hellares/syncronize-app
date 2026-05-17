@@ -903,6 +903,45 @@ class _ProductoCard extends StatelessWidget {
                     ),
                   ),
                 ),
+                // Badge LIQUIDACIÓN (top-left) cuando el producto está en
+                // liquidación activa en la sede. Naranja oscuro para
+                // diferenciarlo de la oferta normal y dejar claro al cajero
+                // que el precio puede estar bajo costo.
+                if (producto.enLiquidacionEnSede(sedeId))
+                  Positioned(
+                    top: 6,
+                    left: 6,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.deepOrange.shade700,
+                        borderRadius: BorderRadius.circular(4),
+                        boxShadow: [
+                          BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.2),
+                              blurRadius: 2),
+                        ],
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.local_fire_department,
+                              size: 9, color: Colors.white),
+                          SizedBox(width: 2),
+                          Text(
+                            'LIQ.',
+                            style: TextStyle(
+                              fontSize: 8,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
                 // Check + stepper cuando el producto está en el carrito
                 if (estaEnCarrito) ...[
                   Positioned(

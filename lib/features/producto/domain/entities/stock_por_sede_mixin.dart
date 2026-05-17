@@ -76,4 +76,14 @@ mixin StockPorSedeMixin {
   double? porcentajeDescuentoEnSede(String sedeId) {
     return stockSedeInfo(sedeId)?.porcentajeDescuento;
   }
+
+  /// Precio costo configurado en la sede (null si no se configuró).
+  double? precioCostoEnSede(String sedeId) {
+    return stockSedeInfo(sedeId)?.precioCosto;
+  }
+
+  /// True si el producto está en liquidación activa en esa sede.
+  bool enLiquidacionEnSede(String sedeId) {
+    return stockSedeInfo(sedeId)?.isLiquidacionActiva ?? false;
+  }
 }

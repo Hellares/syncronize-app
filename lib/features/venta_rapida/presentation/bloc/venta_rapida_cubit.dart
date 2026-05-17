@@ -130,6 +130,10 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       icbper: icbperUnit,
       stockDisponible: stockDisp,
       niveles: nivelesEnCache ?? const [],
+      // Snapshot de costo + estado liquidación para preview de margen y
+      // guard de venta bajo costo en el cobro.
+      precioCostoSnapshot: producto.precioCostoEnSede(sedeId),
+      enLiquidacion: producto.enLiquidacionEnSede(sedeId),
     );
     final itemConNivel = nivelesEnCache != null
         ? item.recalcularPrecioPorNiveles(1)
@@ -580,7 +584,10 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
 
   // ── Cobrar ──
 
-  Future<void> cobrar({bool aceptaRiesgoBancarizacion = false}) async {
+  Future<void> cobrar({
+    bool aceptaRiesgoBancarizacion = false,
+    String? ventaBajoCostoAutorizadaPorId,
+  }) async {
     // Guard de re-entrada: evita doble-cobro si el cajero da doble-tap
     // antes de que el botón se deshabilite por rebuild.
     if (state.procesando) return;
@@ -646,6 +653,8 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       'tipoComprobante': state.tipoComprobante,
       'esCredito': false,
       if (aceptaRiesgoBancarizacion) 'aceptaRiesgoBancarizacion': true,
+      if (ventaBajoCostoAutorizadaPorId != null)
+        'ventaBajoCostoAutorizadaPorId': ventaBajoCostoAutorizadaPorId,
       'metodoPago': state.pagos.first['metodo'],
       'montoRecibido': state.totalPagado,
       'pagos': state.pagos.map((p) => {

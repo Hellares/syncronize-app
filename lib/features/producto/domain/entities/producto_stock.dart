@@ -1,5 +1,55 @@
 import 'package:equatable/equatable.dart';
 
+/// Motivo de liquidación (remate por debajo de precio costo).
+/// Debe estar alineado con el enum `MotivoLiquidacion` del backend.
+enum MotivoLiquidacion {
+  fueraDeCampana,
+  sinRotacion,
+  proximoAVencer,
+  descontinuado,
+  otro,
+}
+
+extension MotivoLiquidacionX on MotivoLiquidacion {
+  String get apiValue {
+    switch (this) {
+      case MotivoLiquidacion.fueraDeCampana:
+        return 'FUERA_DE_CAMPANA';
+      case MotivoLiquidacion.sinRotacion:
+        return 'SIN_ROTACION';
+      case MotivoLiquidacion.proximoAVencer:
+        return 'PROXIMO_A_VENCER';
+      case MotivoLiquidacion.descontinuado:
+        return 'DESCONTINUADO';
+      case MotivoLiquidacion.otro:
+        return 'OTRO';
+    }
+  }
+
+  String get label {
+    switch (this) {
+      case MotivoLiquidacion.fueraDeCampana:
+        return 'Fuera de campaña';
+      case MotivoLiquidacion.sinRotacion:
+        return 'Sin rotación';
+      case MotivoLiquidacion.proximoAVencer:
+        return 'Próximo a vencer';
+      case MotivoLiquidacion.descontinuado:
+        return 'Descontinuado';
+      case MotivoLiquidacion.otro:
+        return 'Otro';
+    }
+  }
+
+  static MotivoLiquidacion? fromApi(String? value) {
+    if (value == null) return null;
+    for (final m in MotivoLiquidacion.values) {
+      if (m.apiValue == value) return m;
+    }
+    return null;
+  }
+}
+
 /// Entity para ProductoStock - Inventario y precios por sede
 class ProductoStock extends Equatable {
   final String id;
@@ -34,6 +84,15 @@ class ProductoStock extends Equatable {
   final DateTime? fechaInicioOferta;
   final DateTime? fechaFinOferta;
 
+  // Liquidación (remate bajo costo con motivo y autorización gerencial)
+  final bool enLiquidacion;
+  final double? precioLiquidacion;
+  final MotivoLiquidacion? motivoLiquidacion;
+  final String? observacionesLiquidacion;
+  final DateTime? fechaInicioLiquidacion;
+  final DateTime? fechaFinLiquidacion;
+  final String? liquidacionAutorizadaPorId;
+
   // Estado de configuración de precio
   final bool precioConfigurado; // true cuando se ha establecido al menos el precio de venta
   final bool precioIncluyeIgv; // true cuando el precio de venta ya incluye IGV
@@ -66,6 +125,13 @@ class ProductoStock extends Equatable {
     this.enOferta = false,
     this.fechaInicioOferta,
     this.fechaFinOferta,
+    this.enLiquidacion = false,
+    this.precioLiquidacion,
+    this.motivoLiquidacion,
+    this.observacionesLiquidacion,
+    this.fechaInicioLiquidacion,
+    this.fechaFinLiquidacion,
+    this.liquidacionAutorizadaPorId,
     this.precioConfigurado = false,
     this.precioIncluyeIgv = true,
     required this.creadoEn,
@@ -96,6 +162,13 @@ class ProductoStock extends Equatable {
         enOferta,
         fechaInicioOferta,
         fechaFinOferta,
+        enLiquidacion,
+        precioLiquidacion,
+        motivoLiquidacion,
+        observacionesLiquidacion,
+        fechaInicioLiquidacion,
+        fechaFinLiquidacion,
+        liquidacionAutorizadaPorId,
         precioConfigurado,
         precioIncluyeIgv,
         creadoEn,
@@ -176,16 +249,29 @@ class ProductoStock extends Equatable {
     return true;
   }
 
-  /// Obtiene el precio efectivo a mostrar (con oferta si aplica)
+  /// Verifica si la liquidación está activa (en ventana de fechas).
+  bool get isLiquidacionActiva {
+    if (!enLiquidacion || precioLiquidacion == null) return false;
+    final now = DateTime.now();
+    if (fechaInicioLiquidacion != null && now.isBefore(fechaInicioLiquidacion!)) return false;
+    if (fechaFinLiquidacion != null && now.isAfter(fechaFinLiquidacion!)) return false;
+    return true;
+  }
+
+  /// Obtiene el precio efectivo a mostrar (con liquidación/oferta si aplica).
+  /// Liquidación tiene prioridad sobre oferta porque suele ser un precio
+  /// menor y un evento más decisivo comercialmente.
   double? get precioEfectivo {
     if (!precioConfigurado || precio == null) return null;
+    if (isLiquidacionActiva && precioLiquidacion != null) return precioLiquidacion;
     return isOfertaActiva && precioOferta != null ? precioOferta : precio;
   }
 
-  /// Calcula el porcentaje de descuento de la oferta
+  /// Calcula el porcentaje de descuento del precio efectivo respecto al base.
   double? get porcentajeDescuento {
-    if (!isOfertaActiva || precioOferta == null || precio == null || precio! == 0) return null;
-    return ((precio! - precioOferta!) / precio!) * 100;
+    final efectivo = precioEfectivo;
+    if (efectivo == null || precio == null || precio! == 0 || efectivo >= precio!) return null;
+    return ((precio! - efectivo) / precio!) * 100;
   }
 }
 

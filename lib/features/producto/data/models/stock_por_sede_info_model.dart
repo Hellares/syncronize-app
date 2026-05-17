@@ -16,6 +16,10 @@ class StockPorSedeInfoModel extends StockPorSedeInfo {
     super.enOferta = false,
     super.fechaInicioOferta,
     super.fechaFinOferta,
+    super.enLiquidacion = false,
+    super.precioLiquidacion,
+    super.fechaInicioLiquidacion,
+    super.fechaFinLiquidacion,
     super.precioConfigurado = false,
     super.precioIncluyeIgv = true,
   });
@@ -63,6 +67,16 @@ class StockPorSedeInfoModel extends StockPorSedeInfo {
       fechaFinOferta: json['fechaFinOferta'] != null
           ? DateTime.parse(json['fechaFinOferta'] as String)
           : null,
+      enLiquidacion: json['enLiquidacion'] as bool? ?? false,
+      precioLiquidacion: json['precioLiquidacion'] != null
+          ? toSafeDouble(json['precioLiquidacion'])
+          : null,
+      fechaInicioLiquidacion: json['fechaInicioLiquidacion'] != null
+          ? DateTime.parse(json['fechaInicioLiquidacion'] as String)
+          : null,
+      fechaFinLiquidacion: json['fechaFinLiquidacion'] != null
+          ? DateTime.parse(json['fechaFinLiquidacion'] as String)
+          : null,
       precioConfigurado: json['precioConfigurado'] as bool? ?? false,
       precioIncluyeIgv: json['precioIncluyeIgv'] as bool? ?? true,
     );
@@ -104,6 +118,10 @@ class StockPorSedeInfoModel extends StockPorSedeInfo {
       enOferta: entity.enOferta,
       fechaInicioOferta: entity.fechaInicioOferta,
       fechaFinOferta: entity.fechaFinOferta,
+      enLiquidacion: entity.enLiquidacion,
+      precioLiquidacion: entity.precioLiquidacion,
+      fechaInicioLiquidacion: entity.fechaInicioLiquidacion,
+      fechaFinLiquidacion: entity.fechaFinLiquidacion,
       precioConfigurado: entity.precioConfigurado,
       precioIncluyeIgv: entity.precioIncluyeIgv,
     );

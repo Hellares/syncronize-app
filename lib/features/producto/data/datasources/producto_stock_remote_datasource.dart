@@ -4,6 +4,7 @@ import '../../../../core/network/dio_client.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../models/producto_stock_model.dart';
 import '../../domain/entities/movimiento_stock.dart';
+import '../../domain/entities/producto_stock.dart' show MotivoLiquidacion, MotivoLiquidacionX;
 
 /// Data source remoto para operaciones de ProductoStock (inventario por sede)
 @lazySingleton
@@ -341,5 +342,61 @@ class ProductoStockRemoteDataSource {
       onReceiveProgress: onReceiveProgress,
     );
     return response.data as List<int>;
+  }
+
+  // =====================================================
+  // LIQUIDACIÓN
+  // =====================================================
+
+  /// PATCH /producto-stock/:id/liquidacion/activar
+  Future<ProductoStockModel> activarLiquidacion({
+    required String productoStockId,
+    required double precioLiquidacion,
+    required MotivoLiquidacion motivo,
+    required String autorizadoPorId,
+    DateTime? fechaFin,
+    String? observaciones,
+  }) async {
+    final response = await _dioClient.patch(
+      '/producto-stock/$productoStockId/liquidacion/activar',
+      data: {
+        'precioLiquidacion': precioLiquidacion,
+        'motivoLiquidacion': motivo.apiValue,
+        'autorizadoPorId': autorizadoPorId,
+        if (fechaFin != null) 'fechaFin': DateFormatter.toUtcIso(fechaFin),
+        if (observaciones != null && observaciones.isNotEmpty)
+          'observaciones': observaciones,
+      },
+    );
+    return ProductoStockModel.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  /// PATCH /producto-stock/:id/liquidacion/desactivar
+  Future<ProductoStockModel> desactivarLiquidacion({
+    required String productoStockId,
+    String? razon,
+  }) async {
+    final response = await _dioClient.patch(
+      '/producto-stock/$productoStockId/liquidacion/desactivar',
+      data: {if (razon != null && razon.isNotEmpty) 'razon': razon},
+    );
+    return ProductoStockModel.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  /// GET /producto-stock/liquidaciones
+  Future<Map<String, dynamic>> listarLiquidaciones({
+    String? sedeId,
+    int page = 1,
+    int limit = 50,
+  }) async {
+    final response = await _dioClient.get(
+      '/producto-stock/liquidaciones',
+      queryParameters: {
+        'page': page,
+        'limit': limit,
+        if (sedeId != null) 'sedeId': sedeId,
+      },
+    );
+    return response.data as Map<String, dynamic>;
   }
 }

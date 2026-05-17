@@ -720,6 +720,16 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/libro-contable')),
           ),
           tile(
+            title: 'Liquidaciones y pérdidas',
+            icon: Icons.local_fire_department,
+            iconColor: Colors.deepOrange,
+            visible: can(permissions?.canViewReports),
+            routeMatch:
+                const _RouteMatch.startsWith('/empresa/reportes/liquidaciones'),
+            onTap: (ctx) =>
+                _tap(ctx, () => ctx.push('/empresa/reportes/liquidaciones')),
+          ),
+          tile(
             title: 'Flujo Proyectado',
             icon: Icons.timeline,
             iconColor: Colors.cyan,

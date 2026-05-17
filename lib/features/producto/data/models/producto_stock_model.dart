@@ -23,6 +23,13 @@ class ProductoStockModel extends ProductoStock {
     super.enOferta = false,
     super.fechaInicioOferta,
     super.fechaFinOferta,
+    super.enLiquidacion = false,
+    super.precioLiquidacion,
+    super.motivoLiquidacion,
+    super.observacionesLiquidacion,
+    super.fechaInicioLiquidacion,
+    super.fechaFinLiquidacion,
+    super.liquidacionAutorizadaPorId,
     super.precioConfigurado = false,
     super.precioIncluyeIgv = true,
     required super.creadoEn,
@@ -69,6 +76,20 @@ class ProductoStockModel extends ProductoStock {
       fechaFinOferta: json['fechaFinOferta'] != null
           ? DateTime.parse(json['fechaFinOferta'] as String)
           : null,
+      enLiquidacion: json['enLiquidacion'] as bool? ?? false,
+      precioLiquidacion: json['precioLiquidacion'] != null
+          ? toSafeDouble(json['precioLiquidacion'])
+          : null,
+      motivoLiquidacion:
+          MotivoLiquidacionX.fromApi(json['motivoLiquidacion'] as String?),
+      observacionesLiquidacion: json['observacionesLiquidacion'] as String?,
+      fechaInicioLiquidacion: json['fechaInicioLiquidacion'] != null
+          ? DateTime.parse(json['fechaInicioLiquidacion'] as String)
+          : null,
+      fechaFinLiquidacion: json['fechaFinLiquidacion'] != null
+          ? DateTime.parse(json['fechaFinLiquidacion'] as String)
+          : null,
+      liquidacionAutorizadaPorId: json['liquidacionAutorizadaPorId'] as String?,
       precioConfigurado: json['precioConfigurado'] as bool? ?? false,
       precioIncluyeIgv: json['precioIncluyeIgv'] as bool? ?? true,
       creadoEn: DateTime.parse(json['creadoEn'] as String),

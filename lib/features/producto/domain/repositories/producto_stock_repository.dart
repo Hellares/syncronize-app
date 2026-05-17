@@ -142,4 +142,26 @@ abstract class ProductoStockRepository {
     String? tipoCambio,
     void Function(int, int)? onReceiveProgress,
   });
+
+  // ===== LIQUIDACIÓN =====
+
+  Future<Resource<ProductoStock>> activarLiquidacion({
+    required String productoStockId,
+    required double precioLiquidacion,
+    required MotivoLiquidacion motivo,
+    required String autorizadoPorId,
+    DateTime? fechaFin,
+    String? observaciones,
+  });
+
+  Future<Resource<ProductoStock>> desactivarLiquidacion({
+    required String productoStockId,
+    String? razon,
+  });
+
+  Future<Resource<Map<String, dynamic>>> listarLiquidaciones({
+    String? sedeId,
+    int page,
+    int limit,
+  });
 }

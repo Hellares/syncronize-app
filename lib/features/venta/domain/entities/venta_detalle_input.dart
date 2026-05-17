@@ -43,6 +43,17 @@ class VentaDetalleInput {
   /// Nombre del combo origen para display (ej. "Combo: Pack Familiar").
   final String? origenComboNombre;
 
+  /// Snapshot del precio de costo en sede al momento de agregar al carrito.
+  /// Permite calcular margen local (preview "vendiendo bajo costo") y
+  /// dispara el dialog de autorización gerencial al cobrar si es negativo.
+  /// El backend ignora este valor — vuelve a calcular el costo desde
+  /// ProductoStock y persiste su propio snapshot en VentaDetalle.
+  final double? precioCostoSnapshot;
+
+  /// True si el producto está en estado liquidación al momento de cargarlo.
+  /// Permite mostrar badge naranja y omitir el guard de autorización.
+  final bool enLiquidacion;
+
   const VentaDetalleInput({
     this.productoId,
     this.varianteId,
@@ -63,7 +74,32 @@ class VentaDetalleInput {
     this.descuentoNivelPct,
     this.origenComboId,
     this.origenComboNombre,
+    this.precioCostoSnapshot,
+    this.enLiquidacion = false,
   });
+
+  /// Margen unitario neto (precio efectivo por unidad - costo). Negativo
+  /// significa que se está vendiendo bajo costo.
+  double? get margenUnitario {
+    if (precioCostoSnapshot == null) return null;
+    final descuentoUnitario = cantidad > 0 ? descuento / cantidad : 0;
+    return (precioUnitario - descuentoUnitario) - precioCostoSnapshot!;
+  }
+
+  /// Pérdida total de esta línea (si margen<0), en valor absoluto.
+  double get perdidaLinea {
+    final m = margenUnitario;
+    if (m == null || m >= 0) return 0;
+    return -m * cantidad;
+  }
+
+  /// True si esta línea se está vendiendo con margen negativo y NO está
+  /// en estado liquidación (es decir, requiere autorización gerencial).
+  bool get requiereAutorizacionBajoCosto {
+    if (enLiquidacion) return false;
+    final m = margenUnitario;
+    return m != null && m < 0 && (precioCostoSnapshot ?? 0) > 0;
+  }
 
   bool get exceedsStock => stockDisponible != null && cantidad > stockDisponible!;
 
@@ -120,6 +156,8 @@ class VentaDetalleInput {
     double? descuentoNivelPct,
     String? origenComboId,
     String? origenComboNombre,
+    double? precioCostoSnapshot,
+    bool? enLiquidacion,
     bool clearNivelAplicado = false,
     bool clearPrecioBase = false,
   }) {
@@ -146,6 +184,8 @@ class VentaDetalleInput {
           : (descuentoNivelPct ?? this.descuentoNivelPct),
       origenComboId: origenComboId ?? this.origenComboId,
       origenComboNombre: origenComboNombre ?? this.origenComboNombre,
+      precioCostoSnapshot: precioCostoSnapshot ?? this.precioCostoSnapshot,
+      enLiquidacion: enLiquidacion ?? this.enLiquidacion,
     );
   }
 
