@@ -1026,6 +1026,12 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     final sedeId = state.sedeId;
     final preciosNuevos = <int, double>{};
     final stockNuevo = <int, int>{};
+    // Snapshot de liquidacion + costo: si el admin activo/desactivo la
+    // liquidacion mientras el item ya estaba en el carrito, sin esto el
+    // guard cliente seguiria viendo el estado viejo y pediria autorizacion
+    // gerencial cuando ya no hace falta.
+    final liquidacionNueva = <int, bool>{};
+    final costoNuevo = <int, double?>{};
     if (sedeId != null) {
       final stockEntries = await Future.wait(
         afectados.map((idx) async {
@@ -1054,6 +1060,8 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
         final precioEf = s.precioEfectivo;
         if (precioEf != null) preciosNuevos[entry.key] = precioEf;
         stockNuevo[entry.key] = s.stockActual;
+        liquidacionNueva[entry.key] = s.isLiquidacionActiva;
+        costoNuevo[entry.key] = s.precioCosto;
       }
     }
 
@@ -1079,6 +1087,8 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
             precioUnitario: precioNuevo,
             niveles: nivelesNuevos,
             stockDisponible: stockNvo,
+            enLiquidacion: liquidacionNueva[idx] ?? item.enLiquidacion,
+            precioCostoSnapshot: costoNuevo[idx] ?? item.precioCostoSnapshot,
           )
           .recalcularPrecioPorNiveles(item.cantidad);
       nuevos[idx] = actualizado;
