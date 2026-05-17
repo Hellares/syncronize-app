@@ -237,19 +237,36 @@ class _GestionarLiquidacionDialogState
                       ),
                     ),
                     if (activa)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.deepOrange.shade100,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          'ACTIVA',
-                          style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.deepOrange.shade900),
-                        ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.deepOrange.shade100,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              'ACTIVA',
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.deepOrange.shade900),
+                            ),
+                          ),
+                          if (widget.stock.fechaInicioLiquidacion != null) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              'desde ${date_utils.DateFormatter.formatDate(widget.stock.fechaInicioLiquidacion!.toLocal())}',
+                              style: TextStyle(
+                                fontSize: 9,
+                                color: Colors.deepOrange.shade700,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                   ],
                 ),
@@ -278,6 +295,7 @@ class _GestionarLiquidacionDialogState
                       style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 6),
                   CurrencyTextField(
+                    borderColor: AppColors.blue1,
                     controller: _precioController,
                     label: 'Precio liquidación',
                   ),
@@ -293,6 +311,7 @@ class _GestionarLiquidacionDialogState
                       style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 6),
                   CustomDropdown<MotivoLiquidacion>(
+                    borderColor: AppColors.blue1,
                     value: _motivo,
                     items: MotivoLiquidacion.values
                         .map((m) => DropdownItem(value: m, label: m.label))
@@ -306,6 +325,7 @@ class _GestionarLiquidacionDialogState
                       style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 6),
                   CustomDate(
+                    borderColor: AppColors.blue1,
                     initialDate: _fechaFin,
                     firstDate: DateTime.now(),
                     lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
