@@ -100,6 +100,23 @@ class AppGradients {
     stops: [0.0, 0.7, 1.0],
   );
 
+  /// Gradient sutil deepOrange→blanco→deepOrange. Pensado para
+  /// el branding visual de "Liquidación" (remate bajo costo).
+  /// Más suave que [orangeWhiteBlue] (amarillo ámbar) y coherente
+  /// con el `deepOrange` usado en badges/chips/iconos del modulo.
+  /// Alpha ~4% (0x0A) — version muy atenuada, deja respirar al chip
+  /// naranja sin saturar el bloque entero.
+  static LinearGradient deepOrangeWhite() => const LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [
+      Color(0x0AFF5722), // deepOrange 500 con ~4% alpha
+      Color(0xFFFFFFFF), // Blanco centro
+      Color(0x0AFF5722),
+    ],
+    stops: [0.0, 0.7, 1.0],
+  );
+
   static LinearGradient orangeOrange() => const LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,

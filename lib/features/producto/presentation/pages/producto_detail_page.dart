@@ -478,11 +478,37 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
         : (isOfertaActivaSede ? AppColors.amberText : AppColors.blueborder);
 
     return GradientContainer(
-      gradient: tieneDescuento
-          ? AppGradients.orangeWhiteBlue()
-          : AppGradients.blueWhiteBlue(),
+      gradient: isLiquidacionActivaSede
+          ? AppGradients.deepOrangeWhite()
+          : (isOfertaActivaSede
+              ? AppGradients.orangeWhiteBlue()
+              : AppGradients.blueWhiteBlue()),
       borderColor: colorDescuento,
-      shadowStyle: ShadowStyle.colorful,
+      // En liquidación el deepOrange del borde + ShadowStyle.colorful
+      // genera una sombra naranja oscura debajo que "opaca" el bloque.
+      // Usamos customShadows con gris suave que da profundidad sin tinte.
+      shadowStyle: isLiquidacionActivaSede
+          ? ShadowStyle.none
+          : ShadowStyle.colorful,
+      // Replica del efecto ShadowStyle.colorful pero con un naranja
+      // más claro (shade300 en vez de shade700) para que realce sin
+      // que la sombra se vea oscura/opaca.
+      customShadows: isLiquidacionActivaSede
+          ? [
+              BoxShadow(
+                color: Colors.deepOrange.shade300.withValues(alpha: 0.43),
+                offset: const Offset(0, 3),
+                blurRadius: 4,
+                spreadRadius: 1,
+              ),
+              BoxShadow(
+                color: Colors.white.withValues(alpha: 0.18),
+                offset: const Offset(-2, -2),
+                blurRadius: 4,
+                spreadRadius: -1,
+              ),
+            ]
+          : null,
       padding: const EdgeInsets.all(10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -586,13 +612,18 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
             ),
           const SizedBox(height: 12),
 
-          // Detalle de liquidación si aplica (motivo + fechas)
+          // Detalle de liquidación si aplica (motivo + fechas).
+          // Container con fondo blanco puro: el bloque exterior ya tiene
+          // el tinte naranja del gradient, asi que mantener este bloque
+          // blanco da contraste y reposo visual.
           if (isLiquidacionActivaSede) ...[
-            GradientContainer(
+            Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              gradient: AppGradients.blueWhiteBlue(),
-              borderColor: Colors.deepOrange.shade400,
-              shadowStyle: ShadowStyle.none,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.deepOrange.shade400),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
