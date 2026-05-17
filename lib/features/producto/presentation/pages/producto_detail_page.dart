@@ -410,9 +410,13 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
     double precioEfectivoMostrar = 0.0;
     int stockMostrar = producto.stockTotal ?? 0;
     bool isOfertaActivaSede = false;
+    bool isLiquidacionActivaSede = false;
+    String? motivoLiquidacionLabel;
     double? porcentajeDescuentoSede;
     DateTime? fechaInicioOfertaSede;
     DateTime? fechaFinOfertaSede;
+    DateTime? fechaInicioLiquidacionSede;
+    DateTime? fechaFinLiquidacionSede;
     bool tienePrecioConfigurado = false;
     dynamic stockSede;
 
@@ -431,17 +435,30 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
           tienePrecioConfigurado = true;
           precioMostrar = stockSede.precio!;
 
-          // Verificar si hay oferta activa en esta sede
-          if (stockSede.enOferta == true &&
+          // PRIORIDAD: liquidación gana sobre oferta (la autorización
+          // gerencial ya fue dada al activarla y el precio suele ser
+          // menor — es el evento comercial más relevante para el cliente).
+          final liquidacionVigente = (stockSede.isLiquidacionActiva ?? false) == true &&
+              stockSede.precioLiquidacion != null &&
+              stockSede.precioLiquidacion! < stockSede.precio!;
+          final ofertaVigente = stockSede.enOferta == true &&
               stockSede.precioOferta != null &&
-              stockSede.precioOferta! < stockSede.precio!) {
+              stockSede.precioOferta! < stockSede.precio!;
+
+          if (liquidacionVigente) {
+            isLiquidacionActivaSede = true;
+            precioEfectivoMostrar = stockSede.precioLiquidacion!;
+            porcentajeDescuentoSede = ((precioMostrar - precioEfectivoMostrar) / precioMostrar) * 100;
+            fechaInicioLiquidacionSede = stockSede.fechaInicioLiquidacion;
+            fechaFinLiquidacionSede = stockSede.fechaFinLiquidacion;
+            motivoLiquidacionLabel = stockSede.motivoLiquidacion?.label;
+          } else if (ofertaVigente) {
             isOfertaActivaSede = true;
             precioEfectivoMostrar = stockSede.precioOferta!;
             porcentajeDescuentoSede = ((precioMostrar - precioEfectivoMostrar) / precioMostrar) * 100;
             fechaInicioOfertaSede = stockSede.fechaInicioOferta;
             fechaFinOfertaSede = stockSede.fechaFinOferta;
           } else {
-            isOfertaActivaSede = false;
             precioEfectivoMostrar = precioMostrar;
           }
         } else {
@@ -454,13 +471,17 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
 
     final hasStock = stockMostrar > 0;
 
+    // Estado visual prioritario: liquidación > oferta > base.
+    final tieneDescuento = isLiquidacionActivaSede || isOfertaActivaSede;
+    final colorDescuento = isLiquidacionActivaSede
+        ? Colors.deepOrange.shade700
+        : (isOfertaActivaSede ? AppColors.amberText : AppColors.blueborder);
+
     return GradientContainer(
-      gradient: isOfertaActivaSede
+      gradient: tieneDescuento
           ? AppGradients.orangeWhiteBlue()
           : AppGradients.blueWhiteBlue(),
-      borderColor: isOfertaActivaSede
-          ? AppColors.amberText
-          : AppColors.blueborder,
+      borderColor: colorDescuento,
       shadowStyle: ShadowStyle.colorful,
       padding: const EdgeInsets.all(10),
       child: Column(
@@ -469,14 +490,21 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
           Row(
             children: [
               Icon(
-                Icons.monetization_on_outlined,
-                color: isOfertaActivaSede
-                    ? AppColors.amberText
-                    : AppColors.blueborder,
+                isLiquidacionActivaSede
+                    ? Icons.local_fire_department
+                    : Icons.monetization_on_outlined,
+                color: colorDescuento,
                 size: 16,
               ),
               const SizedBox(width: 8),
-              Text('Precio y Stock',style: TextStyle(fontSize: 12, color: isOfertaActivaSede ? AppColors.amberText : AppColors.blue1, fontWeight: FontWeight.bold),)
+              Text(
+                'Precio y Stock',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: tieneDescuento ? colorDescuento : AppColors.blue1,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 8),
@@ -491,11 +519,17 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
                 fontStyle: FontStyle.italic,
               ),
             ),
-          ] else if (isOfertaActivaSede) ...[
-            AppSubtitle(
+          ] else if (tieneDescuento) ...[
+            // Precio base tachado
+            Text(
               'S/${precioMostrar.toStringAsFixed(2)}',
-              fontSize: 12,
-              color: Colors.grey[600],
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[600],
+                decoration: TextDecoration.lineThrough,
+                decorationColor: Colors.grey[700],
+                decorationThickness: 1.5,
+              ),
             ),
             const SizedBox(height: 4),
             Row(
@@ -506,20 +540,38 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
                   style: TextStyle(
                     fontSize: 23,
                     fontWeight: FontWeight.bold,
-                    color: AppColors.blue1,
+                    color: isLiquidacionActivaSede
+                        ? Colors.deepOrange.shade700
+                        : AppColors.blue1,
                     height: 1.0,
                   ),
                 ),
                 const SizedBox(width: 12),
                 InfoChip(
-                  text:
-                      '${porcentajeDescuentoSede?.toStringAsFixed(0) ?? '0'}% OFF',
-                  backgroundColor: AppColors.red,
+                  text: isLiquidacionActivaSede
+                      ? 'LIQUIDACIÓN'
+                      : '${porcentajeDescuentoSede?.toStringAsFixed(0) ?? '0'}% OFF',
+                  backgroundColor: isLiquidacionActivaSede
+                      ? Colors.deepOrange.shade700
+                      : AppColors.red,
                   textColor: Colors.white,
-                  icon: Icons.local_offer,
+                  icon: isLiquidacionActivaSede
+                      ? Icons.local_fire_department
+                      : Icons.local_offer,
                   iconSize: 14,
                   borderRadius: 4,
                 ),
+                if (isLiquidacionActivaSede && porcentajeDescuentoSede != null) ...[
+                  const SizedBox(width: 6),
+                  Text(
+                    '-${porcentajeDescuentoSede.toStringAsFixed(0)}%',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.deepOrange.shade700,
+                    ),
+                  ),
+                ],
               ],
             ),
           ] else
@@ -533,6 +585,63 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
               ),
             ),
           const SizedBox(height: 12),
+
+          // Detalle de liquidación si aplica (motivo + fechas)
+          if (isLiquidacionActivaSede) ...[
+            GradientContainer(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              gradient: AppGradients.blueWhiteBlue(),
+              borderColor: Colors.deepOrange.shade400,
+              shadowStyle: ShadowStyle.none,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.local_fire_department,
+                          size: 14, color: Colors.deepOrange.shade700),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Liquidación activa',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.deepOrange.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (motivoLiquidacionLabel != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'Motivo: $motivoLiquidacionLabel',
+                      style: TextStyle(fontSize: 10, color: Colors.grey[800]),
+                    ),
+                  ],
+                  if (fechaInicioLiquidacionSede != null)
+                    Text(
+                      'Desde: ${DateFormatter.formatDateTime(fechaInicioLiquidacionSede)}',
+                      style: TextStyle(fontSize: 10, color: Colors.grey[700]),
+                    ),
+                  if (fechaFinLiquidacionSede != null)
+                    Text(
+                      'Hasta: ${DateFormatter.formatDateTime(fechaFinLiquidacionSede)}',
+                      style: TextStyle(fontSize: 10, color: Colors.grey[700]),
+                    )
+                  else
+                    Text(
+                      'Sin vencimiento (hasta desactivación manual)',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey[600],
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
 
           // Fechas de oferta si aplica
           if (isOfertaActivaSede) ...[

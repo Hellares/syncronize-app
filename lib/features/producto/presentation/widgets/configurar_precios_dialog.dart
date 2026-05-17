@@ -9,6 +9,7 @@ import 'package:syncronize/core/utils/date_formatter.dart' as date_utils;
 import 'package:syncronize/core/utils/resource.dart';
 import 'package:syncronize/core/widgets/currency/currency_formatter.dart';
 import 'package:syncronize/core/widgets/currency/currency_textfield.dart';
+import 'package:syncronize/core/widgets/custom_button.dart';
 import 'package:syncronize/core/widgets/date/custom_date.dart';
 import '../../domain/entities/precio_nivel.dart';
 import '../../domain/entities/producto_stock.dart';
@@ -169,7 +170,7 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
         }
       },
       child: Dialog(
-        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 30),
         child: GradientContainer(
           gradient: AppGradients.blueWhiteDialog(),
           padding: const EdgeInsets.only(left: 15, right: 15, top: 10),
@@ -954,7 +955,7 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
             Icon(Icons.local_fire_department,
                 size: 16, color: Colors.deepOrange.shade700),
             const SizedBox(width: 6),
-            AppSubtitle('Liquidación', fontSize: 13, color: AppColors.textPrimary),
+            AppSubtitle('Liquidación', fontSize: 13, color: AppColors.red),
             const Spacer(),
             if (activa)
               Container(
@@ -981,29 +982,32 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
           style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
         ),
         const SizedBox(height: 8),
-        SizedBox(
+        CustomButton(
+          text: activa ? 'Gestionar liquidación' : 'Activar liquidación',
           width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: () async {
-              final result = await showDialog<ProductoStock>(
-                context: context,
-                builder: (_) => GestionarLiquidacionDialog(stock: stock),
-              );
-              if (result != null && mounted) {
-                setState(() => _liquidacionStockOverride = result);
-              }
-            },
-            icon: Icon(
-              activa ? Icons.settings : Icons.local_fire_department,
-              size: 16,
-              color: Colors.deepOrange.shade700,
-            ),
-            label: Text(activa ? 'Gestionar liquidación' : 'Activar liquidación'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.deepOrange.shade700,
-              side: BorderSide(color: Colors.deepOrange.shade200),
-            ),
+          icon: Icon(
+            activa ? Icons.settings : Icons.local_fire_department,
+            size: 16,
+            color: Colors.deepOrange.shade700,
           ),
+          isOutlined: true,
+          textColor: Colors.deepOrange.shade700,
+          borderColor: Colors.deepOrange.shade200,
+          // Las sombras default del CustomButton (offset 3,3 blur 6) se
+          // cortan visualmente cuando el botón está dentro del
+          // GradientContainer del dialog (sin padding extra alrededor).
+          // Outlined + flat es lo estándar visualmente y armoniza con el
+          // resto de la sección de liquidación.
+          enableShadows: false,
+          onPressed: () async {
+            final result = await showDialog<ProductoStock>(
+              context: context,
+              builder: (_) => GestionarLiquidacionDialog(stock: stock),
+            );
+            if (result != null && mounted) {
+              setState(() => _liquidacionStockOverride = result);
+            }
+          },
         ),
       ],
     );
