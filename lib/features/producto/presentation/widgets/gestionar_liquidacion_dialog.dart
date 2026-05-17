@@ -5,6 +5,7 @@ import 'package:syncronize/core/utils/date_formatter.dart' as date_utils;
 import 'package:syncronize/core/utils/resource.dart';
 import 'package:syncronize/core/widgets/autorizacion_dialog.dart';
 import 'package:syncronize/core/widgets/currency/currency_textfield.dart';
+import 'package:syncronize/core/widgets/custom_dropdown.dart';
 import 'package:syncronize/core/widgets/date/custom_date.dart';
 import '../../domain/entities/producto_stock.dart';
 import '../../domain/repositories/producto_stock_repository.dart';
@@ -243,16 +244,14 @@ class _GestionarLiquidacionDialogState
                   const Text('Motivo',
                       style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 6),
-                  DropdownButtonFormField<MotivoLiquidacion>(
+                  CustomDropdown<MotivoLiquidacion>(
                     value: _motivo,
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    ),
                     items: MotivoLiquidacion.values
-                        .map((m) => DropdownMenuItem(value: m, child: Text(m.label)))
+                        .map((m) => DropdownItem(value: m, label: m.label))
                         .toList(),
-                    onChanged: (v) => setState(() => _motivo = v!),
+                    onChanged: (v) {
+                      if (v != null) setState(() => _motivo = v);
+                    },
                   ),
                   const SizedBox(height: 14),
                   const Text('Vence el (opcional)',
@@ -264,6 +263,10 @@ class _GestionarLiquidacionDialogState
                     lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
                     onDateSelected: (d) => setState(() => _fechaFin = d),
                     hintText: 'Sin vencimiento',
+                    // Campo 100% opcional: vacío = liquidación permanente
+                    // hasta desactivación manual. El validator por defecto
+                    // de CustomDate exige fecha, lo anulamos.
+                    validator: (_) => null,
                   ),
                   const SizedBox(height: 14),
                   Text(
