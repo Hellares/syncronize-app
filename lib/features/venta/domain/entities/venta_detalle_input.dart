@@ -211,8 +211,23 @@ class VentaDetalleInput {
   /// `precioUnitario` si no hay precioBase aún registrado).
   ///
   /// Si no hay nivel aplicable, vuelve al precio base.
+  ///
+  /// EXCEPCION: si el item está en liquidación, los niveles se ignoran.
+  /// El precio de liquidación gana siempre — aplicar un nivel "Por Mayor
+  /// PRECIO_FIJO S/9" sobre un producto liquidado a S/5 lo subiría al
+  /// vender 12 unidades, lo cual contradice el remate.
   VentaDetalleInput recalcularPrecioPorNiveles(double cantidad) {
     final base = precioBase ?? precioUnitario;
+
+    if (enLiquidacion) {
+      return copyWith(
+        cantidad: cantidad,
+        precioUnitario: base,
+        precioBase: base,
+        clearNivelAplicado: true,
+      );
+    }
+
     final nivel = nivelAplicableParaCantidad(niveles, cantidad);
 
     if (nivel == null) {
