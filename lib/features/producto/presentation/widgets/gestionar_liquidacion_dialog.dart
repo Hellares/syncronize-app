@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:syncronize/core/di/injection_container.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/utils/date_formatter.dart' as date_utils;
@@ -7,6 +8,7 @@ import 'package:syncronize/core/widgets/autorizacion_dialog.dart';
 import 'package:syncronize/core/widgets/currency/currency_textfield.dart';
 import 'package:syncronize/core/widgets/custom_dropdown.dart';
 import 'package:syncronize/core/widgets/date/custom_date.dart';
+import '../../../auth/presentation/bloc/auth/auth_bloc.dart';
 import '../../domain/entities/producto_stock.dart';
 import '../../domain/repositories/producto_stock_repository.dart';
 
@@ -81,39 +83,85 @@ class _GestionarLiquidacionDialogState
       return;
     }
 
-    // Autorización gerencial
-    final auth = await showAutorizacionDialog(
-      context,
-      operacion: 'ACTIVAR_LIQUIDACION',
-      titulo: 'Autorizar liquidación',
-      descripcion:
-          'Un GERENTE o ADMINISTRADOR debe autorizar la liquidación de "${widget.stock.nombreProducto}".',
-    );
-    if (auth == null) return;
+    // Default: usar el usuario en sesion como autorizador. El backend
+    // valida que tenga rol GERENTE_SEDE/ADMINISTRADOR/SUPER_ADMIN/
+    // EMPRESA_ADMIN (assertAutorizadorGerencial). Si el usuario logueado
+    // tiene ese rol (lo normal: solo admins acceden a este dialog),
+    // pasa directo sin pedir DNI+password — UX más fluido.
+    String? autorizadoPorId;
+    final authState = context.read<AuthBloc>().state;
+    if (authState is Authenticated) {
+      autorizadoPorId = authState.user.id;
+    }
 
+    // Si por algun motivo no hay user en sesion, caer al flow clasico.
+    if (autorizadoPorId == null) {
+      final auth = await showAutorizacionDialog(
+        context,
+        operacion: 'ACTIVAR_LIQUIDACION',
+        titulo: 'Autorizar liquidación',
+        descripcion:
+            'Un GERENTE o ADMINISTRADOR debe autorizar la liquidación de "${widget.stock.nombreProducto}".',
+      );
+      if (auth == null) return;
+      autorizadoPorId = auth.autorizadoPorId;
+    }
+
+    if (!mounted) return;
     setState(() {
       _loading = true;
       _error = null;
     });
 
-    final result = await _repo.activarLiquidacion(
+    var result = await _repo.activarLiquidacion(
       productoStockId: widget.stock.id,
       precioLiquidacion: precio,
       motivo: _motivo,
-      autorizadoPorId: auth.autorizadoPorId,
+      autorizadoPorId: autorizadoPorId,
       fechaFin: _fechaFin,
       observaciones: _observacionesController.text.trim().isEmpty
           ? null
           : _observacionesController.text.trim(),
     );
 
+    // Fallback: si el backend rechaza por rol insuficiente del usuario
+    // actual (caso raro: vendedor que llego acá por accion), pedir
+    // autorizacion de un gerente y reintentar.
+    final errInicial = result;
+    if (errInicial is Error<ProductoStock> &&
+        errInicial.message.toLowerCase().contains('rol gerente')) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      final auth = await showAutorizacionDialog(
+        context,
+        operacion: 'ACTIVAR_LIQUIDACION',
+        titulo: 'Autorizar liquidación',
+        descripcion:
+            'Tu usuario no tiene rol gerencial. Un GERENTE o ADMINISTRADOR debe autorizar la liquidación de "${widget.stock.nombreProducto}".',
+      );
+      if (auth == null) return;
+      if (!mounted) return;
+      setState(() => _loading = true);
+      result = await _repo.activarLiquidacion(
+        productoStockId: widget.stock.id,
+        precioLiquidacion: precio,
+        motivo: _motivo,
+        autorizadoPorId: auth.autorizadoPorId,
+        fechaFin: _fechaFin,
+        observaciones: _observacionesController.text.trim().isEmpty
+            ? null
+            : _observacionesController.text.trim(),
+      );
+    }
+
     if (!mounted) return;
-    if (result is Success<ProductoStock>) {
-      Navigator.of(context).pop(result.data);
-    } else if (result is Error<ProductoStock>) {
+    final finalResult = result;
+    if (finalResult is Success<ProductoStock>) {
+      Navigator.of(context).pop(finalResult.data);
+    } else if (finalResult is Error<ProductoStock>) {
       setState(() {
         _loading = false;
-        _error = result.message;
+        _error = finalResult.message;
       });
     }
   }
@@ -394,7 +442,7 @@ class _GestionarLiquidacionDialogState
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
-          Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+          Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.green)),
         ],
       ),
     );

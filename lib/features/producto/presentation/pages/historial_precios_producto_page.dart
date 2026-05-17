@@ -225,9 +225,23 @@ class _HistorialPreciosProductoPageState
 
   Widget _buildCard(Map<String, dynamic> item) {
     final tipo = (item['tipoCambio'] as String?) ?? 'MANUAL';
-    final color = _colorTipoCambio(tipo);
-    final label = _labelTipoCambio(tipo);
     final razon = item['razon'] as String?;
+
+    // Distinguir activación vs desactivación de liquidación.
+    // El backend usa el mismo tipoCambio=LIQUIDACION para ambas pero
+    // la razon arranca con "Liquidación desactivada" cuando se quita.
+    final esLiqDesactivada = tipo == 'LIQUIDACION' &&
+        razon != null &&
+        razon.toLowerCase().contains('desactivada');
+    final esLiqActivada =
+        tipo == 'LIQUIDACION' && !esLiqDesactivada;
+
+    final color = esLiqDesactivada
+        ? Colors.grey.shade600
+        : _colorTipoCambio(tipo);
+    final label = esLiqDesactivada
+        ? 'Liquidación desactivada'
+        : (esLiqActivada ? 'Liquidación activada' : _labelTipoCambio(tipo));
     final origen = item['origenModulo'] as String?;
     final usuario = item['usuario'] as Map<String, dynamic>?;
     final persona = usuario?['persona'] as Map<String, dynamic>?;
@@ -238,16 +252,24 @@ class _HistorialPreciosProductoPageState
         ? DateTime.tryParse(item['creadoEn'] as String)?.toLocal()
         : null;
 
-    final precioAnt = (item['precioAnterior'] as num?)?.toDouble();
-    final precioNvo = (item['precioNuevo'] as num?)?.toDouble();
-    final costoAnt = (item['precioCostoAnterior'] as num?)?.toDouble();
-    final costoNvo = (item['precioCostoNuevo'] as num?)?.toDouble();
-    final ofertaAnt = (item['precioOfertaAnterior'] as num?)?.toDouble();
-    final ofertaNvo = (item['precioOfertaNuevo'] as num?)?.toDouble();
+    // El backend serializa Decimal como string en algunas respuestas,
+    // num en otras. _parseDecimal acepta ambos y null.
+    final precioAnt = _parseDecimal(item['precioAnterior']);
+    final precioNvo = _parseDecimal(item['precioNuevo']);
+    final costoAnt = _parseDecimal(item['precioCostoAnterior']);
+    final costoNvo = _parseDecimal(item['precioCostoNuevo']);
+    final ofertaAnt = _parseDecimal(item['precioOfertaAnterior']);
+    final ofertaNvo = _parseDecimal(item['precioOfertaNuevo']);
 
     final precioCambio = precioAnt != precioNvo;
     final costoCambio = costoAnt != costoNvo;
     final ofertaCambio = ofertaAnt != ofertaNvo;
+    final sinCambiosVisibles = !precioCambio && !costoCambio && !ofertaCambio;
+
+    // Liquidación: el backend reusa el slot `precioOfertaNuevo` para el
+    // precio de liquidación. Mostramos un layout informativo (base + costo
+    // + precio liquidación) en vez del diff genérico "Oferta -→ S/X".
+    final esLiquidacion = esLiqActivada;
 
     return Card(
       elevation: 0,
@@ -289,10 +311,47 @@ class _HistorialPreciosProductoPageState
               ],
             ),
             const SizedBox(height: 10),
-            // Diff de campos
-            if (costoCambio) _diffRow('Costo', costoAnt, costoNvo),
-            if (precioCambio) _diffRow('Precio venta', precioAnt, precioNvo),
-            if (ofertaCambio) _diffRow('Oferta', ofertaAnt, ofertaNvo),
+            // Modo Liquidación ACTIVADA: layout informativo.
+            if (esLiquidacion) ...[
+              _infoRow('Precio base', precioNvo, color: AppColors.blue1),
+              _infoRow('Costo', costoNvo,
+                  color: Colors.grey.shade700),
+              _infoRow('Precio liquidación', ofertaNvo,
+                  color: Colors.deepOrange.shade700, highlight: true),
+            ]
+            // Modo Liquidación DESACTIVADA: muestra precio liquidación
+            // anterior tachado + el precio base que ahora vuelve a aplicar.
+            else if (esLiqDesactivada) ...[
+              _diffRow('Precio liquidación', ofertaAnt, ofertaNvo),
+              _infoRow('Vuelve a precio base', precioNvo,
+                  color: AppColors.blue1, highlight: true),
+              if (costoNvo != null && costoNvo > 0)
+                _infoRow('Costo', costoNvo, color: Colors.grey.shade700),
+            ]
+            // Modo genérico: diff anterior → nuevo de cada campo cambiado.
+            else if (costoCambio || precioCambio || ofertaCambio) ...[
+              if (costoCambio) _diffRow('Costo', costoAnt, costoNvo),
+              if (precioCambio) _diffRow('Precio venta', precioAnt, precioNvo),
+              if (ofertaCambio) _diffRow('Oferta', ofertaAnt, ofertaNvo),
+            ]
+            // Sin cambios de precio (ej. solo se cambió el flag enLiquidacion
+            // sin tocar montos): mostrar mensaje sutil en lugar de card vacía.
+            else if (sinCambiosVisibles) ...[
+              Row(
+                children: [
+                  Icon(Icons.info_outline,
+                      size: 12, color: Colors.grey.shade500),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Cambio de configuración (sin diff de precios)',
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey.shade600,
+                        fontStyle: FontStyle.italic),
+                  ),
+                ],
+              ),
+            ],
             if (razon != null && razon.isNotEmpty) ...[
               const SizedBox(height: 8),
               Container(
@@ -351,6 +410,43 @@ class _HistorialPreciosProductoPageState
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  /// Acepta num (int/double) o String (Prisma Decimal serializado).
+  /// Devuelve null si el valor es null o no parseable — preserva el
+  /// significado "no había valor" vs "era 0".
+  double? _parseDecimal(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value);
+    return null;
+  }
+
+  /// Row de info simple (label + valor). Usado en modo Liquidación donde
+  /// no aplica el diff "anterior → nuevo" sino mostrar el snapshot
+  /// completo (base + costo + precio liquidación) al activar.
+  Widget _infoRow(String label, double? valor,
+      {Color? color, bool highlight = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 130,
+            child: Text(label,
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
+          ),
+          Text(
+            valor != null ? 'S/ ${valor.toStringAsFixed(2)}' : '—',
+            style: TextStyle(
+              fontSize: highlight ? 15 : 13,
+              fontWeight: highlight ? FontWeight.bold : FontWeight.w600,
+              color: color ?? Colors.black87,
+            ),
+          ),
+        ],
       ),
     );
   }

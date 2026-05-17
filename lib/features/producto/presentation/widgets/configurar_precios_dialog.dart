@@ -10,6 +10,7 @@ import 'package:syncronize/core/utils/resource.dart';
 import 'package:syncronize/core/widgets/currency/currency_formatter.dart';
 import 'package:syncronize/core/widgets/currency/currency_textfield.dart';
 import 'package:syncronize/core/widgets/custom_button.dart';
+import 'package:syncronize/core/widgets/custom_dropdown.dart';
 import 'package:syncronize/core/widgets/date/custom_date.dart';
 import '../../domain/entities/precio_nivel.dart';
 import '../../domain/entities/producto_stock.dart';
@@ -339,7 +340,13 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
                               controller: _precioCostoController,
                               borderColor: AppColors.blue1,
                               allowZero: false,
-                              enabled: widget.stock.precioCosto == null || widget.stock.precioCosto == 0,
+                              // Editable siempre. Antes se desabilitaba para
+                              // proteger reporteria historica; ahora no es
+                              // necesario porque VentaDetalle.precioCostoSnapshot
+                              // preserva el costo de cada venta vieja y todo
+                              // cambio queda registrado en
+                              // ProductoPrecioHistorialSede (con motivo +
+                              // tipoCambio + usuario via dialog auditoria).
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -1023,7 +1030,11 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
               builder: (_) => GestionarLiquidacionDialog(stock: stock),
             );
             if (result != null && mounted) {
-              setState(() => _liquidacionStockOverride = result);
+              // Cerrar el dialog de precios y notificar al productos_page
+              // para que recargue la lista (mismo flujo que al guardar
+              // precios). Sin esto el usuario veria el estado viejo en
+              // la card del producto hasta el proximo refresh manual.
+              Navigator.of(context).pop(true);
             }
           },
         ),
@@ -1142,121 +1153,311 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
   }
 
   /// Dialog que pide motivo + tipo de cambio cuando se edita precioCosto.
-  /// Si cancela retorna null.
+  /// Si cancela retorna null. El contenido vive en `_MotivoCambioCostoDialog`
+  /// (StatefulWidget) para que el TextEditingController se disponga en el
+  /// lifecycle del widget — usar `whenComplete(.dispose)` dispara el dispose
+  /// antes de que el rebuild final termine y rompe el frame.
   Future<_MotivoCambioCostoResult?> _pedirMotivoCambioCosto(
     double anterior,
     double nuevo,
-  ) async {
-    String tipoCambio = 'CORRECCION';
-    final razonCtrl = TextEditingController();
+  ) {
     return showDialog<_MotivoCambioCostoResult>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (ctx, setSt) => AlertDialog(
-            icon: Icon(Icons.history_edu, color: AppColors.blue1, size: 32),
-            title: const Text('Motivo del cambio de costo'),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
+      builder: (ctx) => _MotivoCambioCostoDialog(
+        anterior: anterior,
+        nuevo: nuevo,
+      ),
+    );
+  }
+}
+
+class _MotivoCambioCostoDialog extends StatefulWidget {
+  final double anterior;
+  final double nuevo;
+
+  const _MotivoCambioCostoDialog({
+    required this.anterior,
+    required this.nuevo,
+  });
+
+  @override
+  State<_MotivoCambioCostoDialog> createState() =>
+      _MotivoCambioCostoDialogState();
+}
+
+class _MotivoCambioCostoDialogState extends State<_MotivoCambioCostoDialog> {
+  String _tipoCambio = 'CORRECCION';
+  final _razonCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _razonCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final anterior = widget.anterior;
+    final nuevo = widget.nuevo;
+    final diferencia = nuevo - anterior;
+    final esAumento = diferencia > 0;
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
+      child: GradientContainer(
+        gradient: AppGradients.blueWhiteDialog(),
+        padding: const EdgeInsets.fromLTRB(15, 12, 15, 12),
+        borderRadius: BorderRadius.circular(10),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header con icono
+              Row(
                 children: [
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.amber.shade50,
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: Colors.amber.shade300),
+                      color: AppColors.bluechip,
+                      borderRadius: BorderRadius.circular(8),
                     ),
+                    child: Icon(Icons.history_edu,
+                        color: AppColors.blue1, size: 16),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Costo anterior: S/ ${anterior.toStringAsFixed(2)}',
-                          style: const TextStyle(fontSize: 11),
-                        ),
-                        Text(
-                          'Costo nuevo: S/ ${nuevo.toStringAsFixed(2)}',
-                          style: const TextStyle(
-                              fontSize: 13, fontWeight: FontWeight.bold),
+                        AppTitle('Motivo del cambio'),
+                        AppSubtitle(
+                          'Auditoría del precio de costo',
+                          fontSize: 10,
+                          color: AppColors.blue1,
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'El cambio se registra en el historial de precios para auditoría.',
-                    style: TextStyle(fontSize: 11, color: Colors.black54),
-                  ),
-                  const SizedBox(height: 14),
-                  const Text('Tipo de cambio',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 6),
-                  DropdownButtonFormField<String>(
-                    initialValue: tipoCambio,
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      contentPadding:
-                          EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                      isDense: true,
+                ],
+              ),
+              const Divider(),
+              const SizedBox(height: 8),
+
+              // Card comparativo de costos
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                      color: AppColors.blueborder.withValues(alpha: 0.4)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Costo anterior',
+                          style: TextStyle(
+                              fontSize: 11, color: Colors.grey.shade600),
+                        ),
+                        Text(
+                          'S/ ${anterior.toStringAsFixed(2)}',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey.shade700,
+                            decoration: TextDecoration.lineThrough,
+                            decorationColor: Colors.grey.shade500,
+                          ),
+                        ),
+                      ],
                     ),
-                    items: const [
-                      DropdownMenuItem(value: 'CORRECCION', child: Text('Corrección de error')),
-                      DropdownMenuItem(value: 'COSTO', child: Text('Actualización de costo (proveedor)')),
-                      DropdownMenuItem(value: 'COMPETENCIA', child: Text('Ajuste por competencia')),
-                      DropdownMenuItem(value: 'AJUSTE_MERCADO', child: Text('Ajuste por mercado')),
-                      DropdownMenuItem(value: 'MANUAL', child: Text('Otro')),
-                    ],
-                    onChanged: (v) => setSt(() => tipoCambio = v ?? 'CORRECCION'),
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Costo nuevo',
+                          style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.blue1,
+                              fontWeight: FontWeight.w600),
+                        ),
+                        Text(
+                          'S/ ${nuevo.toStringAsFixed(2)}',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.blue1,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Divider(height: 14),
+                    Row(
+                      children: [
+                        Icon(
+                          esAumento
+                              ? Icons.trending_up
+                              : Icons.trending_down,
+                          size: 14,
+                          color: esAumento
+                              ? Colors.red.shade700
+                              : Colors.green.shade700,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Diferencia: ${esAumento ? '+' : ''}S/ ${diferencia.toStringAsFixed(2)}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: esAumento
+                                ? Colors.red.shade700
+                                : Colors.green.shade700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              // Aviso de auditoría
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppColors.bluechip.withValues(alpha: 0.4),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline,
+                        size: 12, color: AppColors.blue1),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'El cambio queda en el historial con tu usuario y la fecha.',
+                        style: TextStyle(
+                            fontSize: 10,
+                            color: AppColors.blue1,
+                            fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // Tipo de cambio
+              Padding(
+                padding: const EdgeInsets.only(left: 4, bottom: 4),
+                child: AppSubtitle(
+                  'Tipo de cambio',
+                  fontSize: 11,
+                  color: AppColors.blue1,
+                ),
+              ),
+              CustomDropdown<String>(
+                value: _tipoCambio,
+                items: const [
+                  DropdownItem(
+                      value: 'CORRECCION', label: 'Corrección de error'),
+                  DropdownItem(
+                      value: 'COSTO',
+                      label: 'Actualización de costo (proveedor)'),
+                  DropdownItem(
+                      value: 'COMPETENCIA', label: 'Ajuste por competencia'),
+                  DropdownItem(
+                      value: 'AJUSTE_MERCADO', label: 'Ajuste por mercado'),
+                  DropdownItem(value: 'MANUAL', label: 'Otro'),
+                ],
+                onChanged: (v) {
+                  if (v != null) setState(() => _tipoCambio = v);
+                },
+              ),
+              const SizedBox(height: 12),
+
+              // Motivo (obligatorio)
+              Padding(
+                padding: const EdgeInsets.only(left: 4, bottom: 4),
+                child: AppSubtitle(
+                  'Motivo (obligatorio)',
+                  fontSize: 11,
+                  color: AppColors.blue1,
+                ),
+              ),
+              TextField(
+                controller: _razonCtrl,
+                maxLines: 2,
+                style: const TextStyle(fontSize: 13),
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(6),
                   ),
-                  const SizedBox(height: 14),
-                  const Text('Motivo (obligatorio)',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: razonCtrl,
-                    maxLines: 2,
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.all(10),
-                      hintText: 'Ej: proveedor cambió precio, error de carga, etc.',
+                  contentPadding: const EdgeInsets.all(10),
+                  hintText:
+                      'Ej: proveedor cambió precio, error de carga, etc.',
+                  hintStyle:
+                      TextStyle(fontSize: 12, color: Colors.grey.shade400),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Botones con CustomButton
+              Row(
+                children: [
+                  Expanded(
+                    child: CustomButton(
+                      text: 'Cancelar',
+                      isOutlined: true,
+                      textColor: AppColors.blue1,
+                      borderColor: AppColors.blue1.withValues(alpha: 0.4),
+                      enableShadows: false,
+                      onPressed: () => Navigator.pop(context, null),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    flex: 2,
+                    child: CustomButton(
+                      text: 'Confirmar cambio',
+                      backgroundColor: AppColors.blue1,
+                      textColor: Colors.white,
+                      enableShadows: false,
+                      icon: const Icon(Icons.check,
+                          color: Colors.white, size: 16),
+                      onPressed: () {
+                        if (_razonCtrl.text.trim().isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('El motivo es obligatorio'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          return;
+                        }
+                        Navigator.pop(
+                          context,
+                          _MotivoCambioCostoResult(
+                            tipoCambio: _tipoCambio,
+                            razon: _razonCtrl.text.trim(),
+                          ),
+                        );
+                      },
                     ),
                   ),
                 ],
               ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, null),
-                child: const Text('Cancelar'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  if (razonCtrl.text.trim().isEmpty) {
-                    ScaffoldMessenger.of(ctx).showSnackBar(
-                      const SnackBar(
-                        content: Text('El motivo es obligatorio'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                    return;
-                  }
-                  Navigator.pop(
-                    ctx,
-                    _MotivoCambioCostoResult(
-                      tipoCambio: tipoCambio,
-                      razon: razonCtrl.text.trim(),
-                    ),
-                  );
-                },
-                child: const Text('Confirmar'),
-              ),
             ],
           ),
-        );
-      },
-    ).whenComplete(razonCtrl.dispose);
+        ),
+      ),
+    );
   }
 }
 

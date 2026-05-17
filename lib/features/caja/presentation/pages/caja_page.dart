@@ -460,7 +460,7 @@ class _CajaViewState extends State<_CajaView> {
                 Expanded(
                   child: _buildQuickAction(
                     context,
-                    'Nuevo Movimiento',
+                    'Nuevo Mov.',
                     Icons.add_circle_rounded,
                     AppColors.blue2,
                     () => _navigateToNuevoMovimiento(context, caja.id),
