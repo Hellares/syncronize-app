@@ -165,6 +165,13 @@ class ProductoStockRemoteDataSource {
     String? ubicacion,
     int? stockMinimo,
     int? stockMaximo,
+    /// Tipo de cambio para registro de auditoria (MANUAL, COSTO, CORRECCION,
+    /// COMPETENCIA, AJUSTE_MERCADO, etc.). Si es null el backend usa MANUAL.
+    String? tipoCambio,
+    /// Texto libre con el motivo del cambio (queda en
+    /// ProductoPrecioHistorialSede.razon). Especialmente importante al
+    /// corregir precioCosto mal cargado.
+    String? razon,
   }) async {
     final response = await _dioClient.patch(
       '/producto-stock/$productoStockId/precios',
@@ -181,10 +188,33 @@ class ProductoStockRemoteDataSource {
         if (ubicacion != null) 'ubicacion': ubicacion,
         if (stockMinimo != null) 'stockMinimo': stockMinimo,
         if (stockMaximo != null) 'stockMaximo': stockMaximo,
+        if (tipoCambio != null) 'tipoCambio': tipoCambio,
+        if (razon != null && razon.isNotEmpty) 'razon': razon,
       },
     );
 
     return ProductoStockModel.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  /// GET /producto-stock/:id/precios/historial — historial de cambios de
+  /// precio (precio/costo/oferta) de un ProductoStock en su sede.
+  Future<List<Map<String, dynamic>>> obtenerHistorialPreciosSede({
+    required String productoStockId,
+    int limit = 50,
+  }) async {
+    final response = await _dioClient.get(
+      '/producto-stock/$productoStockId/precios/historial',
+      queryParameters: {'limit': limit},
+    );
+    final data = response.data;
+    if (data is List) {
+      return data.cast<Map<String, dynamic>>();
+    }
+    if (data is Map<String, dynamic>) {
+      final inner = data['data'] ?? data['historial'] ?? [];
+      return (inner as List).cast<Map<String, dynamic>>();
+    }
+    return const [];
   }
 
   /// Obtiene el historial de movimientos de un stock (kardex)

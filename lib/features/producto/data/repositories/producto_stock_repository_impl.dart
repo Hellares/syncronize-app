@@ -218,6 +218,8 @@ class ProductoStockRepositoryImpl implements ProductoStockRepository {
     String? ubicacion,
     int? stockMinimo,
     int? stockMaximo,
+    String? tipoCambio,
+    String? razon,
   }) async {
     if (!await _networkInfo.isConnected) {
       return Error(
@@ -240,8 +242,29 @@ class ProductoStockRepositoryImpl implements ProductoStockRepository {
         ubicacion: ubicacion,
         stockMinimo: stockMinimo,
         stockMaximo: stockMaximo,
+        tipoCambio: tipoCambio,
+        razon: razon,
       );
       return Success(stock);
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'ProductoStock');
+    }
+  }
+
+  @override
+  Future<Resource<List<Map<String, dynamic>>>> obtenerHistorialPreciosSede({
+    required String productoStockId,
+    int limit = 50,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final data = await _remoteDataSource.obtenerHistorialPreciosSede(
+        productoStockId: productoStockId,
+        limit: limit,
+      );
+      return Success(data);
     } catch (e) {
       return _errorHandler.handleException(e, context: 'ProductoStock');
     }

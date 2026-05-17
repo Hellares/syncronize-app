@@ -17,6 +17,7 @@ import '../../domain/repositories/precio_nivel_repository.dart';
 import '../../domain/services/precio_nivel_cache_service.dart';
 import 'precio_nivel_form_dialog.dart';
 import 'gestionar_liquidacion_dialog.dart';
+import '../pages/historial_precios_producto_page.dart';
 import '../bloc/configurar_precios/configurar_precios_cubit.dart';
 import '../bloc/configurar_precios/configurar_precios_state.dart';
 import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_cubit.dart';
@@ -212,6 +213,23 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
                           ),
                         ],
                       ),
+                    ),
+                    IconButton(
+                      tooltip: 'Ver historial de precios',
+                      icon: Icon(Icons.history, color: AppColors.blue1, size: 22),
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => HistorialPreciosProductoPage(
+                              productoStockId: widget.stock.id,
+                              productoNombre:
+                                  widget.stock.producto?.nombre ??
+                                      widget.stock.variante?.nombre ??
+                                      'Producto',
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -1093,6 +1111,21 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
     final precioCosto = _getControllerValue(_precioCostoController);
     final precioOferta = _getControllerValue(_precioOfertaController);
 
+    // Auditoria: si cambió el precio costo (modificación de un dato sensible
+    // que afecta margen y valorización del inventario), pedir motivo +
+    // tipoCambio. Se guarda en ProductoPrecioHistorialSede para trazabilidad.
+    String? tipoCambioAuditoria;
+    String? razonAuditoria;
+    final costoOriginal = widget.stock.precioCosto ?? 0;
+    final cambioCosto = precioCosto > 0 && (precioCosto - costoOriginal).abs() > 0.001;
+    if (cambioCosto) {
+      final result = await _pedirMotivoCambioCosto(costoOriginal, precioCosto);
+      if (result == null) return; // canceló
+      tipoCambioAuditoria = result.tipoCambio;
+      razonAuditoria = result.razon;
+    }
+
+    if (!mounted) return;
     context.read<ConfigurarPreciosCubit>().configurarPrecios(
       productoStockId: widget.stock.id,
       empresaId: widget.empresaId,
@@ -1103,6 +1136,132 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
       fechaInicioOferta: _enOferta ? _fechaInicioOferta : null,
       fechaFinOferta: _enOferta ? _fechaFinOferta : null,
       precioIncluyeIgv: _precioIncluyeIGV,
+      tipoCambio: tipoCambioAuditoria,
+      razon: razonAuditoria,
     );
   }
+
+  /// Dialog que pide motivo + tipo de cambio cuando se edita precioCosto.
+  /// Si cancela retorna null.
+  Future<_MotivoCambioCostoResult?> _pedirMotivoCambioCosto(
+    double anterior,
+    double nuevo,
+  ) async {
+    String tipoCambio = 'CORRECCION';
+    final razonCtrl = TextEditingController();
+    return showDialog<_MotivoCambioCostoResult>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setSt) => AlertDialog(
+            icon: Icon(Icons.history_edu, color: AppColors.blue1, size: 32),
+            title: const Text('Motivo del cambio de costo'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.shade50,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: Colors.amber.shade300),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Costo anterior: S/ ${anterior.toStringAsFixed(2)}',
+                          style: const TextStyle(fontSize: 11),
+                        ),
+                        Text(
+                          'Costo nuevo: S/ ${nuevo.toStringAsFixed(2)}',
+                          style: const TextStyle(
+                              fontSize: 13, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'El cambio se registra en el historial de precios para auditoría.',
+                    style: TextStyle(fontSize: 11, color: Colors.black54),
+                  ),
+                  const SizedBox(height: 14),
+                  const Text('Tipo de cambio',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  DropdownButtonFormField<String>(
+                    initialValue: tipoCambio,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      contentPadding:
+                          EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      isDense: true,
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'CORRECCION', child: Text('Corrección de error')),
+                      DropdownMenuItem(value: 'COSTO', child: Text('Actualización de costo (proveedor)')),
+                      DropdownMenuItem(value: 'COMPETENCIA', child: Text('Ajuste por competencia')),
+                      DropdownMenuItem(value: 'AJUSTE_MERCADO', child: Text('Ajuste por mercado')),
+                      DropdownMenuItem(value: 'MANUAL', child: Text('Otro')),
+                    ],
+                    onChanged: (v) => setSt(() => tipoCambio = v ?? 'CORRECCION'),
+                  ),
+                  const SizedBox(height: 14),
+                  const Text('Motivo (obligatorio)',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: razonCtrl,
+                    maxLines: 2,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.all(10),
+                      hintText: 'Ej: proveedor cambió precio, error de carga, etc.',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, null),
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  if (razonCtrl.text.trim().isEmpty) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                      const SnackBar(
+                        content: Text('El motivo es obligatorio'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    return;
+                  }
+                  Navigator.pop(
+                    ctx,
+                    _MotivoCambioCostoResult(
+                      tipoCambio: tipoCambio,
+                      razon: razonCtrl.text.trim(),
+                    ),
+                  );
+                },
+                child: const Text('Confirmar'),
+              ),
+            ],
+          ),
+        );
+      },
+    ).whenComplete(razonCtrl.dispose);
+  }
+}
+
+class _MotivoCambioCostoResult {
+  final String tipoCambio;
+  final String razon;
+  const _MotivoCambioCostoResult({required this.tipoCambio, required this.razon});
 }

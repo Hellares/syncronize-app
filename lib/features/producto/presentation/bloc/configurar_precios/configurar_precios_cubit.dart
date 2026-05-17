@@ -24,6 +24,8 @@ class ConfigurarPreciosCubit extends Cubit<ConfigurarPreciosState> {
     DateTime? fechaInicioOferta,
     DateTime? fechaFinOferta,
     bool precioIncluyeIgv = true,
+    String? tipoCambio,
+    String? razon,
   }) async {
     emit(const ConfigurarPreciosLoading());
 
@@ -37,6 +39,8 @@ class ConfigurarPreciosCubit extends Cubit<ConfigurarPreciosState> {
       fechaInicioOferta: fechaInicioOferta,
       fechaFinOferta: fechaFinOferta,
       precioIncluyeIgv: precioIncluyeIgv,
+      tipoCambio: tipoCambio,
+      razon: razon,
     );
 
     if (result is Success<ProductoStock>) {

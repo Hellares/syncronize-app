@@ -77,6 +77,15 @@ abstract class ProductoStockRepository {
     String? ubicacion,
     int? stockMinimo,
     int? stockMaximo,
+    String? tipoCambio,
+    String? razon,
+  });
+
+  /// Historial de cambios de precio de un ProductoStock (precio,
+  /// precioCosto, precioOferta + razon + usuario + fecha).
+  Future<Resource<List<Map<String, dynamic>>>> obtenerHistorialPreciosSede({
+    required String productoStockId,
+    int limit,
   });
 
   /// Obtiene el historial de movimientos de un stock (kardex)

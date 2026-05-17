@@ -23,6 +23,8 @@ class ActualizarPreciosProductoStockUseCase {
     String? ubicacion,
     int? stockMinimo,
     int? stockMaximo,
+    String? tipoCambio,
+    String? razon,
   }) async {
     return await _repository.actualizarPrecios(
       productoStockId: productoStockId,
@@ -37,6 +39,8 @@ class ActualizarPreciosProductoStockUseCase {
       ubicacion: ubicacion,
       stockMinimo: stockMinimo,
       stockMaximo: stockMaximo,
+      tipoCambio: tipoCambio,
+      razon: razon,
     );
   }
 }
