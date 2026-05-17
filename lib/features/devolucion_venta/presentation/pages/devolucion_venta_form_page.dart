@@ -29,6 +29,10 @@ class DevolucionVentaFormPage extends StatefulWidget {
 }
 
 class _ItemInput {
+  /// ID exacto del VentaDetalle origen (para descuento preciso en
+  /// reporte de liquidaciones cuando la venta tiene varios detalles
+  /// del mismo producto).
+  String? ventaDetalleId;
   String? productoId;
   String? varianteId;
   String descripcion;
@@ -45,6 +49,7 @@ class _ItemInput {
   double? precioReemplazo;
 
   _ItemInput({
+    this.ventaDetalleId,
     this.productoId, this.varianteId, required this.descripcion,
     this.cantidad = 1, this.precioOriginal = 0,
   });
@@ -55,6 +60,7 @@ class _ItemInput {
   }
 
   Map<String, dynamic> toMap(TipoReembolso tipoReembolso) => {
+    if (ventaDetalleId != null) 'ventaDetalleId': ventaDetalleId,
     if (productoId != null) 'productoId': productoId,
     if (varianteId != null) 'varianteId': varianteId,
     'cantidad': cantidad,
@@ -118,6 +124,7 @@ class _DevolucionVentaFormPageState extends State<DevolucionVentaFormPage> {
             for (final d in venta.detalles!) {
               if (d.productoId != null || d.varianteId != null) {
                 _items.add(_ItemInput(
+                  ventaDetalleId: d.id,
                   productoId: d.productoId,
                   varianteId: d.varianteId,
                   descripcion: d.descripcion,
