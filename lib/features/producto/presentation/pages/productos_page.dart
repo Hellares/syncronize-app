@@ -661,6 +661,15 @@ class _ProductosPageState extends State<ProductosPage>
                     context.push('/empresa/inventario/liquidaciones');
                   },
                 ),
+                NavigationMenuItem(
+                  id: 'verificacion-precios',
+                  label: 'Verificar precios',
+                  icon: Icons.fact_check_outlined,
+                  iconColor: Colors.indigo,
+                  onTap: () {
+                    context.push('/empresa/inventario/verificacion-precios');
+                  },
+                ),
               ],
             ),
             // IconButton(

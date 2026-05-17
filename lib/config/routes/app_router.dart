@@ -103,6 +103,7 @@ import '../../features/producto/presentation/pages/configurar_stock_minmax_page.
 import '../../features/producto/presentation/pages/merma_perdida_page.dart';
 import '../../features/producto/presentation/pages/liquidaciones_page.dart';
 import '../../features/producto/presentation/pages/reporte_liquidaciones_page.dart';
+import '../../features/producto/presentation/pages/verificacion_precios_page.dart';
 import '../../features/producto/presentation/pages/valorizacion_inventario_page.dart';
 import '../../features/producto/presentation/pages/sugerencias_reorden_page.dart';
 import '../../features/producto/presentation/pages/reporte_rotacion_page.dart';
@@ -629,6 +630,11 @@ class AppRouter {
         path: '/empresa/inventario/liquidaciones',
         name: 'empresa-liquidaciones',
         builder: (context, state) => const LiquidacionesPage(),
+      ),
+      GoRoute(
+        path: '/empresa/inventario/verificacion-precios',
+        name: 'empresa-verificacion-precios',
+        builder: (context, state) => const VerificacionPreciosPage(),
       ),
       GoRoute(
         path: '/empresa/reportes/liquidaciones',
