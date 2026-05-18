@@ -104,6 +104,7 @@ import '../../features/producto/presentation/pages/merma_perdida_page.dart';
 import '../../features/producto/presentation/pages/liquidaciones_page.dart';
 import '../../features/producto/presentation/pages/reporte_liquidaciones_page.dart';
 import '../../features/producto/presentation/pages/verificacion_precios_page.dart';
+import '../../features/producto/presentation/pages/componentes_producto_page.dart';
 import '../../features/producto/presentation/pages/valorizacion_inventario_page.dart';
 import '../../features/producto/presentation/pages/sugerencias_reorden_page.dart';
 import '../../features/producto/presentation/pages/reporte_rotacion_page.dart';
@@ -635,6 +636,21 @@ class AppRouter {
         path: '/empresa/inventario/verificacion-precios',
         name: 'empresa-verificacion-precios',
         builder: (context, state) => const VerificacionPreciosPage(),
+      ),
+      // Page dedicada para gestionar componentes / BOM de un producto.
+      // Recibe productoId + nombre (y opcional sedeId) via `extra`.
+      GoRoute(
+        path: '/empresa/productos/:productoId/componentes',
+        name: 'empresa-producto-componentes',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return ComponentesProductoPage(
+            productoId: state.pathParameters['productoId']!,
+            productoNombre:
+                extra?['nombre'] as String? ?? 'Producto',
+            sedeIdInicial: extra?['sedeId'] as String?,
+          );
+        },
       ),
       GoRoute(
         path: '/empresa/reportes/liquidaciones',

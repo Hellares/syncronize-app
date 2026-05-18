@@ -1028,6 +1028,13 @@ class _ProductosPageState extends State<ProductosPage>
                       : null,
                   onStockDoubleTap: () => _handleStockDoubleTap(producto),
                   onPrecioTap: () => _handlePrecioTap(producto),
+                  onComponentesTap: () => context.push(
+                    '/empresa/productos/${producto.id}/componentes',
+                    extra: {
+                      'nombre': producto.nombre,
+                      'sedeId': sedeId,
+                    },
+                  ),
                 );
               },
             ),

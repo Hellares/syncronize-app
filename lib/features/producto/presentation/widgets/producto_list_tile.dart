@@ -15,6 +15,7 @@ class ProductoListTile extends StatelessWidget {
   final VoidCallback? onViewVariants;
   final VoidCallback? onStockDoubleTap;
   final VoidCallback? onPrecioTap; // Callback para configurar precios
+  final VoidCallback? onComponentesTap; // Callback para componentes/BOM
   final String sedeId; // Sede requerida para obtener precios y stock
 
   const ProductoListTile({
@@ -26,6 +27,7 @@ class ProductoListTile extends StatelessWidget {
     this.onViewVariants,
     this.onStockDoubleTap,
     this.onPrecioTap,
+    this.onComponentesTap,
   });
 
   // Getters para obtener precios por sede (siempre desde ProductoStock)
@@ -213,6 +215,39 @@ class ProductoListTile extends StatelessWidget {
                           Icons.attach_file,
                           size: 14,
                           color: AppColors.blue1,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+              // Botón Componentes / BOM (productos compuestos: peluches, PCs armadas).
+              // Mismo criterio que precio: solo productos base.
+              if (onComponentesTap != null &&
+                  !producto.tieneVariantes &&
+                  !producto.esCombo)
+                Positioned(
+                  bottom: 0,
+                  right: 70, // A la izquierda del botón de precio
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: onComponentesTap,
+                      borderRadius: BorderRadius.circular(4),
+                      child: Container(
+                        padding: const EdgeInsets.all(5),
+                        decoration: BoxDecoration(
+                          color: Colors.indigo.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(
+                            color: AppColors.cardBackground,
+                            width: 1,
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.inventory_2_outlined,
+                          size: 14,
+                          color: Colors.indigo,
                         ),
                       ),
                     ),
