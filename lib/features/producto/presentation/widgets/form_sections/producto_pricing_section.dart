@@ -12,6 +12,7 @@ class ProductoPricingSection extends StatelessWidget {
   final TextEditingController precioController;
   final TextEditingController precioCostoController;
   final bool esCombo;
+  final bool esInsumo;
   final String? tipoPrecioCombo;
 
   const ProductoPricingSection({
@@ -19,6 +20,7 @@ class ProductoPricingSection extends StatelessWidget {
     required this.precioController,
     required this.precioCostoController,
     required this.esCombo,
+    this.esInsumo = false,
     this.tipoPrecioCombo,
   });
 
@@ -36,6 +38,33 @@ class ProductoPricingSection extends StatelessWidget {
         children: [
           AppSubtitle('PRECIOS'),
           const SizedBox(height: 12),
+          // Aviso para insumos: precio de venta no aplica; costo viene de
+          // compras y alimenta el cálculo de productos compuestos.
+          if (esInsumo) ...[
+            Container(
+              padding: const EdgeInsets.all(10),
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: Colors.amber.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.amber.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline,
+                      color: Colors.amber.shade800, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Los insumos no se venden directo. El Precio Costo se actualiza al registrar compras y alimenta el cálculo de productos compuestos.',
+                      style: TextStyle(
+                          fontSize: 10, color: Colors.amber.shade900),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           // Mensaje informativo para combos con precio calculado
           if (_esPrecioCalculado) ...[
             Container(
@@ -63,58 +92,64 @@ class ProductoPricingSection extends StatelessWidget {
               ),
             ),
           ],
-          Row(
-            children: [
-              Expanded(
-                child: CurrencyTextField(
-                  controller: precioController,
-                  label: _esPrecioCalculado
-                      ? 'Precio de Venta (calculado)'
-                      : 'Precio de Venta *',
-                  hintText: '0.00',
-                  borderColor: AppColors.blue1,
-                  enabled: !esCombo || tipoPrecioCombo == 'FIJO' || tipoPrecioCombo == null,
-                  enableRealTimeValidation: true,
-                  validator: (value) {
-                    // Si es combo con precio calculado, el precio NO es requerido
-                    if (_esPrecioCalculado) {
+          // Si es insumo, solo mostramos Precio Costo a ancho completo
+          // (el Precio Venta no aplica porque no se vende al cliente).
+          if (esInsumo)
+            CurrencyTextField(
+              allowZero: true,
+              requiredField: false,
+              controller: precioCostoController,
+              label: 'Precio de Costo (sugerido)',
+              hintText: '0.00',
+              borderColor: AppColors.blue1,
+              enableRealTimeValidation: true,
+            )
+          else
+            Row(
+              children: [
+                Expanded(
+                  child: CurrencyTextField(
+                    controller: precioController,
+                    label: _esPrecioCalculado
+                        ? 'Precio de Venta (calculado)'
+                        : 'Precio de Venta *',
+                    hintText: '0.00',
+                    borderColor: AppColors.blue1,
+                    enabled: !esCombo || tipoPrecioCombo == 'FIJO' || tipoPrecioCombo == null,
+                    enableRealTimeValidation: true,
+                    validator: (value) {
+                      if (_esPrecioCalculado) {
+                        return null;
+                      }
+                      if (value == null || value.trim().isEmpty) {
+                        return 'El precio es requerido';
+                      }
+                      final precio = CurrencyUtilsImproved.parseToDouble(value);
+                      if (precio <= 0) {
+                        return 'El precio debe ser mayor a 0';
+                      }
+                      final costo = precioCostoController.currencyValue;
+                      if (costo > 0 && precio < costo) {
+                        return 'El precio debe ser ≥ al costo';
+                      }
                       return null;
-                    }
-
-                    // Para otros casos, el precio es requerido
-                    if (value == null || value.trim().isEmpty) {
-                      return 'El precio es requerido';
-                    }
-
-                    final precio = CurrencyUtilsImproved.parseToDouble(value);
-                    if (precio <= 0) {
-                      return 'El precio debe ser mayor a 0';
-                    }
-
-                    // Validar precio >= costo
-                    final costo = precioCostoController.currencyValue;
-                    if (costo > 0 && precio < costo) {
-                      return 'El precio debe ser ≥ al costo';
-                    }
-
-                    return null;
-                  },
+                    },
+                  ),
                 ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: CurrencyTextField(
-                  allowZero: false,
-                  requiredField: true,
-                  controller: precioCostoController,
-                  label: 'Precio de Costo',
-                  hintText: '0.00',
-                  borderColor: AppColors.blue1,
-                  enableRealTimeValidation: true,
+                const SizedBox(width: 16),
+                Expanded(
+                  child: CurrencyTextField(
+                    allowZero: false,
+                    requiredField: true,
+                    controller: precioCostoController,
+                    label: 'Precio de Costo',
+                    hintText: '0.00',
+                    borderColor: AppColors.blue1,
+                    enableRealTimeValidation: true,
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
         ],
       ),
     );

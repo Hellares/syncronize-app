@@ -247,120 +247,152 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Precio de Venta + toggle IGV en una sola fila.
-                      // Si el producto está en liquidación activa, el precio
-                      // base no aplica (gana la liquidación en el cálculo
-                      // del precioEfectivo). Bloqueamos la edición para
-                      // evitar confusiones y posibles inconsistencias.
-                      if (_stockEfectivo.isLiquidacionActiva) ...[
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 4),
+                      // Si el producto es un INSUMO, no se vende directo.
+                      // Ocultamos completamente el bloque Precio Venta + IGV
+                      // y mostramos solo un banner explicativo. El costo se
+                      // gestiona desde el bloque Precio Costo más abajo y
+                      // se actualiza al registrar compras.
+                      if (widget.stock.producto?.esInsumo == true) ...[
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          margin: const EdgeInsets.only(bottom: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.amber.shade200),
+                          ),
                           child: Row(
                             children: [
-                              Icon(Icons.lock_outline,
-                                  size: 12,
-                                  color: Colors.deepOrange.shade700),
-                              const SizedBox(width: 4),
+                              Icon(Icons.inventory_2_outlined,
+                                  color: Colors.amber.shade800, size: 18),
+                              const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  'Precio venta bloqueado: el producto está en liquidación. Desactivá la liquidación para editarlo.',
+                                  'Producto INSUMO. No se vende directo — el Precio Venta no aplica. Solo importa el Costo, que se actualiza al registrar compras.',
                                   style: TextStyle(
-                                    fontSize: 10,
-                                    color: Colors.deepOrange.shade700,
-                                    fontStyle: FontStyle.italic,
-                                  ),
+                                      fontSize: 10,
+                                      color: Colors.amber.shade900),
                                 ),
                               ),
                             ],
                           ),
                         ),
-                      ],
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Expanded(
-                            flex: 1,
-                            child: CurrencyTextField(
-                              label: 'Precio de Venta',
-                              controller: _precioController,
-                              borderColor: AppColors.blue1,
-                              enabled: !_stockEfectivo.isLiquidacionActiva,
-                              onChanged: (_) {
-                                if (_precioIncluyeIGV) setState(() {});
-                              },
-                              validator: (value) {
-                                if (value == null || value.trim().isEmpty) {
-                                  return 'El precio es requerido';
-                                }
-                                final precio = CurrencyUtilsImproved.parseToDouble(value);
-                                if (precio <= 0) {
-                                  return 'El precio debe ser mayor a 0';
-                                }
-                                // Validar precio >= costo
-                                final costo = _precioCostoController.currencyValue;
-                                if (costo > 0 && precio < costo) {
-                                  return 'El precio debe ser ≥ al costo';
-                                }
-                                // Si por algun motivo se intenta guardar
-                                // un precio venta < precio liquidacion
-                                // activa, rechazar (sino la liquidacion
-                                // ya no es "bajo el precio base").
-                                final liq = _stockEfectivo.precioLiquidacion;
-                                if (_stockEfectivo.isLiquidacionActiva &&
-                                    liq != null &&
-                                    precio < liq) {
-                                  return 'Precio debe ser ≥ liquidación (S/${liq.toStringAsFixed(2)})';
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            flex: 1,
-                            child: InkWell(
-                              onTap: () => setState(() =>
-                                  _precioIncluyeIGV = !_precioIncluyeIGV),
-                              borderRadius: BorderRadius.circular(6),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 4),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    SizedBox(
-                                      height: 22,
-                                      width: 22,
-                                      child: Checkbox(
-                                        value: _precioIncluyeIGV,
-                                        onChanged: (value) {
-                                          setState(() {
-                                            _precioIncluyeIGV = value ?? false;
-                                          });
-                                        },
-                                        activeColor: AppColors.blue1,
-                                        materialTapTargetSize:
-                                            MaterialTapTargetSize.shrinkWrap,
-                                        visualDensity: VisualDensity.compact,
-                                      ),
+                      ] else ...[
+                        // Precio de Venta + toggle IGV en una sola fila.
+                        // Si el producto está en liquidación activa, el precio
+                        // base no aplica (gana la liquidación en el cálculo
+                        // del precioEfectivo). Bloqueamos la edición para
+                        // evitar confusiones y posibles inconsistencias.
+                        if (_stockEfectivo.isLiquidacionActiva) ...[
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: Row(
+                              children: [
+                                Icon(Icons.lock_outline,
+                                    size: 12,
+                                    color: Colors.deepOrange.shade700),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    'Precio venta bloqueado: el producto está en liquidación. Desactivá la liquidación para editarlo.',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.deepOrange.shade700,
+                                      fontStyle: FontStyle.italic,
                                     ),
-                                    const SizedBox(width: 4),
-                                    Icon(Icons.receipt_long,
-                                        size: 13, color: AppColors.blue1),
-                                    const SizedBox(width: 4),
-                                    Flexible(
-                                      child: AppSubtitle(
-                                        'Incluye $_nombreImpuesto (${_porcentajeIGV.toStringAsFixed(_porcentajeIGV.truncateToDouble() == _porcentajeIGV ? 0 : 1)}%)',
-                                        fontSize: 10,
-                                        color: AppColors.textPrimary,
-                                      ),
-                                    ),
-                                  ],
+                                  ),
                                 ),
-                              ),
+                              ],
                             ),
                           ),
                         ],
-                      ),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Expanded(
+                              flex: 1,
+                              child: CurrencyTextField(
+                                label: 'Precio de Venta',
+                                controller: _precioController,
+                                borderColor: AppColors.blue1,
+                                enabled: !_stockEfectivo.isLiquidacionActiva,
+                                onChanged: (_) {
+                                  if (_precioIncluyeIGV) setState(() {});
+                                },
+                                validator: (value) {
+                                  if (value == null || value.trim().isEmpty) {
+                                    return 'El precio es requerido';
+                                  }
+                                  final precio = CurrencyUtilsImproved.parseToDouble(value);
+                                  if (precio <= 0) {
+                                    return 'El precio debe ser mayor a 0';
+                                  }
+                                  // Validar precio >= costo
+                                  final costo = _precioCostoController.currencyValue;
+                                  if (costo > 0 && precio < costo) {
+                                    return 'El precio debe ser ≥ al costo';
+                                  }
+                                  // Si por algun motivo se intenta guardar
+                                  // un precio venta < precio liquidacion
+                                  // activa, rechazar (sino la liquidacion
+                                  // ya no es "bajo el precio base").
+                                  final liq = _stockEfectivo.precioLiquidacion;
+                                  if (_stockEfectivo.isLiquidacionActiva &&
+                                      liq != null &&
+                                      precio < liq) {
+                                    return 'Precio debe ser ≥ liquidación (S/${liq.toStringAsFixed(2)})';
+                                  }
+                                  return null;
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              flex: 1,
+                              child: InkWell(
+                                onTap: () => setState(() =>
+                                    _precioIncluyeIGV = !_precioIncluyeIGV),
+                                borderRadius: BorderRadius.circular(6),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 4),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      SizedBox(
+                                        height: 22,
+                                        width: 22,
+                                        child: Checkbox(
+                                          value: _precioIncluyeIGV,
+                                          onChanged: (value) {
+                                            setState(() {
+                                              _precioIncluyeIGV = value ?? false;
+                                            });
+                                          },
+                                          activeColor: AppColors.blue1,
+                                          materialTapTargetSize:
+                                              MaterialTapTargetSize.shrinkWrap,
+                                          visualDensity: VisualDensity.compact,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Icon(Icons.receipt_long,
+                                          size: 13, color: AppColors.blue1),
+                                      const SizedBox(width: 4),
+                                      Flexible(
+                                        child: AppSubtitle(
+                                          'Incluye $_nombreImpuesto (${_porcentajeIGV.toStringAsFixed(_porcentajeIGV.truncateToDouble() == _porcentajeIGV ? 0 : 1)}%)',
+                                          fontSize: 10,
+                                          color: AppColors.textPrimary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
 
                       // Desglose de precio (visible solo cuando toggle=ON y precio>0)
                       if (_precioIncluyeIGV) _buildDesgloseIGV(),
@@ -1194,16 +1226,21 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
     }
 
     if (!mounted) return;
+    // Si el producto es INSUMO, no enviamos precio de venta ni nada
+    // relacionado a oferta (no se vende directo). Solo el precioCosto
+    // que es lo único que tiene sentido para un insumo.
+    final esInsumo = widget.stock.producto?.esInsumo == true;
     context.read<ConfigurarPreciosCubit>().configurarPrecios(
       productoStockId: widget.stock.id,
       empresaId: widget.empresaId,
-      precio: precio,
+      precio: esInsumo ? 0 : precio,
       precioCosto: precioCosto > 0 ? precioCosto : null,
-      precioOferta: _enOferta && precioOferta > 0 ? precioOferta : null,
-      enOferta: _enOferta,
-      fechaInicioOferta: _enOferta ? _fechaInicioOferta : null,
-      fechaFinOferta: _enOferta ? _fechaFinOferta : null,
-      precioIncluyeIgv: _precioIncluyeIGV,
+      precioOferta:
+          !esInsumo && _enOferta && precioOferta > 0 ? precioOferta : null,
+      enOferta: !esInsumo && _enOferta,
+      fechaInicioOferta: !esInsumo && _enOferta ? _fechaInicioOferta : null,
+      fechaFinOferta: !esInsumo && _enOferta ? _fechaFinOferta : null,
+      precioIncluyeIgv: !esInsumo && _precioIncluyeIGV,
       tipoCambio: tipoCambioAuditoria,
       razon: razonAuditoria,
     );

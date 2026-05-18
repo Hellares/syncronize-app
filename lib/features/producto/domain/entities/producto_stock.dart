@@ -299,16 +299,18 @@ class ProductoStockInfo extends Equatable {
   final String nombre;
   final String? codigoEmpresa;
   final String? sku;
+  final bool esInsumo;
 
   const ProductoStockInfo({
     required this.id,
     required this.nombre,
     this.codigoEmpresa,
     this.sku,
+    this.esInsumo = false,
   });
 
   @override
-  List<Object?> get props => [id, nombre, codigoEmpresa, sku];
+  List<Object?> get props => [id, nombre, codigoEmpresa, sku, esInsumo];
 }
 
 /// Info básica de variante para stock

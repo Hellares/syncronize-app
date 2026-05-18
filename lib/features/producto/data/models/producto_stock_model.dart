@@ -171,6 +171,7 @@ class ProductoStockInfoModel extends ProductoStockInfo {
     required super.nombre,
     super.codigoEmpresa,
     super.sku,
+    super.esInsumo,
   });
 
   factory ProductoStockInfoModel.fromJson(Map<String, dynamic> json) {
@@ -179,6 +180,7 @@ class ProductoStockInfoModel extends ProductoStockInfo {
       nombre: json['nombre'] as String,
       codigoEmpresa: json['codigoEmpresa'] as String?,
       sku: json['sku'] as String?,
+      esInsumo: json['esInsumo'] as bool? ?? false,
     );
   }
 
@@ -188,6 +190,7 @@ class ProductoStockInfoModel extends ProductoStockInfo {
       'nombre': nombre,
       if (codigoEmpresa != null) 'codigoEmpresa': codigoEmpresa,
       if (sku != null) 'sku': sku,
+      'esInsumo': esInsumo,
     };
   }
 }
