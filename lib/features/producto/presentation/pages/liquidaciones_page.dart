@@ -62,6 +62,15 @@ class _LiquidacionesPageState extends State<LiquidacionesPage> {
     }
   }
 
+  /// Prisma Decimal se serializa como String en JSON (no como num). Castear
+  /// directo a num? rompe con _TypeError. Aceptamos num, String y null.
+  double? _parseDecimal(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value);
+    return null;
+  }
+
   ProductoStock _hydrate(Map<String, dynamic> json) {
     // Reconstruir entity desde el response del backend.
     return ProductoStock(
@@ -71,10 +80,10 @@ class _LiquidacionesPageState extends State<LiquidacionesPage> {
       varianteId: json['varianteId'] as String?,
       empresaId: json['empresaId'] as String? ?? '',
       stockActual: (json['stockActual'] ?? 0) as int,
-      precio: (json['precio'] as num?)?.toDouble(),
-      precioCosto: (json['precioCosto'] as num?)?.toDouble(),
+      precio: _parseDecimal(json['precio']),
+      precioCosto: _parseDecimal(json['precioCosto']),
       enLiquidacion: json['enLiquidacion'] as bool? ?? true,
-      precioLiquidacion: (json['precioLiquidacion'] as num?)?.toDouble(),
+      precioLiquidacion: _parseDecimal(json['precioLiquidacion']),
       motivoLiquidacion:
           MotivoLiquidacionX.fromApi(json['motivoLiquidacion'] as String?),
       observacionesLiquidacion: json['observacionesLiquidacion'] as String?,

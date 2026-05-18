@@ -10,6 +10,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/utils/resource.dart';
 import '../../../../core/widgets/currency/currency_textfield.dart';
+import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_dropdown.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../../empresa/domain/entities/sede.dart';
@@ -176,6 +177,15 @@ class _VerificacionPreciosPageState extends State<VerificacionPreciosPage> {
     super.dispose();
   }
 
+  /// CurrencyTextField muestra "0.00" cuando está vacío, así que un 0
+  /// significa "el usuario no escribió nada". Tratamos 0 como null para
+  /// que ni se envíe al backend ni cuente como criterio en `_buscar`.
+  double? _parseCurrency(TextEditingController ctrl) {
+    final v = double.tryParse(ctrl.text.replaceAll(',', '.'));
+    if (v == null || v == 0) return null;
+    return v;
+  }
+
   Map<String, dynamic> _buildQuery() {
     final q = <String, dynamic>{
       'campo': _campo.api,
@@ -186,12 +196,12 @@ class _VerificacionPreciosPageState extends State<VerificacionPreciosPage> {
     };
     if (_sedeId != null) q['sedeId'] = _sedeId;
     if (_modo == _ModoVerificacion.rango) {
-      final min = double.tryParse(_minCtrl.text.replaceAll(',', '.'));
-      final max = double.tryParse(_maxCtrl.text.replaceAll(',', '.'));
+      final min = _parseCurrency(_minCtrl);
+      final max = _parseCurrency(_maxCtrl);
       if (min != null) q['min'] = min;
       if (max != null) q['max'] = max;
     } else if (_modo == _ModoVerificacion.exacto) {
-      final ex = double.tryParse(_exactoCtrl.text.replaceAll(',', '.'));
+      final ex = _parseCurrency(_exactoCtrl);
       if (ex != null) q['exacto'] = ex;
     }
     return q;
@@ -200,6 +210,34 @@ class _VerificacionPreciosPageState extends State<VerificacionPreciosPage> {
   Future<void> _buscar() async {
     // Ocultar teclado antes de disparar el query (mejor UX en mobile).
     FocusScope.of(context).unfocus();
+
+    // Validar que haya criterio de búsqueda — sin esto el endpoint
+    // traería TODOS los productos de la empresa con valor en el campo,
+    // que es una petición costosa y casi nunca lo que el usuario quiere.
+    // Excepción: SIN_VALOR no requiere min/max/exacto (filtra por null).
+    if (_modo == _ModoVerificacion.rango) {
+      if (_parseCurrency(_minCtrl) == null &&
+          _parseCurrency(_maxCtrl) == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Ingresá un mínimo y/o máximo para buscar'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+    } else if (_modo == _ModoVerificacion.exacto) {
+      if (_parseCurrency(_exactoCtrl) == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Ingresá un valor exacto para buscar'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+    }
+
     setState(() {
       _loading = true;
       _error = null;
@@ -390,6 +428,7 @@ class _VerificacionPreciosPageState extends State<VerificacionPreciosPage> {
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: CustomDropdown<String?>(
+                borderColor: AppColors.blue1,
                 value: _sedeId,
                 items: [
                   const DropdownItem(value: null, label: 'Todas las sedes'),
@@ -402,6 +441,7 @@ class _VerificacionPreciosPageState extends State<VerificacionPreciosPage> {
             children: [
               Expanded(
                 child: CustomDropdown<_CampoPrecio>(
+                  borderColor: AppColors.blue1,
                   value: _campo,
                   items: _CampoPrecio.values
                       .map((c) => DropdownItem(value: c, label: c.label))
@@ -414,6 +454,7 @@ class _VerificacionPreciosPageState extends State<VerificacionPreciosPage> {
               const SizedBox(width: 8),
               Expanded(
                 child: CustomDropdown<_ModoVerificacion>(
+                  borderColor: AppColors.blue1,
                   value: _modo,
                   items: _ModoVerificacion.values
                       .map((m) => DropdownItem(value: m, label: m.label))
@@ -431,6 +472,7 @@ class _VerificacionPreciosPageState extends State<VerificacionPreciosPage> {
               children: [
                 Expanded(
                   child: CurrencyTextField(
+                    borderColor: AppColors.blue1,
                     controller: _minCtrl,
                     label: 'Mínimo',
                     allowZero: true,
@@ -441,6 +483,7 @@ class _VerificacionPreciosPageState extends State<VerificacionPreciosPage> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: CurrencyTextField(
+                    borderColor: AppColors.blue1,
                     controller: _maxCtrl,
                     label: 'Máximo',
                     allowZero: true,
@@ -453,6 +496,7 @@ class _VerificacionPreciosPageState extends State<VerificacionPreciosPage> {
           ] else if (_modo == _ModoVerificacion.exacto) ...[
             const SizedBox(height: 8),
             CurrencyTextField(
+              borderColor: AppColors.blue1,
               controller: _exactoCtrl,
               label: 'Valor exacto',
               allowZero: true,
@@ -464,6 +508,7 @@ class _VerificacionPreciosPageState extends State<VerificacionPreciosPage> {
             children: [
               Expanded(
                 child: CustomDropdown<_FiltroStock>(
+                  borderColor: AppColors.blue1,
                   value: _stock,
                   items: _FiltroStock.values
                       .map((s) => DropdownItem(value: s, label: s.label))
@@ -492,24 +537,15 @@ class _VerificacionPreciosPageState extends State<VerificacionPreciosPage> {
             ],
           ),
           const SizedBox(height: 8),
-          SizedBox(
+          CustomButton(
+            text: 'Buscar',
             width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: _loading ? null : _buscar,
-              icon: _loading
-                  ? const SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white),
-                    )
-                  : const Icon(Icons.search, size: 16),
-              label: const Text('Buscar'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.blue1,
-                foregroundColor: Colors.white,
-              ),
-            ),
+            backgroundColor: AppColors.blue1,
+            textColor: Colors.white,
+            isLoading: _loading,
+            enableShadows: false,
+            icon: const Icon(Icons.search, size: 16, color: Colors.white),
+            onPressed: _buscar,
           ),
         ],
       ),
