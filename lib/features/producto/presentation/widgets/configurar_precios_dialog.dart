@@ -18,6 +18,7 @@ import '../../domain/repositories/precio_nivel_repository.dart';
 import '../../domain/services/precio_nivel_cache_service.dart';
 import 'precio_nivel_form_dialog.dart';
 import 'gestionar_liquidacion_dialog.dart';
+import 'componentes_producto_section.dart';
 import '../pages/historial_precios_producto_page.dart';
 import '../bloc/configurar_precios/configurar_precios_cubit.dart';
 import '../bloc/configurar_precios/configurar_precios_state.dart';
@@ -452,6 +453,23 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
                           ),
                         ],
                       ),
+
+                      // Sección Producto Compuesto / BOM: solo aplica a
+                      // productos base (no variantes). El widget se
+                      // autocarga y avisa si hay componentes. Cuando el
+                      // usuario pulsa "Aplicar a Costo", llena el campo.
+                      if (widget.stock.productoId != null &&
+                          widget.stock.varianteId == null)
+                        ComponentesProductoSection(
+                          productoId: widget.stock.productoId!,
+                          sedeId: widget.stock.sedeId,
+                          onAplicarCosto: (total) {
+                            setState(() {
+                              _precioCostoController.text =
+                                  total.toStringAsFixed(2);
+                            });
+                          },
+                        ),
 
                       if (_enOferta) ...[
                         const SizedBox(height: 8),
