@@ -405,37 +405,75 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
                         children: [
                           Expanded(
                             flex: 1,
-                            child: CurrencyTextField(
-                              label: 'Precio de Costo',
-                              controller: _precioCostoController,
-                              borderColor: AppColors.blue1,
-                              allowZero: false,
-                              // Editable siempre. Antes se desabilitaba para
-                              // proteger reporteria historica; ahora no es
-                              // necesario porque VentaDetalle.precioCostoSnapshot
-                              // preserva el costo de cada venta vieja y todo
-                              // cambio queda registrado en
-                              // ProductoPrecioHistorialSede (con motivo +
-                              // tipoCambio + usuario via dialog auditoria).
-                              validator: (value) {
-                                if (value == null || value.trim().isEmpty) {
-                                  return null;
-                                }
-                                final nuevoCosto = CurrencyUtilsImproved
-                                    .parseToDouble(value);
-                                // Si hay liquidacion activa y el nuevo costo
-                                // es <= precio liquidacion, la liquidacion
-                                // ya no es "bajo costo" (margen no es
-                                // negativo). Pedir desactivar primero.
-                                final liq = _stockEfectivo.precioLiquidacion;
-                                if (_stockEfectivo.isLiquidacionActiva &&
-                                    liq != null &&
-                                    nuevoCosto > 0 &&
-                                    nuevoCosto <= liq) {
-                                  return 'Costo ≤ liquidación (S/${liq.toStringAsFixed(2)}). Desactivá la liquidación primero.';
-                                }
-                                return null;
-                              },
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                CurrencyTextField(
+                                  label: 'Precio de Costo (por unidad)',
+                                  controller: _precioCostoController,
+                                  borderColor: AppColors.blue1,
+                                  allowZero: false,
+                                  // Editable siempre. Antes se desabilitaba para
+                                  // proteger reporteria historica; ahora no es
+                                  // necesario porque VentaDetalle.precioCostoSnapshot
+                                  // preserva el costo de cada venta vieja y todo
+                                  // cambio queda registrado en
+                                  // ProductoPrecioHistorialSede (con motivo +
+                                  // tipoCambio + usuario via dialog auditoria).
+                                  validator: (value) {
+                                    if (value == null || value.trim().isEmpty) {
+                                      return null;
+                                    }
+                                    final nuevoCosto = CurrencyUtilsImproved
+                                        .parseToDouble(value);
+                                    // Si hay liquidacion activa y el nuevo costo
+                                    // es <= precio liquidacion, la liquidacion
+                                    // ya no es "bajo costo" (margen no es
+                                    // negativo). Pedir desactivar primero.
+                                    final liq =
+                                        _stockEfectivo.precioLiquidacion;
+                                    if (_stockEfectivo.isLiquidacionActiva &&
+                                        liq != null &&
+                                        nuevoCosto > 0 &&
+                                        nuevoCosto <= liq) {
+                                      return 'Costo ≤ liquidación (S/${liq.toStringAsFixed(2)}). Desactivá la liquidación primero.';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                                // Ayuda "calcular desde lote": evita el error
+                                // típico de tipear el TOTAL de la compra
+                                // en lugar del unitario (100 vs 100/50=2).
+                                InkWell(
+                                  onTap: _abrirCalculadoraLote,
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 4, horizontal: 4),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.calculate_outlined,
+                                            size: 12,
+                                            color: AppColors.blue1),
+                                        const SizedBox(width: 4),
+                                        Flexible(
+                                          child: Text(
+                                            'Calcular desde compra',
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontSize: 9,
+                                              color: AppColors.blue1,
+                                              decoration:
+                                                  TextDecoration.underline,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -1193,6 +1231,22 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
     );
   }
 
+  /// Calculadora rápida: el usuario ingresa cantidad + total pagado en
+  /// una compra y el dialog calcula el costo unitario (total ÷ cantidad)
+  /// y lo pone en el campo Precio Costo. Resuelve el error típico de
+  /// tipear el TOTAL en el campo (que es por unidad).
+  Future<void> _abrirCalculadoraLote() async {
+    final aplicar = await showDialog<double>(
+      context: context,
+      builder: (_) => const _CalculadoraLoteDialog(),
+    );
+    if (aplicar != null && mounted) {
+      setState(() {
+        _precioCostoController.text = aplicar.toStringAsFixed(2);
+      });
+    }
+  }
+
   void _showError(String msg) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -1559,4 +1613,131 @@ class _MotivoCambioCostoResult {
   final String tipoCambio;
   final String razon;
   const _MotivoCambioCostoResult({required this.tipoCambio, required this.razon});
+}
+
+/// Dialog separado (no StatefulBuilder) para evitar el bug de
+/// "TextEditingController was used after being disposed" que aparece
+/// cuando los controllers se disponen en el closure mientras el árbol
+/// de widgets sigue intentando rebuildear.
+class _CalculadoraLoteDialog extends StatefulWidget {
+  const _CalculadoraLoteDialog();
+
+  @override
+  State<_CalculadoraLoteDialog> createState() => _CalculadoraLoteDialogState();
+}
+
+class _CalculadoraLoteDialogState extends State<_CalculadoraLoteDialog> {
+  final _cantidadCtrl = TextEditingController();
+  final _totalCtrl = TextEditingController();
+  double? _unitario;
+
+  @override
+  void dispose() {
+    _cantidadCtrl.dispose();
+    _totalCtrl.dispose();
+    super.dispose();
+  }
+
+  void _recalcular() {
+    final cant = double.tryParse(_cantidadCtrl.text.replaceAll(',', '.'));
+    final tot = double.tryParse(_totalCtrl.text.replaceAll(',', '.'));
+    setState(() {
+      _unitario = (cant != null && cant > 0 && tot != null && tot > 0)
+          ? tot / cant
+          : null;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Calcular costo por unidad',
+          style: TextStyle(fontSize: 14)),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            'Ingresá la cantidad comprada y el total pagado. El sistema calcula el costo por unidad.',
+            style: TextStyle(fontSize: 11),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _cantidadCtrl,
+            autofocus: true,
+            keyboardType:
+                const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(
+              labelText: 'Cantidad comprada',
+              hintText: 'Ej. 50',
+              isDense: true,
+              border: OutlineInputBorder(),
+            ),
+            onChanged: (_) => _recalcular(),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _totalCtrl,
+            keyboardType:
+                const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(
+              labelText: 'Total pagado (S/)',
+              hintText: 'Ej. 100',
+              isDense: true,
+              border: OutlineInputBorder(),
+            ),
+            onChanged: (_) => _recalcular(),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: _unitario != null
+                  ? Colors.green.shade50
+                  : Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(
+                color: _unitario != null
+                    ? Colors.green.shade300
+                    : Colors.grey.shade300,
+              ),
+            ),
+            child: Column(
+              children: [
+                Text(
+                  'Costo por unidad:',
+                  style: TextStyle(
+                      fontSize: 10, color: Colors.grey.shade700),
+                ),
+                Text(
+                  _unitario != null
+                      ? 'S/ ${_unitario!.toStringAsFixed(2)}'
+                      : '—',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: _unitario != null
+                        ? Colors.green.shade800
+                        : Colors.grey,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton(
+          onPressed: _unitario != null
+              ? () => Navigator.pop(context, _unitario)
+              : null,
+          child: const Text('Aplicar'),
+        ),
+      ],
+    );
+  }
 }

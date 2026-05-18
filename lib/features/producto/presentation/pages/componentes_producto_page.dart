@@ -110,6 +110,7 @@ class _ComponentesProductoPageState extends State<ComponentesProductoPage> {
       context: context,
       builder: (_) => _AgregarComponenteDialog(
         productoId: widget.productoId,
+        sedeId: _sedeId,
         idsYaUsados: _items.map((i) => i['componenteId'] as String).toSet(),
       ),
     );
@@ -647,10 +648,12 @@ class _Hcell extends StatelessWidget {
 
 class _AgregarComponenteDialog extends StatefulWidget {
   final String productoId;
+  final String? sedeId;
   final Set<String> idsYaUsados;
 
   const _AgregarComponenteDialog({
     required this.productoId,
+    required this.sedeId,
     required this.idsYaUsados,
   });
 
@@ -669,6 +672,12 @@ class _AgregarComponenteDialogState extends State<_AgregarComponenteDialog> {
   List<Map<String, dynamic>> _results = const [];
   Map<String, dynamic>? _selected;
   bool _saving = false;
+
+  // Datos del componente seleccionado en la sede actual (costo + stockId)
+  String? _selectedStockId;
+  double? _selectedCosto;
+  int? _selectedStockActual;
+  bool _loadingStockInfo = false;
 
   @override
   void dispose() {
@@ -715,6 +724,172 @@ class _AgregarComponenteDialogState extends State<_AgregarComponenteDialog> {
     } catch (_) {
       if (mounted) setState(() => _searching = false);
     }
+  }
+
+  /// Tras seleccionar un componente, cargar su stock+costo en la sede para
+  /// que el usuario vea de cuánto es el costo unitario y pueda corregirlo
+  /// si está mal (caso típico: usuario tipeó total de compra en lugar de
+  /// unitario). Si no hay sede o no hay stock, devuelve nulls.
+  Future<void> _cargarInfoSeleccionado() async {
+    if (_selected == null || widget.sedeId == null) return;
+    setState(() {
+      _loadingStockInfo = true;
+      _selectedStockId = null;
+      _selectedCosto = null;
+      _selectedStockActual = null;
+    });
+    try {
+      final resp = await _dio.get(
+        '/producto-stock/producto/${_selected!['id']}/sede/${widget.sedeId}',
+      );
+      final data = resp.data as Map<String, dynamic>?;
+      if (!mounted) return;
+      setState(() {
+        _selectedStockId = data?['id'] as String?;
+        final costoRaw = data?['precioCosto'];
+        _selectedCosto = costoRaw is num
+            ? costoRaw.toDouble()
+            : (costoRaw is String ? double.tryParse(costoRaw) : null);
+        _selectedStockActual = (data?['stockActual'] as num?)?.toInt();
+        _loadingStockInfo = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loadingStockInfo = false);
+    }
+  }
+
+  /// Abre la calculadora "total ÷ cantidad" y, si el usuario aplica,
+  /// actualiza el precioCosto del INSUMO (no del componente row) en la
+  /// sede actual via PATCH /producto-stock/:id/precios.
+  Future<void> _recalcularCostoInsumo() async {
+    if (_selectedStockId == null) return;
+    final nuevo = await showDialog<double>(
+      context: context,
+      builder: (_) => const _CalculadoraLoteDialogInline(),
+    );
+    if (nuevo == null) return;
+    try {
+      await _dio.patch(
+        '/producto-stock/$_selectedStockId/precios',
+        data: {
+          'precioCosto': double.parse(nuevo.toStringAsFixed(2)),
+          'tipoCambio': 'CORRECCION',
+          'razon': 'Corrección de costo unitario desde page de componentes',
+        },
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content:
+              Text('Costo actualizado: S/ ${nuevo.toStringAsFixed(2)}/u'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      _cargarInfoSeleccionado(); // refresca el costo mostrado
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  Widget _buildInfoCostoInsumo() {
+    if (_loadingStockInfo) {
+      return const SizedBox(
+        height: 14,
+        child: Center(
+          child: SizedBox(
+            width: 12, height: 12,
+            child: CircularProgressIndicator(strokeWidth: 1.5),
+          ),
+        ),
+      );
+    }
+    if (_selectedCosto == null && _selectedStockId == null) {
+      return Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.amber.shade50,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: Colors.amber.shade200),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.warning_amber_outlined,
+                size: 14, color: Colors.amber.shade800),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                'Este componente no tiene stock en la sede actual. Compralo o créalo manualmente para poder usarlo.',
+                style: TextStyle(
+                    fontSize: 10, color: Colors.amber.shade900),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: Colors.blue.shade100),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.attach_money,
+              size: 14, color: Colors.blue.shade700),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _selectedCosto != null
+                      ? 'Costo unitario actual: S/ ${_selectedCosto!.toStringAsFixed(2)}'
+                      : 'Sin costo unitario',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.blue.shade900,
+                  ),
+                ),
+                if (_selectedStockActual != null)
+                  Text(
+                    'Stock: $_selectedStockActual unidades',
+                    style: TextStyle(
+                        fontSize: 9, color: Colors.blue.shade700),
+                  ),
+              ],
+            ),
+          ),
+          InkWell(
+            onTap: _recalcularCostoInsumo,
+            borderRadius: BorderRadius.circular(4),
+            child: Padding(
+              padding: const EdgeInsets.all(4),
+              child: Row(
+                children: [
+                  Icon(Icons.calculate_outlined,
+                      size: 12, color: Colors.blue.shade700),
+                  const SizedBox(width: 2),
+                  Text(
+                    'Recalcular',
+                    style: TextStyle(
+                      fontSize: 9,
+                      color: Colors.blue.shade700,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _guardar() async {
@@ -830,8 +1005,10 @@ class _AgregarComponenteDialogState extends State<_AgregarComponenteDialog> {
                                     p['codigoEmpresa']?.toString() ?? '',
                                     style: const TextStyle(fontSize: 10),
                                   ),
-                                  onTap: () =>
-                                      setState(() => _selected = p),
+                                  onTap: () {
+                                    setState(() => _selected = p);
+                                    _cargarInfoSeleccionado();
+                                  },
                                 );
                               },
                             ),
@@ -864,11 +1041,22 @@ class _AgregarComponenteDialogState extends State<_AgregarComponenteDialog> {
                       IconButton(
                         icon: const Icon(Icons.swap_horiz, size: 18),
                         tooltip: 'Cambiar',
-                        onPressed: () => setState(() => _selected = null),
+                        onPressed: () => setState(() {
+                          _selected = null;
+                          _selectedStockId = null;
+                          _selectedCosto = null;
+                          _selectedStockActual = null;
+                        }),
                       ),
                     ],
                   ),
                 ),
+                const SizedBox(height: 8),
+                // Info de costo del insumo en la sede actual. Permite
+                // detectar de un vistazo si el costo unitario está mal
+                // cargado (caso típico: total de compra en lugar de
+                // unitario) y corregirlo desde acá.
+                _buildInfoCostoInsumo(),
                 const SizedBox(height: 12),
                 CurrencyTextField(
                   label: 'Cantidad por unidad armada',
@@ -921,6 +1109,134 @@ class _AgregarComponenteDialogState extends State<_AgregarComponenteDialog> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Mini-dialog interno (mismo patrón que la calculadora del Configurar
+/// Precios). StatefulWidget aparte para que los controllers no se
+/// disposen antes de la última build.
+class _CalculadoraLoteDialogInline extends StatefulWidget {
+  const _CalculadoraLoteDialogInline();
+
+  @override
+  State<_CalculadoraLoteDialogInline> createState() =>
+      _CalculadoraLoteDialogInlineState();
+}
+
+class _CalculadoraLoteDialogInlineState
+    extends State<_CalculadoraLoteDialogInline> {
+  final _cantidadCtrl = TextEditingController();
+  final _totalCtrl = TextEditingController();
+  double? _unitario;
+
+  @override
+  void dispose() {
+    _cantidadCtrl.dispose();
+    _totalCtrl.dispose();
+    super.dispose();
+  }
+
+  void _recalcular() {
+    final cant = double.tryParse(_cantidadCtrl.text.replaceAll(',', '.'));
+    final tot = double.tryParse(_totalCtrl.text.replaceAll(',', '.'));
+    setState(() {
+      _unitario = (cant != null && cant > 0 && tot != null && tot > 0)
+          ? tot / cant
+          : null;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Recalcular costo unitario',
+          style: TextStyle(fontSize: 14)),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            'Si cargaste mal el costo del insumo (tipeaste el TOTAL en vez del unitario), corregilo acá. Ingresá la cantidad comprada y el total pagado.',
+            style: TextStyle(fontSize: 11),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _cantidadCtrl,
+            autofocus: true,
+            keyboardType:
+                const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(
+              labelText: 'Cantidad comprada',
+              hintText: 'Ej. 20',
+              isDense: true,
+              border: OutlineInputBorder(),
+            ),
+            onChanged: (_) => _recalcular(),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _totalCtrl,
+            keyboardType:
+                const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(
+              labelText: 'Total pagado (S/)',
+              hintText: 'Ej. 200',
+              isDense: true,
+              border: OutlineInputBorder(),
+            ),
+            onChanged: (_) => _recalcular(),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: _unitario != null
+                  ? Colors.green.shade50
+                  : Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(
+                color: _unitario != null
+                    ? Colors.green.shade300
+                    : Colors.grey.shade300,
+              ),
+            ),
+            child: Column(
+              children: [
+                Text(
+                  'Costo por unidad:',
+                  style: TextStyle(
+                      fontSize: 10, color: Colors.grey.shade700),
+                ),
+                Text(
+                  _unitario != null
+                      ? 'S/ ${_unitario!.toStringAsFixed(2)}'
+                      : '—',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: _unitario != null
+                        ? Colors.green.shade800
+                        : Colors.grey,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton(
+          onPressed: _unitario != null
+              ? () => Navigator.pop(context, _unitario)
+              : null,
+          child: const Text('Aplicar'),
+        ),
+      ],
     );
   }
 }
