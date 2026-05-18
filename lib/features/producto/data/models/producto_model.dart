@@ -32,6 +32,7 @@ class ProductoModel extends Producto {
     required super.isActive,
     super.tieneVariantes,
     super.esCombo,
+    super.esInsumo,
     super.tipoPrecioCombo,
     super.configuracionPrecioId,
     super.deletedAt,
@@ -81,6 +82,7 @@ class ProductoModel extends Producto {
       isActive: json['isActive'] as bool? ?? true,
       tieneVariantes: json['tieneVariantes'] as bool? ?? false,
       esCombo: json['esCombo'] as bool? ?? false,
+      esInsumo: json['esInsumo'] as bool? ?? false,
       tipoPrecioCombo: json['tipoPrecioCombo'] as String?,
       configuracionPrecioId: json['configuracionPrecioId'] as String?,
       deletedAt: json['deletedAt'] != null
@@ -159,6 +161,7 @@ class ProductoModel extends Producto {
       'isActive': isActive,
       'tieneVariantes': tieneVariantes,
       'esCombo': esCombo,
+      'esInsumo': esInsumo,
       if (tipoPrecioCombo != null) 'tipoPrecioCombo': tipoPrecioCombo,
       if (configuracionPrecioId != null)
         'configuracionPrecioId': configuracionPrecioId,
@@ -210,6 +213,7 @@ class ProductoModel extends Producto {
       isActive: entity.isActive,
       tieneVariantes: entity.tieneVariantes,
       esCombo: entity.esCombo,
+      esInsumo: entity.esInsumo,
       tipoPrecioCombo: entity.tipoPrecioCombo,
       configuracionPrecioId: entity.configuracionPrecioId,
       deletedAt: entity.deletedAt,

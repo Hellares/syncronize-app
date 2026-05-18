@@ -13,6 +13,7 @@ class ProductoListItemModel extends ProductoListItem {
     super.marcaNombre,
     required super.isActive,
     super.esCombo,
+    super.esInsumo,
     super.tieneVariantes,
     super.variantes,
     super.stocksPorSede,
@@ -37,6 +38,7 @@ class ProductoListItemModel extends ProductoListItem {
       marcaNombre: json['marca']?['nombre'] as String?,
       isActive: json['isActive'] as bool? ?? true,
       esCombo: json['esCombo'] as bool? ?? false,
+      esInsumo: json['esInsumo'] as bool? ?? false,
       tieneVariantes: json['tieneVariantes'] as bool? ?? false,
       variantes: json['variantes'] != null
           ? (json['variantes'] as List)
@@ -75,6 +77,7 @@ class ProductoListItemModel extends ProductoListItem {
       if (marcaNombre != null) 'marca': {'nombre': marcaNombre},
       'isActive': isActive,
       'esCombo': esCombo,
+      'esInsumo': esInsumo,
       'tieneVariantes': tieneVariantes,
       if (variantes != null)
         'variantes': variantes!
@@ -129,6 +132,7 @@ class ProductoListItemModel extends ProductoListItem {
       marcaNombre: entity.marcaNombre,
       isActive: entity.isActive,
       esCombo: entity.esCombo,
+      esInsumo: entity.esInsumo,
       tieneVariantes: entity.tieneVariantes,
       variantes: entity.variantes,
       stocksPorSede: entity.stocksPorSede,

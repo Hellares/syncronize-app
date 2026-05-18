@@ -32,6 +32,7 @@ class Producto extends Equatable with StockPorSedeMixin {
   final bool isActive;
   final bool tieneVariantes;
   final bool esCombo;
+  final bool esInsumo; // Materia prima / insumo (oculto de POS y marketplace)
   final String? tipoPrecioCombo; // FIJO, CALCULADO, CALCULADO_CON_DESCUENTO
   final String? configuracionPrecioId; // ID de la configuración de precios aplicada
   final DateTime? deletedAt;
@@ -75,6 +76,7 @@ class Producto extends Equatable with StockPorSedeMixin {
     required this.isActive,
     this.tieneVariantes = false,
     this.esCombo = false,
+    this.esInsumo = false,
     this.tipoPrecioCombo,
     this.configuracionPrecioId,
     this.deletedAt,
@@ -162,6 +164,7 @@ class Producto extends Equatable with StockPorSedeMixin {
         isActive,
         tieneVariantes,
         esCombo,
+        esInsumo,
         tipoPrecioCombo,
         configuracionPrecioId,
         deletedAt,

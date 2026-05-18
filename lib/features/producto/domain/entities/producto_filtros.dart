@@ -30,6 +30,10 @@ class ProductoFiltros extends Equatable {
   final bool? stockBajo;
   final bool? soloProductos;
   final bool? soloCombos;
+  /// Filtra por flag esInsumo: true=solo insumos, false=excluir insumos,
+  /// null=todos (incluyendo insumos). Default null deja al frontend decidir
+  /// según el tab activo. Cada tab manda el valor que le interesa.
+  final bool? esInsumo;
   /// Listar SOLO productos eliminados (papelera). true → deletedAt != null.
   final bool? soloEliminados;
   /// Filtrar por estado activo. null = ambos. Independiente de soloEliminados.
@@ -50,6 +54,7 @@ class ProductoFiltros extends Equatable {
     this.stockBajo,
     this.soloProductos,
     this.soloCombos,
+    this.esInsumo,
     this.soloEliminados,
     this.isActive,
     this.orden,
@@ -72,6 +77,7 @@ class ProductoFiltros extends Equatable {
     bool? stockBajo,
     bool? soloProductos,
     bool? soloCombos,
+    bool? esInsumo,
     OrdenProducto? orden,
     // Flags para resetear valores nullable
     bool clearSearch = false,
@@ -85,6 +91,7 @@ class ProductoFiltros extends Equatable {
     bool clearStockBajo = false,
     bool clearSoloProductos = false,
     bool clearSoloCombos = false,
+    bool clearEsInsumo = false,
     bool clearOrden = false,
   }) {
     return ProductoFiltros(
@@ -101,6 +108,7 @@ class ProductoFiltros extends Equatable {
       stockBajo: clearStockBajo ? null : (stockBajo ?? this.stockBajo),
       soloProductos: clearSoloProductos ? null : (soloProductos ?? this.soloProductos),
       soloCombos: clearSoloCombos ? null : (soloCombos ?? this.soloCombos),
+      esInsumo: clearEsInsumo ? null : (esInsumo ?? this.esInsumo),
       orden: clearOrden ? null : (orden ?? this.orden),
     );
   }
@@ -149,6 +157,9 @@ class ProductoFiltros extends Equatable {
     }
     if (soloCombos == true) {
       params['soloCombos'] = 'true';
+    }
+    if (esInsumo != null) {
+      params['esInsumo'] = esInsumo.toString();
     }
     if (soloEliminados == true) {
       params['soloEliminados'] = 'true';
@@ -199,6 +210,7 @@ class ProductoFiltros extends Equatable {
         stockBajo,
         soloProductos,
         soloCombos,
+        esInsumo,
         soloEliminados,
         isActive,
         orden,

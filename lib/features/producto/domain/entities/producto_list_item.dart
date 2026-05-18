@@ -14,6 +14,7 @@ class ProductoListItem extends Equatable with StockPorSedeMixin {
   final String? marcaNombre;
   final bool isActive;
   final bool esCombo;
+  final bool esInsumo;
   final bool tieneVariantes;
   final List<ProductoVariante>? variantes;
   final List<StockPorSedeInfo>? stocksPorSede; // Desglose de stock por sede
@@ -33,6 +34,7 @@ class ProductoListItem extends Equatable with StockPorSedeMixin {
     this.marcaNombre,
     required this.isActive,
     this.esCombo = false,
+    this.esInsumo = false,
     this.tieneVariantes = false,
     this.variantes,
     this.stocksPorSede,
@@ -72,6 +74,7 @@ class ProductoListItem extends Equatable with StockPorSedeMixin {
         marcaNombre,
         isActive,
         esCombo,
+        esInsumo,
         tieneVariantes,
         variantes,
         stocksPorSede,

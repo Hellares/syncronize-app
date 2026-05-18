@@ -75,7 +75,7 @@ class _ProductosPageState extends State<ProductosPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
     _tabController.addListener(_onTabChanged);
     _scrollController.addListener(_onScroll);
     _loadProductos();
@@ -111,11 +111,12 @@ class _ProductosPageState extends State<ProductosPage>
       ProductoFiltros filtrosConTab = _filtros;
 
       switch (_currentTabIndex) {
-        case 0: // Todos
+        case 0: // Todos — todo lo vendible (insumos van en su propio tab)
           filtrosConTab = _filtros.copyWith(
             clearSoloProductos: true,
             clearSoloCombos: true,
             clearEnLiquidacion: true,
+            esInsumo: false,
           );
           break;
         case 1: // Productos
@@ -123,6 +124,7 @@ class _ProductosPageState extends State<ProductosPage>
             soloProductos: true,
             clearSoloCombos: true,
             clearEnLiquidacion: true,
+            esInsumo: false,
           );
           break;
         case 2: // Combos
@@ -130,6 +132,7 @@ class _ProductosPageState extends State<ProductosPage>
             clearSoloProductos: true,
             soloCombos: true,
             clearEnLiquidacion: true,
+            esInsumo: false,
           );
           break;
         case 3: // Liquidación
@@ -137,6 +140,15 @@ class _ProductosPageState extends State<ProductosPage>
             clearSoloProductos: true,
             clearSoloCombos: true,
             enLiquidacion: true,
+            esInsumo: false,
+          );
+          break;
+        case 4: // Insumos / Materia prima
+          filtrosConTab = _filtros.copyWith(
+            clearSoloProductos: true,
+            clearSoloCombos: true,
+            clearEnLiquidacion: true,
+            esInsumo: true,
           );
           break;
       }
@@ -159,6 +171,7 @@ class _ProductosPageState extends State<ProductosPage>
         stockBajo: filtrosConTab.stockBajo,
         soloProductos: filtrosConTab.soloProductos,
         soloCombos: filtrosConTab.soloCombos,
+        esInsumo: filtrosConTab.esInsumo,
         soloEliminados: filtrosConTab.soloEliminados,
         isActive: _filtroIsActive,
         orden: filtrosConTab.orden,
@@ -718,6 +731,7 @@ class _ProductosPageState extends State<ProductosPage>
                       Tab(text: 'PRODUCTOS'),
                       Tab(text: 'COMBOS'),
                       Tab(text: 'LIQUIDACIÓN'),
+                      Tab(text: 'INSUMOS'),
                     ],
                   ),
                 ),

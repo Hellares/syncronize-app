@@ -133,6 +133,19 @@ class ProductoFormController extends ChangeNotifier {
     notifyListeners();
   }
 
+  bool _esInsumo = false;
+  bool get esInsumo => _esInsumo;
+  set esInsumo(bool value) {
+    _esInsumo = value;
+    // Insumos no se muestran en marketplace ni se destacan
+    if (value) {
+      _visibleMarketplace = false;
+      _destacado = false;
+    }
+    markAsChanged();
+    notifyListeners();
+  }
+
   bool _productoIsActive = true;
   bool get productoIsActive => _productoIsActive;
   set productoIsActive(bool value) {
@@ -264,6 +277,7 @@ class ProductoFormController extends ChangeNotifier {
     _destacado = producto.destacado;
     _tieneVariantes = producto.tieneVariantes;
     _esCombo = producto.esCombo;
+    _esInsumo = producto.esInsumo;
     _tipoPrecioCombo = producto.tipoPrecioCombo;
     _productoIsActive = producto.isActive;
 
@@ -310,6 +324,7 @@ class ProductoFormController extends ChangeNotifier {
     _destacado = false;
     _tieneVariantes = false;
     _esCombo = false;
+    _esInsumo = false;
     _tipoPrecioCombo = null;
     _productoIsActive = true;
 

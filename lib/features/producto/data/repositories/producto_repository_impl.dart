@@ -49,6 +49,7 @@ class ProductoRepositoryImpl implements ProductoRepository {
     bool? destacado,
     bool? tieneVariantes,
     bool? esCombo,
+    bool? esInsumo,
     String? tipoPrecioCombo,
     List<String>? imagenesIds,
     String? configuracionPrecioId,
@@ -85,6 +86,7 @@ class ProductoRepositoryImpl implements ProductoRepository {
         if (destacado != null) 'destacado': destacado,
         if (tieneVariantes != null) 'tieneVariantes': tieneVariantes,
         if (esCombo != null) 'esCombo': esCombo,
+        if (esInsumo != null) 'esInsumo': esInsumo,
         if (tipoPrecioCombo != null) 'tipoPrecioCombo': tipoPrecioCombo,
         if (imagenesIds != null) 'imagenesIds': imagenesIds,
         if (configuracionPrecioId != null)
@@ -201,6 +203,7 @@ class ProductoRepositoryImpl implements ProductoRepository {
     int? ordenMarketplace,
     bool? tieneVariantes,
     bool? esCombo,
+    bool? esInsumo,
     String? tipoPrecioCombo,
     List<String>? imagenesIds,
     String? configuracionPrecioId,
@@ -237,6 +240,7 @@ class ProductoRepositoryImpl implements ProductoRepository {
         if (ordenMarketplace != null) 'ordenMarketplace': ordenMarketplace,
         if (tieneVariantes != null) 'tieneVariantes': tieneVariantes,
         if (esCombo != null) 'esCombo': esCombo,
+        if (esInsumo != null) 'esInsumo': esInsumo,
         if (tipoPrecioCombo != null) 'tipoPrecioCombo': tipoPrecioCombo,
         if (imagenesIds != null) 'imagenesIds': imagenesIds,
         if (configuracionPrecioId != null)

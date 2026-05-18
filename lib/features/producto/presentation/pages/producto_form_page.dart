@@ -596,6 +596,7 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
                 ProductoOptionsSection(
                   visibleMarketplace: _controller.visibleMarketplace,
                   destacado: _controller.destacado,
+                  esInsumo: _controller.esInsumo,
                   onVisibleMarketplaceChanged: (value) {
                     setState(() {
                       _controller.visibleMarketplace = value;
@@ -605,6 +606,12 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
                   onDestacadoChanged: (value) {
                     setState(() {
                       _controller.destacado = value;
+                      _markAsChanged();
+                    });
+                  },
+                  onEsInsumoChanged: (value) {
+                    setState(() {
+                      _controller.esInsumo = value;
                       _markAsChanged();
                     });
                   },
