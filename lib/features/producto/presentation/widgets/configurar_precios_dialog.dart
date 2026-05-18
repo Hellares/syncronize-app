@@ -247,7 +247,34 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Precio de Venta + toggle IGV en una sola fila
+                      // Precio de Venta + toggle IGV en una sola fila.
+                      // Si el producto está en liquidación activa, el precio
+                      // base no aplica (gana la liquidación en el cálculo
+                      // del precioEfectivo). Bloqueamos la edición para
+                      // evitar confusiones y posibles inconsistencias.
+                      if (_stockEfectivo.isLiquidacionActiva) ...[
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Row(
+                            children: [
+                              Icon(Icons.lock_outline,
+                                  size: 12,
+                                  color: Colors.deepOrange.shade700),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  'Precio venta bloqueado: el producto está en liquidación. Desactivá la liquidación para editarlo.',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.deepOrange.shade700,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
@@ -257,6 +284,7 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
                               label: 'Precio de Venta',
                               controller: _precioController,
                               borderColor: AppColors.blue1,
+                              enabled: !_stockEfectivo.isLiquidacionActiva,
                               onChanged: (_) {
                                 if (_precioIncluyeIGV) setState(() {});
                               },
@@ -272,6 +300,16 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
                                 final costo = _precioCostoController.currencyValue;
                                 if (costo > 0 && precio < costo) {
                                   return 'El precio debe ser ≥ al costo';
+                                }
+                                // Si por algun motivo se intenta guardar
+                                // un precio venta < precio liquidacion
+                                // activa, rechazar (sino la liquidacion
+                                // ya no es "bajo el precio base").
+                                final liq = _stockEfectivo.precioLiquidacion;
+                                if (_stockEfectivo.isLiquidacionActiva &&
+                                    liq != null &&
+                                    precio < liq) {
+                                  return 'Precio debe ser ≥ liquidación (S/${liq.toStringAsFixed(2)})';
                                 }
                                 return null;
                               },
@@ -347,6 +385,25 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
                               // cambio queda registrado en
                               // ProductoPrecioHistorialSede (con motivo +
                               // tipoCambio + usuario via dialog auditoria).
+                              validator: (value) {
+                                if (value == null || value.trim().isEmpty) {
+                                  return null;
+                                }
+                                final nuevoCosto = CurrencyUtilsImproved
+                                    .parseToDouble(value);
+                                // Si hay liquidacion activa y el nuevo costo
+                                // es <= precio liquidacion, la liquidacion
+                                // ya no es "bajo costo" (margen no es
+                                // negativo). Pedir desactivar primero.
+                                final liq = _stockEfectivo.precioLiquidacion;
+                                if (_stockEfectivo.isLiquidacionActiva &&
+                                    liq != null &&
+                                    nuevoCosto > 0 &&
+                                    nuevoCosto <= liq) {
+                                  return 'Costo ≤ liquidación (S/${liq.toStringAsFixed(2)}). Desactivá la liquidación primero.';
+                                }
+                                return null;
+                              },
                             ),
                           ),
                           const SizedBox(width: 8),
