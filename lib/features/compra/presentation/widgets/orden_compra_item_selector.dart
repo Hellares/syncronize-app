@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:syncronize/core/di/injection_container.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
+import 'package:syncronize/core/network/dio_client.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/widgets/floating_button_text.dart';
@@ -35,6 +37,8 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
   final _cantidadController = TextEditingController(text: '1');
   final _precioController = TextEditingController();
   final _descuentoController = TextEditingController(text: '0');
+  final _nuevoPrecioVentaController = TextEditingController();
+  final DioClient _dio = locator<DioClient>();
 
   String _tipoItem = 'producto';
   ProductoListItem? _productoSeleccionado;
@@ -46,12 +50,22 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
   /// de COMPRA, el backend convertirá ×factor antes de persistir.
   bool _usaUnidadCompra = false;
 
+  /// Datos actuales del ProductoStock en la sede de la compra. Se cargan
+  /// al seleccionar producto para mostrar preview de costo/precio y
+  /// permitir al usuario ajustar el precio venta al confirmar.
+  double? _costoActualSede;
+  double? _precioVentaActualSede;
+  int? _stockActualSede;
+  bool _loadingStockSede = false;
+  String? _productoIdInfoCargada; // Evitar reload si ya tenemos los datos
+
   @override
   void dispose() {
     _descripcionController.dispose();
     _cantidadController.dispose();
     _precioController.dispose();
     _descuentoController.dispose();
+    _nuevoPrecioVentaController.dispose();
     super.dispose();
   }
 
@@ -60,9 +74,121 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
     _cantidadController.text = '1';
     _precioController.clear();
     _descuentoController.text = '0';
+    _nuevoPrecioVentaController.clear();
     _productoSeleccionado = null;
     _varianteSeleccionada = null;
     _usaUnidadCompra = false;
+    _costoActualSede = null;
+    _precioVentaActualSede = null;
+    _stockActualSede = null;
+    _productoIdInfoCargada = null;
+  }
+
+  /// Carga precioCosto + precio venta del producto en la sede actual
+  /// para mostrar el preview de "lo que va a cambiar" al confirmar.
+  Future<void> _cargarStockSede(String productoId) async {
+    if (widget.sedeId == null) return;
+    if (_productoIdInfoCargada == productoId) return; // Ya cargado
+    setState(() {
+      _loadingStockSede = true;
+      _costoActualSede = null;
+      _precioVentaActualSede = null;
+    });
+    try {
+      final resp = await _dio.get(
+        '/producto-stock/producto/$productoId/sede/${widget.sedeId}',
+      );
+      final data = resp.data as Map<String, dynamic>?;
+      if (!mounted) return;
+      setState(() {
+        final costoRaw = data?['precioCosto'];
+        _costoActualSede = costoRaw is num
+            ? costoRaw.toDouble()
+            : (costoRaw is String ? double.tryParse(costoRaw) : null);
+        final precioRaw = data?['precio'];
+        _precioVentaActualSede = precioRaw is num
+            ? precioRaw.toDouble()
+            : (precioRaw is String ? double.tryParse(precioRaw) : null);
+        _stockActualSede = (data?['stockActual'] as num?)?.toInt();
+        _loadingStockSede = false;
+        _productoIdInfoCargada = productoId;
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(() => _loadingStockSede = false);
+      }
+    }
+  }
+
+  /// Costo unitario de la compra actual en unidad atómica
+  /// (después de conversión por factor si aplica).
+  double get _precioCompraAtomico {
+    final raw = double.tryParse(_precioController.text.replaceAll(',', '.')) ?? 0;
+    if (raw <= 0) return 0;
+    if (_usaUnidadCompra && _productoSoportaUnidadCompra) {
+      final factor = _productoSeleccionado!.factorCompra ?? 1;
+      return factor > 0 ? raw / factor : raw;
+    }
+    return raw;
+  }
+
+  /// Cantidad en unidad atómica (después de conversión).
+  int get _cantidadAtomica {
+    final raw = int.tryParse(_cantidadController.text) ?? 0;
+    if (raw <= 0) return 0;
+    if (_usaUnidadCompra && _productoSoportaUnidadCompra) {
+      final factor = _productoSeleccionado!.factorCompra ?? 1;
+      return (raw * factor).round();
+    }
+    return raw;
+  }
+
+  /// Costo proyectado tras la compra (promedio ponderado con stock previo).
+  /// Para preview en card; el backend recalcula igual al confirmar.
+  double? get _nuevoCostoProyectado {
+    if (_productoSeleccionado == null) return null;
+    final precioNuevo = _precioCompraAtomico;
+    final cantNueva = _cantidadAtomica;
+    if (precioNuevo <= 0 || cantNueva <= 0) return _costoActualSede;
+    final stockPrev = _stockActualSede ?? 0;
+    final costoPrev = _costoActualSede ?? 0;
+    if (stockPrev == 0) return precioNuevo;
+    final pond =
+        (stockPrev * costoPrev + cantNueva * precioNuevo) /
+            (stockPrev + cantNueva);
+    return double.parse(pond.toStringAsFixed(4));
+  }
+
+  /// % de margen actual (precio venta vs costo actual). Para "Mantener
+  /// margen" calculamos el precio venta sugerido sobre el costo nuevo.
+  double? get _margenActualPct {
+    final precio = _precioVentaActualSede;
+    final costo = _costoActualSede;
+    if (precio == null || costo == null || costo <= 0) return null;
+    return ((precio - costo) / costo) * 100;
+  }
+
+  /// Sugerencia: precio que mantiene el mismo margen sobre el nuevo costo.
+  double? get _precioMantenerMargen {
+    final margen = _margenActualPct;
+    final costoNuevo = _nuevoCostoProyectado;
+    if (margen == null || costoNuevo == null) return null;
+    return double.parse(
+      (costoNuevo * (1 + margen / 100)).toStringAsFixed(2),
+    );
+  }
+
+  /// Sugerencia: precio actual + 10%.
+  double? get _precioMas10 {
+    final precio = _precioVentaActualSede;
+    if (precio == null) return null;
+    return double.parse((precio * 1.1).toStringAsFixed(2));
+  }
+
+  void _aplicarSugerencia(double v) {
+    setState(() {
+      _nuevoPrecioVentaController.text = v.toStringAsFixed(2);
+    });
   }
 
   /// Producto seleccionado tiene unidadCompra+factor → mostramos toggle.
@@ -127,10 +253,192 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
         item['unidadCompraSimbolo'] =
             _productoSeleccionado!.unidadCompraSimbolo;
       }
+
+      // Si el usuario seteó un nuevo precio de venta distinto al
+      // actual, se aplica al confirmar la compra (mismo tx que el
+      // costo). Si el field está vacío o coincide con el actual, no
+      // mandamos nada.
+      final nuevoPrecioVentaText =
+          _nuevoPrecioVentaController.text.trim().replaceAll(',', '.');
+      if (nuevoPrecioVentaText.isNotEmpty) {
+        final nuevoPrecio = double.tryParse(nuevoPrecioVentaText);
+        if (nuevoPrecio != null &&
+            nuevoPrecio > 0 &&
+            nuevoPrecio != _precioVentaActualSede) {
+          item['nuevoPrecioVenta'] = nuevoPrecio;
+        }
+      }
     }
 
     widget.onItemAdded(item);
     setState(() => _limpiarSeleccion());
+  }
+
+  /// Card debajo de los campos cantidad/precio con:
+  /// - Costo actual del producto en sede + costo proyectado tras compra
+  /// - Precio venta actual + input para nuevo precio venta
+  /// - Botones de sugerencia: "Mantener margen" y "+10%"
+  /// - Si se completa el field, se aplicará al confirmar la compra.
+  Widget _buildAjustePrecioVentaCard() {
+    if (_loadingStockSede) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 10),
+        child: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: const Row(
+            children: [
+              SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              SizedBox(width: 8),
+              Text('Cargando precios actuales…',
+                  style: TextStyle(fontSize: 11)),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_costoActualSede == null && _precioVentaActualSede == null) {
+      // Producto sin stock todavía — nada que mostrar
+      return const SizedBox.shrink();
+    }
+
+    final costoNuevo = _nuevoCostoProyectado;
+    final margenActual = _margenActualPct;
+    final mantenerMargen = _precioMantenerMargen;
+    final mas10 = _precioMas10;
+    final hayLote = (int.tryParse(_cantidadController.text) ?? 0) > 0 &&
+        (double.tryParse(_precioController.text.replaceAll(',', '.')) ?? 0) > 0;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: Colors.amber.shade50,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: Colors.amber.shade200, width: 0.6),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.price_change_outlined,
+                    size: 14, color: Colors.amber.shade900),
+                const SizedBox(width: 6),
+                Text(
+                  'Ajustar precio venta al confirmar (opcional)',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.amber.shade900,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            // Línea costo: actual → proyectado
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Costo: S/${_costoActualSede?.toStringAsFixed(4) ?? '—'}',
+                    style: TextStyle(
+                        fontSize: 10, color: Colors.grey.shade800),
+                  ),
+                ),
+                if (hayLote && costoNuevo != null)
+                  Text(
+                    '→ S/${costoNuevo.toStringAsFixed(4)} (nuevo)',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.deepOrange.shade700,
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 2),
+            // Línea precio venta actual + margen
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'P. venta actual: S/${_precioVentaActualSede?.toStringAsFixed(2) ?? '—'}',
+                    style: TextStyle(
+                        fontSize: 10, color: Colors.grey.shade800),
+                  ),
+                ),
+                if (margenActual != null)
+                  Text(
+                    'margen ${margenActual.toStringAsFixed(0)}%',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: margenActual >= 0
+                          ? Colors.green.shade800
+                          : Colors.red.shade700,
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            // Input nuevo precio venta + sugerencias
+            Row(
+              children: [
+                Expanded(
+                  child: CustomText(
+                    controller: _nuevoPrecioVentaController,
+                    borderColor: Colors.amber.shade700,
+                    label: 'Nuevo precio venta',
+                    hintText:
+                        _precioVentaActualSede?.toStringAsFixed(2) ?? '0.00',
+                    keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true),
+                    onChanged: (_) => setState(() {}),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: [
+                if (mantenerMargen != null)
+                  _SugerenciaChip(
+                    label:
+                        'Mantener margen → S/${mantenerMargen.toStringAsFixed(2)}',
+                    onTap: () => _aplicarSugerencia(mantenerMargen),
+                  ),
+                if (mas10 != null)
+                  _SugerenciaChip(
+                    label: '+10% → S/${mas10.toStringAsFixed(2)}',
+                    onTap: () => _aplicarSugerencia(mas10),
+                  ),
+              ],
+            ),
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                'Si dejás vacío, el precio venta NO cambia. Solo se aplica al confirmar la compra.',
+                style: TextStyle(
+                    fontSize: 9,
+                    fontStyle: FontStyle.italic,
+                    color: Colors.grey.shade600),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -157,6 +465,10 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
                 _productoSoportaUnidadCompra &&
                 _usaUnidadCompra)
               _buildPreviewConversion(),
+            if (_tipoItem == 'producto' &&
+                _productoSeleccionado != null &&
+                _varianteSeleccionada == null)
+              _buildAjustePrecioVentaCard(),
             const SizedBox(height: 12),
             FloatingButtonText(
               width: double.infinity,
@@ -257,6 +569,13 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
             _precioController.text = precio.toStringAsFixed(2);
           }
         });
+        // Cargar precio venta + costo + stock actual en la sede para
+        // mostrar el card "ajustar precio venta al confirmar".
+        // Solo para producto base sin variante (las variantes tienen
+        // su propio stock; por ahora soportamos solo el caso base).
+        if (variante == null) {
+          _cargarStockSede(producto.id);
+        }
       },
     );
   }
@@ -486,6 +805,41 @@ class _UnidadOpcionChip extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Chip pequeño tipo "atajo" para aplicar una sugerencia de precio.
+class _SugerenciaChip extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+
+  const _SugerenciaChip({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.amber.shade100,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.amber.shade300, width: 0.6),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.w600,
+              color: Colors.amber.shade900,
+            ),
+          ),
         ),
       ),
     );

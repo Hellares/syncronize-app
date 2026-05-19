@@ -192,6 +192,8 @@ class _CompraFormViewState extends State<_CompraFormView> {
                   'cantidad': d['cantidad'],
                   if (d['precioUnitario'] != null)
                     'precioUnitario': d['precioUnitario'],
+                  if (d['nuevoPrecioVenta'] != null)
+                    'nuevoPrecioVenta': d['nuevoPrecioVenta'],
                 })
             .toList(),
       };
@@ -228,6 +230,8 @@ class _CompraFormViewState extends State<_CompraFormView> {
                   'descuento': d['descuento'] ?? 0,
                   if (d['usaUnidadCompra'] == true)
                     'usaUnidadCompra': true,
+                  if (d['nuevoPrecioVenta'] != null)
+                    'nuevoPrecioVenta': d['nuevoPrecioVenta'],
                 })
             .toList(),
       };
