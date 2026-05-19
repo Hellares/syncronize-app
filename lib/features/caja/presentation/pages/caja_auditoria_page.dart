@@ -82,25 +82,37 @@ class _CajaAuditoriaPageState extends State<CajaAuditoriaPage> {
               return _buildError(msg);
             }
             final auditoria = (resource as Success<CajaAuditoria>).data;
-            return RefreshIndicator(
-              onRefresh: _reload,
-              child: ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  _buildHeader(auditoria.caja),
-                  const SizedBox(height: 12),
-                  if (auditoria.cierre != null)
-                    _buildCierreCard(auditoria.cierre!, auditoria.resumenActual)
-                  else
-                    _buildResumenActualCard(auditoria.resumenActual),
-                  const SizedBox(height: 12),
-                  if (auditoria.arqueos.isNotEmpty) ...[
-                    _buildArqueosCard(auditoria.arqueos),
-                    const SizedBox(height: 12),
-                  ],
-                  _buildMovimientosCard(auditoria.movimientos),
-                ],
-              ),
+            // Filtrado calculado una vez para que el footer fijo de totales
+            // y la card de movimientos compartan el mismo subset.
+            final filtrados = _filtrarMovimientos(auditoria.movimientos);
+            return Column(
+              children: [
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: _reload,
+                    child: ListView(
+                      padding: const EdgeInsets.all(16),
+                      children: [
+                        _buildHeader(auditoria.caja),
+                        const SizedBox(height: 12),
+                        if (auditoria.cierre != null)
+                          _buildCierreCard(
+                              auditoria.cierre!, auditoria.resumenActual)
+                        else
+                          _buildResumenActualCard(auditoria.resumenActual),
+                        const SizedBox(height: 12),
+                        if (auditoria.arqueos.isNotEmpty) ...[
+                          _buildArqueosCard(auditoria.arqueos),
+                          const SizedBox(height: 12),
+                        ],
+                        _buildMovimientosCard(
+                            auditoria.movimientos, filtrados),
+                      ],
+                    ),
+                  ),
+                ),
+                _buildTotalesFijos(filtrados),
+              ],
             );
           },
         ),
@@ -146,7 +158,7 @@ class _CajaAuditoriaPageState extends State<CajaAuditoriaPage> {
         '${duracion.inHours}h ${duracion.inMinutes.remainder(60)}min';
 
     return GradientContainer(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -155,14 +167,14 @@ class _CajaAuditoriaPageState extends State<CajaAuditoriaPage> {
               Expanded(
                 child: AppSubtitle(
                   caja.codigo,
-                  fontSize: 16,
+                  fontSize: 12,
                   color: AppColors.blue3,
                 ),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
+                  horizontal: 5,
+                  vertical: 2,
                 ),
                 decoration: BoxDecoration(
                   color: caja.estado.color.withValues(alpha: 0.1),
@@ -171,7 +183,7 @@ class _CajaAuditoriaPageState extends State<CajaAuditoriaPage> {
                 child: Text(
                   caja.estado.label,
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 11,
                     fontWeight: FontWeight.w600,
                     color: caja.estado.color,
                   ),
@@ -183,7 +195,7 @@ class _CajaAuditoriaPageState extends State<CajaAuditoriaPage> {
           Text(
             '${caja.sedeNombre ?? 'Sede'} · ${caja.usuarioNombre ?? 'Cajero'}',
             style: const TextStyle(
-              fontSize: 13,
+              fontSize: 10,
               color: AppColors.textSecondary,
             ),
           ),
@@ -502,8 +514,13 @@ class _CajaAuditoriaPageState extends State<CajaAuditoriaPage> {
 
   // ─── Movimientos ─────────────────────────────────────────────────────
 
-  Widget _buildMovimientosCard(List<MovimientoAuditoria> todos) {
-    final filtrados = todos.where((m) {
+  /// Aplica los filtros activos (tipo/método/búsqueda/anulados/contrapartidas)
+  /// a la lista completa de movimientos. Se calcula desde el `build` para que
+  /// el footer fijo de totales y la card de movimientos compartan el mismo
+  /// subset sin recomputar.
+  List<MovimientoAuditoria> _filtrarMovimientos(
+      List<MovimientoAuditoria> todos) {
+    return todos.where((m) {
       if (!_mostrarAnulados && m.anulado) return false;
       if (!_mostrarContrapartidas && m.esContrapartida) return false;
       if (_filtroTipo != null && m.tipo != _filtroTipo) return false;
@@ -512,25 +529,20 @@ class _CajaAuditoriaPageState extends State<CajaAuditoriaPage> {
         final q = _busqueda.toLowerCase();
         final d = (m.descripcion ?? '').toLowerCase();
         final v = (m.ventaCodigo ?? '').toLowerCase();
-        if (!d.contains(q) && !v.contains(q) && !m.categoria.label.toLowerCase().contains(q)) {
+        if (!d.contains(q) &&
+            !v.contains(q) &&
+            !m.categoria.label.toLowerCase().contains(q)) {
           return false;
         }
       }
       return true;
     }).toList();
+  }
 
-    // Totales visibles (excluyendo anulados y contrapartidas para neto real).
-    double inOk = 0, outOk = 0;
-    for (final m in filtrados) {
-      if (m.anulado) continue; // anulado no cuenta
-      if (m.tipo == TipoMovimientoCaja.ingreso) {
-        inOk += m.monto;
-      } else {
-        outOk += m.monto;
-      }
-    }
-    final neto = inOk - outOk;
-
+  Widget _buildMovimientosCard(
+    List<MovimientoAuditoria> todos,
+    List<MovimientoAuditoria> filtrados,
+  ) {
     return GradientContainer(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -593,78 +605,83 @@ class _CajaAuditoriaPageState extends State<CajaAuditoriaPage> {
             Column(
               children: filtrados.map(_buildMovimientoRow).toList(),
             ),
-          const Divider(height: 20),
-          Row(
+        ],
+      ),
+    );
+  }
+
+  /// Footer fijo al pie de la pantalla con totales de la lista filtrada.
+  /// Excluye anulados (no cuentan al neto real). Aislado del scroll del
+  /// ListView para que el cajero siempre vea cuánto cierra mientras revisa.
+  Widget _buildTotalesFijos(List<MovimientoAuditoria> filtrados) {
+    double inOk = 0, outOk = 0;
+    for (final m in filtrados) {
+      if (m.anulado) continue;
+      if (m.tipo == TipoMovimientoCaja.ingreso) {
+        inOk += m.monto;
+      } else {
+        outOk += m.monto;
+      }
+    }
+    final neto = inOk - outOk;
+
+    return Material(
+      elevation: 8,
+      color: AppColors.white,
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Row(
             children: [
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Ingresos',
-                      style: TextStyle(
-                          fontSize: 11,
-                          color: AppColors.textSecondary
-                              .withValues(alpha: 0.8)),
-                    ),
-                    Text(
-                      _currencyFormat.format(inOk),
-                      style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.green),
-                    ),
-                  ],
+                child: _buildTotalColumn(
+                  'Ingresos',
+                  _currencyFormat.format(inOk),
+                  AppColors.green,
                 ),
               ),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Egresos',
-                      style: TextStyle(
-                          fontSize: 11,
-                          color: AppColors.textSecondary
-                              .withValues(alpha: 0.8)),
-                    ),
-                    Text(
-                      _currencyFormat.format(outOk),
-                      style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.red),
-                    ),
-                  ],
+                child: _buildTotalColumn(
+                  'Egresos',
+                  _currencyFormat.format(outOk),
+                  AppColors.red,
                 ),
               ),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Neto',
-                      style: TextStyle(
-                          fontSize: 11,
-                          color: AppColors.textSecondary
-                              .withValues(alpha: 0.8)),
-                    ),
-                    Text(
-                      _currencyFormat.format(neto),
-                      style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: neto >= 0
-                              ? AppColors.green
-                              : AppColors.red),
-                    ),
-                  ],
+                child: _buildTotalColumn(
+                  'Neto',
+                  _currencyFormat.format(neto),
+                  neto >= 0 ? AppColors.green : AppColors.red,
                 ),
               ),
             ],
           ),
-        ],
+        ),
       ),
+    );
+  }
+
+  Widget _buildTotalColumn(String label, String value, Color color) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            color: AppColors.textSecondary.withValues(alpha: 0.8),
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: color,
+          ),
+        ),
+      ],
     );
   }
 
