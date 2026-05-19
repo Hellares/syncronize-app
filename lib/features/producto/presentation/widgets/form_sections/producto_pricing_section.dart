@@ -115,7 +115,6 @@ class ProductoPricingSection extends StatelessWidget {
                         : 'Precio de Venta *',
                     hintText: '0.00',
                     borderColor: AppColors.blue1,
-                    decimalPlaces: 4,
                     enabled: !esCombo || tipoPrecioCombo == 'FIJO' || tipoPrecioCombo == null,
                     enableRealTimeValidation: true,
                     validator: (value) {
@@ -146,7 +145,6 @@ class ProductoPricingSection extends StatelessWidget {
                     label: 'Precio de Costo',
                     hintText: '0.00',
                     borderColor: AppColors.blue1,
-                    decimalPlaces: 4,
                     enableRealTimeValidation: true,
                   ),
                 ),

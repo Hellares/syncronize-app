@@ -315,10 +315,6 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
                                 label: 'Precio de Venta',
                                 controller: _precioController,
                                 borderColor: AppColors.blue1,
-                                // 4 decimales para soportar productos con
-                                // unidad atómica chica (ej: arroz por gramo
-                                // a S/0.0030/u). El sistema persiste 14,4.
-                                decimalPlaces: 4,
                                 enabled: !_stockEfectivo.isLiquidacionActiva,
                                 onChanged: (_) {
                                   if (_precioIncluyeIGV) setState(() {});
@@ -416,7 +412,6 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
                                   label: 'Precio de Costo (por unidad)',
                                   controller: _precioCostoController,
                                   borderColor: AppColors.blue1,
-                                  decimalPlaces: 4,
                                   allowZero: false,
                                   // Editable siempre. Antes se desabilitaba para
                                   // proteger reporteria historica; ahora no es
@@ -534,7 +529,6 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
                           label: 'Precio de Oferta',
                           controller: _precioOfertaController,
                           borderColor: AppColors.blue1,
-                          decimalPlaces: 4,
                           allowZero: false,
                           validator: (value) {
                             if (!_enOferta) return null;

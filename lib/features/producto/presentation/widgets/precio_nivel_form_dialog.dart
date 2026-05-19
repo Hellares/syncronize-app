@@ -417,7 +417,6 @@ class _PrecioNivelFormDialogState extends State<PrecioNivelFormDialog> {
                         controller: _precioController,
                         label: 'Precio unitario',
                         borderColor: AppColors.blue1,
-                        decimalPlaces: 4,
                         validator: _validatePrecio,
                         onChanged: (_) => setState(() {}),
                       )

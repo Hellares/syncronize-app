@@ -43,9 +43,13 @@ class CurrencyFormatterImproved extends TextInputFormatter {
     digitsOnly = digitsOnly.replaceFirst(RegExp(r'^0+'), '');
     if (digitsOnly.isEmpty) digitsOnly = '0';
 
-    // Convertir a double considerando los decimales
-    // Por ejemplo: "20" -> 0.20, "200" -> 2.00, "2000" -> 20.00
-    double value = int.parse(digitsOnly) / 100;
+    // Convertir a double considerando los decimales.
+    // Right-pad mode tipo calculadora: el divisor escala con
+    // decimalPlaces para no romper cuando se usa precisión > 2.
+    // - decimalPlaces=2: "20" → 0.20, "200" → 2.00
+    // - decimalPlaces=4: "20" → 0.0020, "20000" → 2.0000
+    final divisor = _pow10(decimalPlaces);
+    double value = int.parse(digitsOnly) / divisor;
 
     // Formatear con separadores de miles
     String formatted = _formatCurrency(value);
@@ -66,6 +70,15 @@ class CurrencyFormatterImproved extends TextInputFormatter {
     integerPart = _addThousandsSeparator(integerPart);
 
     return '$integerPart.$decimalPart';
+  }
+
+  /// 10^n para escalar dígitos del right-pad mode según decimalPlaces.
+  int _pow10(int n) {
+    var r = 1;
+    for (var i = 0; i < n; i++) {
+      r *= 10;
+    }
+    return r;
   }
 
   String _addThousandsSeparator(String number) {
