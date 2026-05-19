@@ -6,6 +6,7 @@ import 'package:image/image.dart' as img;
 import '../../../../core/utils/date_formatter.dart';
 import '../../domain/entities/caja.dart';
 import '../../domain/entities/cierre_caja.dart';
+import '../../domain/entities/movimiento_caja.dart';
 
 /// Genera bytes ESC-POS del resumen de cierre de caja. Mismo estilo y
 /// tipografias que el ticket de venta: fontB global, padding manual
@@ -22,6 +23,10 @@ class CierreCajaEscPosGenerator {
     String? sedeNombre,
     Uint8List? logoEmpresa,
     int paperWidth = 80,
+    /// Opcional: lista de movimientos para imprimir detalle completo
+    /// (ventas, egresos, otros). Si es null o vacía, se imprime solo el
+    /// resumen como antes. Los movimientos anulados se omiten del listado.
+    List<MovimientoCaja>? movimientos,
   }) async {
     final profile = await CapabilityProfile.load();
     final paperSize = paperWidth == 58 ? PaperSize.mm58 : PaperSize.mm80;
@@ -185,6 +190,112 @@ class CierreCajaEscPosGenerator {
       bytes += generator.text(obs);
     }
 
+    // ── Detalle de movimientos (opcional) ──
+    // Si el caller pasa movimientos, los desglosamos en VENTAS / EGRESOS /
+    // OTROS INGRESOS. Se omiten anulados y contrapartidas. Cada línea va
+    // compacta (hora HH:MM + código/categoría + método + monto).
+    if (movimientos != null && movimientos.isNotEmpty) {
+      final movsValidos = movimientos
+          .where((m) => !m.anulado)
+          .toList()
+        ..sort((a, b) => a.fechaMovimiento.compareTo(b.fechaMovimiento));
+
+      final ventas = movsValidos
+          .where((m) =>
+              m.tipo == TipoMovimientoCaja.ingreso &&
+              m.categoria == CategoriaMovimientoCaja.venta)
+          .toList();
+      final egresos =
+          movsValidos.where((m) => m.tipo == TipoMovimientoCaja.egreso).toList();
+      final otrosIngresos = movsValidos
+          .where((m) =>
+              m.tipo == TipoMovimientoCaja.ingreso &&
+              m.categoria != CategoriaMovimientoCaja.venta)
+          .toList();
+
+      bytes += generator.hr(ch: '=');
+      bytes += generator.text(
+        'DETALLE DE MOVIMIENTOS',
+        styles: const PosStyles(align: PosAlign.center, bold: true),
+      );
+      bytes += generator.hr(ch: '-');
+
+      // VENTAS
+      if (ventas.isNotEmpty) {
+        bytes += generator.text(
+          'VENTAS (${ventas.length})',
+          styles: const PosStyles(bold: true),
+        );
+        double totalVentas = 0;
+        for (final m in ventas) {
+          final hora = _hora(m.fechaMovimiento);
+          final codigo = m.ventaCodigo ?? '-';
+          final metodo = _metodoCorto(m.metodoPago.label);
+          final monto = _money(m.monto);
+          bytes += generator.text(
+            _row('$hora $codigo $metodo', monto, charsPerLine),
+          );
+          totalVentas += m.monto;
+        }
+        bytes += generator.text(
+          _row('  TOTAL VENTAS', _money(totalVentas), charsPerLine),
+          styles: const PosStyles(bold: true),
+        );
+      }
+
+      // EGRESOS
+      if (egresos.isNotEmpty) {
+        if (ventas.isNotEmpty) bytes += generator.feed(1);
+        bytes += generator.text(
+          'EGRESOS (${egresos.length})',
+          styles: const PosStyles(bold: true),
+        );
+        double totalEgr = 0;
+        for (final m in egresos) {
+          final hora = _hora(m.fechaMovimiento);
+          final cat = _categoriaCorta(m.categoria);
+          final metodo = _metodoCorto(m.metodoPago.label);
+          final monto = _money(m.monto);
+          bytes +=
+              generator.text(_row('$hora $cat $metodo', monto, charsPerLine));
+          final desc = (m.descripcion ?? '').trim();
+          if (desc.isNotEmpty) {
+            bytes += generator.text('  $desc');
+          }
+          totalEgr += m.monto;
+        }
+        bytes += generator.text(
+          _row('  TOTAL EGRESOS', _money(totalEgr), charsPerLine),
+          styles: const PosStyles(bold: true),
+        );
+      }
+
+      // OTROS INGRESOS (no venta)
+      if (otrosIngresos.isNotEmpty) {
+        if (ventas.isNotEmpty || egresos.isNotEmpty) {
+          bytes += generator.feed(1);
+        }
+        bytes += generator.text(
+          'OTROS INGRESOS (${otrosIngresos.length})',
+          styles: const PosStyles(bold: true),
+        );
+        double totalOI = 0;
+        for (final m in otrosIngresos) {
+          final hora = _hora(m.fechaMovimiento);
+          final cat = _categoriaCorta(m.categoria);
+          final metodo = _metodoCorto(m.metodoPago.label);
+          final monto = _money(m.monto);
+          bytes +=
+              generator.text(_row('$hora $cat $metodo', monto, charsPerLine));
+          totalOI += m.monto;
+        }
+        bytes += generator.text(
+          _row('  TOTAL OTROS', _money(totalOI), charsPerLine),
+          styles: const PosStyles(bold: true),
+        );
+      }
+    }
+
     // ── Firma cajero ──
     bytes += generator.feed(3);
     bytes += generator.text(
@@ -230,6 +341,52 @@ class CierreCajaEscPosGenerator {
     final m = d.inMinutes.remainder(60);
     if (h > 0) return '${h}h ${m}m';
     return '${m}m';
+  }
+
+  /// HH:mm en hora local (ya convertida por DateFormatter).
+  static String _hora(DateTime dt) {
+    final local = dt.isUtc ? dt.toLocal() : dt;
+    final hh = local.hour.toString().padLeft(2, '0');
+    final mm = local.minute.toString().padLeft(2, '0');
+    return '$hh:$mm';
+  }
+
+  /// Abrevia métodos largos para que la línea quepa en 42/64 chars.
+  static String _metodoCorto(String label) {
+    switch (label.toUpperCase()) {
+      case 'TRANSFERENCIA':
+        return 'TRANSF';
+      case 'EFECTIVO':
+        return 'EFEC';
+      default:
+        return label.toUpperCase();
+    }
+  }
+
+  /// Etiqueta corta para categorías de egreso (las usadas en el ticket).
+  static String _categoriaCorta(CategoriaMovimientoCaja c) {
+    switch (c) {
+      case CategoriaMovimientoCaja.compra:
+        return 'COMPRA';
+      case CategoriaMovimientoCaja.devolucion:
+        return 'DEVOL';
+      case CategoriaMovimientoCaja.pagoProveedor:
+        return 'PAGO PROV';
+      case CategoriaMovimientoCaja.gastoOperativo:
+        return 'GASTO OP';
+      case CategoriaMovimientoCaja.otroEgreso:
+        return 'OTRO EGR';
+      case CategoriaMovimientoCaja.otroIngreso:
+        return 'OTRO ING';
+      case CategoriaMovimientoCaja.reposicionCajaChica:
+        return 'REPO C.CH.';
+      case CategoriaMovimientoCaja.adelantoServicio:
+        return 'ADEL SERV';
+      case CategoriaMovimientoCaja.pedidoMarketplace:
+        return 'PEDIDO MKT';
+      case CategoriaMovimientoCaja.venta:
+        return 'VENTA';
+    }
   }
 }
 

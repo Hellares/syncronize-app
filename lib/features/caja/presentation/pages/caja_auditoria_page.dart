@@ -7,6 +7,7 @@ import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/utils/date_formatter.dart';
 import 'package:syncronize/core/utils/resource.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
+import '../../../impresoras/domain/services/impresoras_manager.dart';
 import '../../domain/entities/arqueo_caja.dart';
 import '../../domain/entities/caja.dart';
 import '../../domain/entities/caja_auditoria.dart';
@@ -14,6 +15,8 @@ import '../../domain/entities/cierre_caja.dart';
 import '../../domain/entities/movimiento_caja.dart';
 import '../../domain/entities/resumen_caja.dart';
 import '../../domain/usecases/get_auditoria_usecase.dart';
+import '../services/caja_ticket_data.dart';
+import '../services/cierre_caja_esc_pos_generator.dart';
 import '../widgets/resumen_caja_card.dart';
 
 /// Pantalla de auditoría completa de una caja (apertura → cierre).
@@ -68,6 +71,60 @@ class _CajaAuditoriaPageState extends State<CajaAuditoriaPage> {
         title: 'Auditoría de Caja',
         backgroundColor: AppColors.blue1,
         foregroundColor: AppColors.white,
+        actions: [
+          // El popup aparece siempre. El handler verifica que haya cierre
+          // (caja cerrada) antes de imprimir, sino muestra snackbar.
+          FutureBuilder<Resource<CajaAuditoria>>(
+            future: _future,
+            builder: (context, snap) {
+              if (snap.data is! Success<CajaAuditoria>) {
+                return const SizedBox.shrink();
+              }
+              final auditoria =
+                  (snap.data as Success<CajaAuditoria>).data;
+              if (auditoria.cierre == null) {
+                return const SizedBox.shrink();
+              }
+              return PopupMenuButton<String>(
+                icon: const Icon(Icons.print_rounded),
+                tooltip: 'Imprimir',
+                onSelected: (value) {
+                  if (value == 'resumen') {
+                    _imprimir(auditoria, conDetalle: false);
+                  } else if (value == 'detalle') {
+                    _imprimir(auditoria, conDetalle: true);
+                  }
+                },
+                itemBuilder: (_) => const [
+                  PopupMenuItem(
+                    value: 'resumen',
+                    child: ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.receipt_rounded, size: 20),
+                      title: Text('Solo resumen',
+                          style: TextStyle(fontSize: 13)),
+                      subtitle: Text('Totales + métodos de pago',
+                          style: TextStyle(fontSize: 11)),
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'detalle',
+                    child: ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.list_alt_rounded, size: 20),
+                      title: Text('Resumen + detalle',
+                          style: TextStyle(fontSize: 13)),
+                      subtitle: Text('Incluye todas las ventas y egresos',
+                          style: TextStyle(fontSize: 11)),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ],
       ),
       body: GradientContainer(
         child: FutureBuilder<Resource<CajaAuditoria>>(
@@ -1029,6 +1086,63 @@ class _CajaAuditoriaPageState extends State<CajaAuditoriaPage> {
       label: Text(label, style: const TextStyle(fontSize: 12)),
       selected: selected,
       onSelected: (_) => onTap(),
+    );
+  }
+
+  // ─── Impresión ESC-POS ───────────────────────────────────────────────
+
+  Future<void> _imprimir(CajaAuditoria auditoria,
+      {required bool conDetalle}) async {
+    if (auditoria.cierre == null) {
+      _toast('Solo se puede imprimir cajas cerradas', Colors.orange);
+      return;
+    }
+
+    try {
+      final ticketData = await resolverCajaTicketData(context, auditoria.caja);
+      final manager = locator<ImpresorasManager>();
+      final principal = await manager.getPrincipal();
+      if (!mounted) return;
+      if (principal == null) {
+        _toast('No hay impresora principal configurada', Colors.orange);
+        return;
+      }
+
+      final bytes = await CierreCajaEscPosGenerator.generate(
+        caja: auditoria.caja,
+        cierre: auditoria.cierre!,
+        empresaNombre: ticketData.empresaNombre,
+        empresaRazonSocial: ticketData.razonSocial,
+        empresaRuc: ticketData.ruc,
+        empresaDireccion: ticketData.direccion,
+        empresaTelefono: ticketData.telefono,
+        sedeNombre: auditoria.caja.sedeNombre,
+        logoEmpresa: ticketData.logoBytes,
+        paperWidth: principal.anchoPapel.mm,
+        movimientos: conDetalle ? auditoria.movimientos : null,
+      );
+
+      final ok = await manager.imprimirEnPrincipal(bytes);
+      if (!mounted) return;
+      _toast(
+        ok
+            ? (conDetalle ? 'Cierre + detalle impreso' : 'Resumen impreso')
+            : 'No se pudo imprimir',
+        ok ? Colors.green : Colors.orange,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      _toast('Error al imprimir: $e', Colors.red);
+    }
+  }
+
+  void _toast(String msg, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: color,
+        duration: const Duration(seconds: 2),
+      ),
     );
   }
 }
