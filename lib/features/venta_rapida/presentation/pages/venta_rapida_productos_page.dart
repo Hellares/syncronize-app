@@ -70,7 +70,7 @@ class VentaRapidaProductosPage extends StatelessWidget {
             ..loadProductos(
               empresaId: empresaId!,
               sedeId: sedeId,
-              filtros: const ProductoFiltros(isActive: true),
+              filtros: const ProductoFiltros(isActive: true, esInsumo: false),
             ),
         ),
       ],
@@ -160,7 +160,11 @@ class _ProductosViewState extends State<_ProductosView> {
     _searchCtrl.text = _lastScannedCode!;
     if (!mounted) return;
     context.read<ProductoListCubit>().applyFiltros(
-          ProductoFiltros(search: _lastScannedCode, isActive: true),
+          ProductoFiltros(
+            search: _lastScannedCode,
+            isActive: true,
+            esInsumo: false,
+          ),
         );
   }
 
@@ -197,7 +201,7 @@ class _ProductosViewState extends State<_ProductosView> {
     _searchCtrl.clear();
     // Reset al estado base de Venta Rápida: solo productos activos.
     context.read<ProductoListCubit>().applyFiltros(
-          const ProductoFiltros(isActive: true),
+          const ProductoFiltros(isActive: true, esInsumo: false),
           sedeId: widget.sedeId,
         );
     ScaffoldMessenger.of(context).showSnackBar(
@@ -312,14 +316,18 @@ class _ProductosViewState extends State<_ProductosView> {
                 // escaneado — desactivamos el auto-add.
                 _lastScannedCode = null;
                 context.read<ProductoListCubit>().applyFiltros(
-                      ProductoFiltros(search: value, isActive: true),
+                      ProductoFiltros(
+                        search: value,
+                        isActive: true,
+                        esInsumo: false,
+                      ),
                     );
               },
               onClear: () {
                 _lastScannedCode = null;
                 // Volver al listado base de Venta Rápida: solo activos.
                 context.read<ProductoListCubit>().applyFiltros(
-                      const ProductoFiltros(isActive: true),
+                      const ProductoFiltros(isActive: true, esInsumo: false),
                       sedeId: widget.sedeId,
                     );
               },

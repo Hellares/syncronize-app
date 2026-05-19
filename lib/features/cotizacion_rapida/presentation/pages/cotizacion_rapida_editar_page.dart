@@ -224,7 +224,7 @@ class _CotizacionRapidaEditarPageState
             ..loadProductos(
               empresaId: _empresaId!,
               sedeId: _sedeId,
-              filtros: const ProductoFiltros(isActive: true),
+              filtros: const ProductoFiltros(isActive: true, esInsumo: false),
             ),
         ),
       ],
