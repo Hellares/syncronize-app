@@ -24,6 +24,12 @@ class ProductoListItem extends Equatable with StockPorSedeMixin {
   final String tipoAfectacionIgv; // GRAVADO, EXONERADO, INAFECTO
   final bool aplicaIcbper;
 
+  // Unidad de compra (opcional). Cuando está seteada, el módulo de
+  // compras puede ofrecer al usuario cargar la línea en esta unidad y
+  // el backend convierte a unidad atómica antes de afectar stock.
+  final double? factorCompra;
+  final String? unidadCompraSimbolo;
+
   ProductoListItem({
     required this.id,
     required this.nombre,
@@ -43,6 +49,8 @@ class ProductoListItem extends Equatable with StockPorSedeMixin {
     this.descuentoMaximo,
     this.tipoAfectacionIgv = 'GRAVADO',
     this.aplicaIcbper = false,
+    this.factorCompra,
+    this.unidadCompraSimbolo,
   });
 
   /// Stock consolidado: para productos con variantes suma el stock de todas las variantes,
@@ -83,5 +91,7 @@ class ProductoListItem extends Equatable with StockPorSedeMixin {
         descuentoMaximo,
         tipoAfectacionIgv,
         aplicaIcbper,
+        factorCompra,
+        unidadCompraSimbolo,
       ];
 }

@@ -45,6 +45,7 @@ class ProductoFormController extends ChangeNotifier {
         dimensionLargoController,
         dimensionAnchoController,
         dimensionAltoController,
+        factorCompraController,
       ];
 
   // ============================================================
@@ -86,6 +87,20 @@ class ProductoFormController extends ChangeNotifier {
     markAsChanged();
     notifyListeners();
   }
+
+  /// Unidad de COMPRA (opcional). Cuando el proveedor te vende en una
+  /// unidad distinta a la de venta (ej: PAQUETE de 100 BOLSAS).
+  String? _selectedUnidadCompraId;
+  String? get selectedUnidadCompraId => _selectedUnidadCompraId;
+  set selectedUnidadCompraId(String? value) {
+    _selectedUnidadCompraId = value;
+    markAsChanged();
+    notifyListeners();
+  }
+
+  /// Factor de conversión: cuántas unidades de venta trae 1 unidad
+  /// de compra. Ej: 100 (BOLSAS por PAQUETE), 1000 (GR por KG).
+  final TextEditingController factorCompraController = TextEditingController();
 
   String? _selectedConfiguracionPrecioId;
   String? get selectedConfiguracionPrecioId => _selectedConfiguracionPrecioId;
@@ -272,6 +287,8 @@ class ProductoFormController extends ChangeNotifier {
     _selectedCategoriaId = producto.empresaCategoriaId;
     _selectedMarcaId = producto.empresaMarcaId;
     _selectedUnidadMedidaId = producto.unidadMedidaId;
+    _selectedUnidadCompraId = producto.unidadCompraId;
+    factorCompraController.text = producto.factorCompra?.toString() ?? '';
     _selectedConfiguracionPrecioId = producto.configuracionPrecioId;
     _visibleMarketplace = producto.visibleMarketplace;
     _destacado = producto.destacado;
@@ -315,6 +332,8 @@ class ProductoFormController extends ChangeNotifier {
     _selectedMarcaId = null;
     _selectedSedesIds = [];
     _selectedUnidadMedidaId = null;
+    _selectedUnidadCompraId = null;
+    factorCompraController.clear();
     _selectedConfiguracionPrecioId = null;
     _selectedPlantillaId = null;
     _selectedPlantilla = null;

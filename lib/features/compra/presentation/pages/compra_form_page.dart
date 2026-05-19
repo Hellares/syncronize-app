@@ -226,6 +226,8 @@ class _CompraFormViewState extends State<_CompraFormView> {
                   'cantidad': d['cantidad'],
                   'precioUnitario': d['precioUnitario'],
                   'descuento': d['descuento'] ?? 0,
+                  if (d['usaUnidadCompra'] == true)
+                    'usaUnidadCompra': true,
                 })
             .toList(),
       };
@@ -534,6 +536,16 @@ class _CompraFormViewState extends State<_CompraFormView> {
         precio is int ? precio.toDouble() : (precio as num).toDouble();
     final subtotal = cantidadNum * precioNum - descuento;
 
+    // Si el item fue ingresado en unidad de compra, calcular equivalente
+    // atómico para mostrar dual-view en la línea.
+    final bool usaUC = detalle['usaUnidadCompra'] == true;
+    final double? factor = (detalle['factorCompra'] as num?)?.toDouble();
+    final String? simboloUC = detalle['unidadCompraSimbolo'] as String?;
+    final double? cantidadAtomica =
+        usaUC && factor != null ? cantidadNum * factor : null;
+    final double? precioAtomico =
+        usaUC && factor != null && factor > 0 ? precioNum / factor : null;
+
     return Card(
       margin: const EdgeInsets.only(bottom: 6),
       elevation: 0,
@@ -577,7 +589,9 @@ class _CompraFormViewState extends State<_CompraFormView> {
                   Row(
                     children: [
                       Text(
-                        '$cantidad × ${precioNum.toStringAsFixed(2)}',
+                        usaUC && simboloUC != null
+                            ? '$cantidad $simboloUC × ${precioNum.toStringAsFixed(2)}'
+                            : '$cantidad × ${precioNum.toStringAsFixed(2)}',
                         style: TextStyle(
                           fontSize: 10,
                           color: Colors.grey.shade600,
@@ -602,6 +616,18 @@ class _CompraFormViewState extends State<_CompraFormView> {
                       ),
                     ],
                   ),
+                  if (usaUC && cantidadAtomica != null && precioAtomico != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        '= ${cantidadAtomica.toStringAsFixed(cantidadAtomica == cantidadAtomica.truncateToDouble() ? 0 : 2)} u @ S/${precioAtomico.toStringAsFixed(2)}/u',
+                        style: TextStyle(
+                          fontSize: 9,
+                          color: Colors.green.shade700,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),

@@ -32,6 +32,8 @@ class ProductoRepositoryImpl implements ProductoRepository {
     required String empresaId,
     List<String>? sedesIds,
     String? unidadMedidaId,
+    String? unidadCompraId,
+    double? factorCompra,
     String? empresaCategoriaId,
     String? empresaMarcaId,
     String? sku,
@@ -66,6 +68,8 @@ class ProductoRepositoryImpl implements ProductoRepository {
         'empresaId': empresaId,
         if (sedesIds != null && sedesIds.isNotEmpty) 'sedesIds': sedesIds,
         if (unidadMedidaId != null) 'unidadMedidaId': unidadMedidaId,
+        if (unidadCompraId != null) 'unidadCompraId': unidadCompraId,
+        if (factorCompra != null) 'factorCompra': factorCompra,
         if (empresaCategoriaId != null)
           'empresaCategoriaId': empresaCategoriaId,
         if (empresaMarcaId != null) 'empresaMarcaId': empresaMarcaId,
@@ -185,6 +189,8 @@ class ProductoRepositoryImpl implements ProductoRepository {
     required String empresaId,
     String? sedeId,
     String? unidadMedidaId,
+    String? unidadCompraId,
+    double? factorCompra,
     String? empresaCategoriaId,
     String? empresaMarcaId,
     String? sku,
@@ -219,6 +225,8 @@ class ProductoRepositoryImpl implements ProductoRepository {
       final data = <String, dynamic>{
         // NO enviar sedeId - la sede no se puede cambiar después de crear el producto
         if (unidadMedidaId != null) 'unidadMedidaId': unidadMedidaId,
+        if (unidadCompraId != null) 'unidadCompraId': unidadCompraId,
+        if (factorCompra != null) 'factorCompra': factorCompra,
         if (empresaCategoriaId != null)
           'empresaCategoriaId': empresaCategoriaId,
         if (empresaMarcaId != null) 'empresaMarcaId': empresaMarcaId,

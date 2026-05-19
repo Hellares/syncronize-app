@@ -21,6 +21,10 @@ class CompraDetalleModel extends CompraDetalle {
     super.variante,
     super.lote,
     super.ordenCompraDetalle,
+    super.usaUnidadCompra,
+    super.cantidadOriginal,
+    super.unidadOriginalSimbolo,
+    super.factorAplicado,
   });
 
   factory CompraDetalleModel.fromJson(Map<String, dynamic> json) {
@@ -44,6 +48,14 @@ class CompraDetalleModel extends CompraDetalle {
       variante: json['variante'] as Map<String, dynamic>?,
       lote: json['lote'] as Map<String, dynamic>?,
       ordenCompraDetalle: json['ordenCompraDetalle'] as Map<String, dynamic>?,
+      usaUnidadCompra: json['usaUnidadCompra'] as bool? ?? false,
+      cantidadOriginal: json['cantidadOriginal'] != null
+          ? double.tryParse(json['cantidadOriginal'].toString())
+          : null,
+      unidadOriginalSimbolo: json['unidadOriginalSimbolo'] as String?,
+      factorAplicado: json['factorAplicado'] != null
+          ? double.tryParse(json['factorAplicado'].toString())
+          : null,
     );
   }
 }

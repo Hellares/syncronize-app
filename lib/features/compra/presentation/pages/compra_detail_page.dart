@@ -601,12 +601,23 @@ class _CompraDetailPageState extends State<CompraDetailPage> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '${d.cantidad} x ${_compra.moneda} ${d.precioUnitario.toStringAsFixed(2)}',
+                        d.usaUnidadCompra && d.unidadOriginalSimbolo != null
+                            ? '${d.cantidadOriginal ?? d.cantidad} ${d.unidadOriginalSimbolo} x ${_compra.moneda} ${(d.cantidadOriginal != null && d.cantidadOriginal! > 0 ? (d.precioUnitario * (d.factorAplicado ?? 1)).toStringAsFixed(2) : d.precioUnitario.toStringAsFixed(2))}'
+                            : '${d.cantidad} x ${_compra.moneda} ${d.precioUnitario.toStringAsFixed(2)}',
                         style: TextStyle(
                           fontSize: 11,
                           color: Colors.grey.shade600,
                         ),
                       ),
+                      if (d.usaUnidadCompra)
+                        Text(
+                          '= ${d.cantidad} u @ ${_compra.moneda} ${d.precioUnitario.toStringAsFixed(2)}/u',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontStyle: FontStyle.italic,
+                            color: Colors.green.shade700,
+                          ),
+                        ),
                     ],
                   ),
                 ),

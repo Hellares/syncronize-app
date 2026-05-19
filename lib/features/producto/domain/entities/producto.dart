@@ -13,6 +13,16 @@ class Producto extends Equatable with StockPorSedeMixin {
   final String? empresaCategoriaId;
   final String? empresaMarcaId;
   final String? unidadMedidaId;
+
+  /// Unidad de COMPRA opcional. Se usa cuando el proveedor te vende en
+  /// una unidad distinta a la de venta (PAQUETE de 100 BOLSAS, KG de
+  /// 1000 GR, DOCENA de 12 UND). En módulo Compras, el usuario puede
+  /// elegir cargar la línea en esta unidad y el backend convierte
+  /// automáticamente a unidad atómica multiplicando por factorCompra.
+  final String? unidadCompraId;
+  final double? factorCompra;
+  final EmpresaUnidadMedida? unidadCompra;
+
   final String codigoEmpresa;
   final String codigoSistema;
   final String? sku;
@@ -57,6 +67,9 @@ class Producto extends Equatable with StockPorSedeMixin {
     this.empresaCategoriaId,
     this.empresaMarcaId,
     this.unidadMedidaId,
+    this.unidadCompraId,
+    this.factorCompra,
+    this.unidadCompra,
     required this.codigoEmpresa,
     required this.codigoSistema,
     this.sku,
@@ -147,6 +160,9 @@ class Producto extends Equatable with StockPorSedeMixin {
         empresaCategoriaId,
         empresaMarcaId,
         unidadMedidaId,
+        unidadCompraId,
+        factorCompra,
+        unidadCompra,
         codigoEmpresa,
         codigoSistema,
         sku,

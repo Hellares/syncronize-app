@@ -115,6 +115,12 @@ class ProductoFormCubit extends Cubit<ProductoFormState> {
         };
       }
 
+      final factorCompraValue = controller.factorCompraController.text.trim().isEmpty
+          ? null
+          : double.tryParse(
+              controller.factorCompraController.text.replaceAll(',', '.'),
+            );
+
       final Resource<Producto> result;
       if (isEditing && productoId != null) {
         result = await _actualizarProductoUseCase(
@@ -122,6 +128,8 @@ class ProductoFormCubit extends Cubit<ProductoFormState> {
           empresaId: empresaId,
           // NO enviar sedeId - la sede no se puede cambiar al actualizar
           unidadMedidaId: controller.selectedUnidadMedidaId,
+          unidadCompraId: controller.selectedUnidadCompraId,
+          factorCompra: factorCompraValue,
           nombre: nombre,
           descripcion: descripcion.isEmpty ? null : descripcion,
           empresaCategoriaId: controller.selectedCategoriaId,
@@ -153,6 +161,8 @@ class ProductoFormCubit extends Cubit<ProductoFormState> {
           empresaId: empresaId,
           sedesIds: controller.selectedSedesIds,
           unidadMedidaId: controller.selectedUnidadMedidaId,
+          unidadCompraId: controller.selectedUnidadCompraId,
+          factorCompra: factorCompraValue,
           nombre: nombre,
           descripcion: descripcion.isEmpty ? null : descripcion,
           empresaCategoriaId: controller.selectedCategoriaId,

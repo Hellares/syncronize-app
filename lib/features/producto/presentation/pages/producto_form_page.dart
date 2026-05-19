@@ -53,6 +53,7 @@ import '../widgets/form_sections/producto_basic_info_section.dart';
 import '../widgets/form_sections/producto_options_section.dart';
 import '../widgets/form_sections/producto_tipo_section.dart';
 import '../widgets/form_sections/producto_categorizacion_section.dart';
+import '../widgets/form_sections/producto_unidad_compra_section.dart';
 import '../widgets/form_sections/producto_impuestos_section.dart';
 import '../widgets/form_sections/producto_variantes_banner.dart';
 import '../widgets/form_sections/producto_combo_banner.dart';
@@ -538,6 +539,25 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
                   },
                 ),
                 const SizedBox(height: 15),
+                // Sección opcional: si el producto se compra al
+                // proveedor en una unidad distinta a la de venta.
+                // Oculta para combos y productos con variantes (no se
+                // compran por unidad alternativa en esos casos).
+                if (!_controller.tieneVariantes && !_controller.esCombo) ...[
+                  ProductoUnidadCompraSection(
+                    selectedUnidadMedidaId: _controller.selectedUnidadMedidaId,
+                    selectedUnidadCompraId: _controller.selectedUnidadCompraId,
+                    factorCompraController: _controller.factorCompraController,
+                    onUnidadCompraChanged: (value) {
+                      setState(() {
+                        _controller.selectedUnidadCompraId = value;
+                        _markAsChanged();
+                      });
+                    },
+                    onChanged: _markAsChanged,
+                  ),
+                  const SizedBox(height: 15),
+                ],
                 if (!_controller.tieneVariantes && !_controller.esCombo) ...[
                   // Card agrupada desglosable: Plantilla + Características
                   // físicas + Dimensiones. Cerrada por defecto para acortar

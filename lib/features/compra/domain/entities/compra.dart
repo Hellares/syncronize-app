@@ -27,6 +27,15 @@ class CompraDetalle extends Equatable {
   final Map<String, dynamic>? lote;
   final Map<String, dynamic>? ordenCompraDetalle;
 
+  // Snapshot Unidad de Compra (Fase B). Si la línea fue cargada por
+  // unidad de compra, estos campos guardan cuántas unidades originales,
+  // qué símbolo y qué factor se aplicó. `cantidad` y `precioUnitario`
+  // SIEMPRE son los convertidos a unidad atómica.
+  final bool usaUnidadCompra;
+  final double? cantidadOriginal;
+  final String? unidadOriginalSimbolo;
+  final double? factorAplicado;
+
   const CompraDetalle({
     required this.id,
     required this.compraId,
@@ -47,6 +56,10 @@ class CompraDetalle extends Equatable {
     this.variante,
     this.lote,
     this.ordenCompraDetalle,
+    this.usaUnidadCompra = false,
+    this.cantidadOriginal,
+    this.unidadOriginalSimbolo,
+    this.factorAplicado,
   });
 
   String get nombreProducto {

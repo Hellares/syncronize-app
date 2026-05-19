@@ -22,6 +22,8 @@ class ProductoListItemModel extends ProductoListItem {
     super.descuentoMaximo,
     super.tipoAfectacionIgv,
     super.aplicaIcbper,
+    super.factorCompra,
+    super.unidadCompraSimbolo,
   });
 
   factory ProductoListItemModel.fromJson(Map<String, dynamic> json) {
@@ -62,7 +64,21 @@ class ProductoListItemModel extends ProductoListItem {
           : null,
       tipoAfectacionIgv: json['tipoAfectacionIgv'] as String? ?? 'GRAVADO',
       aplicaIcbper: json['aplicaIcbper'] as bool? ?? false,
+      factorCompra: json['factorCompra'] != null
+          ? double.tryParse(json['factorCompra'].toString())
+          : null,
+      unidadCompraSimbolo: _extractUnidadCompraSimbolo(json),
     );
+  }
+
+  /// Resuelve el símbolo de la unidadCompra siguiendo la jerarquía
+  /// local override > personalizado > maestra (igual que el backend).
+  static String? _extractUnidadCompraSimbolo(Map<String, dynamic> json) {
+    final uc = json['unidadCompra'];
+    if (uc is! Map<String, dynamic>) return null;
+    return (uc['simboloLocal'] as String?) ??
+        (uc['simboloPersonalizado'] as String?) ??
+        ((uc['unidadMaestra'] as Map<String, dynamic>?)?['simbolo'] as String?);
   }
 
   Map<String, dynamic> toJson() {
@@ -141,6 +157,8 @@ class ProductoListItemModel extends ProductoListItem {
       descuentoMaximo: entity.descuentoMaximo,
       tipoAfectacionIgv: entity.tipoAfectacionIgv,
       aplicaIcbper: entity.aplicaIcbper,
+      factorCompra: entity.factorCompra,
+      unidadCompraSimbolo: entity.unidadCompraSimbolo,
     );
   }
 }

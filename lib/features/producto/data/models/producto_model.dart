@@ -13,6 +13,9 @@ class ProductoModel extends Producto {
     super.empresaCategoriaId,
     super.empresaMarcaId,
     super.unidadMedidaId,
+    super.unidadCompraId,
+    super.factorCompra,
+    super.unidadCompra,
     required super.codigoEmpresa,
     required super.codigoSistema,
     super.sku,
@@ -57,6 +60,14 @@ class ProductoModel extends Producto {
       empresaCategoriaId: json['empresaCategoriaId'] as String?,
       empresaMarcaId: json['empresaMarcaId'] as String?,
       unidadMedidaId: json['unidadMedidaId'] as String?,
+      unidadCompraId: json['unidadCompraId'] as String?,
+      factorCompra: json['factorCompra'] != null
+          ? toSafeDouble(json['factorCompra'])
+          : null,
+      unidadCompra: json['unidadCompra'] != null
+          ? EmpresaUnidadMedidaModel.fromJson(
+              json['unidadCompra'] as Map<String, dynamic>)
+          : null,
       codigoEmpresa: json['codigoEmpresa'] as String,
       codigoSistema: json['codigoSistema'] as String,
       sku: json['sku'] as String?,
@@ -142,6 +153,8 @@ class ProductoModel extends Producto {
       if (empresaCategoriaId != null) 'empresaCategoriaId': empresaCategoriaId,
       if (empresaMarcaId != null) 'empresaMarcaId': empresaMarcaId,
       if (unidadMedidaId != null) 'unidadMedidaId': unidadMedidaId,
+      if (unidadCompraId != null) 'unidadCompraId': unidadCompraId,
+      if (factorCompra != null) 'factorCompra': factorCompra,
       'codigoEmpresa': codigoEmpresa,
       'codigoSistema': codigoSistema,
       if (sku != null) 'sku': sku,
@@ -194,6 +207,9 @@ class ProductoModel extends Producto {
       empresaCategoriaId: entity.empresaCategoriaId,
       empresaMarcaId: entity.empresaMarcaId,
       unidadMedidaId: entity.unidadMedidaId,
+      unidadCompraId: entity.unidadCompraId,
+      factorCompra: entity.factorCompra,
+      unidadCompra: entity.unidadCompra,
       codigoEmpresa: entity.codigoEmpresa,
       codigoSistema: entity.codigoSistema,
       sku: entity.sku,
