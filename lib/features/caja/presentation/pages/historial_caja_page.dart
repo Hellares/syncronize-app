@@ -195,6 +195,12 @@ class _HistorialCajaPageState extends State<HistorialCajaPage> {
                   ),
                 ),
               ),
+              const SizedBox(width: 6),
+              const Icon(
+                Icons.chevron_right_rounded,
+                size: 20,
+                color: AppColors.blue1,
+              ),
             ],
           ),
           const Divider(height: 20),
@@ -253,26 +259,49 @@ class _HistorialCajaPageState extends State<HistorialCajaPage> {
               overflow: TextOverflow.ellipsis,
             ),
           ],
-          // Boton imprimir resumen (solo si hay cierre cargado).
-          if (caja.cierre != null) ...[
-            const SizedBox(height: 12),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: () => _reimprimirResumen(caja),
-                icon: const Icon(Icons.print_rounded, size: 16),
-                label: const Text(
-                  'Imprimir resumen',
-                  style: TextStyle(fontSize: 12),
-                ),
-                style: TextButton.styleFrom(
-                  foregroundColor: AppColors.blue1,
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 4),
+          // Footer: link a auditoría completa + botón imprimir resumen.
+          const SizedBox(height: 10),
+          const Divider(height: 1),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              const Icon(
+                Icons.assignment_outlined,
+                size: 14,
+                color: AppColors.blue1,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                'Ver movimientos completos',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.blue1,
                 ),
               ),
-            ),
-          ],
+              const Spacer(),
+              // Boton imprimir resumen (solo si hay cierre cargado).
+              // Va dentro del InkWell padre pero TextButton tiene su propio
+              // GestureDetector que intercepta el tap → no dispara el push
+              // a auditoría por accidente.
+              if (caja.cierre != null)
+                TextButton.icon(
+                  onPressed: () => _reimprimirResumen(caja),
+                  icon: const Icon(Icons.print_rounded, size: 16),
+                  label: const Text(
+                    'Imprimir resumen',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.blue1,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 4),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                ),
+            ],
+          ),
         ],
       ),
       ),
