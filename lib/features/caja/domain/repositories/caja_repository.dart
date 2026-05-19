@@ -1,6 +1,7 @@
 import '../../../../core/utils/resource.dart';
 import '../entities/arqueo_caja.dart';
 import '../entities/caja.dart';
+import '../entities/caja_auditoria.dart';
 import '../entities/caja_monitor.dart';
 import '../entities/movimiento_caja.dart';
 import '../entities/resumen_caja.dart';
@@ -70,4 +71,8 @@ abstract class CajaRepository {
 
   /// Listar arqueos de una caja.
   Future<Resource<List<ArqueoCaja>>> getArqueos({required String cajaId});
+
+  /// Auditoría completa (apertura → cierre): caja + cierre + arqueos + TODOS
+  /// los movimientos (incluye anulados y contrapartidas con flags).
+  Future<Resource<CajaAuditoria>> getAuditoria({required String cajaId});
 }

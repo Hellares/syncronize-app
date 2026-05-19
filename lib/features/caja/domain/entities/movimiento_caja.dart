@@ -139,11 +139,13 @@ enum CategoriaMovimientoCaja {
     switch (this) {
       case CategoriaMovimientoCaja.venta:
       case CategoriaMovimientoCaja.pedidoMarketplace:
-      case CategoriaMovimientoCaja.compra:
-      case CategoriaMovimientoCaja.devolucion:
       case CategoriaMovimientoCaja.adelantoServicio:
       case CategoriaMovimientoCaja.otroIngreso:
         return true;
+      // COMPRA: pagamos al proveedor → sale plata de caja.
+      // DEVOLUCION: devolvemos al cliente → sale plata de caja.
+      case CategoriaMovimientoCaja.compra:
+      case CategoriaMovimientoCaja.devolucion:
       case CategoriaMovimientoCaja.pagoProveedor:
       case CategoriaMovimientoCaja.gastoOperativo:
       case CategoriaMovimientoCaja.otroEgreso:

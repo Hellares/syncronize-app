@@ -119,6 +119,8 @@ import '../../features/caja/domain/usecases/crear_arqueo_usecase.dart' as _i659;
 import '../../features/caja/domain/usecases/crear_movimiento_usecase.dart'
     as _i290;
 import '../../features/caja/domain/usecases/get_arqueos_usecase.dart' as _i1047;
+import '../../features/caja/domain/usecases/get_auditoria_usecase.dart'
+    as _i828;
 import '../../features/caja/domain/usecases/get_caja_activa_usecase.dart'
     as _i265;
 import '../../features/caja/domain/usecases/get_historial_usecase.dart'
@@ -3904,6 +3906,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i1047.GetArqueosUseCase>(
       () => _i1047.GetArqueosUseCase(gh<_i742.CajaRepository>()),
+    );
+    gh.factory<_i828.GetAuditoriaUseCase>(
+      () => _i828.GetAuditoriaUseCase(gh<_i742.CajaRepository>()),
     );
     gh.factory<_i265.GetCajaActivaUseCase>(
       () => _i265.GetCajaActivaUseCase(gh<_i742.CajaRepository>()),

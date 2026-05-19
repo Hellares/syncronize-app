@@ -1,6 +1,7 @@
 import 'package:injectable/injectable.dart';
 import '../../../../core/network/dio_client.dart';
 import '../models/arqueo_caja_model.dart';
+import '../models/caja_auditoria_model.dart';
 import '../models/caja_model.dart';
 import '../models/movimiento_caja_model.dart';
 import '../models/resumen_caja_model.dart';
@@ -131,6 +132,11 @@ class CajaRemoteDataSource {
   Future<ResumenCajaModel> getResumen(String cajaId) async {
     final response = await _dioClient.get('$_basePath/$cajaId/resumen');
     return ResumenCajaModel.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<CajaAuditoriaModel> getAuditoria(String cajaId) async {
+    final response = await _dioClient.get('$_basePath/$cajaId/auditoria');
+    return CajaAuditoriaModel.fromJson(response.data as Map<String, dynamic>);
   }
 
   Future<void> anularMovimiento({

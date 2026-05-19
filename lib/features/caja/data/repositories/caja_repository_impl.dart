@@ -4,6 +4,7 @@ import '../../../../core/services/error_handler_service.dart';
 import '../../../../core/utils/resource.dart';
 import '../../domain/entities/arqueo_caja.dart';
 import '../../domain/entities/caja.dart';
+import '../../domain/entities/caja_auditoria.dart';
 import '../../domain/entities/caja_monitor.dart';
 import '../../domain/entities/movimiento_caja.dart';
 import '../../domain/entities/resumen_caja.dart';
@@ -235,6 +236,19 @@ class CajaRepositoryImpl implements CajaRepository {
     try {
       final arqueos = await _remoteDataSource.getArqueos(cajaId);
       return Success(arqueos);
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Caja');
+    }
+  }
+
+  @override
+  Future<Resource<CajaAuditoria>> getAuditoria({required String cajaId}) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final auditoria = await _remoteDataSource.getAuditoria(cajaId);
+      return Success(auditoria);
     } catch (e) {
       return _errorHandler.handleException(e, context: 'Caja');
     }

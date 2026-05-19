@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:syncronize/core/di/injection_container.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
@@ -145,7 +146,10 @@ class _HistorialCajaPageState extends State<HistorialCajaPage> {
       decimalDigits: 2,
     );
 
-    return GradientContainer(
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: () => context.push('/empresa/caja/auditoria/${caja.id}'),
+      child: GradientContainer(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -270,6 +274,7 @@ class _HistorialCajaPageState extends State<HistorialCajaPage> {
             ),
           ],
         ],
+      ),
       ),
     );
   }

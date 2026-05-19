@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:syncronize/core/di/injection_container.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
@@ -93,6 +94,19 @@ class _CajaViewState extends State<_CajaView> {
         backgroundColor: AppColors.blue1,
         foregroundColor: AppColors.white,
         actions: [
+          // Auditoría (apertura → cierre) de la caja actual.
+          BlocBuilder<CajaActivaCubit, CajaActivaState>(
+            builder: (context, state) {
+              if (state is! CajaActivaAbierta) return const SizedBox.shrink();
+              return IconButton(
+                tooltip: 'Auditoría de esta caja',
+                icon: const Icon(Icons.assignment_outlined),
+                onPressed: () => context.push(
+                  '/empresa/caja/auditoria/${state.caja.id}',
+                ),
+              );
+            },
+          ),
           // Acceso a arqueos solo cuando hay caja abierta (mira el estado
           // del cubit del padre, no recrea uno).
           BlocBuilder<CajaActivaCubit, CajaActivaState>(
