@@ -47,9 +47,41 @@ class _ProductoUnidadCompraSectionState
   @override
   void initState() {
     super.initState();
-    _expandido = widget.selectedUnidadCompraId != null ||
-        widget.factorCompraController.text.trim().isNotEmpty;
+    _expandido = _tieneValores;
+    // El controller es ChangeNotifier — escuchamos por si el padre
+    // llena el texto de factor de forma asíncrona (caso edit producto).
+    widget.factorCompraController.addListener(_onControllerChanged);
   }
+
+  @override
+  void didUpdateWidget(ProductoUnidadCompraSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Si llegaron valores nuevos del padre (caso edit producto que
+    // termina de cargar) y la sección estaba colapsada, expandir.
+    if (!_expandido && _tieneValores) {
+      setState(() => _expandido = true);
+    }
+    if (oldWidget.factorCompraController != widget.factorCompraController) {
+      oldWidget.factorCompraController.removeListener(_onControllerChanged);
+      widget.factorCompraController.addListener(_onControllerChanged);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.factorCompraController.removeListener(_onControllerChanged);
+    super.dispose();
+  }
+
+  void _onControllerChanged() {
+    if (!_expandido && _tieneValores) {
+      setState(() => _expandido = true);
+    }
+  }
+
+  bool get _tieneValores =>
+      widget.selectedUnidadCompraId != null ||
+      widget.factorCompraController.text.trim().isNotEmpty;
 
   void _toggle() {
     setState(() {
