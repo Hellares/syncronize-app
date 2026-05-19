@@ -44,6 +44,7 @@ class AccesosRapidosCatalogo {
   static const cotizaciones = 'cotizaciones';
   static const caja = 'caja';
   static const monitorCajas = 'monitor-cajas';
+  static const historialCajas = 'historial-cajas';
   static const cajaChica = 'caja-chica';
   static const cuentasPorCobrar = 'cuentas-por-cobrar';
   static const finanzas = 'finanzas';
@@ -65,6 +66,7 @@ class AccesosRapidosCatalogo {
     (cotizaciones, 'Cotizaciones'),
     (caja, 'Caja'),
     (monitorCajas, 'Monitor Cajas'),
+    (historialCajas, 'Historial de Cajas'),
     (cajaChica, 'Caja Chica'),
     (cuentasPorCobrar, 'Cuentas por Cobrar'),
     (finanzas, 'Finanzas'),
@@ -158,6 +160,14 @@ class AccesosRapidosSection extends StatelessWidget {
           label: 'Monitor Cajas',
           color: Colors.deepOrange,
           route: '/empresa/caja/monitor',
+          puedeVer: (p) => p.canViewCaja,
+        ),
+        _AccesoItem(
+          id: AccesosRapidosCatalogo.historialCajas,
+          icon: Icons.history,
+          label: 'Historial Cajas',
+          color: Colors.brown,
+          route: '/empresa/caja/historial',
           puedeVer: (p) => p.canViewCaja,
         ),
         _AccesoItem(

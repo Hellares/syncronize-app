@@ -596,6 +596,16 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/caja/monitor')),
           ),
           tile(
+            title: 'Historial de Cajas',
+            icon: Icons.history,
+            iconColor: Colors.brown,
+            visible: can(permissions?.canViewCaja),
+            accesoRapidoId: AccesosRapidosCatalogo.historialCajas,
+            // Exact match — el path /historial es distinto a /monitor y /auditoria.
+            routeMatch: const _RouteMatch.exact('/empresa/caja/historial'),
+            onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/caja/historial')),
+          ),
+          tile(
             title: 'Caja Chica',
             icon: Icons.account_balance_wallet,
             iconColor: Colors.teal,
