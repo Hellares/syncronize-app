@@ -384,7 +384,7 @@ class _CajaAuditoriaPageState extends State<CajaAuditoriaPage> {
           const AppSubtitle('Saldo en Curso',
               fontSize: 14, color: AppColors.blue3),
           const SizedBox(height: 10),
-          _kvRow('Ingresos por Ventas',
+          _kvRow('Total Ingresos',
               _currencyFormat.format(r.totalIngresos),
               color: AppColors.green),
           _kvRow('Egresos', _currencyFormat.format(r.totalEgresos),

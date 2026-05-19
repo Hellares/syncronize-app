@@ -44,11 +44,10 @@ class ResumenCajaCard extends StatelessWidget {
             ),
             const Divider(height: 16),
           ],
-          // Total Ingresos (mayoritariamente ventas; incluye también
-          // PEDIDO_MARKETPLACE, ADELANTO_SERVICIO y OTRO_INGRESO si los
-          // hay — el label refleja el caso común donde casi todo es venta).
+          // Total Ingresos: suma de TODAS las categorías de ingreso —
+          // VENTA, PEDIDO_MARKETPLACE, ADELANTO_SERVICIO, OTRO_INGRESO.
           _buildResumenRow(
-            'Ingresos por Ventas',
+            'Total Ingresos',
             currencyFormat.format(resumen.totalIngresos),
             AppColors.green,
           ),
