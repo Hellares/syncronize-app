@@ -715,8 +715,10 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
                 : 'Cantidad',
             hintText: 'Cantidad',
             keyboardType: TextInputType.number,
+            // Cualquier cambio refresca preview (unidadCompra +
+            // card ajuste precio venta).
             onChanged: (_) {
-              if (_productoSoportaUnidadCompra) setState(() {});
+              if (_productoSeleccionado != null) setState(() {});
             },
           ),
         ),
@@ -732,7 +734,7 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
             keyboardType:
                 const TextInputType.numberWithOptions(decimal: true),
             onChanged: (_) {
-              if (_productoSoportaUnidadCompra) setState(() {});
+              if (_productoSeleccionado != null) setState(() {});
             },
           ),
         ),
