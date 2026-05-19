@@ -12,7 +12,9 @@ import '../../domain/entities/caja.dart';
 import '../../domain/entities/caja_auditoria.dart';
 import '../../domain/entities/cierre_caja.dart';
 import '../../domain/entities/movimiento_caja.dart';
+import '../../domain/entities/resumen_caja.dart';
 import '../../domain/usecases/get_auditoria_usecase.dart';
+import '../widgets/resumen_caja_card.dart';
 
 /// Pantalla de auditoría completa de una caja (apertura → cierre).
 ///
@@ -91,20 +93,27 @@ class _CajaAuditoriaPageState extends State<CajaAuditoriaPage> {
                   child: RefreshIndicator(
                     onRefresh: _reload,
                     child: ListView(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(10),
                       children: [
                         _buildHeader(auditoria.caja),
-                        const SizedBox(height: 12),
-                        if (auditoria.cierre != null)
-                          _buildCierreCard(
-                              auditoria.cierre!, auditoria.resumenActual)
-                        else
-                          _buildResumenActualCard(auditoria.resumenActual),
-                        const SizedBox(height: 12),
-                        if (auditoria.arqueos.isNotEmpty) ...[
-                          _buildArqueosCard(auditoria.arqueos),
-                          const SizedBox(height: 12),
+                        const SizedBox(height: 10),
+                        // Mismo ResumenCajaCard que usa CajaPage en la
+                        // pantalla principal — datos mapeados desde el
+                        // resumen actual de la auditoría.
+                        ResumenCajaCard(
+                          resumen: _toResumenCaja(auditoria.resumenActual),
+                          montoApertura: auditoria.caja.montoApertura,
+                        ),
+                        if (auditoria.cierre != null) ...[
+                          const SizedBox(height: 10),
+                          _buildResultadoCierreCard(
+                              auditoria.cierre!, auditoria.resumenActual),
                         ],
+                        if (auditoria.arqueos.isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          _buildArqueosCard(auditoria.arqueos),
+                        ],
+                        const SizedBox(height: 10),
                         _buildMovimientosCard(
                             auditoria.movimientos, filtrados),
                       ],
@@ -150,31 +159,61 @@ class _CajaAuditoriaPageState extends State<CajaAuditoriaPage> {
   }
 
   // ─── Header ───────────────────────────────────────────────────────────
+  // Mismo diseño que CajaPage cuando hay caja abierta (icono punto venta +
+  // código + sede + badge estado + grid de info), con campos extra propios
+  // de auditoría: cierre y duración.
 
   Widget _buildHeader(Caja caja) {
+    final cerrada = caja.estado == EstadoCaja.cerrada;
+    final iconColor = cerrada ? AppColors.textSecondary : AppColors.green;
     final duracion = (caja.fechaCierre ?? DateTime.now())
         .difference(caja.fechaApertura);
-    final dur =
-        '${duracion.inHours}h ${duracion.inMinutes.remainder(60)}min';
+    final dur = '${duracion.inHours}h ${duracion.inMinutes.remainder(60)}min';
 
     return GradientContainer(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: iconColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.point_of_sale_rounded,
+                  color: iconColor,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 12),
               Expanded(
-                child: AppSubtitle(
-                  caja.codigo,
-                  fontSize: 12,
-                  color: AppColors.blue3,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    AppSubtitle(
+                      caja.codigo,
+                      fontSize: 12,
+                      color: AppColors.blue3,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      caja.sedeNombre ?? 'Sede',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 5,
-                  vertical: 2,
+                  horizontal: 10,
+                  vertical: 4,
                 ),
                 decoration: BoxDecoration(
                   color: caja.estado.color.withValues(alpha: 0.1),
@@ -191,31 +230,24 @@ class _CajaAuditoriaPageState extends State<CajaAuditoriaPage> {
               ),
             ],
           ),
-          const SizedBox(height: 4),
-          Text(
-            '${caja.sedeNombre ?? 'Sede'} · ${caja.usuarioNombre ?? 'Cajero'}',
-            style: const TextStyle(
-              fontSize: 10,
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const Divider(height: 20),
+          const Divider(height: 24),
           Row(
             children: [
               Expanded(
-                child: _infoRow(
-                  Icons.play_arrow_rounded,
-                  'Apertura',
-                  DateFormatter.formatDateTime(caja.fechaApertura),
+                child: _buildInfoItem(
+                  'Cajero',
+                  caja.usuarioNombre ?? '-',
+                  Icons.person_rounded,
                 ),
               ),
               Expanded(
-                child: _infoRow(
-                  Icons.stop_rounded,
-                  caja.estado == EstadoCaja.cerrada ? 'Cierre' : 'En curso',
-                  caja.fechaCierre != null
-                      ? DateFormatter.formatDateTime(caja.fechaCierre!)
-                      : '—',
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: _buildInfoItemEnd(
+                    'Apertura',
+                    DateFormatter.formatDateTime(caja.fechaApertura),
+                    Icons.access_time_rounded,
+                  ),
                 ),
               ),
             ],
@@ -224,17 +256,34 @@ class _CajaAuditoriaPageState extends State<CajaAuditoriaPage> {
           Row(
             children: [
               Expanded(
-                child: _infoRow(
-                  Icons.attach_money_rounded,
-                  'Apertura',
-                  _currencyFormat.format(caja.montoApertura),
+                child: _buildInfoItem(
+                  cerrada ? 'Cierre' : 'En curso',
+                  caja.fechaCierre != null
+                      ? DateFormatter.formatDateTime(caja.fechaCierre!)
+                      : '—',
+                  Icons.stop_rounded,
                 ),
               ),
               Expanded(
-                child: _infoRow(
-                  Icons.timelapse_rounded,
-                  'Duración',
-                  dur,
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: _buildInfoItemEnd(
+                    'Duración',
+                    dur,
+                    Icons.timelapse_rounded,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: _buildInfoItem(
+                  'Monto Apertura',
+                  _currencyFormat.format(caja.montoApertura),
+                  Icons.attach_money_rounded,
                 ),
               ),
             ],
@@ -244,27 +293,120 @@ class _CajaAuditoriaPageState extends State<CajaAuditoriaPage> {
     );
   }
 
-  // ─── Cierre (caja cerrada) ───────────────────────────────────────────
+  // ─── Helpers de info item (mismo estilo que CajaPage) ────────────────
 
-  Widget _buildCierreCard(CierreCaja cierre, ResumenActualCaja actual) {
-    // Drift: si alguien anuló un movimiento DESPUÉS de cerrar, el snapshot
-    // del cierre ya no coincide con el resumen actual recalculado.
+  Widget _buildInfoItem(String label, String value, IconData icon) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: AppColors.textSecondary),
+        const SizedBox(width: 6),
+        Flexible(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInfoItemEnd(String label, String value, IconData icon) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 11,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            Text(
+              value,
+              style: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(width: 6),
+        Icon(icon, size: 16, color: AppColors.textSecondary),
+      ],
+    );
+  }
+
+  // ─── Mapper: ResumenActualCaja → ResumenCaja (entity compartida) ─────
+  //
+  // ResumenCajaCard recibe ResumenCaja con ResumenMetodoPago[]. La
+  // auditoría tiene ResumenActualCaja con DetalleMetodoCaja[] (que también
+  // incluye `apertura`, que ResumenCajaCard ya recibe aparte por param).
+
+  ResumenCaja _toResumenCaja(ResumenActualCaja r) {
+    return ResumenCaja(
+      totalIngresos: r.totalIngresos,
+      totalEgresos: r.totalEgresos,
+      saldo: r.saldoActual,
+      saldoEfectivo: r.saldoEfectivo,
+      detalles: r.detallesPorMetodo
+          .map((d) => ResumenMetodoPago(
+                metodoPago: d.metodoPago,
+                totalIngresos: d.ingresos,
+                totalEgresos: d.egresos,
+                saldo: d.saldo,
+              ))
+          .toList(),
+    );
+  }
+
+  // ─── Resultado del cierre (mini-card extra cuando caja cerrada) ──────
+  //
+  // El ResumenCajaCard arriba ya muestra los totales recalculados. Acá
+  // sumamos lo específico del cierre: conteo físico vs esperado, diferencia
+  // y un banner naranja si el snapshot ya no coincide con el resumen
+  // recalculado (anulación posterior al cierre).
+
+  Widget _buildResultadoCierreCard(
+      CierreCaja cierre, ResumenActualCaja actual) {
     final drift =
         (actual.totalIngresos - cierre.totalIngresos).abs() > 0.01 ||
             (actual.totalEgresos - cierre.totalEgresos).abs() > 0.01;
 
     return GradientContainer(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const AppSubtitle('Resultado del Cierre',
-              fontSize: 14, color: AppColors.blue3),
-          const SizedBox(height: 10),
+          const AppSubtitle('RESULTADO DEL CIERRE',
+              fontSize: 11, color: AppColors.blue3),
+          const SizedBox(height: 12),
           _kvRow('Esperado',
               _currencyFormat.format(cierre.totalEsperado), bold: true),
+          const SizedBox(height: 6),
           _kvRow('Conteo físico',
               _currencyFormat.format(cierre.totalConteoFisico)),
+          const SizedBox(height: 6),
           _kvRow(
             'Diferencia',
             _currencyFormat.format(cierre.diferencia),
@@ -274,7 +416,7 @@ class _CajaAuditoriaPageState extends State<CajaAuditoriaPage> {
             bold: true,
           ),
           if (drift) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
@@ -282,7 +424,7 @@ class _CajaAuditoriaPageState extends State<CajaAuditoriaPage> {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
-                '⚠ El cierre snapshot difiere del recalculo actual. Posible '
+                '⚠ El cierre snapshot difiere del recálculo actual. Posible '
                 'anulación posterior al cierre. Cierre I/E: '
                 'S/${cierre.totalIngresos.toStringAsFixed(2)} / '
                 'S/${cierre.totalEgresos.toStringAsFixed(2)}. '
@@ -295,11 +437,11 @@ class _CajaAuditoriaPageState extends State<CajaAuditoriaPage> {
             ),
           ],
           if (cierre.detalles.isNotEmpty) ...[
-            const Divider(height: 24),
+            const Divider(height: 20),
             const Text(
-              'Por método de pago',
+              'Conteo por método',
               style: TextStyle(
-                  fontSize: 12,
+                  fontSize: 11,
                   fontWeight: FontWeight.w600,
                   color: AppColors.textSecondary),
             ),
@@ -314,11 +456,11 @@ class _CajaAuditoriaPageState extends State<CajaAuditoriaPage> {
           ],
           if (cierre.observaciones != null &&
               cierre.observaciones!.isNotEmpty) ...[
-            const Divider(height: 24),
+            const Divider(height: 20),
             Text(
               cierre.observaciones!,
               style: const TextStyle(
-                fontSize: 12,
+                fontSize: 11,
                 fontStyle: FontStyle.italic,
                 color: AppColors.textSecondary,
               ),
@@ -338,21 +480,21 @@ class _CajaAuditoriaPageState extends State<CajaAuditoriaPage> {
             flex: 2,
             child: Text(
               d.metodoPago.label,
-              style: const TextStyle(fontSize: 12),
+              style: const TextStyle(fontSize: 11),
             ),
           ),
           Expanded(
             child: Text(
               _currencyFormat.format(d.esperado),
               textAlign: TextAlign.right,
-              style: const TextStyle(fontSize: 12),
+              style: const TextStyle(fontSize: 11),
             ),
           ),
           Expanded(
             child: Text(
               _currencyFormat.format(d.conteoFisico),
               textAlign: TextAlign.right,
-              style: const TextStyle(fontSize: 12),
+              style: const TextStyle(fontSize: 11),
             ),
           ),
           Expanded(
@@ -360,7 +502,7 @@ class _CajaAuditoriaPageState extends State<CajaAuditoriaPage> {
               _currencyFormat.format(d.diferencia),
               textAlign: TextAlign.right,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: FontWeight.w600,
                 color: d.diferencia.abs() < 0.01
                     ? AppColors.green
@@ -368,86 +510,6 @@ class _CajaAuditoriaPageState extends State<CajaAuditoriaPage> {
               ),
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  // ─── Resumen actual (caja abierta) ───────────────────────────────────
-
-  Widget _buildResumenActualCard(ResumenActualCaja r) {
-    return GradientContainer(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const AppSubtitle('Saldo en Curso',
-              fontSize: 14, color: AppColors.blue3),
-          const SizedBox(height: 10),
-          _kvRow('Total Ingresos',
-              _currencyFormat.format(r.totalIngresos),
-              color: AppColors.green),
-          _kvRow('Egresos', _currencyFormat.format(r.totalEgresos),
-              color: AppColors.red),
-          _kvRow('Apertura', _currencyFormat.format(r.montoApertura)),
-          const Divider(height: 20),
-          _kvRow('Saldo total operado',
-              _currencyFormat.format(r.saldoActual),
-              bold: true, color: AppColors.blue1),
-          _kvRow('Saldo efectivo (en gaveta)',
-              _currencyFormat.format(r.saldoEfectivo),
-              bold: true, color: AppColors.green),
-          if (r.detallesPorMetodo.any((d) => d.saldo > 0)) ...[
-            const Divider(height: 24),
-            const Text(
-              'Por método de pago',
-              style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textSecondary),
-            ),
-            const SizedBox(height: 6),
-            ...r.detallesPorMetodo
-                .where((d) => d.ingresos > 0 || d.egresos > 0 || d.apertura > 0)
-                .map((d) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 3),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            flex: 2,
-                            child: Text(d.metodoPago.label,
-                                style: const TextStyle(fontSize: 12)),
-                          ),
-                          Expanded(
-                            child: Text(
-                              '+${_currencyFormat.format(d.ingresos)}',
-                              textAlign: TextAlign.right,
-                              style: const TextStyle(
-                                  fontSize: 12, color: AppColors.green),
-                            ),
-                          ),
-                          Expanded(
-                            child: Text(
-                              '-${_currencyFormat.format(d.egresos)}',
-                              textAlign: TextAlign.right,
-                              style: const TextStyle(
-                                  fontSize: 12, color: AppColors.red),
-                            ),
-                          ),
-                          Expanded(
-                            child: Text(
-                              _currencyFormat.format(d.saldo),
-                              textAlign: TextAlign.right,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    )),
-          ],
         ],
       ),
     );
@@ -909,32 +971,6 @@ class _CajaAuditoriaPageState extends State<CajaAuditoriaPage> {
   }
 
   // ─── Helpers ─────────────────────────────────────────────────────────
-
-  Widget _infoRow(IconData icon, String label, String value) {
-    return Row(
-      children: [
-        Icon(icon, size: 14, color: AppColors.textSecondary),
-        const SizedBox(width: 6),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: const TextStyle(
-                    fontSize: 11, color: AppColors.textSecondary),
-              ),
-              Text(
-                value,
-                style: const TextStyle(
-                    fontSize: 12, fontWeight: FontWeight.w500),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
 
   Widget _kvRow(String k, String v,
       {bool bold = false, Color? color}) {
