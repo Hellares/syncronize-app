@@ -73,6 +73,11 @@ class _CompraFormViewState extends State<_CompraFormView> {
   DateTime _fechaRecepcion = DateTime.now();
   String? _terminosPago;
 
+  /// Convención de IGV de los precios ingresados. Default true porque
+  /// en Perú el proveedor típicamente factura con precio TOTAL ya
+  /// incluyendo IGV (S/150 al pagar = base S/127.12 + IGV S/22.88).
+  bool _precioIncluyeIgv = true;
+
   final List<Map<String, dynamic>> _detalles = [];
 
   bool get _isFromOc => widget.ordenCompra != null;
@@ -207,6 +212,7 @@ class _CompraFormViewState extends State<_CompraFormView> {
         'proveedorId': _proveedorId,
         'sedeId': _sedeId,
         'moneda': _moneda,
+        'precioIncluyeIgv': _precioIncluyeIgv,
         'fechaRecepcion': DateFormatter.toUtcIso(_fechaRecepcion),
         if (_terminosPago != null) 'terminosPago': _terminosPago,
         if (_tipoDocProveedorController.text.trim().isNotEmpty)
@@ -416,7 +422,62 @@ class _CompraFormViewState extends State<_CompraFormView> {
                         prefixIcon: const Icon(Icons.notes),
                         maxLines: 3,
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
+
+                      // Toggle: ¿los precios ingresados ya incluyen IGV?
+                      // En Perú lo común es true (proveedor factura
+                      // total con IGV). false para facturas con IGV
+                      // separado (más típico B2B grande).
+                      if (!_isFromOc)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppColors.blue1.withValues(alpha: 0.05),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: AppColors.blue1.withValues(alpha: 0.2),
+                              width: 0.6,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Precios YA incluyen IGV',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.blue1,
+                                      ),
+                                    ),
+                                    Text(
+                                      _precioIncluyeIgv
+                                          ? 'S/150 = S/127.12 base + S/22.88 IGV'
+                                          : 'S/150 + 18% IGV = S/177 total',
+                                      style: TextStyle(
+                                        fontSize: 9,
+                                        color: Colors.grey.shade700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Switch(
+                                value: _precioIncluyeIgv,
+                                activeThumbColor: AppColors.blue1,
+                                onChanged: (v) =>
+                                    setState(() => _precioIncluyeIgv = v),
+                              ),
+                            ],
+                          ),
+                        ),
+                      if (!_isFromOc) const SizedBox(height: 16),
+                      if (_isFromOc) const SizedBox(height: 4),
 
                       // Selector de items (solo para compra standalone)
                       if (!_isFromOc)
