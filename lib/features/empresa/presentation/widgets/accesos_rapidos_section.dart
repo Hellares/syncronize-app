@@ -112,14 +112,6 @@ class AccesosRapidosSection extends StatelessWidget {
           puedeVer: (p) => p.canManageVentas,
         ),
         _AccesoItem(
-          id: AccesosRapidosCatalogo.ventaAvanzada,
-          icon: Icons.point_of_sale,
-          label: 'V. Avanzada',
-          color: Colors.deepOrange,
-          route: '/empresa/ventas/nueva',
-          puedeVer: (p) => p.canManageVentas,
-        ),
-        _AccesoItem(
           id: AccesosRapidosCatalogo.colaPos,
           icon: Icons.receipt_long,
           label: 'Cola POS',
@@ -229,14 +221,6 @@ class AccesosRapidosSection extends StatelessWidget {
           color: Colors.deepPurple,
           route: '/empresa/flujo-documentos',
           puedeVer: (p) => p.canViewVentas,
-        ),
-        _AccesoItem(
-          id: AccesosRapidosCatalogo.guiasRemision,
-          icon: Icons.local_shipping,
-          label: 'Guías Rem.',
-          color: Colors.indigo,
-          route: '/empresa/guias-remision',
-          puedeVer: (p) => p.canManageInvoices,
         ),
       ];
   }
