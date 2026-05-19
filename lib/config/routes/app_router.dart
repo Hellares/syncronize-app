@@ -649,6 +649,7 @@ class AppRouter {
             productoNombre:
                 extra?['nombre'] as String? ?? 'Producto',
             sedeIdInicial: extra?['sedeId'] as String?,
+            esInsumo: extra?['esInsumo'] as bool? ?? false,
           );
         },
       ),

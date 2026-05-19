@@ -27,11 +27,16 @@ class ComponentesProductoPage extends StatefulWidget {
   /// a qué `productoStock` se aplicará el costo al pulsar "Aplicar".
   final String? sedeIdInicial;
 
+  /// Si el producto está marcado como insumo, no se permite "Fabricar"
+  /// (el backend lo rechaza igual, pero ocultamos el botón).
+  final bool esInsumo;
+
   const ComponentesProductoPage({
     super.key,
     required this.productoId,
     required this.productoNombre,
     this.sedeIdInicial,
+    this.esInsumo = false,
   });
 
   @override
@@ -571,6 +576,9 @@ class _ComponentesProductoPageState extends State<ComponentesProductoPage> {
   }
 
   Widget _buildFooter() {
+    final puedeFabricar = !widget.esInsumo &&
+        _items.isNotEmpty &&
+        _sedeId != null;
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
       decoration: BoxDecoration(
@@ -585,37 +593,76 @@ class _ComponentesProductoPageState extends State<ComponentesProductoPage> {
       ),
       child: SafeArea(
         top: false,
-        child: Row(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Expanded(
-              child: CustomButton(
-                text: 'Agregar',
-                icon: const Icon(Icons.add, size: 16, color: Colors.white),
-                backgroundColor: Colors.indigo.shade600,
-                textColor: Colors.white,
-                enableShadows: false,
-                onPressed: _agregar,
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: CustomButton(
+                    text: 'Agregar',
+                    icon: const Icon(Icons.add, size: 16, color: Colors.white),
+                    backgroundColor: Colors.indigo.shade600,
+                    textColor: Colors.white,
+                    enableShadows: false,
+                    onPressed: _agregar,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  flex: 2,
+                  child: CustomButton(
+                    text: 'Aplicar a Costo',
+                    icon: const Icon(Icons.check, size: 16, color: Colors.white),
+                    backgroundColor: AppColors.blue1,
+                    textColor: Colors.white,
+                    enableShadows: false,
+                    isLoading: _aplicando,
+                    onPressed: (_items.isNotEmpty && _costoTotal > 0)
+                        ? _aplicarAlProducto
+                        : null,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: 8),
-            Expanded(
-              flex: 2,
-              child: CustomButton(
-                text: 'Aplicar a Costo',
-                icon: const Icon(Icons.check, size: 16, color: Colors.white),
-                backgroundColor: AppColors.blue1,
-                textColor: Colors.white,
-                enableShadows: false,
-                isLoading: _aplicando,
-                onPressed: (_items.isNotEmpty && _costoTotal > 0)
-                    ? _aplicarAlProducto
-                    : null,
+            if (puedeFabricar) ...[
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: CustomButton(
+                  text: 'Fabricar',
+                  icon: const Icon(Icons.precision_manufacturing_outlined,
+                      size: 16, color: Colors.white),
+                  backgroundColor: Colors.deepPurple.shade600,
+                  textColor: Colors.white,
+                  enableShadows: false,
+                  onPressed: _fabricar,
+                ),
               ),
-            ),
+            ],
           ],
         ),
       ),
     );
+  }
+
+  /// Abre el dialog de Fabricar. Al confirmar, los stocks de los
+  /// componentes se descuentan y se suma `cantidad` al producto final.
+  /// Tras éxito refresca la lista (los costos no cambian pero los stocks
+  /// de los insumos sí, importante para la próxima fabricación).
+  Future<void> _fabricar() async {
+    if (_sedeId == null) return;
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (_) => _FabricarDialog(
+        productoId: widget.productoId,
+        productoNombre: widget.productoNombre,
+        sedeId: _sedeId!,
+        sedeNombre: _sedeNombre,
+        componentes: _items,
+      ),
+    );
+    if (result == true && mounted) _cargar();
   }
 }
 
@@ -1111,6 +1158,391 @@ class _AgregarComponenteDialogState extends State<_AgregarComponenteDialog> {
       ),
     );
   }
+}
+
+// =========================================================================
+// Dialog "Fabricar N": preview de consumo + validación cliente + POST.
+// =========================================================================
+
+class _FabricarDialog extends StatefulWidget {
+  final String productoId;
+  final String productoNombre;
+  final String sedeId;
+  final String? sedeNombre;
+
+  /// Filas tal como las devuelve GET /productos/:id/componentes (con
+  /// `cantidad`, `componente.nombre`, `componente.unidadMedida`).
+  final List<Map<String, dynamic>> componentes;
+
+  const _FabricarDialog({
+    required this.productoId,
+    required this.productoNombre,
+    required this.sedeId,
+    required this.sedeNombre,
+    required this.componentes,
+  });
+
+  @override
+  State<_FabricarDialog> createState() => _FabricarDialogState();
+}
+
+class _FabricarDialogState extends State<_FabricarDialog> {
+  final DioClient _dio = locator<DioClient>();
+  final _cantidadCtrl = TextEditingController(text: '1');
+  final _observacionesCtrl = TextEditingController();
+  bool _fabricando = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _cantidadCtrl.dispose();
+    _observacionesCtrl.dispose();
+    super.dispose();
+  }
+
+  int get _cantidad {
+    return int.tryParse(_cantidadCtrl.text.trim()) ?? 0;
+  }
+
+  /// Para cada componente: cuánto consume × N + si la cantidad consumida
+  /// es entera (stock se maneja en Int, sino el backend rechaza).
+  List<_PreviewLinea> get _preview {
+    return widget.componentes.map((item) {
+      final cantidadPorUnidad = (item['cantidad'] as num).toDouble();
+      final consumido = cantidadPorUnidad * _cantidad;
+      final redondeado = consumido.round();
+      final esEntero = (consumido - redondeado).abs() < 1e-6;
+      return _PreviewLinea(
+        nombre: (item['componente']['nombre'] as String?) ?? '',
+        unidadMedida: (item['componente']['unidadMedida'] as String?) ?? '',
+        cantidadPorUnidad: cantidadPorUnidad,
+        cantidadConsumida: consumido,
+        esEntero: esEntero,
+      );
+    }).toList();
+  }
+
+  bool get _hayFraccionarios => _preview.any((p) => !p.esEntero);
+
+  Future<void> _confirmar() async {
+    if (_cantidad < 1) {
+      setState(() => _error = 'Ingresá una cantidad ≥ 1');
+      return;
+    }
+    if (_hayFraccionarios) {
+      setState(() => _error =
+          'Algún componente requiere cantidad fraccionaria. Cambia la unidad de medida (ej: KG→GR) o ajusta el lote.');
+      return;
+    }
+    setState(() {
+      _fabricando = true;
+      _error = null;
+    });
+    try {
+      final resp = await _dio.post(
+        '/productos/${widget.productoId}/componentes/fabricar',
+        data: {
+          'sedeId': widget.sedeId,
+          'cantidad': _cantidad,
+          if (_observacionesCtrl.text.trim().isNotEmpty)
+            'observaciones': _observacionesCtrl.text.trim(),
+        },
+      );
+      final data = resp.data as Map<String, dynamic>?;
+      if (!mounted) return;
+      Navigator.pop(context, true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Fabricación OK · ${data?['cantidadProducida'] ?? _cantidad} '
+            'unidad(es) · stock nuevo: ${data?['stockFinalNuevo'] ?? '—'} '
+            '· lote ${data?['numeroDocumento'] ?? '—'}',
+          ),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      String msg;
+      if (e is DioException) {
+        final body = e.response?.data;
+        if (body is Map<String, dynamic>) {
+          msg = (body['message']?.toString()) ?? 'Error al fabricar';
+          // Si el backend devuelve faltantes/conflictivos, los anexamos
+          final faltantes = body['faltantes'];
+          if (faltantes is List && faltantes.isNotEmpty) {
+            msg += '\n\nFaltantes:\n${faltantes.map((f) => '- ${f['nombre']}: necesita ${f['requerido']}, hay ${f['disponible']}').join('\n')}';
+          }
+        } else {
+          msg = e.message ?? 'Error al fabricar';
+        }
+      } else {
+        msg = e.toString();
+      }
+      setState(() {
+        _fabricando = false;
+        _error = msg;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final preview = _preview;
+    final puedeConfirmar =
+        _cantidad >= 1 && !_hayFraccionarios && !_fabricando;
+    return Dialog(
+      shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 460, maxHeight: 620),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.precision_manufacturing_outlined,
+                      color: Colors.deepPurple.shade700, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Fabricar',
+                          style: TextStyle(
+                              fontSize: 14, fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          widget.productoNombre,
+                          style: TextStyle(
+                              fontSize: 11, color: Colors.grey.shade700),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 18),
+                    onPressed: _fabricando
+                        ? null
+                        : () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+              if (widget.sedeNombre != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4, left: 28),
+                  child: Row(
+                    children: [
+                      Icon(Icons.store,
+                          size: 11, color: Colors.grey.shade600),
+                      const SizedBox(width: 4),
+                      Text(
+                        widget.sedeNombre!,
+                        style: TextStyle(
+                            fontSize: 10, color: Colors.grey.shade700),
+                      ),
+                    ],
+                  ),
+                ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: _cantidadCtrl,
+                autofocus: true,
+                keyboardType: TextInputType.number,
+                onChanged: (_) => setState(() => _error = null),
+                decoration: InputDecoration(
+                  labelText: 'Cantidad a fabricar (unidades)',
+                  isDense: true,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              if (preview.isNotEmpty) ...[
+                Text(
+                  'Consumirá:',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.deepPurple.shade800,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Flexible(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.deepPurple.shade50,
+                      borderRadius: BorderRadius.circular(6),
+                      border:
+                          Border.all(color: Colors.deepPurple.shade100),
+                    ),
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
+                      itemCount: preview.length,
+                      separatorBuilder: (_, __) => Divider(
+                        height: 6,
+                        color: Colors.deepPurple.shade100,
+                      ),
+                      itemBuilder: (_, i) {
+                        final p = preview[i];
+                        return Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                p.nombre,
+                                style: const TextStyle(fontSize: 11),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Text(
+                              '${_fmt(p.cantidadConsumida)} ${p.unidadMedida}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: p.esEntero
+                                    ? Colors.deepPurple.shade900
+                                    : Colors.red.shade700,
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                if (_hayFraccionarios) ...[
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: Colors.red.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.warning_amber,
+                            size: 14, color: Colors.red.shade700),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'Algún componente requiere cantidad fraccionaria. '
+                            'Cambia la unidad de medida del componente '
+                            '(ej: KG→GR) o ajusta el lote para que sea entero.',
+                            style: TextStyle(
+                                fontSize: 10, color: Colors.red.shade900),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+              const SizedBox(height: 12),
+              TextField(
+                controller: _observacionesCtrl,
+                maxLines: 2,
+                decoration: InputDecoration(
+                  labelText: 'Observaciones (opcional)',
+                  hintText: 'Ej: lote del día, encargo cliente X…',
+                  isDense: true,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+              if (_error != null) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: Colors.red.shade200),
+                  ),
+                  child: Text(
+                    _error!,
+                    style: TextStyle(
+                        fontSize: 10, color: Colors.red.shade900),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: CustomButton(
+                      text: 'Cancelar',
+                      isOutlined: true,
+                      textColor: Colors.deepPurple,
+                      borderColor:
+                          Colors.deepPurple.withValues(alpha: 0.4),
+                      enableShadows: false,
+                      height: 36,
+                      onPressed: _fabricando
+                          ? null
+                          : () => Navigator.pop(context),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    flex: 2,
+                    child: CustomButton(
+                      text: 'Fabricar',
+                      backgroundColor: Colors.deepPurple.shade600,
+                      textColor: Colors.white,
+                      enableShadows: false,
+                      isLoading: _fabricando,
+                      height: 36,
+                      icon: const Icon(
+                          Icons.precision_manufacturing_outlined,
+                          size: 14,
+                          color: Colors.white),
+                      onPressed: puedeConfirmar ? _confirmar : null,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _fmt(double n) {
+    if ((n - n.truncateToDouble()).abs() < 1e-6) {
+      return n.toStringAsFixed(0);
+    }
+    return n.toStringAsFixed(3);
+  }
+}
+
+class _PreviewLinea {
+  final String nombre;
+  final String unidadMedida;
+  final double cantidadPorUnidad;
+  final double cantidadConsumida;
+  final bool esEntero;
+
+  _PreviewLinea({
+    required this.nombre,
+    required this.unidadMedida,
+    required this.cantidadPorUnidad,
+    required this.cantidadConsumida,
+    required this.esEntero,
+  });
 }
 
 /// Mini-dialog interno (mismo patrón que la calculadora del Configurar

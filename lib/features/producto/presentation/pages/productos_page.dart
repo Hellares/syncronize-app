@@ -1047,6 +1047,7 @@ class _ProductosPageState extends State<ProductosPage>
                     extra: {
                       'nombre': producto.nombre,
                       'sedeId': sedeId,
+                      'esInsumo': producto.esInsumo,
                     },
                   ),
                 );
