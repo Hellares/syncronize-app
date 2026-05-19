@@ -1530,11 +1530,13 @@ class _MotivoCambioCostoDialogState extends State<_MotivoCambioCostoDialog> {
               ),
               const SizedBox(height: 12),
 
-              // Motivo (obligatorio)
+              // Motivo (opcional) — el tipoCambio arriba ya documenta
+              // el porqué del cambio, este field es solo para detalle
+              // adicional opcional.
               Padding(
                 padding: const EdgeInsets.only(left: 4, bottom: 4),
                 child: AppSubtitle(
-                  'Motivo (obligatorio)',
+                  'Motivo (opcional)',
                   fontSize: 11,
                   color: AppColors.blue1,
                 ),
@@ -1580,20 +1582,12 @@ class _MotivoCambioCostoDialogState extends State<_MotivoCambioCostoDialog> {
                       icon: const Icon(Icons.check,
                           color: Colors.white, size: 16),
                       onPressed: () {
-                        if (_razonCtrl.text.trim().isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('El motivo es obligatorio'),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
-                          return;
-                        }
+                        final razonTrim = _razonCtrl.text.trim();
                         Navigator.pop(
                           context,
                           _MotivoCambioCostoResult(
                             tipoCambio: _tipoCambio,
-                            razon: _razonCtrl.text.trim(),
+                            razon: razonTrim.isEmpty ? null : razonTrim,
                           ),
                         );
                       },
@@ -1611,8 +1605,8 @@ class _MotivoCambioCostoDialogState extends State<_MotivoCambioCostoDialog> {
 
 class _MotivoCambioCostoResult {
   final String tipoCambio;
-  final String razon;
-  const _MotivoCambioCostoResult({required this.tipoCambio, required this.razon});
+  final String? razon;
+  const _MotivoCambioCostoResult({required this.tipoCambio, this.razon});
 }
 
 /// Dialog separado (no StatefulBuilder) para evitar el bug de
