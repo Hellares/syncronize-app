@@ -87,7 +87,10 @@ class ResumenCajaCard extends StatelessWidget {
               isBold: true,
             ),
           ],
-          // Detalles por metodo de pago
+          // Detalles por metodo de pago — solo mostramos métodos con
+          // actividad real (ingresos > 0 ó egresos > 0). EFECTIVO siempre
+          // aparece aunque esté en 0 si hubo apertura (apertura inflada en
+          // saldo).
           if (resumen.detalles.isNotEmpty) ...[
             const SizedBox(height: 16),
             const Divider(height: 1),
@@ -97,41 +100,52 @@ class ResumenCajaCard extends StatelessWidget {
               fontSize: 12,
               color: AppColors.textSecondary,
             ),
-            const SizedBox(height: 8),
-            ...resumen.detalles.map(
-              (detalle) => Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Row(
-                  children: [
-                    Icon(
-                      detalle.metodoPago.icon,
-                      size: 16,
-                      color: AppColors.textSecondary,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        detalle.metodoPago.label,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ),
-                    Text(
-                      currencyFormat.format(detalle.saldo),
+            const SizedBox(height: 6),
+            // Header de columnas: Ingresos / Egresos / Saldo.
+            Padding(
+              padding: const EdgeInsets.only(left: 24, bottom: 4),
+              child: Row(
+                children: [
+                  const Spacer(),
+                  Expanded(
+                    child: Text(
+                      'Ingresos',
+                      textAlign: TextAlign.right,
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: 9,
                         fontWeight: FontWeight.w600,
-                        color: detalle.saldo >= 0
-                            ? AppColors.green
-                            : AppColors.red,
+                        color: AppColors.textSecondary.withValues(alpha: 0.7),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      'Egresos',
+                      textAlign: TextAlign.right,
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textSecondary.withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      'Saldo',
+                      textAlign: TextAlign.right,
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textSecondary.withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
+            ...resumen.detalles
+                .where((d) => d.totalIngresos > 0 || d.totalEgresos > 0)
+                .map((detalle) => _buildMetodoRow(detalle, currencyFormat)),
           ],
         ],
       ),
@@ -164,6 +178,72 @@ class ResumenCajaCard extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+
+  /// Fila de método con icono + nombre a la izquierda y 3 columnas a la
+  /// derecha: ingresos (verde) / egresos (rojo) / saldo (negro destacado).
+  /// Si una columna es 0 se muestra como "—" gris para reducir ruido.
+  Widget _buildMetodoRow(ResumenMetodoPago d, NumberFormat fmt) {
+    String formatOrDash(double v) => v.abs() < 0.01 ? '—' : fmt.format(v);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        children: [
+          Icon(d.metodoPago.icon, size: 16, color: AppColors.textSecondary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              d.metodoPago.label,
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              formatOrDash(d.totalIngresos),
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: d.totalIngresos > 0
+                    ? AppColors.green
+                    : AppColors.textSecondary.withValues(alpha: 0.4),
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              formatOrDash(d.totalEgresos),
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: d.totalEgresos > 0
+                    ? AppColors.red
+                    : AppColors.textSecondary.withValues(alpha: 0.4),
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              fmt.format(d.saldo),
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: d.saldo > 0
+                    ? AppColors.textPrimary
+                    : (d.saldo < 0 ? AppColors.red : AppColors.textSecondary),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
