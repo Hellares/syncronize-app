@@ -298,6 +298,7 @@ class _GestionarLiquidacionDialogState
                     borderColor: AppColors.blue1,
                     controller: _precioController,
                     label: 'Precio liquidación',
+                    decimalPlaces: 4,
                   ),
                   if (costo != null && costo > 0) ...[
                     const SizedBox(height: 4),

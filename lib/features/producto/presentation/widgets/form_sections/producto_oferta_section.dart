@@ -72,6 +72,7 @@ class ProductoOfertaSection extends StatelessWidget {
                     label: 'Precio de Oferta *',
                     hintText: '0.00',
                     borderColor: Colors.orange,
+                    decimalPlaces: 4,
                     enableRealTimeValidation: true,
                     validator: enOferta
                         ? (value) {
