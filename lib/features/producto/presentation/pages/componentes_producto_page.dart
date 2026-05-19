@@ -266,6 +266,15 @@ class _ComponentesProductoPageState extends State<ComponentesProductoPage> {
           backgroundColor: AppColors.blue1,
           foregroundColor: Colors.white,
           showLogo: false,
+          actions: !widget.esInsumo
+              ? [
+                  IconButton(
+                    icon: const Icon(Icons.history),
+                    tooltip: 'Historial de fabricaciones',
+                    onPressed: _verHistorial,
+                  ),
+                ]
+              : null,
         ),
         body: Column(
           children: [
@@ -274,6 +283,20 @@ class _ComponentesProductoPageState extends State<ComponentesProductoPage> {
             _buildFooter(),
           ],
         ),
+      ),
+    );
+  }
+
+  void _verHistorial() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _HistorialFabricacionesSheet(
+        productoId: widget.productoId,
+        productoNombre: widget.productoNombre,
+        sedeId: _sedeId,
+        sedeNombre: _sedeNombre,
       ),
     );
   }
@@ -1205,24 +1228,30 @@ class _FabricarDialogState extends State<_FabricarDialog> {
   }
 
   /// Para cada componente: cuánto consume × N + si la cantidad consumida
-  /// es entera (stock se maneja en Int, sino el backend rechaza).
+  /// es entera (stock se maneja en Int, sino el backend rechaza) + cuánto
+  /// hay disponible (de stockDisponible que devuelve el GET /componentes).
   List<_PreviewLinea> get _preview {
     return widget.componentes.map((item) {
       final cantidadPorUnidad = (item['cantidad'] as num).toDouble();
       final consumido = cantidadPorUnidad * _cantidad;
       final redondeado = consumido.round();
       final esEntero = (consumido - redondeado).abs() < 1e-6;
+      final stock = (item['stockDisponible'] as num?)?.toInt();
+      final excede = stock != null && esEntero && redondeado > stock;
       return _PreviewLinea(
         nombre: (item['componente']['nombre'] as String?) ?? '',
         unidadMedida: (item['componente']['unidadMedida'] as String?) ?? '',
         cantidadPorUnidad: cantidadPorUnidad,
         cantidadConsumida: consumido,
         esEntero: esEntero,
+        stockDisponible: stock,
+        excedeStock: excede,
       );
     }).toList();
   }
 
   bool get _hayFraccionarios => _preview.any((p) => !p.esEntero);
+  bool get _hayInsuficiencia => _preview.any((p) => p.excedeStock);
 
   Future<void> _confirmar() async {
     if (_cantidad < 1) {
@@ -1232,6 +1261,11 @@ class _FabricarDialogState extends State<_FabricarDialog> {
     if (_hayFraccionarios) {
       setState(() => _error =
           'Algún componente requiere cantidad fraccionaria. Cambia la unidad de medida (ej: KG→GR) o ajusta el lote.');
+      return;
+    }
+    if (_hayInsuficiencia) {
+      setState(() => _error =
+          'Stock insuficiente en algún componente. Reducí la cantidad a fabricar o reabastecé el insumo.');
       return;
     }
     setState(() {
@@ -1251,15 +1285,25 @@ class _FabricarDialogState extends State<_FabricarDialog> {
       final data = resp.data as Map<String, dynamic>?;
       if (!mounted) return;
       Navigator.pop(context, true);
+      final costoAnt = (data?['precioCostoAnterior'] as num?)?.toDouble();
+      final costoNuevo = (data?['precioCostoNuevo'] as num?)?.toDouble();
+      final mostrarCosto = data?['costoActualizado'] == true &&
+          costoNuevo != null &&
+          costoNuevo != costoAnt;
+      final base =
+          'Fabricación OK · ${data?['cantidadProducida'] ?? _cantidad} '
+          'unidad(es) · stock nuevo: ${data?['stockFinalNuevo'] ?? '—'} '
+          '· lote ${data?['numeroDocumento'] ?? '—'}';
+      final extraCosto = mostrarCosto
+          ? '\nCosto: S/ ${costoAnt?.toStringAsFixed(2) ?? '—'} → S/ ${costoNuevo.toStringAsFixed(2)} (promedio ponderado)'
+          : (data?['razonCostoNoActualizado'] != null
+              ? '\n⚠️ Costo NO actualizado: ${data!['razonCostoNoActualizado']}'
+              : '');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            'Fabricación OK · ${data?['cantidadProducida'] ?? _cantidad} '
-            'unidad(es) · stock nuevo: ${data?['stockFinalNuevo'] ?? '—'} '
-            '· lote ${data?['numeroDocumento'] ?? '—'}',
-          ),
+          content: Text('$base$extraCosto'),
           backgroundColor: Colors.green,
-          duration: const Duration(seconds: 5),
+          duration: const Duration(seconds: 6),
         ),
       );
     } catch (e) {
@@ -1290,8 +1334,10 @@ class _FabricarDialogState extends State<_FabricarDialog> {
   @override
   Widget build(BuildContext context) {
     final preview = _preview;
-    final puedeConfirmar =
-        _cantidad >= 1 && !_hayFraccionarios && !_fabricando;
+    final puedeConfirmar = _cantidad >= 1 &&
+        !_hayFraccionarios &&
+        !_hayInsuficiencia &&
+        !_fabricando;
     return Dialog(
       shape:
           RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -1367,13 +1413,43 @@ class _FabricarDialogState extends State<_FabricarDialog> {
               ),
               const SizedBox(height: 12),
               if (preview.isNotEmpty) ...[
-                Text(
-                  'Consumirá:',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.deepPurple.shade800,
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 5,
+                      child: Text(
+                        'Insumo',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.deepPurple.shade800,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      flex: 4,
+                      child: Text(
+                        'Consumirá',
+                        textAlign: TextAlign.right,
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.deepPurple.shade800,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      width: 70,
+                      child: Text(
+                        'Stock',
+                        textAlign: TextAlign.right,
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.deepPurple.shade800,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 6),
                 Flexible(
@@ -1395,9 +1471,11 @@ class _FabricarDialogState extends State<_FabricarDialog> {
                       ),
                       itemBuilder: (_, i) {
                         final p = preview[i];
+                        final mostrarRojo = !p.esEntero || p.excedeStock;
                         return Row(
                           children: [
                             Expanded(
+                              flex: 5,
                               child: Text(
                                 p.nombre,
                                 style: const TextStyle(fontSize: 11),
@@ -1405,14 +1483,37 @@ class _FabricarDialogState extends State<_FabricarDialog> {
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                            Text(
-                              '${_fmt(p.cantidadConsumida)} ${p.unidadMedida}',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: p.esEntero
-                                    ? Colors.deepPurple.shade900
-                                    : Colors.red.shade700,
+                            Expanded(
+                              flex: 4,
+                              child: Text(
+                                '${_fmt(p.cantidadConsumida)} ${p.unidadMedida}',
+                                textAlign: TextAlign.right,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: mostrarRojo
+                                      ? Colors.red.shade700
+                                      : Colors.deepPurple.shade900,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            SizedBox(
+                              width: 70,
+                              child: Text(
+                                p.stockDisponible != null
+                                    ? '/ ${p.stockDisponible}'
+                                    : '/ —',
+                                textAlign: TextAlign.right,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: p.excedeStock
+                                      ? Colors.red.shade700
+                                      : Colors.grey.shade600,
+                                  fontWeight: p.excedeStock
+                                      ? FontWeight.w600
+                                      : FontWeight.normal,
+                                ),
                               ),
                             ),
                           ],
@@ -1442,6 +1543,33 @@ class _FabricarDialogState extends State<_FabricarDialog> {
                             '(ej: KG→GR) o ajusta el lote para que sea entero.',
                             style: TextStyle(
                                 fontSize: 10, color: Colors.red.shade900),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                if (_hayInsuficiencia && !_hayFraccionarios) ...[
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade50,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: Colors.orange.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.inventory_2_outlined,
+                            size: 14, color: Colors.orange.shade800),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'Stock insuficiente en al menos un insumo. '
+                            'Reducí el lote o reabastecé los marcados en rojo.',
+                            style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.orange.shade900),
                           ),
                         ),
                       ],
@@ -1535,6 +1663,8 @@ class _PreviewLinea {
   final double cantidadPorUnidad;
   final double cantidadConsumida;
   final bool esEntero;
+  final int? stockDisponible;
+  final bool excedeStock;
 
   _PreviewLinea({
     required this.nombre,
@@ -1542,6 +1672,8 @@ class _PreviewLinea {
     required this.cantidadPorUnidad,
     required this.cantidadConsumida,
     required this.esEntero,
+    required this.stockDisponible,
+    required this.excedeStock,
   });
 }
 
@@ -1669,6 +1801,427 @@ class _CalculadoraLoteDialogInlineState
           child: const Text('Aplicar'),
         ),
       ],
+    );
+  }
+}
+
+// =========================================================================
+// BottomSheet "Historial de fabricaciones": lista de lotes PROD-* + tap
+// para ver el detalle (insumos consumidos) on-demand.
+// =========================================================================
+
+class _HistorialFabricacionesSheet extends StatefulWidget {
+  final String productoId;
+  final String productoNombre;
+  final String? sedeId;
+  final String? sedeNombre;
+
+  const _HistorialFabricacionesSheet({
+    required this.productoId,
+    required this.productoNombre,
+    required this.sedeId,
+    required this.sedeNombre,
+  });
+
+  @override
+  State<_HistorialFabricacionesSheet> createState() =>
+      _HistorialFabricacionesSheetState();
+}
+
+class _HistorialFabricacionesSheetState
+    extends State<_HistorialFabricacionesSheet> {
+  final DioClient _dio = locator<DioClient>();
+  bool _loading = true;
+  String? _error;
+  List<Map<String, dynamic>> _lotes = const [];
+  final Set<String> _expandidos = {};
+  final Map<String, Map<String, dynamic>> _detalles = {};
+  final Set<String> _cargandoDetalle = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _cargar();
+  }
+
+  Future<void> _cargar() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final resp = await _dio.get(
+        '/productos/${widget.productoId}/componentes/fabricaciones',
+        queryParameters: {
+          if (widget.sedeId != null) 'sedeId': widget.sedeId,
+          'limit': 50,
+        },
+      );
+      if (!mounted) return;
+      setState(() {
+        _lotes = (resp.data as List).cast<Map<String, dynamic>>();
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e is DioException
+            ? (e.response?.data?['message']?.toString() ?? e.message ?? 'Error')
+            : e.toString();
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _toggleExpand(String numeroDocumento) async {
+    if (_expandidos.contains(numeroDocumento)) {
+      setState(() => _expandidos.remove(numeroDocumento));
+      return;
+    }
+    setState(() => _expandidos.add(numeroDocumento));
+    if (_detalles.containsKey(numeroDocumento)) return;
+    setState(() => _cargandoDetalle.add(numeroDocumento));
+    try {
+      final resp = await _dio.get(
+        '/productos/${widget.productoId}/componentes/fabricaciones/$numeroDocumento',
+      );
+      if (!mounted) return;
+      setState(() {
+        _detalles[numeroDocumento] = resp.data as Map<String, dynamic>;
+        _cargandoDetalle.remove(numeroDocumento);
+      });
+    } catch (_) {
+      if (mounted) setState(() => _cargandoDetalle.remove(numeroDocumento));
+    }
+  }
+
+  String _fechaCorta(String iso) {
+    try {
+      final d = DateTime.parse(iso).toLocal();
+      final dd = d.day.toString().padLeft(2, '0');
+      final mm = d.month.toString().padLeft(2, '0');
+      final hh = d.hour.toString().padLeft(2, '0');
+      final mi = d.minute.toString().padLeft(2, '0');
+      return '$dd/$mm/${d.year} $hh:$mi';
+    } catch (_) {
+      return iso;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    return Container(
+      height: size.height * 0.85,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
+            decoration: BoxDecoration(
+              color: Colors.deepPurple.shade50,
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(16)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.history,
+                    color: Colors.deepPurple.shade700, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Historial de fabricaciones',
+                        style: TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        widget.productoNombre +
+                            (widget.sedeNombre != null
+                                ? ' · ${widget.sedeNombre}'
+                                : ''),
+                        style: TextStyle(
+                            fontSize: 10, color: Colors.grey.shade700),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close, size: 18),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+          ),
+          Expanded(child: _buildBody()),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBody() {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+    }
+    if (_error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.error_outline,
+                  size: 40, color: Colors.red.shade400),
+              const SizedBox(height: 8),
+              Text(_error!, textAlign: TextAlign.center),
+              const SizedBox(height: 12),
+              ElevatedButton(
+                  onPressed: _cargar, child: const Text('Reintentar')),
+            ],
+          ),
+        ),
+      );
+    }
+    if (_lotes.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.inventory_2_outlined,
+                  size: 50, color: Colors.deepPurple.shade300),
+              const SizedBox(height: 8),
+              const Text('Sin fabricaciones registradas',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 6),
+              Text(
+                widget.sedeId != null
+                    ? 'No hay lotes producidos en esta sede.'
+                    : 'Aún no se fabricó este producto.',
+                style: TextStyle(
+                    fontSize: 11, color: Colors.grey.shade700),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    return ListView.separated(
+      padding: const EdgeInsets.all(12),
+      itemCount: _lotes.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      itemBuilder: (_, i) => _buildLote(_lotes[i]),
+    );
+  }
+
+  Widget _buildLote(Map<String, dynamic> lote) {
+    final numero = lote['numeroDocumento'] as String? ?? '';
+    final cantidad = lote['cantidadProducida'] as num?;
+    final stockNuevo = lote['stockNuevo'] as num?;
+    final fecha = lote['creadoEn'] as String?;
+    final usuarioNombre =
+        (lote['usuario'] as Map?)?['nombre'] as String? ?? '—';
+    final sedeNombre = (lote['sede'] as Map?)?['nombre'] as String? ?? '—';
+    final observaciones = lote['observaciones'] as String?;
+    final expandido = _expandidos.contains(numero);
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: () => _toggleExpand(numero),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.deepPurple.shade100, width: 0.8),
+          ),
+          padding: const EdgeInsets.all(10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.deepPurple.shade100,
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                    child: Text(
+                      numero,
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.deepPurple.shade900,
+                      ),
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    fecha != null ? _fechaCorta(fecha) : '—',
+                    style: TextStyle(
+                        fontSize: 10, color: Colors.grey.shade600),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(
+                    expandido
+                        ? Icons.keyboard_arrow_up
+                        : Icons.keyboard_arrow_down,
+                    size: 18,
+                    color: Colors.deepPurple.shade700,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  Icon(Icons.add_circle_outline,
+                      size: 14, color: Colors.green.shade700),
+                  const SizedBox(width: 4),
+                  Text(
+                    '+$cantidad unidad(es)',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.green.shade800,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    'Stock: $stockNuevo',
+                    style: TextStyle(
+                        fontSize: 10, color: Colors.grey.shade700),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Icon(Icons.person_outline,
+                      size: 11, color: Colors.grey.shade600),
+                  const SizedBox(width: 3),
+                  Expanded(
+                    child: Text(
+                      usuarioNombre,
+                      style: TextStyle(
+                          fontSize: 10, color: Colors.grey.shade700),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Icon(Icons.store,
+                      size: 11, color: Colors.grey.shade600),
+                  const SizedBox(width: 3),
+                  Text(
+                    sedeNombre,
+                    style: TextStyle(
+                        fontSize: 10, color: Colors.grey.shade700),
+                  ),
+                ],
+              ),
+              if (observaciones != null && observaciones.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    observaciones,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontStyle: FontStyle.italic,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ),
+              if (expandido) _buildDetalle(numero),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetalle(String numero) {
+    if (_cargandoDetalle.contains(numero)) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 8),
+        child: Center(
+          child: SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    }
+    final detalle = _detalles[numero];
+    if (detalle == null) return const SizedBox.shrink();
+    final insumos =
+        (detalle['insumosConsumidos'] as List?)?.cast<Map<String, dynamic>>() ??
+            [];
+    if (insumos.isEmpty) return const SizedBox.shrink();
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.deepPurple.shade50,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Insumos consumidos',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: Colors.deepPurple.shade800,
+            ),
+          ),
+          const SizedBox(height: 6),
+          ...insumos.map((ins) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        ins['nombre']?.toString() ?? '—',
+                        style: const TextStyle(fontSize: 10),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Text(
+                      '-${ins['cantidadConsumida']} ${ins['unidadMedida'] ?? ''}',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.red.shade700,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      width: 70,
+                      child: Text(
+                        '→ ${ins['stockNuevo']}',
+                        textAlign: TextAlign.right,
+                        style: TextStyle(
+                            fontSize: 9, color: Colors.grey.shade600),
+                      ),
+                    ),
+                  ],
+                ),
+              )),
+        ],
+      ),
     );
   }
 }
