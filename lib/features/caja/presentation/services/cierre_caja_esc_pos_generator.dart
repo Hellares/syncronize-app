@@ -169,7 +169,25 @@ class CierreCajaEscPosGenerator {
         styles: const PosStyles(bold: true),
       );
       for (final d in detallesConActividad) {
-        bytes += generator.text(d.metodoPago.label.toUpperCase());
+        bytes += generator.text(
+          d.metodoPago.label.toUpperCase(),
+          styles: const PosStyles(bold: true),
+        );
+        if (d.apertura.abs() > 0.001) {
+          bytes += generator.text(
+            _row('  Apertura', _money(d.apertura), charsPerLine),
+          );
+        }
+        if (d.ingresos.abs() > 0.001) {
+          bytes += generator.text(
+            _row('  Ingresos', _money(d.ingresos), charsPerLine),
+          );
+        }
+        if (d.egresos.abs() > 0.001) {
+          bytes += generator.text(
+            _row('  Egresos', _money(d.egresos), charsPerLine),
+          );
+        }
         bytes += generator.text(
           _row('  Esperado', _money(d.esperado), charsPerLine),
         );

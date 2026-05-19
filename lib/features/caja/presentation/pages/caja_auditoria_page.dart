@@ -528,47 +528,116 @@ class _CajaAuditoriaPageState extends State<CajaAuditoriaPage> {
     );
   }
 
+  /// Fila compacta de detalle de cierre por método, con desglose
+  /// Ingresos / Egresos (si aplican) + tabla Esperado / Conteo / Dif.
   Widget _buildMetodoCierreRow(DetalleCierreMetodo d) {
+    final hasIngresos = d.ingresos.abs() > 0.01;
+    final hasEgresos = d.egresos.abs() > 0.01;
+    final hasApertura = d.apertura.abs() > 0.01;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            flex: 2,
-            child: Text(
-              d.metodoPago.label,
-              style: const TextStyle(fontSize: 11),
+          Text(
+            d.metodoPago.label.toUpperCase(),
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: AppColors.blue3,
             ),
           ),
-          Expanded(
-            child: Text(
-              _currencyFormat.format(d.esperado),
-              textAlign: TextAlign.right,
-              style: const TextStyle(fontSize: 11),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              _currencyFormat.format(d.conteoFisico),
-              textAlign: TextAlign.right,
-              style: const TextStyle(fontSize: 11),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              _currencyFormat.format(d.diferencia),
-              textAlign: TextAlign.right,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: d.diferencia.abs() < 0.01
-                    ? AppColors.green
-                    : (d.diferencia < 0 ? AppColors.red : AppColors.orange),
+          const SizedBox(height: 2),
+          // Apertura / Ingresos / Egresos en una fila (solo los que aplican).
+          if (hasApertura || hasIngresos || hasEgresos)
+            Padding(
+              padding: const EdgeInsets.only(left: 8),
+              child: Row(
+                children: [
+                  if (hasApertura)
+                    Expanded(
+                      child: Text(
+                        'Aper: ${_currencyFormat.format(d.apertura)}',
+                        style: const TextStyle(
+                            fontSize: 10, color: AppColors.textSecondary),
+                      ),
+                    ),
+                  if (hasIngresos)
+                    Expanded(
+                      child: Text(
+                        'Ing: +${_currencyFormat.format(d.ingresos)}',
+                        style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.green),
+                      ),
+                    ),
+                  if (hasEgresos)
+                    Expanded(
+                      child: Text(
+                        'Egr: -${_currencyFormat.format(d.egresos)}',
+                        style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.red),
+                      ),
+                    ),
+                ],
               ),
+            ),
+          // Tabla Esperado / Conteo / Dif. (lo que se compara al cerrar).
+          Padding(
+            padding: const EdgeInsets.only(left: 8, top: 2),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _miniKv('Esperado',
+                      _currencyFormat.format(d.esperado), null),
+                ),
+                Expanded(
+                  child: _miniKv('Conteo',
+                      _currencyFormat.format(d.conteoFisico), null),
+                ),
+                Expanded(
+                  child: _miniKv(
+                    'Dif.',
+                    _currencyFormat.format(d.diferencia),
+                    d.diferencia.abs() < 0.01
+                        ? AppColors.green
+                        : (d.diferencia < 0
+                            ? AppColors.red
+                            : AppColors.orange),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _miniKv(String label, String value, Color? color) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 9,
+            color: AppColors.textSecondary.withValues(alpha: 0.8),
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: color ?? AppColors.textPrimary,
+          ),
+        ),
+      ],
     );
   }
 
