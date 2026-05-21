@@ -323,7 +323,7 @@ class _CompraFormViewState extends State<_CompraFormView> {
                       if (_isFromOc) const SizedBox(height: 12),
 
                       // Proveedor selector
-                      CustomProveedorSelector(
+                      CustomProveedorSelector( 
                         empresaId: widget.empresaId,
                         proveedorId: _proveedorId,
                         proveedorNombre: _proveedorNombre,
@@ -390,6 +390,7 @@ class _CompraFormViewState extends State<_CompraFormView> {
                         children: [
                           Expanded(
                             child: CustomText(
+                              borderColor: AppColors.blue1,
                               controller: _tipoDocProveedorController,
                               label: 'Tipo',
                               hintText: 'Ej: FACTURA',
@@ -398,6 +399,7 @@ class _CompraFormViewState extends State<_CompraFormView> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: CustomText(
+                              borderColor: AppColors.blue1,
                               controller: _serieDocProveedorController,
                               label: 'Serie',
                               hintText: 'F001',
@@ -406,6 +408,7 @@ class _CompraFormViewState extends State<_CompraFormView> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: CustomText(
+                              borderColor: AppColors.blue1, 
                               controller: _numDocProveedorController,
                               label: 'Número',
                               hintText: '00001',
@@ -416,6 +419,7 @@ class _CompraFormViewState extends State<_CompraFormView> {
                       const SizedBox(height: 12),
 
                       CustomText(
+                        borderColor: AppColors.blue1, 
                         controller: _observacionesController,
                         label: 'Observaciones (opcional)',
                         hintText: 'Notas de la recepción',
@@ -566,6 +570,7 @@ class _CompraFormViewState extends State<_CompraFormView> {
     }
 
     return CustomDropdown<String>(
+      borderColor: AppColors.blue1, 
       label: 'Sede',
       value: _sedeId,
       enabled: !_isFromOc,

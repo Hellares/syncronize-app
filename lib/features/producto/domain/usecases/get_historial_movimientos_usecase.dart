@@ -13,16 +13,20 @@ class GetHistorialMovimientosUseCase {
   Future<Resource<KardexData>> call({
     required String stockId,
     int limit = 100,
+    int offset = 0,
     String? tipo,
     String? fechaDesde,
     String? fechaHasta,
+    String? documento,
   }) async {
     return await _repository.getHistorialMovimientos(
       stockId: stockId,
       limit: limit,
+      offset: offset,
       tipo: tipo,
       fechaDesde: fechaDesde,
       fechaHasta: fechaHasta,
+      documento: documento,
     );
   }
 }

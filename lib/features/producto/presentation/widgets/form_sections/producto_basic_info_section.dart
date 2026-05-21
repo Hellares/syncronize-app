@@ -37,6 +37,7 @@ class ProductoBasicInfoSection extends StatelessWidget {
             controller: nombreController,
             borderColor: AppColors.blue1,
             label: 'Nombre del Producto *',
+            textCase: TextCase.upper,
             hintText: 'Ej: Laptop HP Pavilion',
             enableVoiceInput: true,
             validator: (value) {
@@ -51,6 +52,7 @@ class ProductoBasicInfoSection extends StatelessWidget {
             controller: descripcionController,
             borderColor: AppColors.blue1,
             label: 'Descripción',
+            textCase: TextCase.upper,
             hintText: 'Descripción del producto',
             enableVoiceInput: true,
             maxLines: null,
@@ -66,6 +68,7 @@ class ProductoBasicInfoSection extends StatelessWidget {
                   borderColor: AppColors.blue1,
                   label: 'SKU',
                   hintText: 'Código SKU',
+                  textCase: TextCase.upper,
                 ),
               ),
               const SizedBox(width: 16),

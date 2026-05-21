@@ -508,6 +508,17 @@ class _ProductoSedeSelectorState extends State<ProductoSedeSelector> {
           _onProductoSeleccionado(producto);
         }
       },
+      // Disparamos la búsqueda en el backend al tipear — antes el
+      // dropdown solo filtraba localmente sobre los primeros `limite`
+      // productos cargados, así que cualquier producto fuera de esa
+      // ventana era invisible aunque coincidiera con el query.
+      onSearchChanged: (query) {
+        _buscarProductos(query: query.isEmpty ? null : query);
+      },
+      // El cubit ya tiene su propio debounce de 300ms. Ponemos el del
+      // dropdown en 0 para no encadenar dos debounces (220ms + 300ms
+      // = 520ms total se siente lento al tipear).
+      searchDebounceMs: 0,
       dropdownStyle: DropdownStyle.searchable,
       showSearchBox: true,
       borderColor: AppColors.blue1,

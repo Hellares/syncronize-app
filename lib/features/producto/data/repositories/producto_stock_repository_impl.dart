@@ -274,9 +274,11 @@ class ProductoStockRepositoryImpl implements ProductoStockRepository {
   Future<Resource<KardexData>> getHistorialMovimientos({
     required String stockId,
     int limit = 100,
+    int offset = 0,
     String? tipo,
     String? fechaDesde,
     String? fechaHasta,
+    String? documento,
   }) async {
     if (!await _networkInfo.isConnected) {
       return Error(
@@ -289,9 +291,11 @@ class ProductoStockRepositoryImpl implements ProductoStockRepository {
       final response = await _remoteDataSource.getHistorialMovimientos(
         stockId: stockId,
         limit: limit,
+        offset: offset,
         tipo: tipo,
         fechaDesde: fechaDesde,
         fechaHasta: fechaHasta,
+        documento: documento,
       );
 
       // Parsear movimientos
@@ -306,7 +310,13 @@ class ProductoStockRepositoryImpl implements ProductoStockRepository {
           .map((e) => KardexResumenItemModel.fromJson(e as Map<String, dynamic>))
           .toList();
 
-      return Success(KardexData(movimientos: movimientos, resumen: resumen));
+      final hasMore = response['hasMore'] as bool? ?? false;
+
+      return Success(KardexData(
+        movimientos: movimientos,
+        resumen: resumen,
+        hasMore: hasMore,
+      ));
     } catch (e) {
       return _errorHandler.handleException(e, context: 'ProductoStock');
     }

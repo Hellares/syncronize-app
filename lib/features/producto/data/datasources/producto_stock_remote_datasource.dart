@@ -224,14 +224,20 @@ class ProductoStockRemoteDataSource {
   Future<Map<String, dynamic>> getHistorialMovimientos({
     required String stockId,
     int limit = 100,
+    int offset = 0,
     String? tipo,
     String? fechaDesde,
     String? fechaHasta,
+    String? documento,
   }) async {
     final queryParams = <String, dynamic>{'limit': limit};
+    if (offset > 0) queryParams['offset'] = offset;
     if (tipo != null) queryParams['tipo'] = tipo;
     if (fechaDesde != null) queryParams['fechaDesde'] = fechaDesde;
     if (fechaHasta != null) queryParams['fechaHasta'] = fechaHasta;
+    if (documento != null && documento.isNotEmpty) {
+      queryParams['documento'] = documento;
+    }
 
     final response = await _dioClient.get(
       '/producto-stock/$stockId/movimientos',

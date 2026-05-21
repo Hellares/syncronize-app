@@ -8,7 +8,6 @@ import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/theme/gradient_container.dart';
 import '../../../../core/widgets/producto_sede_selector/producto_sede_selector.dart';
 import '../../../../core/widgets/smart_appbar.dart';
-import '../../../../core/fonts/app_text_widgets.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 
@@ -118,47 +117,47 @@ class _KardexGlobalContentState extends State<_KardexGlobalContent> {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Encabezado descriptivo
-          GradientContainer(
-            borderColor: AppColors.blueborder,
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppColors.bluechip,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(Icons.history,
-                        size: 20, color: AppColors.blue1),
-                  ),
-                  const SizedBox(width: 10),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        AppSubtitle('Kardex de productos', fontSize: 14),
-                        SizedBox(height: 2),
-                        AppText(
-                          'Selecciona un producto y una sede para ver su historial de movimientos.',
-                          size: 11,
-                          color: Colors.grey,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
+          // GradientContainer(
+          //   borderColor: AppColors.blueborder,
+          //   child: Padding(
+          //     padding: const EdgeInsets.all(8),
+          //     child: Row(
+          //       crossAxisAlignment: CrossAxisAlignment.start,
+          //       children: [
+          //         // Container(
+          //         //   padding: const EdgeInsets.all(8),
+          //         //   decoration: BoxDecoration(
+          //         //     color: AppColors.bluechip,
+          //         //     borderRadius: BorderRadius.circular(8),
+          //         //   ),
+          //         //   child: const Icon(Icons.history,
+          //         //       size: 20, color: AppColors.blue1),
+          //         // ),
+          //         //const SizedBox(width: 10),
+          //         // const Expanded(
+          //         //   child: Column(
+          //         //     crossAxisAlignment: CrossAxisAlignment.start,
+          //         //     children: [
+          //         //       AppSubtitle('Kardex de productos', fontSize: 14),
+          //         //       SizedBox(height: 2),
+          //         //       AppText(
+          //         //         'Selecciona un producto y una sede para ver su historial de movimientos.',
+          //         //         size: 11,
+          //         //         color: Colors.grey,
+          //         //       ),
+          //         //     ],
+          //         //   ),
+          //         // ),
+          //       ],
+          //     ),
+          //   ),
+          // ),
+          // const SizedBox(height: 12),
 
           // Selector
           GradientContainer(

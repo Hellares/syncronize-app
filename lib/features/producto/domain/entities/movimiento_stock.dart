@@ -30,6 +30,9 @@ enum TipoMovimientoStock {
   entradaGarantia,
   salidaGarantia,
   retornoGarantia,
+  // Produccion / BOM
+  produccionEntrada,
+  produccionSalida,
   // Legacy (mantener para compatibilidad)
   entradaAjuste,
   salidaAjuste,
@@ -85,6 +88,10 @@ enum TipoMovimientoStock {
         return 'Salida a garantia';
       case retornoGarantia:
         return 'Retorno de garantia';
+      case produccionEntrada:
+        return 'Producción - entrada';
+      case produccionSalida:
+        return 'Producción - insumo consumido';
       case entradaAjuste:
         return 'Entrada ajuste';
       case salidaAjuste:
@@ -147,6 +154,10 @@ enum TipoMovimientoStock {
         return 'SALIDA_GARANTIA';
       case retornoGarantia:
         return 'RETORNO_GARANTIA';
+      case produccionEntrada:
+        return 'PRODUCCION_ENTRADA';
+      case produccionSalida:
+        return 'PRODUCCION_SALIDA';
       case entradaAjuste:
         return 'ENTRADA_AJUSTE';
       case salidaAjuste:
@@ -176,6 +187,7 @@ enum TipoMovimientoStock {
       case ajusteEncontrado:
       case entradaGarantia:
       case retornoGarantia:
+      case produccionEntrada:
       case entradaAjuste:
       case entradaDevolucion:
         return true;
@@ -224,6 +236,11 @@ enum TipoMovimientoStock {
       case entradaTransferencia:
       case salidaTransferencia:
         return Icons.swap_horiz;
+      // Producción / BOM
+      case produccionEntrada:
+        return Icons.precision_manufacturing;
+      case produccionSalida:
+        return Icons.inventory_2;
     }
   }
 
@@ -268,6 +285,10 @@ enum TipoMovimientoStock {
       case salidaGarantia:
       case retornoGarantia:
         return Colors.purple;
+      // Producción / BOM - morado oscuro (deepPurple) para distinguir de garantía
+      case produccionEntrada:
+      case produccionSalida:
+        return Colors.deepPurple;
     }
   }
 
@@ -318,6 +339,10 @@ enum TipoMovimientoStock {
         return salidaGarantia;
       case 'RETORNO_GARANTIA':
         return retornoGarantia;
+      case 'PRODUCCION_ENTRADA':
+        return produccionEntrada;
+      case 'PRODUCCION_SALIDA':
+        return produccionSalida;
       case 'ENTRADA_AJUSTE':
         return entradaAjuste;
       case 'SALIDA_AJUSTE':
@@ -359,6 +384,10 @@ class MovimientoStock extends Equatable {
   final String? compraCodigo;
   final String? transferenciaCodigo;
   final String? devolucionCodigo;
+  // Valoración monetaria del movimiento (null en movs previos a la mig
+  // 20260521000000 — la UI muestra "—" en ese caso).
+  final double? precioCostoUnitario;
+  final double? valorMovimiento;
 
   const MovimientoStock({
     required this.id,
@@ -381,6 +410,8 @@ class MovimientoStock extends Equatable {
     this.compraCodigo,
     this.transferenciaCodigo,
     this.devolucionCodigo,
+    this.precioCostoUnitario,
+    this.valorMovimiento,
   });
 
   @override
@@ -405,6 +436,8 @@ class MovimientoStock extends Equatable {
         compraCodigo,
         transferenciaCodigo,
         devolucionCodigo,
+        precioCostoUnitario,
+        valorMovimiento,
       ];
 
   /// Verifica si es un movimiento de entrada
@@ -421,12 +454,17 @@ class MovimientoStock extends Equatable {
       ventaCodigo ?? compraCodigo ?? transferenciaCodigo ?? devolucionCodigo;
 }
 
-/// Datos completos del Kardex: movimientos + resumen
+/// Datos completos del Kardex: movimientos + resumen + flag de paginación
 class KardexData {
   final List<MovimientoStock> movimientos;
   final List<KardexResumenItem> resumen;
+  final bool hasMore;
 
-  const KardexData({required this.movimientos, required this.resumen});
+  const KardexData({
+    required this.movimientos,
+    required this.resumen,
+    this.hasMore = false,
+  });
 }
 
 /// Item de resumen agrupado por tipo de movimiento
@@ -434,10 +472,15 @@ class KardexResumenItem {
   final String tipo;
   final int totalCantidad;
   final int totalMovimientos;
+  // Suma de valorMovimiento del grupo. Solo considera los movs con
+  // snapshot (los previos a la mig 20260521 no suman). Puede ser null
+  // si ningún mov del grupo tiene snapshot.
+  final double? totalValor;
 
   const KardexResumenItem({
     required this.tipo,
     required this.totalCantidad,
     required this.totalMovimientos,
+    this.totalValor,
   });
 }

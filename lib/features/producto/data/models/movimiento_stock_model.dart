@@ -23,6 +23,8 @@ class MovimientoStockModel extends MovimientoStock {
     super.compraCodigo,
     super.transferenciaCodigo,
     super.devolucionCodigo,
+    super.precioCostoUnitario,
+    super.valorMovimiento,
   });
 
   factory MovimientoStockModel.fromJson(Map<String, dynamic> json) {
@@ -66,6 +68,8 @@ class MovimientoStockModel extends MovimientoStock {
       compraCodigo: compra?['codigo'] as String?,
       transferenciaCodigo: transferencia?['codigo'] as String?,
       devolucionCodigo: devolucion?['codigo'] as String?,
+      precioCostoUnitario: _parseNullableDouble(json['precioCostoUnitario']),
+      valorMovimiento: _parseNullableDouble(json['valorMovimiento']),
     );
   }
 
@@ -95,6 +99,7 @@ class KardexResumenItemModel extends KardexResumenItem {
     required super.tipo,
     required super.totalCantidad,
     required super.totalMovimientos,
+    super.totalValor,
   });
 
   factory KardexResumenItemModel.fromJson(Map<String, dynamic> json) {
@@ -102,6 +107,18 @@ class KardexResumenItemModel extends KardexResumenItem {
       tipo: json['tipo'] as String? ?? '',
       totalCantidad: toSafeInt(json['totalCantidad']),
       totalMovimientos: toSafeInt(json['totalMovimientos']),
+      totalValor: _parseNullableDouble(json['totalValor']),
     );
   }
+}
+
+/// Parser de Decimal nullable. Prisma serializa los Decimal como String
+/// en JSON, así que el cast directo `as num?` revienta. Devolvemos null
+/// si el valor no viene (campo nuevo en movs previos a la mig 20260521).
+double? _parseNullableDouble(dynamic value) {
+  if (value == null) return null;
+  if (value is double) return value;
+  if (value is int) return value.toDouble();
+  if (value is String) return double.tryParse(value);
+  return null;
 }

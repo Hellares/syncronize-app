@@ -92,9 +92,11 @@ abstract class ProductoStockRepository {
   Future<Resource<KardexData>> getHistorialMovimientos({
     required String stockId,
     int limit = 100,
+    int offset = 0,
     String? tipo,
     String? fechaDesde,
     String? fechaHasta,
+    String? documento,
   });
 
   /// Obtiene alertas de productos con stock bajo el mínimo

@@ -39,6 +39,11 @@ enum _ModoVerificacion { rango, exacto, sinValor }
 
 enum _FiltroStock { ambos, con, sin }
 
+/// Filtros de comparación columna-vs-columna (precio venta vs precio
+/// costo). Cuando se selecciona uno distinto a [ninguno], el backend
+/// ignora `campo`/`modo`/`min`/`max`/`exacto` y aplica esta comparación.
+enum _ComparacionPrecio { ninguno, perdida, sinMargen, margenBajo, sinCosto }
+
 extension on _CampoPrecio {
   String get api {
     switch (this) {
@@ -115,11 +120,44 @@ extension on _FiltroStock {
   }
 }
 
+extension on _ComparacionPrecio {
+  String? get api {
+    switch (this) {
+      case _ComparacionPrecio.ninguno:
+        return null;
+      case _ComparacionPrecio.perdida:
+        return 'PERDIDA';
+      case _ComparacionPrecio.sinMargen:
+        return 'SIN_MARGEN';
+      case _ComparacionPrecio.margenBajo:
+        return 'MARGEN_BAJO';
+      case _ComparacionPrecio.sinCosto:
+        return 'SIN_COSTO';
+    }
+  }
+
+  String get label {
+    switch (this) {
+      case _ComparacionPrecio.ninguno:
+        return 'Sin comparación';
+      case _ComparacionPrecio.perdida:
+        return 'Pérdida (costo > venta)';
+      case _ComparacionPrecio.sinMargen:
+        return 'Sin margen (costo = venta)';
+      case _ComparacionPrecio.margenBajo:
+        return 'Margen bajo (<%)';
+      case _ComparacionPrecio.sinCosto:
+        return 'Sin costo registrado';
+    }
+  }
+}
+
 class _VerificacionPreciosPageState extends State<VerificacionPreciosPage> {
   final DioClient _dio = locator<DioClient>();
   final _minCtrl = TextEditingController();
   final _maxCtrl = TextEditingController();
   final _exactoCtrl = TextEditingController();
+  final _margenMinimoCtrl = TextEditingController(text: '10');
 
   // Controllers para sincronizar el scroll horizontal entre la cabecera
   // sticky (no scrollea vertical) y el body de filas (sí scrollea vertical).
@@ -133,6 +171,7 @@ class _VerificacionPreciosPageState extends State<VerificacionPreciosPage> {
   _CampoPrecio _campo = _CampoPrecio.costo;
   _ModoVerificacion _modo = _ModoVerificacion.rango;
   _FiltroStock _stock = _FiltroStock.ambos;
+  _ComparacionPrecio _comparacion = _ComparacionPrecio.ninguno;
   bool _soloActivos = true;
   bool _filtrosColapsados = false;
 
@@ -172,6 +211,7 @@ class _VerificacionPreciosPageState extends State<VerificacionPreciosPage> {
     _minCtrl.dispose();
     _maxCtrl.dispose();
     _exactoCtrl.dispose();
+    _margenMinimoCtrl.dispose();
     _headerHCtrl.dispose();
     _bodyHCtrl.dispose();
     super.dispose();
@@ -188,21 +228,31 @@ class _VerificacionPreciosPageState extends State<VerificacionPreciosPage> {
 
   Map<String, dynamic> _buildQuery() {
     final q = <String, dynamic>{
-      'campo': _campo.api,
-      'modo': _modo.api,
       'stock': _stock.api,
       'soloActivos': _soloActivos.toString(),
       'limit': 500,
     };
     if (_sedeId != null) q['sedeId'] = _sedeId;
-    if (_modo == _ModoVerificacion.rango) {
-      final min = _parseCurrency(_minCtrl);
-      final max = _parseCurrency(_maxCtrl);
-      if (min != null) q['min'] = min;
-      if (max != null) q['max'] = max;
-    } else if (_modo == _ModoVerificacion.exacto) {
-      final ex = _parseCurrency(_exactoCtrl);
-      if (ex != null) q['exacto'] = ex;
+    final compApi = _comparacion.api;
+    if (compApi != null) {
+      // Modo comparación: backend ignora campo/modo/min/max/exacto.
+      q['comparacion'] = compApi;
+      if (_comparacion == _ComparacionPrecio.margenBajo) {
+        final m = double.tryParse(_margenMinimoCtrl.text.replaceAll(',', '.'));
+        if (m != null) q['margenMinimo'] = m;
+      }
+    } else {
+      q['campo'] = _campo.api;
+      q['modo'] = _modo.api;
+      if (_modo == _ModoVerificacion.rango) {
+        final min = _parseCurrency(_minCtrl);
+        final max = _parseCurrency(_maxCtrl);
+        if (min != null) q['min'] = min;
+        if (max != null) q['max'] = max;
+      } else if (_modo == _ModoVerificacion.exacto) {
+        final ex = _parseCurrency(_exactoCtrl);
+        if (ex != null) q['exacto'] = ex;
+      }
     }
     return q;
   }
@@ -215,22 +265,37 @@ class _VerificacionPreciosPageState extends State<VerificacionPreciosPage> {
     // traería TODOS los productos de la empresa con valor en el campo,
     // que es una petición costosa y casi nunca lo que el usuario quiere.
     // Excepción: SIN_VALOR no requiere min/max/exacto (filtra por null).
-    if (_modo == _ModoVerificacion.rango) {
-      if (_parseCurrency(_minCtrl) == null &&
-          _parseCurrency(_maxCtrl) == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Ingresá un mínimo y/o máximo para buscar'),
-            backgroundColor: Colors.orange,
-          ),
-        );
-        return;
+    // Si hay comparación activa, no se validan campo/modo (el backend los
+    // ignora) — el filtro de comparación ya restringe el dataset.
+    if (_comparacion == _ComparacionPrecio.ninguno) {
+      if (_modo == _ModoVerificacion.rango) {
+        if (_parseCurrency(_minCtrl) == null &&
+            _parseCurrency(_maxCtrl) == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Ingresá un mínimo y/o máximo para buscar'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+          return;
+        }
+      } else if (_modo == _ModoVerificacion.exacto) {
+        if (_parseCurrency(_exactoCtrl) == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Ingresá un valor exacto para buscar'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+          return;
+        }
       }
-    } else if (_modo == _ModoVerificacion.exacto) {
-      if (_parseCurrency(_exactoCtrl) == null) {
+    } else if (_comparacion == _ComparacionPrecio.margenBajo) {
+      final m = double.tryParse(_margenMinimoCtrl.text.replaceAll(',', '.'));
+      if (m == null || m <= 0) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Ingresá un valor exacto para buscar'),
+            content: Text('Ingresá un margen mínimo (%) mayor a 0'),
             backgroundColor: Colors.orange,
           ),
         );
@@ -437,71 +502,108 @@ class _VerificacionPreciosPageState extends State<VerificacionPreciosPage> {
                 onChanged: (v) => setState(() => _sedeId = v),
               ),
             ),
-          Row(
-            children: [
-              Expanded(
-                child: CustomDropdown<_CampoPrecio>(
-                  borderColor: AppColors.blue1,
-                  value: _campo,
-                  items: _CampoPrecio.values
-                      .map((c) => DropdownItem(value: c, label: c.label))
-                      .toList(),
-                  onChanged: (v) {
-                    if (v != null) setState(() => _campo = v);
-                  },
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: CustomDropdown<_ModoVerificacion>(
-                  borderColor: AppColors.blue1,
-                  value: _modo,
-                  items: _ModoVerificacion.values
-                      .map((m) => DropdownItem(value: m, label: m.label))
-                      .toList(),
-                  onChanged: (v) {
-                    if (v != null) setState(() => _modo = v);
-                  },
-                ),
-              ),
-            ],
+          // Comparación columna-vs-columna. Cuando se elige una opción
+          // distinta a "Sin comparación", el formulario por valor se
+          // colapsa (el backend ignora esos campos en ese modo).
+          CustomDropdown<_ComparacionPrecio>(
+            borderColor: AppColors.blue1,
+            value: _comparacion,
+            items: _ComparacionPrecio.values
+                .map((c) => DropdownItem(value: c, label: c.label))
+                .toList(),
+            onChanged: (v) {
+              if (v != null) setState(() => _comparacion = v);
+            },
           ),
-          if (_modo == _ModoVerificacion.rango) ...[
+          if (_comparacion == _ComparacionPrecio.margenBajo) ...[
+            const SizedBox(height: 8),
+            TextField(
+              controller: _margenMinimoCtrl,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: InputDecoration(
+                isDense: true,
+                labelText: 'Margen mínimo (%)',
+                helperText: 'Lista productos con margen < a este valor',
+                helperStyle: const TextStyle(fontSize: 10),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: AppColors.blue1),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: AppColors.blue1, width: 1.5),
+                ),
+              ),
+            ),
+          ],
+          if (_comparacion == _ComparacionPrecio.ninguno) ...[
             const SizedBox(height: 8),
             Row(
               children: [
                 Expanded(
-                  child: CurrencyTextField(
+                  child: CustomDropdown<_CampoPrecio>(
                     borderColor: AppColors.blue1,
-                    controller: _minCtrl,
-                    label: 'Mínimo',
-                    allowZero: true,
-                    requiredField: false,
-                    enableRealTimeValidation: false,
+                    value: _campo,
+                    items: _CampoPrecio.values
+                        .map((c) => DropdownItem(value: c, label: c.label))
+                        .toList(),
+                    onChanged: (v) {
+                      if (v != null) setState(() => _campo = v);
+                    },
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: CurrencyTextField(
+                  child: CustomDropdown<_ModoVerificacion>(
                     borderColor: AppColors.blue1,
-                    controller: _maxCtrl,
-                    label: 'Máximo',
-                    allowZero: true,
-                    requiredField: false,
-                    enableRealTimeValidation: false,
+                    value: _modo,
+                    items: _ModoVerificacion.values
+                        .map((m) => DropdownItem(value: m, label: m.label))
+                        .toList(),
+                    onChanged: (v) {
+                      if (v != null) setState(() => _modo = v);
+                    },
                   ),
                 ),
               ],
             ),
-          ] else if (_modo == _ModoVerificacion.exacto) ...[
-            const SizedBox(height: 8),
-            CurrencyTextField(
-              borderColor: AppColors.blue1,
-              controller: _exactoCtrl,
-              label: 'Valor exacto',
-              allowZero: true,
-              requiredField: false,
-            ),
+            if (_modo == _ModoVerificacion.rango) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: CurrencyTextField(
+                      borderColor: AppColors.blue1,
+                      controller: _minCtrl,
+                      label: 'Mínimo',
+                      allowZero: true,
+                      requiredField: false,
+                      enableRealTimeValidation: false,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: CurrencyTextField(
+                      borderColor: AppColors.blue1,
+                      controller: _maxCtrl,
+                      label: 'Máximo',
+                      allowZero: true,
+                      requiredField: false,
+                      enableRealTimeValidation: false,
+                    ),
+                  ),
+                ],
+              ),
+            ] else if (_modo == _ModoVerificacion.exacto) ...[
+              const SizedBox(height: 8),
+              CurrencyTextField(
+                borderColor: AppColors.blue1,
+                controller: _exactoCtrl,
+                label: 'Valor exacto',
+                allowZero: true,
+                requiredField: false,
+              ),
+            ],
           ],
           const SizedBox(height: 8),
           Row(
@@ -754,6 +856,17 @@ class _VerificacionPreciosPageState extends State<VerificacionPreciosPage> {
     final enLiq = item['enLiquidacion'] as bool? ?? false;
     final selected = _selectedRowKey == _rowKey(item);
     const ts = TextStyle(fontSize: 10);
+    // Costo > venta = pérdida o carga incorrecta. Resaltamos la celda en
+    // rojo (texto bold + fondo) para que salte a la vista en la auditoría.
+    final perdida = precio != null && costo != null && costo > precio;
+    final tsCosto = perdida
+        ? TextStyle(
+            fontSize: 10,
+            color: Colors.red.shade700,
+            fontWeight: FontWeight.bold,
+          )
+        : ts;
+    final bgCostoBase = perdida ? Colors.red.shade100 : _bgCosto;
     return InkWell(
       // 1 tap: selecciona la fila (resalta con franja izquierda + overlay azul).
       // 2 taps: abre el dialog de Configurar Precios para corregir.
@@ -787,8 +900,9 @@ class _VerificacionPreciosPageState extends State<VerificacionPreciosPage> {
                 ts,
                 alignRight: true, bgColor: _tintSelected(_bgVenta, selected)),
             _dCell(
-                costo != null ? costo.toStringAsFixed(2) : '—', _wCosto, ts,
-                alignRight: true, bgColor: _tintSelected(_bgCosto, selected)),
+                costo != null ? costo.toStringAsFixed(2) : '—', _wCosto, tsCosto,
+                alignRight: true,
+                bgColor: _tintSelected(bgCostoBase, selected)),
             _dCell(oferta != null ? oferta.toStringAsFixed(2) : '—', _wOferta,
                 ts,
                 alignRight: true),

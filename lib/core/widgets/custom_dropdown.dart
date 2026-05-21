@@ -107,6 +107,12 @@ class CustomDropdown<T> extends StatefulWidget {
   /// PERF: debounce de búsqueda (ms)
   final int searchDebounceMs;
 
+  /// Callback opcional cuando el texto de búsqueda cambia. Útil para
+  /// disparar una búsqueda remota (paginación en backend) en paralelo
+  /// al filtro local sobre los items ya cargados. El parámetro es el
+  /// texto crudo del search box (sin transformar).
+  final ValueChanged<String>? onSearchChanged;
+
   const CustomDropdown({
     super.key,
     this.label,
@@ -140,6 +146,7 @@ class CustomDropdown<T> extends StatefulWidget {
     this.clearSearchOnClose = true,
     this.itemExtent = 33,
     this.searchDebounceMs = 220,
+    this.onSearchChanged,
   });
 
   @override
@@ -342,6 +349,10 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>>
         });
 
         if (_isExpanded) _safeOverlayRebuild();
+
+        // Dispara la búsqueda remota en paralelo al filtro local. El
+        // caller actualiza `items` y el dropdown re-filtra automáticamente.
+        widget.onSearchChanged?.call(_searchController.text);
       },
     );
   }

@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:syncronize/core/di/injection_container.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
+import 'package:syncronize/core/theme/app_gradients.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/utils/date_formatter.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
@@ -150,7 +151,9 @@ class _HistorialCajaPageState extends State<HistorialCajaPage> {
       borderRadius: BorderRadius.circular(12),
       onTap: () => context.push('/empresa/caja/auditoria/${caja.id}'),
       child: GradientContainer(
-      padding: const EdgeInsets.all(16),
+        borderColor: AppColors.blueborder,
+        shadowStyle: ShadowStyle.glow,
+      padding: const EdgeInsets.all(10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -163,14 +166,14 @@ class _HistorialCajaPageState extends State<HistorialCajaPage> {
                   children: [
                     AppSubtitle(
                       caja.codigo,
-                      fontSize: 15,
+                      fontSize: 12,
                       color: AppColors.blue3,
                     ),
                     const SizedBox(height: 2),
                     Text(
                       caja.sedeNombre ?? 'Sede',
                       style: const TextStyle(
-                        fontSize: 13,
+                        fontSize: 11,
                         color: AppColors.textSecondary,
                       ),
                     ),
