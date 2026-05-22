@@ -8,17 +8,21 @@ import '../../../data/cache/producto_catalogo_memory_cache.dart';
 import '../../../domain/entities/producto_filtros.dart';
 import '../../../domain/entities/producto_list_item.dart';
 import '../../../domain/entities/producto.dart';
+import '../../../domain/entities/sync_deltas_result.dart';
+import '../../../domain/repositories/producto_repository.dart';
 import '../../../domain/usecases/get_productos_usecase.dart';
 import 'producto_list_state.dart';
 
 @injectable
 class ProductoListCubit extends Cubit<ProductoListState> {
   final GetProductosUseCase _getProductosUseCase;
+  final ProductoRepository _productoRepository;
   final ProductoCatalogoMemoryCache _memoryCache;
   final ProductoCatalogoLocalStore _localStore;
 
   ProductoListCubit(
     this._getProductosUseCase,
+    this._productoRepository,
     this._memoryCache,
     this._localStore,
   ) : super(const ProductoListInitial());
@@ -147,6 +151,19 @@ class ProductoListCubit extends Cubit<ProductoListState> {
       emit(const ProductoListLoading());
     }
 
+    // Fase 3: si tenemos cache cargado (memoria o disco) y es catálogo
+    // base, intentar revalidar con sync diferencial — solo viajan los
+    // deltas (~1KB) en vez del catálogo completo (~200KB).
+    final tieneCacheCargado = state is ProductoListLoaded;
+    if (esCatalogoBase && tieneCacheCargado) {
+      final aplicoDeltas = await _tryRevalidarConSyncDeltas(
+        empresaId: empresaId,
+        sedeId: sedeId,
+        mySeq: mySeq,
+      );
+      if (aplicoDeltas) return; // ya emitimos el estado actualizado, fin
+    }
+
     final result = await _getProductosUseCase(
       empresaId: empresaId,
       sedeId: sedeId,
@@ -187,6 +204,7 @@ class ProductoListCubit extends Cubit<ProductoListState> {
       // en disco para que la próxima apertura (incluso de app fría)
       // sea instantánea. Fire-and-forget — no bloqueamos el emit.
       if (esCatalogoBase) {
+        final ahora = DateTime.now();
         unawaited(
           _localStore.write(
             empresaId: empresaId,
@@ -198,8 +216,18 @@ class ProductoListCubit extends Cubit<ProductoListState> {
               currentPage: data.page,
               totalPages: data.totalPages,
               hasMore: data.hasNext,
-              savedAt: DateTime.now(),
+              savedAt: ahora,
             ),
+          ),
+        );
+        // Fase 3: el fetch completo marca el punto de partida para
+        // futuros sync deltas. Usamos ahora() como aproximación al
+        // serverTime — la próxima request pedirá deltas desde acá.
+        unawaited(
+          _localStore.writeLastSync(
+            empresaId: empresaId,
+            sedeId: sedeId,
+            serverTime: ahora.toIso8601String(),
           ),
         );
       }
@@ -341,6 +369,15 @@ class ProductoListCubit extends Cubit<ProductoListState> {
     _vistosCache.clear();
     // Fire-and-forget: no bloqueamos la UI esperando al delete.
     unawaited(_localStore.clearEmpresa(_currentEmpresaId!));
+    // Fase 3: pull-to-refresh tiene que forzar fetch full (intención
+    // explícita del usuario), por eso descartamos el lastSync para
+    // que la próxima request NO use deltas.
+    unawaited(
+      _localStore.clearLastSync(
+        empresaId: _currentEmpresaId!,
+        sedeId: _currentSedeId,
+      ),
+    );
     await loadProductos(
       empresaId: _currentEmpresaId!,
       sedeId: sedeId ?? _currentSedeId,
@@ -358,6 +395,110 @@ class ProductoListCubit extends Cubit<ProductoListState> {
         f.empresaCategoriaId == null &&
         f.empresaMarcaId == null &&
         f.page == 1;
+  }
+
+  /// Fase 3: revalida con sync diferencial. Solo se invoca si hay
+  /// cache cargado y la query es catálogo base.
+  ///
+  /// Devuelve `true` si pudo aplicar deltas exitosamente (el estado
+  /// ya quedó emitido con la versión fresca). `false` significa que
+  /// el caller debe fallback al `getProductos` completo (cliente sin
+  /// lastSync, server pidió fullSyncRequired, o fallo de red).
+  Future<bool> _tryRevalidarConSyncDeltas({
+    required String empresaId,
+    String? sedeId,
+    required int mySeq,
+  }) async {
+    final lastSync = await _localStore.readLastSync(
+      empresaId: empresaId,
+      sedeId: sedeId,
+    );
+    if (lastSync == null) return false;
+
+    final result = await _productoRepository.syncDeltasProductos(
+      lastSync: lastSync,
+      sedeId: sedeId,
+    );
+    if (isClosed) return true; // ya no nos importa lo que llegó
+    if (mySeq != _requestSeq) return true;
+
+    if (result is! Success<SyncDeltasResult>) return false;
+    final deltas = result.data;
+    if (deltas.fullSyncRequired) return false;
+
+    // Aplicar deltas sobre cache local.
+    for (final id in deltas.deleted) {
+      _vistosCache.remove(id);
+      _allProductos.removeWhere((p) => p.id == id);
+    }
+    for (final p in deltas.updated) {
+      _vistosCache[p.id] = p;
+      final idx = _allProductos.indexWhere((x) => x.id == p.id);
+      if (idx >= 0) {
+        _allProductos[idx] = p;
+      } else {
+        _allProductos.add(p);
+      }
+    }
+    _recortarBiblioteca();
+
+    // Persistir: nuevo lastSync + biblioteca + snapshot base.
+    unawaited(
+      _localStore.writeLastSync(
+        empresaId: empresaId,
+        sedeId: sedeId,
+        serverTime: deltas.serverTime,
+      ),
+    );
+    unawaited(
+      _localStore.writeLibreria(
+        empresaId: empresaId,
+        productos: _vistosCache.values.toList(),
+      ),
+    );
+    final current = state;
+    if (current is ProductoListLoaded) {
+      unawaited(
+        _localStore.write(
+          empresaId: empresaId,
+          sedeId: sedeId,
+          snapshot: CatalogoLocalSnapshot(
+            version: CatalogoLocalSnapshot.currentVersion,
+            productos: List.of(_allProductos),
+            total: current.total + deltas.updated.length - deltas.deleted.length,
+            currentPage: current.currentPage,
+            totalPages: current.totalPages,
+            hasMore: current.hasMore,
+            savedAt: DateTime.now(),
+          ),
+        ),
+      );
+      // También actualizar memory cache.
+      _memoryCache.put(
+        empresaId,
+        sedeId,
+        _currentFiltros,
+        CatalogoCacheEntry(
+          productos: List.of(_allProductos),
+          total: current.total + deltas.updated.length - deltas.deleted.length,
+          currentPage: current.currentPage,
+          totalPages: current.totalPages,
+          hasMore: current.hasMore,
+          filtros: _currentFiltros,
+          productosFullCache: Map.of(_productosFullCache),
+          timestamp: DateTime.now(),
+        ),
+      );
+
+      emit(
+        current.copyWith(
+          productos: _allProductos,
+          total: current.total + deltas.updated.length - deltas.deleted.length,
+          isFiltering: false,
+        ),
+      );
+    }
+    return true;
   }
 
   /// Restaura la biblioteca acumulativa desde disco. Se invoca antes

@@ -79,7 +79,7 @@ class _CajaMonitorPageState extends State<CajaMonitorPage> {
   Widget _buildErrorState(String message) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -133,42 +133,57 @@ class _CajaMonitorPageState extends State<CajaMonitorPage> {
       );
     }
 
-    return RefreshIndicator(
-      onRefresh: () async {
-        await _monitorCubit.loadMonitor();
-      },
-      child: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          _buildResumenCard(data.resumen),
-          if (data.cajas.length > 1) ...[
-            const SizedBox(height: 12),
-            _buildRankingCajeros(data.cajas),
-          ],
-          const SizedBox(height: 16),
-          ...data.cajas.map((caja) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: GestureDetector(
-                  onTap: () {
-                    // Abrimos la CajaPage en modo vista admin con el
-                    // id de esta caja. La page carga el detalle via
-                    // GET /caja/:id, muestra el mismo dashboard que ve
-                    // el cajero y permite arquear/cerrar desde acá.
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => CajaPage(cajaId: caja.id),
+    return Column(
+      children: [
+        // Resumen + ranking FIJOS arriba (no scrollean con la lista).
+        // Toman todo el width disponible — el padding mínimo evita
+        // que los bordes redondeados se recorten contra la pantalla.
+        Padding(
+          padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
+          child: _buildResumenCard(data.resumen),
+        ),
+        if (data.cajas.length > 1)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
+            child: _buildRankingCajeros(data.cajas),
+          ),
+        // Lista scrolleable: solo las cards de cajas. El RefreshIndicator
+        // se queda en la zona scrollable; los cards fijos arriba no
+        // responden al pull pero la lista sí.
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: () async {
+              await _monitorCubit.loadMonitor();
+            },
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 16),
+              children: [
+                ...data.cajas.map((caja) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: GestureDetector(
+                        onTap: () {
+                          // Abrimos la CajaPage en modo vista admin con el
+                          // id de esta caja. La page carga el detalle via
+                          // GET /caja/:id, muestra el mismo dashboard que ve
+                          // el cajero y permite arquear/cerrar desde acá.
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => CajaPage(cajaId: caja.id),
+                            ),
+                          ).then((_) {
+                            // Refrescar el listado al volver — la caja pudo
+                            // haberse cerrado desde el detalle.
+                            if (mounted) _monitorCubit.loadMonitor();
+                          });
+                        },
+                        child: _buildCajaCard(caja),
                       ),
-                    ).then((_) {
-                      // Refrescar el listado al volver — la caja pudo
-                      // haberse cerrado desde el detalle.
-                      if (mounted) _monitorCubit.loadMonitor();
-                    });
-                  },
-                  child: _buildCajaCard(caja),
-                ),
-              )),
-        ],
-      ),
+                    )),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -257,9 +272,78 @@ class _CajaMonitorPageState extends State<CajaMonitorPage> {
     final sorted = List<CajaMonitorItem>.from(cajas)
       ..sort((a, b) => b.totalIngresos.compareTo(a.totalIngresos));
 
+    // Si hay muchos cajeros, evitamos que el ranking ocupe toda la
+    // pantalla y robe espacio a la lista scrollable de abajo: max-height
+    // ~145px (≈ 5 filas) con scroll interno. Si hay ≤4 se renderiza
+    // completo sin scroll.
+    final muchos = sorted.length > 4;
+
+    Widget filaCajero(int pos, CajaMonitorItem caja) {
+      final esLider = pos == 0;
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 6),
+        child: Row(
+          children: [
+            Container(
+              width: 22, height: 22,
+              decoration: BoxDecoration(
+                color: esLider
+                    ? Colors.amber.withValues(alpha: 0.2)
+                    : Colors.grey.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Center(
+                child: Text(
+                  '${pos + 1}',
+                  style: TextStyle(
+                    fontSize: 10, fontWeight: FontWeight.w700,
+                    color: esLider ? Colors.amber[800] : Colors.grey[600],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            if (esLider) ...[
+              Icon(Icons.emoji_events, size: 14, color: Colors.amber[700]),
+              const SizedBox(width: 4),
+            ],
+            Expanded(
+              child: Text(
+                caja.usuarioNombre.isNotEmpty ? caja.usuarioNombre : caja.codigo,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: esLider ? FontWeight.w700 : FontWeight.w500,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            Text(
+              currencyFormat.format(caja.totalIngresos),
+              style: TextStyle(
+                fontSize: 11, fontWeight: FontWeight.w700,
+                color: esLider ? Colors.green[700] : Colors.grey[700],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '${caja.totalMovimientos} mov',
+              style: TextStyle(fontSize: 9, color: Colors.grey[500]),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final filas = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (int i = 0; i < sorted.length; i++) filaCajero(i, sorted[i]),
+      ],
+    );
+
     return GradientContainer(
       borderColor: AppColors.blueborder,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.only(top: 5, left: 10, right: 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -267,62 +351,38 @@ class _CajaMonitorPageState extends State<CajaMonitorPage> {
             children: [
               Icon(Icons.leaderboard_rounded, size: 16, color: AppColors.blue1),
               const SizedBox(width: 6),
-              const AppSubtitle('Ranking Cajeros', fontSize: 13),
+              const AppSubtitle('RANKING CAJEROS', fontSize: 10),
+              if (muchos) ...[
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: AppColors.blue1.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '${sorted.length}',
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.blue1,
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
           const SizedBox(height: 10),
-          ...sorted.asMap().entries.map((entry) {
-            final pos = entry.key;
-            final caja = entry.value;
-            final esLider = pos == 0;
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: Row(
-                children: [
-                  Container(
-                    width: 22, height: 22,
-                    decoration: BoxDecoration(
-                      color: esLider ? Colors.amber.withValues(alpha: 0.2) : Colors.grey.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Center(
-                      child: Text(
-                        '${pos + 1}',
-                        style: TextStyle(
-                          fontSize: 10, fontWeight: FontWeight.w700,
-                          color: esLider ? Colors.amber[800] : Colors.grey[600],
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  if (esLider) ...[
-                    Icon(Icons.emoji_events, size: 14, color: Colors.amber[700]),
-                    const SizedBox(width: 4),
-                  ],
-                  Expanded(
-                    child: Text(
-                      caja.usuarioNombre.isNotEmpty ? caja.usuarioNombre : caja.codigo,
-                      style: TextStyle(fontSize: 11, fontWeight: esLider ? FontWeight.w700 : FontWeight.w500),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  Text(
-                    currencyFormat.format(caja.totalIngresos),
-                    style: TextStyle(
-                      fontSize: 11, fontWeight: FontWeight.w700,
-                      color: esLider ? Colors.green[700] : Colors.grey[700],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '${caja.totalMovimientos} mov',
-                    style: TextStyle(fontSize: 9, color: Colors.grey[500]),
-                  ),
-                ],
+          if (muchos)
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 145),
+              child: Scrollbar(
+                thumbVisibility: true,
+                child: SingleChildScrollView(child: filas),
               ),
-            );
-          }),
+            )
+          else
+            filas,
         ],
       ),
     );
@@ -362,11 +422,11 @@ class _CajaMonitorPageState extends State<CajaMonitorPage> {
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               Expanded(
                 child: AppSubtitle(
                   caja.codigo,
-                  fontSize: 13,
+                  fontSize: 11,
                   color: AppColors.blue3,
                 ),
               ),
@@ -402,7 +462,7 @@ class _CajaMonitorPageState extends State<CajaMonitorPage> {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
 
           // Cajero
           Row(
@@ -421,7 +481,7 @@ class _CajaMonitorPageState extends State<CajaMonitorPage> {
               ),
             ],
           ),
-          const Divider(height: 20),
+          const Divider(height: 10),
 
           // Metrics row: Ingresos, Egresos, Saldo
           Row(
@@ -449,7 +509,7 @@ class _CajaMonitorPageState extends State<CajaMonitorPage> {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 6),
 
           // Footer: movimientos + ultimo movimiento + inactividad
           Row(

@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:syncronize/core/di/injection_container.dart';
+import 'package:syncronize/core/services/realtime_sync_service.dart';
 import 'package:syncronize/core/widgets/custom_sede_selector.dart';
 import 'package:syncronize/core/widgets/floating_button_icon.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
@@ -36,7 +40,6 @@ import '../widgets/ajustar_stock_dialog.dart';
 import '../widgets/configurar_precios_dialog.dart';
 import '../../../../core/services/storage_service.dart';
 // import '../../../../core/services/search_history_service.dart';
-import '../../../../core/di/injection_container.dart';
 // Imports para páginas de inventario/stock
 import 'stock_por_sede_page.dart';
 import 'alertas_stock_bajo_page.dart';
@@ -72,17 +75,42 @@ class _ProductosPageState extends State<ProductosPage>
   /// El backend respeta este flag (independiente de soloEliminados).
   bool? _filtroIsActive;
 
+  /// Listener al stream de [RealtimeSyncService]. Cuando llega un FCM
+  /// (PRECIO_CAMBIADO / STOCK_CAMBIADO / NIVELES_CAMBIADOS) refrescamos
+  /// el catálogo. Debounce 500ms para colapsar ráfagas (ej. admin
+  /// guarda varios productos seguidos → 1 sola recarga).
+  StreamSubscription<RealtimeEvent>? _realtimeSubscription;
+  Timer? _realtimeReloadDebounce;
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 5, vsync: this);
     _tabController.addListener(_onTabChanged);
     _scrollController.addListener(_onScroll);
+    _suscribirRealtime();
     _loadProductos();
+  }
+
+  void _suscribirRealtime() {
+    final realtime = locator<RealtimeSyncService>();
+    _realtimeSubscription = realtime.events.listen((event) {
+      // Cualquier evento de precio/stock/niveles invalida el catálogo
+      // local. Reload con debounce — el `reload()` del cubit limpia
+      // memoria + biblioteca + disco + lastSync, así que la próxima
+      // request va fresh al server.
+      _realtimeReloadDebounce?.cancel();
+      _realtimeReloadDebounce = Timer(const Duration(milliseconds: 500), () {
+        if (!mounted) return;
+        _loadProductos();
+      });
+    });
   }
 
   @override
   void dispose() {
+    _realtimeReloadDebounce?.cancel();
+    _realtimeSubscription?.cancel();
     _scrollController.dispose();
     _searchController.dispose();
     _tabController.dispose();

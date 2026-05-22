@@ -4,6 +4,7 @@ import '../entities/producto.dart';
 import '../entities/producto_filtros.dart';
 import '../entities/regla_compatibilidad.dart';
 import '../entities/resultado_compatibilidad.dart';
+import '../entities/sync_deltas_result.dart';
 import '../entities/transferencia_incidencia.dart';
 
 /// Repository interface para operaciones relacionadas con productos
@@ -91,6 +92,15 @@ abstract class ProductoRepository {
     required String productoId,
     required String empresaId,
     required List<String> imagenesIds,
+  });
+
+  /// Sync diferencial del catálogo (Fase 3). Devuelve solo productos
+  /// modificados o eliminados desde `lastSync`. Si el backend responde
+  /// fullSyncRequired=true, el caller debe descartar el resultado y
+  /// hacer un getProductos completo.
+  Future<Resource<SyncDeltasResult>> syncDeltasProductos({
+    String? lastSync,
+    String? sedeId,
   });
 
   Future<Resource<void>> eliminarProducto({

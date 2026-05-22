@@ -138,79 +138,94 @@ class UsuarioDetailSheet extends StatelessWidget {
             ),
           ),
 
-          // Botones de acción
-          const Divider(),
-          const SizedBox(height: 12),
-          if (_esCliente)
-            // Botón para convertir cliente a empleado
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () => _showConvertirAEmpleadoDialog(context),
-                icon: const Icon(Icons.badge),
-                label: const Text('Convertir a Empleado'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-              ),
-            )
-          else ...[
-            // Botón ver dashboard del vendedor
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  Navigator.pop(context);
-                  context.push('/empresa/dashboard-vendedor?vendedorId=${usuario.id}');
-                },
-                icon: const Icon(Icons.trending_up, size: 16),
-                label: const Text('Ver Dashboard de Ventas'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.green.shade700,
-                  side: BorderSide(color: Colors.green.shade300),
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            // Botones para empleados
-            Row(
+          // Botones de acción. SafeArea(top: false) garantiza que en
+          // celulares con gesture bar gruesa los botones no queden
+          // tapados por la barra del sistema. Va acá adentro (no
+          // afuera del Container) para que el sheet siga llegando al
+          // borde inferior visualmente.
+          SafeArea(
+            top: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Expanded(
-                  child: usuario.isActive
-                      ? CustomButton(
-                          backgroundColor: AppColors.blue1,
-                          fontSize: 10,
-                          icon: const Icon(Icons.person_off),
-                          text: 'Desactivar',
-                          onPressed: () => _showDesactivarDialog(context),
-                        )
-                      : CustomButton(
-                          backgroundColor: Colors.green.shade700,
-                          fontSize: 10,
-                          icon: const Icon(Icons.person_add_alt_1),
-                          text: 'Reactivar',
-                          onPressed: () => _showReactivarDialog(context),
-                        ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  flex: 2,
-                  child: CustomButton(
-                    borderColor: AppColors.white,
-                    backgroundColor: AppColors.white,
-                    textColor: AppColors.blue1,
-                    fontSize: 10,
-                    text: 'Asignar Rol/Permisos',
-                    onPressed: () => _showAsignarRolDialog(context),
-                    icon: const Icon(Icons.security),
+                const Divider(),
+                const SizedBox(height: 12),
+                if (_esCliente)
+                  // Botón para convertir cliente a empleado
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _showConvertirAEmpleadoDialog(context),
+                      icon: const Icon(Icons.badge),
+                      label: const Text('Convertir a Empleado'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  )
+                else ...[
+                  // Botón ver dashboard del vendedor
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        context.push(
+                            '/empresa/dashboard-vendedor?vendedorId=${usuario.id}');
+                      },
+                      icon: const Icon(Icons.trending_up, size: 16),
+                      label: const Text('Ver Dashboard de Ventas'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.green.shade700,
+                        side: BorderSide(color: Colors.green.shade300),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 8),
+                  // Botones para empleados
+                  Row(
+                    children: [
+                      Expanded(
+                        child: usuario.isActive
+                            ? CustomButton(
+                                backgroundColor: AppColors.blue1,
+                                fontSize: 10,
+                                icon: const Icon(Icons.person_off),
+                                text: 'Desactivar',
+                                onPressed: () =>
+                                    _showDesactivarDialog(context),
+                              )
+                            : CustomButton(
+                                backgroundColor: Colors.green.shade700,
+                                fontSize: 10,
+                                icon: const Icon(Icons.person_add_alt_1),
+                                text: 'Reactivar',
+                                onPressed: () =>
+                                    _showReactivarDialog(context),
+                              ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        flex: 2,
+                        child: CustomButton(
+                          borderColor: AppColors.white,
+                          backgroundColor: AppColors.white,
+                          textColor: AppColors.blue1,
+                          fontSize: 10,
+                          text: 'Asignar Rol/Permisos',
+                          onPressed: () => _showAsignarRolDialog(context),
+                          icon: const Icon(Icons.security),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
-          ],
+          ),
         ],
       ),
     );

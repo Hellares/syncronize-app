@@ -99,6 +99,24 @@ class ProductoRemoteDataSource {
     );
   }
 
+  /// Sync diferencial (Fase 3): trae solo productos modificados o
+  /// eliminados desde `lastSync`. Si el backend responde
+  /// fullSyncRequired=true, el caller debe hacer un getProductos
+  /// completo en su lugar.
+  Future<Map<String, dynamic>> syncDeltasProductos({
+    String? lastSync,
+    String? sedeId,
+  }) async {
+    final response = await _dioClient.get(
+      '${ApiConstants.productos}/sync',
+      queryParameters: {
+        if (lastSync != null) 'lastSync': lastSync,
+        if (sedeId != null) 'sedeId': sedeId,
+      },
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
   /// Elimina un producto (soft delete)
   ///
   /// DELETE /api/productos/:id

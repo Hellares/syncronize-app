@@ -271,6 +271,57 @@ class ProductoCatalogoLocalStore {
     } catch (_) {}
   }
 
+  // ═══════════════════════════════════════════════════════════════════
+  //  lastSync — token de sync diferencial (Fase 3)
+  //
+  // Guarda el `serverTime` que el endpoint /productos/sync devuelve
+  // como marca para el próximo delta. Persistente en disco por
+  // (empresaId, sedeId) para que sobreviva al cierre de la app.
+  //
+  // Path: `getApplicationDocumentsDirectory()/producto_catalogo_v1/{empresaId}_{sedeId}.lastsync`
+  // ═══════════════════════════════════════════════════════════════════
+
+  Future<File> _lastSyncFile(String empresaId, String? sedeId) async {
+    final dir = await _ensureBaseDir();
+    return File('${dir.path}/${_fileName(empresaId, sedeId)}.lastsync');
+  }
+
+  /// Lee el token lastSync (ISO8601) o null si no existe.
+  Future<String?> readLastSync({
+    required String empresaId,
+    String? sedeId,
+  }) async {
+    try {
+      final file = await _lastSyncFile(empresaId, sedeId);
+      if (!await file.exists()) return null;
+      final value = (await file.readAsString()).trim();
+      return value.isEmpty ? null : value;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> writeLastSync({
+    required String empresaId,
+    String? sedeId,
+    required String serverTime,
+  }) async {
+    try {
+      final file = await _lastSyncFile(empresaId, sedeId);
+      await file.writeAsString(serverTime);
+    } catch (_) {}
+  }
+
+  Future<void> clearLastSync({
+    required String empresaId,
+    String? sedeId,
+  }) async {
+    try {
+      final file = await _lastSyncFile(empresaId, sedeId);
+      if (await file.exists()) await file.delete();
+    } catch (_) {}
+  }
+
   /// Borra todo el cache (usado en logout / reset).
   Future<void> clearAll() async {
     try {

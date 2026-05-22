@@ -108,6 +108,34 @@ class _FinalizarViewState extends State<_FinalizarView> {
         leftIcon: Icons.arrow_back_rounded,
         onLeftTap: () => context.pop(),
       ),
+      // Botón fijo al final. El bottomNavigationBar respeta la barra
+      // del sistema (gestos / botones nav) automáticamente en todos
+      // los devices — más robusto que un Padding+SafeArea manual
+      // (que en algunos celulares con gesture bar gruesa quedaba
+      // tapado).
+      bottomNavigationBar:
+          BlocBuilder<CotizacionRapidaCubit, CotizacionRapidaState>(
+        buildWhen: (a, b) =>
+            a.total != b.total || a.procesando != b.procesando,
+        builder: (context, state) {
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
+              child: CustomButton(
+                text:
+                    'CREAR COTIZACIÓN  —  S/ ${state.total.toStringAsFixed(2)}',
+                backgroundColor: AppColors.blue1,
+                textColor: Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 12,
+                isLoading: state.procesando,
+                enabled: !state.procesando,
+                onPressed: state.procesando ? null : _crear,
+              ),
+            ),
+          );
+        },
+      ),
       body: BlocConsumer<CotizacionRapidaCubit, CotizacionRapidaState>(
         listener: (context, state) {
           if (state.error != null) {
@@ -337,20 +365,6 @@ class _FinalizarViewState extends State<_FinalizarView> {
                         ),
                       ],
                     ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-                  child: CustomButton(
-                    text:
-                        'CREAR COTIZACIÓN  —  S/ ${state.total.toStringAsFixed(2)}',
-                    backgroundColor: AppColors.blue1,
-                    textColor: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 12,
-                    isLoading: state.procesando,
-                    enabled: !state.procesando,
-                    onPressed: state.procesando ? null : _crear,
                   ),
                 ),
               ],

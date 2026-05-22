@@ -6,7 +6,9 @@ import '../../domain/entities/bulk_upload_result.dart';
 import '../../domain/entities/producto.dart';
 import '../../domain/entities/producto_filtros.dart';
 import '../../domain/entities/regla_compatibilidad.dart';
+import '../../domain/entities/producto_list_item.dart';
 import '../../domain/entities/resultado_compatibilidad.dart';
+import '../../domain/entities/sync_deltas_result.dart';
 import '../../domain/entities/transferencia_incidencia.dart';
 import '../../domain/repositories/producto_repository.dart';
 import '../datasources/producto_remote_datasource.dart';
@@ -285,6 +287,39 @@ class ProductoRepositoryImpl implements ProductoRepository {
         imagenesIds: imagenesIds,
       );
       return Success(null);
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Producto');
+    }
+  }
+
+  @override
+  Future<Resource<SyncDeltasResult>> syncDeltasProductos({
+    String? lastSync,
+    String? sedeId,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final raw = await _remoteDataSource.syncDeltasProductos(
+        lastSync: lastSync,
+        sedeId: sedeId,
+      );
+      final updatedJson = (raw['updated'] as List?) ?? const [];
+      final deletedJson = (raw['deleted'] as List?) ?? const [];
+      return Success(
+        SyncDeltasResult(
+          updated: updatedJson
+              .map((e) => ProductoListItemModel.fromJson(
+                  e as Map<String, dynamic>))
+              .cast<ProductoListItem>()
+              .toList(),
+          deleted: deletedJson.cast<String>(),
+          serverTime: raw['serverTime'] as String? ??
+              DateTime.now().toIso8601String(),
+          fullSyncRequired: raw['fullSyncRequired'] as bool? ?? true,
+        ),
+      );
     } catch (e) {
       return _errorHandler.handleException(e, context: 'Producto');
     }

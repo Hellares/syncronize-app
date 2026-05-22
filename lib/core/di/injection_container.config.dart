@@ -4255,13 +4255,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i692.BulkUploadProductosUseCase>(),
       ),
     );
-    gh.factory<_i227.ProductoListCubit>(
-      () => _i227.ProductoListCubit(
-        gh<_i202.GetProductosUseCase>(),
-        gh<_i881.ProductoCatalogoMemoryCache>(),
-        gh<_i559.ProductoCatalogoLocalStore>(),
-      ),
-    );
     gh.factory<_i980.IncidenciaCubit>(
       () => _i980.IncidenciaCubit(gh<_i288.IncidenciaRepository>()),
     );
@@ -4450,6 +4443,14 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i56.ResetPasswordCubit>(
       () => _i56.ResetPasswordCubit(gh<_i474.ResetPasswordUseCase>()),
+    );
+    gh.factory<_i227.ProductoListCubit>(
+      () => _i227.ProductoListCubit(
+        gh<_i202.GetProductosUseCase>(),
+        gh<_i398.ProductoRepository>(),
+        gh<_i881.ProductoCatalogoMemoryCache>(),
+        gh<_i559.ProductoCatalogoLocalStore>(),
+      ),
     );
     gh.factory<_i848.CheckoutCubit>(
       () => _i848.CheckoutCubit(

@@ -357,8 +357,8 @@ class ProductoListTile extends StatelessWidget {
                 producto.nombre,
                 style: TextStyle(
                   fontSize: 10,
-                  fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
-                  fontWeight: FontWeight.bold,
+                  fontFamily: AppFonts.getFontFamily(AppFont.oxygenBold),
+                  color: AppColors.blue3
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -459,7 +459,7 @@ class ProductoListTile extends StatelessWidget {
         Container(
           height: 1,
           color: Colors.grey[300],
-          margin: const EdgeInsets.symmetric(vertical: 4),
+          margin: const EdgeInsets.symmetric(vertical: 2),
         ),
 
         // Línea 1: Precio (oculto para productos con variantes)
@@ -570,7 +570,7 @@ class ProductoListTile extends StatelessWidget {
         ],
 
         // Línea 2: Stock badge + COMBO badge (horizontal)
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
         Row(
           children: [
             // Stock badge

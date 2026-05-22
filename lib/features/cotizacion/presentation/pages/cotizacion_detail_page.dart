@@ -737,6 +737,14 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
     final cot = _cotizacion!;
     final actions = <Widget>[];
 
+    // Rol del usuario en la empresa actual. Si NO es admin, ocultamos
+    // las acciones de aprobar/rechazar (esas son decisión del jefe).
+    // El vendedor/cajero que crea o envía a pendiente NO debe poder
+    // aprobar su propia cotización.
+    final empresaState = context.read<EmpresaContextCubit>().state;
+    final esAdmin = empresaState is EmpresaContextLoaded &&
+        empresaState.context.userRoles.any((r) => r.isAdminRole);
+
     if (cot.estado == EstadoCotizacion.borrador) {
       actions.add(Expanded(
         child: OutlinedButton.icon(
@@ -824,7 +832,10 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
           ),
         ),
       ));
-    } else if (cot.estado == EstadoCotizacion.pendiente) {
+    } else if (cot.estado == EstadoCotizacion.pendiente && esAdmin) {
+      // Aprobar/Rechazar son acciones de admin (SUPER_ADMIN /
+      // EMPRESA_ADMIN / SEDE_ADMIN). Vendedores/cajeros no las ven —
+      // su rol termina al enviar la cotización a pendiente.
       actions.addAll([
         Expanded(
           child: OutlinedButton.icon(
@@ -872,19 +883,25 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
 
     if (actions.isEmpty) return null;
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 8,
-            offset: const Offset(0, -2),
-          ),
-        ],
+    // SafeArea: respeta la barra del sistema (gestos / nav buttons)
+    // en todos los devices. Sin esto, en celulares con gesture bar
+    // gruesa los botones quedaban tapados.
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 8,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: Row(children: actions),
       ),
-      child: Row(children: actions),
     );
   }
 
