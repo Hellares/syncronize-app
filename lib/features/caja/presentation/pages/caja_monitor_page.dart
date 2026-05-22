@@ -8,11 +8,10 @@ import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/theme/gradient_container.dart';
 import '../../../../core/fonts/app_text_widgets.dart';
 import '../../../../core/widgets/smart_appbar.dart';
-import '../bloc/caja_movimientos_cubit.dart';
-import 'movimientos_caja_page.dart';
 import '../../domain/entities/caja_monitor.dart';
 import '../bloc/caja_monitor_cubit.dart';
 import '../bloc/caja_monitor_state.dart';
+import 'caja_page.dart';
 
 class CajaMonitorPage extends StatefulWidget {
   const CajaMonitorPage({super.key});
@@ -150,14 +149,21 @@ class _CajaMonitorPageState extends State<CajaMonitorPage> {
           ...data.cajas.map((caja) => Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: GestureDetector(
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => BlocProvider(
-                        create: (_) => locator<CajaMovimientosCubit>()..loadMovimientos(caja.id),
-                        child: MovimientosCajaPage(cajaId: caja.id),
+                  onTap: () {
+                    // Abrimos la CajaPage en modo vista admin con el
+                    // id de esta caja. La page carga el detalle via
+                    // GET /caja/:id, muestra el mismo dashboard que ve
+                    // el cajero y permite arquear/cerrar desde acá.
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => CajaPage(cajaId: caja.id),
                       ),
-                    ),
-                  ),
+                    ).then((_) {
+                      // Refrescar el listado al volver — la caja pudo
+                      // haberse cerrado desde el detalle.
+                      if (mounted) _monitorCubit.loadMonitor();
+                    });
+                  },
                   child: _buildCajaCard(caja),
                 ),
               )),

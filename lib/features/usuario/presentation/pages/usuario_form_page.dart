@@ -20,6 +20,8 @@ import '../../../auth/presentation/widgets/custom_text.dart'
     show CustomText, FieldType;
 import '../../../consultas_externas/domain/entities/consulta_dni.dart';
 import '../../../consultas_externas/domain/usecases/consultar_dni_usecase.dart';
+import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
+import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../../empresa/presentation/widgets/accesos_rapidos_section.dart'
     show AccesosRapidosCatalogo;
 import '../../../../core/utils/granular_permissions_catalog.dart';
@@ -27,6 +29,7 @@ import '../../../../core/utils/rol_presets.dart';
 import '../../domain/entities/usuario_filtros.dart';
 import '../bloc/usuario_form/usuario_form_cubit.dart';
 import '../bloc/usuario_form/usuario_form_state.dart';
+import '../widgets/asignar_rol_dialog.dart' show SedeOption;
 
 /// Página para registrar un nuevo usuario/empleado
 class UsuarioFormPage extends StatefulWidget {
@@ -63,6 +66,17 @@ class _UsuarioFormPageState extends State<UsuarioFormPage> {
   /// Permisos granulares activos (catálogo extensible).
   final Set<String> _permisosEspeciales = {};
 
+  /// Sedes activas disponibles de la empresa (leídas del EmpresaContext).
+  List<SedeOption> _sedesDisponibles = [];
+  /// IDs de sedes seleccionadas para asignar al nuevo usuario.
+  final List<String> _sedesSeleccionadas = [];
+
+  /// Estado expandido de los bloques colapsables del rol.
+  /// Por default ambos arrancan cerrados para reducir scroll inicial;
+  /// el admin los abre cuando necesita ajustar permisos finos.
+  bool _permisosExpanded = false;
+  bool _accesosExpanded = false;
+
   // DNI lookup state
   bool _isLookingUpDni = false;
   bool _dniFieldsFilled = false;
@@ -74,11 +88,49 @@ class _UsuarioFormPageState extends State<UsuarioFormPage> {
     super.initState();
     _cubit = locator<UsuarioFormCubit>();
     _loadEmpresaId();
+    // Default: TODOS los accesos rápidos arrancan desmarcados (ocultos).
+    // El admin marca explícitamente los que quiere que el usuario vea —
+    // política conservadora: por defecto el usuario nuevo no ve ningún
+    // acceso rápido en su dashboard hasta que el admin lo habilite.
+    _accesosRapidosOcultos.addAll(
+      AccesosRapidosCatalogo.items.map((e) => e.$1),
+    );
+    // _loadSedesDisponibles depende del context (lee EmpresaContextCubit),
+    // así que se ejecuta después del primer frame.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _loadSedesDisponibles();
+    });
   }
 
   void _loadEmpresaId() {
     final localStorage = locator<LocalStorageService>();
     _empresaId = localStorage.getString(StorageConstants.tenantId);
+  }
+
+  /// Carga sedes activas del EmpresaContext. Si la empresa tiene una
+  /// sola sede, se auto-selecciona y el selector queda oculto.
+  void _loadSedesDisponibles() {
+    final empresaState = context.read<EmpresaContextCubit>().state;
+    if (empresaState is! EmpresaContextLoaded) return;
+
+    final sedes = empresaState.context.sedes
+        .where((sede) => sede.isActive)
+        .map((sede) => SedeOption(
+              id: sede.id,
+              nombre: sede.nombre,
+              direccion: sede.direccion,
+            ))
+        .toList();
+
+    setState(() {
+      _sedesDisponibles = sedes;
+      // Auto-seleccionar si hay una sola sede (no hace falta UI).
+      if (sedes.length == 1) {
+        _sedesSeleccionadas
+          ..clear()
+          ..add(sedes.first.id);
+      }
+    });
   }
 
   @override
@@ -199,6 +251,15 @@ class _UsuarioFormPageState extends State<UsuarioFormPage> {
       SnackBarHelper.showError(context, 'Debe seleccionar un rol');
       return false;
     }
+    // Validar selección de sede solo si hay >1 disponibles. Con 1 sola
+    // ya viene auto-seleccionada en _loadSedesDisponibles.
+    if (_sedesDisponibles.isNotEmpty && _sedesSeleccionadas.isEmpty) {
+      SnackBarHelper.showError(
+        context,
+        'Debe asignar al menos una sede al usuario',
+      );
+      return false;
+    }
     return true;
   }
 
@@ -232,6 +293,8 @@ class _UsuarioFormPageState extends State<UsuarioFormPage> {
       departamento: _departamentoController.text.trim().isNotEmpty
           ? _departamentoController.text.trim()
           : null,
+      sedeIds:
+          _sedesSeleccionadas.isNotEmpty ? _sedesSeleccionadas : null,
       puedeAbrirCaja: _puedeAbrirCaja,
       puedeCerrarCaja: _puedeCerrarCaja,
       accesosRapidosOcultos: _accesosRapidosOcultos.toList(),
@@ -261,28 +324,36 @@ class _UsuarioFormPageState extends State<UsuarioFormPage> {
                 children: [
                   _buildDniLookupSection(),
                   const SizedBox(height: 12),
-                  _buildDatosPersonalesSection(),
+                  _buildPersonaSection(),
                   const SizedBox(height: 12),
-                  _buildContactoSection(),
-                  const SizedBox(height: 12),
-                  _buildUbicacionSection(),
+                  _buildSedesSection(),
                   const SizedBox(height: 12),
                   _buildRolSection(),
-                  const SizedBox(height: 20),
-                  BlocBuilder<UsuarioFormCubit, UsuarioFormState>(
-                    builder: (context, state) {
-                      final isSubmitting = state is UsuarioFormSubmitting;
-                      return CustomButton(
-                        text: 'Registrar Usuario',
-                        isLoading: isSubmitting,
-                        icon: const Icon(Icons.person_add,
-                            color: Colors.white, size: 18),
-                        onPressed: isSubmitting ? null : _submitForm,
-                      );
-                    },
-                  ),
                   const SizedBox(height: 16),
                 ],
+              ),
+            ),
+            // Botón fijo al final: el form puede ser largo (DNI + persona
+            // + sedes + rol + permisos + accesos). Tenerlo siempre visible
+            // evita que el admin tenga que scrollear hasta el fondo.
+            bottomNavigationBar: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                child: BlocBuilder<UsuarioFormCubit, UsuarioFormState>(
+                  builder: (context, state) {
+                    final isSubmitting = state is UsuarioFormSubmitting;
+                    return CustomButton(
+                      text: 'Registrar Usuario',
+                      isLoading: isSubmitting,
+                      icon: const Icon(
+                        Icons.person_add,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                      onPressed: isSubmitting ? null : _submitForm,
+                    );
+                  },
+                ),
               ),
             ),
           ),
@@ -416,13 +487,18 @@ class _UsuarioFormPageState extends State<UsuarioFormPage> {
     );
   }
 
-  Widget _buildDatosPersonalesSection() {
+  /// Card único con los 3 sub-bloques (Datos Personales + Contacto +
+  /// Ubicación). Antes vivían en 3 GradientContainer separados; los
+  /// unificamos para compactar el form sin perder la organización
+  /// visual (cada bloque mantiene su sub-título e ícono propios).
+  Widget _buildPersonaSection() {
     return GradientContainer(
       child: Padding(
         padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // ─── Datos Personales ───
             _buildSectionTitle('Datos Personales', Icons.person_outline),
             const SizedBox(height: 14),
             CustomText(
@@ -431,7 +507,6 @@ class _UsuarioFormPageState extends State<UsuarioFormPage> {
               hintText: 'Juan Carlos',
               prefixIcon: const Icon(Icons.person_outline),
               borderColor: AppColors.blue1,
-              enabled: !_dniFieldsFilled,
             ),
             const SizedBox(height: 14),
             CustomText(
@@ -440,21 +515,11 @@ class _UsuarioFormPageState extends State<UsuarioFormPage> {
               hintText: 'Pérez García',
               prefixIcon: const Icon(Icons.person_outline),
               borderColor: AppColors.blue1,
-              enabled: !_dniFieldsFilled,
             ),
-          ],
-        ),
-      ),
-    );
-  }
 
-  Widget _buildContactoSection() {
-    return GradientContainer(
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+            const SizedBox(height: 20),
+
+            // ─── Contacto ───
             _buildSectionTitle('Contacto', Icons.contact_mail_outlined),
             const SizedBox(height: 14),
             CustomText(
@@ -475,19 +540,10 @@ class _UsuarioFormPageState extends State<UsuarioFormPage> {
               prefixIcon: const Icon(Icons.email_outlined),
               borderColor: AppColors.blue1,
             ),
-          ],
-        ),
-      ),
-    );
-  }
 
-  Widget _buildUbicacionSection() {
-    return GradientContainer(
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+            const SizedBox(height: 20),
+
+            // ─── Ubicación ───
             _buildSectionTitle('Ubicación', Icons.location_on_outlined),
             if (_dniFieldsFilled) ...[
               const SizedBox(height: 6),
@@ -530,6 +586,53 @@ class _UsuarioFormPageState extends State<UsuarioFormPage> {
               prefixIcon: const Icon(Icons.map_outlined),
               borderColor: AppColors.blue1,
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Selector de sedes a asignar al usuario. Se oculta si la empresa
+  /// tiene una sola sede (auto-seleccionada en _loadSedesDisponibles).
+  /// Los permisos de caja / accesos / permisos especiales solo se
+  /// persisten si el usuario tiene al menos una sede asignada — el
+  /// backend ignora esos flags cuando sedeIds está vacío.
+  Widget _buildSedesSection() {
+    // Sin sedes cargadas todavía o solo hay una → no mostrar nada.
+    if (_sedesDisponibles.length < 2) return const SizedBox.shrink();
+
+    return GradientContainer(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSectionTitle('Sedes Asignadas', Icons.store_outlined),
+            const SizedBox(height: 6),
+            Text(
+              'Selecciona las sedes donde trabajará. Los permisos de caja '
+              'y accesos rápidos aplicarán en cada sede asignada.',
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+            ),
+            const SizedBox(height: 8),
+            ..._sedesDisponibles.map((sede) {
+              final isSelected = _sedesSeleccionadas.contains(sede.id);
+              return _buildCompactCheckbox(
+                sede.direccion != null && sede.direccion!.isNotEmpty
+                    ? '${sede.nombre} · ${sede.direccion}'
+                    : sede.nombre,
+                isSelected,
+                (value) {
+                  setState(() {
+                    if (value == true) {
+                      _sedesSeleccionadas.add(sede.id);
+                    } else {
+                      _sedesSeleccionadas.remove(sede.id);
+                    }
+                  });
+                },
+              );
+            }),
           ],
         ),
       ),
@@ -582,30 +685,16 @@ class _UsuarioFormPageState extends State<UsuarioFormPage> {
                 ),
               ),
             ],
-            const SizedBox(height: 16),
-            Text(
-              'Permisos de Caja',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey.shade600,
-              ),
-            ),
-            const SizedBox(height: 4),
-            _buildCompactCheckbox(
-              'Puede abrir caja',
-              _puedeAbrirCaja,
-              (value) => setState(() => _puedeAbrirCaja = value ?? false),
-            ),
-            _buildCompactCheckbox(
-              'Puede cerrar caja',
-              _puedeCerrarCaja,
-              (value) => setState(() => _puedeCerrarCaja = value ?? false),
-            ),
-            const SizedBox(height: 12),
-            _buildAccesosRapidosSeleccion(),
+            // Sección "Permisos de Caja" eliminada: los toggles Abrir/
+            // Cerrar caja ahora viven en "Permisos especiales" (catálogo
+            // granular, categoría Caja). Los flags legacy
+            // `puedeAbrirCaja`/`puedeCerrarCaja` se siguen sincronizando
+            // en el payload para compat con backend (hasGranularPermission
+            // une ambos sistemas vía OR mientras dure la migración).
             const SizedBox(height: 12),
             _buildPermisosEspeciales(),
+            const SizedBox(height: 12),
+            _buildAccesosRapidosSeleccion(),
           ],
         ),
       ),
@@ -614,68 +703,142 @@ class _UsuarioFormPageState extends State<UsuarioFormPage> {
 
   /// Sección de permisos granulares — espejo de la del dialog editar,
   /// agrupada por categoría.
-  Widget _buildPermisosEspeciales() {
-    final grupos = groupedGranularPermissions();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
+  /// Header tappable estilizado con chevron animado que pliega/despliega
+  /// la sección. Pensado como un mini-ExpansionTile sin las molestias
+  /// de padding/Material del default de Flutter — encaja en nuestro
+  /// GradientContainer sin romper el estilo.
+  Widget _buildCollapsibleHeader({
+    required String title,
+    required bool expanded,
+    required VoidCallback onToggle,
+    int? itemsActivos,
+  }) {
+    return InkWell(
+      onTap: onToggle,
+      borderRadius: BorderRadius.circular(6),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
           children: [
             Text(
-              'Permisos especiales',
+              title,
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
                 color: Colors.grey.shade600,
               ),
             ),
+            if (itemsActivos != null && itemsActivos > 0) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                decoration: BoxDecoration(
+                  color: AppColors.blue1.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '$itemsActivos',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.blue1,
+                  ),
+                ),
+              ),
+            ],
             const Spacer(),
-            TextButton(
-              onPressed: () => setState(() => _permisosEspeciales.clear()),
+            AnimatedRotation(
+              turns: expanded ? 0.5 : 0,
+              duration: const Duration(milliseconds: 180),
+              child: Icon(
+                Icons.keyboard_arrow_down_rounded,
+                size: 20,
+                color: Colors.grey.shade600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPermisosEspeciales() {
+    final grupos = groupedGranularPermissions();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildCollapsibleHeader(
+          title: 'Permisos especiales',
+          expanded: _permisosExpanded,
+          itemsActivos: _permisosEspeciales.length,
+          onToggle: () =>
+              setState(() => _permisosExpanded = !_permisosExpanded),
+        ),
+        if (_permisosExpanded) ...[
+          Text(
+            'Capacidades adicionales que no dependen del rol (descuentos, '
+            'anular ventas, ver costos, etc.).',
+            style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+          ),
+          const SizedBox(height: 4),
+          for (final entry in grupos.entries) ...[
+            Padding(
+              padding: const EdgeInsets.only(top: 6, bottom: 2),
+              child: Text(
+                entry.key.toUpperCase(),
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.blue1.withValues(alpha: 0.7),
+                  letterSpacing: 0.6,
+                ),
+              ),
+            ),
+            ...entry.value.map((perm) {
+              final activo = _permisosEspeciales.contains(perm.id);
+              return Tooltip(
+                message: perm.description,
+                child: _buildCompactCheckbox(perm.label, activo, (value) {
+                  setState(() {
+                    if (value == true) {
+                      _permisosEspeciales.add(perm.id);
+                    } else {
+                      _permisosEspeciales.remove(perm.id);
+                    }
+                    // Sync con flags legacy: el backend sigue recibiendo
+                    // puedeAbrirCaja/puedeCerrarCaja, y hasGranularPermission
+                    // los une vía OR. Mantenemos ambos sistemas sincronizados.
+                    if (perm.id == GranularPermissionId.cajaAbrir) {
+                      _puedeAbrirCaja = value == true;
+                    } else if (perm.id == GranularPermissionId.cajaCerrar) {
+                      _puedeCerrarCaja = value == true;
+                    }
+                  });
+                }),
+              );
+            }),
+          ],
+          // Botón "Quitar todos" al final del contenido expandido.
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: () => setState(() {
+                _permisosEspeciales.clear();
+                _puedeAbrirCaja = false;
+                _puedeCerrarCaja = false;
+              }),
               style: TextButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 minimumSize: const Size(0, 28),
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
-              child:
-                  const Text('Quitar todos', style: TextStyle(fontSize: 11)),
-            ),
-          ],
-        ),
-        Text(
-          'Capacidades adicionales que no dependen del rol (descuentos, '
-          'anular ventas, ver costos, etc.).',
-          style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
-        ),
-        const SizedBox(height: 4),
-        for (final entry in grupos.entries) ...[
-          Padding(
-            padding: const EdgeInsets.only(top: 6, bottom: 2),
-            child: Text(
-              entry.key.toUpperCase(),
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                color: AppColors.blue1.withValues(alpha: 0.7),
-                letterSpacing: 0.6,
+              child: const Text(
+                'Quitar todos',
+                style: TextStyle(fontSize: 11),
               ),
             ),
           ),
-          ...entry.value.map((perm) {
-            final activo = _permisosEspeciales.contains(perm.id);
-            return Tooltip(
-              message: perm.description,
-              child: _buildCompactCheckbox(perm.label, activo, (value) {
-                setState(() {
-                  if (value == true) {
-                    _permisosEspeciales.add(perm.id);
-                  } else {
-                    _permisosEspeciales.remove(perm.id);
-                  }
-                });
-              }),
-            );
-          }),
         ],
       ],
     );
@@ -696,6 +859,14 @@ class _UsuarioFormPageState extends State<UsuarioFormPage> {
       _permisosEspeciales
         ..clear()
         ..addAll(preset.permisosEspeciales);
+      // Sync: si el preset prende los flags legacy, reflejarlo en el
+      // catálogo granular para que el checkbox se vea marcado en UI.
+      if (_puedeAbrirCaja) {
+        _permisosEspeciales.add(GranularPermissionId.cajaAbrir);
+      }
+      if (_puedeCerrarCaja) {
+        _permisosEspeciales.add(GranularPermissionId.cajaCerrar);
+      }
     });
   }
 
@@ -703,78 +874,88 @@ class _UsuarioFormPageState extends State<UsuarioFormPage> {
   /// activos (ningún oculto) — el admin desmarca los que NO quiere que
   /// el usuario vea.
   Widget _buildAccesosRapidosSeleccion() {
+    final totalAccesos = AccesosRapidosCatalogo.items.length;
+    final visiblesCount = totalAccesos - _accesosRapidosOcultos.length;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Text(
-              'Accesos rápidos visibles',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey.shade600,
-              ),
-            ),
-            const Spacer(),
-            TextButton(
-              onPressed: () => setState(() => _accesosRapidosOcultos.clear()),
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                minimumSize: const Size(0, 28),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              child: const Text('Marcar todos', style: TextStyle(fontSize: 11)),
-            ),
-            TextButton(
-              onPressed: () => setState(() {
-                _accesosRapidosOcultos
-                  ..clear()
-                  ..addAll(AccesosRapidosCatalogo.items.map((e) => e.$1));
-              }),
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                minimumSize: const Size(0, 28),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              child:
-                  const Text('Desmarcar todos', style: TextStyle(fontSize: 11)),
-            ),
-          ],
+        _buildCollapsibleHeader(
+          title: 'Accesos rápidos visibles',
+          expanded: _accesosExpanded,
+          itemsActivos: visiblesCount,
+          onToggle: () =>
+              setState(() => _accesosExpanded = !_accesosExpanded),
         ),
-        Text(
-          'Marca los accesos del dashboard que verá el usuario. '
-          'Los desmarcados se ocultarán solo a este usuario, sin afectar '
-          'su rol ni los permisos del backend.',
-          style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
-        ),
-        const SizedBox(height: 4),
-        // Grid de 2 columnas con checkboxes compactos.
-        Wrap(
-          spacing: 4,
-          runSpacing: 0,
-          children: AccesosRapidosCatalogo.items.map((entry) {
-            final id = entry.$1;
-            final label = entry.$2;
-            final visible = !_accesosRapidosOcultos.contains(id);
-            return SizedBox(
-              width: (MediaQuery.of(context).size.width - 56) / 2,
-              child: _buildCompactCheckbox(
-                label,
-                visible,
-                (value) {
-                  setState(() {
-                    if (value == true) {
-                      _accesosRapidosOcultos.remove(id);
-                    } else {
-                      _accesosRapidosOcultos.add(id);
-                    }
-                  });
-                },
+        if (_accesosExpanded) ...[
+          Text(
+            'Marca los accesos del dashboard que verá el usuario. '
+            'Los desmarcados se ocultarán solo a este usuario, sin afectar '
+            'su rol ni los permisos del backend.',
+            style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+          ),
+          const SizedBox(height: 4),
+          // Grid de 2 columnas con checkboxes compactos.
+          Wrap(
+            spacing: 4,
+            runSpacing: 0,
+            children: AccesosRapidosCatalogo.items.map((entry) {
+              final id = entry.$1;
+              final label = entry.$2;
+              final visible = !_accesosRapidosOcultos.contains(id);
+              return SizedBox(
+                width: (MediaQuery.of(context).size.width - 56) / 2,
+                child: _buildCompactCheckbox(
+                  label,
+                  visible,
+                  (value) {
+                    setState(() {
+                      if (value == true) {
+                        _accesosRapidosOcultos.remove(id);
+                      } else {
+                        _accesosRapidosOcultos.add(id);
+                      }
+                    });
+                  },
+                ),
+              );
+            }).toList(),
+          ),
+          // Botones de acción al final del contenido expandido.
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton(
+                onPressed: () =>
+                    setState(() => _accesosRapidosOcultos.clear()),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  minimumSize: const Size(0, 28),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: const Text(
+                  'Marcar todos',
+                  style: TextStyle(fontSize: 11),
+                ),
               ),
-            );
-          }).toList(),
-        ),
+              TextButton(
+                onPressed: () => setState(() {
+                  _accesosRapidosOcultos
+                    ..clear()
+                    ..addAll(AccesosRapidosCatalogo.items.map((e) => e.$1));
+                }),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  minimumSize: const Size(0, 28),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: const Text(
+                  'Desmarcar todos',
+                  style: TextStyle(fontSize: 11),
+                ),
+              ),
+            ],
+          ),
+        ],
       ],
     );
   }

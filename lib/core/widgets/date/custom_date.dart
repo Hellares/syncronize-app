@@ -1722,11 +1722,11 @@ class _ModernDateRangePickerDialogState extends State<_ModernDateRangePickerDial
                       onPressed: _clearSelection,
                       style: TextButton.styleFrom(
                         foregroundColor: Colors.grey.shade600,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                       ),
                       child: const Text(
                         'Limpiar',
-                        style: TextStyle(fontWeight: FontWeight.w600),
+                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 10),
                       ),
                     ),
                     const Spacer(),
@@ -1734,11 +1734,11 @@ class _ModernDateRangePickerDialogState extends State<_ModernDateRangePickerDial
                       onPressed: () => Navigator.of(context).pop(),
                       style: TextButton.styleFrom(
                         foregroundColor: Colors.grey.shade600,
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                       ),
                       child: const Text(
                         'Cancelar',
-                        style: TextStyle(fontWeight: FontWeight.w600),
+                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 10),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -1750,14 +1750,14 @@ class _ModernDateRangePickerDialogState extends State<_ModernDateRangePickerDial
                         backgroundColor: widget.primaryColor,
                         foregroundColor: Colors.white,
                         elevation: 0,
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
                       child: const Text(
                         'Aceptar',
-                        style: TextStyle(fontWeight: FontWeight.w600),
+                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 10),
                       ),
                     ),
                   ],

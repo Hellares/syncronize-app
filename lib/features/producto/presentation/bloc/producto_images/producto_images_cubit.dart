@@ -134,6 +134,10 @@ class ProductoImagesCubit extends Cubit<ProductoImagesState> {
         await _storageService.deleteFile(
           archivoId: imageId,
           empresaId: empresaId,
+          // Indica al StorageService que use el endpoint reducido de
+          // imágenes de producto (VIEW_PRODUCTS) en vez del genérico
+          // que exige MANAGE_SETTINGS.
+          entidadTipo: 'PRODUCTO',
         );
       } catch (e) {
         // Si falla, restaurar la imagen

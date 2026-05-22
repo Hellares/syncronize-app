@@ -5,16 +5,19 @@ import '../../domain/entities/caja.dart';
 import '../../domain/usecases/abrir_caja_usecase.dart';
 import '../../domain/usecases/cerrar_caja_usecase.dart';
 import '../../domain/usecases/get_caja_activa_usecase.dart';
+import '../../domain/usecases/get_caja_by_id_usecase.dart';
 import 'caja_activa_state.dart';
 
 @injectable
 class CajaActivaCubit extends Cubit<CajaActivaState> {
   final GetCajaActivaUseCase _getCajaActivaUseCase;
+  final GetCajaByIdUseCase _getCajaByIdUseCase;
   final AbrirCajaUseCase _abrirCajaUseCase;
   final CerrarCajaUseCase _cerrarCajaUseCase;
 
   CajaActivaCubit(
     this._getCajaActivaUseCase,
+    this._getCajaByIdUseCase,
     this._abrirCajaUseCase,
     this._cerrarCajaUseCase,
   ) : super(const CajaActivaInitial());
@@ -32,6 +35,22 @@ class CajaActivaCubit extends Cubit<CajaActivaState> {
         emit(const CajaActivaSinCaja());
       }
     } else if (result is Error<Caja?>) {
+      emit(CajaActivaError(result.message));
+    }
+  }
+
+  /// Carga una caja por id (vista admin desde el monitor sobre caja
+  /// ajena). Reusa CajaActivaAbierta para que toda la CajaPage funcione
+  /// igual — el flag `esVistaAdmin` lo maneja la page localmente.
+  Future<void> loadCajaPorId(String id) async {
+    emit(const CajaActivaLoading());
+
+    final result = await _getCajaByIdUseCase(id);
+    if (isClosed) return;
+
+    if (result is Success<Caja>) {
+      emit(CajaActivaAbierta(result.data));
+    } else if (result is Error<Caja>) {
       emit(CajaActivaError(result.message));
     }
   }

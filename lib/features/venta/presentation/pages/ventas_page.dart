@@ -641,7 +641,7 @@ class _VentaListTile extends StatelessWidget {
                     SizedBox(width: 70, child: AppText('Sede:')),
                     Expanded(
                         child: AppText(venta.sedeNombre!,
-                            fontWeight: FontWeight.w400)),
+                            fontWeight: FontWeight.w400, size: 10)),
                   ],
                 ),
               ],

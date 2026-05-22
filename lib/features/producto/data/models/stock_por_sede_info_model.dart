@@ -103,6 +103,7 @@ class StockPorSedeInfoModel extends StockPorSedeInfo {
     };
   }
 
+
   factory StockPorSedeInfoModel.fromEntity(StockPorSedeInfo entity) {
     return StockPorSedeInfoModel(
       sedeId: entity.sedeId,

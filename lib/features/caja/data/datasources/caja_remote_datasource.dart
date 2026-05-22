@@ -51,6 +51,15 @@ class CajaRemoteDataSource {
     }
   }
 
+  /// Devuelve una caja por id (mismo shape que getCajaActiva). Pensado
+  /// para que el admin abra el dashboard de la caja de otro cajero desde
+  /// el monitor. Si la caja no existe, el backend lanza 404 → mapeamos
+  /// a Resource.Error en el repo.
+  Future<CajaModel> getCajaById(String id) async {
+    final response = await _dioClient.get('$_basePath/$id');
+    return CajaModel.fromJson(response.data as Map<String, dynamic>);
+  }
+
   Future<void> crearMovimiento({
     required String cajaId,
     required String tipo,

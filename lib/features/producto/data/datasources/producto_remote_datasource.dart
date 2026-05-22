@@ -82,6 +82,23 @@ class ProductoRemoteDataSource {
     return ProductoModel.fromJson(response.data as Map<String, dynamic>);
   }
 
+  /// Actualiza SOLO las imágenes de un producto.
+  ///
+  /// PATCH /api/productos/:id/imagenes
+  /// Endpoint pensado para que vendedores/cajeros (sin MANAGE_PRODUCTS)
+  /// puedan subir fotos desde Venta Rápida — basta con VIEW_PRODUCTS.
+  /// No toca otros campos del producto.
+  Future<void> actualizarImagenesProducto({
+    required String productoId,
+    required String empresaId,
+    required List<String> imagenesIds,
+  }) async {
+    await _dioClient.patch(
+      '${ApiConstants.productos}/$productoId/imagenes',
+      data: {'imagenesIds': imagenesIds},
+    );
+  }
+
   /// Elimina un producto (soft delete)
   ///
   /// DELETE /api/productos/:id

@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 import '../../../../../core/utils/resource.dart';
+import '../../../data/cache/producto_catalogo_local_store.dart';
+import '../../../data/cache/producto_catalogo_memory_cache.dart';
 import '../../../domain/entities/producto_filtros.dart';
 import '../../../domain/entities/producto_list_item.dart';
 import '../../../domain/entities/producto.dart';
@@ -10,9 +14,13 @@ import 'producto_list_state.dart';
 @injectable
 class ProductoListCubit extends Cubit<ProductoListState> {
   final GetProductosUseCase _getProductosUseCase;
+  final ProductoCatalogoMemoryCache _memoryCache;
+  final ProductoCatalogoLocalStore _localStore;
 
   ProductoListCubit(
     this._getProductosUseCase,
+    this._memoryCache,
+    this._localStore,
   ) : super(const ProductoListInitial());
 
   String? _currentEmpresaId;
@@ -29,6 +37,22 @@ class ProductoListCubit extends Cubit<ProductoListState> {
 
   /// Cache de productos completos (para evitar peticiones duplicadas)
   final Map<String, Producto> _productosFullCache = {};
+
+  /// Biblioteca acumulativa de TODOS los `ProductoListItem` que pasaron
+  /// por este cubit (catálogo base + búsquedas server + paginación).
+  /// Permite que el filtro local en VR encuentre productos que se
+  /// trajeron en una búsqueda previa aunque ya no estén en el state
+  /// actual (ej. el cajero buscó "xyzz", limpió y vuelve a buscar
+  /// "xyzz" → ahora es instantáneo desde memoria).
+  ///
+  /// Se purga con `reload()` y al recibir FCM (vía cache invalidation
+  /// del realtime sync) para no servir datos stale.
+  final Map<String, ProductoListItem> _vistosCache = {};
+
+  /// Vista inmodificable del acumulador. La UI puede iterar sin
+  /// preocuparse por mutaciones concurrentes.
+  Map<String, ProductoListItem> get vistosCache =>
+      Map.unmodifiable(_vistosCache);
 
   /// Carga la lista de productos.
   ///
@@ -47,10 +71,76 @@ class ProductoListCubit extends Cubit<ProductoListState> {
 
     final mySeq = ++_requestSeq;
 
+    // Fase 1: stale-while-revalidate.
+    // Si tenemos un snapshot reciente del catálogo en memoria para esta
+    // combinación (empresa+sede+filtros), lo emitimos INMEDIATO. Render
+    // <50ms vs ~400-1000ms de la red. Después fetchamos en background y
+    // emitimos otra vez con el dato fresco si cambió algo.
+    final cached =
+        _memoryCache.get(empresaId, sedeId, _currentFiltros);
     final currentState = state;
-    if (keepListWhileFiltering && currentState is ProductoListLoaded) {
+    final puedeHidratarDeCache = cached != null;
+
+    final esCatalogoBase = _esCatalogoBase(_currentFiltros);
+
+    // Si la biblioteca persistente está vacía pero hay datos en disco
+    // (primer load tras reapertura), restaurarla. Hacemos esto antes
+    // de emitir cualquier estado para que el filtro local del builder
+    // tenga los datos disponibles desde el primer frame.
+    if (_vistosCache.isEmpty) {
+      await _hidratarLibreriaDeDisco(empresaId);
+      if (isClosed) return;
+      if (mySeq != _requestSeq) return;
+    }
+
+    if (puedeHidratarDeCache) {
+      _allProductos = List.of(cached.productos);
+      _productosFullCache
+        ..clear()
+        ..addAll(cached.productosFullCache);
+      emit(ProductoListLoaded(
+        productos: _allProductos,
+        total: cached.total,
+        currentPage: cached.currentPage,
+        totalPages: cached.totalPages,
+        hasMore: cached.hasMore,
+        filtros: cached.filtros,
+        // Marcamos isFiltering=true para que la UI muestre la barra
+        // sutil mientras corre la revalidación en background, sin
+        // bloquear la grilla.
+        isFiltering: true,
+      ));
+    } else if (keepListWhileFiltering && currentState is ProductoListLoaded) {
       // Mantener la lista actual visible, solo marcar isFiltering=true.
       emit(currentState.copyWith(isFiltering: true));
+    } else if (esCatalogoBase) {
+      // Fase 2: cache memoria miss + catálogo base → intentar leer
+      // disco. Sub-100ms vs 400-1000ms de red. Cubre el caso "app
+      // cerrada y abierta de nuevo" — el primer render aparece
+      // instantáneo sin esperar a la red.
+      emit(const ProductoListLoading());
+      final disco = await _localStore.read(
+        empresaId: empresaId,
+        sedeId: sedeId,
+      );
+      if (isClosed) return;
+      if (mySeq != _requestSeq) return;
+      if (disco != null && disco.productos.isNotEmpty) {
+        _allProductos = List.of(disco.productos);
+        for (final p in _allProductos) {
+          _vistosCache[p.id] = p;
+        }
+        emit(ProductoListLoaded(
+          productos: _allProductos,
+          total: disco.total,
+          currentPage: disco.currentPage,
+          totalPages: disco.totalPages,
+          hasMore: disco.hasMore,
+          filtros: _currentFiltros,
+          // Revalidando en background.
+          isFiltering: true,
+        ));
+      }
     } else {
       _allProductos = [];
       _productosFullCache.clear();
@@ -71,12 +161,65 @@ class ProductoListCubit extends Cubit<ProductoListState> {
       final data = result.data;
       _allProductos = data.data.cast<ProductoListItem>();
 
+      // Acumular en la biblioteca de productos vistos. Sirve al filtro
+      // local en VR para encontrar productos que ya se trajeron en una
+      // búsqueda anterior aunque ya no estén en `_allProductos`.
+      for (final p in _allProductos) {
+        _vistosCache[p.id] = p;
+      }
+      _recortarBiblioteca();
+      // Persistir biblioteca en disco para que sobreviva al cierre.
+      unawaited(
+        _localStore.writeLibreria(
+          empresaId: empresaId,
+          productos: _vistosCache.values.toList(),
+        ),
+      );
+
       // Almacenar productos completos en cache (si existen)
       if (data.fullProductosCache != null) {
         _productosFullCache
           ..clear()
           ..addAll(data.fullProductosCache!);
       }
+
+      // Fase 2: si el fetch corresponde al catálogo base, persistirlo
+      // en disco para que la próxima apertura (incluso de app fría)
+      // sea instantánea. Fire-and-forget — no bloqueamos el emit.
+      if (esCatalogoBase) {
+        unawaited(
+          _localStore.write(
+            empresaId: empresaId,
+            sedeId: sedeId,
+            snapshot: CatalogoLocalSnapshot(
+              version: CatalogoLocalSnapshot.currentVersion,
+              productos: List.of(_allProductos),
+              total: data.total,
+              currentPage: data.page,
+              totalPages: data.totalPages,
+              hasMore: data.hasNext,
+              savedAt: DateTime.now(),
+            ),
+          ),
+        );
+      }
+
+      // Guardar en cache de memoria para la próxima apertura.
+      _memoryCache.put(
+        empresaId,
+        sedeId,
+        _currentFiltros,
+        CatalogoCacheEntry(
+          productos: List.of(_allProductos),
+          total: data.total,
+          currentPage: data.page,
+          totalPages: data.totalPages,
+          hasMore: data.hasNext,
+          filtros: _currentFiltros,
+          productosFullCache: Map.of(_productosFullCache),
+          timestamp: DateTime.now(),
+        ),
+      );
 
       emit(ProductoListLoaded(
         productos: _allProductos,
@@ -88,7 +231,15 @@ class ProductoListCubit extends Cubit<ProductoListState> {
         isFiltering: false,
       ));
     } else if (result is Error<ProductosPaginados>) {
-      emit(ProductoListError(result.message, errorCode: result.errorCode));
+      // Si tenemos cache hidratado, NO pisamos con error — mantenemos
+      // los datos cacheados visibles y solo apagamos isFiltering.
+      // El cajero ve productos reales en vez de pantalla de error.
+      if (puedeHidratarDeCache && state is ProductoListLoaded) {
+        final loaded = state as ProductoListLoaded;
+        emit(loaded.copyWith(isFiltering: false));
+      } else {
+        emit(ProductoListError(result.message, errorCode: result.errorCode));
+      }
     }
   }
 
@@ -121,7 +272,23 @@ class ProductoListCubit extends Cubit<ProductoListState> {
 
     if (result is Success<ProductosPaginados>) {
       final data = result.data;
-      _allProductos.addAll(data.data.cast<ProductoListItem>());
+      final nuevos = data.data.cast<ProductoListItem>();
+      _allProductos.addAll(nuevos);
+      // Acumular en biblioteca de vistos.
+      for (final p in nuevos) {
+        _vistosCache[p.id] = p;
+      }
+      _recortarBiblioteca();
+      // Persistir tras paginación — los productos de página 2+ también
+      // tienen que sobrevivir al cierre de la app.
+      if (_currentEmpresaId != null) {
+        unawaited(
+          _localStore.writeLibreria(
+            empresaId: _currentEmpresaId!,
+            productos: _vistosCache.values.toList(),
+          ),
+        );
+      }
 
       // Almacenar productos completos en cache (si existen)
       if (data.fullProductosCache != null) {
@@ -165,14 +332,58 @@ class ProductoListCubit extends Cubit<ProductoListState> {
     );
   }
 
-  /// Recarga la lista actual
+  /// Recarga la lista actual. Pull-to-refresh debe forzar fetch al
+  /// server (intención explícita del usuario de ver datos frescos),
+  /// por eso invalidamos memoria + biblioteca + disco antes.
   Future<void> reload({String? sedeId}) async {
     if (_currentEmpresaId == null) return;
+    _memoryCache.invalidateEmpresa(_currentEmpresaId!);
+    _vistosCache.clear();
+    // Fire-and-forget: no bloqueamos la UI esperando al delete.
+    unawaited(_localStore.clearEmpresa(_currentEmpresaId!));
     await loadProductos(
       empresaId: _currentEmpresaId!,
       sedeId: sedeId ?? _currentSedeId,
       filtros: _currentFiltros.copyWith(page: 1),
     );
+  }
+
+  /// Heurística para decidir si el filtro actual corresponde al
+  /// "catálogo base" — el listado completo sin búsqueda ni filtros
+  /// específicos. Solo el catálogo base se persiste en disco; las
+  /// búsquedas puntuales viven en memoria + biblioteca acumulativa.
+  bool _esCatalogoBase(ProductoFiltros f) {
+    final searchVacio = f.search == null || f.search!.isEmpty;
+    return searchVacio &&
+        f.empresaCategoriaId == null &&
+        f.empresaMarcaId == null &&
+        f.page == 1;
+  }
+
+  /// Restaura la biblioteca acumulativa desde disco. Se invoca antes
+  /// del primer fetch para que el filtro local del builder tenga
+  /// datos disponibles desde el primer frame (sobreviven cierres).
+  Future<void> _hidratarLibreriaDeDisco(String empresaId) async {
+    final persistida =
+        await _localStore.readLibreria(empresaId: empresaId);
+    if (persistida.isEmpty) return;
+    for (final p in persistida) {
+      _vistosCache[p.id] = p;
+    }
+  }
+
+  /// Recorta la biblioteca al tope configurado (LRU implícito por
+  /// orden de inserción del LinkedHashMap — los más viejos al frente).
+  /// Evita que clientes con catálogos grandes hagan crecer el archivo
+  /// indefinidamente.
+  void _recortarBiblioteca() {
+    final tope = ProductoCatalogoLocalStore.librariaMaxProductos;
+    if (_vistosCache.length <= tope) return;
+    final excedente = _vistosCache.length - tope;
+    final keys = _vistosCache.keys.take(excedente).toList();
+    for (final k in keys) {
+      _vistosCache.remove(k);
+    }
   }
 
   /// Limpia el estado
@@ -182,6 +393,7 @@ class ProductoListCubit extends Cubit<ProductoListState> {
     _currentFiltros = const ProductoFiltros();
     _allProductos = [];
     _productosFullCache.clear();
+    _vistosCache.clear();
     emit(const ProductoListInitial());
   }
 

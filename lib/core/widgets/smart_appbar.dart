@@ -15,6 +15,11 @@ class SmartAppBar extends StatefulWidget implements PreferredSizeWidget {
   // === PROPIEDADES BÁSICAS ===
   final String? title;
   final TextStyle? titleStyle;
+  /// Subtítulo opcional debajo del título — pensado para metadata
+  /// breve (código + estado, fecha, etc.). Si es `null`, el AppBar
+  /// renderiza solo el título como siempre (retrocompat).
+  final String? subtitle;
+  final TextStyle? subtitleStyle;
   final double elevation;
   final bool centerTitle;
   final SystemUiOverlayStyle? systemOverlayStyle;
@@ -52,6 +57,8 @@ class SmartAppBar extends StatefulWidget implements PreferredSizeWidget {
     // Básicas
     this.title,
     this.titleStyle,
+    this.subtitle,
+    this.subtitleStyle,
     this.elevation = 0,
     this.centerTitle = true,
     this.systemOverlayStyle,
@@ -261,11 +268,32 @@ class _SmartAppBarState extends State<SmartAppBar> {
 
     final effectiveForegroundColor = widget.foregroundColor ?? widget.iconColor ?? AppColors.blue3;
 
-    return Text(
+    final titleWidget = Text(
       widget.title!,
       style:
           widget.titleStyle ??
           AppFont.pirulentBold.style(fontSize: 10, color: effectiveForegroundColor),
+    );
+
+    if (widget.subtitle == null) return titleWidget;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        titleWidget,
+        const SizedBox(height: 2),
+        Text(
+          widget.subtitle!,
+          style: widget.subtitleStyle ??
+              TextStyle(
+                fontSize: 9,
+                color: effectiveForegroundColor.withValues(alpha: 0.85),
+                fontWeight: FontWeight.w500,
+                letterSpacing: 0.3,
+              ),
+        ),
+      ],
     );
   }
 

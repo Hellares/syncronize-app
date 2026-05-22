@@ -17,13 +17,26 @@ import '../bloc/caja_activa_cubit.dart';
 import '../bloc/caja_activa_state.dart';
 import '../bloc/caja_movimientos_cubit.dart';
 import '../bloc/caja_movimientos_state.dart';
+import '../bloc/cerrar_caja_cubit.dart';
+import '../bloc/cerrar_caja_state.dart';
 import '../services/caja_ticket_data.dart';
 import '../services/cierre_caja_esc_pos_generator.dart';
 
 class CerrarCajaPage extends StatefulWidget {
   final String cajaId;
 
-  const CerrarCajaPage({super.key, required this.cajaId});
+  /// `true` cuando el usuario actual es el dueño de la caja (flujo
+  /// cajero estándar). `false` cuando un admin está cerrando la caja
+  /// de otro cajero desde el monitor — en ese caso evitamos tocar el
+  /// CajaActivaCubit del admin (que mira su propia caja, distinta o
+  /// inexistente).
+  final bool esCajaPropia;
+
+  const CerrarCajaPage({
+    super.key,
+    required this.cajaId,
+    this.esCajaPropia = true,
+  });
 
   @override
   State<CerrarCajaPage> createState() => _CerrarCajaPageState();
@@ -104,29 +117,48 @@ class _CerrarCajaPageState extends State<CerrarCajaPage> {
       decimalDigits: 2,
     );
 
-    return BlocListener<CajaActivaCubit, CajaActivaState>(
+    return BlocListener<CerrarCajaCubit, CerrarCajaState>(
       listener: (context, state) {
-        if (state is CajaActivaRecienCerrada) {
-          // Disparamos auto-impresion del resumen. No await: el listener
-          // no puede ser async (Bloc) y de todos modos no debe bloquear
-          // la transicion a SinCaja → pop. La impresion corre en
-          // background y avisa por snackbar.
+        if (state is CerrarCajaSuccess) {
+          // Auto-impresión del resumen (no await — el listener no puede
+          // ser async; la impresión corre en background y avisa por
+          // snackbar si falla).
           _imprimirResumenCierre(state.caja);
-        }
-        if (state is CajaActivaSinCaja) {
+
+          // Si es la caja del usuario actual, invalidar el
+          // CajaActivaCubit para que el dashboard vuelva a "sin caja".
+          // Si la cerraba un admin sobre caja ajena, su cubit no se
+          // toca.
+          if (widget.esCajaPropia) {
+            context.read<CajaActivaCubit>().loadCajaActiva();
+          }
+
           SnackBarHelper.showSuccess(context, 'Caja cerrada exitosamente');
-          Navigator.of(context).pop();
+          Navigator.of(context).pop(true);
         }
-        if (state is CajaActivaError) {
+        if (state is CerrarCajaError) {
           setState(() => _isClosing = false);
           SnackBarHelper.showError(context, state.message);
         }
       },
       child: Scaffold(
-        appBar: SmartAppBar(
-          title: 'Cerrar Caja',
-          backgroundColor: AppColors.blue1,
-          foregroundColor: AppColors.white,
+        appBar: PreferredSize(
+          // Altura mayor para acomodar el subtítulo (código + estado).
+          preferredSize: const Size.fromHeight(52),
+          child: BlocBuilder<CajaActivaCubit, CajaActivaState>(
+            builder: (context, state) {
+              final caja = state is CajaActivaAbierta ? state.caja : null;
+              return SmartAppBar(
+                title: caja?.codigo ?? 'Cerrar Caja',
+                subtitle: caja != null
+                    ? 'Cerrando · ${caja.estado.label}'
+                    : null,
+                customHeight: 52,
+                backgroundColor: AppColors.blue1,
+                foregroundColor: AppColors.white,
+              );
+            },
+          ),
         ),
         body: GradientContainer(
           child: BlocBuilder<CajaMovimientosCubit, CajaMovimientosState>(
@@ -140,6 +172,7 @@ class _CerrarCajaPageState extends State<CerrarCajaPage> {
                 return _buildCierreForm(
                   context,
                   movState.resumen!,
+                  movState.movimientos,
                   currencyFormat,
                 );
               }
@@ -177,8 +210,27 @@ class _CerrarCajaPageState extends State<CerrarCajaPage> {
   Widget _buildCierreForm(
     BuildContext context,
     ResumenCaja resumen,
+    List<MovimientoCaja> movimientos,
     NumberFormat currencyFormat,
   ) {
+    // Monto de apertura tomado del CajaActivaCubit. Si por alguna
+    // razón el cubit no tiene la caja cargada (estado intermedio),
+    // dejamos `null` y ocultamos la fila.
+    final cajaState = context.read<CajaActivaCubit>().state;
+    final montoApertura =
+        cajaState is CajaActivaAbierta ? cajaState.caja.montoApertura : null;
+
+    // Total ingresos categoría VENTA (no anulados). Diferencia con
+    // `resumen.totalIngresos` que incluye TODO ingreso (manuales,
+    // adelantos, reversiones, etc.). Sirve al cajero para ver cuánto
+    // se facturó realmente durante el turno.
+    final totalIngresosVentas = movimientos
+        .where((m) =>
+            !m.anulado &&
+            m.tipo == TipoMovimientoCaja.ingreso &&
+            m.categoria == CategoriaMovimientoCaja.venta)
+        .fold<double>(0, (sum, m) => sum + m.monto);
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -196,9 +248,17 @@ class _CerrarCajaPageState extends State<CerrarCajaPage> {
                   color: AppColors.blue3,
                 ),
                 const SizedBox(height: 12),
+                if (montoApertura != null) ...[
+                  _buildSummaryRow(
+                    'Monto de Apertura',
+                    currencyFormat.format(montoApertura),
+                    AppColors.blue2,
+                  ),
+                  const SizedBox(height: 6),
+                ],
                 _buildSummaryRow(
-                  'Total Ingresos',
-                  currencyFormat.format(resumen.totalIngresos),
+                  'Total Ingresos Ventas',
+                  currencyFormat.format(totalIngresosVentas),
                   AppColors.green,
                 ),
                 const SizedBox(height: 6),
@@ -258,6 +318,7 @@ class _CerrarCajaPageState extends State<CerrarCajaPage> {
 
           // Observaciones
           CustomText(
+            borderColor: AppColors.blue1,
             label: 'Observaciones (opcional)',
             hintText: 'Notas sobre el cierre de caja...',
             controller: _observacionesController,
@@ -275,7 +336,9 @@ class _CerrarCajaPageState extends State<CerrarCajaPage> {
               backgroundColor: AppColors.red,
               height: 48,
               isLoading: _isClosing,
-              onPressed: _isClosing ? null : () => _confirmarCierre(context),
+              onPressed: _isClosing
+                  ? null
+                  : () => _confirmarCierre(context, resumen, currencyFormat),
             ),
           ),
           const SizedBox(height: 16),
@@ -340,6 +403,7 @@ class _CerrarCajaPageState extends State<CerrarCajaPage> {
                 ),
                 Expanded(
                   child: CustomText(
+                    borderColor: AppColors.blue1,
                     label: 'Conteo Fisico',
                     controller: controller,
                     keyboardType:
@@ -421,51 +485,342 @@ class _CerrarCajaPageState extends State<CerrarCajaPage> {
     );
   }
 
-  void _confirmarCierre(BuildContext context) {
+  /// Pre-check: detecta diferencias entre conteo físico ingresado y
+  /// saldo esperado por método. Si hay diferencias (positivas, negativas
+  /// o métodos sin contar con esperado≠0), muestra un dialog reforzado
+  /// para que el cajero/admin no cierre por error. Si todo cuadra,
+  /// muestra el dialog de confirmación simple.
+  void _confirmarCierre(
+    BuildContext context,
+    ResumenCaja resumen,
+    NumberFormat currencyFormat,
+  ) {
+    final discrepancias = <_Discrepancia>[];
+    for (final metodo in MetodoPago.values) {
+      final detalle = resumen.detalles
+          .where((d) => d.metodoPago == metodo)
+          .toList();
+      final esperado = detalle.isNotEmpty ? detalle.first.saldo : 0.0;
+      final text = _conteoControllers[metodo]!.text;
+      // Salteamos métodos sin actividad ni conteo (no aportan ruido).
+      if (esperado == 0 && text.isEmpty) continue;
+      final conteo = text.isEmpty
+          ? 0.0
+          : (double.tryParse(text.replaceAll(',', '.')) ?? 0);
+      final diferencia = conteo - esperado;
+      if (diferencia != 0) {
+        discrepancias.add(_Discrepancia(
+          metodo: metodo,
+          esperado: esperado,
+          conteo: conteo,
+          diferencia: diferencia,
+          conteoVacio: text.isEmpty,
+        ));
+      }
+    }
+
+    if (discrepancias.isEmpty) {
+      _mostrarDialogConfirmacionSimple(context);
+    } else {
+      _mostrarDialogDiferencias(context, discrepancias, currencyFormat);
+    }
+  }
+
+  /// Dialog cuando el conteo físico cuadra con todo lo esperado.
+  /// Mismo estilo visual que el de diferencias (GradientContainer +
+  /// borde acentuado + sombra), pero en verde de éxito en vez de rojo.
+  void _mostrarDialogConfirmacionSimple(BuildContext context) {
     showDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text(
-          'Confirmar Cierre',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: AppColors.blue3,
-          ),
-        ),
-        content: const Text(
-          'Esta accion no se puede deshacer. Se cerrara la caja y se registraran los conteos fisicos.',
-          style: TextStyle(
-            fontSize: 14,
-            color: AppColors.textSecondary,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text(
-              'Cancelar',
-              style: TextStyle(
-                fontSize: 14,
-                color: AppColors.textSecondary,
+      barrierDismissible: false,
+      builder: (dialogContext) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding:
+            const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        child: GradientContainer(
+          borderColor: AppColors.green.withValues(alpha: 0.4),
+          borderWidth: 1,
+          customShadows: [
+            BoxShadow(
+              color: AppColors.green.withValues(alpha: 0.18),
+              blurRadius: 18,
+              spreadRadius: 1,
+              offset: const Offset(0, 4),
+            ),
+          ],
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header con ícono check + título
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.green.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.check_circle_outline_rounded,
+                      color: AppColors.green,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text(
+                      'Conteo conforme',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.green,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ),
+              const SizedBox(height: 10),
+              const Text(
+                'El conteo físico coincide con el saldo esperado del '
+                'sistema. Esta acción no se puede deshacer: se cerrará '
+                'la caja y se registrarán los conteos.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Botones
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => Navigator.of(dialogContext).pop(),
+                      style: TextButton.styleFrom(
+                        padding:
+                            const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: const Text(
+                        'Cancelar',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppColors.blue3,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.green,
+                        foregroundColor: AppColors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      onPressed: () {
+                        Navigator.of(dialogContext).pop();
+                        _cerrarCaja(context);
+                      },
+                      child: const Text(
+                        'Cerrar Caja',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.red,
-              foregroundColor: AppColors.white,
+        ),
+      ),
+    );
+  }
+
+  /// Dialog reforzado cuando hay diferencias entre conteo y esperado.
+  /// Listado en rojo con cada método, esperado y diferencia. El cajero
+  /// puede cancelar y revisar conteos, o cerrar igual asumiendo la
+  /// diferencia (queda registrada en el cierre).
+  void _mostrarDialogDiferencias(
+    BuildContext context,
+    List<_Discrepancia> discrepancias,
+    NumberFormat currencyFormat,
+  ) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding:
+            const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        child: GradientContainer(
+          borderColor: AppColors.red.withValues(alpha: 0.4),
+          borderWidth: 1,
+          customShadows: [
+            BoxShadow(
+              color: AppColors.red.withValues(alpha: 0.18),
+              blurRadius: 18,
+              spreadRadius: 1,
+              offset: const Offset(0, 4),
             ),
-            onPressed: () {
-              Navigator.of(dialogContext).pop();
-              _cerrarCaja(context);
-            },
-            child: const Text(
-              'Cerrar Caja',
-              style: TextStyle(fontSize: 14),
-            ),
+          ],
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header con ícono + título
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.red.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.warning_amber_rounded,
+                      color: AppColors.red,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text(
+                      'Hay diferencias en el conteo',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.red,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'El conteo físico no coincide con el saldo esperado del '
+                'sistema. Si cierras la caja igual, las diferencias '
+                'quedarán registradas en el cierre.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Lista de discrepancias
+              ...discrepancias.map((d) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.red.withValues(alpha: 0.06),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: AppColors.red.withValues(alpha: 0.25),
+                        ),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            d.metodo.icon,
+                            size: 16,
+                            color: AppColors.red,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment:
+                                  CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  d.metodo.label,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.red,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Esperado: ${currencyFormat.format(d.esperado)}'
+                                  ' · Conteo: ${d.conteoVacio ? "—" : currencyFormat.format(d.conteo)}',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Text(
+                            '${d.diferencia >= 0 ? "+" : ""}${currencyFormat.format(d.diferencia)}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.red,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )),
+              const SizedBox(height: 6),
+              // Botones
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => Navigator.of(dialogContext).pop(),
+                      style: TextButton.styleFrom(
+                        padding:
+                            const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: const Text(
+                        'Revisar conteos',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppColors.blue3,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.red,
+                        foregroundColor: AppColors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      onPressed: () {
+                        Navigator.of(dialogContext).pop();
+                        _cerrarCaja(context);
+                      },
+                      child: const Text(
+                        'Cerrar igual',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -486,7 +841,7 @@ class _CerrarCajaPageState extends State<CerrarCajaPage> {
       }
     }
 
-    context.read<CajaActivaCubit>().cerrarCaja(
+    context.read<CerrarCajaCubit>().cerrarCaja(
           cajaId: widget.cajaId,
           conteos: conteos,
           observaciones: _observacionesController.text.isNotEmpty
@@ -494,4 +849,24 @@ class _CerrarCajaPageState extends State<CerrarCajaPage> {
               : null,
         );
   }
+}
+
+/// Discrepancia entre conteo físico y saldo esperado para un método
+/// de pago. Sirve como modelo del listado mostrado en el dialog de
+/// advertencia previo al cierre. `conteoVacio` permite distinguir
+/// "no contó nada" (mostrar "—") de "contó S/ 0".
+class _Discrepancia {
+  final MetodoPago metodo;
+  final double esperado;
+  final double conteo;
+  final double diferencia;
+  final bool conteoVacio;
+
+  const _Discrepancia({
+    required this.metodo,
+    required this.esperado,
+    required this.conteo,
+    required this.diferencia,
+    required this.conteoVacio,
+  });
 }

@@ -84,6 +84,15 @@ abstract class ProductoRepository {
   });
 
   /// Elimina un producto (soft delete)
+  /// Actualiza SOLO las imágenes de un producto vía endpoint reducido
+  /// que requiere VIEW_PRODUCTS (no MANAGE_PRODUCTS). Permite que un
+  /// vendedor/cajero suba fotos desde Venta Rápida.
+  Future<Resource<void>> actualizarImagenesProducto({
+    required String productoId,
+    required String empresaId,
+    required List<String> imagenesIds,
+  });
+
   Future<Resource<void>> eliminarProducto({
     required String productoId,
     required String empresaId,

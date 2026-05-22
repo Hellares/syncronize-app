@@ -103,8 +103,17 @@ class StorageService {
         if (orden != null) 'orden': orden,
       });
 
+      // Si el archivo es de PRODUCTO, usamos el endpoint reducido que
+      // solo exige VIEW_PRODUCTS (vendedor/cajero pueden subir desde
+      // Venta Rápida). El endpoint genérico /storage/upload sigue
+      // requiriendo MANAGE_SETTINGS y se usa para logos de empresa,
+      // sedes, etc.
+      final endpoint = (entidadTipo == 'PRODUCTO')
+          ? '/storage/upload-producto-imagen'
+          : '/storage/upload';
+
       final response = await _dioClient.post(
-        '/storage/upload',
+        endpoint,
         data: formData,
         onSendProgress: onProgress != null
             ? (sent, total) {
@@ -123,14 +132,21 @@ class StorageService {
     }
   }
 
-  /// Elimina un archivo del backend
+  /// Elimina un archivo del backend.
+  /// Si se pasa `entidadTipo='PRODUCTO'`, usa el endpoint reducido
+  /// con permiso VIEW_PRODUCTS. Caso contrario, el endpoint genérico
+  /// que requiere MANAGE_SETTINGS.
   Future<void> deleteFile({
     required String archivoId,
     required String empresaId,
+    String? entidadTipo,
   }) async {
     try {
+      final endpoint = (entidadTipo == 'PRODUCTO')
+          ? '/storage/producto-imagen/$archivoId'
+          : '/storage/$archivoId';
       await _dioClient.delete(
-        '/storage/$archivoId',
+        endpoint,
         queryParameters: {'empresaId': empresaId},
       );
     } on DioException catch (e) {

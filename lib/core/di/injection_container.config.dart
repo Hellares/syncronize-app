@@ -123,6 +123,8 @@ import '../../features/caja/domain/usecases/get_auditoria_usecase.dart'
     as _i828;
 import '../../features/caja/domain/usecases/get_caja_activa_usecase.dart'
     as _i265;
+import '../../features/caja/domain/usecases/get_caja_by_id_usecase.dart'
+    as _i125;
 import '../../features/caja/domain/usecases/get_historial_usecase.dart'
     as _i969;
 import '../../features/caja/domain/usecases/get_monitor_usecase.dart' as _i519;
@@ -136,6 +138,7 @@ import '../../features/caja/presentation/bloc/caja_historial_cubit.dart'
 import '../../features/caja/presentation/bloc/caja_monitor_cubit.dart' as _i282;
 import '../../features/caja/presentation/bloc/caja_movimientos_cubit.dart'
     as _i38;
+import '../../features/caja/presentation/bloc/cerrar_caja_cubit.dart' as _i685;
 import '../../features/caja_chica/data/datasources/caja_chica_remote_datasource.dart'
     as _i383;
 import '../../features/caja_chica/data/repositories/caja_chica_repository_impl.dart'
@@ -910,6 +913,10 @@ import '../../features/prestamo/domain/usecases/get_resumen_prestamos_usecase.da
 import '../../features/prestamo/domain/usecases/registrar_pago_prestamo_usecase.dart'
     as _i1058;
 import '../../features/prestamo/presentation/bloc/prestamo_cubit.dart' as _i377;
+import '../../features/producto/data/cache/producto_catalogo_local_store.dart'
+    as _i559;
+import '../../features/producto/data/cache/producto_catalogo_memory_cache.dart'
+    as _i881;
 import '../../features/producto/data/datasources/configuracion_precio_remote_datasource.dart'
     as _i134;
 import '../../features/producto/data/datasources/plantilla_remote_datasource.dart'
@@ -1546,6 +1553,12 @@ extension GetItInjectableX on _i174.GetIt {
       dispose: (i) => i.dispose(),
     );
     gh.lazySingleton<_i473.ImpresorasManager>(() => _i473.ImpresorasManager());
+    gh.lazySingleton<_i559.ProductoCatalogoLocalStore>(
+      () => _i559.ProductoCatalogoLocalStore(),
+    );
+    gh.lazySingleton<_i881.ProductoCatalogoMemoryCache>(
+      () => _i881.ProductoCatalogoMemoryCache(),
+    );
     gh.factory<_i528.SedeSelectionCubit>(
       () => _i528.SedeSelectionCubit(gh<_i460.SharedPreferences>()),
     );
@@ -3913,6 +3926,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i265.GetCajaActivaUseCase>(
       () => _i265.GetCajaActivaUseCase(gh<_i742.CajaRepository>()),
     );
+    gh.factory<_i125.GetCajaByIdUseCase>(
+      () => _i125.GetCajaByIdUseCase(gh<_i742.CajaRepository>()),
+    );
     gh.factory<_i969.GetHistorialUseCase>(
       () => _i969.GetHistorialUseCase(gh<_i742.CajaRepository>()),
     );
@@ -4132,9 +4148,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i437.RechazarRendicionUseCase>(),
       ),
     );
-    gh.factory<_i227.ProductoListCubit>(
-      () => _i227.ProductoListCubit(gh<_i202.GetProductosUseCase>()),
-    );
     gh.factory<_i1062.ProductoSearchCubit>(
       () => _i1062.ProductoSearchCubit(gh<_i202.GetProductosUseCase>()),
     );
@@ -4233,13 +4246,6 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i427.CompraAnalyticsCubit>(
       () => _i427.CompraAnalyticsCubit(gh<_i914.GetCompraAnalyticsUseCase>()),
     );
-    gh.factory<_i503.CajaActivaCubit>(
-      () => _i503.CajaActivaCubit(
-        gh<_i265.GetCajaActivaUseCase>(),
-        gh<_i600.AbrirCajaUseCase>(),
-        gh<_i575.CerrarCajaUseCase>(),
-      ),
-    );
     gh.factory<_i94.ProveedorListCubit>(
       () => _i94.ProveedorListCubit(gh<_i825.GetProveedoresUseCase>()),
     );
@@ -4247,6 +4253,13 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i286.BulkUploadCubit(
         gh<_i570.DownloadBulkTemplateUseCase>(),
         gh<_i692.BulkUploadProductosUseCase>(),
+      ),
+    );
+    gh.factory<_i227.ProductoListCubit>(
+      () => _i227.ProductoListCubit(
+        gh<_i202.GetProductosUseCase>(),
+        gh<_i881.ProductoCatalogoMemoryCache>(),
+        gh<_i559.ProductoCatalogoLocalStore>(),
       ),
     );
     gh.factory<_i980.IncidenciaCubit>(
@@ -4374,6 +4387,14 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i965.InventarioListCubit>(
       () => _i965.InventarioListCubit(gh<_i132.ListarInventariosUseCase>()),
     );
+    gh.factory<_i503.CajaActivaCubit>(
+      () => _i503.CajaActivaCubit(
+        gh<_i265.GetCajaActivaUseCase>(),
+        gh<_i125.GetCajaByIdUseCase>(),
+        gh<_i600.AbrirCajaUseCase>(),
+        gh<_i575.CerrarCajaUseCase>(),
+      ),
+    );
     gh.factory<_i232.CuentasCobrarCubit>(
       () => _i232.CuentasCobrarCubit(
         gh<_i853.GetCuentasCobrarUseCase>(),
@@ -4491,6 +4512,9 @@ extension GetItInjectableX on _i174.GetIt {
         aprobarUseCase: gh<_i234.AprobarDevolucionUseCase>(),
         procesarUseCase: gh<_i1045.ProcesarDevolucionUseCase>(),
       ),
+    );
+    gh.factory<_i685.CerrarCajaCubit>(
+      () => _i685.CerrarCajaCubit(gh<_i575.CerrarCajaUseCase>()),
     );
     gh.factory<_i243.CompatibilidadCubit>(
       () => _i243.CompatibilidadCubit(

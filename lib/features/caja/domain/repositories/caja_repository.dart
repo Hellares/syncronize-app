@@ -17,6 +17,10 @@ abstract class CajaRepository {
 
   Future<Resource<Caja?>> getCajaActiva();
 
+  /// Devuelve una caja por id (vista admin desde el monitor, para que
+  /// reusemos la misma CajaPage del cajero parametrizada).
+  Future<Resource<Caja>> getCajaById(String id);
+
   Future<Resource<void>> crearMovimiento({
     required String cajaId,
     required TipoMovimientoCaja tipo,

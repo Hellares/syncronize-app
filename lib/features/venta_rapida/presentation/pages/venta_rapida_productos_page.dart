@@ -20,6 +20,7 @@ import '../../../producto/presentation/bloc/producto_list/producto_list_state.da
 import '../../../producto/domain/entities/producto_filtros.dart';
 import '../bloc/venta_rapida_cubit.dart';
 import '../widgets/precios_mayor_sheet.dart';
+import '../widgets/producto_imagenes_sheet.dart';
 
 class VentaRapidaProductosPage extends StatelessWidget {
   const VentaRapidaProductosPage({super.key});
@@ -96,6 +97,17 @@ class _ProductosViewState extends State<_ProductosView> {
   /// al carrito y se limpia el search. Patrón típico POS con scanner.
   String? _lastScannedCode;
 
+  /// Búsqueda local (Fase 0): tipeo del cajero se filtra sobre los
+  /// productos YA cargados en el state, sin pegar al server. Evita ~500ms
+  /// de latencia por cada tipeo. Si no hay match local y `hasMore=true`,
+  /// se dispara automáticamente la query remota con debounce — sin
+  /// requerir que el cajero toque ningún botón.
+  String _localQuery = '';
+
+  /// Debounce para el fallback automático al server cuando el filtro
+  /// local no devuelve nada. Evita gatillar request por cada letra.
+  Timer? _serverFallbackDebounce;
+
   /// Listener al stream de [RealtimeSyncService]. Cuando llega un FCM
   /// data-only (precio/stock/niveles cambiados) hacemos reload del
   /// catálogo con debounce de 500ms para no spamear si caen N eventos
@@ -129,6 +141,7 @@ class _ProductosViewState extends State<_ProductosView> {
   void dispose() {
     _realtimeReloadDebounce?.cancel();
     _realtimeSubscription?.cancel();
+    _serverFallbackDebounce?.cancel();
     _scrollCtrl.removeListener(_onScroll);
     _scrollCtrl.dispose();
     _searchCtrl.dispose();
@@ -156,12 +169,19 @@ class _ProductosViewState extends State<_ProductosView> {
   Future<void> _escanearCodigo() async {
     final code = await showBarcodeScannerSheet(context);
     if (code == null || code.isEmpty || !mounted) return;
-    _lastScannedCode = code.trim();
-    _searchCtrl.text = _lastScannedCode!;
+    final codeTrim = code.trim();
+    // OJO: setear el text dispara `onChanged` que pone _lastScannedCode
+    // = null. Por eso lo re-asignamos DESPUÉS del set del text, no antes.
+    _searchCtrl.text = codeTrim;
+    _lastScannedCode = codeTrim;
+    // Cancelamos el debounce de fallback server que el onChanged acaba
+    // de programar — vamos a disparar applyFiltros directo, instantáneo
+    // (es lo esperado tras un escaneo, no podemos esperar 500ms).
+    _serverFallbackDebounce?.cancel();
     if (!mounted) return;
     context.read<ProductoListCubit>().applyFiltros(
           ProductoFiltros(
-            search: _lastScannedCode,
+            search: codeTrim,
             isActive: true,
             esInsumo: false,
           ),
@@ -210,6 +230,71 @@ class _ProductosViewState extends State<_ProductosView> {
         backgroundColor: Colors.green.shade600,
         duration: const Duration(seconds: 1),
       ),
+    );
+  }
+
+  /// Limpia toda la búsqueda activa: cancela el debounce pendiente,
+  /// borra el filtro local, y si el cubit traía una búsqueda server
+  /// activa (ej. tras auto-fallback o escaneo), resetea al listado
+  /// base para que vuelva a mostrarse el catálogo completo.
+  void _limpiarBusqueda() {
+    _lastScannedCode = null;
+    _serverFallbackDebounce?.cancel();
+    setState(() => _localQuery = '');
+
+    final listState = context.read<ProductoListCubit>().state;
+    if (listState is ProductoListLoaded &&
+        listState.filtros.search != null &&
+        listState.filtros.search!.isNotEmpty) {
+      context.read<ProductoListCubit>().applyFiltros(
+            const ProductoFiltros(isActive: true, esInsumo: false),
+            sedeId: widget.sedeId,
+          );
+    }
+  }
+
+  /// Programa una búsqueda en el servidor con debounce 500ms si el
+  /// filtro local no encuentra nada. Solo se dispara cuando:
+  ///  - la query tiene >= 2 caracteres (evita spam con 1 letra)
+  ///  - el state actual permite paginación (`hasMore=true`) o ya viene
+  ///    de una búsqueda remota (para resetear/refinar)
+  ///  - ningún producto cargado matchea localmente.
+  /// Si la query cambia antes de que termine el timer, se cancela.
+  void _agendarFallbackServer(String value) {
+    _serverFallbackDebounce?.cancel();
+    if (value.length < 2) return;
+
+    final cubit = context.read<ProductoListCubit>();
+    final listState = cubit.state;
+    if (listState is! ProductoListLoaded) return;
+
+    final serverActual = listState.filtros.search ?? '';
+
+    // Casos donde NO hace falta server:
+    //  1) Server ya filtró por la misma query — el state ya es exacto.
+    //  2) Catálogo entero está en cliente (sin paginación pendiente) y
+    //     no hay search server activa → el filtro local es exhaustivo.
+    //
+    // En todos los otros casos vamos al server porque NO podemos saber
+    // a priori si el cliente tiene TODOS los productos que matchean
+    // (ej. cajero busca "oso", local tiene 1 oso pero server tiene 5).
+    if (serverActual == value) return;
+    if (!listState.hasMore && serverActual.isEmpty) return;
+
+    _serverFallbackDebounce = Timer(
+      const Duration(milliseconds: 500),
+      () {
+        if (!mounted) return;
+        if (_localQuery != value) return; // tipearon otra cosa
+        context.read<ProductoListCubit>().applyFiltros(
+              ProductoFiltros(
+                search: value,
+                isActive: true,
+                esInsumo: false,
+              ),
+              sedeId: widget.sedeId,
+            );
+      },
     );
   }
 
@@ -309,34 +394,54 @@ class _ProductosViewState extends State<_ProductosView> {
               controller: _searchCtrl,
               hintText: 'Buscar producto o escanear...',
               borderColor: AppColors.blue1,
-              debounceDelay: const Duration(milliseconds: 400),
+              // Sin debounce: el filtro local es instantáneo. El server
+              // solo se consulta si el cajero presiona el botón
+              // "Buscar en servidor" cuando no hay match local.
+              debounceDelay: Duration.zero,
               height: 40,
               onChanged: (value) {
                 // Si el cajero edita manualmente, ya no es un código
                 // escaneado — desactivamos el auto-add.
                 _lastScannedCode = null;
-                context.read<ProductoListCubit>().applyFiltros(
-                      ProductoFiltros(
-                        search: value,
-                        isActive: true,
-                        esInsumo: false,
-                      ),
-                    );
+
+                // Si la query queda vacía (borró todo letra a letra o
+                // con backspace), tratamos igual que `onClear`: limpiar
+                // estado local + resetear filtro server si lo había.
+                if (value.isEmpty) {
+                  _limpiarBusqueda();
+                  return;
+                }
+
+                // Búsqueda LOCAL: filtra los productos ya cargados en
+                // memoria sin pegar al server. Render <50ms.
+                setState(() => _localQuery = value);
+                // Auto-fallback al server: si el filtro local no
+                // encuentra nada y el catálogo tiene más páginas,
+                // disparamos `applyFiltros` con debounce 500ms para no
+                // spamear requests por cada letra tipeada.
+                _agendarFallbackServer(value);
               },
-              onClear: () {
-                _lastScannedCode = null;
-                // Volver al listado base de Venta Rápida: solo activos.
-                context.read<ProductoListCubit>().applyFiltros(
-                      const ProductoFiltros(isActive: true, esInsumo: false),
-                      sedeId: widget.sedeId,
-                    );
-              },
+              onClear: () => _limpiarBusqueda(),
               actionButtons: [
                 IconButton(
                   icon: const Icon(Icons.qr_code_scanner_rounded, size: 22),
                   color: AppColors.blue1,
                   onPressed: _escanearCodigo,
                   tooltip: 'Escanear código de barras',
+                  padding: EdgeInsets.zero,
+                  constraints:
+                      const BoxConstraints(minWidth: 36, minHeight: 32),
+                ),
+                // Atajo a "Nueva Cotización" (cotización rápida). El
+                // catálogo de cotización maneja sus propios productos
+                // y precios, por eso navegamos a su page completa, no
+                // reusamos el cubit de VR.
+                IconButton(
+                  icon: const Icon(Icons.request_quote_outlined, size: 22),
+                  color: AppColors.blue1,
+                  onPressed: () =>
+                      context.push('/empresa/cotizaciones/nueva'),
+                  tooltip: 'Nueva cotización',
                   padding: EdgeInsets.zero,
                   constraints:
                       const BoxConstraints(minWidth: 36, minHeight: 32),
@@ -423,22 +528,89 @@ class _ProductosViewState extends State<_ProductosView> {
                 }
                 if (items == null) return const SizedBox.shrink();
 
+                // Fase 0: filtro local sobre los productos cargados.
+                // Combina state actual + biblioteca de vistos (Fase 1.5)
+                // para que una segunda búsqueda del mismo término sea
+                // instantánea aunque el producto ya no esté en
+                // state.productos.
+                //
+                // Si el server YA filtró por algo (codigoBarras u otra
+                // query): el local solo "refina" — pero si el local
+                // queda en 0 con server activo, mostramos lo del server
+                // (caso típico: scanner devuelve match por codigoBarras
+                // que el ProductoListItem no expone, entonces el filtro
+                // local no encontraría nada aunque el server sí).
+                final filtrosState = state is ProductoListLoaded
+                    ? state.filtros
+                    : null;
+                final serverYaFiltro = filtrosState?.search != null &&
+                    filtrosState!.search!.isNotEmpty;
+                if (_localQuery.isNotEmpty) {
+                  final q = _localQuery.toLowerCase();
+                  final cubit = context.read<ProductoListCubit>();
+                  final combinados = <String, ProductoListItem>{
+                    for (final p in items) p.id: p,
+                    ...cubit.vistosCache,
+                  };
+                  final localFiltrado = combinados.values.where((p) {
+                    return p.nombre.toLowerCase().contains(q) ||
+                        p.codigoEmpresa.toLowerCase().contains(q);
+                  }).toList();
+                  // Si encontramos algo local → usamos local. Si no Y
+                  // el server ya filtró → confiamos en el server. Si no
+                  // hay ni local ni server filtró → lista vacía.
+                  if (localFiltrado.isNotEmpty || !serverYaFiltro) {
+                    items = localFiltrado;
+                  }
+                  // else: dejamos `items` tal como vino del state (server).
+                }
+
                 if (items.isEmpty) {
+                  final hayBusquedaLocal = _localQuery.isNotEmpty;
+                  // Mientras el debounce dispara la búsqueda remota o el
+                  // server está respondiendo, mostramos "Buscando…" con
+                  // spinner — la búsqueda continúa automáticamente sin
+                  // que el cajero toque nada.
+                  final buscandoEnServidor = hayBusquedaLocal &&
+                      (state is ProductoListLoaded && state.isFiltering ||
+                          _serverFallbackDebounce?.isActive == true);
                   return RefreshIndicator(
                     onRefresh: () => context
                         .read<ProductoListCubit>()
                         .reload(sedeId: widget.sedeId),
                     child: ListView(
                       physics: const AlwaysScrollableScrollPhysics(),
-                      children: const [
-                        SizedBox(height: 80),
+                      children: [
+                        const SizedBox(height: 80),
                         Center(
                           child: Padding(
-                            padding: EdgeInsets.all(24),
-                            child: Text(
-                              'No se encontraron productos',
-                              style: TextStyle(color: Colors.grey),
-                            ),
+                            padding: const EdgeInsets.all(24),
+                            child: buscandoEnServidor
+                                ? Column(
+                                    children: [
+                                      const SizedBox(
+                                        width: 24,
+                                        height: 24,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2.5,
+                                          color: AppColors.blue1,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Text(
+                                        'Buscando "$_localQuery" en el servidor…',
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: AppColors.textSecondary,
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                : const Text(
+                                    'No se encontraron productos',
+                                    style: TextStyle(color: Colors.grey),
+                                  ),
                           ),
                         ),
                       ],
@@ -631,17 +803,30 @@ class _ProductoCard extends StatelessWidget {
     return null;
   }
 
-  void _abrirZoom(BuildContext context) {
-    final imagen = producto.imagenPrincipal;
-    if (imagen == null || imagen.isEmpty) return;
-    showDialog(
-      context: context,
-      barrierColor: Colors.black87,
-      builder: (_) => _ImagenZoomDialog(
-        imagenes: [imagen],
-        nombreProducto: producto.nombre,
-      ),
+  /// Long-press de la card: abre el manager de imágenes del producto
+  /// para que cualquier vendedor/cajero con acceso a VR pueda subir o
+  /// eliminar fotos. Reemplaza al viejo `_ImagenZoomDialog` (que solo
+  /// mostraba la imagen) — el manager ya incluye visualización ampliada
+  /// al tocar cada imagen, así que cubre ambos casos.
+  Future<void> _abrirImagenesManager(BuildContext context) async {
+    final empresaState = context.read<EmpresaContextCubit>().state;
+    if (empresaState is! EmpresaContextLoaded) return;
+    final empresaId = empresaState.context.empresa.id;
+    final productoListCubit = context.read<ProductoListCubit>();
+
+    final cambioGuardado = await showProductoImagenesSheet(
+      context,
+      productoId: producto.id,
+      productoNombre: producto.nombre,
+      empresaId: empresaId,
     );
+
+    // Si se guardaron cambios (incluso si la imagen principal no
+    // cambió), refrescamos el catálogo para que aparezca la nueva
+    // imagen. Cero esfuerzo, el cubit ya recuerda los filtros.
+    if (cambioGuardado == true) {
+      productoListCubit.reload();
+    }
   }
 
   void _abrirPreciosMayor(BuildContext context) {
@@ -709,7 +894,7 @@ class _ProductoCard extends StatelessWidget {
                       );
                     }
                   : onTap,
-              onLongPress: () => _abrirZoom(context),
+              onLongPress: () => _abrirImagenesManager(context),
               child: Stack(
                 children: [
                   // Maquetación tipo "ficha":

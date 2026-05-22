@@ -61,6 +61,19 @@ class CajaRepositoryImpl implements CajaRepository {
   }
 
   @override
+  Future<Resource<Caja>> getCajaById(String id) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final caja = await _remoteDataSource.getCajaById(id);
+      return Success(caja.toEntity());
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Caja');
+    }
+  }
+
+  @override
   Future<Resource<void>> crearMovimiento({
     required String cajaId,
     required TipoMovimientoCaja tipo,

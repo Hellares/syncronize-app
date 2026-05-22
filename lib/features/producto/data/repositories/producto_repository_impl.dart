@@ -267,6 +267,30 @@ class ProductoRepositoryImpl implements ProductoRepository {
   }
 
   @override
+  Future<Resource<void>> actualizarImagenesProducto({
+    required String productoId,
+    required String empresaId,
+    required List<String> imagenesIds,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error(
+        'No hay conexión a internet',
+        errorCode: 'NETWORK_ERROR',
+      );
+    }
+    try {
+      await _remoteDataSource.actualizarImagenesProducto(
+        productoId: productoId,
+        empresaId: empresaId,
+        imagenesIds: imagenesIds,
+      );
+      return Success(null);
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Producto');
+    }
+  }
+
+  @override
   Future<Resource<void>> eliminarProducto({
     required String productoId,
     required String empresaId,
