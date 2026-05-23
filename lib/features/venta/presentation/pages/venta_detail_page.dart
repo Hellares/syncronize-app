@@ -521,65 +521,73 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                   color: i.isEven ? Colors.white : Colors.grey.shade50,
                   padding: const EdgeInsets.symmetric(
                       vertical: 4, horizontal: 8),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      SizedBox(
-                        width: 26,
-                        child: Center(
-                          child: Text(
-                            '${i + 1}',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.grey.shade700,
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: 26,
+                            child: Center(
+                              child: Text(
+                                '${i + 1}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.grey.shade700,
+                                ),
+                              ),
                             ),
                           ),
-                        ),
-                      ),
-                      Expanded(
-                        flex: 5,
-                        child: Text(
-                          detalles[i].descripcion,
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        flex: 2,
-                        child: Center(
-                          child: Text(
-                            _fmtCantidad(detalles[i].cantidad),
-                            style: const TextStyle(fontSize: 10),
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        flex: 3,
-                        child: Align(
-                          alignment: Alignment.centerRight,
-                          child: Text(
-                            detalles[i].precioUnitario.toStringAsFixed(2),
-                            style: const TextStyle(fontSize: 10),
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        flex: 3,
-                        child: Align(
-                          alignment: Alignment.centerRight,
-                          child: Text(
-                            detalles[i].total.toStringAsFixed(2),
-                            style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.blue1,
+                          Expanded(
+                            flex: 5,
+                            child: Text(
+                              detalles[i].descripcion,
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                           ),
-                        ),
+                          Expanded(
+                            flex: 2,
+                            child: Center(
+                              child: Text(
+                                _fmtCantidad(detalles[i].cantidad),
+                                style: const TextStyle(fontSize: 10),
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            flex: 3,
+                            child: Align(
+                              alignment: Alignment.centerRight,
+                              child: Text(
+                                detalles[i].precioUnitario.toStringAsFixed(2),
+                                style: const TextStyle(fontSize: 10),
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            flex: 3,
+                            child: Align(
+                              alignment: Alignment.centerRight,
+                              child: Text(
+                                detalles[i].total.toStringAsFixed(2),
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.blue1,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
+                      // Sub-líneas de devoluciones/cambios asociados
+                      // a este VentaDetalle (si los hay).
+                      ..._buildDevolucionLines(v, detalles[i].id),
                     ],
                   ),
                 ),
@@ -1051,6 +1059,76 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
         AppSubtitle(title, fontSize: 11),
       ],
     );
+  }
+
+  /// Genera las sub-líneas que aparecen indentadas debajo del Row de
+  /// un item cuando ese item tiene devoluciones PROCESADAS asociadas.
+  /// Cada línea muestra acción (Devuelto / Cambiado / etc.), cantidad,
+  /// producto de reemplazo cuando aplica, y el código de la devolución
+  /// (cliqueable → abre el detalle).
+  List<Widget> _buildDevolucionLines(Venta v, String ventaDetalleId) {
+    final items = (v.devoluciones ?? const <VentaDevolucionItemInfo>[])
+        .where((d) => d.ventaDetalleId == ventaDetalleId)
+        .toList();
+    if (items.isEmpty) return const [];
+
+    return items.map((d) {
+      final isCambio = d.accion == 'CAMBIO_PRODUCTO';
+      final icon = isCambio ? Icons.swap_horiz : Icons.assignment_return;
+      final color = isCambio ? Colors.indigo : Colors.orange.shade800;
+
+      final reemplazoNombre = d.varianteReemplazoNombre ?? d.productoReemplazoNombre;
+      final fecha = d.procesadoEn != null
+          ? DateFormatter.formatDate(d.procesadoEn!)
+          : null;
+
+      return Padding(
+        padding: const EdgeInsets.only(left: 30, top: 2, bottom: 2),
+        child: InkWell(
+          onTap: () =>
+              context.push('/empresa/devoluciones/${d.devolucionId}'),
+          borderRadius: BorderRadius.circular(4),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+            child: Row(
+              children: [
+                Text('└ ', style: TextStyle(fontSize: 10, color: color)),
+                Icon(icon, size: 11, color: color),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: RichText(
+                    text: TextSpan(
+                      style: TextStyle(fontSize: 9.5, color: color, fontWeight: FontWeight.w600),
+                      children: [
+                        TextSpan(text: '${d.accionLabel}: ${d.cantidad}'),
+                        if (isCambio && reemplazoNombre != null)
+                          TextSpan(
+                            text: ' → $reemplazoNombre',
+                            style: TextStyle(
+                              fontSize: 9.5,
+                              color: color,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        TextSpan(
+                          text:
+                              '   ${d.devolucionCodigo}${fecha != null ? " • $fecha" : ""}',
+                          style: TextStyle(
+                            fontSize: 9,
+                            color: Colors.grey.shade600,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }).toList();
   }
 
   Widget _buildNotaCard(NotaRelacionada nota, String sedeId) {

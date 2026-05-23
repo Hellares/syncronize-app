@@ -73,6 +73,7 @@ class VentaModel extends Venta {
     super.comprobanteIntentosEnvio,
     super.comprobanteAnulado,
     super.notasRelacionadas,
+    super.devoluciones,
   });
 
   factory VentaModel.fromJson(Map<String, dynamic> json) {
@@ -213,7 +214,46 @@ class VentaModel extends Venta {
       notasRelacionadas: ((json['comprobante'] as Map<String, dynamic>?)?['notasRelacionadas'] as List<dynamic>?)
           ?.map((n) => NotaRelacionada.fromJson(n as Map<String, dynamic>))
           .toList(),
+      devoluciones: _parseDevoluciones(json['devoluciones']),
     );
+  }
+
+  /// Aplastar `devoluciones[].items[]` (con codigo/fecha de la
+  /// devolución copiados a cada item) → lista plana de
+  /// VentaDevolucionItemInfo que la UI puede filtrar por
+  /// ventaDetalleId.
+  static List<VentaDevolucionItemInfo>? _parseDevoluciones(dynamic raw) {
+    if (raw == null) return null;
+    final lista = raw as List<dynamic>;
+    final out = <VentaDevolucionItemInfo>[];
+    for (final d in lista) {
+      final dev = d as Map<String, dynamic>;
+      final devolucionId = dev['id'] as String;
+      final devolucionCodigo = dev['codigo'] as String;
+      final procesadoEn = dev['procesadoEn'] != null
+          ? DateTime.tryParse(dev['procesadoEn'] as String)
+          : null;
+      final tipoReembolso = dev['tipoReembolso']?.toString() ?? 'EFECTIVO';
+      final items = (dev['items'] as List<dynamic>?) ?? const [];
+      for (final i in items) {
+        final item = i as Map<String, dynamic>;
+        final reemp = item['productoReemplazo'] as Map<String, dynamic>?;
+        final varReemp = item['varianteReemplazo'] as Map<String, dynamic>?;
+        out.add(VentaDevolucionItemInfo(
+          devolucionId: devolucionId,
+          devolucionCodigo: devolucionCodigo,
+          procesadoEn: procesadoEn,
+          tipoReembolso: tipoReembolso,
+          ventaDetalleId: item['ventaDetalleId'] as String?,
+          cantidad: (item['cantidad'] as num?)?.toInt() ?? 0,
+          accion: item['accion']?.toString() ?? '',
+          productoReemplazoNombre: reemp?['nombre'] as String?,
+          varianteReemplazoNombre: varReemp?['nombre'] as String?,
+          diferenciaPrecio: _toDoubleNullable(item['diferenciaPrecio']),
+        ));
+      }
+    }
+    return out;
   }
 
   Venta toEntity() => this;

@@ -114,6 +114,68 @@ enum MetodoPago {
   }
 }
 
+/// Item de devolución asociado a un VentaDetalle. Vienen aplastados
+/// (sin estructura Devolucion → items) para que la UI pueda filtrar
+/// por `ventaDetalleId` y mostrar las líneas asociadas a cada detalle
+/// de la venta. Solo se incluyen devoluciones en estado PROCESADA.
+class VentaDevolucionItemInfo extends Equatable {
+  final String devolucionId;
+  final String devolucionCodigo;
+  final DateTime? procesadoEn;
+
+  /// 'EFECTIVO' | 'CAMBIO_PRODUCTO' — texto crudo del enum backend.
+  final String tipoReembolso;
+
+  final String? ventaDetalleId;
+  final int cantidad;
+
+  /// Acción aplicada al item. Texto crudo del enum:
+  /// REINGRESAR_STOCK | MARCAR_DANADO | ENVIAR_REPARACION | DAR_DE_BAJA
+  /// | DEVOLVER_PROVEEDOR | CAMBIO_PRODUCTO.
+  final String accion;
+
+  /// Solo relevante cuando accion == CAMBIO_PRODUCTO.
+  final String? productoReemplazoNombre;
+  final String? varianteReemplazoNombre;
+  final double? diferenciaPrecio;
+
+  const VentaDevolucionItemInfo({
+    required this.devolucionId,
+    required this.devolucionCodigo,
+    this.procesadoEn,
+    required this.tipoReembolso,
+    this.ventaDetalleId,
+    required this.cantidad,
+    required this.accion,
+    this.productoReemplazoNombre,
+    this.varianteReemplazoNombre,
+    this.diferenciaPrecio,
+  });
+
+  /// Label legible para la acción — usado por la sub-línea bajo el item.
+  String get accionLabel {
+    switch (accion) {
+      case 'REINGRESAR_STOCK':
+        return 'Devuelto';
+      case 'MARCAR_DANADO':
+        return 'Devuelto (dañado)';
+      case 'ENVIAR_REPARACION':
+        return 'A reparación';
+      case 'DAR_DE_BAJA':
+        return 'Dado de baja';
+      case 'DEVOLVER_PROVEEDOR':
+        return 'A proveedor';
+      case 'CAMBIO_PRODUCTO':
+        return 'Cambiado';
+      default:
+        return accion;
+    }
+  }
+
+  @override
+  List<Object?> get props => [devolucionId, ventaDetalleId, cantidad, accion];
+}
+
 /// Entity que representa una venta
 class Venta extends Equatable {
   final String id;
@@ -203,6 +265,11 @@ class Venta extends Equatable {
   final bool? comprobanteAnulado;
   final List<NotaRelacionada>? notasRelacionadas;
 
+  /// Items de devoluciones PROCESADAS asociadas a esta venta. Lista
+  /// plana — la UI agrupa por `ventaDetalleId` para mostrar bajo cada
+  /// detalle correspondiente.
+  final List<VentaDevolucionItemInfo>? devoluciones;
+
   const Venta({
     required this.id,
     required this.empresaId,
@@ -269,6 +336,7 @@ class Venta extends Equatable {
     this.comprobanteIntentosEnvio,
     this.comprobanteAnulado,
     this.notasRelacionadas,
+    this.devoluciones,
   });
 
   /// Etiqueta del método de pago lista para mostrar al usuario.
