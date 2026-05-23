@@ -875,6 +875,11 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
       nombreCotizacion: '',
       tipoCotizacion: TipoCotizacionRapida.simple,
       modoEdicion: false,
+      // Reset de flags de reserva — el switch debe volver a OFF al
+      // empezar una cotización nueva tras completar la anterior.
+      reservarStock: false,
+      adelantoMonto: 0,
+      clearCajaIdAdelanto: true,
       clearCotizacionEditandoId: true,
       clearError: true,
       clearCotizacionCompletada: true,
