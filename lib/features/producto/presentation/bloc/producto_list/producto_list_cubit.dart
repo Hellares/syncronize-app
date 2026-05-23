@@ -220,16 +220,28 @@ class ProductoListCubit extends Cubit<ProductoListState> {
             ),
           ),
         );
-        // Fase 3: el fetch completo marca el punto de partida para
-        // futuros sync deltas. Usamos ahora() como aproximación al
-        // serverTime — la próxima request pedirá deltas desde acá.
-        unawaited(
-          _localStore.writeLastSync(
-            empresaId: empresaId,
-            sedeId: sedeId,
-            serverTime: ahora.toIso8601String(),
-          ),
-        );
+        // Fase 3: el `lastSync` (punto de partida para deltas) SOLO se
+        // persiste cuando el catálogo está COMPLETO (sin más páginas
+        // pendientes). Si lo persistiéramos con `hasNext=true`, una
+        // primera carga parcial (red lenta o el usuario abandona la
+        // app antes de cargar todo) dejaría al cliente creyendo que
+        // tiene todo el catálogo. Las próximas requests pedirían
+        // deltas desde ese instante y el backend respondería "0
+        // cambios" → los productos no descargados nunca llegarían
+        // (no son deltas, son data vieja). El usuario quedaría con
+        // un subset permanente hasta borrar datos de app.
+        //
+        // En caso de catálogo paginado, el `lastSync` se marca recién
+        // en `loadMore` cuando se llega a la última página.
+        if (!data.hasNext) {
+          unawaited(
+            _localStore.writeLastSync(
+              empresaId: empresaId,
+              sedeId: sedeId,
+              serverTime: ahora.toIso8601String(),
+            ),
+          );
+        }
       }
 
       // Guardar en cache de memoria para la próxima apertura.
@@ -321,6 +333,38 @@ class ProductoListCubit extends Cubit<ProductoListState> {
       // Almacenar productos completos en cache (si existen)
       if (data.fullProductosCache != null) {
         _productosFullCache.addAll(data.fullProductosCache!);
+      }
+
+      // Si llegamos a la última página Y el filtro vigente es catálogo
+      // base sin paginar (search vacío, sin categoría, sin marca),
+      // recién ahora el cliente tiene el catálogo COMPLETO. Persistimos
+      // el snapshot final + `lastSync` para que las próximas aperturas
+      // puedan usar syncDeltas (que solo trae cambios, no el catálogo
+      // entero). Ver explicación detallada del bug en `loadProductos`.
+      if (!data.hasNext && _esCatalogoBaseFiltros(nextFiltros)) {
+        final ahora = DateTime.now();
+        unawaited(
+          _localStore.write(
+            empresaId: _currentEmpresaId!,
+            sedeId: _currentSedeId,
+            snapshot: CatalogoLocalSnapshot(
+              version: CatalogoLocalSnapshot.currentVersion,
+              productos: List.of(_allProductos),
+              total: data.total,
+              currentPage: data.page,
+              totalPages: data.totalPages,
+              hasMore: false,
+              savedAt: ahora,
+            ),
+          ),
+        );
+        unawaited(
+          _localStore.writeLastSync(
+            empresaId: _currentEmpresaId!,
+            sedeId: _currentSedeId,
+            serverTime: ahora.toIso8601String(),
+          ),
+        );
       }
 
       emit(ProductoListLoaded(
@@ -418,11 +462,17 @@ class ProductoListCubit extends Cubit<ProductoListState> {
   /// específicos. Solo el catálogo base se persiste en disco; las
   /// búsquedas puntuales viven en memoria + biblioteca acumulativa.
   bool _esCatalogoBase(ProductoFiltros f) {
+    return _esCatalogoBaseFiltros(f) && f.page == 1;
+  }
+
+  /// Misma heurística pero ignorando el campo `page` — útil desde
+  /// `loadMore` (que paginas > 1) para validar que el flujo sigue
+  /// siendo del catálogo base antes de persistir el snapshot final.
+  bool _esCatalogoBaseFiltros(ProductoFiltros f) {
     final searchVacio = f.search == null || f.search!.isEmpty;
     return searchVacio &&
         f.empresaCategoriaId == null &&
-        f.empresaMarcaId == null &&
-        f.page == 1;
+        f.empresaMarcaId == null;
   }
 
   /// Fase 3: revalida con sync diferencial. Solo se invoca si hay

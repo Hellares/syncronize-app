@@ -184,50 +184,64 @@ class _ArchivoManagerBottomSheetState extends State<ArchivoManagerBottomSheet> {
                 : _buildArchivosGrid(),
           ),
 
-          // Botón de subir (solo si hay archivos locales)
-          if (hasLocalFiles && !_isUploading)
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _uploadLocalFiles,
-                  icon: const Icon(Icons.cloud_upload),
-                  label: Text('Subir $localFilesCount archivo${localFilesCount > 1 ? 's' : ''}'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.blue1,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+          // Botón de subir / indicador. SafeArea(top: false) garantiza
+          // que el contenido no quede bajo la barra de navegación del
+          // sistema en Android (los bottom sheets con botones custom
+          // NO heredan safe-area inferior automáticamente).
+          SafeArea(
+            top: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Botón de subir (solo si hay archivos locales)
+                if (hasLocalFiles && !_isUploading)
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: _uploadLocalFiles,
+                        icon: const Icon(Icons.cloud_upload),
+                        label: Text(
+                          'Subir $localFilesCount archivo${localFilesCount > 1 ? 's' : ''}',
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.blue1,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
-            ),
 
-          // Indicador de subida
-          if (_isUploading)
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  LinearProgressIndicator(
-                    value: _uploadProgress,
-                    backgroundColor: Colors.grey[200],
-                    color: AppColors.blue1,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Subiendo archivos... ${(_uploadProgress * 100).toInt()}%',
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: Colors.grey[600],
+                // Indicador de subida
+                if (_isUploading)
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        LinearProgressIndicator(
+                          value: _uploadProgress,
+                          backgroundColor: Colors.grey[200],
+                          color: AppColors.blue1,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Subiendo archivos... ${(_uploadProgress * 100).toInt()}%',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
+              ],
             ),
+          ),
         ],
       ),
     );
