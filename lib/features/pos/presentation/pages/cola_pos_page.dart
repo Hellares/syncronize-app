@@ -293,6 +293,32 @@ class _CotizacionPOSCardState extends State<_CotizacionPOSCard> {
                     _expanded ? Icons.expand_less : Icons.expand_more,
                     size: 16, color: AppColors.blue1,
                   ),
+                  if (c.tieneReservaActiva) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.greenContainer,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: AppColors.greenBorder),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.bookmark_added, size: 11, color: AppColors.greendark),
+                          const SizedBox(width: 3),
+                          Text(
+                            'Reservado',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.greendark,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

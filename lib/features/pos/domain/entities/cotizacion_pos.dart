@@ -12,6 +12,7 @@ class CotizacionPOS extends Equatable {
   final int totalItems;
   final List<DetallePOS> detalles;
   final DateTime creadoEn;
+  final bool tieneReservaActiva;
 
   const CotizacionPOS({
     required this.id,
@@ -25,6 +26,7 @@ class CotizacionPOS extends Equatable {
     required this.totalItems,
     required this.detalles,
     required this.creadoEn,
+    this.tieneReservaActiva = false,
   });
 
   bool get esPendiente => estado == 'PENDIENTE';
