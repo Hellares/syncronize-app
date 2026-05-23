@@ -393,13 +393,17 @@ class ProductoListCubit extends Cubit<ProductoListState> {
         _productosFullCache.addAll(data.fullProductosCache!);
       }
 
-      // Si llegamos a la última página Y el filtro vigente es catálogo
-      // base sin paginar (search vacío, sin categoría, sin marca),
-      // recién ahora el cliente tiene el catálogo COMPLETO. Persistimos
-      // el snapshot final + `lastSync` para que las próximas aperturas
-      // puedan usar syncDeltas (que solo trae cambios, no el catálogo
-      // entero). Ver explicación detallada del bug en `loadProductos`.
-      if (!data.hasNext && _esCatalogoBaseFiltros(nextFiltros)) {
+      // Snapshot incremental: tras cada `loadMore` exitoso con filtro
+      // de catálogo base, persistimos la lista acumulada en disco.
+      // Útil para catálogos grandes (total > 5000) donde el prefetch
+      // no arranca — si el usuario scrolea, cierra la app, y vuelve a
+      // abrir, el snapshot refleja todo lo que descargó manualmente.
+      //
+      // El `lastSync` SOLO se persiste cuando llegamos a la última
+      // página (hasNext=false): recién ahí el cliente tiene el catálogo
+      // COMPLETO y la próxima apertura puede usar syncDeltas. Ver
+      // explicación detallada del bug en `loadProductos`.
+      if (_esCatalogoBaseFiltros(nextFiltros)) {
         final ahora = DateTime.now();
         unawaited(
           _localStore.write(
@@ -411,18 +415,20 @@ class ProductoListCubit extends Cubit<ProductoListState> {
               total: data.total,
               currentPage: data.page,
               totalPages: data.totalPages,
-              hasMore: false,
+              hasMore: data.hasNext,
               savedAt: ahora,
             ),
           ),
         );
-        unawaited(
-          _localStore.writeLastSync(
-            empresaId: _currentEmpresaId!,
-            sedeId: _currentSedeId,
-            serverTime: ahora.toIso8601String(),
-          ),
-        );
+        if (!data.hasNext) {
+          unawaited(
+            _localStore.writeLastSync(
+              empresaId: _currentEmpresaId!,
+              sedeId: _currentSedeId,
+              serverTime: ahora.toIso8601String(),
+            ),
+          );
+        }
       }
 
       emit(ProductoListLoaded(
