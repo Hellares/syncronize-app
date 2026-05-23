@@ -169,11 +169,12 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
           final cubit = context.read<ProductoListCubit>();
           if (_pendingFullReload) {
             _pendingFullReload = false;
-            // Producto nuevo: reload() descarta lastSync + cache para
-            // que el backend devuelva el catálogo en su orden natural.
-            // Sin esto, el syncDeltas hace `.add()` al final del array
-            // y el producto queda fuera del scroll visible.
-            cubit.reload(sedeId: widget.sedeId);
+            // Producto creado / actualizado: descartamos lastSync para
+            // forzar fetch full (orden natural + filtros del backend
+            // re-aplicados), manteniendo la grilla visible con la
+            // barra sutil de `isFiltering`. Más amable que `reload()`
+            // brusco — la pantalla no vacía la lista en el medio.
+            cubit.revalidarSinDeltas(sedeId: widget.sedeId);
           } else {
             // PRECIO/STOCK/NIVELES/IMAGEN: syncDeltas alcanza — solo
             // actualiza productos existentes in-place. Mantenemos la

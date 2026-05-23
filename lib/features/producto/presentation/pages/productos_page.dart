@@ -116,13 +116,17 @@ class _ProductosPageState extends State<ProductosPage>
         if (!mounted) return;
         if (_pendingFullReload) {
           _pendingFullReload = false;
-          // Producto nuevo: limpiamos lastSync + cache para que el
-          // backend devuelva el catálogo en su orden natural y el
-          // recién creado entre en su posición correcta.
+          // Producto creado / actualizado: descarta lastSync (forzando
+          // fetch full para que entre en su orden natural y los filtros
+          // del backend se re-apliquen), pero mantiene la grilla
+          // visible con la barra fina de `isFiltering` — sin Loading
+          // brusco como hacía `reload()` antes.
           final empresaState = context.read<EmpresaContextCubit>().state;
           if (empresaState is EmpresaContextLoaded) {
             final sedeId = _getSedeIdActual(empresaState.context.sedes);
-            context.read<ProductoListCubit>().reload(sedeId: sedeId);
+            context
+                .read<ProductoListCubit>()
+                .revalidarSinDeltas(sedeId: sedeId);
           }
         } else {
           // Resto de eventos (precio/stock/niveles/imagen): syncDeltas

@@ -360,6 +360,34 @@ class ProductoListCubit extends Cubit<ProductoListState> {
     );
   }
 
+  /// Revalida con el servidor SIN descartar la cache local — descarta
+  /// solo el `lastSync` para forzar fetch full (no usa syncDeltas) y
+  /// que el backend re-aplique filtros (isActive, deletedAt, orden,
+  /// etc). La lista actual se mantiene visible con la barra fina de
+  /// `isFiltering` mientras revalida — UX sutil sin parpadeo de
+  /// Loading completo.
+  ///
+  /// Usado por los listeners de FCM cuando llega PRODUCTO_CREADO o
+  /// PRODUCTO_ACTUALIZADO: el delta no alcanza (producto nuevo iría al
+  /// final del array, producto desactivado quedaría visible), pero
+  /// tampoco queremos vaciar la grilla con `reload()`.
+  Future<void> revalidarSinDeltas({String? sedeId}) async {
+    if (_currentEmpresaId == null) return;
+    final sedeIdReal = sedeId ?? _currentSedeId;
+    unawaited(
+      _localStore.clearLastSync(
+        empresaId: _currentEmpresaId!,
+        sedeId: sedeIdReal,
+      ),
+    );
+    await loadProductos(
+      empresaId: _currentEmpresaId!,
+      sedeId: sedeIdReal,
+      filtros: _currentFiltros,
+      keepListWhileFiltering: true,
+    );
+  }
+
   /// Recarga la lista actual. Pull-to-refresh debe forzar fetch al
   /// server (intención explícita del usuario de ver datos frescos),
   /// por eso invalidamos memoria + biblioteca + disco antes.
