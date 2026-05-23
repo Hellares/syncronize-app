@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/confirm_dialog.dart';
 import '../../../auth/presentation/widgets/custom_text.dart';
 import '../bloc/venta_rapida_cubit.dart';
 import '../widgets/tipo_comprobante_dialog.dart';
@@ -244,16 +245,13 @@ class _CarritoView extends StatelessWidget {
   }
 
   Future<void> _confirmarVaciar(BuildContext context) async {
-    final ok = await showDialog<bool>(
+    final ok = await ConfirmDialog.show(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Vaciar carrito'),
-        content: const Text('¿Seguro que querés vaciar el carrito?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancelar')),
-          TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Vaciar')),
-        ],
-      ),
+      type: ConfirmDialogType.destructive,
+      title: 'Vaciar carrito',
+      message: '¿Seguro que querés vaciar el carrito? '
+          'Se perderán todos los items agregados.',
+      confirmText: 'Vaciar',
     );
     if (ok == true && context.mounted) {
       context.read<VentaRapidaCubit>().vaciarCarrito();

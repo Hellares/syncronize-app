@@ -17,6 +17,7 @@ import '../../../../core/widgets/pagos_section_widget.dart'
         requiereBancoPago,
         umbralBancarizacionPen;
 import '../../../../core/widgets/autorizacion_dialog.dart';
+import '../../../../core/widgets/confirm_dialog.dart';
 import '../../../auth/presentation/widgets/custom_text.dart';
 import '../../../producto/presentation/bloc/producto_list/producto_list_cubit.dart';
 import '../../../venta/domain/entities/venta_detalle_input.dart';
@@ -388,59 +389,51 @@ class _CobroViewState extends State<_CobroView> {
       return '• ${d.descripcion}  →  pérdida S/ ${(-m * d.cantidad).toStringAsFixed(2)}';
     }).join('\n');
 
-    final confirmado = await showDialog<bool>(
+    final confirmado = await ConfirmDialog.show(
       context: context,
-      builder: (ctx) => AlertDialog(
-        icon: Icon(Icons.warning_amber_rounded,
-            color: Colors.deepOrange.shade700, size: 36),
-        title: const Text('Venta bajo costo'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '${requierenAutorizacion.length} producto(s) se venden bajo costo y NO están en liquidación.',
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+      type: ConfirmDialogType.warning,
+      title: 'Venta bajo costo',
+      customContent: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '${requierenAutorizacion.length} producto(s) se venden bajo costo y NO están en liquidación.',
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
             ),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.deepOrange.shade50,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.deepOrange.shade200),
-              ),
-              child: Text(detalle, style: const TextStyle(fontSize: 11)),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.deepOrange.shade50,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: Colors.deepOrange.shade200),
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Pérdida total: S/ ${perdidaTotal.toStringAsFixed(2)}',
-              style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.red.shade700),
+            child: Text(detalle, style: const TextStyle(fontSize: 11)),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Pérdida total: S/ ${perdidaTotal.toStringAsFixed(2)}',
+            style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: Colors.red.shade700),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Para continuar se requiere autorización de GERENTE o ADMIN.',
+            style: TextStyle(
+              fontSize: 11,
+              color: AppColors.textSecondary,
             ),
-            const SizedBox(height: 8),
-            const Text(
-              'Para continuar se requiere autorización de GERENTE o ADMIN.',
-              style: TextStyle(fontSize: 11, color: Colors.black54),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancelar')),
-          ElevatedButton.icon(
-            onPressed: () => Navigator.pop(ctx, true),
-            icon: const Icon(Icons.admin_panel_settings),
-            label: const Text('Autorizar'),
-            style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.deepOrange.shade700,
-                foregroundColor: Colors.white),
           ),
         ],
       ),
+      confirmText: 'Autorizar',
     );
     if (confirmado != true || !context.mounted) {
       return const _VentaBajoCostoResult(cancelar: true);
@@ -465,70 +458,63 @@ class _CobroViewState extends State<_CobroView> {
     required double efectivo,
     required double bancarizado,
   }) async {
-    final result = await showDialog<bool>(
+    final result = await ConfirmDialog.show(
       context: context,
+      type: ConfirmDialogType.destructive,
+      icon: Icons.warning_amber_rounded,
+      title: 'Ley 28194 — bancarización',
       barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        icon: Icon(Icons.warning_amber_rounded,
-            color: Colors.red[700], size: 36),
-        title: const Text('Ley 28194 — bancarización'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Esta venta de S/ ${totalVenta.toStringAsFixed(2)} supera el límite '
-              'de S/ ${umbralBancarizacionPen.toStringAsFixed(0)}, pero el pago en '
-              'efectivo (S/ ${efectivo.toStringAsFixed(2)}) excede lo permitido por ley.',
-              style: const TextStyle(fontSize: 10),
+      customContent: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Esta venta de S/ ${totalVenta.toStringAsFixed(2)} supera el límite '
+            'de S/ ${umbralBancarizacionPen.toStringAsFixed(0)}, pero el pago en '
+            'efectivo (S/ ${efectivo.toStringAsFixed(2)}) excede lo permitido por ley.',
+            style: const TextStyle(
+              fontSize: 11,
+              color: AppColors.textPrimary,
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Parte bancarizada actual: S/ ${bancarizado.toStringAsFixed(2)} '
-              '(< S/ ${umbralBancarizacionPen.toStringAsFixed(0)}).',
-              style: TextStyle(fontSize: 12, color: Colors.grey[700]),
-            ),
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.red[50],
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.red[300]!),
-              ),
-              child: Text(
-                'Consecuencias para el cliente:\n'
-                '• Pierde el derecho a deducir el IGV (crédito fiscal).\n'
-                '• El gasto puede ser observado por SUNAT.\n'
-                '• Posibles multas tributarias al cliente.',
-                style: TextStyle(fontSize: 10, color: Colors.red[900]),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'La boleta o factura se emitirá igualmente. ¿El cliente '
-              'confirma asumir este riesgo?',
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey[800],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancelar'),
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red[700]),
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Cliente acepta riesgo',
-                style: TextStyle(color: Colors.white)),
+          const SizedBox(height: 8),
+          Text(
+            'Parte bancarizada actual: S/ ${bancarizado.toStringAsFixed(2)} '
+            '(< S/ ${umbralBancarizacionPen.toStringAsFixed(0)}).',
+            style: const TextStyle(
+              fontSize: 11,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.red[50],
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: Colors.red[300]!),
+            ),
+            child: Text(
+              'Consecuencias para el cliente:\n'
+              '• Pierde el derecho a deducir el IGV (crédito fiscal).\n'
+              '• El gasto puede ser observado por SUNAT.\n'
+              '• Posibles multas tributarias al cliente.',
+              style: TextStyle(fontSize: 10, color: Colors.red[900]),
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'La boleta o factura se emitirá igualmente. ¿El cliente '
+            'confirma asumir este riesgo?',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
           ),
         ],
       ),
+      confirmText: 'Cliente acepta',
     );
     return result ?? false;
   }
