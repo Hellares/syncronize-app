@@ -3,6 +3,7 @@ import 'arqueo_caja.dart';
 import 'caja.dart';
 import 'cierre_caja.dart';
 import 'movimiento_caja.dart';
+import 'resumen_caja.dart';
 
 /// Snapshot en vivo de saldos de una caja (calculado al momento del request).
 /// Si la caja está CERRADA, comparar contra `CierreCaja` para detectar drift
@@ -14,6 +15,9 @@ class ResumenActualCaja extends Equatable {
   final double saldoActual;
   final double saldoEfectivo;
   final List<DetalleMetodoCaja> detallesPorMetodo;
+  final double egresoAnulacionVenta;
+  final int cantidadAnulaciones;
+  final List<EgresoPorCategoria> egresosPorCategoria;
 
   const ResumenActualCaja({
     required this.montoApertura,
@@ -22,6 +26,9 @@ class ResumenActualCaja extends Equatable {
     required this.saldoActual,
     required this.saldoEfectivo,
     required this.detallesPorMetodo,
+    this.egresoAnulacionVenta = 0,
+    this.cantidadAnulaciones = 0,
+    this.egresosPorCategoria = const [],
   });
 
   @override
@@ -32,6 +39,9 @@ class ResumenActualCaja extends Equatable {
         saldoActual,
         saldoEfectivo,
         detallesPorMetodo,
+        egresoAnulacionVenta,
+        cantidadAnulaciones,
+        egresosPorCategoria,
       ];
 }
 

@@ -434,6 +434,9 @@ class _CajaAuditoriaPageState extends State<CajaAuditoriaPage> {
                 saldo: d.saldo,
               ))
           .toList(),
+      egresoAnulacionVenta: r.egresoAnulacionVenta,
+      cantidadAnulaciones: r.cantidadAnulaciones,
+      egresosPorCategoria: r.egresosPorCategoria,
     );
   }
 

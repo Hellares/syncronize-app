@@ -1,5 +1,6 @@
 import '../../domain/entities/caja_auditoria.dart';
 import '../../domain/entities/movimiento_caja.dart';
+import '../../domain/entities/resumen_caja.dart';
 import 'arqueo_caja_model.dart';
 import 'caja_model.dart';
 import 'cierre_caja_model.dart';
@@ -36,6 +37,20 @@ class CajaAuditoriaModel extends CajaAuditoria {
             ))
         .toList();
 
+    final egresosCatJson =
+        (resumenJson['egresosPorCategoria'] as List?) ?? const [];
+    final egresosPorCategoria = egresosCatJson
+        .whereType<Map<String, dynamic>>()
+        .map((m) => EgresoPorCategoria(
+              categoria: m['categoria']?.toString() ?? '',
+              label: m['label']?.toString() ??
+                  m['categoria']?.toString() ??
+                  '',
+              total: _toDouble(m['total']),
+              cantidad: (m['cantidad'] as int?) ?? 0,
+            ))
+        .toList();
+
     final resumenActual = ResumenActualCaja(
       montoApertura: _toDouble(resumenJson['montoApertura']),
       totalIngresos: _toDouble(resumenJson['totalIngresos']),
@@ -43,6 +58,9 @@ class CajaAuditoriaModel extends CajaAuditoria {
       saldoActual: _toDouble(resumenJson['saldoActual']),
       saldoEfectivo: _toDouble(resumenJson['saldoEfectivo']),
       detallesPorMetodo: detalles,
+      egresoAnulacionVenta: _toDouble(resumenJson['egresoAnulacionVenta']),
+      cantidadAnulaciones: (resumenJson['cantidadAnulaciones'] as int?) ?? 0,
+      egresosPorCategoria: egresosPorCategoria,
     );
 
     final arqueosJson = (json['arqueos'] as List?) ?? const [];
