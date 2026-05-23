@@ -44,13 +44,29 @@ class ResumenCajaCard extends StatelessWidget {
             ),
             const Divider(height: 16),
           ],
-          // Total Ingresos: suma de TODAS las categorías de ingreso —
-          // VENTA, PEDIDO_MARKETPLACE, ADELANTO_SERVICIO, OTRO_INGRESO.
+          // Total Ingresos
           _buildResumenRow(
             'Total Ingresos',
             currencyFormat.format(resumen.totalIngresos),
             AppColors.green,
           ),
+          // Nota informativa: si hubo anulaciones, recordar al cajero
+          // que ese monto YA fue descontado de Ingresos (el INGRESO
+          // original quedó anulado, no es un egreso aparte).
+          if (resumen.egresoAnulacionVenta > 0) ...[
+            const SizedBox(height: 2),
+            Padding(
+              padding: const EdgeInsets.only(left: 16),
+              child: Text(
+                '(− ${currencyFormat.format(resumen.egresoAnulacionVenta)} anulados)',
+                style: TextStyle(
+                  fontSize: 9,
+                  fontStyle: FontStyle.italic,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 8),
           // Total Egresos
           _buildResumenRow(
@@ -58,9 +74,33 @@ class ResumenCajaCard extends StatelessWidget {
             currencyFormat.format(resumen.totalEgresos),
             AppColors.red,
           ),
-          // Subrayado del egreso por anulaciones de venta — subconjunto
-          // de Total Egresos, no se suma aparte. Solo aparece si hubo
-          // anulaciones en esta caja.
+          // Desglose por categoría — solo egresos manuales reales.
+          ...resumen.egresosPorCategoria.map((e) => Padding(
+                padding: const EdgeInsets.only(left: 16, top: 2),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      '· ${e.label}'
+                      '${e.cantidad > 0 ? " (${e.cantidad})" : ""}',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    Text(
+                      currencyFormat.format(e.total),
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.red.withValues(alpha: 0.85),
+                      ),
+                    ),
+                  ],
+                ),
+              )),
+          // Bloque informativo de anulaciones — NO suma a Total Egresos
+          // (es un ingreso revertido, ya descontado arriba).
           if (resumen.egresoAnulacionVenta > 0) ...[
             const SizedBox(height: 4),
             Padding(
@@ -68,28 +108,34 @@ class ResumenCajaCard extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      Icon(Icons.cancel_outlined,
-                          size: 12, color: AppColors.red.withValues(alpha: 0.7)),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Anulación de Venta'
-                        '${resumen.cantidadAnulaciones > 0 ? " (${resumen.cantidadAnulaciones})" : ""}',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontStyle: FontStyle.italic,
-                          color: AppColors.textSecondary,
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline,
+                            size: 11, color: AppColors.textSecondary),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            'Anulación de Venta'
+                            '${resumen.cantidadAnulaciones > 0 ? " (${resumen.cantidadAnulaciones})" : ""}'
+                            ' — ya descontado de Ingresos',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontStyle: FontStyle.italic,
+                              color: AppColors.textSecondary,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                   Text(
-                    '- ${currencyFormat.format(resumen.egresoAnulacionVenta)}',
+                    currencyFormat.format(resumen.egresoAnulacionVenta),
                     style: TextStyle(
                       fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.red.withValues(alpha: 0.8),
+                      fontStyle: FontStyle.italic,
+                      color: AppColors.textSecondary,
                     ),
                   ),
                 ],

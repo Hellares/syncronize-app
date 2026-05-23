@@ -38,6 +38,7 @@ class ResumenCajaModel extends ResumenCaja {
     required super.detalles,
     super.egresoAnulacionVenta,
     super.cantidadAnulaciones,
+    super.egresosPorCategoria,
   });
 
   factory ResumenCajaModel.fromJson(Map<String, dynamic> json) {
@@ -64,6 +65,19 @@ class ResumenCajaModel extends ResumenCaja {
             )
             .saldo;
 
+    final egresosCatJson = json['egresosPorCategoria'] as List? ?? [];
+    final egresosPorCategoria = egresosCatJson
+        .map((e) {
+          final m = e as Map<String, dynamic>;
+          return EgresoPorCategoria(
+            categoria: m['categoria']?.toString() ?? '',
+            label: m['label']?.toString() ?? m['categoria']?.toString() ?? '',
+            total: _toDouble(m['total']),
+            cantidad: (m['cantidad'] as int?) ?? 0,
+          );
+        })
+        .toList();
+
     return ResumenCajaModel(
       totalIngresos: _toDouble(json['totalIngresos']),
       totalEgresos: _toDouble(json['totalEgresos']),
@@ -72,6 +86,7 @@ class ResumenCajaModel extends ResumenCaja {
       detalles: detalles,
       egresoAnulacionVenta: _toDouble(json['egresoAnulacionVenta']),
       cantidadAnulaciones: (json['cantidadAnulaciones'] as int?) ?? 0,
+      egresosPorCategoria: egresosPorCategoria,
     );
   }
 
