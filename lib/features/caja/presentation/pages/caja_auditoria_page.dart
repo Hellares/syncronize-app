@@ -72,8 +72,9 @@ class _CajaAuditoriaPageState extends State<CajaAuditoriaPage> {
         backgroundColor: AppColors.blue1,
         foregroundColor: AppColors.white,
         actions: [
-          // El popup aparece siempre. El handler verifica que haya cierre
-          // (caja cerrada) antes de imprimir, sino muestra snackbar.
+          // Botón siempre visible. Si la caja sigue ABIERTA, imprime un
+          // snapshot "ESTADO DE CAJA" usando el resumen en vivo; si está
+          // CERRADA, imprime el ticket de cierre definitivo.
           FutureBuilder<Resource<CajaAuditoria>>(
             future: _future,
             builder: (context, snap) {
@@ -82,9 +83,6 @@ class _CajaAuditoriaPageState extends State<CajaAuditoriaPage> {
               }
               final auditoria =
                   (snap.data as Success<CajaAuditoria>).data;
-              if (auditoria.cierre == null) {
-                return const SizedBox.shrink();
-              }
               return PopupMenuButton<String>(
                 icon: const Icon(Icons.print_rounded),
                 tooltip: 'Imprimir',
@@ -1165,11 +1163,6 @@ class _CajaAuditoriaPageState extends State<CajaAuditoriaPage> {
 
   Future<void> _imprimir(CajaAuditoria auditoria,
       {required bool conDetalle}) async {
-    if (auditoria.cierre == null) {
-      _toast('Solo se puede imprimir cajas cerradas', Colors.orange);
-      return;
-    }
-
     try {
       final ticketData = await resolverCajaTicketData(context, auditoria.caja);
       final manager = locator<ImpresorasManager>();
@@ -1180,9 +1173,16 @@ class _CajaAuditoriaPageState extends State<CajaAuditoriaPage> {
         return;
       }
 
+      // Mapeo de detalles "vivo" para el caso caja ABIERTA (sin cierre).
+      // El generator solo los usa cuando cierre==null.
+      final resumen = _toResumenCaja(auditoria.resumenActual);
+      final detallesVivo = resumen.detalles
+          .where((d) => d.totalIngresos > 0 || d.totalEgresos > 0)
+          .toList();
+
       final bytes = await CierreCajaEscPosGenerator.generate(
         caja: auditoria.caja,
-        cierre: auditoria.cierre!,
+        cierre: auditoria.cierre,
         empresaNombre: ticketData.empresaNombre,
         empresaRazonSocial: ticketData.razonSocial,
         empresaRuc: ticketData.ruc,
@@ -1192,6 +1192,12 @@ class _CajaAuditoriaPageState extends State<CajaAuditoriaPage> {
         logoEmpresa: ticketData.logoBytes,
         paperWidth: principal.anchoPapel.mm,
         movimientos: conDetalle ? auditoria.movimientos : null,
+        totalIngresosVivo: resumen.totalIngresos,
+        totalEgresosVivo: resumen.totalEgresos,
+        detallesVivo: detallesVivo,
+        egresoAnulacionVenta: resumen.egresoAnulacionVenta,
+        cantidadAnulaciones: resumen.cantidadAnulaciones,
+        egresosPorCategoria: resumen.egresosPorCategoria,
       );
 
       final ok = await manager.imprimirEnPrincipal(bytes);

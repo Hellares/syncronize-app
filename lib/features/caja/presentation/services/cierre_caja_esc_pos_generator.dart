@@ -7,6 +7,7 @@ import '../../../../core/utils/date_formatter.dart';
 import '../../domain/entities/caja.dart';
 import '../../domain/entities/cierre_caja.dart';
 import '../../domain/entities/movimiento_caja.dart';
+import '../../domain/entities/resumen_caja.dart';
 
 /// Genera bytes ESC-POS del resumen de cierre de caja. Mismo estilo y
 /// tipografias que el ticket de venta: fontB global, padding manual
@@ -14,7 +15,12 @@ import '../../domain/entities/movimiento_caja.dart';
 class CierreCajaEscPosGenerator {
   static Future<List<int>> generate({
     required Caja caja,
-    required CierreCaja cierre,
+    /// Si la caja está CERRADA, pasamos el cierre y se imprime el ticket
+    /// definitivo con Esperado/Conteo/Diferencia. Si la caja está ABIERTA,
+    /// pasamos `null` y entonces el caller DEBE proveer los totales en
+    /// vivo vía `totalIngresos`/`totalEgresos`/`detalles` para que el
+    /// ticket se imprima como "ESTADO DE CAJA" (snapshot de auditoría).
+    CierreCaja? cierre,
     required String empresaNombre,
     String? empresaRazonSocial,
     String? empresaRuc,
@@ -27,6 +33,16 @@ class CierreCajaEscPosGenerator {
     /// (ventas, egresos, otros). Si es null o vacía, se imprime solo el
     /// resumen como antes. Los movimientos anulados se omiten del listado.
     List<MovimientoCaja>? movimientos,
+    /// Totales en vivo para imprimir cuando NO hay cierre (caja abierta).
+    /// Si `cierre` es null, estos son required en la práctica.
+    double? totalIngresosVivo,
+    double? totalEgresosVivo,
+    List<ResumenMetodoPago>? detallesVivo,
+    /// Desglose para mostrar bajo Total Egresos. Aplica tanto al cierre
+    /// como al snapshot de caja abierta.
+    double egresoAnulacionVenta = 0,
+    int cantidadAnulaciones = 0,
+    List<EgresoPorCategoria> egresosPorCategoria = const [],
   }) async {
     final profile = await CapabilityProfile.load();
     final paperSize = paperWidth == 58 ? PaperSize.mm58 : PaperSize.mm80;
@@ -97,7 +113,7 @@ class CierreCajaEscPosGenerator {
 
     // ── Titulo ──
     bytes += generator.text(
-      'CIERRE DE CAJA',
+      cierre != null ? 'CIERRE DE CAJA' : 'ESTADO DE CAJA',
       styles: const PosStyles(
         align: PosAlign.center,
         height: PosTextSize.size2,
@@ -129,6 +145,9 @@ class CierreCajaEscPosGenerator {
     bytes += generator.hr(ch: '-');
 
     // ── Resumen global ──
+    final totIng = cierre?.totalIngresos ?? totalIngresosVivo ?? 0;
+    final totEgr = cierre?.totalEgresos ?? totalEgresosVivo ?? 0;
+
     bytes += generator.text(
       'RESUMEN',
       styles: const PosStyles(bold: true),
@@ -137,30 +156,62 @@ class CierreCajaEscPosGenerator {
       _row('Monto Apertura', _money(caja.montoApertura), charsPerLine),
     );
     bytes += generator.text(
-      _row('Total Ingresos', _money(cierre.totalIngresos), charsPerLine),
+      _row('Total Ingresos', _money(totIng), charsPerLine),
     );
+    if (egresoAnulacionVenta > 0) {
+      bytes += generator.text(
+        _row('  (-${_money(egresoAnulacionVenta)} anulados)', '', charsPerLine),
+      );
+    }
     bytes += generator.text(
-      _row('Total Egresos', _money(cierre.totalEgresos), charsPerLine),
+      _row('Total Egresos', _money(totEgr), charsPerLine),
     );
-    bytes += generator.hr(ch: '-');
-    bytes += generator.text(
-      _row('Esperado', _money(cierre.totalEsperado), charsPerLine),
-    );
-    bytes += generator.text(
-      _row('Conteo Fisico', _money(cierre.totalConteoFisico), charsPerLine),
-    );
-    bytes += generator.text(
-      _row('DIFERENCIA', _money(cierre.diferencia), charsPerLine),
-      styles: const PosStyles(bold: true),
-    );
+    // Desglose por categoría — solo egresos manuales reales.
+    for (final e in egresosPorCategoria) {
+      final lbl = '  ${_truncate(e.label, 18)}'
+          '${e.cantidad > 0 ? " (${e.cantidad})" : ""}';
+      bytes += generator.text(_row(lbl, _money(e.total), charsPerLine));
+    }
+    if (egresoAnulacionVenta > 0) {
+      final lbl = '  Anul. Venta'
+          '${cantidadAnulaciones > 0 ? " ($cantidadAnulaciones)" : ""}'
+          ' *';
+      bytes += generator.text(
+        _row(lbl, _money(egresoAnulacionVenta), charsPerLine),
+      );
+      bytes += generator.text('  * ya descontado de Ingresos');
+    }
+    if (cierre != null) {
+      bytes += generator.hr(ch: '-');
+      bytes += generator.text(
+        _row('Esperado', _money(cierre.totalEsperado), charsPerLine),
+      );
+      bytes += generator.text(
+        _row('Conteo Fisico', _money(cierre.totalConteoFisico), charsPerLine),
+      );
+      bytes += generator.text(
+        _row('DIFERENCIA', _money(cierre.diferencia), charsPerLine),
+        styles: const PosStyles(bold: true),
+      );
+    } else {
+      // Caja abierta: saldo en vivo = apertura + ingresos - egresos.
+      final saldo = caja.montoApertura + totIng - totEgr;
+      bytes += generator.hr(ch: '-');
+      bytes += generator.text(
+        _row('SALDO ACTUAL', _money(saldo), charsPerLine),
+        styles: const PosStyles(bold: true),
+      );
+    }
 
     // ── Detalle por metodo (solo si hay actividad) ──
-    final detallesConActividad = cierre.detalles.where((d) {
-      return d.apertura.abs() > 0.001 ||
-          d.ingresos.abs() > 0.001 ||
-          d.egresos.abs() > 0.001 ||
-          d.conteoFisico.abs() > 0.001;
-    }).toList();
+    final detallesConActividad = cierre != null
+        ? cierre.detalles.where((d) {
+            return d.apertura.abs() > 0.001 ||
+                d.ingresos.abs() > 0.001 ||
+                d.egresos.abs() > 0.001 ||
+                d.conteoFisico.abs() > 0.001;
+          }).toList()
+        : const [];
 
     if (detallesConActividad.isNotEmpty) {
       bytes += generator.hr(ch: '-');
@@ -201,7 +252,7 @@ class CierreCajaEscPosGenerator {
     }
 
     // ── Observaciones ──
-    final obs = cierre.observaciones?.trim();
+    final obs = cierre?.observaciones?.trim();
     if (obs != null && obs.isNotEmpty) {
       bytes += generator.hr(ch: '-');
       bytes += generator.text('Observaciones:');
@@ -345,6 +396,12 @@ class CierreCajaEscPosGenerator {
     }
     final spaces = chars - label.length - value.length;
     return label + (' ' * spaces) + value;
+  }
+
+  /// Corta strings largos para que entren en la línea del ticket.
+  static String _truncate(String s, int max) {
+    if (s.length <= max) return s;
+    return '${s.substring(0, max - 1)}.';
   }
 
   static String _money(double value) {

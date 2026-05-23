@@ -6,6 +6,7 @@ import 'package:image/image.dart' as img;
 import '../../../../core/utils/date_formatter.dart';
 import '../../domain/entities/arqueo_caja.dart';
 import '../../domain/entities/caja.dart';
+import '../../domain/entities/resumen_caja.dart';
 
 /// Genera bytes ESC-POS del comprobante de arqueo. Mismo estilo que
 /// cierre pero con titulo "ARQUEO DE CAJA" + tipo (RUTINARIO/SORPRESIVO/RELEVO).
@@ -21,6 +22,12 @@ class ArqueoCajaEscPosGenerator {
     String? sedeNombre,
     Uint8List? logoEmpresa,
     int paperWidth = 80,
+    /// Desglose informativo, idéntico al del ticket de cierre. Opcional
+    /// (cuando se imprime un arqueo histórico sin contexto de resumen,
+    /// se omite la sección).
+    double egresoAnulacionVenta = 0,
+    int cantidadAnulaciones = 0,
+    List<EgresoPorCategoria> egresosPorCategoria = const [],
   }) async {
     final profile = await CapabilityProfile.load();
     final paperSize = paperWidth == 58 ? PaperSize.mm58 : PaperSize.mm80;
@@ -138,9 +145,29 @@ class ArqueoCajaEscPosGenerator {
     bytes += generator.text(
       _row('Total Ingresos', _money(arqueo.totalIngresos), charsPerLine),
     );
+    if (egresoAnulacionVenta > 0) {
+      bytes += generator.text(
+        _row('  (-${_money(egresoAnulacionVenta)} anulados)', '', charsPerLine),
+      );
+    }
     bytes += generator.text(
       _row('Total Egresos', _money(arqueo.totalEgresos), charsPerLine),
     );
+    // Desglose por categoría real (excluye contrapartidas de anulación).
+    for (final e in egresosPorCategoria) {
+      final lbl = '  ${_truncate(e.label, 18)}'
+          '${e.cantidad > 0 ? " (${e.cantidad})" : ""}';
+      bytes += generator.text(_row(lbl, _money(e.total), charsPerLine));
+    }
+    if (egresoAnulacionVenta > 0) {
+      final lbl = '  Anul. Venta'
+          '${cantidadAnulaciones > 0 ? " ($cantidadAnulaciones)" : ""}'
+          ' *';
+      bytes += generator.text(
+        _row(lbl, _money(egresoAnulacionVenta), charsPerLine),
+      );
+      bytes += generator.text('  * ya descontado de Ingresos');
+    }
     bytes += generator.hr(ch: '-');
     bytes += generator.text(
       _row('Esperado', _money(arqueo.totalEsperado), charsPerLine),
@@ -256,6 +283,11 @@ class ArqueoCajaEscPosGenerator {
     }
     final spaces = chars - label.length - value.length;
     return label + (' ' * spaces) + value;
+  }
+
+  static String _truncate(String s, int max) {
+    if (s.length <= max) return s;
+    return '${s.substring(0, max - 1)}.';
   }
 
   static String _money(double value) {

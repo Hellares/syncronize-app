@@ -67,8 +67,11 @@ class _CerrarCajaPageState extends State<CerrarCajaPage> {
 
   /// Auto-impresion del resumen de cierre tras cerrar caja con exito.
   /// Silenciosa si no hay impresora principal configurada; nunca rompe
-  /// el flujo de cierre (errores se notifican por snackbar).
-  Future<void> _imprimirResumenCierre(Caja caja) async {
+  /// el flujo de cierre (errores se notifican por snackbar). Si recibe
+  /// `resumenPreCierre`, le pasa el desglose por categoría +
+  /// anulaciones al ticket (datos que no están en `caja.cierre`).
+  Future<void> _imprimirResumenCierre(Caja caja,
+      {ResumenCaja? resumenPreCierre}) async {
     if (caja.cierre == null) return;
     try {
       // Resolvemos identidad efectiva sede > empresa (mismo patron que
@@ -91,6 +94,10 @@ class _CerrarCajaPageState extends State<CerrarCajaPage> {
         sedeNombre: caja.sedeNombre,
         logoEmpresa: ticketData.logoBytes,
         paperWidth: principal.anchoPapel.mm,
+        egresoAnulacionVenta: resumenPreCierre?.egresoAnulacionVenta ?? 0,
+        cantidadAnulaciones: resumenPreCierre?.cantidadAnulaciones ?? 0,
+        egresosPorCategoria:
+            resumenPreCierre?.egresosPorCategoria ?? const [],
       );
 
       final ok = await manager.imprimirEnPrincipal(bytes);
@@ -122,8 +129,14 @@ class _CerrarCajaPageState extends State<CerrarCajaPage> {
         if (state is CerrarCajaSuccess) {
           // Auto-impresión del resumen (no await — el listener no puede
           // ser async; la impresión corre en background y avisa por
-          // snackbar si falla).
-          _imprimirResumenCierre(state.caja);
+          // snackbar si falla). Leemos el resumen pre-cierre desde el
+          // cubit de movimientos para incluir el desglose por categoría
+          // y la nota de anulaciones (no vienen en `caja.cierre`).
+          final movState = context.read<CajaMovimientosCubit>().state;
+          final resumenPreCierre =
+              movState is CajaMovimientosLoaded ? movState.resumen : null;
+          _imprimirResumenCierre(state.caja,
+              resumenPreCierre: resumenPreCierre);
 
           // Si es la caja del usuario actual, invalidar el
           // CajaActivaCubit para que el dashboard vuelva a "sin caja".
@@ -261,12 +274,91 @@ class _CerrarCajaPageState extends State<CerrarCajaPage> {
                   currencyFormat.format(totalIngresosVentas),
                   AppColors.green,
                 ),
+                if (resumen.egresoAnulacionVenta > 0) ...[
+                  const SizedBox(height: 2),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 16),
+                    child: Text(
+                      '(− ${currencyFormat.format(resumen.egresoAnulacionVenta)} anulados)',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontStyle: FontStyle.italic,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 6),
                 _buildSummaryRow(
                   'Total Egresos',
                   currencyFormat.format(resumen.totalEgresos),
                   AppColors.red,
                 ),
+                ...resumen.egresosPorCategoria.map((e) => Padding(
+                      padding: const EdgeInsets.only(left: 16, top: 2),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            '· ${e.label}'
+                            '${e.cantidad > 0 ? " (${e.cantidad})" : ""}',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          Text(
+                            currencyFormat.format(e.total),
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.red.withValues(alpha: 0.85),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )),
+                if (resumen.egresoAnulacionVenta > 0) ...[
+                  const SizedBox(height: 4),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Row(
+                            children: [
+                              Icon(Icons.info_outline,
+                                  size: 12, color: AppColors.textSecondary),
+                              const SizedBox(width: 4),
+                              Flexible(
+                                child: Text(
+                                  'Anulación de Venta'
+                                  '${resumen.cantidadAnulaciones > 0 ? " (${resumen.cantidadAnulaciones})" : ""}'
+                                  ' — ya descontado',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontStyle: FontStyle.italic,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Text(
+                          currencyFormat.format(resumen.egresoAnulacionVenta),
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontStyle: FontStyle.italic,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const Divider(height: 16),
                 _buildSummaryRow(
                   'Saldo Total',

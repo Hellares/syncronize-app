@@ -211,9 +211,88 @@ class _RealizarArqueoPageState extends State<RealizarArqueoPage> {
                 const SizedBox(height: 10),
                 _row('Total Ingresos', currencyFormat.format(resumen.totalIngresos),
                     AppColors.green),
+                if (resumen.egresoAnulacionVenta > 0) ...[
+                  const SizedBox(height: 2),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 14),
+                    child: Text(
+                      '(− ${currencyFormat.format(resumen.egresoAnulacionVenta)} anulados)',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontStyle: FontStyle.italic,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 4),
                 _row('Total Egresos', currencyFormat.format(resumen.totalEgresos),
                     AppColors.red),
+                ...resumen.egresosPorCategoria.map((e) => Padding(
+                      padding: const EdgeInsets.only(left: 14, top: 2),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            '· ${e.label}'
+                            '${e.cantidad > 0 ? " (${e.cantidad})" : ""}',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          Text(
+                            currencyFormat.format(e.total),
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.red.withValues(alpha: 0.85),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )),
+                if (resumen.egresoAnulacionVenta > 0) ...[
+                  const SizedBox(height: 4),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 14),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Row(
+                            children: [
+                              Icon(Icons.info_outline,
+                                  size: 11, color: AppColors.textSecondary),
+                              const SizedBox(width: 4),
+                              Flexible(
+                                child: Text(
+                                  'Anulación de Venta'
+                                  '${resumen.cantidadAnulaciones > 0 ? " (${resumen.cantidadAnulaciones})" : ""}'
+                                  ' — ya descontado',
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    fontStyle: FontStyle.italic,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Text(
+                          currencyFormat.format(resumen.egresoAnulacionVenta),
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontStyle: FontStyle.italic,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const Divider(height: 16),
                 _row('Saldo en Caja',
                     currencyFormat.format(resumen.saldoEfectivo), AppColors.green,
@@ -630,6 +709,12 @@ class _RealizarArqueoPageState extends State<RealizarArqueoPage> {
 
   Future<void> _imprimirComprobante(ArqueoCaja arqueo) async {
     try {
+      // Leer el resumen ANTES de los await para no cruzar el context
+      // por gaps async (lint use_build_context_synchronously).
+      final movState = context.read<CajaMovimientosCubit>().state;
+      final resumen =
+          movState is CajaMovimientosLoaded ? movState.resumen : null;
+
       final ticketData = await resolverCajaTicketData(context, widget.caja);
 
       final manager = locator<ImpresorasManager>();
@@ -647,6 +732,9 @@ class _RealizarArqueoPageState extends State<RealizarArqueoPage> {
         sedeNombre: widget.caja.sedeNombre,
         logoEmpresa: ticketData.logoBytes,
         paperWidth: principal.anchoPapel.mm,
+        egresoAnulacionVenta: resumen?.egresoAnulacionVenta ?? 0,
+        cantidadAnulaciones: resumen?.cantidadAnulaciones ?? 0,
+        egresosPorCategoria: resumen?.egresosPorCategoria ?? const [],
       );
 
       await manager.imprimirEnPrincipal(bytes);
