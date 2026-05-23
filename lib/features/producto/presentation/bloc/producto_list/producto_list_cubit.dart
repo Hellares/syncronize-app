@@ -58,6 +58,45 @@ class ProductoListCubit extends Cubit<ProductoListState> {
   Map<String, ProductoListItem> get vistosCache =>
       Map.unmodifiable(_vistosCache);
 
+  // ─────────────────────────────────────────────────────────────────
+  // Background prefetch del catálogo base
+  // ─────────────────────────────────────────────────────────────────
+  //
+  // Tras el primer `loadProductos` exitoso del catálogo base, si quedan
+  // páginas por descargar (`hasNext=true`) y el tamaño total no es
+  // absurdo, descargamos el resto en background. Beneficios:
+  //   • UX inmediata: el usuario ve los primeros 50 productos en
+  //     ~200ms; las siguientes páginas aparecen solas en ~1-2s sin
+  //     spinner intermedio.
+  //   • Catálogo completo persistido → próxima apertura usa syncDeltas
+  //     (~1 KB) en vez de fetch full (~200 KB).
+  //   • Si el usuario scrolea más rápido que el prefetch, `loadMore`
+  //     se ignora porque el prefetch ya está trayendo esa página.
+  //
+  // Cancelación: comparte `_requestSeq` con el flujo normal — cualquier
+  // `applyFiltros`/`reload`/`revalidarSinDeltas` incrementa el seq y
+  // el loop del prefetch detecta la divergencia y aborta. También se
+  // cancela si el cubit se cierra (`isClosed`).
+
+  /// Flag para no disparar dos prefetches en paralelo.
+  bool _isPrefetching = false;
+
+  /// Cap absoluto de páginas a prefetchar — protege contra catálogos
+  /// muy grandes y contra loops por errores de paginación del backend.
+  static const int _prefetchMaxPages = 100;
+
+  /// Cap por tamaño total: si el catálogo declara más productos que
+  /// esto, NO hacemos prefetch automático — el cliente trabajará con
+  /// paginación natural vía `loadMore` y nunca usará syncDeltas hasta
+  /// que el usuario scrolee al final manualmente.
+  static const int _prefetchTotalCap = 5000;
+
+  /// Delay entre cada página del prefetch — da respiración a la red,
+  /// permite render incremental fluido y deja ventana para que la
+  /// cancelación (cambio de filtro, scroll manual) actúe antes del
+  /// siguiente request.
+  static const Duration _prefetchDelay = Duration(milliseconds: 200);
+
   /// Carga la lista de productos.
   ///
   /// Si ya hay productos cargados y `keepListWhileFiltering=true`, mantiene
@@ -270,6 +309,21 @@ class ProductoListCubit extends Cubit<ProductoListState> {
         filtros: _currentFiltros,
         isFiltering: false,
       ));
+
+      // Background prefetch: si quedan páginas y el catálogo no es
+      // absurdamente grande, descargamos el resto sin bloquear UI.
+      // Fire-and-forget — el método maneja su propia cancelación.
+      if (esCatalogoBase &&
+          data.hasNext &&
+          !_isPrefetching &&
+          data.total <= _prefetchTotalCap) {
+        unawaited(_prefetchTodasLasPaginas(
+          empresaId: empresaId,
+          sedeId: sedeId,
+          mySeq: mySeq,
+          startPage: data.page + 1,
+        ));
+      }
     } else if (result is Error<ProductosPaginados>) {
       // Si tenemos cache hidratado, NO pisamos con error — mantenemos
       // los datos cacheados visibles y solo apagamos isFiltering.
@@ -292,6 +346,10 @@ class ProductoListCubit extends Cubit<ProductoListState> {
     if (!currentState.hasMore) return;
     if (currentState.isFiltering) return; // ya hay un filtro en curso
     if (_currentEmpresaId == null) return;
+    // Si el prefetch está activo, no disparar otro request — el
+    // prefetch ya está trayendo la siguiente página. Si el usuario
+    // scrolea rápido los items van apareciendo solos.
+    if (_isPrefetching) return;
 
     final mySeq = _requestSeq;
     emit(ProductoListLoadingMore(_allProductos));
@@ -577,6 +635,135 @@ class ProductoListCubit extends Cubit<ProductoListState> {
       );
     }
     return true;
+  }
+
+  /// Descarga las páginas restantes del catálogo base en background y
+  /// las agrega al state sin spinner intermedio. Si llega a la última
+  /// página, persiste snapshot completo + lastSync para que las
+  /// próximas aperturas usen syncDeltas en vez de fetch full.
+  ///
+  /// Cancelación: el loop chequea `_requestSeq != mySeq` (usuario
+  /// cambió filtros/tabs/scrolló a otro lado) o `isClosed` (cubit
+  /// cerrado por logout/switch). Cualquiera de los dos rompe el loop
+  /// silenciosamente — lo descargado hasta el momento queda persistido
+  /// en la biblioteca acumulativa.
+  Future<void> _prefetchTodasLasPaginas({
+    required String empresaId,
+    String? sedeId,
+    required int mySeq,
+    required int startPage,
+  }) async {
+    if (_isPrefetching) return;
+    _isPrefetching = true;
+    try {
+      var page = startPage;
+      var hasNext = true;
+      var lastTotal = 0;
+      var lastTotalPages = 0;
+
+      while (hasNext && page <= _prefetchMaxPages) {
+        // Throttle entre requests — alivio para red/backend + ventana
+        // para que la cancelación actúe antes del próximo request.
+        await Future.delayed(_prefetchDelay);
+
+        if (isClosed) return;
+        if (mySeq != _requestSeq) return; // canceló otro flujo
+        // El estado debe seguir siendo Loaded para que tenga sentido
+        // emitir actualizaciones — si el usuario navegó y el state es
+        // Initial/Loading/Error abortamos.
+        if (state is! ProductoListLoaded) return;
+
+        final pageFiltros = _currentFiltros.copyWith(page: page);
+        final result = await _getProductosUseCase(
+          empresaId: empresaId,
+          sedeId: sedeId,
+          filtros: pageFiltros,
+        );
+
+        if (isClosed) return;
+        if (mySeq != _requestSeq) return;
+        if (state is! ProductoListLoaded) return;
+
+        if (result is! Success<ProductosPaginados>) {
+          // Error de red en esta página — abortamos en silencio. Lo
+          // descargado hasta ahora queda en biblioteca y en memoria.
+          // El usuario puede seguir haciendo loadMore manualmente.
+          return;
+        }
+
+        final data = result.data;
+        final nuevos = data.data.cast<ProductoListItem>();
+        _allProductos.addAll(nuevos);
+        for (final p in nuevos) {
+          _vistosCache[p.id] = p;
+        }
+        _recortarBiblioteca();
+        if (data.fullProductosCache != null) {
+          _productosFullCache.addAll(data.fullProductosCache!);
+        }
+
+        // Persistir biblioteca para que sobreviva cierre — si el
+        // usuario cierra antes de que termine el prefetch, lo
+        // descargado sigue disponible para búsquedas locales.
+        unawaited(
+          _localStore.writeLibreria(
+            empresaId: empresaId,
+            productos: _vistosCache.values.toList(),
+          ),
+        );
+
+        // Emit transparente — `isFiltering: false`, sin spinner.
+        // La grilla crece de forma natural.
+        final loaded = state as ProductoListLoaded;
+        emit(loaded.copyWith(
+          productos: _allProductos,
+          total: data.total,
+          currentPage: data.page,
+          totalPages: data.totalPages,
+          hasMore: data.hasNext,
+          isFiltering: false,
+        ));
+
+        lastTotal = data.total;
+        lastTotalPages = data.totalPages;
+        hasNext = data.hasNext;
+        page = data.page + 1;
+      }
+
+      // Al terminar exitosamente (no quedan páginas), persistir
+      // snapshot completo + lastSync. Recién ahora la próxima apertura
+      // podrá usar syncDeltas (~1 KB) en vez de fetch full (~200 KB).
+      if (!hasNext &&
+          mySeq == _requestSeq &&
+          !isClosed &&
+          _esCatalogoBaseFiltros(_currentFiltros)) {
+        final ahora = DateTime.now();
+        unawaited(
+          _localStore.write(
+            empresaId: empresaId,
+            sedeId: sedeId,
+            snapshot: CatalogoLocalSnapshot(
+              version: CatalogoLocalSnapshot.currentVersion,
+              productos: List.of(_allProductos),
+              total: lastTotal,
+              currentPage: page - 1,
+              totalPages: lastTotalPages,
+              hasMore: false,
+              savedAt: ahora,
+            ),
+          ),
+        );
+        unawaited(
+          _localStore.writeLastSync(
+            empresaId: empresaId,
+            sedeId: sedeId,
+            serverTime: ahora.toIso8601String(),
+          ),
+        );
+      }
+    } finally {
+      _isPrefetching = false;
+    }
   }
 
   /// Restaura la biblioteca acumulativa desde disco. Se invoca antes
