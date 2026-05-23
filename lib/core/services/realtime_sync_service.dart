@@ -79,6 +79,20 @@ class RealtimeProductoActualizado extends RealtimeEvent {
   });
 }
 
+/// Señal sintética emitida desde el propio cliente — NO viene de FCM
+/// externo. Disparada por:
+/// - Timer.periodic cada 5 min mientras la app está en foreground.
+/// - `AppLifecycleState.resumed` (volver del background).
+///
+/// Cubre los casos donde un FCM real se perdió (battery saver agresivo
+/// de Xiaomi/Huawei, doze mode, red intermitente). Los listeners la
+/// procesan igual que cualquier `RealtimeEvent` y disparan una
+/// revalidación silenciosa con syncDeltas (~1 KB).
+class RealtimeHeartbeat extends RealtimeEvent {
+  final String empresaId;
+  const RealtimeHeartbeat(this.empresaId);
+}
+
 /// Las imágenes de un producto fueron modificadas (upload/delete). El
 /// listener debe refrescar el catálogo — la URL puede ser nueva o
 /// haber desaparecido.
@@ -125,6 +139,43 @@ class RealtimeSyncService {
 
   String? _topicSuscrito;
 
+  // ─────────────────────────────────────────────────────────────────
+  // Heartbeat polling de respaldo (defensa contra FCM perdidos)
+  // ─────────────────────────────────────────────────────────────────
+  //
+  // Algunos OEMs Android (Xiaomi, Huawei, OPPO, Vivo) tienen battery
+  // savers agresivos que matan FCM background. También doze mode y
+  // red intermitente pueden hacer que mensajes se pierdan. Como
+  // respaldo, emitimos un `RealtimeHeartbeat` periódico al stream
+  // para forzar revalidación silenciosa.
+  //
+  // Los listeners (productos_page, ProductoSelectorView) ya reaccionan
+  // a cualquier `RealtimeEvent` con syncDeltas — el heartbeat se
+  // procesa igual. Si FCM funciona normal, el heartbeat se skipea
+  // (ver `_minGapBetweenEmits`).
+
+  Timer? _heartbeatTimer;
+  String? _heartbeatEmpresaId;
+
+  /// Timestamp del último evento emitido al stream (real o sintético).
+  /// Sirve para evitar revalidación redundante: si llegó un FCM real
+  /// hace <4 min, el heartbeat skipa.
+  DateTime _lastEmitAt = DateTime.fromMillisecondsSinceEpoch(0);
+
+  /// Estado del lifecycle de la app. Solo emitimos heartbeats cuando
+  /// la app está en foreground — sino es trabajo inútil.
+  bool _appIsForeground = true;
+
+  /// Cada cuánto disparar el heartbeat. 5 min cubre la mayoría de
+  /// huecos de FCM sin saturar al backend (~12 req/hora/cajero;
+  /// con 200 cajeros = 40 req/min total, mayormente skipped).
+  static const Duration _heartbeatInterval = Duration(minutes: 5);
+
+  /// Gap mínimo entre emits — evita doble revalidación cuando el
+  /// timer y un resume del lifecycle coinciden, o cuando llegó un
+  /// FCM real recientemente.
+  static const Duration _minGapBetweenEmits = Duration(minutes: 4);
+
   RealtimeSyncService(this._nivelCacheService);
 
   /// Suscribe al topic FCM de la empresa actual. Llamar tras
@@ -146,6 +197,7 @@ class RealtimeSyncService {
       await PushNotificationService().subscribeToTopic(topic);
       _topicSuscrito = topic;
       debugPrint('[Realtime] Bound to topic: $topic');
+      _startHeartbeat(empresaId);
     } catch (e) {
       debugPrint('[Realtime] Error binding to $topic: $e');
     }
@@ -153,6 +205,7 @@ class RealtimeSyncService {
 
   /// Desuscribe del topic actual. Llamar en logout o cambio de empresa.
   Future<void> unbind() async {
+    _stopHeartbeat();
     if (_topicSuscrito == null) return;
     try {
       await PushNotificationService().unsubscribeFromTopic(_topicSuscrito!);
@@ -162,6 +215,57 @@ class RealtimeSyncService {
     } finally {
       _topicSuscrito = null;
     }
+  }
+
+  /// Arranca el timer del heartbeat para la empresa actual. Idempotente
+  /// — si ya había uno corriendo lo reemplaza (por si bind se llama
+  /// de nuevo con otra empresa, ej. switch-tenant).
+  void _startHeartbeat(String empresaId) {
+    _heartbeatTimer?.cancel();
+    _heartbeatEmpresaId = empresaId;
+    _heartbeatTimer =
+        Timer.periodic(_heartbeatInterval, (_) => _tryEmitHeartbeat());
+    debugPrint('[Realtime] Heartbeat started for empresa: $empresaId');
+  }
+
+  void _stopHeartbeat() {
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = null;
+    _heartbeatEmpresaId = null;
+  }
+
+  /// Emite un `RealtimeHeartbeat` al stream si:
+  /// - hay empresa bindeada,
+  /// - la app está en foreground,
+  /// - pasó suficiente tiempo desde el último evento.
+  /// Devuelve `true` si efectivamente emitió, `false` si skipeó.
+  bool _tryEmitHeartbeat() {
+    if (!_appIsForeground) return false;
+    final empresaId = _heartbeatEmpresaId;
+    if (empresaId == null) return false;
+    final now = DateTime.now();
+    if (now.difference(_lastEmitAt) < _minGapBetweenEmits) {
+      // FCM real o heartbeat reciente — no es necesario revalidar.
+      return false;
+    }
+    _lastEmitAt = now;
+    _eventsController.add(RealtimeHeartbeat(empresaId));
+    debugPrint('[Realtime] Heartbeat emitted for empresa: $empresaId');
+    return true;
+  }
+
+  /// Notifica al servicio el estado del lifecycle de la app. Llamado
+  /// desde el `WidgetsBindingObserver` en main. En background no
+  /// emitimos heartbeats (nadie está mirando + ahorro de batería).
+  void setAppForeground(bool isForeground) {
+    _appIsForeground = isForeground;
+  }
+
+  /// Disparar un heartbeat inmediato — usado cuando la app vuelve del
+  /// background. Si llegó un FCM hace muy poco, el skip natural del
+  /// `_minGapBetweenEmits` evita la doble revalidación.
+  void triggerResumeRefresh() {
+    _tryEmitHeartbeat();
   }
 
   /// Punto de entrada desde [PushNotificationService]. Recibe el `data`
@@ -180,6 +284,10 @@ class RealtimeSyncService {
     final productoId = _stringOrNull(data['productoId']);
     final varianteId = _stringOrNull(data['varianteId']);
     final sedeId = _stringOrNull(data['sedeId']);
+
+    // Registrar el evento real para que el heartbeat skip cuando
+    // FCM está funcionando normal.
+    _lastEmitAt = DateTime.now();
 
     switch (tipo) {
       case 'PRECIO_CAMBIADO':

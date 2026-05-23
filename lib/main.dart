@@ -61,8 +61,20 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && _wasAuthenticated) {
-      _validateSession();
+    // Notificar al RealtimeSyncService el cambio de lifecycle para
+    // que el heartbeat solo dispare en foreground y revalide al
+    // volver del background (cubre FCM perdidos por battery saver).
+    final realtime = locator<RealtimeSyncService>();
+    if (state == AppLifecycleState.resumed) {
+      realtime.setAppForeground(true);
+      realtime.triggerResumeRefresh();
+      if (_wasAuthenticated) {
+        _validateSession();
+      }
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.detached) {
+      realtime.setAppForeground(false);
     }
   }
 
