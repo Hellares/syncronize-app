@@ -134,6 +134,12 @@ class VentaDevolucionItemInfo extends Equatable {
   /// | DEVOLVER_PROVEEDOR | CAMBIO_PRODUCTO.
   final String accion;
 
+  /// Texto crudo del enum MotivoDevolucion (DEFECTUOSO, GARANTIA, ...).
+  final String motivo;
+
+  /// Texto crudo del enum EstadoProductoDevolucion (BUENO, DANADO, ...).
+  final String estadoProducto;
+
   /// Solo relevante cuando accion == CAMBIO_PRODUCTO.
   final String? productoReemplazoNombre;
   final String? varianteReemplazoNombre;
@@ -147,6 +153,8 @@ class VentaDevolucionItemInfo extends Equatable {
     this.ventaDetalleId,
     required this.cantidad,
     required this.accion,
+    this.motivo = 'OTRO',
+    this.estadoProducto = 'BUENO',
     this.productoReemplazoNombre,
     this.varianteReemplazoNombre,
     this.diferenciaPrecio,
@@ -169,6 +177,44 @@ class VentaDevolucionItemInfo extends Equatable {
         return 'Cambiado';
       default:
         return accion;
+    }
+  }
+
+  String get motivoLabel {
+    switch (motivo) {
+      case 'DEFECTUOSO':
+        return 'Defectuoso';
+      case 'DANADO_TRANSPORTE':
+        return 'Dañado transporte';
+      case 'ERROR_ENVIO':
+        return 'Error envío';
+      case 'CAMBIO_OPINION':
+        return 'Cambio opinión';
+      case 'GARANTIA':
+        return 'Garantía';
+      case 'PRODUCTO_VENCIDO':
+        return 'Producto vencido';
+      case 'NO_CONFORME':
+        return 'No conforme';
+      default:
+        return 'Otro';
+    }
+  }
+
+  String get estadoProductoLabel {
+    switch (estadoProducto) {
+      case 'BUENO':
+        return 'Bueno';
+      case 'DANADO':
+        return 'Dañado';
+      case 'REPARABLE':
+        return 'Reparable';
+      case 'VENCIDO':
+        return 'Vencido';
+      case 'INCOMPLETO':
+        return 'Incompleto';
+      default:
+        return estadoProducto;
     }
   }
 

@@ -247,6 +247,8 @@ class VentaModel extends Venta {
           ventaDetalleId: item['ventaDetalleId'] as String?,
           cantidad: (item['cantidad'] as num?)?.toInt() ?? 0,
           accion: item['accion']?.toString() ?? '',
+          motivo: item['motivo']?.toString() ?? 'OTRO',
+          estadoProducto: item['estadoProducto']?.toString() ?? 'BUENO',
           productoReemplazoNombre: reemp?['nombre'] as String?,
           varianteReemplazoNombre: varReemp?['nombre'] as String?,
           diferenciaPrecio: _toDoubleNullable(item['diferenciaPrecio']),

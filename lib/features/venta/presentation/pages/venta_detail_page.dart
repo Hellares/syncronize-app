@@ -1077,50 +1077,118 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
       final icon = isCambio ? Icons.swap_horiz : Icons.assignment_return;
       final color = isCambio ? Colors.indigo : Colors.orange.shade800;
 
-      final reemplazoNombre = d.varianteReemplazoNombre ?? d.productoReemplazoNombre;
+      final reemplazoNombre =
+          d.varianteReemplazoNombre ?? d.productoReemplazoNombre;
       final fecha = d.procesadoEn != null
           ? DateFormatter.formatDate(d.procesadoEn!)
           : null;
 
+      // Diferencia de precio: positiva = cliente pagó más (verde),
+      // negativa = devolvimos diferencia (rojo). Solo si != 0.
+      final dif = d.diferenciaPrecio ?? 0;
+      final mostrarDif = isCambio && dif.abs() > 0.001;
+
       return Padding(
-        padding: const EdgeInsets.only(left: 30, top: 2, bottom: 2),
+        padding: const EdgeInsets.only(left: 30, top: 4, bottom: 4),
         child: InkWell(
           onTap: () =>
               context.push('/empresa/devoluciones/${d.devolucionId}'),
           borderRadius: BorderRadius.circular(4),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-            child: Row(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(4),
+              border: Border(
+                left: BorderSide(color: color, width: 2),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('└ ', style: TextStyle(fontSize: 10, color: color)),
-                Icon(icon, size: 11, color: color),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: RichText(
-                    text: TextSpan(
-                      style: TextStyle(fontSize: 9.5, color: color, fontWeight: FontWeight.w600),
-                      children: [
-                        TextSpan(text: '${d.accionLabel}: ${d.cantidad}'),
-                        if (isCambio && reemplazoNombre != null)
-                          TextSpan(
-                            text: ' → $reemplazoNombre',
-                            style: TextStyle(
-                              fontSize: 9.5,
-                              color: color,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        TextSpan(
-                          text:
-                              '   ${d.devolucionCodigo}${fecha != null ? " • $fecha" : ""}',
+                // Línea 1: acción + cantidad + reemplazo si aplica
+                Row(
+                  children: [
+                    Icon(icon, size: 12, color: color),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: RichText(
+                        text: TextSpan(
                           style: TextStyle(
-                            fontSize: 9,
-                            color: Colors.grey.shade600,
-                            fontWeight: FontWeight.w400,
+                            fontSize: 10,
+                            color: color,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          children: [
+                            TextSpan(text: '${d.accionLabel}: ${d.cantidad}'),
+                            if (isCambio && reemplazoNombre != null)
+                              TextSpan(
+                                text: ' → $reemplazoNombre',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: color,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    if (mostrarDif)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 5, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: dif > 0
+                              ? Colors.green.shade50
+                              : Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(
+                            color: dif > 0
+                                ? Colors.green.shade300
+                                : Colors.red.shade300,
                           ),
                         ),
-                      ],
+                        child: Text(
+                          '${dif > 0 ? '+' : '−'} S/ ${dif.abs().toStringAsFixed(2)}',
+                          style: TextStyle(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w700,
+                            color: dif > 0
+                                ? Colors.green.shade800
+                                : Colors.red.shade800,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                // Línea 2: chips de motivo / estado / tipo reembolso
+                Wrap(
+                  spacing: 4,
+                  runSpacing: 2,
+                  children: [
+                    _DevolucionChip(label: d.motivoLabel, color: color),
+                    _DevolucionChip(
+                      label: 'Estado: ${d.estadoProductoLabel}',
+                      color: color,
                     ),
+                    _DevolucionChip(
+                      label: d.tipoReembolso == 'CAMBIO_PRODUCTO'
+                          ? 'Cambio'
+                          : 'Reembolso efectivo',
+                      color: color,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                // Línea 3: código de devolución + fecha (tap → detail)
+                Text(
+                  '${d.devolucionCodigo}${fecha != null ? " • $fecha" : ""}  ›',
+                  style: TextStyle(
+                    fontSize: 9,
+                    color: Colors.grey.shade600,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
@@ -2310,6 +2378,33 @@ class _Th extends StatelessWidget {
         fontWeight: FontWeight.w700,
         color: Colors.grey.shade800,
         letterSpacing: 0.3,
+      ),
+    );
+  }
+}
+
+/// Chip pequeño para mostrar motivo / estado / tipo en la sub-línea de
+/// devolución. Color heredado del row (orange/indigo).
+class _DevolucionChip extends StatelessWidget {
+  final String label;
+  final Color color;
+  const _DevolucionChip({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(3),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 8.5,
+          fontWeight: FontWeight.w600,
+          color: color,
+        ),
       ),
     );
   }
