@@ -347,7 +347,7 @@ class _CotizacionListTile extends StatelessWidget {
 }
 
 /// Badge compacto que indica que la cotización tiene productos con stock
-/// reservado. Naranja para llamar la atención sin chocar con el estado.
+/// reservado.
 class _ReservaBadge extends StatelessWidget {
   const _ReservaBadge();
 
@@ -356,21 +356,21 @@ class _ReservaBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: Colors.orange.shade50,
+        color: AppColors.greenContainer,
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: Colors.orange.shade300),
+        border: Border.all(color: AppColors.greenBorder),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.bookmark_added, size: 11, color: Colors.orange.shade800),
+          Icon(Icons.bookmark_added, size: 11, color: AppColors.greendark),
           const SizedBox(width: 3),
           Text(
             'Reservado',
             style: TextStyle(
               fontSize: 9,
               fontWeight: FontWeight.w600,
-              color: Colors.orange.shade800,
+              color: AppColors.greendark,
             ),
           ),
         ],
