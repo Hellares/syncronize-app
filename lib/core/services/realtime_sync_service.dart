@@ -54,6 +54,17 @@ class RealtimeNivelesCambiados extends RealtimeEvent {
   });
 }
 
+/// Un producto nuevo fue creado en la empresa. El listener debe
+/// refrescar el catálogo para incluirlo.
+class RealtimeProductoCreado extends RealtimeEvent {
+  final String empresaId;
+  final String? productoId;
+  const RealtimeProductoCreado({
+    required this.empresaId,
+    this.productoId,
+  });
+}
+
 /// Las imágenes de un producto fueron modificadas (upload/delete). El
 /// listener debe refrescar el catálogo — la URL puede ser nueva o
 /// haber desaparecido.
@@ -193,6 +204,13 @@ class RealtimeSyncService {
           empresaId: empresaId,
           productoId: productoId,
           varianteId: varianteId,
+        ));
+        break;
+
+      case 'PRODUCTO_CREADO':
+        _eventsController.add(RealtimeProductoCreado(
+          empresaId: empresaId,
+          productoId: productoId,
         ));
         break;
     }

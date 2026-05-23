@@ -174,6 +174,7 @@ class PushNotificationService {
       'STOCK_CAMBIADO',
       'NIVELES_CAMBIADOS',
       'IMAGEN_CAMBIADA',
+      'PRODUCTO_CREADO',
     };
     if (tipo != null && realtimeTipos.contains(tipo)) {
       onRealtimeData?.call(Map<String, dynamic>.from(message.data));
