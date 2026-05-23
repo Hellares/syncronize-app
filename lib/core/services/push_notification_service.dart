@@ -54,9 +54,12 @@ class PushNotificationService {
   void Function()? onMensajeReceived;
 
   /// Callback para mensajes data-only de sincronización en tiempo real
-  /// (PRECIO_CAMBIADO, STOCK_CAMBIADO, NIVELES_CAMBIADOS). El handler
-  /// recibe el `data` crudo del mensaje FCM. Wireeado al
-  /// `RealtimeSyncService` desde main.
+  /// (PRECIO_CAMBIADO, STOCK_CAMBIADO, NIVELES_CAMBIADOS, IMAGEN_CAMBIADA).
+  /// El handler recibe el `data` crudo del mensaje FCM. Wireeado al
+  /// `RealtimeSyncService` desde main. Cuando agregues un tipo nuevo
+  /// acordate de también incluirlo en el set `realtimeTipos` de
+  /// `_handleForegroundMessage`, si no el FCM cae al flujo de
+  /// notificación visible y nunca dispara reload.
   void Function(Map<String, dynamic> data)? onRealtimeData;
 
   /// Canal de notificaciones Android
@@ -170,6 +173,7 @@ class PushNotificationService {
       'PRECIO_CAMBIADO',
       'STOCK_CAMBIADO',
       'NIVELES_CAMBIADOS',
+      'IMAGEN_CAMBIADA',
     };
     if (tipo != null && realtimeTipos.contains(tipo)) {
       onRealtimeData?.call(Map<String, dynamic>.from(message.data));
