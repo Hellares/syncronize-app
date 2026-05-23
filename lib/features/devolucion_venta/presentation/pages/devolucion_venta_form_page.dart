@@ -16,6 +16,7 @@ import '../../../producto/domain/entities/producto_list_item.dart';
 import '../../../producto/domain/entities/producto_variante.dart';
 import '../../../venta/domain/entities/venta.dart';
 import '../../../venta/domain/usecases/buscar_venta_por_codigo_usecase.dart';
+import '../../../venta/domain/usecases/get_venta_usecase.dart';
 import '../../domain/entities/devolucion_venta.dart';
 import '../bloc/devolucion_form/devolucion_form_cubit.dart';
 import '../bloc/devolucion_form/devolucion_form_state.dart';
@@ -95,8 +96,50 @@ class _DevolucionVentaFormPageState extends State<DevolucionVentaFormPage> {
       _empresaId = empresaState.context.empresa.id;
     }
     if (widget.ventaId != null) {
-      _ventaIdController.text = widget.ventaId!;
-      _buscarVenta(widget.ventaId!);
+      // Vinimos desde el detalle de venta: tenemos el CUID, pero
+      // buscamos por ID directamente y mostramos el código humano.
+      _cargarVentaPorId(widget.ventaId!);
+    }
+  }
+
+  /// Carga la venta por su CUID (ruta `desde-venta/:ventaId`) — popula
+  /// el código humano en el campo, los items y el header verde.
+  Future<void> _cargarVentaPorId(String ventaId) async {
+    setState(() => _loadingVenta = true);
+    final result = await locator<GetVentaUseCase>()(ventaId: ventaId);
+    if (!mounted) return;
+    if (result is Success<Venta>) {
+      final venta = result.data;
+      setState(() {
+        _venta = venta;
+        _ventaIdController.text = venta.codigo;
+        _loadingVenta = false;
+        _items.clear();
+        if (venta.detalles != null) {
+          for (final d in venta.detalles!) {
+            if (d.productoId != null || d.varianteId != null) {
+              _items.add(_ItemInput(
+                ventaDetalleId: d.id,
+                productoId: d.productoId,
+                varianteId: d.varianteId,
+                descripcion: d.descripcion,
+                cantidad: d.cantidad.toInt(),
+                precioOriginal: d.precioUnitario,
+              ));
+            }
+          }
+        }
+      });
+    } else {
+      setState(() => _loadingVenta = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo cargar la venta'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
