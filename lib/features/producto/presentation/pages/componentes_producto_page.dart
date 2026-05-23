@@ -6,6 +6,7 @@ import '../../../../core/di/injection_container.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/gradient_background.dart';
+import '../../../../core/widgets/confirm_dialog.dart';
 import '../../../../core/widgets/currency/currency_textfield.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/smart_appbar.dart';
@@ -127,30 +128,23 @@ class _ComponentesProductoPageState extends State<ComponentesProductoPage> {
       text: (item['cantidad'] as num).toString(),
     );
     final um = item['componente']['unidadMedida'] as String?;
-    final ok = await showDialog<bool>(
+    final ok = await ConfirmDialog.show(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(item['componente']['nombre'] as String),
-        content: TextField(
-          controller: controller,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          autofocus: true,
-          decoration: InputDecoration(
-            labelText: 'Cantidad (${um ?? '—'})',
-            border: const OutlineInputBorder(),
-          ),
+      type: ConfirmDialogType.info,
+      icon: Icons.edit_outlined,
+      title: item['componente']['nombre'] as String,
+      customContent: TextField(
+        controller: controller,
+        keyboardType:
+            const TextInputType.numberWithOptions(decimal: true),
+        autofocus: true,
+        decoration: InputDecoration(
+          labelText: 'Cantidad (${um ?? '—'})',
+          border: const OutlineInputBorder(),
+          isDense: true,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Guardar'),
-          ),
-        ],
       ),
+      confirmText: 'Guardar',
     );
     if (ok != true) return;
     final nueva = double.tryParse(controller.text.replaceAll(',', '.'));
@@ -176,24 +170,13 @@ class _ComponentesProductoPageState extends State<ComponentesProductoPage> {
   }
 
   Future<void> _eliminar(Map<String, dynamic> item) async {
-    final ok = await showDialog<bool>(
+    final ok = await ConfirmDialog.show(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Quitar componente'),
-        content: Text(
-            '¿Quitar "${item['componente']['nombre']}" de la receta?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Quitar'),
-          ),
-        ],
-      ),
+      type: ConfirmDialogType.destructive,
+      title: 'Quitar componente',
+      message:
+          '¿Quitar "${item['componente']['nombre']}" de la receta del combo?',
+      confirmText: 'Quitar',
     );
     if (ok != true) return;
     try {

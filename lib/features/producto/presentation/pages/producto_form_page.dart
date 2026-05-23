@@ -9,7 +9,7 @@ import 'package:syncronize/core/widgets/info_chip.dart';
 import 'package:syncronize/core/services/storage_service.dart';
 import 'package:syncronize/features/producto/presentation/bloc/producto_list/producto_list_cubit.dart';
 import '../../../../core/di/injection_container.dart';
-import '../../../../core/widgets/custom_alert_dialog.dart';
+import '../../../../core/widgets/confirm_dialog.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../../../core/widgets/custom_dropdown.dart';
@@ -237,12 +237,13 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
       return true; // Permitir salir sin confirmación
     }
 
-    final shouldPop = await CustomAlertDialog.show<bool>(
+    final shouldPop = await ConfirmDialog.show(
       context: context,
-      titleText: '¿Descartar cambios?',
-      contentText: 'Tienes cambios sin guardar. ¿Estás seguro de que deseas salir sin guardar?',
+      type: ConfirmDialogType.warning,
+      title: '¿Descartar cambios?',
+      message:
+          'Tienes cambios sin guardar. ¿Estás seguro de que deseas salir sin guardar?',
       confirmText: 'Descartar',
-      confirmColor: Colors.red,
     );
 
     return shouldPop ?? false;
@@ -794,84 +795,69 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
   }
 
   Future<bool?> _mostrarDialogoConversionVariantes() {
-    return showDialog<bool>(
+    return ConfirmDialog.show(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.warning_amber_rounded, color: Colors.orange.shade700),
-            const SizedBox(width: 12),
-            const Expanded(child: Text('Convertir a Variantes')),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Al activar variantes en este producto:',
-              style: TextStyle(fontWeight: FontWeight.w600),
+      type: ConfirmDialogType.warning,
+      title: 'Convertir a Variantes',
+      customContent: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Al activar variantes en este producto:',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
             ),
-            const SizedBox(height: 12),
-            _buildDialogoItem(
-              icon: Icons.check_circle_outline,
-              color: Colors.green,
-              text: 'Se creará automáticamente una variante "Original" con el precio y stock actuales',
+          ),
+          const SizedBox(height: 10),
+          _buildDialogoItem(
+            icon: Icons.check_circle_outline,
+            color: Colors.green,
+            text:
+                'Se creará automáticamente una variante "Original" con el precio y stock actuales',
+          ),
+          const SizedBox(height: 6),
+          _buildDialogoItem(
+            icon: Icons.add_circle_outline,
+            color: Colors.blue,
+            text: 'Podrás agregar más variantes (colores, tallas, etc.)',
+          ),
+          const SizedBox(height: 6),
+          _buildDialogoItem(
+            icon: Icons.info_outline,
+            color: Colors.orange,
+            text: 'El precio y stock del producto base se ignorarán',
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.blue.shade200),
             ),
-            const SizedBox(height: 8),
-            _buildDialogoItem(
-              icon: Icons.add_circle_outline,
-              color: Colors.blue,
-              text: 'Podrás agregar más variantes (colores, tallas, etc.)',
-            ),
-            const SizedBox(height: 8),
-            _buildDialogoItem(
-              icon: Icons.info_outline,
-              color: Colors.orange,
-              text: 'El precio y stock del producto base se ignorarán',
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.blue.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.blue.shade200),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.lightbulb_outline, color: Colors.blue.shade700, size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Los precios y stock se gestionarán por sede después de la conversión.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.blue.shade900,
-                        fontWeight: FontWeight.w500,
-                      ),
+            child: Row(
+              children: [
+                Icon(Icons.lightbulb_outline,
+                    color: Colors.blue.shade700, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Los precios y stock se gestionarán por sede después de la conversión.',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.blue.shade900,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.purple,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Convertir a Variantes'),
           ),
         ],
       ),
+      confirmText: 'Convertir a Variantes',
     );
   }
 

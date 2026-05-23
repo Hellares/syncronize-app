@@ -4,6 +4,7 @@ import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/resource.dart';
+import '../../../../core/widgets/confirm_dialog.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
@@ -54,29 +55,15 @@ class _ProductosEliminadosViewState extends State<_ProductosEliminadosView> {
   }
 
   Future<void> _restaurar(ProductoListItem producto) async {
-    final confirma = await showDialog<bool>(
+    final confirma = await ConfirmDialog.show(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Restaurar producto'),
-        content: Text(
+      type: ConfirmDialogType.success,
+      icon: Icons.restore_rounded,
+      title: 'Restaurar producto',
+      message:
           '"${producto.nombre}" volverá al listado activo. Si su SKU ya '
           'fue reasignado a otro producto, la restauración fallará.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Restaurar'),
-          ),
-        ],
-      ),
+      confirmText: 'Restaurar',
     );
     if (confirma != true) return;
 

@@ -7,6 +7,7 @@ import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/app_gradients.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
+import 'package:syncronize/core/widgets/confirm_dialog.dart';
 import 'package:syncronize/core/widgets/info_chip.dart';
 import 'package:syncronize/core/widgets/product_image_gallery.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
@@ -1358,49 +1359,34 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
     Producto producto,
     String empresaId,
   ) async {
-    final confirma = await showDialog<bool>(
+    final confirma = await ConfirmDialog.show(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.delete_outline, color: Colors.red.shade700),
-            const SizedBox(width: 8),
-            const Text('Eliminar producto'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '"${producto.nombre}" se moverá a la papelera.',
-              style: const TextStyle(fontSize: 13),
+      type: ConfirmDialogType.destructive,
+      title: 'Eliminar producto',
+      customContent: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '"${producto.nombre}" se moverá a la papelera.',
+            style: const TextStyle(
+              fontSize: 13,
+              color: AppColors.textPrimary,
             ),
-            const SizedBox(height: 12),
-            Text(
-              '• No aparecerá en POS, Venta Rápida ni listado normal.\n'
-              '• Las ventas históricas que lo incluyen se mantienen intactas.\n'
-              '• Podés restaurarlo desde "Productos eliminados".',
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancelar'),
           ),
-          ElevatedButton.icon(
-            icon: const Icon(Icons.delete_outline, size: 16),
-            label: const Text('Eliminar'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red.shade600,
-              foregroundColor: Colors.white,
+          const SizedBox(height: 10),
+          const Text(
+            '• No aparecerá en POS, Venta Rápida ni listado normal.\n'
+            '• Las ventas históricas que lo incluyen se mantienen intactas.\n'
+            '• Podés restaurarlo desde "Productos eliminados".',
+            style: TextStyle(
+              fontSize: 12,
+              color: AppColors.textSecondary,
             ),
-            onPressed: () => Navigator.of(ctx).pop(true),
           ),
         ],
       ),
+      confirmText: 'Eliminar',
     );
     if (confirma != true) return;
 
@@ -1453,32 +1439,18 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
     String empresaId,
   ) async {
     final activando = !producto.isActive;
-    final confirma = await showDialog<bool>(
+    final confirma = await ConfirmDialog.show(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(activando ? 'Activar producto' : 'Desactivar producto'),
-        content: Text(
-          activando
-              ? '"${producto.nombre}" volverá a estar disponible para venta '
-                  'en POS y Venta Rápida.'
-              : '"${producto.nombre}" dejará de aparecer en POS y Venta Rápida. '
-                  'No se elimina, solo se oculta. Podés volver a activarlo cuando quieras.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: activando ? Colors.green : Colors.orange,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(activando ? 'Activar' : 'Desactivar'),
-          ),
-        ],
-      ),
+      type: activando
+          ? ConfirmDialogType.success
+          : ConfirmDialogType.warning,
+      title: activando ? 'Activar producto' : 'Desactivar producto',
+      message: activando
+          ? '"${producto.nombre}" volverá a estar disponible para venta '
+              'en POS y Venta Rápida.'
+          : '"${producto.nombre}" dejará de aparecer en POS y Venta Rápida. '
+              'No se elimina, solo se oculta. Podés volver a activarlo cuando quieras.',
+      confirmText: activando ? 'Activar' : 'Desactivar',
     );
     if (confirma != true) return;
 

@@ -4,6 +4,7 @@ import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/app_gradients.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
+import 'package:syncronize/core/widgets/confirm_dialog.dart';
 import 'package:syncronize/core/widgets/info_chip.dart';
 import 'package:syncronize/core/widgets/popup_item.dart';
 import '../../../../core/di/injection_container.dart';
@@ -388,38 +389,25 @@ class _ProductoVariantesViewState extends State<_ProductoVariantesView> {
     );
   }
 
-  void _confirmDelete(ProductoVariante variante) {
-    showDialog(
+  Future<void> _confirmDelete(ProductoVariante variante) async {
+    final confirma = await ConfirmDialog.show(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Confirmar eliminación'),
-        content: Text(
-          '¿Estás seguro de eliminar la variante "${variante.nombre}"?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(dialogContext).pop();
-              if (_empresaId != null) {
-                context.read<ProductoVarianteCubit>().eliminarVariante(
-                      varianteId: variante.id,
-                      productoId: widget.productoId,
-                      empresaId: _empresaId!,
-                    );
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-            ),
-            child: const Text('Eliminar'),
-          ),
-        ],
-      ),
+      type: ConfirmDialogType.destructive,
+      title: 'Eliminar variante',
+      message:
+          '¿Estás seguro de eliminar la variante "${variante.nombre}"? '
+          'Esta acción no se puede deshacer.',
+      confirmText: 'Eliminar',
     );
+    if (confirma != true) return;
+    if (!mounted) return;
+    if (_empresaId != null) {
+      context.read<ProductoVarianteCubit>().eliminarVariante(
+            varianteId: variante.id,
+            productoId: widget.productoId,
+            empresaId: _empresaId!,
+          );
+    }
   }
 
   Future<void> _handlePrecioTap(ProductoVariante variante) async {
