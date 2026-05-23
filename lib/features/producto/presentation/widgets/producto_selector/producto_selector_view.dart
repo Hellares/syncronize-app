@@ -134,11 +134,16 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
   Timer? _serverFallbackDebounce;
 
   /// Listener al stream de [RealtimeSyncService]. Cuando llega un FCM
-  /// data-only (precio/stock/niveles cambiados) hacemos reload del
-  /// catálogo con debounce de 500ms para no spamear si caen N eventos
-  /// en ráfaga (ej. admin haciendo varios cambios consecutivos).
+  /// data-only (precio/stock/niveles/imagen cambiados, o producto
+  /// creado) hacemos reload del catálogo con debounce de 500ms para
+  /// no spamear si caen N eventos en ráfaga.
   StreamSubscription<RealtimeEvent>? _realtimeSubscription;
   Timer? _realtimeReloadDebounce;
+
+  /// Ver comentario homólogo en `productos_page.dart`: si llega un
+  /// PRODUCTO_CREADO en la ventana del debounce, el flush hace reload
+  /// full en vez del syncDeltas (que agrega al final sin orden).
+  bool _pendingFullReload = false;
 
   @override
   void initState() {
@@ -150,23 +155,31 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
   void _suscribirRealtime() {
     final realtime = locator<RealtimeSyncService>();
     _realtimeSubscription = realtime.events.listen((event) {
-      // Cualquier evento (PRECIO/STOCK/NIVELES) implica que el catálogo
-      // local puede estar desactualizado. Refresh con debounce.
-      //
-      // Usamos `applyFiltros` (en vez de `reload()`) para que el cubit
-      // mantenga la grilla visible y solo muestre la barra fina de
-      // `isFiltering` mientras revalida — evita el parpadeo brusco de
-      // un Loading completo. `applyFiltros` también dispara Fase 3
-      // syncDeltas si hay lastSync persistido: trae solo los productos
-      // cambiados (~1KB) en vez de todo el catálogo.
+      if (event is RealtimeProductoCreado) {
+        _pendingFullReload = true;
+      }
       _realtimeReloadDebounce?.cancel();
       _realtimeReloadDebounce = Timer(const Duration(milliseconds: 500), () {
         if (!mounted) return;
         try {
-          context.read<ProductoListCubit>().applyFiltros(
-                const ProductoFiltros(isActive: true, esInsumo: false),
-                sedeId: widget.sedeId,
-              );
+          final cubit = context.read<ProductoListCubit>();
+          if (_pendingFullReload) {
+            _pendingFullReload = false;
+            // Producto nuevo: reload() descarta lastSync + cache para
+            // que el backend devuelva el catálogo en su orden natural.
+            // Sin esto, el syncDeltas hace `.add()` al final del array
+            // y el producto queda fuera del scroll visible.
+            cubit.reload(sedeId: widget.sedeId);
+          } else {
+            // PRECIO/STOCK/NIVELES/IMAGEN: syncDeltas alcanza — solo
+            // actualiza productos existentes in-place. Mantenemos la
+            // grilla visible con la barra fina de `isFiltering`
+            // mientras revalida (evita parpadeo de Loading completo).
+            cubit.applyFiltros(
+              const ProductoFiltros(isActive: true, esInsumo: false),
+              sedeId: widget.sedeId,
+            );
+          }
         } catch (_) {/* cubit no disponible en este momento */}
       });
     });

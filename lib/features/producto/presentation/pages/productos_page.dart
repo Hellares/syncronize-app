@@ -76,11 +76,20 @@ class _ProductosPageState extends State<ProductosPage>
   bool? _filtroIsActive;
 
   /// Listener al stream de [RealtimeSyncService]. Cuando llega un FCM
-  /// (PRECIO_CAMBIADO / STOCK_CAMBIADO / NIVELES_CAMBIADOS) refrescamos
-  /// el catálogo. Debounce 500ms para colapsar ráfagas (ej. admin
-  /// guarda varios productos seguidos → 1 sola recarga).
+  /// (PRECIO_CAMBIADO / STOCK_CAMBIADO / NIVELES_CAMBIADOS / IMAGEN_CAMBIADA
+  /// / PRODUCTO_CREADO) refrescamos el catálogo. Debounce 500ms para
+  /// colapsar ráfagas (ej. admin guarda varios productos seguidos → 1
+  /// sola recarga).
   StreamSubscription<RealtimeEvent>? _realtimeSubscription;
   Timer? _realtimeReloadDebounce;
+
+  /// Si en la ventana del debounce llega al menos un evento que
+  /// requiere fetch full (PRODUCTO_CREADO), lo recordamos para que el
+  /// flush use `reload()` en vez del syncDeltas barato. Los deltas
+  /// hacen `.add()` al final de `_allProductos`, así que un producto
+  /// nuevo quedaría fuera de su orden natural y el usuario no lo ve
+  /// hasta que scrollea al final.
+  bool _pendingFullReload = false;
 
   @override
   void initState() {
@@ -95,14 +104,27 @@ class _ProductosPageState extends State<ProductosPage>
   void _suscribirRealtime() {
     final realtime = locator<RealtimeSyncService>();
     _realtimeSubscription = realtime.events.listen((event) {
-      // Cualquier evento de precio/stock/niveles invalida el catálogo
-      // local. Reload con debounce — el `reload()` del cubit limpia
-      // memoria + biblioteca + disco + lastSync, así que la próxima
-      // request va fresh al server.
+      if (event is RealtimeProductoCreado) {
+        _pendingFullReload = true;
+      }
       _realtimeReloadDebounce?.cancel();
       _realtimeReloadDebounce = Timer(const Duration(milliseconds: 500), () {
         if (!mounted) return;
-        _loadProductos();
+        if (_pendingFullReload) {
+          _pendingFullReload = false;
+          // Producto nuevo: limpiamos lastSync + cache para que el
+          // backend devuelva el catálogo en su orden natural y el
+          // recién creado entre en su posición correcta.
+          final empresaState = context.read<EmpresaContextCubit>().state;
+          if (empresaState is EmpresaContextLoaded) {
+            final sedeId = _getSedeIdActual(empresaState.context.sedes);
+            context.read<ProductoListCubit>().reload(sedeId: sedeId);
+          }
+        } else {
+          // Resto de eventos (precio/stock/niveles/imagen): syncDeltas
+          // alcanza — actualiza in-place sin descartar cache.
+          _loadProductos();
+        }
       });
     });
   }
