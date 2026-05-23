@@ -6,6 +6,8 @@ import 'package:syncronize/core/di/injection_container.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/network/dio_client.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
+import 'package:syncronize/core/utils/resource.dart';
+import '../../domain/usecases/get_resumen_usecase.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/widgets/custom_button.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
@@ -709,17 +711,21 @@ class _RealizarArqueoPageState extends State<RealizarArqueoPage> {
 
   Future<void> _imprimirComprobante(ArqueoCaja arqueo) async {
     try {
-      // Leer el resumen ANTES de los await para no cruzar el context
-      // por gaps async (lint use_build_context_synchronously).
-      final movState = context.read<CajaMovimientosCubit>().state;
-      final resumen =
-          movState is CajaMovimientosLoaded ? movState.resumen : null;
-
       final ticketData = await resolverCajaTicketData(context, widget.caja);
 
       final manager = locator<ImpresorasManager>();
       final principal = await manager.getPrincipal();
       if (principal == null) return;
+
+      // Fetch FRESCO del resumen — no leer del state del cubit, porque
+      // entre la apertura de la page y el momento del arqueo pudo haber
+      // anulaciones u otros movimientos que invalidan el cache local.
+      // El endpoint es liviano (un par de aggregates).
+      final resumenResult =
+          await locator<GetResumenUseCase>()(cajaId: widget.caja.id);
+      final resumen = resumenResult is Success<ResumenCaja>
+          ? resumenResult.data
+          : null;
 
       final bytes = await ArqueoCajaEscPosGenerator.generate(
         caja: widget.caja,
