@@ -768,17 +768,17 @@ class _ProductosPageState extends State<ProductosPage>
             child: Column(
               children: [
                 Container(
-                  height: 40, // Mismo height que antes
+                  height: 35, // Mismo height que antes
                   color: AppColors
                       .blue1, // O el color de tu gradient si quieres seamless
                   child: TabBar(
                     controller: _tabController,
                     labelStyle: const TextStyle(
-                      fontSize: 12,
+                      fontSize: 10,
                       fontWeight: FontWeight.w600,
                     ),
                     unselectedLabelStyle: const TextStyle(
-                      fontSize: 12,
+                      fontSize: 10,
                       fontWeight: FontWeight.w400,
                     ),
                     dividerHeight: 0,
@@ -787,9 +787,9 @@ class _ProductosPageState extends State<ProductosPage>
                     labelPadding: const EdgeInsets.symmetric(horizontal: 10),
                     indicatorPadding: const EdgeInsets.only(bottom: 10),
                     indicatorSize: TabBarIndicatorSize.label,
-                    indicatorWeight: 2,
+                    indicatorWeight: 1,
                     indicator: const UnderlineTabIndicator(
-                      borderSide: BorderSide(width: 2, color: AppColors.white),
+                      borderSide: BorderSide(width: 1, color: AppColors.white),
                     ),
                     tabs: const [
                       Tab(text: 'TODOS'),
@@ -801,12 +801,24 @@ class _ProductosPageState extends State<ProductosPage>
                   ),
                 ),
 
-                SizedBox(height: 15),
-                _buildSearchBar(),
-                const SizedBox(height: 6),
-                _buildEstadoChips(),
-                const SizedBox(height: 4),
-                Expanded(child: _buildProductList()),
+                // Padding global del contenido bajo el TabBar.
+                // El TabBar queda full-width (su color blue1 es seamless
+                // con el AppBar); todo lo demás se indenta uniforme.
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 12),
+                        _buildSearchBar(),
+                        const SizedBox(height: 6),
+                        _buildEstadoChips(),
+                        const SizedBox(height: 4),
+                        Expanded(child: _buildProductList()),
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -831,15 +843,13 @@ class _ProductosPageState extends State<ProductosPage>
   }
 
   Widget _buildSearchBar() {
-    return Padding(
-      padding: const EdgeInsets.only(right: 10, left: 10),
-      child: CustomSearchField(
-        controller: _searchController,
-        hintText: 'Buscar producto...',
-        borderColor: AppColors.blue1,
-        onChanged: _onSearchChanged,
-        onClear: () => _onSearchChanged(''),
-      ),
+    // Padding lateral lo aplica el wrapper global del body (Scaffold).
+    return CustomSearchField(
+      controller: _searchController,
+      hintText: 'Buscar producto...',
+      borderColor: AppColors.blue1,
+      onChanged: _onSearchChanged,
+      onClear: () => _onSearchChanged(''),
     );
   }
 
@@ -850,49 +860,47 @@ class _ProductosPageState extends State<ProductosPage>
     return BlocBuilder<ProductoListCubit, ProductoListState>(
       builder: (context, state) {
         final total = state is ProductoListLoaded ? state.total : null;
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          child: Row(
-            children: [
-              // Tab "Todos" ya cumple ese rol — los chips solo discriminan
-              // por estado activo/inactivo. Tap nuevamente al chip activo
-              // lo deselecciona (vuelve a mostrar todos).
-              _buildChip(
-                label: 'Activos',
-                value: true,
-                icon: Icons.check_circle_outline,
-                color: Colors.green,
-              ),
-              const SizedBox(width: 6),
-              _buildChip(
-                label: 'Inactivos',
-                value: false,
-                icon: Icons.visibility_off_outlined,
-                color: Colors.red,
-              ),
-              const Spacer(),
-              if (total != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppColors.blue1.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                        color: AppColors.blue1.withValues(alpha: 0.3),
-                        width: 0.5),
-                  ),
-                  child: Text(
-                    '$total ${total == 1 ? 'producto' : 'productos'}',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.blue1,
-                    ),
+        // Padding lateral lo aplica el wrapper global del body (Scaffold).
+        return Row(
+          children: [
+            // Tab "Todos" ya cumple ese rol — los chips solo discriminan
+            // por estado activo/inactivo. Tap nuevamente al chip activo
+            // lo deselecciona (vuelve a mostrar todos).
+            _buildChip(
+              label: 'Activos',
+              value: true,
+              icon: Icons.check_circle_outline,
+              color: Colors.green,
+            ),
+            const SizedBox(width: 6),
+            _buildChip(
+              label: 'Inactivos',
+              value: false,
+              icon: Icons.visibility_off_outlined,
+              color: Colors.red,
+            ),
+            const Spacer(),
+            if (total != null)
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.blue1.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                      color: AppColors.blue1.withValues(alpha: 0.3),
+                      width: 0.5),
+                ),
+                child: Text(
+                  '$total ${total == 1 ? 'producto' : 'productos'}',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.blue1,
                   ),
                 ),
-            ],
-          ),
+              ),
+          ],
         );
       },
     );
@@ -1067,7 +1075,9 @@ class _ProductosPageState extends State<ProductosPage>
             },
             child: ListView.builder(
               controller: _scrollController,
-              padding: const EdgeInsets.symmetric(horizontal: 10),
+              // Padding lateral lo aplica el wrapper global del body
+              // (Scaffold > Padding horizontal: 10).
+              padding: EdgeInsets.zero,
               cacheExtent: 500,
               itemCount: productos.length + (cargandoMas || hasMore ? 1 : 0),
               itemBuilder: (context, index) {
