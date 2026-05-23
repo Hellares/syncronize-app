@@ -460,56 +460,55 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
               ),
             Padding(
               padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
-              child: CustomSearchField(
-                controller: _searchCtrl,
-                hintText: 'Buscar producto o escanear...',
-                borderColor: AppColors.blue1,
-                // Sin debounce: el filtro local es instantáneo. El server
-                // solo se consulta vía auto-fallback con debounce propio.
-                debounceDelay: Duration.zero,
-                height: 40,
-                onChanged: (value) {
-                  // Si el cajero edita manualmente, ya no es un código
-                  // escaneado — desactivamos el auto-add.
-                  _lastScannedCode = null;
+              child: Row(
+                children: [
+                  Expanded(
+                    child: CustomSearchField(
+                      controller: _searchCtrl,
+                      hintText: 'Buscar producto o escanear...',
+                      borderColor: AppColors.blue1,
+                      // Sin debounce: el filtro local es instantáneo. El server
+                      // solo se consulta vía auto-fallback con debounce propio.
+                      debounceDelay: Duration.zero,
+                      height: 40,
+                      onChanged: (value) {
+                        // Si el cajero edita manualmente, ya no es un código
+                        // escaneado — desactivamos el auto-add.
+                        _lastScannedCode = null;
 
-                  // Si la query queda vacía (borró todo letra a letra o
-                  // con backspace), tratamos igual que `onClear`: limpiar
-                  // estado local + resetear filtro server si lo había.
-                  if (value.isEmpty) {
-                    _limpiarBusqueda();
-                    return;
-                  }
+                        // Si la query queda vacía (borró todo letra a letra o
+                        // con backspace), tratamos igual que `onClear`: limpiar
+                        // estado local + resetear filtro server si lo había.
+                        if (value.isEmpty) {
+                          _limpiarBusqueda();
+                          return;
+                        }
 
-                  // Búsqueda LOCAL: filtra los productos ya cargados en
-                  // memoria sin pegar al server. Render <50ms.
-                  setState(() => _localQuery = value);
-                  // Auto-fallback al server: si el filtro local no
-                  // encuentra nada y el catálogo tiene más páginas,
-                  // disparamos `applyFiltros` con debounce 500ms para no
-                  // spamear requests por cada letra tipeada.
-                  _agendarFallbackServer(value);
-                },
-                onClear: () => _limpiarBusqueda(),
-                actionButtons: [
-                  IconButton(
-                    icon: const Icon(Icons.qr_code_scanner_rounded, size: 22),
-                    color: AppColors.blue1,
-                    onPressed: _escanearCodigo,
-                    tooltip: 'Escanear código de barras',
-                    padding: EdgeInsets.zero,
-                    constraints:
-                        const BoxConstraints(minWidth: 36, minHeight: 32),
+                        // Búsqueda LOCAL: filtra los productos ya cargados en
+                        // memoria sin pegar al server. Render <50ms.
+                        setState(() => _localQuery = value);
+                        // Auto-fallback al server: si el filtro local no
+                        // encuentra nada y el catálogo tiene más páginas,
+                        // disparamos `applyFiltros` con debounce 500ms para no
+                        // spamear requests por cada letra tipeada.
+                        _agendarFallbackServer(value);
+                      },
+                      onClear: () => _limpiarBusqueda(),
+                    ),
                   ),
+                  const SizedBox(width: 6),
+                  // Scanner — botón compacto a la derecha del buscador.
+                  _SearchActionButton(
+                    icon: Icons.qr_code_scanner_rounded,
+                    tooltip: 'Escanear código de barras',
+                    onPressed: _escanearCodigo,
+                  ),
+                  const SizedBox(width: 4),
                   // Atajo simétrico configurable: VR → Cotización, Cotización → VR.
-                  IconButton(
-                    icon: Icon(widget.atajoIcono, size: 22),
-                    color: AppColors.blue1,
-                    onPressed: widget.onAtajo,
+                  _SearchActionButton(
+                    icon: widget.atajoIcono,
                     tooltip: widget.atajoTooltip,
-                    padding: EdgeInsets.zero,
-                    constraints:
-                        const BoxConstraints(minWidth: 36, minHeight: 32),
+                    onPressed: widget.onAtajo,
                   ),
                 ],
               ),
@@ -1285,4 +1284,44 @@ class _ProductoCard<TCubit extends Cubit<TState>, TState>
         child: Icon(Icons.image_outlined,
             color: Colors.grey.shade400, size: 32),
       );
+}
+
+/// Botón cuadrado compacto al lado del buscador. Mismo height que el
+/// CustomSearchField (40) para que la Row quede alineada visualmente.
+class _SearchActionButton extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  const _SearchActionButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: AppColors.blue1.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: AppColors.blue1.withValues(alpha: 0.3),
+              ),
+            ),
+            child: Icon(icon, size: 22, color: AppColors.blue1),
+          ),
+        ),
+      ),
+    );
+  }
 }
