@@ -2873,7 +2873,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                           flex: 2,
                           // F1 FIX: DropdownButtonFormField usa 'value' no 'initialValue'
                           child: DropdownButtonFormField<String>(
-                            value: metodoPagoAdelanto,
+                            initialValue: metodoPagoAdelanto,
                             decoration: InputDecoration(
                               labelText: 'Medio',
                               border: OutlineInputBorder(

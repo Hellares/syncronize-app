@@ -1,3 +1,8 @@
+// Los valores del enum mapean directamente a los strings del backend
+// (vía `apiValue == name`). Renombrarlos a lowerCamelCase rompería el
+// contrato con el server.
+// ignore_for_file: constant_identifier_names
+
 import 'package:equatable/equatable.dart';
 import 'package:pdf/pdf.dart';
 

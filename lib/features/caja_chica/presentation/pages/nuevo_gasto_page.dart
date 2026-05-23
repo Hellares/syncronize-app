@@ -146,7 +146,7 @@ class _NuevoGastoPageState extends State<NuevoGastoPage> {
                 )
               else
                 DropdownButtonFormField<CategoriaGasto>(
-                  value: _selectedCategoria,
+                  initialValue: _selectedCategoria,
                   decoration: InputDecoration(
                     prefixIcon: Icon(
                       _selectedCategoria?.iconData ?? Icons.category_rounded,

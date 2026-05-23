@@ -47,7 +47,7 @@ class _CajaChicaView extends StatelessWidget {
             ),
           )
               .then((result) {
-            if (result == true) {
+            if (result == true && context.mounted) {
               context.read<CajaChicaListCubit>().reload();
             }
           });
@@ -179,6 +179,7 @@ class _CajaChicaView extends StatelessWidget {
           ),
         )
             .then((_) {
+          if (!context.mounted) return;
           context.read<CajaChicaListCubit>().reload();
         });
       },

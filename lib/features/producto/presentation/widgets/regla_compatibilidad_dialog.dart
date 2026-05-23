@@ -682,7 +682,7 @@ class _ReglaCompatibilidadDialogState extends State<ReglaCompatibilidadDialog> {
             state is CategoriasEmpresaLoaded ? state.categorias : [];
 
         return DropdownButtonFormField<String>(
-          value: value,
+          initialValue: value,
           decoration: const InputDecoration(
             border: OutlineInputBorder(),
             hintText: 'Seleccione una categoria',
@@ -736,7 +736,7 @@ class _ReglaCompatibilidadDialogState extends State<ReglaCompatibilidadDialog> {
                 : null;
 
         return DropdownButtonFormField<String>(
-          value: valorActual,
+          initialValue: valorActual,
           decoration: const InputDecoration(
             border: OutlineInputBorder(),
             hintText: 'Seleccione un atributo',

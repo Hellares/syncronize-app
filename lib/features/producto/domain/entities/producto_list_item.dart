@@ -17,6 +17,7 @@ class ProductoListItem extends Equatable with StockPorSedeMixin {
   final bool esInsumo;
   final bool tieneVariantes;
   final List<ProductoVariante>? variantes;
+  @override
   final List<StockPorSedeInfo>? stocksPorSede; // Desglose de stock por sede
   final int comboReservado; // Cantidad de combos reservados (solo aplica cuando esCombo)
   final double? impuestoPorcentaje; // IGV específico del producto (null = usar global)

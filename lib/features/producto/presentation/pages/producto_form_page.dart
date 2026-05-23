@@ -455,6 +455,8 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
       backgroundColor: Colors.transparent,// Hacer el scaffold transparente
       extendBodyBehindAppBar: true,// Extender el body detrás del AppBar
       appBar: SmartAppBar(
+        backgroundColor: AppColors.blue1,
+        foregroundColor: Colors.white,
         title: widget.isEditing ? 'Editar Producto' : 'Nuevo Producto',
       ),
       body: GradientBackground(
@@ -473,16 +475,16 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
                   // Contenido scrollable (todas las secciones del form).
                   Expanded(
                     child: ListView(
-                      padding: const EdgeInsets.only(left: 12, right: 12),
+                      padding: const EdgeInsets.only(left: 10, right: 10),
                       children: [
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 ProductoBasicInfoSection(
                   nombreController: _controller.nombreController,
                   descripcionController: _controller.descripcionController,
                   skuController: _controller.skuController,
                   codigoBarrasController: _controller.codigoBarrasController,
                 ),
-                const SizedBox(height: 15),
+                const SizedBox(height: 8),
                 ProductoTipoSection(
                   tieneVariantes: _controller.tieneVariantes,
                   esCombo: _controller.esCombo,
@@ -516,7 +518,7 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
                   },
                   onShowConversionDialog: _mostrarDialogoConversionVariantes,
                 ),
-                const SizedBox(height: 15),
+                const SizedBox(height: 12),
                 ProductoCategorizacionSection(
                   selectedCategoriaId: _controller.selectedCategoriaId,
                   selectedMarcaId: _controller.selectedMarcaId,
@@ -539,7 +541,7 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
                     });
                   },
                 ),
-                const SizedBox(height: 15),
+                const SizedBox(height: 12),
                 // Sección opcional: si el producto se compra al
                 // proveedor en una unidad distinta a la de venta.
                 // Oculta para combos y productos con variantes (no se
@@ -557,19 +559,19 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
                     },
                     onChanged: _markAsChanged,
                   ),
-                  const SizedBox(height: 15),
+                  const SizedBox(height: 12),
                 ],
                 if (!_controller.tieneVariantes && !_controller.esCombo) ...[
                   // Card agrupada desglosable: Plantilla + Características
                   // físicas + Dimensiones. Cerrada por defecto para acortar
                   // el form. El admin la abre si necesita configurar.
                   _buildCaracteristicasProductoCard(),
-                  const SizedBox(height: 15),
+                  const SizedBox(height: 12),
                   if (widget.isEditing) ...[
                     _buildPrecioNivelesSection(),
-                    const SizedBox(height: 15),
+                    const SizedBox(height: 12),
                   ],
-                  const SizedBox(height: 15),
+                  const SizedBox(height: 12),
                 ] else if (_controller.tieneVariantes) ...[
                   ProductoVariantesBanner(
                     isEditing: widget.isEditing,
@@ -578,13 +580,13 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
                     categoriaId: _controller.selectedCategoriaId,
                     productoIsActive: _controller.productoIsActive,
                   ),
-                  const SizedBox(height: 15),
+                  const SizedBox(height: 12),
                 ] else if (_controller.esCombo) ...[
                   ProductoComboBanner(
                     isEditing: widget.isEditing,
                     tipoPrecioCombo: _controller.tipoPrecioCombo,
                   ),
-                  const SizedBox(height: 15),
+                  const SizedBox(height: 12),
                 ],
                 // Cards solo visibles en modo EDICIÓN.
                 // En CREACIÓN se ocultan para simplificar el flujo:
@@ -593,7 +595,7 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
                 // - Video: opcional, se agrega luego en la edición.
                 if (widget.isEditing) ...[
                   _buildImagesSection(),
-                  const SizedBox(height: 15),
+                  const SizedBox(height: 12),
                 ],
                 // ProductoDimensionesSection movida dentro de
                 // _buildCaracteristicasProductoCard (card desglosable).
@@ -610,9 +612,9 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
                     onTipoAfectacionChanged: (v) => setState(() => _controller.tipoAfectacionIgv = v),
                     onAplicaIcbperChanged: (v) => setState(() => _controller.aplicaIcbper = v),
                   ),
-                  const SizedBox(height: 15),
+                  const SizedBox(height: 12),
                   _buildMultimediaSection(),
-                  const SizedBox(height: 15),
+                  const SizedBox(height: 12),
                 ],
                 ProductoOptionsSection(
                   visibleMarketplace: _controller.visibleMarketplace,
@@ -637,7 +639,7 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
                     });
                   },
                 ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 13),
                     ],
                   ),
                   ),
@@ -977,14 +979,14 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
                   Icon(
                     Icons.tune,
                     size: 16,
-                    color: AppColors.blue1,
+                    color: AppColors.blue3,
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: AppSubtitle(
                       'CARACTERÍSTICAS DE PRODUCTO (Opcionales)',
-                      fontSize: 11,
-                      color: AppColors.blue1,
+                      fontSize: 10,
+                      color: AppColors.blue3,
                     ),
                   ),
                   AnimatedRotation(

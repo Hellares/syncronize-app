@@ -356,7 +356,7 @@ class _CajaChicaDetailView extends StatelessWidget {
                       ...gastosPendientes
                           .map((gasto) =>
                               _buildGastoItem(gasto, currencyFormat))
-                          .toList(),
+                          ,
                   ],
                 ),
               ),
@@ -522,7 +522,7 @@ class _CajaChicaDetailView extends StatelessWidget {
       ),
     )
         .then((result) {
-      if (result == true) {
+      if (result == true && context.mounted) {
         context.read<CajaChicaDetailCubit>().reload();
       }
     });
@@ -537,6 +537,7 @@ class _CajaChicaDetailView extends StatelessWidget {
       ),
     )
         .then((_) {
+      if (!context.mounted) return;
       context.read<CajaChicaDetailCubit>().reload();
     });
   }

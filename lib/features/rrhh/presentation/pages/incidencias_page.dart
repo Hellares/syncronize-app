@@ -450,7 +450,7 @@ class _IncidenciasPageState extends State<IncidenciasPage> {
                         builder: (context, state) {
                           if (state is EmpleadoListLoaded) {
                             return DropdownButtonFormField<Empleado>(
-                              value: selectedEmpleado,
+                              initialValue: selectedEmpleado,
                               decoration: const InputDecoration(
                                 labelText: 'Empleado',
                                 isDense: true,
@@ -486,7 +486,7 @@ class _IncidenciasPageState extends State<IncidenciasPage> {
 
                       // Tipo
                       DropdownButtonFormField<TipoIncidencia>(
-                        value: selectedTipo,
+                        initialValue: selectedTipo,
                         decoration: const InputDecoration(
                           labelText: 'Tipo',
                           isDense: true,

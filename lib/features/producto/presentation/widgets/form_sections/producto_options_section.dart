@@ -36,23 +36,19 @@ class ProductoOptionsSection extends StatelessWidget {
         children: [
           AppSubtitle('OPCIONES'),
           CustomSwitchTile(
-            activeColor: Colors.green,
-            activeTrackColor: Colors.green.shade200,
             title: 'Visible en Marketplace',
             subtitle: 'El producto aparecerá en el marketplace público',
             value: visibleMarketplace,
             // Si es insumo, no puede ir a marketplace.
-            onChanged: esInsumo ? (_) {} : onVisibleMarketplaceChanged,
+            onChanged: esInsumo ? null : onVisibleMarketplaceChanged,
           ),
           CustomSwitchTile(
             title: 'Producto Destacado',
             subtitle: 'Se mostrará con prioridad en listados',
             value: destacado,
-            onChanged: esInsumo ? (_) {} : onDestacadoChanged,
+            onChanged: esInsumo ? null : onDestacadoChanged,
           ),
           CustomSwitchTile(
-            activeColor: Colors.indigo,
-            activeTrackColor: Colors.indigo.shade200,
             title: 'Es Insumo / Materia Prima',
             subtitle:
                 'No se vende directo. Solo se usa como componente de productos compuestos (BOM).',

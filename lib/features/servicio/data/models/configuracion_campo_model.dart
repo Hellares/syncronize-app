@@ -1,7 +1,7 @@
 import '../../domain/entities/configuracion_campo.dart';
 
 class ConfiguracionCampoModel extends ConfiguracionCampo {
-  ConfiguracionCampoModel({
+  const ConfiguracionCampoModel({
     required super.id,
     required super.empresaId,
     required super.nombre,

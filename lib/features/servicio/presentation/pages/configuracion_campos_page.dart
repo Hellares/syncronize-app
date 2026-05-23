@@ -204,7 +204,7 @@ class ConfiguracionCamposPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
-                    value: selectedTipoCampo,
+                    initialValue: selectedTipoCampo,
                     decoration: const InputDecoration(labelText: 'Tipo de campo'),
                     items: _tipoCampoLabels.entries
                         .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
@@ -216,7 +216,7 @@ class ConfiguracionCamposPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
-                    value: selectedCategoria,
+                    initialValue: selectedCategoria,
                     decoration: const InputDecoration(labelText: 'Categoría (opcional)'),
                     items: [
                       const DropdownMenuItem(value: null, child: Text('Sin categoría')),
@@ -279,7 +279,7 @@ class ConfiguracionCamposPage extends StatelessWidget {
                                 Expanded(
                                   flex: 2,
                                   child: DropdownButtonFormField<String>(
-                                    value: sub['tipo'] as String? ?? 'TEXTO',
+                                    initialValue: sub['tipo'] as String? ?? 'TEXTO',
                                     isDense: true,
                                     decoration: const InputDecoration(
                                       isDense: true,

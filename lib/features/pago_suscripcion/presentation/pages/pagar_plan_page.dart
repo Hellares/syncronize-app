@@ -140,7 +140,7 @@ class _PagarPlanPageState extends State<PagarPlanPage> {
                 leading: Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: AppColors.blue1.withOpacity(0.1),
+                    color: AppColors.blue1.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child:
@@ -160,7 +160,7 @@ class _PagarPlanPageState extends State<PagarPlanPage> {
                 leading: Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: AppColors.blue1.withOpacity(0.1),
+                    color: AppColors.blue1.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(Icons.photo_library,
@@ -355,7 +355,7 @@ class _PagarPlanPageState extends State<PagarPlanPage> {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: AppColors.blue1.withOpacity(0.2)),
+        side: BorderSide(color: AppColors.blue1.withValues(alpha: 0.2)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -446,7 +446,7 @@ class _PagarPlanPageState extends State<PagarPlanPage> {
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: AppColors.blue1.withOpacity(0.05),
+            color: AppColors.blue1.withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Row(
@@ -485,7 +485,7 @@ class _PagarPlanPageState extends State<PagarPlanPage> {
             style: TextStyle(
               fontSize: 10,
               color: isSelected
-                  ? AppColors.white.withOpacity(0.9)
+                  ? AppColors.white.withValues(alpha: 0.9)
                   : AppColors.textSecondary,
             ),
           ),
@@ -539,9 +539,9 @@ class _PagarPlanPageState extends State<PagarPlanPage> {
         Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: Colors.amber.withOpacity(0.08),
+            color: Colors.amber.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: Colors.amber.withOpacity(0.3)),
+            border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -573,7 +573,7 @@ class _PagarPlanPageState extends State<PagarPlanPage> {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected ? color.withOpacity(0.08) : AppColors.white,
+          color: isSelected ? color.withValues(alpha: 0.08) : AppColors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected ? color : AppColors.greyLight,
@@ -585,7 +585,7 @@ class _PagarPlanPageState extends State<PagarPlanPage> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(icon, color: color, size: 22),
@@ -628,10 +628,10 @@ class _PagarPlanPageState extends State<PagarPlanPage> {
             child: Container(
               height: 140,
               decoration: BoxDecoration(
-                color: AppColors.blue1.withOpacity(0.04),
+                color: AppColors.blue1.withValues(alpha: 0.04),
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
-                  color: AppColors.blue1.withOpacity(0.3),
+                  color: AppColors.blue1.withValues(alpha: 0.3),
                   style: BorderStyle.solid,
                 ),
               ),
@@ -641,7 +641,7 @@ class _PagarPlanPageState extends State<PagarPlanPage> {
                   Icon(
                     Icons.cloud_upload_outlined,
                     size: 40,
-                    color: AppColors.blue1.withOpacity(0.6),
+                    color: AppColors.blue1.withValues(alpha: 0.6),
                   ),
                   const SizedBox(height: 8),
                   const AppText(
@@ -682,11 +682,11 @@ class _PagarPlanPageState extends State<PagarPlanPage> {
                   child: Container(
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: AppColors.white.withOpacity(0.9),
+                      color: AppColors.white.withValues(alpha: 0.9),
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
+                          color: Colors.black.withValues(alpha: 0.1),
                           blurRadius: 4,
                         ),
                       ],
@@ -707,11 +707,11 @@ class _PagarPlanPageState extends State<PagarPlanPage> {
                   child: Container(
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: AppColors.white.withOpacity(0.9),
+                      color: AppColors.white.withValues(alpha: 0.9),
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
+                          color: Colors.black.withValues(alpha: 0.1),
                           blurRadius: 4,
                         ),
                       ],

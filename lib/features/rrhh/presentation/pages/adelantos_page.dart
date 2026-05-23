@@ -451,7 +451,7 @@ class _AdelantosPageState extends State<AdelantosPage> {
                         builder: (context, state) {
                           if (state is EmpleadoListLoaded) {
                             return DropdownButtonFormField<Empleado>(
-                              value: selectedEmpleado,
+                              initialValue: selectedEmpleado,
                               decoration: const InputDecoration(
                                 labelText: 'Empleado',
                                 isDense: true,

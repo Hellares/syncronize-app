@@ -269,7 +269,7 @@ class _RendicionView extends StatelessWidget {
                   ...rendicion.gastos
                       .map((gasto) =>
                           _buildGastoItem(gasto, currencyFormat))
-                      .toList(),
+                      ,
               ],
             ),
           ),

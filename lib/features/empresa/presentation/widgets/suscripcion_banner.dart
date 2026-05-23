@@ -39,7 +39,7 @@ class SuscripcionBanner extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: (esCritico ? Colors.red : Colors.orange).withOpacity(0.3),
+            color: (esCritico ? Colors.red : Colors.orange).withValues(alpha: 0.3),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),

@@ -4,6 +4,7 @@ import 'package:syncronize/core/theme/app_gradients.dart';
 import '../../../../../core/fonts/app_text_widgets.dart';
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/gradient_container.dart';
+import '../../../../../core/widgets/custom_switch.dart';
 import '../../../../auth/presentation/widgets/custom_text.dart';
 import '../../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
@@ -104,17 +105,16 @@ class _ProductoUnidadCompraSectionState
     return GradientContainer(
       shadowStyle: ShadowStyle.neumorphic,
       borderColor: AppColors.blueborder,
-      padding: const EdgeInsets.only(left: 12, right: 12, top: 8, bottom: 12),
+      padding: const EdgeInsets.only(left: 12, right: 12, top: 4, bottom: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               const Expanded(child: AppSubtitle('UNIDAD DE COMPRA')),
-              Switch(
+              CustomSwitch(
                 value: _expandido,
                 onChanged: (_) => _toggle(),
-                activeThumbColor: AppColors.blue1,
               ),
             ],
           ),

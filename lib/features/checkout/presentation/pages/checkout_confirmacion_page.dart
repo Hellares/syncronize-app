@@ -31,7 +31,7 @@ class CheckoutConfirmacionPage extends StatelessWidget {
                   width: 100,
                   height: 100,
                   decoration: BoxDecoration(
-                    color: AppColors.green.withOpacity(0.1),
+                    color: AppColors.green.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
@@ -79,7 +79,7 @@ class CheckoutConfirmacionPage extends StatelessWidget {
                                 vertical: 8,
                               ),
                               decoration: BoxDecoration(
-                                color: AppColors.blue1.withOpacity(0.08),
+                                color: AppColors.blue1.withValues(alpha: 0.08),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: AppText(

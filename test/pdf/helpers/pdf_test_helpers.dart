@@ -1,3 +1,9 @@
+// `archive` y `crypto` se usan acá como utilidades de test (inflate
+// FlateDecode + SHA1 del texto extraído). Vienen como dependencias
+// transitivas vía el resto del árbol de paquetes — no las pinneamos en
+// pubspec para no comprometernos con versiones específicas.
+// ignore_for_file: depend_on_referenced_packages
+
 import 'dart:convert';
 import 'dart:typed_data';
 

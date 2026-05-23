@@ -164,7 +164,8 @@ class _CategoriasGastoViewState extends State<_CategoriasGastoView>
                       spacing: 8,
                       runSpacing: 8,
                       children: _predefinedColors.map((color) {
-                        final isSelected = selectedColor.value == color.value;
+                        final isSelected =
+                            selectedColor.toARGB32() == color.toARGB32();
                         return GestureDetector(
                           onTap: () => setDialogState(() => selectedColor = color),
                           child: Container(
@@ -237,7 +238,7 @@ class _CategoriasGastoViewState extends State<_CategoriasGastoView>
                     final nombre = nombreCtrl.text.trim();
                     if (nombre.isEmpty) return;
                     Navigator.pop(ctx);
-                    final colorHex = '#${selectedColor.value.toRadixString(16).padLeft(8, '0').substring(2)}';
+                    final colorHex = '#${selectedColor.toARGB32().toRadixString(16).padLeft(8, '0').substring(2)}';
                     final iconoStr = selectedIcon.codePoint.toString();
                     final cubit = context.read<CategoriaGastoCubit>();
                     if (isEditing) {

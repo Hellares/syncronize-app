@@ -137,7 +137,7 @@ class _LiquidacionesPageState extends State<LiquidacionesPage> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
                 child: DropdownButtonFormField<String?>(
-                  value: _sedeId,
+                  initialValue: _sedeId,
                   decoration: const InputDecoration(
                     labelText: 'Sede',
                     border: OutlineInputBorder(),

@@ -70,7 +70,7 @@ class _ComprobanteUploadWidgetState extends State<ComprobanteUploadWidget> {
                 leading: Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: AppColors.blue1.withOpacity(0.1),
+                    color: AppColors.blue1.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(Icons.camera_alt, color: AppColors.blue1),
@@ -87,7 +87,7 @@ class _ComprobanteUploadWidgetState extends State<ComprobanteUploadWidget> {
                 leading: Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: AppColors.blue1.withOpacity(0.1),
+                    color: AppColors.blue1.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(Icons.photo_library, color: AppColors.blue1),
@@ -130,10 +130,10 @@ class _ComprobanteUploadWidgetState extends State<ComprobanteUploadWidget> {
             child: Container(
               height: 140,
               decoration: BoxDecoration(
-                color: AppColors.blue1.withOpacity(0.04),
+                color: AppColors.blue1.withValues(alpha: 0.04),
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
-                  color: AppColors.blue1.withOpacity(0.3),
+                  color: AppColors.blue1.withValues(alpha: 0.3),
                   style: BorderStyle.solid,
                 ),
               ),
@@ -143,7 +143,7 @@ class _ComprobanteUploadWidgetState extends State<ComprobanteUploadWidget> {
                   Icon(
                     Icons.cloud_upload_outlined,
                     size: 40,
-                    color: AppColors.blue1.withOpacity(0.6),
+                    color: AppColors.blue1.withValues(alpha: 0.6),
                   ),
                   const SizedBox(height: 8),
                   const AppText(
@@ -184,11 +184,11 @@ class _ComprobanteUploadWidgetState extends State<ComprobanteUploadWidget> {
                   child: Container(
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: AppColors.white.withOpacity(0.9),
+                      color: AppColors.white.withValues(alpha: 0.9),
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
+                          color: Colors.black.withValues(alpha: 0.1),
                           blurRadius: 4,
                         ),
                       ],
@@ -208,11 +208,11 @@ class _ComprobanteUploadWidgetState extends State<ComprobanteUploadWidget> {
                   child: Container(
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: AppColors.white.withOpacity(0.9),
+                      color: AppColors.white.withValues(alpha: 0.9),
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
+                          color: Colors.black.withValues(alpha: 0.1),
                           blurRadius: 4,
                         ),
                       ],

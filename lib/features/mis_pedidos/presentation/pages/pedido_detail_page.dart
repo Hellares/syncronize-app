@@ -207,7 +207,7 @@ class _PedidoDetailPageState extends State<PedidoDetailPage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: pedido.estadoColor.withOpacity(0.12),
+              color: pedido.estadoColor.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(14),
             ),
             child: AppText(
@@ -370,9 +370,9 @@ class _PedidoDetailPageState extends State<PedidoDetailPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.red.withOpacity(0.08),
+        color: AppColors.red.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.red.withOpacity(0.3)),
+        border: Border.all(color: AppColors.red.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -419,7 +419,7 @@ class _PedidoDetailPageState extends State<PedidoDetailPage> {
                 height: 100,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: AppColors.greyLight.withOpacity(0.3),
+                  color: AppColors.greyLight.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Center(child: CircularProgressIndicator()),
@@ -428,7 +428,7 @@ class _PedidoDetailPageState extends State<PedidoDetailPage> {
                 height: 100,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: AppColors.greyLight.withOpacity(0.3),
+                  color: AppColors.greyLight.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Column(
@@ -551,7 +551,7 @@ class _PedidoDetailPageState extends State<PedidoDetailPage> {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: AppColors.blue1.withOpacity(0.1),
+        color: AppColors.blue1.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Icon(Icons.store, size: size * 0.5, color: AppColors.blue1),
@@ -563,7 +563,7 @@ class _PedidoDetailPageState extends State<PedidoDetailPage> {
       width: 56,
       height: 56,
       decoration: BoxDecoration(
-        color: AppColors.greyLight.withOpacity(0.5),
+        color: AppColors.greyLight.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(8),
       ),
       child: const Icon(Icons.image_outlined, size: 24, color: AppColors.grey),

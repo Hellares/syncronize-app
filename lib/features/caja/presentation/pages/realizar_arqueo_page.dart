@@ -125,63 +125,68 @@ class _RealizarArqueoPageState extends State<RealizarArqueoPage> {
             color: AppColors.blue3,
           ),
           const SizedBox(height: 8),
-          ...TipoArqueoCaja.values.map((tipo) {
-            final selected = tipo == _tipo;
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: InkWell(
-                onTap: () => setState(() => _tipo = tipo),
-                borderRadius: BorderRadius.circular(10),
-                child: GradientContainer(
-                  padding: const EdgeInsets.all(12),
-                  borderColor: selected ? tipo.color : null,
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: tipo.color.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Icon(tipo.icon, color: tipo.color, size: 22),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              tipo.label,
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                                color:
-                                    selected ? tipo.color : AppColors.textPrimary,
-                              ),
+          RadioGroup<TipoArqueoCaja>(
+            groupValue: _tipo,
+            onChanged: (v) => setState(() => _tipo = v!),
+            child: Column(
+              children: TipoArqueoCaja.values.map((tipo) {
+                final selected = tipo == _tipo;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: InkWell(
+                    onTap: () => setState(() => _tipo = tipo),
+                    borderRadius: BorderRadius.circular(10),
+                    child: GradientContainer(
+                      padding: const EdgeInsets.all(12),
+                      borderColor: selected ? tipo.color : null,
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: tipo.color.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                            const SizedBox(height: 2),
-                            Text(
-                              tipo.descripcion,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: AppColors.textSecondary,
-                              ),
+                            child: Icon(tipo.icon, color: tipo.color, size: 22),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  tipo.label,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    color: selected
+                                        ? tipo.color
+                                        : AppColors.textPrimary,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  tipo.descripcion,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
+                          ),
+                          Radio<TipoArqueoCaja>(
+                            value: tipo,
+                            activeColor: tipo.color,
+                          ),
+                        ],
                       ),
-                      Radio<TipoArqueoCaja>(
-                        value: tipo,
-                        groupValue: _tipo,
-                        onChanged: (v) => setState(() => _tipo = v!),
-                        activeColor: tipo.color,
-                      ),
-                    ],
+                    ),
                   ),
-                ),
-              ),
-            );
-          }),
+                );
+              }).toList(),
+            ),
+          ),
 
           if (_tipo == TipoArqueoCaja.relevo) ...[
             const SizedBox(height: 12),
@@ -603,14 +608,12 @@ class _RealizarArqueoPageState extends State<RealizarArqueoPage> {
 
     // Convertimos Map<double, int> a Map<String, int> para serializar
     // (las keys JSON son strings).
-    final desgloseSerializado = _desgloseEfectivo == null
-        ? null
-        : _desgloseEfectivo!.map(
-            (k, v) => MapEntry(
-              k >= 1 ? k.toInt().toString() : k.toStringAsFixed(2),
-              v,
-            ),
-          );
+    final desgloseSerializado = _desgloseEfectivo?.map(
+      (k, v) => MapEntry(
+        k >= 1 ? k.toInt().toString() : k.toStringAsFixed(2),
+        v,
+      ),
+    );
 
     setState(() => _isCreating = true);
     await context.read<ArqueosCajaCubit>().crearArqueo(

@@ -49,13 +49,19 @@ class ProductoCategorizacionSection extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           AppSubtitle('CATEGORIZACIÓN'),
-          const SizedBox(height: 12),
-          _buildCategoriaDropdown(),
-          const SizedBox(height: 12),
-          _buildMarcaDropdown(),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
+          // Categoría y Marca en la misma fila — comparten ancho 50/50.
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: _buildCategoriaDropdown()),
+              const SizedBox(width: 8),
+              Expanded(child: _buildMarcaDropdown()),
+            ],
+          ),
+          const SizedBox(height: 8),
           _buildSedeDropdown(),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           _buildUnidadMedidaDropdown(),
         ],
       ),
@@ -174,7 +180,7 @@ class ProductoCategorizacionSection extends StatelessWidget {
                         child: AppSubtitle(
                           'Este producto existe en ${selectedSedesIds.length} sede(s). Los cambios en datos generales se aplicarán a todas. Para cambiar precios o stock, usa la gestión de inventario.',
                           fontSize: 10,
-                          color: Colors.blue.shade900,
+                          color: AppColors.blueGrey,
                         ),
                       ),
                     ],
@@ -209,11 +215,11 @@ class ProductoCategorizacionSection extends StatelessWidget {
 
   Widget _buildLoadingIndicator() {
     return const SizedBox(
-      height: 35,
+      height: 30,
       child: Center(
         child: SizedBox(
-          width: 20,
-          height: 20,
+          width: 14,
+          height: 14,
           child: CircularProgressIndicator(strokeWidth: 1),
         ),
       ),

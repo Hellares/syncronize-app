@@ -136,7 +136,7 @@ class _AlertasStockBajoPageState extends State<AlertasStockBajoPage>
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            // AppColors.primary.withOpacity(0.1),
+            // AppColors.primary.withValues(alpha: 0.1),
             Colors.white,
           ],
           begin: Alignment.topLeft,
@@ -144,7 +144,7 @@ class _AlertasStockBajoPageState extends State<AlertasStockBajoPage>
         ),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          // color: AppColors.primary.withOpacity(0.3),
+          // color: AppColors.primary.withValues(alpha: 0.3),
         ),
         boxShadow: [
           BoxShadow(

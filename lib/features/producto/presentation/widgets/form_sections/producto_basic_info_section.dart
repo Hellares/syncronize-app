@@ -32,7 +32,7 @@ class ProductoBasicInfoSection extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           AppSubtitle('INFORMACION BÁSICA'),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           CustomText(
             controller: nombreController,
             borderColor: AppColors.blue1,
@@ -47,7 +47,7 @@ class ProductoBasicInfoSection extends StatelessWidget {
               return null;
             },
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           CustomText(
             controller: descripcionController,
             borderColor: AppColors.blue1,
@@ -58,7 +58,7 @@ class ProductoBasicInfoSection extends StatelessWidget {
             maxLines: null,
             minLines: 3,
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Row(
             children: [
               Expanded(

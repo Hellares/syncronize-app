@@ -142,7 +142,7 @@ class _ProveedorBancoPageState extends State<ProveedorBancoPage> {
                 CustomText(controller: nombreCtrl, label: 'Banco', hintText: 'Ej: BCP, Interbank', borderColor: AppColors.blue1),
                 const SizedBox(height: 10),
                 DropdownButtonFormField<String>(
-                  value: tipoCuenta,
+                  initialValue: tipoCuenta,
                   decoration: InputDecoration(labelText: 'Tipo de cuenta', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))),
                   items: const [
                     DropdownMenuItem(value: 'AHORROS', child: Text('Ahorros')),
@@ -159,7 +159,7 @@ class _ProveedorBancoPageState extends State<ProveedorBancoPage> {
                 CustomText(controller: swiftCtrl, label: 'SWIFT (opcional)', borderColor: AppColors.blue1),
                 const SizedBox(height: 10),
                 DropdownButtonFormField<String>(
-                  value: moneda,
+                  initialValue: moneda,
                   decoration: InputDecoration(labelText: 'Moneda', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))),
                   items: const [
                     DropdownMenuItem(value: 'PEN', child: Text('PEN - Soles')),

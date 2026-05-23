@@ -81,10 +81,9 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
     );
 
     if (switchResult is Error) {
-      if (showLoading && mounted) setState(() => _isAutoSwitching = false);
-      if (context.mounted) {
-        SnackBarHelper.showError(context, switchResult.message);
-      }
+      if (!mounted) return;
+      if (showLoading) setState(() => _isAutoSwitching = false);
+      SnackBarHelper.showError(context, switchResult.message);
       return;
     }
 
@@ -92,9 +91,8 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
     if (empresaRole != null) {
       await localStorage.setString(StorageConstants.tenantRole, empresaRole);
     }
-    if (context.mounted) {
-      context.go(RoleNavigationHelper.getEmpresaRoute());
-    }
+    if (!mounted) return;
+    context.go(RoleNavigationHelper.getEmpresaRoute());
   }
 
   @override

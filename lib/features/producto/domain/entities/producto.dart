@@ -58,6 +58,7 @@ class Producto extends Equatable with StockPorSedeMixin {
   final List<ProductoArchivo>? archivos;
   final List<AtributoValor>? atributosValores; // Atributos del producto base (solo si no tiene variantes)
   final List<ProductoVariante>? variantes;
+  @override
   final List<StockPorSedeInfo>? stocksPorSede; // Desglose de stock por sede (sistema multi-sede)
 
   Producto({

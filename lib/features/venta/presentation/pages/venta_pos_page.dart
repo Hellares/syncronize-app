@@ -828,7 +828,7 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
       titulo: 'Autorizar descuento',
       descripcion: 'Un supervisor debe autorizar el descuento',
     );
-    if (auth == null || !mounted) return;
+    if (auth == null || !context.mounted) return;
 
     // Dialog con opción: porcentaje o monto fijo
     final subtotal = _calcularSubtotalItems();
@@ -1060,7 +1060,7 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
         ],
       ),
     );
-    if (confirmado != true || !mounted) return;
+    if (confirmado != true || !context.mounted) return;
 
     final auth = await showAutorizacionDialog(
       context,
@@ -1069,7 +1069,7 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
       descripcion:
           'Un GERENTE o ADMINISTRADOR debe autorizar esta venta con pérdida total S/ ${state.perdidaTotal.toStringAsFixed(2)}.',
     );
-    if (auth == null || !mounted) return;
+    if (auth == null || !context.mounted) return;
 
     context
         .read<VentaFormCubit>()

@@ -179,8 +179,10 @@ class _OpinionesProductoPageState extends State<OpinionesProductoPage> {
                                                 : comentarioCtrl.text.trim(),
                                           },
                                         );
-                                        if (mounted) {
+                                        if (ctx.mounted) {
                                           Navigator.pop(ctx);
+                                        }
+                                        if (mounted) {
                                           SnackBarHelper.showSuccess(
                                               this.context, 'Opinión publicada');
                                           _loadOpiniones();

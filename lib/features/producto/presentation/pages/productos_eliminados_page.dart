@@ -66,6 +66,7 @@ class _ProductosEliminadosViewState extends State<_ProductosEliminadosView> {
       confirmText: 'Restaurar',
     );
     if (confirma != true) return;
+    if (!mounted) return;
 
     final repo = locator<ProductoRepository>();
     final messenger = ScaffoldMessenger.of(context);

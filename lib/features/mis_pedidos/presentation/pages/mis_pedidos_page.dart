@@ -169,7 +169,7 @@ class _MisPedidosViewState extends State<_MisPedidosView> {
               builder: (_) => PedidoDetailPage(pedidoId: pedido.id),
             ),
           );
-          if (mounted) {
+          if (context.mounted) {
             context.read<MisPedidosCubit>().reload();
           }
         },
@@ -223,7 +223,7 @@ class _MisPedidosViewState extends State<_MisPedidosView> {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: pedido.estadoColor.withOpacity(0.12),
+                      color: pedido.estadoColor.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: AppText(
@@ -299,7 +299,7 @@ class _MisPedidosViewState extends State<_MisPedidosView> {
       width: 36,
       height: 36,
       decoration: BoxDecoration(
-        color: AppColors.blue1.withOpacity(0.1),
+        color: AppColors.blue1.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(6),
       ),
       child: const Icon(Icons.store, size: 20, color: AppColors.blue1),
@@ -314,7 +314,7 @@ class _MisPedidosViewState extends State<_MisPedidosView> {
           Icon(
             Icons.shopping_bag_outlined,
             size: 64,
-            color: AppColors.grey.withOpacity(0.5),
+            color: AppColors.grey.withValues(alpha: 0.5),
           ),
           const SizedBox(height: 16),
           const AppText(

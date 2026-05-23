@@ -48,7 +48,7 @@ class _CheckoutViewState extends State<_CheckoutView> {
   DireccionPersona? _direccionSeleccionada;
   bool _isLoadingDirecciones = true;
 
-  Map<String, Map<String, dynamic>> _entregaSeleccionada = {};
+  final Map<String, Map<String, dynamic>> _entregaSeleccionada = {};
 
   double get _subtotal {
     double total = 0;

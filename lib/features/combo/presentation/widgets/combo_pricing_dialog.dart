@@ -140,20 +140,32 @@ class _ComboPricingDialogState extends State<ComboPricingDialog> {
                       const SizedBox(height: 8),
 
                       // Radio buttons para tipo de precio
-                      _buildTipoPrecioOption(
-                        TipoPrecioCombo.fijo,
-                        'Precio Fijo',
-                        'Defines el precio manualmente',
-                      ),
-                      _buildTipoPrecioOption(
-                        TipoPrecioCombo.calculado,
-                        'Calculado',
-                        'Suma de precios de componentes',
-                      ),
-                      _buildTipoPrecioOption(
-                        TipoPrecioCombo.calculadoConDescuento,
-                        'Calculado con Descuento',
-                        'Suma de componentes - descuento %',
+                      RadioGroup<TipoPrecioCombo>(
+                        groupValue: _tipoPrecioSeleccionado,
+                        onChanged: (value) {
+                          if (value != null) {
+                            setState(() => _tipoPrecioSeleccionado = value);
+                          }
+                        },
+                        child: Column(
+                          children: [
+                            _buildTipoPrecioOption(
+                              TipoPrecioCombo.fijo,
+                              'Precio Fijo',
+                              'Defines el precio manualmente',
+                            ),
+                            _buildTipoPrecioOption(
+                              TipoPrecioCombo.calculado,
+                              'Calculado',
+                              'Suma de precios de componentes',
+                            ),
+                            _buildTipoPrecioOption(
+                              TipoPrecioCombo.calculadoConDescuento,
+                              'Calculado con Descuento',
+                              'Suma de componentes - descuento %',
+                            ),
+                          ],
+                        ),
                       ),
 
                       const SizedBox(height: 16),
@@ -341,12 +353,6 @@ class _ComboPricingDialogState extends State<ComboPricingDialog> {
   ) {
     return RadioListTile<TipoPrecioCombo>(
       value: tipo,
-      groupValue: _tipoPrecioSeleccionado,
-      onChanged: (value) {
-        if (value != null) {
-          setState(() => _tipoPrecioSeleccionado = value);
-        }
-      },
       title: AppSubtitle(titulo, fontSize: 12),
       subtitle: AppSubtitle(
         descripcion,

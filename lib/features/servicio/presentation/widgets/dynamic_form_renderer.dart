@@ -196,7 +196,7 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
                   final month = int.tryParse(parts[1]) ?? 1;
                   final year = int.tryParse(parts[2]) ?? 2026;
                   _updateValue(campo.nombre,
-                      '${year}-${month.toString().padLeft(2, '0')}-${day.toString().padLeft(2, '0')}');
+                      '$year-${month.toString().padLeft(2, '0')}-${day.toString().padLeft(2, '0')}');
                 }
               } else {
                 _updateValue(campo.nombre, null);

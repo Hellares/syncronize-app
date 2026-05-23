@@ -430,7 +430,7 @@ class _HorarioPlantillaPageState extends State<HorarioPlantillaPage> {
                                     if (!(dayDescanso[dia] ?? false))
                                       Expanded(
                                         child: DropdownButtonFormField<String>(
-                                          value: dayTurnos[dia],
+                                          initialValue: dayTurnos[dia],
                                           decoration: const InputDecoration(
                                             isDense: true,
                                             contentPadding: EdgeInsets.symmetric(

@@ -257,7 +257,7 @@ class _ReporteRotacionPageState extends State<ReporteRotacionPage> {
           ),
           const SizedBox(height: 8),
           DropdownButtonFormField<String?>(
-            value: _selectedSedeId,
+            initialValue: _selectedSedeId,
             decoration: InputDecoration(
               hintText: 'Todas las sedes',
               hintStyle: const TextStyle(fontSize: 13),

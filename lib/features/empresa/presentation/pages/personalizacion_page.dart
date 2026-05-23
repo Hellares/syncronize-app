@@ -147,8 +147,8 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
         _bannerUrlController.text = p.bannerPrincipalUrl ?? '';
         _bannerTextoController.text = p.bannerPrincipalTexto ?? '';
         _banners = (p.banners)
-            ?.where((b) => b is Map)
-            .map((b) => Map<String, dynamic>.from(b as Map))
+            ?.whereType<Map>()
+            .map((b) => Map<String, dynamic>.from(b))
             .toList() ?? [];
         _splashUrlController.text = p.appSplashScreenUrl ?? '';
         _dominioController.text = p.dominioPersonalizado ?? '';
@@ -165,9 +165,9 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
           final vids = wc['videos'] as List?;
           if (vids != null) {
             _webVideos = vids
-                .where((v) => v is Map)
+                .whereType<Map>()
                 .map((v) => Map<String, String>.from({
-                      'url': (v as Map)['url']?.toString() ?? '',
+                      'url': v['url']?.toString() ?? '',
                       'titulo': v['titulo']?.toString() ?? '',
                     }))
                 .where((v) => v['url']!.isNotEmpty)

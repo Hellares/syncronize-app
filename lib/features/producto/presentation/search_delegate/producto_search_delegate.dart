@@ -124,7 +124,7 @@ class ProductoSearchDelegate extends SearchDelegate<ProductoListItem?> {
       ),
       inputDecorationTheme: InputDecorationTheme(
         hintStyle: TextStyle(
-          color: Colors.white.withOpacity(0.7),
+          color: Colors.white.withValues(alpha: 0.7),
           fontSize: 16,
         ),
         border: InputBorder.none,
@@ -361,12 +361,12 @@ class ProductoSearchDelegate extends SearchDelegate<ProductoListItem?> {
             Icon(
               Icons.search,
               size: 64,
-              color: AppColors.blue1.withOpacity(0.3),
+              color: AppColors.blue1.withValues(alpha: 0.3),
             ),
             const SizedBox(height: 16),
             AppSubtitle(
               'Busca productos por nombre, SKU o código',
-              color: AppColors.blue1.withOpacity(0.5),
+              color: AppColors.blue1.withValues(alpha: 0.5),
               textAlign: TextAlign.center,
             ),
           ],
@@ -385,7 +385,7 @@ class ProductoSearchDelegate extends SearchDelegate<ProductoListItem?> {
             children: [
               AppSubtitle(
                 'Búsquedas recientes',
-                color: AppColors.blue1.withOpacity(0.7),
+                color: AppColors.blue1.withValues(alpha: 0.7),
               ),
               TextButton.icon(
                 onPressed: () {
@@ -416,7 +416,7 @@ class ProductoSearchDelegate extends SearchDelegate<ProductoListItem?> {
                 trailing: IconButton(
                   icon: Icon(
                     Icons.close,
-                    color: AppColors.blue1.withOpacity(0.5),
+                    color: AppColors.blue1.withValues(alpha: 0.5),
                   ),
                   onPressed: () {
                     _removeFromHistory(searchTerm).then((_) {
@@ -455,17 +455,17 @@ class ProductoSearchDelegate extends SearchDelegate<ProductoListItem?> {
               Icon(
                 Icons.search_off,
                 size: 64,
-                color: AppColors.blue1.withOpacity(0.3),
+                color: AppColors.blue1.withValues(alpha: 0.3),
               ),
               const SizedBox(height: 16),
               AppSubtitle(
                 'No se encontraron productos',
-                color: AppColors.blue1.withOpacity(0.5),
+                color: AppColors.blue1.withValues(alpha: 0.5),
               ),
               const SizedBox(height: 8),
               AppSubtitle(
                 'Intenta con otros términos de búsqueda',
-                color: AppColors.blue1.withOpacity(0.4),
+                color: AppColors.blue1.withValues(alpha: 0.4),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -539,10 +539,10 @@ class ProductoSearchDelegate extends SearchDelegate<ProductoListItem?> {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
           decoration: BoxDecoration(
-            color: AppColors.blue1.withOpacity(0.1),
+            color: AppColors.blue1.withValues(alpha: 0.1),
             boxShadow: [
               BoxShadow(
-                color: AppColors.blue1.withOpacity(0.1),
+                color: AppColors.blue1.withValues(alpha: 0.1),
                 blurRadius: 4,
                 offset: const Offset(0, 2),
               ),
@@ -612,7 +612,7 @@ class ProductoSearchDelegate extends SearchDelegate<ProductoListItem?> {
               opacity: AlwaysStoppedAnimation(0.7),
               child: AppSubtitle(
                 'Buscando productos...',
-                color: AppColors.blue1.withOpacity(0.7),
+                color: AppColors.blue1.withValues(alpha: 0.7),
                 fontSize: 14,
               ),
             ),
@@ -631,12 +631,12 @@ class ProductoSearchDelegate extends SearchDelegate<ProductoListItem?> {
           Icon(
             Icons.search,
             size: 64,
-            color: AppColors.blue1.withOpacity(0.3),
+            color: AppColors.blue1.withValues(alpha: 0.3),
           ),
           const SizedBox(height: 16),
           AppSubtitle(
             'Escribe para buscar productos',
-            color: AppColors.blue1.withOpacity(0.5),
+            color: AppColors.blue1.withValues(alpha: 0.5),
           ),
         ],
       ),
@@ -652,7 +652,7 @@ class ProductoSearchDelegate extends SearchDelegate<ProductoListItem?> {
           Icon(
             Icons.error_outline,
             size: 64,
-            color: Colors.red.withOpacity(0.5),
+            color: Colors.red.withValues(alpha: 0.5),
           ),
           const SizedBox(height: 16),
           AppSubtitle(
@@ -664,7 +664,7 @@ class ProductoSearchDelegate extends SearchDelegate<ProductoListItem?> {
             padding: const EdgeInsets.symmetric(horizontal: 32),
             child: AppSubtitle(
               message,
-              color: AppColors.blue1.withOpacity(0.5),
+              color: AppColors.blue1.withValues(alpha: 0.5),
               textAlign: TextAlign.center,
             ),
           ),

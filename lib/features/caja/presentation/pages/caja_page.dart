@@ -132,8 +132,9 @@ class _CajaViewState extends State<_CajaView> {
                 // Auditoría (apertura → cierre) de la caja actual.
                 BlocBuilder<CajaActivaCubit, CajaActivaState>(
                   builder: (context, state) {
-                    if (state is! CajaActivaAbierta)
+                    if (state is! CajaActivaAbierta) {
                       return const SizedBox.shrink();
+                    }
                     return IconButton(
                       tooltip: 'Auditoría de esta caja',
                       icon: const Icon(Icons.assignment_outlined),
@@ -147,8 +148,9 @@ class _CajaViewState extends State<_CajaView> {
                 // del cubit del padre, no recrea uno).
                 BlocBuilder<CajaActivaCubit, CajaActivaState>(
                   builder: (context, state) {
-                    if (state is! CajaActivaAbierta)
+                    if (state is! CajaActivaAbierta) {
                       return const SizedBox.shrink();
+                    }
                     return IconButton(
                       tooltip: 'Arqueos de esta caja',
                       icon: const Icon(Icons.fact_check_outlined),

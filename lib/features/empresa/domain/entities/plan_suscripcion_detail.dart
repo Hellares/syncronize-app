@@ -73,7 +73,7 @@ class PlanSuscripcionDetail extends Equatable {
     if (limiteAlmacenamientoMB! >= 1024) {
       return '${(limiteAlmacenamientoMB! / 1024).toStringAsFixed(0)} GB';
     }
-    return '${limiteAlmacenamientoMB} MB';
+    return '$limiteAlmacenamientoMB MB';
   }
 
   double getPrecioPorPeriodo(String periodoSeleccionado) {

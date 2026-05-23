@@ -94,7 +94,7 @@ class _InventarioDetailPageState extends State<InventarioDetailPage> {
 
   Future<void> _onScanBarcode(BuildContext context, Inventario inv) async {
     final scannedCode = await showBarcodeScannerSheet(context);
-    if (scannedCode == null || !mounted) return;
+    if (scannedCode == null || !context.mounted) return;
 
     final items = inv.items;
     if (items == null || items.isEmpty) {
@@ -111,21 +111,21 @@ class _InventarioDetailPageState extends State<InventarioDetailPage> {
     );
 
     if (matchedItem == null) {
-      if (mounted) {
+      if (context.mounted) {
         SnackBarHelper.showError(context, 'Producto no encontrado');
       }
       return;
     }
 
     if (!matchedItem.pendiente) {
-      if (mounted) {
+      if (context.mounted) {
         SnackBarHelper.showInfo(context, 'Ya fue contado');
       }
       return;
     }
 
     // Open the conteo dialog
-    if (mounted) {
+    if (context.mounted) {
       _showConteoSheet(context, inv, matchedItem);
     }
   }

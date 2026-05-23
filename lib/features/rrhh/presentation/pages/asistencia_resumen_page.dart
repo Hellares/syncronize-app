@@ -97,7 +97,7 @@ class _AsistenciaResumenPageState extends State<AsistenciaResumenPage> {
 
                   if (state is EmpleadoListLoaded) {
                     return DropdownButtonFormField<Empleado>(
-                      value: _selectedEmpleado,
+                      initialValue: _selectedEmpleado,
                       decoration: InputDecoration(
                         labelText: 'Empleado',
                         prefixIcon: const Icon(Icons.person, size: 20),
@@ -144,7 +144,7 @@ class _AsistenciaResumenPageState extends State<AsistenciaResumenPage> {
                 children: [
                   Expanded(
                     child: DropdownButtonFormField<int>(
-                      value: _selectedMes,
+                      initialValue: _selectedMes,
                       decoration: InputDecoration(
                         labelText: 'Mes',
                         border: OutlineInputBorder(
@@ -179,7 +179,7 @@ class _AsistenciaResumenPageState extends State<AsistenciaResumenPage> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: DropdownButtonFormField<int>(
-                      value: _selectedAnio,
+                      initialValue: _selectedAnio,
                       decoration: InputDecoration(
                         labelText: 'Anio',
                         border: OutlineInputBorder(

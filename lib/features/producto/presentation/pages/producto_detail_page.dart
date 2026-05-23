@@ -1389,6 +1389,7 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
       confirmText: 'Eliminar',
     );
     if (confirma != true) return;
+    if (!context.mounted) return;
 
     final repo = locator<ProductoRepository>();
     final listCubit = context.read<ProductoListCubit>();
@@ -1453,6 +1454,7 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
       confirmText: activando ? 'Activar' : 'Desactivar',
     );
     if (confirma != true) return;
+    if (!context.mounted) return;
 
     final repo = locator<ProductoRepository>();
     final detailCubit = context.read<ProductoDetailCubit>();

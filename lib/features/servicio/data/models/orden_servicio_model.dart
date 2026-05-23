@@ -3,7 +3,7 @@ import '../../domain/entities/orden_servicio.dart';
 import 'componente_model.dart';
 
 class OrdenServicioModel extends OrdenServicio {
-  OrdenServicioModel({
+  const OrdenServicioModel({
     required super.id,
     required super.empresaId,
     super.clienteId,

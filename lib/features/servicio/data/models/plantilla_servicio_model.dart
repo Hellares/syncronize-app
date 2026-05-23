@@ -2,7 +2,7 @@ import '../../domain/entities/plantilla_servicio.dart';
 import 'configuracion_campo_model.dart';
 
 class PlantillaServicioModel extends PlantillaServicio {
-  PlantillaServicioModel({
+  const PlantillaServicioModel({
     required super.id,
     required super.empresaId,
     required super.nombre,

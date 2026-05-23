@@ -1,20 +1,51 @@
 import 'package:flutter/material.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 
+import 'custom_switch.dart';
+
+/// Item de configuración con título + subtítulo a la izquierda y un
+/// [CustomSwitch] a la derecha.
+///
+/// Estilo unificado (blue1/blanco por defecto). Si necesitás un acento
+/// distinto (verde para confirmaciones, indigo para insumos, etc),
+/// pasá [activeColor].
+///
+/// **Nota:** los parámetros `activeTrackColor`, `inactiveTrackColor`,
+/// `trackOutlineColor` y `trackOutlineWidth` se conservan por
+/// compatibilidad con call sites existentes, pero se ignoran — el estilo
+/// está fijo en el `CustomSwitch` para mantener consistencia visual en
+/// toda la app.
 class CustomSwitchTile extends StatelessWidget {
   final String title;
   final String? subtitle;
   final bool value;
   final ValueChanged<bool>? onChanged;
+
+  /// Color del track ON, borde y thumb OFF. Default `AppColors.blue1`.
   final Color? activeColor;
+
+  /// @deprecated Ignorado — el track ON usa [activeColor]. Se mantiene
+  /// para compatibilidad con call sites antiguos.
   final Color? activeTrackColor;
+
+  /// @deprecated Ignorado — el track OFF es siempre blanco. Se mantiene
+  /// para compatibilidad con call sites antiguos.
   final Color? inactiveTrackColor;
+
+  /// @deprecated Ignorado — el borde usa [activeColor]. Se mantiene
+  /// para compatibilidad con call sites antiguos.
   final Color? trackOutlineColor;
+
+  /// @deprecated Ignorado — el borde es siempre de 1 px. Se mantiene
+  /// para compatibilidad con call sites antiguos.
   final double? trackOutlineWidth;
+
   final EdgeInsetsGeometry? padding;
   final double? height;
   final TextStyle? titleStyle;
   final TextStyle? subtitleStyle;
+
+  /// Escala del switch dentro del tile. Default 0.7 (compacto).
   final double scale;
 
   const CustomSwitchTile({
@@ -38,10 +69,12 @@ class CustomSwitchTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool isEnabled = onChanged != null;
+    final Color accent = activeColor ?? AppColors.blue1;
 
     return Container(
       height: height,
-      padding: padding ?? const EdgeInsets.symmetric(vertical: 4, horizontal: 0),
+      padding:
+          padding ?? const EdgeInsets.symmetric(vertical: 4, horizontal: 0),
       child: Row(
         children: [
           Expanded(
@@ -58,7 +91,7 @@ class CustomSwitchTile extends StatelessWidget {
                         fontWeight: FontWeight.w600,
                         color: isEnabled
                             ? AppColors.blue1
-                            : AppColors.blue1.withValues(alpha:0.5),
+                            : AppColors.blue1.withValues(alpha: 0.5),
                       ),
                 ),
                 if (subtitle != null) ...[
@@ -77,38 +110,11 @@ class CustomSwitchTile extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          Transform.scale(
+          CustomSwitch(
+            value: value,
+            onChanged: onChanged,
+            activeColor: accent,
             scale: scale,
-            child: Theme(
-              data: ThemeData(
-                useMaterial3: true,
-                switchTheme: SwitchThemeData(
-                  thumbColor: WidgetStateProperty.resolveWith((states) {
-                    if (states.contains(WidgetState.selected)) {
-                      return activeColor ?? AppColors.blue1;
-                    }
-                    return null;
-                  }),
-                  trackColor: WidgetStateProperty.resolveWith((states) {
-                    if (states.contains(WidgetState.selected)) {
-                      return activeTrackColor ?? activeColor?.withValues(alpha: 0.5);
-                    }
-                    return inactiveTrackColor;
-                  }),
-                  trackOutlineColor: trackOutlineColor != null
-                      ? WidgetStateProperty.all(trackOutlineColor)
-                      : null,
-                  trackOutlineWidth: trackOutlineWidth != null
-                      ? WidgetStateProperty.all(trackOutlineWidth)
-                      : null,
-                ),
-              ),
-              child: Switch(
-                value: value,
-                onChanged: onChanged,
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-            ),
           ),
         ],
       ),

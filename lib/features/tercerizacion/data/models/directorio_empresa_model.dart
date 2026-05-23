@@ -1,7 +1,7 @@
 import '../../domain/entities/directorio_empresa.dart';
 
 class DirectorioEmpresaModel extends DirectorioEmpresa {
-  DirectorioEmpresaModel({
+  const DirectorioEmpresaModel({
     required super.id,
     required super.nombre,
     super.logo,
@@ -57,7 +57,7 @@ class DirectorioEmpresaModel extends DirectorioEmpresa {
 }
 
 class SedePrincipalModel extends SedePrincipal {
-  SedePrincipalModel({
+  const SedePrincipalModel({
     required super.id,
     required super.nombre,
     super.direccion,
@@ -85,7 +85,7 @@ class SedePrincipalModel extends SedePrincipal {
 }
 
 class ServicioResumenModel extends ServicioResumen {
-  ServicioResumenModel({
+  const ServicioResumenModel({
     required super.id,
     required super.nombre,
     super.precio,

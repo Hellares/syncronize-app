@@ -806,7 +806,7 @@ class _ProductosPageState extends State<ProductosPage>
                 // con el AppBar); todo lo demás se indenta uniforme.
                 Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
                     child: Column(
                       children: [
                         const SizedBox(height: 12),

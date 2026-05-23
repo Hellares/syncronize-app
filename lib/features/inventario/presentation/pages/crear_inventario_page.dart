@@ -203,7 +203,7 @@ class _CrearInventarioPageState extends State<CrearInventarioPage> {
                   onChanged: (value) {
                     setState(() => _incluirTodosProductos = value);
                   },
-                  activeColor: AppColors.blue1,
+                  activeThumbColor: AppColors.blue1,
                   contentPadding: EdgeInsets.zero,
                 ),
                 const SizedBox(height: 24),

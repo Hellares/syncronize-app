@@ -1019,7 +1019,7 @@ class _ImprimirEtiquetasTabState extends State<_ImprimirEtiquetasTab> {
           Switch(
             value: value,
             onChanged: onChanged,
-            activeColor: AppColors.blue1,
+            activeThumbColor: AppColors.blue1,
             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),
         ],

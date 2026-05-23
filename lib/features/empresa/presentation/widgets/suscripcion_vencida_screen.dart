@@ -52,7 +52,7 @@ class SuscripcionVencidaScreen extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: AppColors.red.withOpacity(0.1),
+                          color: AppColors.red.withValues(alpha: 0.1),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(
@@ -77,7 +77,7 @@ class SuscripcionVencidaScreen extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 16, vertical: 10),
                           decoration: BoxDecoration(
-                            color: AppColors.blue1.withOpacity(0.06),
+                            color: AppColors.blue1.withValues(alpha: 0.06),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Row(

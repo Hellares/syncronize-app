@@ -102,7 +102,7 @@ class _CrearCajaChicaPageState extends State<CrearCajaChicaPage> {
               ),
               const SizedBox(height: 10),
               DropdownButtonFormField<String>(
-                value: _selectedSedeId,
+                initialValue: _selectedSedeId,
                 decoration: InputDecoration(
                   prefixIcon: const Icon(Icons.store_rounded),
                   border: OutlineInputBorder(
@@ -225,7 +225,7 @@ class _CrearCajaChicaPageState extends State<CrearCajaChicaPage> {
                 )
               else
                 DropdownButtonFormField<String>(
-                  value: _selectedResponsableId,
+                  initialValue: _selectedResponsableId,
                   decoration: InputDecoration(
                     prefixIcon: const Icon(Icons.person_rounded),
                     border: OutlineInputBorder(

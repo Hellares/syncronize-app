@@ -498,7 +498,7 @@ class _ConfiguracionEmpresaPageState extends State<ConfiguracionEmpresaPage> {
                           ),
                           Switch(
                             value: _interesHabilitado,
-                            activeColor: AppColors.blue1,
+                            activeThumbColor: AppColors.blue1,
                             onChanged: (v) {
                               setState(() => _interesHabilitado = v);
                               _onChanged();
@@ -542,7 +542,7 @@ class _ConfiguracionEmpresaPageState extends State<ConfiguracionEmpresaPage> {
                             ),
                             Switch(
                               value: _interesEsEditable,
-                              activeColor: AppColors.blue1,
+                              activeThumbColor: AppColors.blue1,
                               onChanged: (v) {
                                 setState(() => _interesEsEditable = v);
                                 _onChanged();
@@ -587,7 +587,7 @@ class _ConfiguracionEmpresaPageState extends State<ConfiguracionEmpresaPage> {
                           ),
                           Switch(
                             value: _moraHabilitada,
-                            activeColor: AppColors.blue1,
+                            activeThumbColor: AppColors.blue1,
                             onChanged: (v) {
                               setState(() => _moraHabilitada = v);
                               _onChanged();
@@ -685,7 +685,7 @@ class _ConfiguracionEmpresaPageState extends State<ConfiguracionEmpresaPage> {
                           ),
                           Switch(
                             value: _mostrarSeccionEquipo,
-                            activeColor: AppColors.blue1,
+                            activeThumbColor: AppColors.blue1,
                             onChanged: (v) {
                               setState(() => _mostrarSeccionEquipo = v);
                               _onChanged();

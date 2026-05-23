@@ -1004,8 +1004,11 @@ class _MarketplaceSheetState extends State<_MarketplaceSheet> {
                             activeColor: Colors.purple,
                             onChanged: (v) {
                               setState(() {
-                                if (v == true) _selectedIds.add(id);
-                                else _selectedIds.remove(id);
+                                if (v == true) {
+                                  _selectedIds.add(id);
+                                } else {
+                                  _selectedIds.remove(id);
+                                }
                               });
                             },
                           )
@@ -1027,7 +1030,7 @@ class _MarketplaceSheetState extends State<_MarketplaceSheet> {
                         ? null
                         : Switch(
                             value: visible,
-                            activeColor: Colors.green,
+                            activeThumbColor: Colors.green,
                             onChanged: (v) => _toggleSingle(id, v),
                           ),
                   );

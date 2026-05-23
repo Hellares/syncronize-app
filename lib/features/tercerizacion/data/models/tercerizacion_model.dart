@@ -1,7 +1,7 @@
 import '../../domain/entities/tercerizacion.dart';
 
 class TercerizacionServicioModel extends TercerizacionServicio {
-  TercerizacionServicioModel({
+  const TercerizacionServicioModel({
     required super.id,
     required super.empresaOrigenId,
     required super.ordenOrigenId,
@@ -73,7 +73,7 @@ class TercerizacionServicioModel extends TercerizacionServicio {
 }
 
 class EmpresaResumenModel extends EmpresaResumen {
-  EmpresaResumenModel({
+  const EmpresaResumenModel({
     required super.id,
     required super.nombre,
     super.logo,
@@ -103,7 +103,7 @@ class EmpresaResumenModel extends EmpresaResumen {
 }
 
 class OrdenResumenModel extends OrdenResumen {
-  OrdenResumenModel({
+  const OrdenResumenModel({
     required super.id,
     required super.codigo,
     super.tipoEquipo,

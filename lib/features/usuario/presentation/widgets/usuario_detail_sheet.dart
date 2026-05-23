@@ -276,32 +276,23 @@ class UsuarioDetailSheet extends StatelessWidget {
         esConversion: esConversion,
         sedesDisponibles: sedesDisponibles,
         onGuardar: (data) async {
-          print('📝 onGuardar ejecutado');
-          print('esConversion: $esConversion');
-          print('data: $data');
-          print('usuario.id: ${usuario.id}');
-
           // NO cerrar el dialog aquí - el dialog se cerrará solo cuando termine
           // El dialog muestra su propio loading indicator
 
           bool success;
 
           if (esConversion) {
-            print('🔄 Entrando a conversión...');
             // Convertir cliente a empleado (actualizar su rol)
             success = await cubit.convertirClienteAEmpleado(
               usuarioId: usuario.id,
               datosEmpleado: data,
             );
-            print('Resultado conversión: $success');
           } else {
-            print('🔄 Entrando a actualización...');
             // Actualizar empleado existente
             success = await cubit.updateUsuario(
               usuarioId: usuario.id,
               data: data,
             );
-            print('Resultado actualización: $success');
           }
 
           if (success) {

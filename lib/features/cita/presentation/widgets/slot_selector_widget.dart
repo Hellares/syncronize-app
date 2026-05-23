@@ -38,9 +38,9 @@ class SlotSelectorWidget extends StatelessWidget {
               ? (_) => onSlotSelected(slot)
               : null,
           backgroundColor: isAvailable
-              ? Colors.green.withOpacity(0.08)
-              : Colors.grey.withOpacity(0.08),
-          selectedColor: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+              ? Colors.green.withValues(alpha: 0.08)
+              : Colors.grey.withValues(alpha: 0.08),
+          selectedColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
           labelStyle: TextStyle(
             color: isAvailable
                 ? (isSelected

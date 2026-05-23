@@ -547,7 +547,7 @@ class _HistorialCajaPageState extends State<HistorialCajaPage> {
                   const SizedBox(height: 16),
                   // Sede filter
                   DropdownButtonFormField<String>(
-                    value: _selectedSedeId,
+                    initialValue: _selectedSedeId,
                     decoration: InputDecoration(
                       labelText: 'Sede',
                       prefixIcon: const Icon(Icons.store_rounded),

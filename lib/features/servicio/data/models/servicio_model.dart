@@ -3,7 +3,7 @@ import '../../domain/entities/servicio.dart';
 import 'plantilla_servicio_model.dart';
 
 class ServicioModel extends Servicio {
-  ServicioModel({
+  const ServicioModel({
     required super.id,
     required super.empresaId,
     super.sedeId,

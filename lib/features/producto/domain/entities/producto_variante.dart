@@ -15,6 +15,7 @@ class ProductoVariante extends Equatable with StockPorSedeMixin {
   final String? codigoBarras;
   final String codigoEmpresa;
   final List<AtributoValor> atributosValores;
+  @override
   final List<StockPorSedeInfo>? stocksPorSede; // Desglose de stock por sede
   final double? peso;
   final Map<String, dynamic>? dimensiones;

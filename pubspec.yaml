@@ -101,6 +101,7 @@ dependencies:
   geolocator: ^14.0.2
   flutter_map: ^8.2.2
   latlong2: ^0.9.1
+  collection: ^1.19.1
 
 dev_dependencies:
   flutter_test:

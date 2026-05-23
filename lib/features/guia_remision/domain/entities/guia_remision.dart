@@ -1,3 +1,8 @@
+// Los valores de los enums mapean directamente a los strings del backend
+// (catálogos SUNAT y estados del flujo). Renombrarlos a lowerCamelCase
+// rompería `byName(...)` y comparaciones con strings del API.
+// ignore_for_file: constant_identifier_names
+
 import 'package:equatable/equatable.dart';
 
 // Enums

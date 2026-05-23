@@ -154,7 +154,7 @@ class _RegistrarAsistenciaPageState extends State<RegistrarAsistenciaPage> {
 
                     if (state is EmpleadoListLoaded) {
                       return DropdownButtonFormField<Empleado>(
-                        value: _selectedEmpleado,
+                        initialValue: _selectedEmpleado,
                         decoration: InputDecoration(
                           hintText: 'Seleccionar empleado',
                           hintStyle: const TextStyle(fontSize: 13),

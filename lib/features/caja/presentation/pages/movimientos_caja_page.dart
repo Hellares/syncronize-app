@@ -173,7 +173,7 @@ class _MovimientosCajaPageState extends State<MovimientosCajaPage> {
             ),
           )
               .then((result) {
-            if (result == true && mounted) {
+            if (result == true && context.mounted) {
               context
                   .read<CajaMovimientosCubit>()
                   .loadMovimientos(widget.cajaId);

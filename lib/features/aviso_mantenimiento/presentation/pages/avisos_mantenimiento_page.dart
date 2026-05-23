@@ -52,7 +52,7 @@ class _AvisosMantenimientoPageState extends State<AvisosMantenimientoPage> {
                     builder: (_) => const ConfiguracionAvisoPage(),
                   ),
                 );
-                if (mounted) {
+                if (context.mounted) {
                   context.read<AvisoListCubit>().refresh();
                 }
               },

@@ -432,7 +432,7 @@ class _GuiaRemisionFormPageState extends State<GuiaRemisionFormPage> {
         const Text('Motivo de traslado', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
         const SizedBox(height: 6),
         DropdownButtonFormField<MotivoTraslado>(
-          value: _motivo,
+          initialValue: _motivo,
           isExpanded: true,
           decoration: _inputDecoration('Seleccionar motivo'),
           style: const TextStyle(fontSize: 12, color: Colors.black87),
@@ -504,7 +504,7 @@ class _GuiaRemisionFormPageState extends State<GuiaRemisionFormPage> {
         const Text('Tipo documento', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
         const SizedBox(height: 6),
         DropdownButtonFormField<String>(
-          value: _clienteTipoDoc,
+          initialValue: _clienteTipoDoc,
           decoration: _inputDecoration('Tipo'),
           style: const TextStyle(fontSize: 12, color: Colors.black87),
           items: const [
@@ -997,7 +997,7 @@ class _GuiaRemisionFormPageState extends State<GuiaRemisionFormPage> {
                   Expanded(
                     flex: 3,
                     child: DropdownButtonFormField<String>(
-                      value: item.unidadMedida,
+                      initialValue: item.unidadMedida,
                       decoration: _inputDecoration('Unidad'),
                       style: const TextStyle(fontSize: 12, color: Colors.black87),
                       items: const [
@@ -1055,7 +1055,7 @@ class _GuiaRemisionFormPageState extends State<GuiaRemisionFormPage> {
             Expanded(
               flex: 2,
               child: DropdownButtonFormField<String>(
-                value: _pesoUnidad,
+                initialValue: _pesoUnidad,
                 decoration: _inputDecoration('Unidad'),
                 style: const TextStyle(fontSize: 12, color: Colors.black87),
                 items: const [

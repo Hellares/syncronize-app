@@ -103,7 +103,7 @@ class _OrdenServicioFilterSheetState extends State<OrdenServicioFilterSheet> {
 
             // Tipo de servicio
             DropdownButtonFormField<String>(
-              value: _tipoServicio,
+              initialValue: _tipoServicio,
               decoration: InputDecoration(
                 labelText: 'Tipo de servicio',
                 border:
@@ -127,7 +127,7 @@ class _OrdenServicioFilterSheetState extends State<OrdenServicioFilterSheet> {
 
             // Prioridad
             DropdownButtonFormField<String>(
-              value: _prioridad,
+              initialValue: _prioridad,
               decoration: InputDecoration(
                 labelText: 'Prioridad',
                 border:

@@ -212,7 +212,7 @@ class _PreferenciasNotificacionPageState
                       Switch(
                         value: pref.habilitado,
                         onChanged: (_) => _togglePreferencia(pref),
-                        activeColor: AppColors.blue1,
+                        activeThumbColor: AppColors.blue1,
                       ),
                     ],
                   ),

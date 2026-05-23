@@ -162,7 +162,7 @@ class _UbicacionFormDialogState extends State<UbicacionFormDialog> {
 
                 // Tipo
                 DropdownButtonFormField<TipoUbicacion>(
-                  value: _tipoSeleccionado,
+                  initialValue: _tipoSeleccionado,
                   decoration: _inputDecoration('Tipo', Icons.category_outlined),
                   items: TipoUbicacion.values.map((t) {
                     return DropdownMenuItem(
@@ -202,7 +202,7 @@ class _UbicacionFormDialogState extends State<UbicacionFormDialog> {
                 // Parent selector
                 if (widget.ubicacionesDisponibles.isNotEmpty) ...[
                   DropdownButtonFormField<String?>(
-                    value: _parentIdSeleccionado,
+                    initialValue: _parentIdSeleccionado,
                     decoration: _inputDecoration(
                         'Ubicacion padre (opcional)', Icons.account_tree_outlined),
                     isExpanded: true,

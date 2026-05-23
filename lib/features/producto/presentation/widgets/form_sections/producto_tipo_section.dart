@@ -76,11 +76,7 @@ class ProductoTipoSection extends StatelessWidget {
 
   Widget _buildComboSwitch(BuildContext context) {
     return CustomSwitchTile(
-      activeColor: AppColors.green,
-      activeTrackColor: AppColors.blue,
-      trackOutlineColor: AppColors.blueGrey,
       title: 'Producto Combo',
-      trackOutlineWidth: 1,
       subtitle: esCombo
           ? 'Este producto es un combo de otros productos'
           : 'Producto simple o con variantes',
@@ -91,7 +87,8 @@ class ProductoTipoSection extends StatelessWidget {
               if (value && tieneVariantes) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('No se puede activar combo en un producto con variantes'),
+                    content: Text(
+                        'No se puede activar combo en un producto con variantes'),
                     backgroundColor: Colors.red,
                   ),
                 );
@@ -104,11 +101,7 @@ class ProductoTipoSection extends StatelessWidget {
 
   Widget _buildVariantesSwitch(BuildContext context) {
     return CustomSwitchTile(
-      activeColor: AppColors.green,
-      activeTrackColor: AppColors.blue,
-      trackOutlineColor: AppColors.blueGrey,
       title: 'Producto con Variantes',
-      trackOutlineWidth: 1,
       subtitle: esCombo
           ? 'No se puede activar variantes en un producto combo'
           : (tieneVariantes
@@ -121,7 +114,8 @@ class ProductoTipoSection extends StatelessWidget {
               if (value && esCombo) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('No se puede activar variantes en un producto que es combo'),
+                    content: Text(
+                        'No se puede activar variantes en un producto que es combo'),
                     backgroundColor: Colors.red,
                   ),
                 );
@@ -129,7 +123,10 @@ class ProductoTipoSection extends StatelessWidget {
               }
 
               // Si está editando y va a activar variantes, mostrar confirmación
-              if (isEditing && value && !tieneVariantes && onShowConversionDialog != null) {
+              if (isEditing &&
+                  value &&
+                  !tieneVariantes &&
+                  onShowConversionDialog != null) {
                 final confirmar = await onShowConversionDialog!();
                 if (confirmar != true) return;
               }

@@ -208,7 +208,7 @@ class _StockPorUbicacionPageState extends State<StockPorUbicacionPage> {
           ),
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
-            value: _selectedSedeId,
+            initialValue: _selectedSedeId,
             decoration: InputDecoration(
               hintText: 'Seleccione una sede',
               hintStyle: const TextStyle(fontSize: 13),

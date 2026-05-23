@@ -300,17 +300,7 @@ class UsuarioListCubit extends Cubit<UsuarioListState> {
     required String usuarioId,
     required Map<String, dynamic> datosEmpleado,
   }) async {
-    print('📍 convertirClienteAEmpleado INICIADO');
-    print('_currentEmpresaId: $_currentEmpresaId');
-
-    if (_currentEmpresaId == null) {
-      print('❌ ERROR: _currentEmpresaId is null en convertirClienteAEmpleado!');
-      return false;
-    }
-
-    print('🔄 Convirtiendo cliente a empleado...');
-    print('Usuario ID: $usuarioId');
-    print('Datos empleado: $datosEmpleado');
+    if (_currentEmpresaId == null) return false;
 
     // Usar el endpoint de actualización ya que el cliente ya existe en la empresa
     final result = await _updateUsuarioUseCase(
@@ -320,8 +310,6 @@ class UsuarioListCubit extends Cubit<UsuarioListState> {
     );
 
     if (result is Success<Usuario>) {
-      print('✅ Cliente convertido a empleado exitosamente');
-
       // Actualizar el usuario en la lista local
       final updatedUsuario = result.data;
       final index = _allUsuarios.indexWhere((u) => u.id == usuarioId);
@@ -343,9 +331,6 @@ class UsuarioListCubit extends Cubit<UsuarioListState> {
       }
 
       return true;
-    } else if (result is Error<Usuario>) {
-      // Log del error para debugging
-      print('❌ Error al convertir cliente a empleado: ${result.message}');
     }
 
     return false;
