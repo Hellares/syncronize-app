@@ -375,9 +375,16 @@ class _ProductosPageState extends State<ProductosPage>
         ),
       );
 
-      // Recargar lista de productos para actualizar imágenes
+      // Recargar lista de productos para actualizar imágenes.
+      // Usamos reload() (no _loadProductos) para descartar lastSync y
+      // forzar fetch fresh — garantiza ver la imagen recién subida
+      // sin depender del round-trip del FCM IMAGEN_CAMBIADA.
       if (mounted) {
-        _loadProductos();
+        final empresaState = context.read<EmpresaContextCubit>().state;
+        if (empresaState is EmpresaContextLoaded) {
+          final sedeId = _getSedeIdActual(empresaState.context.sedes);
+          context.read<ProductoListCubit>().reload(sedeId: sedeId);
+        }
       }
     } catch (e) {
       if (!mounted) return;
@@ -1016,7 +1023,18 @@ class _ProductosPageState extends State<ProductosPage>
         ),
         Expanded(
           child: RefreshIndicator(
-            onRefresh: () async => _loadProductos(),
+            onRefresh: () async {
+              // Pull-to-refresh es intención explícita del usuario de
+              // ver datos frescos: limpiamos cache memoria + disco +
+              // lastSync para que la próxima request NO use deltas y
+              // traiga todo del server. Imprescindible cuando algo
+              // como una imagen recién subida no se ve.
+              final empresaState = context.read<EmpresaContextCubit>().state;
+              if (empresaState is EmpresaContextLoaded) {
+                final sedeId = _getSedeIdActual(empresaState.context.sedes);
+                await context.read<ProductoListCubit>().reload(sedeId: sedeId);
+              }
+            },
             child: ListView.builder(
               controller: _scrollController,
               padding: const EdgeInsets.symmetric(horizontal: 10),

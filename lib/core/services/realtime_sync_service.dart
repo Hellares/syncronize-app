@@ -54,6 +54,20 @@ class RealtimeNivelesCambiados extends RealtimeEvent {
   });
 }
 
+/// Las imágenes de un producto fueron modificadas (upload/delete). El
+/// listener debe refrescar el catálogo — la URL puede ser nueva o
+/// haber desaparecido.
+class RealtimeImagenCambiada extends RealtimeEvent {
+  final String empresaId;
+  final String? productoId;
+  final String? varianteId;
+  const RealtimeImagenCambiada({
+    required this.empresaId,
+    this.productoId,
+    this.varianteId,
+  });
+}
+
 /// Coordina la sincronización en tiempo real entre el backend y la app
 /// vía FCM data-only messages.
 ///
@@ -168,6 +182,14 @@ class RealtimeSyncService {
       case 'NIVELES_CAMBIADOS':
         if (productoId != null) _nivelCacheService.invalidate(productoId);
         _eventsController.add(RealtimeNivelesCambiados(
+          empresaId: empresaId,
+          productoId: productoId,
+          varianteId: varianteId,
+        ));
+        break;
+
+      case 'IMAGEN_CAMBIADA':
+        _eventsController.add(RealtimeImagenCambiada(
           empresaId: empresaId,
           productoId: productoId,
           varianteId: varianteId,
