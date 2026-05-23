@@ -1,5 +1,6 @@
 import 'package:injectable/injectable.dart';
 import '../../../../core/network/network_info.dart';
+import '../../../../core/utils/memory_cache.dart';
 import '../../../../core/utils/resource.dart';
 import '../../domain/entities/categoria_maestra.dart';
 import '../../domain/entities/empresa_categoria.dart';
@@ -12,6 +13,14 @@ import '../datasources/catalogo_remote_datasource.dart';
 class CatalogoRepositoryImpl implements CatalogoRepository {
   final CatalogoRemoteDataSource _remoteDataSource;
   final NetworkInfo _networkInfo;
+
+  /// Cache en memoria de las listas por empresa. Se invalida tras
+  /// cualquier `activar*` / `desactivar*` / `activar*Populares` para
+  /// que la próxima lectura traiga el cambio.
+  final MemoryCache<List<EmpresaCategoria>> _categoriasCache =
+      MemoryCache<List<EmpresaCategoria>>();
+  final MemoryCache<List<EmpresaMarca>> _marcasCache =
+      MemoryCache<List<EmpresaMarca>>();
 
   CatalogoRepositoryImpl(
     this._remoteDataSource,
@@ -84,6 +93,10 @@ class CatalogoRepositoryImpl implements CatalogoRepository {
   Future<Resource<List<EmpresaCategoria>>> getCategoriasEmpresa(
     String empresaId,
   ) async {
+    // Cache hit: devolver sin pegarle al server.
+    final cached = _categoriasCache.get(empresaId);
+    if (cached != null) return Success(cached);
+
     if (!await _networkInfo.isConnected) {
       return Error(
         'No hay conexión a internet',
@@ -94,7 +107,9 @@ class CatalogoRepositoryImpl implements CatalogoRepository {
     try {
       final categorias =
           await _remoteDataSource.getCategoriasEmpresa(empresaId);
-      return Success(categorias.map((e) => e.toEntity()).toList());
+      final list = categorias.map((e) => e.toEntity()).toList();
+      _categoriasCache.put(empresaId, list);
+      return Success(list);
     } catch (e) {
       return Error(
         e.toString().replaceFirst('Exception: ', ''),
@@ -133,6 +148,7 @@ class CatalogoRepositoryImpl implements CatalogoRepository {
       };
 
       final categoria = await _remoteDataSource.activarCategoria(data);
+      _categoriasCache.invalidate(empresaId);
       return Success(categoria.toEntity());
     } catch (e) {
       return Error(
@@ -159,6 +175,7 @@ class CatalogoRepositoryImpl implements CatalogoRepository {
         empresaId: empresaId,
         empresaCategoriaId: empresaCategoriaId,
       );
+      _categoriasCache.invalidate(empresaId);
       return Success(null);
     } catch (e) {
       return Error(
@@ -182,6 +199,7 @@ class CatalogoRepositoryImpl implements CatalogoRepository {
     try {
       final categorias =
           await _remoteDataSource.activarCategoriasPopulares(empresaId);
+      _categoriasCache.invalidate(empresaId);
       return Success(categorias.map((e) => e.toEntity()).toList());
     } catch (e) {
       return Error(
@@ -199,6 +217,9 @@ class CatalogoRepositoryImpl implements CatalogoRepository {
   Future<Resource<List<EmpresaMarca>>> getMarcasEmpresa(
     String empresaId,
   ) async {
+    final cached = _marcasCache.get(empresaId);
+    if (cached != null) return Success(cached);
+
     if (!await _networkInfo.isConnected) {
       return Error(
         'No hay conexión a internet',
@@ -208,7 +229,9 @@ class CatalogoRepositoryImpl implements CatalogoRepository {
 
     try {
       final marcas = await _remoteDataSource.getMarcasEmpresa(empresaId);
-      return Success(marcas.map((e) => e.toEntity()).toList());
+      final list = marcas.map((e) => e.toEntity()).toList();
+      _marcasCache.put(empresaId, list);
+      return Success(list);
     } catch (e) {
       return Error(
         e.toString().replaceFirst('Exception: ', ''),
@@ -246,6 +269,7 @@ class CatalogoRepositoryImpl implements CatalogoRepository {
       };
 
       final marca = await _remoteDataSource.activarMarca(data);
+      _marcasCache.invalidate(empresaId);
       return Success(marca.toEntity());
     } catch (e) {
       return Error(
@@ -272,6 +296,7 @@ class CatalogoRepositoryImpl implements CatalogoRepository {
         empresaId: empresaId,
         empresaMarcaId: empresaMarcaId,
       );
+      _marcasCache.invalidate(empresaId);
       return Success(null);
     } catch (e) {
       return Error(
@@ -294,6 +319,7 @@ class CatalogoRepositoryImpl implements CatalogoRepository {
 
     try {
       final marcas = await _remoteDataSource.activarMarcasPopulares(empresaId);
+      _marcasCache.invalidate(empresaId);
       return Success(marcas.map((e) => e.toEntity()).toList());
     } catch (e) {
       return Error(

@@ -1,5 +1,6 @@
 import 'package:injectable/injectable.dart';
 import '../../../../core/network/network_info.dart';
+import '../../../../core/utils/memory_cache.dart';
 import '../../../../core/utils/resource.dart';
 import '../../../empresa/domain/entities/sede.dart';
 import '../../domain/repositories/sede_repository.dart';
@@ -10,6 +11,9 @@ class SedeRepositoryImpl implements SedeRepository {
   final SedeRemoteDataSource _remoteDataSource;
   final NetworkInfo _networkInfo;
 
+  /// Cache de sedes por empresa. Se invalida tras create/update/delete.
+  final MemoryCache<List<Sede>> _sedesCache = MemoryCache<List<Sede>>();
+
   SedeRepositoryImpl(
     this._remoteDataSource,
     this._networkInfo,
@@ -17,6 +21,9 @@ class SedeRepositoryImpl implements SedeRepository {
 
   @override
   Future<Resource<List<Sede>>> getSedes(String empresaId) async {
+    final cached = _sedesCache.get(empresaId);
+    if (cached != null) return Success(cached);
+
     if (!await _networkInfo.isConnected) {
       return Error(
         'No hay conexión a internet',
@@ -26,7 +33,9 @@ class SedeRepositoryImpl implements SedeRepository {
 
     try {
       final sedes = await _remoteDataSource.getSedes(empresaId);
-      return Success(sedes.map((e) => e.toEntity()).toList());
+      final list = sedes.map((e) => e.toEntity()).toList();
+      _sedesCache.put(empresaId, list);
+      return Success(list);
     } catch (e) {
       return Error(
         _extractErrorMessage(e),
@@ -78,6 +87,7 @@ class SedeRepositoryImpl implements SedeRepository {
         empresaId: empresaId,
         data: data,
       );
+      _sedesCache.invalidate(empresaId);
       return Success(sede.toEntity());
     } catch (e) {
       return Error(
@@ -106,6 +116,7 @@ class SedeRepositoryImpl implements SedeRepository {
         sedeId: sedeId,
         data: data,
       );
+      _sedesCache.invalidate(empresaId);
       return Success(sede.toEntity());
     } catch (e) {
       return Error(
@@ -132,6 +143,7 @@ class SedeRepositoryImpl implements SedeRepository {
         empresaId: empresaId,
         sedeId: sedeId,
       );
+      _sedesCache.invalidate(empresaId);
       return Success(null);
     } catch (e) {
       return Error(
