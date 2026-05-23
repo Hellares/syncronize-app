@@ -277,6 +277,10 @@ class _CotizacionListTile extends StatelessWidget {
                   AppSubtitle(cotizacion.codigo),
                   const SizedBox(width: 8),
                   CotizacionEstadoChip(estado: cotizacion.estado),
+                  if (cotizacion.tieneReservaActiva) ...[
+                    const SizedBox(width: 6),
+                    const _ReservaBadge(),
+                  ],
                   Spacer(),
                   Text(
                     DateFormatter.formatDateTime(cotizacion.fechaEmision),
@@ -337,6 +341,39 @@ class _CotizacionListTile extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Badge compacto que indica que la cotización tiene productos con stock
+/// reservado. Naranja para llamar la atención sin chocar con el estado.
+class _ReservaBadge extends StatelessWidget {
+  const _ReservaBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.orange.shade50,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: Colors.orange.shade300),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.bookmark_added, size: 11, color: Colors.orange.shade800),
+          const SizedBox(width: 3),
+          Text(
+            'Reservado',
+            style: TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.w600,
+              color: Colors.orange.shade800,
+            ),
+          ),
+        ],
       ),
     );
   }

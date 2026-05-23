@@ -104,6 +104,11 @@ class Cotizacion extends Equatable {
   final List<CotizacionDetalle>? detalles;
   final int? cantidadDetalles;
 
+  /// True si la cotización tiene al menos un detalle con reserva de stock
+  /// ACTIVA. Derivado en backend (findAll batchea con distinct, findOne lo
+  /// calcula desde `detalles`).
+  final bool tieneReservaActiva;
+
   const Cotizacion({
     required this.id,
     required this.empresaId,
@@ -137,6 +142,7 @@ class Cotizacion extends Equatable {
     this.clienteNombreCompleto,
     this.detalles,
     this.cantidadDetalles,
+    this.tieneReservaActiva = false,
   });
 
   /// Si la cotizacion es editable (solo BORRADOR)
@@ -178,5 +184,6 @@ class Cotizacion extends Equatable {
         actualizadoEn,
         detalles,
         cantidadDetalles,
+        tieneReservaActiva,
       ];
 }
