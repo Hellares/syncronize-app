@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
+import '../../../../core/services/realtime_sync_service.dart';
 import '../../../../core/utils/resource.dart';
 import '../../../combo/domain/entities/combo.dart';
 import '../../../combo/domain/repositories/combo_repository.dart';
@@ -9,6 +12,8 @@ import '../../../cotizacion/domain/entities/cotizacion.dart';
 import '../../../cotizacion/domain/entities/cotizacion_detalle.dart';
 import '../../../producto/domain/entities/precio_nivel.dart';
 import '../../../producto/domain/entities/producto_list_item.dart';
+import '../../../producto/domain/entities/producto_stock.dart';
+import '../../../producto/domain/repositories/producto_stock_repository.dart';
 import '../../../producto/domain/services/precio_nivel_cache_service.dart';
 import '../../../venta/domain/entities/venta_detalle_input.dart';
 import '../../../venta_rapida/domain/repositories/venta_rapida_repository.dart';
@@ -35,6 +40,8 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
   final BuscarClientePorRucUseCase _buscarClientePorRucUseCase;
   final PrecioNivelCacheService _nivelCacheService;
   final ComboRepository _comboRepository;
+  final ProductoStockRepository _stockRepository;
+  final RealtimeSyncService _realtimeSync;
 
   CotizacionRapidaCubit(
     this._crearCotizacionUseCase,
@@ -43,7 +50,11 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
     this._buscarClientePorRucUseCase,
     this._nivelCacheService,
     this._comboRepository,
-  ) : super(const CotizacionRapidaState());
+    this._stockRepository,
+    this._realtimeSync,
+  ) : super(const CotizacionRapidaState()) {
+    _suscribirRealtime();
+  }
 
   /// Token de búsqueda de cliente para descartar respuestas obsoletas.
   int _searchSeq = 0;
@@ -819,5 +830,202 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
       clearError: true,
       clearCotizacionCompletada: true,
     ));
+  }
+
+  // ── Sync realtime del carrito (capa 1: FCM data-only) ──
+  //
+  // Réplica del patrón del VR cubit: si llega FCM (precio/stock/niveles/
+  // producto_actualizado) y el productoId está en el carrito de la
+  // cotización, re-fetch niveles + precio + stock por sede. Sin esto,
+  // los items quedaban con el precio viejo hasta que el cajero enviaba
+  // la cotización (y el backend la guardaba con datos stale).
+  //
+  // Items combo (`origenComboId != null`) NO se tocan — el precio del
+  // combo se prorratea al armarlo.
+
+  StreamSubscription<RealtimeEvent>? _realtimeSub;
+  Timer? _realtimeDebounce;
+  final Set<String> _pendingProductoIds = {};
+  bool _pendingSyncAll = false;
+  int _syncSeq = 0;
+
+  void _suscribirRealtime() {
+    _realtimeSub = _realtimeSync.events.listen(_onRealtimeEvent);
+  }
+
+  void _onRealtimeEvent(RealtimeEvent event) {
+    // Mientras se procesa el envío de la cotización NO tocamos el carrito.
+    if (state.procesando) return;
+
+    final evtEmpresaId = _empresaIdFromEvent(event);
+    final evtSedeId = _sedeIdFromEvent(event);
+    final evtProductoId = _productoIdFromEvent(event);
+
+    // Filtrado defensivo por empresa y sede del carrito.
+    if (state.empresaId != null &&
+        evtEmpresaId != null &&
+        state.empresaId != evtEmpresaId) {
+      return;
+    }
+    if (state.sedeId != null &&
+        evtSedeId != null &&
+        state.sedeId != evtSedeId) {
+      return;
+    }
+
+    if (evtProductoId == null) {
+      _pendingSyncAll = true;
+    } else {
+      _pendingProductoIds.add(evtProductoId);
+    }
+    _realtimeDebounce?.cancel();
+    _realtimeDebounce = Timer(const Duration(milliseconds: 500), _flushSync);
+  }
+
+  String? _empresaIdFromEvent(RealtimeEvent e) {
+    if (e is RealtimePrecioCambiado) return e.empresaId;
+    if (e is RealtimeStockCambiado) return e.empresaId;
+    if (e is RealtimeNivelesCambiados) return e.empresaId;
+    if (e is RealtimeProductoActualizado) return e.empresaId;
+    return null;
+  }
+
+  String? _sedeIdFromEvent(RealtimeEvent e) {
+    if (e is RealtimePrecioCambiado) return e.sedeId;
+    if (e is RealtimeStockCambiado) return e.sedeId;
+    return null; // niveles y PRODUCTO_ACTUALIZADO no son por sede
+  }
+
+  String? _productoIdFromEvent(RealtimeEvent e) {
+    if (e is RealtimePrecioCambiado) return e.productoId;
+    if (e is RealtimeStockCambiado) return e.productoId;
+    if (e is RealtimeNivelesCambiados) return e.productoId;
+    if (e is RealtimeProductoActualizado) return e.productoId;
+    return null;
+  }
+
+  Future<void> _flushSync() async {
+    final productoIds = _pendingProductoIds.toSet();
+    final syncAll = _pendingSyncAll;
+    _pendingProductoIds.clear();
+    _pendingSyncAll = false;
+    if (productoIds.isEmpty && !syncAll) return;
+    await _sincronizarItemsCarrito(productoIds, syncAll);
+  }
+
+  Future<void> _sincronizarItemsCarrito(
+    Set<String> productoIds,
+    bool syncAll,
+  ) async {
+    final items = state.items;
+    if (items.isEmpty) return;
+
+    final mySeq = ++_syncSeq;
+
+    // Items afectados: filtramos por productoId (excluyendo combos e
+    // items manuales sin productoId).
+    final afectados = <int>[];
+    final productosAfectados = <String>{};
+    for (var i = 0; i < items.length; i++) {
+      final item = items[i];
+      final pid = item.productoId;
+      if (pid == null) continue;
+      if (item.origenComboId != null) continue;
+      if (syncAll || productoIds.contains(pid)) {
+        afectados.add(i);
+        productosAfectados.add(pid);
+      }
+    }
+    if (afectados.isEmpty) return;
+
+    // 1. Invalidar y refetch niveles (idempotente).
+    for (final pid in productosAfectados) {
+      _nivelCacheService.invalidate(pid);
+    }
+    final nivelesEntries = await Future.wait(
+      productosAfectados.map(
+        (pid) => _nivelCacheService
+            .getNiveles(pid)
+            .then((n) => MapEntry(pid, n)),
+      ),
+    );
+    if (isClosed || mySeq != _syncSeq) return;
+    final nivelesPorProducto = Map<String, List<PrecioNivel>>.fromEntries(
+      nivelesEntries,
+    );
+
+    // 2. Refetch precio + stock por sede para cada item afectado.
+    final sedeId = state.sedeId;
+    final preciosNuevos = <int, double>{};
+    final stockNuevo = <int, int>{};
+    final liquidacionNueva = <int, bool>{};
+    final costoNuevo = <int, double?>{};
+    if (sedeId != null) {
+      final stockEntries = await Future.wait(
+        afectados.map((idx) async {
+          final item = items[idx];
+          final pid = item.productoId;
+          if (pid == null) return null;
+          final result = item.varianteId != null
+              ? await _stockRepository.getStockVarianteEnSede(
+                  varianteId: item.varianteId!,
+                  sedeId: sedeId,
+                )
+              : await _stockRepository.getStockProductoEnSede(
+                  productoId: pid,
+                  sedeId: sedeId,
+                );
+          if (result is Success<ProductoStock>) {
+            return MapEntry(idx, result.data);
+          }
+          return null;
+        }),
+      );
+      if (isClosed || mySeq != _syncSeq) return;
+      for (final entry in stockEntries) {
+        if (entry == null) continue;
+        final s = entry.value;
+        final precioEf = s.precioEfectivo;
+        if (precioEf != null) preciosNuevos[entry.key] = precioEf;
+        stockNuevo[entry.key] = s.stockActual;
+        liquidacionNueva[entry.key] = s.isLiquidacionActiva;
+        costoNuevo[entry.key] = s.precioCosto;
+      }
+    }
+
+    // 3. Aplicar nuevos valores a cada item afectado.
+    final nuevos = [...state.items];
+    var huboCambios = false;
+    for (final idx in afectados) {
+      if (idx >= nuevos.length) continue;
+      final item = nuevos[idx];
+      final pid = item.productoId;
+      if (pid == null) continue;
+      final nivelesNuevos = nivelesPorProducto[pid] ?? item.niveles;
+      final precioNuevo =
+          preciosNuevos[idx] ?? item.precioBase ?? item.precioUnitario;
+      final stockNvo = stockNuevo[idx] ?? item.stockDisponible;
+      final actualizado = item
+          .copyWith(
+            precioBase: precioNuevo,
+            precioUnitario: precioNuevo,
+            niveles: nivelesNuevos,
+            stockDisponible: stockNvo,
+            enLiquidacion: liquidacionNueva[idx] ?? item.enLiquidacion,
+            precioCostoSnapshot: costoNuevo[idx] ?? item.precioCostoSnapshot,
+          )
+          .recalcularPrecioPorNiveles(item.cantidad);
+      nuevos[idx] = actualizado;
+      huboCambios = true;
+    }
+    if (!huboCambios) return;
+    emit(state.copyWith(items: nuevos));
+  }
+
+  @override
+  Future<void> close() {
+    _realtimeDebounce?.cancel();
+    _realtimeSub?.cancel();
+    return super.close();
   }
 }

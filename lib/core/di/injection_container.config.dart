@@ -4550,16 +4550,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i1047.GetArqueosUseCase>(),
       ),
     );
-    gh.lazySingleton<_i975.CotizacionRapidaCubit>(
-      () => _i975.CotizacionRapidaCubit(
-        gh<_i431.CrearCotizacionRapidaUseCase>(),
-        gh<_i865.ActualizarCotizacionRapidaUseCase>(),
-        gh<_i765.BuscarClientePorDniUseCase>(),
-        gh<_i33.BuscarClientePorRucUseCase>(),
-        gh<_i574.PrecioNivelCacheService>(),
-        gh<_i200.ComboRepository>(),
-      ),
-    );
     gh.factory<_i547.AccountSecurityCubit>(
       () => _i547.AccountSecurityCubit(
         gh<_i809.CheckAuthMethodsUseCase>(),
@@ -4579,6 +4569,18 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i815.VerifyEmailCubit>(
       () => _i815.VerifyEmailCubit(
         verifyEmailUseCase: gh<_i30.VerifyEmailUseCase>(),
+      ),
+    );
+    gh.lazySingleton<_i975.CotizacionRapidaCubit>(
+      () => _i975.CotizacionRapidaCubit(
+        gh<_i431.CrearCotizacionRapidaUseCase>(),
+        gh<_i865.ActualizarCotizacionRapidaUseCase>(),
+        gh<_i765.BuscarClientePorDniUseCase>(),
+        gh<_i33.BuscarClientePorRucUseCase>(),
+        gh<_i574.PrecioNivelCacheService>(),
+        gh<_i200.ComboRepository>(),
+        gh<_i262.ProductoStockRepository>(),
+        gh<_i805.RealtimeSyncService>(),
       ),
     );
     gh.lazySingleton<_i985.VentaRapidaCubit>(
