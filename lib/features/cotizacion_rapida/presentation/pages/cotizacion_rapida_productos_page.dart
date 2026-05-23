@@ -156,32 +156,69 @@ class _CotizacionProductosView extends StatelessWidget {
           child: Row(
             children: [
               Expanded(
-                child: SegmentedButton<String>(
-                  segments: const [
-                    ButtonSegment(
-                      value: TipoCotizacionRapida.simple,
-                      label:
-                          Text('Simple', style: TextStyle(fontSize: 11)),
-                      icon: Icon(Icons.description_outlined, size: 14),
-                    ),
-                    ButtonSegment(
-                      value: TipoCotizacionRapida.paraVenta,
-                      label: Text('Para Venta',
-                          style: TextStyle(fontSize: 11)),
-                      icon: Icon(Icons.shopping_cart_outlined, size: 14),
-                    ),
-                  ],
-                  selected: {state.tipoCotizacion},
-                  showSelectedIcon: false,
-                  style: SegmentedButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.blue1.withValues(alpha: 0.18),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
-                  onSelectionChanged: (s) {
-                    ctx
-                        .read<CotizacionRapidaCubit>()
-                        .setTipoCotizacion(s.first);
-                  },
+                  child: SegmentedButton<String>(
+                    segments: const [
+                      ButtonSegment(
+                        value: TipoCotizacionRapida.simple,
+                        label:
+                            Text('Simple', style: TextStyle(fontSize: 11)),
+                        icon: Icon(Icons.description_outlined, size: 14),
+                      ),
+                      ButtonSegment(
+                        value: TipoCotizacionRapida.paraVenta,
+                        label: Text('Para Venta',
+                            style: TextStyle(fontSize: 11)),
+                        icon: Icon(Icons.shopping_cart_outlined, size: 14),
+                      ),
+                    ],
+                    selected: {state.tipoCotizacion},
+                    showSelectedIcon: false,
+                    style: ButtonStyle(
+                      visualDensity: VisualDensity.compact,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      // Override del teal/purple por defecto de Material3
+                      // para alinear con el blue1 del sistema.
+                      backgroundColor:
+                          WidgetStateProperty.resolveWith((states) {
+                        if (states.contains(WidgetState.selected)) {
+                          return AppColors.blue1;
+                        }
+                        return Colors.white;
+                      }),
+                      foregroundColor:
+                          WidgetStateProperty.resolveWith((states) {
+                        if (states.contains(WidgetState.selected)) {
+                          return Colors.white;
+                        }
+                        return AppColors.blue1;
+                      }),
+                      side: WidgetStateProperty.all(
+                        BorderSide(
+                          color: AppColors.blue1.withValues(alpha: 0.4),
+                          width: 1,
+                        ),
+                      ),
+                      overlayColor: WidgetStateProperty.all(
+                        AppColors.blue1.withValues(alpha: 0.08),
+                      ),
+                    ),
+                    onSelectionChanged: (s) {
+                      ctx
+                          .read<CotizacionRapidaCubit>()
+                          .setTipoCotizacion(s.first);
+                    },
+                  ),
                 ),
               ),
               if (esSimple) ...[
