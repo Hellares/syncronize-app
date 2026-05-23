@@ -22,8 +22,16 @@ class CotizacionRapidaFinalizarPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider.value(
-      value: locator<CotizacionRapidaCubit>(),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider.value(value: locator<CotizacionRapidaCubit>()),
+        // CajaActivaCubit es @injectable — instancia por página.
+        // Necesario para el bloque "Reserva de stock" que registra el
+        // pago adelantado en la caja abierta del cajero.
+        BlocProvider(
+          create: (_) => locator<CajaActivaCubit>()..loadCajaActiva(),
+        ),
+      ],
       child: const _FinalizarView(),
     );
   }
