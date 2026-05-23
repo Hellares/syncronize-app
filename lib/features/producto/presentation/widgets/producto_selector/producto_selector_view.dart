@@ -155,7 +155,11 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
   void _suscribirRealtime() {
     final realtime = locator<RealtimeSyncService>();
     _realtimeSubscription = realtime.events.listen((event) {
-      if (event is RealtimeProductoCreado) {
+      if (event is RealtimeProductoCreado ||
+          event is RealtimeProductoActualizado) {
+        // Mismo razonamiento que en productos_page: cambios estructurales
+        // requieren reload completo para que aparezcan/desaparezcan
+        // productos según filtros del backend.
         _pendingFullReload = true;
       }
       _realtimeReloadDebounce?.cancel();

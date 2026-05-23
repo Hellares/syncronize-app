@@ -104,7 +104,11 @@ class _ProductosPageState extends State<ProductosPage>
   void _suscribirRealtime() {
     final realtime = locator<RealtimeSyncService>();
     _realtimeSubscription = realtime.events.listen((event) {
-      if (event is RealtimeProductoCreado) {
+      if (event is RealtimeProductoCreado ||
+          event is RealtimeProductoActualizado) {
+        // Cambios estructurales (create/delete/restore/isActive/variantes/
+        // combos/bulk) requieren fetch full para que el backend re-aplique
+        // filtros (isActive, deletedAt, orden) en el catálogo del cliente.
         _pendingFullReload = true;
       }
       _realtimeReloadDebounce?.cancel();

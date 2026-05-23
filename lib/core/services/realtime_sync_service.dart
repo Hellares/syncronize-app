@@ -65,6 +65,20 @@ class RealtimeProductoCreado extends RealtimeEvent {
   });
 }
 
+/// Un producto cambió de forma estructural (nombre/desc/categoría/marca/
+/// isActive/delete/restore/variantes/combo/bulk). El listener debe hacer
+/// fetch full para que el backend re-aplique filtros (isActive, deletedAt,
+/// etc.) y el catálogo del cliente quede coherente. Si `productoId` es
+/// null el cambio es masivo (bulk upload, importación, etc.).
+class RealtimeProductoActualizado extends RealtimeEvent {
+  final String empresaId;
+  final String? productoId;
+  const RealtimeProductoActualizado({
+    required this.empresaId,
+    this.productoId,
+  });
+}
+
 /// Las imágenes de un producto fueron modificadas (upload/delete). El
 /// listener debe refrescar el catálogo — la URL puede ser nueva o
 /// haber desaparecido.
@@ -209,6 +223,13 @@ class RealtimeSyncService {
 
       case 'PRODUCTO_CREADO':
         _eventsController.add(RealtimeProductoCreado(
+          empresaId: empresaId,
+          productoId: productoId,
+        ));
+        break;
+
+      case 'PRODUCTO_ACTUALIZADO':
+        _eventsController.add(RealtimeProductoActualizado(
           empresaId: empresaId,
           productoId: productoId,
         ));
