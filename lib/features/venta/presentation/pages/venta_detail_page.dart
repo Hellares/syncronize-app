@@ -1063,16 +1063,17 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
 
   /// Genera las sub-líneas que aparecen indentadas debajo del Row de
   /// un item cuando ese item tiene devoluciones PROCESADAS asociadas.
-  /// Cada línea muestra acción (Devuelto / Cambiado / etc.), cantidad,
-  /// producto de reemplazo cuando aplica, y el código de la devolución
-  /// (cliqueable → abre el detalle).
+  /// Diseño tipo árbol con conector └─▶ (mismo lenguaje visual que el
+  /// FlujoDocumentosWidget) para indicar jerarquía.
   List<Widget> _buildDevolucionLines(Venta v, String ventaDetalleId) {
     final items = (v.devoluciones ?? const <VentaDevolucionItemInfo>[])
         .where((d) => d.ventaDetalleId == ventaDetalleId)
         .toList();
     if (items.isEmpty) return const [];
 
-    return items.map((d) {
+    return List.generate(items.length, (idx) {
+      final d = items[idx];
+      final isLast = idx == items.length - 1;
       final isCambio = d.accion == 'CAMBIO_PRODUCTO';
       final icon = isCambio ? Icons.swap_horiz : Icons.assignment_return;
       final color = isCambio ? Colors.indigo : Colors.orange.shade800;
@@ -1089,114 +1090,148 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
       final mostrarDif = isCambio && dif.abs() > 0.001;
 
       return Padding(
-        padding: const EdgeInsets.only(left: 30, top: 4, bottom: 4),
-        child: InkWell(
-          onTap: () =>
-              context.push('/empresa/devoluciones/${d.devolucionId}'),
-          borderRadius: BorderRadius.circular(4),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(4),
-              border: Border(
-                left: BorderSide(color: color, width: 2),
+        padding: const EdgeInsets.only(left: 26),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Conector └─▶ pintado a la misma escala que el árbol del
+              // flujo de documentos. Si no es el último, extiende la
+              // línea vertical hacia abajo para "continuar el tronco".
+              SizedBox(
+                width: 22,
+                child: CustomPaint(
+                  size: const Size(22, 32),
+                  painter: _ConnectorPainter(
+                    color: color.withValues(alpha: 0.55),
+                    isLast: isLast,
+                  ),
+                ),
               ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Línea 1: acción + cantidad + reemplazo si aplica
-                Row(
-                  children: [
-                    Icon(icon, size: 12, color: color),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: RichText(
-                        text: TextSpan(
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: color,
-                            fontWeight: FontWeight.w700,
-                          ),
+              // Contenido del nodo
+              Expanded(
+                child: InkWell(
+                  onTap: () => context
+                      .push('/empresa/devoluciones/${d.devolucionId}'),
+                  borderRadius: BorderRadius.circular(4),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 4, vertical: 3),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Línea 1: ícono + acción + reemplazo + dif precio
+                        Row(
                           children: [
-                            TextSpan(text: '${d.accionLabel}: ${d.cantidad}'),
-                            if (isCambio && reemplazoNombre != null)
-                              TextSpan(
-                                text: ' → $reemplazoNombre',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: color,
-                                  fontWeight: FontWeight.w500,
+                            Container(
+                              width: 18,
+                              height: 18,
+                              decoration: BoxDecoration(
+                                color: color.withValues(alpha: 0.13),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child:
+                                  Icon(icon, size: 12, color: color),
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: RichText(
+                                text: TextSpan(
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: color,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                  children: [
+                                    TextSpan(
+                                        text:
+                                            '${d.accionLabel}: ${d.cantidad}'),
+                                    if (isCambio && reemplazoNombre != null)
+                                      TextSpan(
+                                        text: ' → $reemplazoNombre',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: color,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            if (mostrarDif)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 5, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: dif > 0
+                                      ? Colors.green.shade50
+                                      : Colors.red.shade50,
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(
+                                    color: dif > 0
+                                        ? Colors.green.shade300
+                                        : Colors.red.shade300,
+                                  ),
+                                ),
+                                child: Text(
+                                  '${dif > 0 ? '+' : '−'} S/ ${dif.abs().toStringAsFixed(2)}',
+                                  style: TextStyle(
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: dif > 0
+                                        ? Colors.green.shade800
+                                        : Colors.red.shade800,
+                                  ),
                                 ),
                               ),
                           ],
                         ),
-                      ),
-                    ),
-                    if (mostrarDif)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 5, vertical: 1),
-                        decoration: BoxDecoration(
-                          color: dif > 0
-                              ? Colors.green.shade50
-                              : Colors.red.shade50,
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(
-                            color: dif > 0
-                                ? Colors.green.shade300
-                                : Colors.red.shade300,
-                          ),
+                        const SizedBox(height: 2),
+                        // Línea 2: chips compactos
+                        Wrap(
+                          spacing: 4,
+                          runSpacing: 2,
+                          children: [
+                            _DevolucionChip(label: d.motivoLabel, color: color),
+                            _DevolucionChip(
+                              label: 'Estado: ${d.estadoProductoLabel}',
+                              color: color,
+                            ),
+                            _DevolucionChip(
+                              label: d.tipoReembolso == 'CAMBIO_PRODUCTO'
+                                  ? 'Cambio'
+                                  : 'Reembolso efectivo',
+                              color: color,
+                            ),
+                          ],
                         ),
-                        child: Text(
-                          '${dif > 0 ? '+' : '−'} S/ ${dif.abs().toStringAsFixed(2)}',
-                          style: TextStyle(
-                            fontSize: 9.5,
-                            fontWeight: FontWeight.w700,
-                            color: dif > 0
-                                ? Colors.green.shade800
-                                : Colors.red.shade800,
-                          ),
+                        const SizedBox(height: 2),
+                        // Línea 3: código + fecha (cliqueable)
+                        Row(
+                          children: [
+                            Text(
+                              '${d.devolucionCodigo}${fecha != null ? " • $fecha" : ""}',
+                              style: TextStyle(
+                                fontSize: 9,
+                                color: Colors.grey.shade600,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            Icon(Icons.chevron_right,
+                                size: 12, color: Colors.grey.shade500),
+                          ],
                         ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 2),
-                // Línea 2: chips de motivo / estado / tipo reembolso
-                Wrap(
-                  spacing: 4,
-                  runSpacing: 2,
-                  children: [
-                    _DevolucionChip(label: d.motivoLabel, color: color),
-                    _DevolucionChip(
-                      label: 'Estado: ${d.estadoProductoLabel}',
-                      color: color,
+                      ],
                     ),
-                    _DevolucionChip(
-                      label: d.tipoReembolso == 'CAMBIO_PRODUCTO'
-                          ? 'Cambio'
-                          : 'Reembolso efectivo',
-                      color: color,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 2),
-                // Línea 3: código de devolución + fecha (tap → detail)
-                Text(
-                  '${d.devolucionCodigo}${fecha != null ? " • $fecha" : ""}  ›',
-                  style: TextStyle(
-                    fontSize: 9,
-                    color: Colors.grey.shade600,
-                    fontWeight: FontWeight.w500,
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       );
-    }).toList();
+    });
   }
 
   Widget _buildNotaCard(NotaRelacionada nota, String sedeId) {
@@ -2381,6 +2416,64 @@ class _Th extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Dibuja el conector └─▶ para sub-líneas indentadas debajo de un
+/// item. Mismo lenguaje visual que el FlujoDocumentosWidget para
+/// mantener coherencia. `isLast=true` no extiende la vertical hacia
+/// abajo (no hay más hijos).
+class _ConnectorPainter extends CustomPainter {
+  final Color color;
+  final bool isLast;
+
+  _ConnectorPainter({required this.color, required this.isLast});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 1.2
+      ..style = PaintingStyle.stroke;
+
+    // Vertical desde arriba al centro.
+    canvas.drawLine(
+      const Offset(6, 0),
+      Offset(6, size.height / 2),
+      paint,
+    );
+
+    // Horizontal desde la vertical hasta la punta de la flecha.
+    canvas.drawLine(
+      Offset(6, size.height / 2),
+      Offset(size.width - 4, size.height / 2),
+      paint,
+    );
+
+    // Punta de flecha ▶ rellena.
+    final arrowPaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+    final arrowPath = Path()
+      ..moveTo(size.width - 4, size.height / 2 - 3)
+      ..lineTo(size.width, size.height / 2)
+      ..lineTo(size.width - 4, size.height / 2 + 3)
+      ..close();
+    canvas.drawPath(arrowPath, arrowPaint);
+
+    // Si no es el último, continuar la vertical hacia abajo para
+    // conectar con el siguiente hijo.
+    if (!isLast) {
+      canvas.drawLine(
+        Offset(6, size.height / 2),
+        Offset(6, size.height),
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_ConnectorPainter oldDelegate) =>
+      color != oldDelegate.color || isLast != oldDelegate.isLast;
 }
 
 /// Chip pequeño para mostrar motivo / estado / tipo en la sub-línea de
