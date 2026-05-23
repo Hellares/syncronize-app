@@ -41,6 +41,19 @@ class CotizacionRapidaState extends Equatable {
   /// Id de la cotización que se está editando. Solo válido si `modoEdicion=true`.
   final String? cotizacionEditandoId;
 
+  // Reserva de stock + pago adelantado (solo aplica a modo PARA_VENTA).
+  /// Si `true`, el backend reserva el stock de los items del catálogo.
+  /// Se libera automáticamente al anular/expirar/convertir.
+  final bool reservarStock;
+
+  /// Monto del pago adelantado del cliente (puede ser 0). Se registra
+  /// como MovimientoCaja(ADELANTO_COTIZACION) en la caja del cajero.
+  final double adelantoMonto;
+
+  /// ID de la caja activa donde se registra el adelanto. Requerido si
+  /// `adelantoMonto > 0`.
+  final String? cajaIdAdelanto;
+
   // Estado UI
   final bool procesando;
   final String? error;
@@ -71,6 +84,9 @@ class CotizacionRapidaState extends Equatable {
     this.condiciones = '',
     this.modoEdicion = false,
     this.cotizacionEditandoId,
+    this.reservarStock = false,
+    this.adelantoMonto = 0,
+    this.cajaIdAdelanto,
     this.procesando = false,
     this.error,
     this.cotizacionCompletadaId,
@@ -118,6 +134,10 @@ class CotizacionRapidaState extends Equatable {
     bool? modoEdicion,
     String? cotizacionEditandoId,
     bool clearCotizacionEditandoId = false,
+    bool? reservarStock,
+    double? adelantoMonto,
+    String? cajaIdAdelanto,
+    bool clearCajaIdAdelanto = false,
     bool? procesando,
     String? error,
     bool clearError = false,
@@ -150,6 +170,11 @@ class CotizacionRapidaState extends Equatable {
       cotizacionEditandoId: clearCotizacionEditandoId
           ? null
           : (cotizacionEditandoId ?? this.cotizacionEditandoId),
+      reservarStock: reservarStock ?? this.reservarStock,
+      adelantoMonto: adelantoMonto ?? this.adelantoMonto,
+      cajaIdAdelanto: clearCajaIdAdelanto
+          ? null
+          : (cajaIdAdelanto ?? this.cajaIdAdelanto),
       procesando: procesando ?? this.procesando,
       error: clearError ? null : (error ?? this.error),
       cotizacionCompletadaId: clearCotizacionCompletada
@@ -169,6 +194,7 @@ class CotizacionRapidaState extends Equatable {
         numeroDocCliente, nombreClienteResuelto, buscandoCliente,
         nombreCotizacion, fechaVencimiento, observaciones, condiciones,
         modoEdicion, cotizacionEditandoId,
+        reservarStock, adelantoMonto, cajaIdAdelanto,
         procesando, error, cotizacionCompletadaId, comboPendienteOferta,
       ];
 }

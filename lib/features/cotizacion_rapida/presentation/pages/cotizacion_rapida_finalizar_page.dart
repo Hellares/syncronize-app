@@ -6,11 +6,15 @@ import 'package:intl/intl.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/cliente_unificado_selector.dart';
+import '../../../../core/widgets/currency/currency_textfield.dart';
 import '../../../../core/widgets/custom_button.dart';
+import '../../../../core/widgets/custom_switch.dart';
 import '../../../../core/widgets/date/custom_date.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../../../core/widgets/snack_bar_helper.dart';
 import '../../../auth/presentation/widgets/custom_text.dart';
+import '../../../caja/presentation/bloc/caja_activa_cubit.dart';
+import '../../../caja/presentation/bloc/caja_activa_state.dart';
 import '../bloc/cotizacion_rapida_cubit.dart';
 
 class CotizacionRapidaFinalizarPage extends StatelessWidget {
@@ -324,6 +328,10 @@ class _FinalizarViewState extends State<_FinalizarView> {
                           ),
                         ),
                         const SizedBox(height: 12),
+                        // Reserva de stock + pago adelantado.
+                        // Solo aplica en modo PARA_VENTA.
+                        const _ReservaStockSection(),
+                        const SizedBox(height: 12),
                         // Detalles — todos en mayúsculas (TextCase.upper)
                         _SectionCard(
                           title: 'Detalles',
@@ -436,6 +444,171 @@ class _ResumenRow extends StatelessWidget {
           Text(value, style: style),
         ],
       ),
+    );
+  }
+}
+
+/// Bloque "Reserva de stock + adelanto" en la página de finalizar.
+///
+/// - Solo activable en modo PARA_VENTA (los items manuales no reservan).
+/// - El campo de adelanto solo se habilita si la reserva está activa
+///   y hay una caja abierta. Auto-vincula la caja activa al cubit.
+class _ReservaStockSection extends StatefulWidget {
+  const _ReservaStockSection();
+
+  @override
+  State<_ReservaStockSection> createState() => _ReservaStockSectionState();
+}
+
+class _ReservaStockSectionState extends State<_ReservaStockSection> {
+  final _adelantoCtrl = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    final monto = context.read<CotizacionRapidaCubit>().state.adelantoMonto;
+    if (monto > 0) {
+      _adelantoCtrl.text = monto.toStringAsFixed(2);
+    }
+  }
+
+  @override
+  void dispose() {
+    _adelantoCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<CotizacionRapidaCubit, CotizacionRapidaState>(
+      buildWhen: (a, b) =>
+          a.tipoCotizacion != b.tipoCotizacion ||
+          a.reservarStock != b.reservarStock ||
+          a.adelantoMonto != b.adelantoMonto,
+      builder: (context, state) {
+        final esParaVenta =
+            state.tipoCotizacion == TipoCotizacionRapida.paraVenta;
+        return _SectionCard(
+          title: 'Reserva de stock',
+          child: BlocBuilder<CajaActivaCubit, CajaActivaState>(
+            builder: (context, cajaState) {
+              final cajaAbierta = cajaState is CajaActivaAbierta;
+              final cajaId = cajaAbierta ? cajaState.caja.id : null;
+
+              // Auto-vincular la caja activa al cubit si cambió.
+              if (cajaId != state.cajaIdAdelanto) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (!context.mounted) return;
+                  context
+                      .read<CotizacionRapidaCubit>()
+                      .setCajaIdAdelanto(cajaId);
+                });
+              }
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Switch principal
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Apartar productos para este cliente',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: esParaVenta
+                                    ? AppColors.blue1
+                                    : AppColors.blue1.withValues(alpha: 0.4),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              esParaVenta
+                                  ? 'El stock queda reservado hasta convertir, anular o expirar la cotización.'
+                                  : 'Solo disponible en cotización PARA VENTA.',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.grey[600],
+                                height: 1.2,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      CustomSwitch(
+                        value: state.reservarStock && esParaVenta,
+                        onChanged: esParaVenta
+                            ? (v) => context
+                                .read<CotizacionRapidaCubit>()
+                                .setReservarStock(v)
+                            : null,
+                      ),
+                    ],
+                  ),
+                  // Campo de adelanto solo si la reserva está activa
+                  if (state.reservarStock && esParaVenta) ...[
+                    const SizedBox(height: 12),
+                    if (!cajaAbierta)
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.shade50,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: Colors.orange.shade200),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.warning_amber_rounded,
+                                size: 16, color: Colors.orange[700]),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                'No hay caja abierta. Abrí caja primero si vas a registrar un pago adelantado.',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.orange[900],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      CurrencyTextField(
+                        controller: _adelantoCtrl,
+                        label: 'Pago adelantado (opcional)',
+                        hintText: '0.00',
+                        borderColor: AppColors.blue1,
+                        onChanged: (monto) {
+                          context
+                              .read<CotizacionRapidaCubit>()
+                              .setAdelantoMonto(monto);
+                        },
+                      ),
+                    if (cajaAbierta && state.adelantoMonto > 0) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        'Se registrará como ingreso en caja "${(cajaState).caja.codigo}". Si se anula la cotización, se devuelve automáticamente.',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.grey[600],
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ],
+                  ],
+                ],
+              );
+            },
+          ),
+        );
+      },
     );
   }
 }

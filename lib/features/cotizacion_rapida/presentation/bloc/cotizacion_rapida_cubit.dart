@@ -85,6 +85,8 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
 
   /// Cambiar entre SIMPLE y PARA_VENTA. Si PARA_VENTA, los items manuales
   /// no se permiten — al cambiar, removemos los manuales existentes.
+  /// Si se vuelve a SIMPLE, también limpiamos las opciones de reserva
+  /// (no aplican fuera de PARA_VENTA).
   void setTipoCotizacion(String tipo) {
     if (tipo != TipoCotizacionRapida.simple &&
         tipo != TipoCotizacionRapida.paraVenta) {
@@ -100,7 +102,47 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
           .toList();
       emit(state.copyWith(tipoCotizacion: tipo, items: soloCatalogo));
     } else {
-      emit(state.copyWith(tipoCotizacion: tipo));
+      emit(state.copyWith(
+        tipoCotizacion: tipo,
+        reservarStock: false,
+        adelantoMonto: 0,
+        clearCajaIdAdelanto: true,
+      ));
+    }
+  }
+
+  // ── Reserva de stock + adelanto ──
+
+  /// Activa o desactiva la reserva de stock. Si se apaga, también
+  /// limpia el monto adelantado (sin reserva no tiene sentido el
+  /// adelanto vinculado).
+  void setReservarStock(bool valor) {
+    if (state.tipoCotizacion != TipoCotizacionRapida.paraVenta) return;
+    if (valor) {
+      emit(state.copyWith(reservarStock: true));
+    } else {
+      emit(state.copyWith(
+        reservarStock: false,
+        adelantoMonto: 0,
+        clearCajaIdAdelanto: true,
+      ));
+    }
+  }
+
+  /// Monto del adelanto. 0 = sin adelanto.
+  void setAdelantoMonto(double monto) {
+    if (monto < 0) return;
+    emit(state.copyWith(adelantoMonto: monto));
+  }
+
+  /// Caja activa donde se registra el adelanto. Debe corresponder a una
+  /// caja ABIERTA del cajero en la sede de la cotización (el backend lo
+  /// valida).
+  void setCajaIdAdelanto(String? cajaId) {
+    if (cajaId == null) {
+      emit(state.copyWith(clearCajaIdAdelanto: true));
+    } else {
+      emit(state.copyWith(cajaIdAdelanto: cajaId));
     }
   }
 
@@ -683,6 +725,13 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
       if (state.condiciones.trim().isNotEmpty)
         'condiciones': state.condiciones.trim(),
       'detalles': state.items.map((item) => item.toMap()).toList(),
+      // Reserva de stock + adelanto. Solo aplica en modo PARA_VENTA;
+      // el setter `setTipoCotizacion('SIMPLE')` ya limpió estos flags
+      // si el usuario cambió de modo.
+      if (state.reservarStock) 'reservarStock': true,
+      if (state.adelantoMonto > 0) 'adelantoMonto': state.adelantoMonto,
+      if (state.adelantoMonto > 0 && state.cajaIdAdelanto != null)
+        'cajaId': state.cajaIdAdelanto,
     };
 
     final result = await _crearCotizacionUseCase(data: data);
