@@ -286,17 +286,44 @@ class _DevolucionVentaFormPageState extends State<DevolucionVentaFormPage> {
                             borderColor: AppColors.blue1,
                             items: EstadoProductoDevolucion.values.map((e) =>
                                 DropdownItem(value: e, label: e.label)).toList(),
-                            onChanged: (v) { if (v != null) setState(() => item.estadoProducto = v); },
+                            onChanged: (v) {
+                              if (v == null) return;
+                              setState(() {
+                                item.estadoProducto = v;
+                                // Si la acción actual ya no es válida
+                                // para el nuevo estado, reset a la
+                                // primera permitida — evita que el
+                                // backend rechace al guardar.
+                                final permitidas =
+                                    AccionDevolucion.permitidasPara(v);
+                                if (!permitidas.contains(item.accion) &&
+                                    permitidas.isNotEmpty) {
+                                  item.accion = permitidas.first;
+                                }
+                              });
+                            },
                           ),
                           const SizedBox(height: 8),
-                          CustomDropdown<AccionDevolucion>(
-                            label: 'Accion',
-                            value: item.accion,
-                            borderColor: AppColors.blue1,
-                            items: AccionDevolucion.values.map((a) =>
-                                DropdownItem(value: a, label: a.label)).toList(),
-                            onChanged: (v) { if (v != null) setState(() => item.accion = v); },
-                          ),
+                          Builder(builder: (_) {
+                            final permitidas = AccionDevolucion
+                                .permitidasPara(item.estadoProducto);
+                            return CustomDropdown<AccionDevolucion>(
+                              label: 'Accion',
+                              value: permitidas.contains(item.accion)
+                                  ? item.accion
+                                  : permitidas.first,
+                              borderColor: AppColors.blue1,
+                              items: permitidas
+                                  .map((a) => DropdownItem(
+                                      value: a, label: a.label))
+                                  .toList(),
+                              onChanged: (v) {
+                                if (v != null) {
+                                  setState(() => item.accion = v);
+                                }
+                              },
+                            );
+                          }),
                           // Product exchange UI
                           if (_tipoReembolso == TipoReembolso.cambioProducto && _empresaId != null) ...[
                             const SizedBox(height: 12),

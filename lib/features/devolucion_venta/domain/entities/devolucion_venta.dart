@@ -105,6 +105,51 @@ enum EstadoProductoDevolucion {
 enum AccionDevolucion {
   reingresarStock, marcarDanado, enviarReparacion, darDeBaja, devolverProveedor, cambioProducto;
 
+  /// Acciones permitidas según el estado físico del producto devuelto.
+  /// Espejo de COMBINACIONES_PERMITIDAS del backend para que el form
+  /// solo muestre opciones válidas. Si llega un estado desconocido,
+  /// devuelve TODAS las acciones (no bloquear UI).
+  static List<AccionDevolucion> permitidasPara(EstadoProductoDevolucion estado) {
+    switch (estado) {
+      case EstadoProductoDevolucion.bueno:
+        return [
+          AccionDevolucion.reingresarStock,
+          AccionDevolucion.devolverProveedor,
+          AccionDevolucion.darDeBaja,
+          AccionDevolucion.cambioProducto,
+        ];
+      case EstadoProductoDevolucion.danado:
+        return [
+          AccionDevolucion.marcarDanado,
+          AccionDevolucion.devolverProveedor,
+          AccionDevolucion.darDeBaja,
+          AccionDevolucion.cambioProducto,
+        ];
+      case EstadoProductoDevolucion.reparable:
+        return [
+          AccionDevolucion.enviarReparacion,
+          AccionDevolucion.devolverProveedor,
+          AccionDevolucion.darDeBaja,
+          AccionDevolucion.cambioProducto,
+        ];
+      case EstadoProductoDevolucion.vencido:
+        return [
+          AccionDevolucion.darDeBaja,
+          AccionDevolucion.devolverProveedor,
+          AccionDevolucion.marcarDanado,
+          AccionDevolucion.cambioProducto,
+        ];
+      case EstadoProductoDevolucion.incompleto:
+        return [
+          AccionDevolucion.enviarReparacion,
+          AccionDevolucion.devolverProveedor,
+          AccionDevolucion.darDeBaja,
+          AccionDevolucion.marcarDanado,
+          AccionDevolucion.cambioProducto,
+        ];
+    }
+  }
+
   String get label {
     switch (this) {
       case AccionDevolucion.reingresarStock: return 'Reingresar a stock';
