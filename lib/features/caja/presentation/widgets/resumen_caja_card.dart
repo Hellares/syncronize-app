@@ -58,6 +58,44 @@ class ResumenCajaCard extends StatelessWidget {
             currencyFormat.format(resumen.totalEgresos),
             AppColors.red,
           ),
+          // Subrayado del egreso por anulaciones de venta — subconjunto
+          // de Total Egresos, no se suma aparte. Solo aparece si hubo
+          // anulaciones en esta caja.
+          if (resumen.egresoAnulacionVenta > 0) ...[
+            const SizedBox(height: 4),
+            Padding(
+              padding: const EdgeInsets.only(left: 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.cancel_outlined,
+                          size: 12, color: AppColors.red.withValues(alpha: 0.7)),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Anulación de Venta'
+                        '${resumen.cantidadAnulaciones > 0 ? " (${resumen.cantidadAnulaciones})" : ""}',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontStyle: FontStyle.italic,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Text(
+                    '- ${currencyFormat.format(resumen.egresoAnulacionVenta)}',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.red.withValues(alpha: 0.8),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const Divider(height: 20),
           // Saldo en Caja: lo fisico en la gaveta (EFECTIVO + apertura).
           // Es lo que el cajero deberia contar al cerrar.

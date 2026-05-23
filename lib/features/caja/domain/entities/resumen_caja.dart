@@ -32,12 +32,20 @@ class ResumenCaja extends Equatable {
   final double saldoEfectivo;
   final List<ResumenMetodoPago> detalles;
 
+  /// Suma de EGRESOs en esta caja generados por anulaciones de venta.
+  /// Subconjunto de `totalEgresos`. Útil para que el cajero vea cuánto
+  /// dinero "perdió" por anular ventas durante el turno.
+  final double egresoAnulacionVenta;
+  final int cantidadAnulaciones;
+
   const ResumenCaja({
     required this.totalIngresos,
     required this.totalEgresos,
     required this.saldo,
     required this.saldoEfectivo,
     required this.detalles,
+    this.egresoAnulacionVenta = 0,
+    this.cantidadAnulaciones = 0,
   });
 
   @override
@@ -47,5 +55,7 @@ class ResumenCaja extends Equatable {
         saldo,
         saldoEfectivo,
         detalles,
+        egresoAnulacionVenta,
+        cantidadAnulaciones,
       ];
 }

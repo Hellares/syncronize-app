@@ -36,6 +36,8 @@ class ResumenCajaModel extends ResumenCaja {
     required super.saldo,
     required super.saldoEfectivo,
     required super.detalles,
+    super.egresoAnulacionVenta,
+    super.cantidadAnulaciones,
   });
 
   factory ResumenCajaModel.fromJson(Map<String, dynamic> json) {
@@ -68,6 +70,8 @@ class ResumenCajaModel extends ResumenCaja {
       saldo: _toDouble(json['saldo']),
       saldoEfectivo: saldoEfectivo,
       detalles: detalles,
+      egresoAnulacionVenta: _toDouble(json['egresoAnulacionVenta']),
+      cantidadAnulaciones: (json['cantidadAnulaciones'] as int?) ?? 0,
     );
   }
 
