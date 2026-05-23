@@ -948,19 +948,26 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     if (e is RealtimePrecioCambiado) return e.empresaId;
     if (e is RealtimeStockCambiado) return e.empresaId;
     if (e is RealtimeNivelesCambiados) return e.empresaId;
+    // PRODUCTO_ACTUALIZADO cubre cambios estructurales (variantes, combo,
+    // isActive, etc). Si el producto está en el carrito, el flush hará
+    // refetch de precio/stock/niveles igual que con PRECIO_CAMBIADO.
+    if (e is RealtimeProductoActualizado) return e.empresaId;
     return null;
   }
 
   String? _sedeIdFromEvent(RealtimeEvent e) {
     if (e is RealtimePrecioCambiado) return e.sedeId;
     if (e is RealtimeStockCambiado) return e.sedeId;
-    return null; // niveles no son por sede
+    // niveles y PRODUCTO_ACTUALIZADO no son por sede — el refetch del
+    // producto trae precio/stock de la sede actual de igual modo.
+    return null;
   }
 
   String? _productoIdFromEvent(RealtimeEvent e) {
     if (e is RealtimePrecioCambiado) return e.productoId;
     if (e is RealtimeStockCambiado) return e.productoId;
     if (e is RealtimeNivelesCambiados) return e.productoId;
+    if (e is RealtimeProductoActualizado) return e.productoId;
     return null;
   }
 
