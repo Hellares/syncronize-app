@@ -83,6 +83,7 @@ class _CustomSearchFieldState extends State<CustomSearchField>
   late FocusNode _focusNode;
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
+  late Animation<double> _shadowAnimation;
 
   // Cache para optimización
   Color? _cachedBorderColor;
@@ -101,11 +102,18 @@ class _CustomSearchFieldState extends State<CustomSearchField>
     _focusNode.addListener(_onFocusChange);
 
     _animationController = AnimationController(
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 180),
       vsync: this,
     );
 
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.97).animate(
+    _shadowAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: Curves.fastOutSlowIn,
+      ),
+    );
+
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.985).animate(
       CurvedAnimation(
         parent: _animationController,
         curve: Curves.fastOutSlowIn,
@@ -331,20 +339,51 @@ class _CustomSearchFieldState extends State<CustomSearchField>
   }
 
   List<BoxShadow> _buildShadows() {
-    final borderColor = _getCachedBorderColor();
-    Color shadowColor = _getShadowColorFromBorder(borderColor);
-    
-    // Sombras más pronunciadas cuando está enfocado
-    double blurRadius = _isFocused ? 8 : 4;
-    double spreadRadius = _isFocused ? 0 : 0;
-    double opacity = _isFocused ? 0.15 : 0.08;
+    // Estilo neumórfico equivalente al CustomText (auth/widgets):
+    // - Enfocado: borde luminoso con sutil "lift" + highlight blanco en
+    //   esquina superior-izquierda.
+    // - Sin foco: profundidad doble (sombra negra abajo-derecha + tinte
+    //   del border + highlight blanco arriba-izquierda) que da el efecto
+    //   de "elevado sobre la superficie".
+    final intensity = _shadowAnimation.value;
+    final border = _getCachedBorderColor();
+    final shadowColor = _getShadowColorFromBorder(border);
+
+    if (_isFocused) {
+      return [
+        BoxShadow(
+          color: border.withValues(alpha: 0.25 + (intensity * 0.2)),
+          offset: const Offset(0, 1),
+          blurRadius: 3,
+          spreadRadius: 0,
+        ),
+        BoxShadow(
+          color: Colors.white.withValues(alpha: 0.6),
+          offset: const Offset(-1, -1),
+          blurRadius: 2,
+          spreadRadius: -1,
+        ),
+      ];
+    }
 
     return [
       BoxShadow(
-        color: shadowColor.withValues(alpha:opacity),
-        blurRadius: blurRadius,
-        offset: Offset(0, spreadRadius / 2),
-        spreadRadius: spreadRadius,
+        color: shadowColor.withValues(alpha: 0.18),
+        offset: const Offset(4, 4),
+        blurRadius: 8,
+        spreadRadius: 0,
+      ),
+      BoxShadow(
+        color: border.withValues(alpha: 0.15),
+        offset: const Offset(1, 1),
+        blurRadius: 4,
+        spreadRadius: -1,
+      ),
+      BoxShadow(
+        color: Colors.white.withValues(alpha: 0.8),
+        offset: const Offset(-2, -2),
+        blurRadius: 4,
+        spreadRadius: -1,
       ),
     ];
   }
