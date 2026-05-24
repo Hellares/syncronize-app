@@ -11,7 +11,10 @@ import '../utils/tesoreria_grouping.dart';
 class TesoreriaGroupCard extends StatelessWidget {
   final TesoreriaGroup group;
 
-  const TesoreriaGroupCard({super.key, required this.group});
+  /// Callback al tap. Si null, el card no es clicable.
+  final VoidCallback? onTap;
+
+  const TesoreriaGroupCard({super.key, required this.group, this.onTap});
 
   String _money(double v) => 'S/ ${v.toStringAsFixed(2)}';
 
@@ -32,6 +35,32 @@ class TesoreriaGroupCard extends StatelessWidget {
 
   Widget _singleTile(MovimientoCaja mov) {
     return ListTile(
+      onTap: onTap,
+      trailing: onTap != null
+          ? Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '$_signo${_money(group.montoTotal)}',
+                  style: TextStyle(
+                    color: _color,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                const Icon(Icons.chevron_right,
+                    size: 16, color: AppColors.textSecondary),
+              ],
+            )
+          : Text(
+              '$_signo${_money(group.montoTotal)}',
+              style: TextStyle(
+                color: _color,
+                fontWeight: FontWeight.w700,
+                fontSize: 12,
+              ),
+            ),
       leading: CircleAvatar(
         radius: 18,
         backgroundColor: _color.withValues(alpha: 0.12),
@@ -84,28 +113,26 @@ class TesoreriaGroupCard extends StatelessWidget {
           ),
         ],
       ),
-      trailing: Text(
-        '$_signo${_money(group.montoTotal)}',
-        style: TextStyle(
-          color: _color,
-          fontWeight: FontWeight.w700,
-          fontSize: 12,
-        ),
-      ),
     );
   }
 
   Widget _groupedCard() {
     final iconCategoria = group.items.first.categoria.icon;
+    final radius = BorderRadius.circular(10);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: Container(
-        decoration: BoxDecoration(
-          color: _color.withValues(alpha: 0.04),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: _color.withValues(alpha: 0.20)),
-        ),
-        child: Column(
+      child: Material(
+        color: _color.withValues(alpha: 0.04),
+        borderRadius: radius,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: radius,
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: radius,
+              border: Border.all(color: _color.withValues(alpha: 0.20)),
+            ),
+            child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // Header
@@ -114,7 +141,7 @@ class TesoreriaGroupCard extends StatelessWidget {
               child: Row(
                 children: [
                   CircleAvatar(
-                    radius: 18,
+                    radius: 16,
                     backgroundColor: _color.withValues(alpha: 0.15),
                     child: Icon(iconCategoria, color: _color, size: 16),
                   ),
@@ -127,7 +154,7 @@ class TesoreriaGroupCard extends StatelessWidget {
                           group.titulo,
                           style: const TextStyle(
                             fontWeight: FontWeight.w700,
-                            fontSize: 12,
+                            fontSize: 11,
                           ),
                         ),
                         if (group.subtitulo != null) ...[
@@ -177,6 +204,8 @@ class TesoreriaGroupCard extends StatelessWidget {
               ),
           ],
         ),
+          ),
+        ),
       ),
     );
   }
@@ -191,7 +220,7 @@ class TesoreriaGroupCard extends StatelessWidget {
       child: const Text(
         'ANULADO',
         style: TextStyle(
-          fontSize: 9,
+          fontSize: 8,
           color: AppColors.red,
           fontWeight: FontWeight.w700,
         ),
@@ -216,7 +245,7 @@ class _ReversosAfectanBanner extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: AppColors.orange.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(4),
         border: Border.all(color: AppColors.orange.withValues(alpha: 0.30)),
       ),
       child: Row(
@@ -227,7 +256,7 @@ class _ReversosAfectanBanner extends StatelessWidget {
             child: Text(
               label,
               style: const TextStyle(
-                fontSize: 11,
+                fontSize: 10,
                 fontWeight: FontWeight.w600,
                 color: AppColors.orange,
               ),
@@ -236,7 +265,7 @@ class _ReversosAfectanBanner extends StatelessWidget {
           Text(
             '-S/ ${monto.toStringAsFixed(2)}',
             style: const TextStyle(
-              fontSize: 11,
+              fontSize: 10,
               fontWeight: FontWeight.w800,
               color: AppColors.orange,
             ),
@@ -266,8 +295,9 @@ class _MetodoChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: 0.30)),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: color.withValues(alpha: 0.30), width: 0.5),
+        
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -276,13 +306,13 @@ class _MetodoChip extends StatelessWidget {
           const SizedBox(width: 4),
           Text(
             metodo.label,
-            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+            style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w600),
           ),
           const SizedBox(width: 6),
           Text(
             '$signo S/${monto.toStringAsFixed(2)}',
             style: TextStyle(
-              fontSize: 11,
+              fontSize: 9,
               color: color,
               fontWeight: FontWeight.w700,
             ),

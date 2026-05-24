@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:syncronize/core/di/injection_container.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
@@ -517,7 +518,22 @@ class _GroupedList extends StatelessWidget {
       separatorBuilder: (_, i) => grupos[i].isGrouped
           ? const SizedBox(height: 2)
           : const Divider(height: 1, indent: 16, endIndent: 16),
-      itemBuilder: (_, i) => TesoreriaGroupCard(group: grupos[i]),
+      itemBuilder: (_, i) {
+        final g = grupos[i];
+        // Solo los depositos del barrido linkean a la auditoria de la
+        // caja origen (cajaEspejoId esta en la metadata del INGRESO
+        // espejo en la central). El resto no tiene destino natural.
+        VoidCallback? onTap;
+        if (g.kind == TesoreriaGroupKind.barridoCierre) {
+          final cajaId =
+              g.items.first.metadata?['cajaEspejoId'] as String?;
+          if (cajaId != null) {
+            onTap = () =>
+                context.push('/empresa/caja/auditoria/$cajaId');
+          }
+        }
+        return TesoreriaGroupCard(group: g, onTap: onTap);
+      },
     );
   }
 }
