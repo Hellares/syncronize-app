@@ -59,17 +59,52 @@ class MovimientoGroupCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      _titleFor(group),
-                      style: TextStyle(
-                        fontSize: compact ? 11 : 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
-                        decoration:
-                            isAnulado ? TextDecoration.lineThrough : null,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _titleFor(group),
+                            style: TextStyle(
+                              fontSize: compact ? 11 : 13,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary,
+                              decoration: isAnulado
+                                  ? TextDecoration.lineThrough
+                                  : null,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        // Badge DEVUELTO: el ADELANTO_COTIZACION queda marcado
+                        // cuando la cotizacion vinculada termino RECHAZADA
+                        // (se genero la devolucion correspondiente, sea en la
+                        // misma caja o en Tesoreria).
+                        if (group.categoria ==
+                                CategoriaMovimientoCaja.adelantoCotizacion &&
+                            group.first.cotizacionFueAnulada) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 5, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.withValues(alpha: 0.10),
+                              borderRadius: BorderRadius.circular(3),
+                              border: Border.all(
+                                  color: Colors.orange.withValues(alpha: 0.40),
+                                  width: 0.6),
+                            ),
+                            child: Text(
+                              'DEVUELTO',
+                              style: TextStyle(
+                                fontSize: compact ? 8 : 9,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.orange,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                     const SizedBox(height: 2),
                     if (group.isGrouped)
