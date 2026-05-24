@@ -90,6 +90,7 @@ class CajaAuditoriaModel extends CajaAuditoria {
     final cotizacion = json['cotizacion'] as Map<String, dynamic>?;
     final categoriaGasto = json['categoriaGasto'] as Map<String, dynamic>?;
     final anuladoPor = json['anuladoPor'] as Map<String, dynamic>?;
+    final registradoPor = json['registradoPor'] as Map<String, dynamic>?;
 
     String? anuladoPorNombre;
     if (anuladoPor != null) {
@@ -98,6 +99,16 @@ class CajaAuditoriaModel extends CajaAuditoria {
         final nombre =
             '${persona['nombres'] ?? ''} ${persona['apellidos'] ?? ''}'.trim();
         if (nombre.isNotEmpty) anuladoPorNombre = nombre;
+      }
+    }
+
+    String? registradoPorNombre;
+    if (registradoPor != null) {
+      final persona = registradoPor['persona'] as Map<String, dynamic>?;
+      if (persona != null) {
+        final nombre =
+            '${persona['nombres'] ?? ''} ${persona['apellidos'] ?? ''}'.trim();
+        if (nombre.isNotEmpty) registradoPorNombre = nombre;
       }
     }
 
@@ -120,6 +131,7 @@ class CajaAuditoriaModel extends CajaAuditoria {
       cotizacionId: cotizacion?['id'] as String? ?? json['cotizacionId'] as String?,
       cotizacionCodigo: cotizacion?['codigo'] as String?,
       cotizacionEstado: cotizacion?['estado'] as String?,
+      registradoPorNombre: registradoPorNombre,
       anulado: json['anulado'] as bool? ?? false,
       motivoAnulacion: json['motivoAnulacion'] as String?,
       esContrapartida: json['esContrapartida'] as bool? ?? false,

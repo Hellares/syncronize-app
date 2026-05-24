@@ -23,6 +23,7 @@ class MovimientoCajaModel extends MovimientoCaja {
     super.cotizacionId,
     super.cotizacionCodigo,
     super.cotizacionEstado,
+    super.registradoPorNombre,
     super.anulado,
     super.motivoAnulacion,
     super.metadata,
@@ -34,8 +35,20 @@ class MovimientoCajaModel extends MovimientoCaja {
     final devolucion = json['devolucion'] as Map<String, dynamic>?;
     final compra = json['compra'] as Map<String, dynamic>?;
     final cotizacion = json['cotizacion'] as Map<String, dynamic>?;
+    final registradoPor = json['registradoPor'] as Map<String, dynamic>?;
     final categoriaGasto = json['categoriaGasto'] as Map<String, dynamic>?;
     final meta = json['metadata'];
+
+    String? registradoPorNombre;
+    if (registradoPor != null) {
+      final persona = registradoPor['persona'] as Map<String, dynamic>?;
+      if (persona != null) {
+        final nombres = (persona['nombres'] ?? '').toString().trim();
+        final apellidos = (persona['apellidos'] ?? '').toString().trim();
+        final full = '$nombres $apellidos'.trim();
+        if (full.isNotEmpty) registradoPorNombre = full;
+      }
+    }
 
     return MovimientoCajaModel(
       id: json['id'] as String,
@@ -61,6 +74,7 @@ class MovimientoCajaModel extends MovimientoCaja {
       cotizacionId: cotizacion?['id'] as String? ?? json['cotizacionId'] as String?,
       cotizacionCodigo: cotizacion?['codigo'] as String?,
       cotizacionEstado: cotizacion?['estado'] as String?,
+      registradoPorNombre: registradoPorNombre,
       anulado: json['anulado'] as bool? ?? false,
       motivoAnulacion: json['motivoAnulacion'] as String?,
       metadata: meta is Map<String, dynamic> ? meta : null,

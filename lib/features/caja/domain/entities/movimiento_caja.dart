@@ -368,6 +368,9 @@ class MovimientoCaja extends Equatable {
   /// Valores backend: BORRADOR | PENDIENTE | APROBADA | RECHAZADA |
   /// VENCIDA | CONVERTIDA.
   final String? cotizacionEstado;
+  /// Nombre del usuario que registró el movimiento (cajero o admin).
+  /// Útil en tesorería para identificar quién hizo el barrido/ajuste.
+  final String? registradoPorNombre;
   final bool anulado;
   final String? motivoAnulacion;
 
@@ -398,6 +401,7 @@ class MovimientoCaja extends Equatable {
     this.cotizacionId,
     this.cotizacionCodigo,
     this.cotizacionEstado,
+    this.registradoPorNombre,
     this.anulado = false,
     this.motivoAnulacion,
     this.metadata,
@@ -430,6 +434,7 @@ class MovimientoCaja extends Equatable {
         cotizacionId,
         cotizacionCodigo,
         cotizacionEstado,
+        registradoPorNombre,
         anulado,
         motivoAnulacion,
         metadata,

@@ -89,6 +89,7 @@ class MovimientoAuditoria extends MovimientoCaja {
     super.cotizacionId,
     super.cotizacionCodigo,
     super.cotizacionEstado,
+    super.registradoPorNombre,
     super.anulado,
     super.motivoAnulacion,
     this.esContrapartida = false,

@@ -151,11 +151,18 @@ List<TesoreriaGroup> groupTesoreriaMovimientos(List<MovimientoCaja> movs) {
     final codigo =
         items.first.metadata?['cajaOrigenCodigo'] as String? ?? 'caja';
     final monto = items.fold<double>(0, (s, m) => s + m.monto);
+    // Usuario que realizó el cierre (el barrido se registra con su id).
+    // Si es el cajero titular = nombre del cajero; si fue un admin
+    // cerrando la caja del cajero = nombre del admin.
+    final usuario = items.first.registradoPorNombre;
+    final subt = usuario != null
+        ? 'Recepción de cierre · $usuario'
+        : 'Recepción de cierre';
     grupos.add(TesoreriaGroup(
       items: items,
       kind: TesoreriaGroupKind.barridoCierre,
       titulo: 'Depósito de $codigo',
-      subtitulo: 'Recepción de cierre',
+      subtitulo: subt,
       montoTotal: monto,
       esIngreso: items.first.tipo == TipoMovimientoCaja.ingreso,
     ));
@@ -189,22 +196,40 @@ List<TesoreriaGroup> groupTesoreriaMovimientos(List<MovimientoCaja> movs) {
         ? 'Reverso $tipoRef $codigoRef'
         : 'Reverso de $tipoRef';
 
+    final usuario = first.registradoPorNombre;
+    final subtR = usuario != null
+        ? '$cajaOrigen ya cerrada · $usuario'
+        : '$cajaOrigen ya cerrada';
+
     grupos.add(TesoreriaGroup(
       items: items,
       kind: TesoreriaGroupKind.reversoCajaCerrada,
       titulo: titulo,
-      subtitulo: '$cajaOrigen ya cerrada',
+      subtitulo: subtR,
       montoTotal: monto,
       esIngreso: first.tipo == TipoMovimientoCaja.ingreso,
     ));
   }
 
   for (final m in individuales) {
+    // Para movs sueltos (ajuste manual, devolución de adelanto en
+    // tesorería, etc.), anexamos el usuario al subtitulo si está disponible.
+    final base = m.descripcion?.isNotEmpty == true ? m.descripcion! : '';
+    final usuario = m.registradoPorNombre;
+    String? subtI;
+    if (base.isNotEmpty && usuario != null) {
+      subtI = '$base · $usuario';
+    } else if (base.isNotEmpty) {
+      subtI = base;
+    } else if (usuario != null) {
+      subtI = usuario;
+    }
+
     grupos.add(TesoreriaGroup(
       items: [m],
       kind: TesoreriaGroupKind.individual,
       titulo: m.categoria.label,
-      subtitulo: m.descripcion,
+      subtitulo: subtI,
       montoTotal: m.monto,
       esIngreso: m.tipo == TipoMovimientoCaja.ingreso,
     ));
