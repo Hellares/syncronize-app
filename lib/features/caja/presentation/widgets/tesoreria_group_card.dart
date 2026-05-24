@@ -35,13 +35,14 @@ class TesoreriaGroupCard extends StatelessWidget {
       leading: CircleAvatar(
         radius: 18,
         backgroundColor: _color.withValues(alpha: 0.12),
-        child: Icon(mov.categoria.icon, color: _color, size: 18),
+        child: Icon(mov.categoria.icon, color: _color, size: 16),
       ),
       title: Text(
         group.titulo,
         style: TextStyle(
           fontWeight: FontWeight.w600,
           decoration: mov.anulado ? TextDecoration.lineThrough : null,
+          fontSize: 11,
         ),
       ),
       subtitle: Column(
@@ -50,7 +51,7 @@ class TesoreriaGroupCard extends StatelessWidget {
           if (group.subtitulo != null && group.subtitulo!.isNotEmpty)
             Text(
               group.subtitulo!,
-              style: const TextStyle(fontSize: 12),
+              style: const TextStyle(fontSize: 10),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
@@ -88,7 +89,7 @@ class TesoreriaGroupCard extends StatelessWidget {
         style: TextStyle(
           color: _color,
           fontWeight: FontWeight.w700,
-          fontSize: 14,
+          fontSize: 12,
         ),
       ),
     );
@@ -115,7 +116,7 @@ class TesoreriaGroupCard extends StatelessWidget {
                   CircleAvatar(
                     radius: 18,
                     backgroundColor: _color.withValues(alpha: 0.15),
-                    child: Icon(iconCategoria, color: _color, size: 18),
+                    child: Icon(iconCategoria, color: _color, size: 16),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
@@ -126,7 +127,7 @@ class TesoreriaGroupCard extends StatelessWidget {
                           group.titulo,
                           style: const TextStyle(
                             fontWeight: FontWeight.w700,
-                            fontSize: 14,
+                            fontSize: 12,
                           ),
                         ),
                         if (group.subtitulo != null) ...[
@@ -147,7 +148,7 @@ class TesoreriaGroupCard extends StatelessWidget {
                     style: TextStyle(
                       color: _color,
                       fontWeight: FontWeight.w800,
-                      fontSize: 15,
+                      fontSize: 12,
                     ),
                   ),
                 ],

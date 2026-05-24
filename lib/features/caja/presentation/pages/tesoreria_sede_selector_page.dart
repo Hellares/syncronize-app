@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:syncronize/core/di/injection_container.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/utils/resource.dart';
+import 'package:syncronize/core/widgets/smart_appbar.dart';
 import '../../../empresa/domain/entities/sede.dart';
 import '../../../sede/domain/usecases/get_sedes_usecase.dart';
 
@@ -50,8 +51,8 @@ class _TesoreriaSedeSelectorPageState extends State<TesoreriaSedeSelectorPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.surfaceBackground,
-      appBar: AppBar(
-        title: const Text('Tesorería — Elegir sede'),
+      appBar: const SmartAppBar(
+        title: 'Tesorería — Elegir sede',
         backgroundColor: AppColors.blue1,
         foregroundColor: AppColors.white,
       ),

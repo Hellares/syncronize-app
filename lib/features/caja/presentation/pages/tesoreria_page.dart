@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:syncronize/core/di/injection_container.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
+import 'package:syncronize/core/widgets/smart_appbar.dart';
 import '../../domain/entities/movimiento_caja.dart';
 import '../../domain/entities/tesoreria.dart';
 import '../bloc/tesoreria_cubit.dart';
@@ -40,8 +41,8 @@ class _TesoreriaView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.surfaceBackground,
-      appBar: AppBar(
-        title: const Text('Tesorería'),
+      appBar: SmartAppBar(
+        title: 'Tesorería',
         backgroundColor: AppColors.blue1,
         foregroundColor: AppColors.white,
         actions: [
@@ -184,15 +185,15 @@ class _HeaderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [AppColors.blue1, Color(0xFF1976D2)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(
             color: AppColors.blue1.withValues(alpha: 0.20),
@@ -207,7 +208,7 @@ class _HeaderCard extends StatelessWidget {
           Row(
             children: [
               const Icon(Icons.account_balance_rounded,
-                  color: AppColors.white, size: 28),
+                  color: AppColors.white, size: 22),
               const SizedBox(width: 8),
               Expanded(
                 child: Column(
@@ -218,14 +219,14 @@ class _HeaderCard extends StatelessWidget {
                       style: const TextStyle(
                         color: AppColors.white,
                         fontWeight: FontWeight.w700,
-                        fontSize: 16,
+                        fontSize: 12,
                       ),
                     ),
                     Text(
                       resumen.caja.codigo,
                       style: TextStyle(
                         color: AppColors.white.withValues(alpha: 0.85),
-                        fontSize: 12,
+                        fontSize: 10,
                       ),
                     ),
                   ],
@@ -263,7 +264,7 @@ class _HeaderCard extends StatelessWidget {
                 const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
               color: AppColors.white.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
