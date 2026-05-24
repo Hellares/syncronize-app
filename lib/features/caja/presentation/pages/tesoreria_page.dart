@@ -520,9 +520,12 @@ class _GroupedList extends StatelessWidget {
           : const Divider(height: 1, indent: 16, endIndent: 16),
       itemBuilder: (_, i) {
         final g = grupos[i];
-        // Solo los depositos del barrido linkean a la auditoria de la
-        // caja origen (cajaEspejoId esta en la metadata del INGRESO
-        // espejo en la central). El resto no tiene destino natural.
+        // Wire-up de navegacion segun tipo de grupo:
+        //  - barridoCierre  → auditoria de la caja origen (cajaEspejoId
+        //    esta en metadata del INGRESO espejo en la central).
+        //  - reversoCajaCerrada → detalle de la venta o devolucion que
+        //    se anulo (compras no tienen pantalla de detalle por id aun).
+        //  - resto (ajustes manuales, etc.) → sin destino.
         VoidCallback? onTap;
         if (g.kind == TesoreriaGroupKind.barridoCierre) {
           final cajaId =
@@ -531,6 +534,15 @@ class _GroupedList extends StatelessWidget {
             onTap = () =>
                 context.push('/empresa/caja/auditoria/$cajaId');
           }
+        } else if (g.kind == TesoreriaGroupKind.reversoCajaCerrada) {
+          final first = g.items.first;
+          if (first.ventaId != null) {
+            onTap = () => context.push('/empresa/ventas/${first.ventaId}');
+          } else if (first.devolucionId != null) {
+            onTap = () =>
+                context.push('/empresa/devoluciones/${first.devolucionId}');
+          }
+          // Compras: no hay pantalla de detalle por id en GoRouter aun.
         }
         return TesoreriaGroupCard(group: g, onTap: onTap);
       },
