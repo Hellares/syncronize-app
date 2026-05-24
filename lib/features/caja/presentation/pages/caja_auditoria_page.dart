@@ -940,7 +940,17 @@ class _CajaAuditoriaPageState extends State<CajaAuditoriaPage> {
                       const SizedBox(width: 6),
                       _badge('DEVUELTO', AppColors.orange),
                     ],
-                    if (m.esManual) ...[
+                    // MANUAL solo aplica a movs que el cajero registra
+                    // explícitamente desde el form de Nuevo Movimiento.
+                    // Excluimos categorías auto-generadas por flujos
+                    // (cotización, etc.) aunque la fila en BD venga con
+                    // esManual=true por bug histórico.
+                    if (m.esManual &&
+                        m.categoria !=
+                            CategoriaMovimientoCaja.adelantoCotizacion &&
+                        m.categoria !=
+                            CategoriaMovimientoCaja
+                                .devolucionAdelantoCotizacion) ...[
                       const SizedBox(width: 6),
                       _badge('MANUAL', AppColors.blue3),
                     ],
