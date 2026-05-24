@@ -34,7 +34,7 @@ class TesoreriaGroupCard extends StatelessWidget {
   }
 
   Widget _singleTile(MovimientoCaja mov) {
-    return ListTile(
+    final tile = ListTile(
       onTap: onTap,
       trailing: onTap != null
           ? Row(
@@ -98,28 +98,43 @@ class TesoreriaGroupCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              Text(
-                DateFormatter.formatDateTime(mov.fechaMovimiento),
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: AppColors.textSecondary,
+              Flexible(
+                child: Text(
+                  DateFormatter.formatDateTime(mov.fechaMovimiento),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               if (mov.anulado) ...[
                 const SizedBox(width: 8),
                 _badgeAnulado(),
               ],
-              // Badge: RETIRO_TESORERIA de apertura cuya caja ya cerró
-              // (cross-link en groupTesoreriaMovimientos detecta el ciclo).
-              if (group.retiroAperturaDevuelto) ...[
-                const SizedBox(width: 8),
-                _badgeDevueltoAlCierre(),
-              ],
             ],
           ),
         ],
       ),
     );
+
+    // Badge "DEVUELTO AL CIERRE" se posiciona absoluto arriba derecha
+    // para no competir con el subtitle (que ya está apretado por método
+    // + fecha + nombre cajero). Solo aplica a RETIRO_TESORERIA de
+    // apertura cuya caja ya cerró.
+    if (group.retiroAperturaDevuelto) {
+      return Stack(
+        children: [
+          tile,
+          Positioned(
+            top: 6,
+            right: 8,
+            child: _badgeDevueltoAlCierre(),
+          ),
+        ],
+      );
+    }
+    return tile;
   }
 
   Widget _groupedCard() {
