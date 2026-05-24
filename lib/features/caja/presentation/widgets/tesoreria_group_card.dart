@@ -21,7 +21,10 @@ class TesoreriaGroupCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (!group.isGrouped) {
+    // Render como card grupal si hay >1 item, o si es un barrido con
+    // reversos vinculados (necesitamos espacio para el banner).
+    final renderAsCard = group.isGrouped || group.tieneReversosVinculados;
+    if (!renderAsCard) {
       return _singleTile(group.items.first);
     }
     return _groupedCard();
@@ -164,6 +167,13 @@ class TesoreriaGroupCard extends StatelessWidget {
                 )).toList(),
               ),
             ),
+            // Banner informativo si la caja origen tuvo anulaciones
+            // posteriores (reversos vinculados desde tesorería).
+            if (group.tieneReversosVinculados)
+              _ReversosAfectanBanner(
+                monto: group.montoAfectadoPorReversos,
+                cantidad: group.cantidadReversos,
+              ),
           ],
         ),
       ),
@@ -184,6 +194,53 @@ class TesoreriaGroupCard extends StatelessWidget {
           color: AppColors.red,
           fontWeight: FontWeight.w700,
         ),
+      ),
+    );
+  }
+}
+
+class _ReversosAfectanBanner extends StatelessWidget {
+  final double monto;
+  final int cantidad;
+
+  const _ReversosAfectanBanner({required this.monto, required this.cantidad});
+
+  @override
+  Widget build(BuildContext context) {
+    final label = cantidad == 1
+        ? 'Afectado por 1 anulación posterior'
+        : 'Afectado por $cantidad anulaciones posteriores';
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.orange.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: AppColors.orange.withValues(alpha: 0.30)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.undo_rounded, size: 14, color: AppColors.orange),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: AppColors.orange,
+              ),
+            ),
+          ),
+          Text(
+            '-S/ ${monto.toStringAsFixed(2)}',
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              color: AppColors.orange,
+            ),
+          ),
+        ],
       ),
     );
   }

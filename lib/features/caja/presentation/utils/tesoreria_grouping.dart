@@ -28,6 +28,17 @@ class TesoreriaGroup {
   /// `false` si TODOS son EGRESO. Mixto no aplica por construcción.
   final bool esIngreso;
 
+  /// Monto total de reversos que afectaron la caja origen de este grupo.
+  /// Solo aplica a grupos `barridoCierre`: cuando una venta de esa caja
+  /// fue anulada DESPUÉS del cierre, generó un reverso desde tesorería.
+  /// El depósito sigue siendo el mismo (el dinero se barrió), pero
+  /// queremos avisar visualmente que parte de eso "fue devuelto" via
+  /// reversos. Es informativo, no resta del monto del depósito.
+  final double montoAfectadoPorReversos;
+
+  /// Cantidad de reversos vinculados (para mostrar "X reversos" si > 1).
+  final int cantidadReversos;
+
   const TesoreriaGroup({
     required this.items,
     required this.kind,
@@ -35,9 +46,29 @@ class TesoreriaGroup {
     this.subtitulo,
     required this.montoTotal,
     required this.esIngreso,
+    this.montoAfectadoPorReversos = 0,
+    this.cantidadReversos = 0,
   });
 
   bool get isGrouped => items.length > 1;
+  bool get tieneReversosVinculados => cantidadReversos > 0;
+
+  TesoreriaGroup copyWith({
+    double? montoAfectadoPorReversos,
+    int? cantidadReversos,
+  }) {
+    return TesoreriaGroup(
+      items: items,
+      kind: kind,
+      titulo: titulo,
+      subtitulo: subtitulo,
+      montoTotal: montoTotal,
+      esIngreso: esIngreso,
+      montoAfectadoPorReversos:
+          montoAfectadoPorReversos ?? this.montoAfectadoPorReversos,
+      cantidadReversos: cantidadReversos ?? this.cantidadReversos,
+    );
+  }
 }
 
 enum TesoreriaGroupKind {
@@ -143,5 +174,34 @@ List<TesoreriaGroup> groupTesoreriaMovimientos(List<MovimientoCaja> movs) {
   grupos.sort((a, b) =>
       b.items.first.fechaMovimiento.compareTo(a.items.first.fechaMovimiento));
 
-  return grupos;
+  // ── Cross-link reversos → deposito ──
+  // Para cada grupo barridoCierre, vincular reversos de esa caja origen.
+  // Match: deposito.metadata.cajaEspejoId === reverso.metadata.cajaOrigenId
+  // (ambos referencian el cajaId de la caja operativa cerrada).
+  final acumuladoPorCaja = <String, ({double monto, int cantidad})>{};
+  for (final g in grupos) {
+    if (g.kind != TesoreriaGroupKind.reversoCajaCerrada) continue;
+    for (final m in g.items) {
+      final cajaOrigenId = m.metadata?['cajaOrigenId'] as String?;
+      if (cajaOrigenId == null) continue;
+      final prev = acumuladoPorCaja[cajaOrigenId] ?? (monto: 0.0, cantidad: 0);
+      acumuladoPorCaja[cajaOrigenId] =
+          (monto: prev.monto + m.monto, cantidad: prev.cantidad + 1);
+    }
+  }
+
+  if (acumuladoPorCaja.isEmpty) return grupos;
+
+  return grupos.map((g) {
+    if (g.kind != TesoreriaGroupKind.barridoCierre) return g;
+    final cajaEspejoId =
+        g.items.first.metadata?['cajaEspejoId'] as String?;
+    if (cajaEspejoId == null) return g;
+    final acum = acumuladoPorCaja[cajaEspejoId];
+    if (acum == null) return g;
+    return g.copyWith(
+      montoAfectadoPorReversos: acum.monto,
+      cantidadReversos: acum.cantidad,
+    );
+  }).toList();
 }
