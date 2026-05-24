@@ -807,6 +807,14 @@ class _CajaAuditoriaPageState extends State<CajaAuditoriaPage> {
     double inOk = 0, outOk = 0;
     for (final m in filtrados) {
       if (m.anulado) continue;
+      // Excluir transferencias auto del cierre (DEPOSITO/RETIRO_TESORERIA):
+      // son barridos hacia/desde la Caja Central, no movimientos operativos.
+      // El listado de arriba SI los muestra para trazabilidad visual; estos
+      // totales reflejan solo actividad operativa de la caja.
+      if (m.categoria == CategoriaMovimientoCaja.depositoTesoreria ||
+          m.categoria == CategoriaMovimientoCaja.retiroTesoreria) {
+        continue;
+      }
       if (m.tipo == TipoMovimientoCaja.ingreso) {
         inOk += m.monto;
       } else {
