@@ -198,10 +198,7 @@ class TesoreriaGroupCard extends StatelessWidget {
             // Banner informativo si la caja origen tuvo anulaciones
             // posteriores (reversos vinculados desde tesorería).
             if (group.tieneReversosVinculados)
-              _ReversosAfectanBanner(
-                monto: group.montoAfectadoPorReversos,
-                cantidad: group.cantidadReversos,
-              ),
+              _ReversosAfectanBanner(group: group),
           ],
         ),
           ),
@@ -230,16 +227,33 @@ class TesoreriaGroupCard extends StatelessWidget {
 }
 
 class _ReversosAfectanBanner extends StatelessWidget {
-  final double monto;
-  final int cantidad;
+  final TesoreriaGroup group;
 
-  const _ReversosAfectanBanner({required this.monto, required this.cantidad});
+  const _ReversosAfectanBanner({required this.group});
+
+  String _pluralize(int n, String singular, String plural) {
+    return n == 1 ? '1 $singular' : '$n $plural';
+  }
+
+  String _buildLabel() {
+    final cv = group.cantidadReversosVenta;
+    final cc = group.cantidadDevolucionesCotizacion;
+    final partes = <String>[];
+    if (cv > 0) {
+      partes.add(_pluralize(cv, 'anulación de venta',
+          'anulaciones de venta'));
+    }
+    if (cc > 0) {
+      partes.add(_pluralize(cc, 'anulación de cotización',
+          'anulaciones de cotización'));
+    }
+    return 'Afectado por ${partes.join(' y ')}';
+  }
 
   @override
   Widget build(BuildContext context) {
-    final label = cantidad == 1
-        ? 'Afectado por 1 anulación posterior'
-        : 'Afectado por $cantidad anulaciones posteriores';
+    final label = _buildLabel();
+    final monto = group.montoAfectadoPorReversos;
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 0, 12, 10),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),

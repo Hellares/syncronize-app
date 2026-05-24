@@ -28,16 +28,15 @@ class TesoreriaGroup {
   /// `false` si TODOS son EGRESO. Mixto no aplica por construcción.
   final bool esIngreso;
 
-  /// Monto total de reversos que afectaron la caja origen de este grupo.
-  /// Solo aplica a grupos `barridoCierre`: cuando una venta de esa caja
-  /// fue anulada DESPUÉS del cierre, generó un reverso desde tesorería.
-  /// El depósito sigue siendo el mismo (el dinero se barrió), pero
-  /// queremos avisar visualmente que parte de eso "fue devuelto" via
-  /// reversos. Es informativo, no resta del monto del depósito.
-  final double montoAfectadoPorReversos;
+  /// Reversos por anulación de venta (`REVERSO_CAJA_CERRADA` en tesorería
+  /// cuyo `metadata.cajaOrigenId` matchea la caja de este depósito).
+  final double montoReversosVenta;
+  final int cantidadReversosVenta;
 
-  /// Cantidad de reversos vinculados (para mostrar "X reversos" si > 1).
-  final int cantidadReversos;
+  /// Devoluciones por anulación de cotización con adelanto
+  /// (`DEVOLUCION_ADELANTO_COTIZACION` en tesorería).
+  final double montoDevolucionesCotizacion;
+  final int cantidadDevolucionesCotizacion;
 
   const TesoreriaGroup({
     required this.items,
@@ -46,16 +45,36 @@ class TesoreriaGroup {
     this.subtitulo,
     required this.montoTotal,
     required this.esIngreso,
-    this.montoAfectadoPorReversos = 0,
-    this.cantidadReversos = 0,
+    this.montoReversosVenta = 0,
+    this.cantidadReversosVenta = 0,
+    this.montoDevolucionesCotizacion = 0,
+    this.cantidadDevolucionesCotizacion = 0,
   });
 
   bool get isGrouped => items.length > 1;
+
+  /// Monto total afectado (suma de reversos de venta + devoluciones
+  /// de cotización). Para resumen agregado en la card.
+  double get montoAfectadoPorReversos =>
+      montoReversosVenta + montoDevolucionesCotizacion;
+
+  /// Cantidad total de afectaciones.
+  int get cantidadReversos =>
+      cantidadReversosVenta + cantidadDevolucionesCotizacion;
+
   bool get tieneReversosVinculados => cantidadReversos > 0;
+  bool get tieneSoloReversosVenta =>
+      cantidadReversosVenta > 0 && cantidadDevolucionesCotizacion == 0;
+  bool get tieneSoloDevolucionesCotizacion =>
+      cantidadDevolucionesCotizacion > 0 && cantidadReversosVenta == 0;
+  bool get tieneMixto =>
+      cantidadReversosVenta > 0 && cantidadDevolucionesCotizacion > 0;
 
   TesoreriaGroup copyWith({
-    double? montoAfectadoPorReversos,
-    int? cantidadReversos,
+    double? montoReversosVenta,
+    int? cantidadReversosVenta,
+    double? montoDevolucionesCotizacion,
+    int? cantidadDevolucionesCotizacion,
   }) {
     return TesoreriaGroup(
       items: items,
@@ -64,9 +83,13 @@ class TesoreriaGroup {
       subtitulo: subtitulo,
       montoTotal: montoTotal,
       esIngreso: esIngreso,
-      montoAfectadoPorReversos:
-          montoAfectadoPorReversos ?? this.montoAfectadoPorReversos,
-      cantidadReversos: cantidadReversos ?? this.cantidadReversos,
+      montoReversosVenta: montoReversosVenta ?? this.montoReversosVenta,
+      cantidadReversosVenta:
+          cantidadReversosVenta ?? this.cantidadReversosVenta,
+      montoDevolucionesCotizacion:
+          montoDevolucionesCotizacion ?? this.montoDevolucionesCotizacion,
+      cantidadDevolucionesCotizacion: cantidadDevolucionesCotizacion ??
+          this.cantidadDevolucionesCotizacion,
     );
   }
 }
@@ -190,34 +213,58 @@ List<TesoreriaGroup> groupTesoreriaMovimientos(List<MovimientoCaja> movs) {
   grupos.sort((a, b) =>
       b.items.first.fechaMovimiento.compareTo(a.items.first.fechaMovimiento));
 
-  // ── Cross-link reversos → deposito ──
-  // Para cada grupo barridoCierre, vincular reversos de esa caja origen.
-  // Match: deposito.metadata.cajaEspejoId === reverso.metadata.cajaOrigenId
-  // (ambos referencian el cajaId de la caja operativa cerrada).
-  final acumuladoPorCaja = <String, ({double monto, int cantidad})>{};
+  // ── Cross-link afectaciones → deposito ──
+  // Para cada grupo barridoCierre, vincular movs en tesoreria que apuntan a
+  // esa caja origen via metadata.cajaOrigenId. Diferenciamos por tipo
+  // para que el banner pueda mostrar desglose ventas / cotizaciones.
+  final acumPorCaja = <String,
+      ({
+        double montoVenta,
+        int cantVenta,
+        double montoCot,
+        int cantCot,
+      })>{};
   for (final g in grupos) {
-    if (g.kind != TesoreriaGroupKind.reversoCajaCerrada) continue;
     for (final m in g.items) {
       final cajaOrigenId = m.metadata?['cajaOrigenId'] as String?;
       if (cajaOrigenId == null) continue;
-      final prev = acumuladoPorCaja[cajaOrigenId] ?? (monto: 0.0, cantidad: 0);
-      acumuladoPorCaja[cajaOrigenId] =
-          (monto: prev.monto + m.monto, cantidad: prev.cantidad + 1);
+      final esReverso =
+          m.categoria == CategoriaMovimientoCaja.reversoCajaCerrada;
+      final esDevCot = m.categoria ==
+          CategoriaMovimientoCaja.devolucionAdelantoCotizacion;
+      if (!esReverso && !esDevCot) continue;
+      final prev = acumPorCaja[cajaOrigenId] ??
+          (montoVenta: 0.0, cantVenta: 0, montoCot: 0.0, cantCot: 0);
+      acumPorCaja[cajaOrigenId] = esReverso
+          ? (
+              montoVenta: prev.montoVenta + m.monto,
+              cantVenta: prev.cantVenta + 1,
+              montoCot: prev.montoCot,
+              cantCot: prev.cantCot,
+            )
+          : (
+              montoVenta: prev.montoVenta,
+              cantVenta: prev.cantVenta,
+              montoCot: prev.montoCot + m.monto,
+              cantCot: prev.cantCot + 1,
+            );
     }
   }
 
-  if (acumuladoPorCaja.isEmpty) return grupos;
+  if (acumPorCaja.isEmpty) return grupos;
 
   return grupos.map((g) {
     if (g.kind != TesoreriaGroupKind.barridoCierre) return g;
     final cajaEspejoId =
         g.items.first.metadata?['cajaEspejoId'] as String?;
     if (cajaEspejoId == null) return g;
-    final acum = acumuladoPorCaja[cajaEspejoId];
+    final acum = acumPorCaja[cajaEspejoId];
     if (acum == null) return g;
     return g.copyWith(
-      montoAfectadoPorReversos: acum.monto,
-      cantidadReversos: acum.cantidad,
+      montoReversosVenta: acum.montoVenta,
+      cantidadReversosVenta: acum.cantVenta,
+      montoDevolucionesCotizacion: acum.montoCot,
+      cantidadDevolucionesCotizacion: acum.cantCot,
     );
   }).toList();
 }
