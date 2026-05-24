@@ -408,6 +408,12 @@ class _CerrarCajaPageState extends State<CerrarCajaPage> {
 
           const SizedBox(height: 16),
 
+          // Aviso: el conteo declarado se depositara automaticamente a la
+          // Caja Central (Tesoreria) de la sede al cerrar. Calculado en
+          // vivo desde los _conteoControllers (re-render por setState al
+          // onChanged de cada CustomText).
+          _buildAvisoTesoreria(currencyFormat),
+
           // Observaciones
           CustomText(
             borderColor: AppColors.blue1,
@@ -435,6 +441,68 @@ class _CerrarCajaPageState extends State<CerrarCajaPage> {
           ),
           const SizedBox(height: 16),
         ],
+      ),
+    );
+  }
+
+  Widget _buildAvisoTesoreria(NumberFormat currencyFormat) {
+    double totalDeposito = 0;
+    for (final c in _conteoControllers.values) {
+      totalDeposito +=
+          double.tryParse(c.text.replaceAll(',', '.')) ?? 0;
+    }
+    if (totalDeposito <= 0) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.blue1.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColors.blue1.withValues(alpha: 0.20)),
+        ),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.account_balance_rounded,
+              color: AppColors.blue1,
+              size: 22,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Se depositará en Tesorería',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.blue1,
+                    ),
+                  ),
+                  Text(
+                    'El conteo declarado se transfiere automáticamente a la Caja Central de la sede al cerrar.',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSecondary.withValues(alpha: 0.90),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              currencyFormat.format(totalDeposito),
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: AppColors.blue1,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

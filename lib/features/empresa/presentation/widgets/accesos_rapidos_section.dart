@@ -45,6 +45,7 @@ class AccesosRapidosCatalogo {
   static const caja = 'caja';
   static const monitorCajas = 'monitor-cajas';
   static const historialCajas = 'historial-cajas';
+  static const tesoreria = 'tesoreria';
   static const cajaChica = 'caja-chica';
   static const cuentasPorCobrar = 'cuentas-por-cobrar';
   static const finanzas = 'finanzas';
@@ -67,6 +68,7 @@ class AccesosRapidosCatalogo {
     (caja, 'Caja'),
     (monitorCajas, 'Monitor Cajas'),
     (historialCajas, 'Historial de Cajas'),
+    (tesoreria, 'Tesorería'),
     (cajaChica, 'Caja Chica'),
     (cuentasPorCobrar, 'Cuentas por Cobrar'),
     (finanzas, 'Finanzas'),

@@ -461,6 +461,14 @@ class CierreCajaEscPosGenerator {
         return 'PEDIDO MKT';
       case CategoriaMovimientoCaja.venta:
         return 'VENTA';
+      case CategoriaMovimientoCaja.depositoTesoreria:
+        return 'DEP TES';
+      case CategoriaMovimientoCaja.retiroTesoreria:
+        return 'RET TES';
+      case CategoriaMovimientoCaja.ajusteTesoreria:
+        return 'AJU TES';
+      case CategoriaMovimientoCaja.reversoCajaCerrada:
+        return 'REV CAJA';
     }
   }
 }

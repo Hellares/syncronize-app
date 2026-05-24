@@ -58,7 +58,14 @@ enum CategoriaMovimientoCaja {
   pagoProveedor,
   gastoOperativo,
   otroEgreso,
-  reposicionCajaChica;
+  reposicionCajaChica,
+  // Tesoreria (Caja Central): generadas auto (barrido al cerrar caja y
+  // reverso de caja cerrada) o manual desde la pantalla de Tesoreria.
+  // NO aparecen en el form de movimiento manual operativo.
+  depositoTesoreria,
+  retiroTesoreria,
+  ajusteTesoreria,
+  reversoCajaCerrada;
 
   String get label {
     switch (this) {
@@ -82,6 +89,14 @@ enum CategoriaMovimientoCaja {
         return 'Otro Egreso';
       case CategoriaMovimientoCaja.reposicionCajaChica:
         return 'Reposición Caja Chica';
+      case CategoriaMovimientoCaja.depositoTesoreria:
+        return 'Depósito a Tesorería';
+      case CategoriaMovimientoCaja.retiroTesoreria:
+        return 'Retiro de Tesorería';
+      case CategoriaMovimientoCaja.ajusteTesoreria:
+        return 'Ajuste de Tesorería';
+      case CategoriaMovimientoCaja.reversoCajaCerrada:
+        return 'Reverso (Caja Cerrada)';
     }
   }
 
@@ -107,6 +122,14 @@ enum CategoriaMovimientoCaja {
         return 'OTRO_EGRESO';
       case CategoriaMovimientoCaja.reposicionCajaChica:
         return 'REPOSICION_CAJA_CHICA';
+      case CategoriaMovimientoCaja.depositoTesoreria:
+        return 'DEPOSITO_TESORERIA';
+      case CategoriaMovimientoCaja.retiroTesoreria:
+        return 'RETIRO_TESORERIA';
+      case CategoriaMovimientoCaja.ajusteTesoreria:
+        return 'AJUSTE_TESORERIA';
+      case CategoriaMovimientoCaja.reversoCajaCerrada:
+        return 'REVERSO_CAJA_CERRADA';
     }
   }
 
@@ -132,6 +155,14 @@ enum CategoriaMovimientoCaja {
         return Icons.remove_circle_rounded;
       case CategoriaMovimientoCaja.reposicionCajaChica:
         return Icons.account_balance_wallet_rounded;
+      case CategoriaMovimientoCaja.depositoTesoreria:
+        return Icons.savings_rounded;
+      case CategoriaMovimientoCaja.retiroTesoreria:
+        return Icons.outbox_rounded;
+      case CategoriaMovimientoCaja.ajusteTesoreria:
+        return Icons.tune_rounded;
+      case CategoriaMovimientoCaja.reversoCajaCerrada:
+        return Icons.undo_rounded;
     }
   }
 
@@ -150,6 +181,30 @@ enum CategoriaMovimientoCaja {
       case CategoriaMovimientoCaja.gastoOperativo:
       case CategoriaMovimientoCaja.otroEgreso:
       case CategoriaMovimientoCaja.reposicionCajaChica:
+      // Categorias de tesoreria: polaridad ambigua (un mismo concepto
+      // aparece como INGRESO en central y EGRESO en operativa, o viceversa).
+      // El `tipo` del movimiento es la fuente de verdad real; este getter
+      // devuelve `false` solo para que el filtro `porTipo` las excluya del
+      // form manual operativo (ver `esTesoreria`).
+      case CategoriaMovimientoCaja.depositoTesoreria:
+      case CategoriaMovimientoCaja.retiroTesoreria:
+      case CategoriaMovimientoCaja.ajusteTesoreria:
+      case CategoriaMovimientoCaja.reversoCajaCerrada:
+        return false;
+    }
+  }
+
+  /// True si la categoria pertenece al modulo Tesoreria (Caja Central).
+  /// Se usa para EXCLUIRLAS del form de movimiento manual operativo —
+  /// los movs de tesoreria se crean vía endpoint dedicado o auto.
+  bool get esTesoreria {
+    switch (this) {
+      case CategoriaMovimientoCaja.depositoTesoreria:
+      case CategoriaMovimientoCaja.retiroTesoreria:
+      case CategoriaMovimientoCaja.ajusteTesoreria:
+      case CategoriaMovimientoCaja.reversoCajaCerrada:
+        return true;
+      default:
         return false;
     }
   }
@@ -176,14 +231,25 @@ enum CategoriaMovimientoCaja {
         return CategoriaMovimientoCaja.otroEgreso;
       case 'REPOSICION_CAJA_CHICA':
         return CategoriaMovimientoCaja.reposicionCajaChica;
+      case 'DEPOSITO_TESORERIA':
+        return CategoriaMovimientoCaja.depositoTesoreria;
+      case 'RETIRO_TESORERIA':
+        return CategoriaMovimientoCaja.retiroTesoreria;
+      case 'AJUSTE_TESORERIA':
+        return CategoriaMovimientoCaja.ajusteTesoreria;
+      case 'REVERSO_CAJA_CERRADA':
+        return CategoriaMovimientoCaja.reversoCajaCerrada;
       default:
         return CategoriaMovimientoCaja.otroIngreso;
     }
   }
 
-  /// Retorna categorias filtradas por tipo
+  /// Retorna categorias filtradas por tipo. Excluye las de tesoreria
+  /// (esas se crean via endpoint dedicado de Caja Central, no desde el
+  /// form de movimiento manual operativo).
   static List<CategoriaMovimientoCaja> porTipo(TipoMovimientoCaja tipo) {
     return values.where((c) {
+      if (c.esTesoreria) return false;
       if (tipo == TipoMovimientoCaja.ingreso) return c.esIngreso;
       return !c.esIngreso;
     }).toList();

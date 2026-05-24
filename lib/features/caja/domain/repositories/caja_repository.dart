@@ -5,6 +5,7 @@ import '../entities/caja_auditoria.dart';
 import '../entities/caja_monitor.dart';
 import '../entities/movimiento_caja.dart';
 import '../entities/resumen_caja.dart';
+import '../entities/tesoreria.dart';
 
 /// Repository interface para operaciones de caja
 abstract class CajaRepository {
@@ -79,4 +80,25 @@ abstract class CajaRepository {
   /// Auditoría completa (apertura → cierre): caja + cierre + arqueos + TODOS
   /// los movimientos (incluye anulados y contrapartidas con flags).
   Future<Resource<CajaAuditoria>> getAuditoria({required String cajaId});
+
+  // ───── Tesoreria (Caja Central) ─────
+
+  /// Resumen de la Caja Central de una sede (saldo efectivo, digital, totales).
+  Future<Resource<TesoreriaResumen>> getTesoreriaResumen(String sedeId);
+
+  /// Listado paginado de movimientos de la Caja Central con filtros.
+  Future<Resource<TesoreriaMovimientosPage>> getTesoreriaMovimientos({
+    required String sedeId,
+    required TesoreriaMovimientosFilter filter,
+  });
+
+  /// Crea un ajuste manual (deposito o retiro) en la Caja Central.
+  Future<Resource<MovimientoCaja>> crearAjusteTesoreria({
+    required String sedeId,
+    required TipoMovimientoCaja tipo,
+    required MetodoPago metodoPago,
+    required double monto,
+    required String descripcion,
+    String? categoriaGastoId,
+  });
 }

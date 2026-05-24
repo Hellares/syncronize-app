@@ -115,6 +115,8 @@ import '../../features/caja/domain/usecases/abrir_caja_usecase.dart' as _i600;
 import '../../features/caja/domain/usecases/anular_movimiento_usecase.dart'
     as _i750;
 import '../../features/caja/domain/usecases/cerrar_caja_usecase.dart' as _i575;
+import '../../features/caja/domain/usecases/crear_ajuste_tesoreria_usecase.dart'
+    as _i358;
 import '../../features/caja/domain/usecases/crear_arqueo_usecase.dart' as _i659;
 import '../../features/caja/domain/usecases/crear_movimiento_usecase.dart'
     as _i290;
@@ -131,6 +133,10 @@ import '../../features/caja/domain/usecases/get_monitor_usecase.dart' as _i519;
 import '../../features/caja/domain/usecases/get_movimientos_usecase.dart'
     as _i259;
 import '../../features/caja/domain/usecases/get_resumen_usecase.dart' as _i413;
+import '../../features/caja/domain/usecases/get_tesoreria_movimientos_usecase.dart'
+    as _i451;
+import '../../features/caja/domain/usecases/get_tesoreria_resumen_usecase.dart'
+    as _i2;
 import '../../features/caja/presentation/bloc/arqueos_caja_cubit.dart' as _i337;
 import '../../features/caja/presentation/bloc/caja_activa_cubit.dart' as _i503;
 import '../../features/caja/presentation/bloc/caja_historial_cubit.dart'
@@ -139,6 +145,7 @@ import '../../features/caja/presentation/bloc/caja_monitor_cubit.dart' as _i282;
 import '../../features/caja/presentation/bloc/caja_movimientos_cubit.dart'
     as _i38;
 import '../../features/caja/presentation/bloc/cerrar_caja_cubit.dart' as _i685;
+import '../../features/caja/presentation/bloc/tesoreria_cubit.dart' as _i42;
 import '../../features/caja_chica/data/datasources/caja_chica_remote_datasource.dart'
     as _i383;
 import '../../features/caja_chica/data/repositories/caja_chica_repository_impl.dart'
@@ -3911,6 +3918,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i575.CerrarCajaUseCase>(
       () => _i575.CerrarCajaUseCase(gh<_i742.CajaRepository>()),
     );
+    gh.factory<_i358.CrearAjusteTesoreriaUseCase>(
+      () => _i358.CrearAjusteTesoreriaUseCase(gh<_i742.CajaRepository>()),
+    );
     gh.factory<_i659.CrearArqueoUseCase>(
       () => _i659.CrearArqueoUseCase(gh<_i742.CajaRepository>()),
     );
@@ -3940,6 +3950,12 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i413.GetResumenUseCase>(
       () => _i413.GetResumenUseCase(gh<_i742.CajaRepository>()),
+    );
+    gh.factory<_i451.GetTesoreriaMovimientosUseCase>(
+      () => _i451.GetTesoreriaMovimientosUseCase(gh<_i742.CajaRepository>()),
+    );
+    gh.factory<_i2.GetTesoreriaResumenUseCase>(
+      () => _i2.GetTesoreriaResumenUseCase(gh<_i742.CajaRepository>()),
     );
     gh.factory<_i291.MarcasMaestrasCubit>(
       () => _i291.MarcasMaestrasCubit(gh<_i608.GetMarcasMaestrasUseCase>()),
@@ -4253,6 +4269,13 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i286.BulkUploadCubit(
         gh<_i570.DownloadBulkTemplateUseCase>(),
         gh<_i692.BulkUploadProductosUseCase>(),
+      ),
+    );
+    gh.factory<_i42.TesoreriaCubit>(
+      () => _i42.TesoreriaCubit(
+        gh<_i2.GetTesoreriaResumenUseCase>(),
+        gh<_i451.GetTesoreriaMovimientosUseCase>(),
+        gh<_i358.CrearAjusteTesoreriaUseCase>(),
       ),
     );
     gh.factory<_i980.IncidenciaCubit>(

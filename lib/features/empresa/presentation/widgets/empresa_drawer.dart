@@ -606,6 +606,18 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/caja/historial')),
           ),
           tile(
+            title: 'Tesorería',
+            icon: Icons.account_balance_rounded,
+            iconColor: AppColors.blue1,
+            visible: can(permissions?.canViewCaja),
+            accesoRapidoId: AccesosRapidosCatalogo.tesoreria,
+            routeMatch: const _RouteMatch.startsWith('/empresa/tesoreria'),
+            onTap: (ctx) => _tap(
+              ctx,
+              () => ctx.push('/empresa/tesoreria?empresaId=$empresaId'),
+            ),
+          ),
+          tile(
             title: 'Caja Chica',
             icon: Icons.account_balance_wallet,
             iconColor: Colors.teal,

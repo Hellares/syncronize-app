@@ -8,6 +8,7 @@ import '../../domain/entities/caja_auditoria.dart';
 import '../../domain/entities/caja_monitor.dart';
 import '../../domain/entities/movimiento_caja.dart';
 import '../../domain/entities/resumen_caja.dart';
+import '../../domain/entities/tesoreria.dart';
 import '../../domain/repositories/caja_repository.dart';
 import '../datasources/caja_remote_datasource.dart';
 import '../models/caja_monitor_model.dart';
@@ -264,6 +265,72 @@ class CajaRepositoryImpl implements CajaRepository {
       return Success(auditoria);
     } catch (e) {
       return _errorHandler.handleException(e, context: 'Caja');
+    }
+  }
+
+  @override
+  Future<Resource<TesoreriaResumen>> getTesoreriaResumen(String sedeId) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final resumen = await _remoteDataSource.getTesoreriaResumen(sedeId);
+      return Success(resumen.toEntity());
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Tesoreria');
+    }
+  }
+
+  @override
+  Future<Resource<TesoreriaMovimientosPage>> getTesoreriaMovimientos({
+    required String sedeId,
+    required TesoreriaMovimientosFilter filter,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final page = await _remoteDataSource.getTesoreriaMovimientos(
+        sedeId: sedeId,
+        tipo: filter.tipo?.apiValue,
+        metodoPago: filter.metodoPago?.apiValue,
+        categoria: filter.categoria?.apiValue,
+        fechaDesde: filter.fechaDesde,
+        fechaHasta: filter.fechaHasta,
+        q: filter.q,
+        page: filter.page,
+        pageSize: filter.pageSize,
+      );
+      return Success(page.toEntity());
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Tesoreria');
+    }
+  }
+
+  @override
+  Future<Resource<MovimientoCaja>> crearAjusteTesoreria({
+    required String sedeId,
+    required TipoMovimientoCaja tipo,
+    required MetodoPago metodoPago,
+    required double monto,
+    required String descripcion,
+    String? categoriaGastoId,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final mov = await _remoteDataSource.crearAjusteTesoreria(
+        sedeId: sedeId,
+        tipo: tipo.apiValue,
+        metodoPago: metodoPago.apiValue,
+        monto: monto,
+        descripcion: descripcion,
+        categoriaGastoId: categoriaGastoId,
+      );
+      return Success(mov);
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Tesoreria');
     }
   }
 }

@@ -5,6 +5,7 @@ import '../models/caja_auditoria_model.dart';
 import '../models/caja_model.dart';
 import '../models/movimiento_caja_model.dart';
 import '../models/resumen_caja_model.dart';
+import '../models/tesoreria_model.dart';
 
 @lazySingleton
 class CajaRemoteDataSource {
@@ -195,6 +196,68 @@ class CajaRemoteDataSource {
     return data
         .map((e) => ArqueoCajaModel.fromJson(e as Map<String, dynamic>))
         .toList();
+  }
+
+  // ───── Tesoreria (Caja Central) ─────
+
+  Future<TesoreriaResumenModel> getTesoreriaResumen(String sedeId) async {
+    final response = await _dioClient.get('$_basePath/tesoreria/$sedeId');
+    return TesoreriaResumenModel.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<TesoreriaMovimientosPageModel> getTesoreriaMovimientos({
+    required String sedeId,
+    String? tipo,
+    String? metodoPago,
+    String? categoria,
+    String? fechaDesde,
+    String? fechaHasta,
+    String? q,
+    int? page,
+    int? pageSize,
+  }) async {
+    final queryParams = <String, dynamic>{};
+    if (tipo != null) queryParams['tipo'] = tipo;
+    if (metodoPago != null) queryParams['metodoPago'] = metodoPago;
+    if (categoria != null) queryParams['categoria'] = categoria;
+    if (fechaDesde != null) queryParams['fechaDesde'] = fechaDesde;
+    if (fechaHasta != null) queryParams['fechaHasta'] = fechaHasta;
+    if (q != null && q.isNotEmpty) queryParams['q'] = q;
+    if (page != null) queryParams['page'] = page;
+    if (pageSize != null) queryParams['pageSize'] = pageSize;
+
+    final response = await _dioClient.get(
+      '$_basePath/tesoreria/$sedeId/movimientos',
+      queryParameters: queryParams,
+    );
+    return TesoreriaMovimientosPageModel.fromJson(
+      response.data as Map<String, dynamic>,
+    );
+  }
+
+  Future<MovimientoCajaModel> crearAjusteTesoreria({
+    required String sedeId,
+    required String tipo,
+    required String metodoPago,
+    required double monto,
+    required String descripcion,
+    String? categoriaGastoId,
+  }) async {
+    final data = <String, dynamic>{
+      'tipo': tipo,
+      'metodoPago': metodoPago,
+      'monto': monto,
+      'descripcion': descripcion,
+    };
+    if (categoriaGastoId != null && categoriaGastoId.isNotEmpty) {
+      data['categoriaGastoId'] = categoriaGastoId;
+    }
+
+    final response = await _dioClient.post(
+      '$_basePath/tesoreria/$sedeId/ajuste',
+      data: data,
+    );
+    return MovimientoCajaModel.fromJson(response.data as Map<String, dynamic>);
   }
 
   Future<Map<String, dynamic>> getMonitor({String? sedeId}) async {
