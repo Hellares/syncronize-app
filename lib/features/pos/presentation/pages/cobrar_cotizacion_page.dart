@@ -943,7 +943,9 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
                       const SizedBox(height: 12),
 
                       _PagoMetodoCard(
-                        total: _total,
+                        // Saldo a cobrar (descuenta adelanto si existe).
+                        // El total bruto se ve arriba con desglose.
+                        total: _totalACobrar,
                         totalPagado: _totalPagado,
                         metodoActual: _metodoActual,
                         onMetodoChanged: (v) {
