@@ -932,6 +932,14 @@ class _CajaAuditoriaPageState extends State<CajaAuditoriaPage> {
                       const SizedBox(width: 6),
                       _badge('REVERSO', AppColors.orange),
                     ],
+                    // Adelanto de cotización cuya cotización quedó RECHAZADA
+                    // → su devolución ya se generó (en esta caja o en tesorería).
+                    if (m.categoria ==
+                            CategoriaMovimientoCaja.adelantoCotizacion &&
+                        m.cotizacionFueAnulada) ...[
+                      const SizedBox(width: 6),
+                      _badge('DEVUELTO', AppColors.orange),
+                    ],
                     if (m.esManual) ...[
                       const SizedBox(width: 6),
                       _badge('MANUAL', AppColors.blue3),

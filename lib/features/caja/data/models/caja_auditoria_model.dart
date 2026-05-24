@@ -87,6 +87,7 @@ class CajaAuditoriaModel extends CajaAuditoria {
   static MovimientoAuditoria _parseMovimiento(Map<String, dynamic> json) {
     final venta = json['venta'] as Map<String, dynamic>?;
     final pedido = json['pedido'] as Map<String, dynamic>?;
+    final cotizacion = json['cotizacion'] as Map<String, dynamic>?;
     final categoriaGasto = json['categoriaGasto'] as Map<String, dynamic>?;
     final anuladoPor = json['anuladoPor'] as Map<String, dynamic>?;
 
@@ -116,6 +117,9 @@ class CajaAuditoriaModel extends CajaAuditoria {
       ventaId: venta?['id'] as String? ?? json['ventaId'] as String?,
       ventaCodigo: venta?['codigo'] as String? ?? json['ventaCodigo'] as String?,
       pedidoCodigo: pedido?['codigo'] as String?,
+      cotizacionId: cotizacion?['id'] as String? ?? json['cotizacionId'] as String?,
+      cotizacionCodigo: cotizacion?['codigo'] as String?,
+      cotizacionEstado: cotizacion?['estado'] as String?,
       anulado: json['anulado'] as bool? ?? false,
       motivoAnulacion: json['motivoAnulacion'] as String?,
       esContrapartida: json['esContrapartida'] as bool? ?? false,
