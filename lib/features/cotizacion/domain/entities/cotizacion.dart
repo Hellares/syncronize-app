@@ -109,6 +109,15 @@ class Cotizacion extends Equatable {
   /// calcula desde `detalles`).
   final bool tieneReservaActiva;
 
+  /// Monto del adelanto que el cliente ya pagó al crear la cotización.
+  /// Cuando se convierte a venta, este monto se aplica como pago previo
+  /// y el cliente solo cubre el saldo restante. Null o 0 si no hubo.
+  final double? adelantoMonto;
+
+  /// ID del MovimientoCaja que registró el adelanto (categoria
+  /// ADELANTO_COTIZACION). Sirve para trazar al detalle de caja.
+  final String? movimientoCajaId;
+
   const Cotizacion({
     required this.id,
     required this.empresaId,
@@ -143,7 +152,20 @@ class Cotizacion extends Equatable {
     this.detalles,
     this.cantidadDetalles,
     this.tieneReservaActiva = false,
+    this.adelantoMonto,
+    this.movimientoCajaId,
   });
+
+  /// Saldo pendiente a cobrar al convertir a venta (total - adelanto).
+  /// Si no hubo adelanto, equivale al total. Nunca devuelve negativo.
+  double get saldoPendiente {
+    final adelanto = adelantoMonto ?? 0;
+    final restante = total - adelanto;
+    return restante > 0 ? restante : 0;
+  }
+
+  /// True si la cotización tiene un adelanto > 0 registrado.
+  bool get tieneAdelanto => (adelantoMonto ?? 0) > 0;
 
   /// Si la cotizacion es editable (solo BORRADOR)
   bool get esEditable => estado == EstadoCotizacion.borrador;
@@ -185,5 +207,7 @@ class Cotizacion extends Equatable {
         detalles,
         cantidadDetalles,
         tieneReservaActiva,
+        adelantoMonto,
+        movimientoCajaId,
       ];
 }

@@ -644,6 +644,54 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
                   ],
                 ),
               ),
+              // Adelanto + saldo pendiente. Solo se muestra si la cotización
+              // tiene un adelanto registrado (al crearla con reserva). Se
+              // aplica como pago previo cuando se convierte a venta.
+              if (cot.tieneAdelanto)
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.greenContainer,
+                    border: Border(
+                      top: BorderSide(
+                        color: AppColors.greenBorder,
+                        width: 0.6,
+                      ),
+                    ),
+                  ),
+                  padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+                  child: Column(
+                    children: [
+                      _buildFooterRow(
+                        'Adelanto',
+                        '-${cot.moneda} ${cot.adelantoMonto!.toStringAsFixed(2)}',
+                        color: AppColors.greendark,
+                      ),
+                      const SizedBox(height: 2),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'SALDO PENDIENTE',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.greendark,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          Text(
+                            '${cot.moneda} ${cot.saldoPendiente.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.greendark,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
             ],
           ),
         ),

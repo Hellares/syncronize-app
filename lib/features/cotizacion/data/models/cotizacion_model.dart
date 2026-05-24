@@ -39,6 +39,8 @@ class CotizacionModel extends Cotizacion {
     super.detalles,
     super.cantidadDetalles,
     super.tieneReservaActiva,
+    super.adelantoMonto,
+    super.movimientoCajaId,
   });
 
   factory CotizacionModel.fromJson(Map<String, dynamic> json) {
@@ -118,6 +120,8 @@ class CotizacionModel extends Cotizacion {
       detalles: detalles,
       cantidadDetalles: count?['detalles'] as int?,
       tieneReservaActiva: json['tieneReservaActiva'] as bool? ?? false,
+      adelantoMonto: _toDoubleNullable(json['adelantoMonto']),
+      movimientoCajaId: json['movimientoCajaId'] as String?,
     );
   }
 

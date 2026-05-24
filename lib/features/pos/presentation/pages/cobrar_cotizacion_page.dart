@@ -121,8 +121,9 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
       final monto = _numpadController.value;
       if (monto <= 0) return;
       final recibidoTotal = _totalPagado + monto;
-      // Cubre exacto el total (±0.005): auto-agregar.
-      if ((recibidoTotal - _total).abs() <= 0.005) {
+      // Cubre exacto el saldo a cobrar hoy (total - adelanto, ±0.005):
+      // auto-agregar para que el cajero vea el método antes de procesar.
+      if ((recibidoTotal - _totalACobrar).abs() <= 0.005) {
         _agregarPago();
         _numpadController.clear();
         _referenciaAgregarController.clear();
@@ -395,8 +396,19 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
     return _items.fold(0.0, (sum, item) => sum + _toDouble(item['descuento']));
   }
 
+  /// Adelanto registrado en la cotización (pago previo al crearla con reserva).
+  /// El backend lo aplica como PagoVenta adicional al convertir a venta.
+  double get _adelanto => _cotizacion?.adelantoMonto ?? 0;
+
+  /// Total que el cajero debe cobrar HOY al cliente = total - adelanto.
+  /// Sin adelanto, equivale a `_total`.
+  double get _totalACobrar {
+    final v = _total - _adelanto;
+    return v > 0 ? v : 0;
+  }
+
   double get _totalPagado => _pagos.fold(0.0, (sum, p) => sum + (p['monto'] as double));
-  double get _saldoPendiente => _total - _totalPagado;
+  double get _saldoPendiente => _totalACobrar - _totalPagado;
 
   void _agregarPago() {
     final monto = CurrencyUtilsImproved.parseToDouble(_montoAgregarController.text);
@@ -860,6 +872,57 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
                                     style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.blue1)),
                               ],
                             ),
+                            // Adelanto + saldo a cobrar hoy (solo si hubo adelanto).
+                            // El cajero cobra solo el saldo; el adelanto ya se
+                            // registró en caja al crear la cotización.
+                            if (_adelanto > 0) ...[
+                              const SizedBox(height: 4),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text('Adelanto',
+                                      style: TextStyle(
+                                          fontSize: 13,
+                                          color: Colors.green[800])),
+                                  Text(
+                                      '- S/ ${_adelanto.toStringAsFixed(2)}',
+                                      style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w700,
+                                          color: Colors.green[800])),
+                                ],
+                              ),
+                              const SizedBox(height: 2),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: AppColors.greenContainer,
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                      color: AppColors.greenBorder,
+                                      width: 0.6),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text('Saldo a cobrar',
+                                        style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w700,
+                                            color: AppColors.greendark)),
+                                    Text(
+                                        'S/ ${_totalACobrar.toStringAsFixed(2)}',
+                                        style: TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w800,
+                                            color: AppColors.greendark)),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),
@@ -981,8 +1044,11 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
                       //   ),
                       // ),
 
-                      // Vuelto (si aplica)
-                      if (_totalPagado > _total + 0.01) ...[
+                      // Vuelto (si aplica): se calcula sobre el saldo a
+                      // cobrar hoy, no contra el total de la venta —
+                      // cuando hay adelanto, el cliente solo entrega el
+                      // saldo, y el vuelto es contra ese saldo.
+                      if (_totalPagado > _totalACobrar + 0.01) ...[
                         const SizedBox(height: 12),
                         GradientContainer(
                           borderColor: Colors.green.shade300,
@@ -992,7 +1058,7 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text('Vuelto', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.green[700])),
-                              Text('S/ ${(_totalPagado - _total).toStringAsFixed(2)}',
+                              Text('S/ ${(_totalPagado - _totalACobrar).toStringAsFixed(2)}',
                                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Colors.green[700])),
                             ],
                           ),
