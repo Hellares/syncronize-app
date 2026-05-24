@@ -24,6 +24,11 @@ class TesoreriaGroupCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Ciclo apertura↔cierre tiene su propio layout (bloque retiro + flecha
+    // + bloque depósito), independiente del agrupado tradicional.
+    if (group.kind == TesoreriaGroupKind.cicloCaja) {
+      return _cicloCard();
+    }
     // Render como card grupal si hay >1 item, o si es un barrido con
     // reversos vinculados (necesitamos espacio para el banner).
     final renderAsCard = group.isGrouped || group.tieneReversosVinculados;
@@ -32,6 +37,265 @@ class TesoreriaGroupCard extends StatelessWidget {
     }
     return _groupedCard();
   }
+
+  /// Card del ciclo apertura↔cierre: bloque retiro arriba, flecha ↓
+  /// indentada, bloque depósito abajo. Badge "devuelto al cierre" en
+  /// pill top-right si el ciclo cerró.
+  Widget _cicloCard() {
+    final retiro = group.cicloRetiro;
+    final depositos = group.cicloDepositos;
+    final cajaCodigo = group.cicloCajaCodigo ?? 'CAJA';
+    final cajero = group.cicloCajeroNombre;
+    final cierra = group.cicloCierraNombre;
+    final cierreCompleto = group.cicloCompleto;
+    final radius = BorderRadius.circular(10);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Material(
+        color: AppColors.white,
+        borderRadius: radius,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: radius,
+          child: Stack(
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: radius,
+                  border: Border.all(
+                    color: AppColors.blue1.withValues(alpha: 0.15),
+                    width: 0.8,
+                  ),
+                ),
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (retiro != null) _buildBloqueRetiro(retiro, cajero),
+                    if (retiro != null && depositos.isNotEmpty)
+                      const SizedBox(height: 10),
+                    if (depositos.isNotEmpty)
+                      _buildBloqueDeposito(
+                        depositos: depositos,
+                        cajaCodigo: cajaCodigo,
+                        cajero: cajero,
+                        cierra: cierra,
+                        indent: retiro != null,
+                      ),
+                    if (group.tieneReversosVinculados) ...[
+                      const SizedBox(height: 10),
+                      _ReversosAfectanBanner(group: group),
+                    ],
+                  ],
+                ),
+              ),
+              // Badge "devuelto al cierre" en pill top-right.
+              if (cierreCompleto)
+                Positioned(
+                  top: 8,
+                  right: 10,
+                  child: _badgePillDevueltoAlCierre(),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBloqueRetiro(MovimientoCaja retiro, String? cajeroFallback) {
+    final cajaCodigo =
+        retiro.metadata?['cajaAperturaCodigo'] as String? ?? '';
+    final cajero = cajeroFallback ?? retiro.registradoPorNombre;
+    final metodoLabel = retiro.metodoPago.label;
+    final fechaStr = DateFormatter.formatDateTime(retiro.fechaMovimiento);
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Retiro de Tesorería',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Retiro para apertura: $cajaCodigo',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              if (cajero != null)
+                Text(
+                  'Cajero: $cajero',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              Text(
+                '$metodoLabel · $fechaStr',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          '-${_money(retiro.monto)}',
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w800,
+            color: AppColors.red,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBloqueDeposito({
+    required List<MovimientoCaja> depositos,
+    required String cajaCodigo,
+    required String? cajero,
+    required String? cierra,
+    required bool indent,
+  }) {
+    final montoTotal = depositos.fold<double>(0, (s, m) => s + m.monto);
+    final fechaCierre = depositos.first.fechaMovimiento;
+    final fechaStr = DateFormatter.formatDateTime(fechaCierre);
+
+    // Si hay múltiples métodos, mostramos chips inline después de la info.
+    final multiMetodo = depositos.length > 1;
+
+    final cajeroEsCerro =
+        cajero != null && cierra != null && _sameName(cajero, cierra);
+
+    return Padding(
+      padding: EdgeInsets.only(left: indent ? 20 : 0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (indent)
+            Padding(
+              padding: const EdgeInsets.only(top: 2, right: 6),
+              child: Icon(
+                Icons.subdirectory_arrow_right,
+                size: 18,
+                color: AppColors.textSecondary.withValues(alpha: 0.5),
+              ),
+            ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Depósito de $cajaCodigo',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                if (cajero != null)
+                  Text(
+                    'Cajero: $cajero',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                if (cierra != null && !cajeroEsCerro)
+                  Text(
+                    'Cerró: $cierra',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                if (!multiMetodo)
+                  Text(
+                    '${depositos.first.metodoPago.label} · $fechaStr',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                    ),
+                  )
+                else ...[
+                  Text(
+                    fechaStr,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Wrap(
+                    spacing: 4,
+                    runSpacing: 4,
+                    children: depositos
+                        .map((m) => _MetodoChip(
+                              metodo: m.metodoPago,
+                              monto: m.monto,
+                              signo: '+',
+                              color: AppColors.greendark,
+                            ))
+                        .toList(),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            '+${_money(montoTotal)}',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+              color: AppColors.greendark,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _badgePillDevueltoAlCierre() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: AppColors.orange.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: AppColors.orange.withValues(alpha: 0.45),
+          width: 0.8,
+        ),
+      ),
+      child: const Text(
+        'devuelto al cierre',
+        style: TextStyle(
+          fontSize: 9,
+          color: AppColors.orange,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  bool _sameName(String a, String b) =>
+      a.trim().toLowerCase() == b.trim().toLowerCase();
 
   Widget _singleTile(MovimientoCaja mov) {
     final tile = ListTile(

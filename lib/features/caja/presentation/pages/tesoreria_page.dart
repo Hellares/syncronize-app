@@ -527,7 +527,20 @@ class _GroupedList extends StatelessWidget {
         //    se anulo (compras no tienen pantalla de detalle por id aun).
         //  - resto (ajustes manuales, etc.) → sin destino.
         VoidCallback? onTap;
-        if (g.kind == TesoreriaGroupKind.barridoCierre) {
+        if (g.kind == TesoreriaGroupKind.cicloCaja) {
+          // El cajaEspejoId está en el metadata del depósito si existe,
+          // sino en cajaAperturaId del retiro.
+          String? cajaId;
+          for (final m in g.items) {
+            cajaId = (m.metadata?['cajaEspejoId'] ??
+                m.metadata?['cajaAperturaId']) as String?;
+            if (cajaId != null) break;
+          }
+          if (cajaId != null) {
+            onTap = () =>
+                context.push('/empresa/caja/auditoria/$cajaId');
+          }
+        } else if (g.kind == TesoreriaGroupKind.barridoCierre) {
           final cajaId =
               g.items.first.metadata?['cajaEspejoId'] as String?;
           if (cajaId != null) {

@@ -1,47 +1,24 @@
 import '../../domain/entities/movimiento_caja.dart';
 
-/// Grupo de movimientos de tesoreria que comparten un mismo evento origen
-/// (mismo cierre de caja para barridos, misma venta/devolucion/compra para
-/// reversos). Permite mostrar 1 card por evento con desglose por metodo
-/// inline en vez de N filas casi identicas.
+/// Grupo de movimientos de tesoreria que comparten un mismo evento origen.
 class TesoreriaGroup {
-  /// Movimientos del grupo. Si solo hay uno, el grupo se renderiza como
-  /// fila simple (mismo aspecto que un movimiento suelto).
   final List<MovimientoCaja> items;
-
-  /// Tipo del grupo, derivado de la categoria del primer movimiento.
   final TesoreriaGroupKind kind;
-
-  /// Etiqueta para el header (ej. "Depósito de CAJA-00013",
-  /// "Reverso venta VTA-SED-00000042").
   final String titulo;
-
-  /// Subtitulo descriptivo (ej. "Recepción de cierre · hace 5 min").
   final String? subtitulo;
-
-  /// Suma total del grupo. Para grupos mixtos no debería ocurrir; cada
-  /// grupo es enteramente INGRESO o EGRESO (par espejo del barrido es
-  /// INGRESO en la central; reversos son siempre EGRESO).
   final double montoTotal;
-
-  /// `true` si TODOS los items son INGRESO (color verde + signo `+`).
-  /// `false` si TODOS son EGRESO. Mixto no aplica por construcción.
   final bool esIngreso;
 
-  /// Reversos por anulación de venta (`REVERSO_CAJA_CERRADA` en tesorería
-  /// cuyo `metadata.cajaOrigenId` matchea la caja de este depósito).
+  /// Reversos por anulación de venta (REVERSO_CAJA_CERRADA).
   final double montoReversosVenta;
   final int cantidadReversosVenta;
 
-  /// Devoluciones por anulación de cotización con adelanto
-  /// (`DEVOLUCION_ADELANTO_COTIZACION` en tesorería).
+  /// Devoluciones por anulación de cotización (DEVOLUCION_ADELANTO_COTIZACION).
   final double montoDevolucionesCotizacion;
   final int cantidadDevolucionesCotizacion;
 
-  /// Solo para grupos individuales de `RETIRO_TESORERIA` con
-  /// `metadata.esRetiroApertura`: indica si la caja correspondiente ya
-  /// fue cerrada (existe un DEPOSITO_TESORERIA con el mismo
-  /// `cajaAperturaId`). Permite mostrar badge "DEVUELTO AL CIERRE".
+  /// Solo para retiros de apertura individuales (no usados desde que
+  /// existe el kind `cicloCaja`, pero se mantiene por compat).
   final bool retiroAperturaDevuelto;
 
   const TesoreriaGroup({
@@ -60,15 +37,10 @@ class TesoreriaGroup {
 
   bool get isGrouped => items.length > 1;
 
-  /// Monto total afectado (suma de reversos de venta + devoluciones
-  /// de cotización). Para resumen agregado en la card.
   double get montoAfectadoPorReversos =>
       montoReversosVenta + montoDevolucionesCotizacion;
-
-  /// Cantidad total de afectaciones.
   int get cantidadReversos =>
       cantidadReversosVenta + cantidadDevolucionesCotizacion;
-
   bool get tieneReversosVinculados => cantidadReversos > 0;
   bool get tieneSoloReversosVenta =>
       cantidadReversosVenta > 0 && cantidadDevolucionesCotizacion == 0;
@@ -76,6 +48,94 @@ class TesoreriaGroup {
       cantidadDevolucionesCotizacion > 0 && cantidadReversosVenta == 0;
   bool get tieneMixto =>
       cantidadReversosVenta > 0 && cantidadDevolucionesCotizacion > 0;
+
+  // ─── Helpers para kind=cicloCaja ───────────────────────────────────────
+  // El ciclo agrupa el RETIRO_TESORERIA de apertura + los
+  // DEPOSITO_TESORERIA del cierre de la misma caja operativa. Si la caja
+  // sigue abierta, el ciclo solo tiene el retiro.
+
+  /// Retiro de apertura del ciclo (o null si no aplica).
+  MovimientoCaja? get cicloRetiro {
+    if (kind != TesoreriaGroupKind.cicloCaja) return null;
+    for (final m in items) {
+      if (m.categoria == CategoriaMovimientoCaja.retiroTesoreria) return m;
+    }
+    return null;
+  }
+
+  /// Depósitos del cierre del ciclo. Pueden ser varios (uno por método).
+  List<MovimientoCaja> get cicloDepositos {
+    if (kind != TesoreriaGroupKind.cicloCaja) return const [];
+    return items
+        .where(
+            (m) => m.categoria == CategoriaMovimientoCaja.depositoTesoreria)
+        .toList();
+  }
+
+  /// True si el ciclo tiene tanto retiro como depósito (caja cerrada).
+  bool get cicloCompleto =>
+      cicloRetiro != null && cicloDepositos.isNotEmpty;
+
+  /// Total del retiro (negativo en saldo) — 0 si no hubo apertura con seed.
+  double get cicloMontoRetiro => cicloRetiro?.monto ?? 0;
+
+  /// Total del depósito del cierre — 0 si la caja sigue abierta.
+  double get cicloMontoDeposito =>
+      cicloDepositos.fold<double>(0, (s, m) => s + m.monto);
+
+  /// Código de la caja operativa origen del ciclo (CAJA-XX).
+  String? get cicloCajaCodigo {
+    final r = cicloRetiro;
+    if (r != null) {
+      final meta = r.metadata;
+      if (meta != null) {
+        // Para RETIRO_TESORERIA: metadata.cajaAperturaCodigo
+        return meta['cajaAperturaCodigo'] as String?;
+      }
+    }
+    if (cicloDepositos.isNotEmpty) {
+      final meta = cicloDepositos.first.metadata;
+      if (meta != null) {
+        return meta['cajaOrigenCodigo'] as String?;
+      }
+    }
+    return null;
+  }
+
+  /// Cajero titular de la caja del ciclo (del metadata de cualquier mov).
+  String? get cicloCajeroNombre {
+    final r = cicloRetiro;
+    if (r != null) {
+      // El retiro original NO tiene cajaOrigenUsuarioNombre en metadata;
+      // pero el registradoPor del retiro es el cajero titular en la
+      // apertura (lo registra al abrir su propia caja).
+      // Si fuera otro flujo, fallback a registradoPorNombre.
+      // Mejor: leer del depósito si existe (que tiene cajaOrigenUsuarioNombre).
+    }
+    if (cicloDepositos.isNotEmpty) {
+      final n =
+          cicloDepositos.first.metadata?['cajaOrigenUsuarioNombre'] as String?;
+      if (n != null && n.isNotEmpty) return n;
+    }
+    // Fallback: el que registró el retiro (= cajero al abrir su caja).
+    return r?.registradoPorNombre;
+  }
+
+  /// Quien cerró la caja (puede ser distinto al cajero titular).
+  String? get cicloCierraNombre {
+    if (cicloDepositos.isEmpty) return null;
+    return cicloDepositos.first.registradoPorNombre;
+  }
+
+  /// Fecha/hora de la apertura (= fecha del retiro), o null si no hubo seed.
+  DateTime? get cicloFechaApertura => cicloRetiro?.fechaMovimiento;
+
+  /// Fecha/hora del cierre (= fecha del primer depósito), o null si abierta.
+  DateTime? get cicloFechaCierre =>
+      cicloDepositos.isNotEmpty ? cicloDepositos.first.fechaMovimiento : null;
+
+  /// Método del retiro (siempre EFECTIVO por construcción, pero defensa).
+  MetodoPago? get cicloRetiroMetodo => cicloRetiro?.metodoPago;
 
   TesoreriaGroup copyWith({
     double? montoReversosVenta,
@@ -105,33 +165,74 @@ class TesoreriaGroup {
 }
 
 enum TesoreriaGroupKind {
-  /// Barrido al cerrar caja (categoria DEPOSITO_TESORERIA). Se agrupa por
-  /// `metadata.cierreId` — todos los movs del mismo cierre quedan juntos.
+  /// Barrido al cerrar caja SIN seed previo (apertura S/0 + ventas).
+  /// Se muestra como card de "Depósito de CAJA-XX" tradicional.
   barridoCierre,
 
-  /// Reverso de venta/devolucion/compra cuya caja origen estaba cerrada
-  /// (categoria REVERSO_CAJA_CERRADA). Se agrupa por `ventaId`/`devolucionId`/`compraId`.
+  /// Ciclo apertura↔cierre de la misma caja. Combina RETIRO_TESORERIA
+  /// (al abrir con seed > 0) + DEPOSITO_TESORERIA (al cerrar). Si la
+  /// caja aún está abierta, solo tiene el retiro.
+  cicloCaja,
+
+  /// Reverso de venta/devolucion/compra cuya caja origen estaba cerrada.
   reversoCajaCerrada,
 
-  /// Cualquier otro movimiento (ajustes manuales, etc). Grupo de 1 siempre.
+  /// Cualquier otro movimiento (ajustes manuales, devolución adelanto,
+  /// etc.). Grupo de 1 siempre.
   individual,
 }
 
-/// Agrupa una lista de movimientos de la Caja Central. Reglas:
-///  - DEPOSITO_TESORERIA → agrupa por `metadata.cierreId` (cuando exista).
-///  - REVERSO_CAJA_CERRADA → agrupa por (`ventaId` ?? `devolucionId` ?? `compraId`).
-///  - Resto → grupo individual.
-/// Orden: por fecha desc del primer movimiento del grupo.
+/// Agrupa una lista de movimientos de la Caja Central.
 List<TesoreriaGroup> groupTesoreriaMovimientos(List<MovimientoCaja> movs) {
   if (movs.isEmpty) return const [];
 
-  final barridoBuckets = <String, List<MovimientoCaja>>{};
+  // ── Pass 1: identificar movs del ciclo apertura↔cierre ──
+  // Retiros con esRetiroApertura=true: indexar por cajaAperturaId.
+  // Depósitos: indexar por cajaEspejoId (la caja operativa origen).
+  final retirosAperturaPorCaja = <String, MovimientoCaja>{};
+  final depositosPorCaja = <String, List<MovimientoCaja>>{};
+
+  for (final m in movs) {
+    if (m.categoria == CategoriaMovimientoCaja.retiroTesoreria &&
+        m.metadata?['esRetiroApertura'] == true) {
+      final cajaId = m.metadata?['cajaAperturaId'] as String?;
+      if (cajaId != null) {
+        retirosAperturaPorCaja[cajaId] = m;
+      }
+    } else if (m.categoria == CategoriaMovimientoCaja.depositoTesoreria) {
+      final cajaId = m.metadata?['cajaEspejoId'] as String?;
+      if (cajaId != null) {
+        depositosPorCaja.putIfAbsent(cajaId, () => []).add(m);
+      }
+    }
+  }
+
+  // Cajas que tendrán kind=cicloCaja (tienen retiro de apertura,
+  // ya sea con depósito o sin él aún).
+  final cajasConCiclo = retirosAperturaPorCaja.keys.toSet();
+  // Estos IDs estarán "consumidos" por el ciclo y no se procesan como
+  // movs individuales/barrido normales.
+  final movsEnCiclo = <String>{};
+  for (final cajaId in cajasConCiclo) {
+    final r = retirosAperturaPorCaja[cajaId];
+    if (r != null) movsEnCiclo.add(r.id);
+    final ds = depositosPorCaja[cajaId];
+    if (ds != null) movsEnCiclo.addAll(ds.map((m) => m.id));
+  }
+
+  // ── Pass 2: clasificar el resto en buckets ──
+  final barridoBuckets =
+      <String, List<MovimientoCaja>>{}; // por cierreId (depósitos S/0 apertura)
   final reversoBuckets = <String, List<MovimientoCaja>>{};
   final individuales = <MovimientoCaja>[];
 
   for (final m in movs) {
+    if (movsEnCiclo.contains(m.id)) continue;
+
     switch (m.categoria) {
       case CategoriaMovimientoCaja.depositoTesoreria:
+        // Depósito de cierre cuya apertura fue S/0 (no hubo retiro previo).
+        // Lo mostramos como card "Depósito de CAJA-XX" tradicional.
         final cierreId = m.metadata?['cierreId'] as String?;
         if (cierreId != null) {
           barridoBuckets.putIfAbsent(cierreId, () => []).add(m);
@@ -156,16 +257,43 @@ List<TesoreriaGroup> groupTesoreriaMovimientos(List<MovimientoCaja> movs) {
 
   final grupos = <TesoreriaGroup>[];
 
+  // ── Pass 3: construir grupos cicloCaja ──
+  for (final cajaId in cajasConCiclo) {
+    final retiro = retirosAperturaPorCaja[cajaId]!;
+    final depositos = depositosPorCaja[cajaId] ?? [];
+    depositos
+        .sort((a, b) => a.metodoPago.index.compareTo(b.metodoPago.index));
+
+    final items = <MovimientoCaja>[retiro, ...depositos];
+    final codigoRetiro =
+        retiro.metadata?['cajaAperturaCodigo'] as String?;
+    final codigoDeposito = depositos.isNotEmpty
+        ? (depositos.first.metadata?['cajaOrigenCodigo'] as String?)
+        : null;
+    final codigo = codigoRetiro ?? codigoDeposito ?? 'caja';
+
+    grupos.add(TesoreriaGroup(
+      items: items,
+      kind: TesoreriaGroupKind.cicloCaja,
+      titulo: 'Ciclo de $codigo',
+      subtitulo: null,
+      // Para fines de ordenamiento por fecha y cálculo, usamos la suma
+      // neta del ciclo. Visualmente la card muestra cada parte separada.
+      montoTotal: depositos.fold<double>(0, (s, m) => s + m.monto) -
+          retiro.monto,
+      // El "esIngreso" del ciclo no aplica visualmente — cada bloque tiene
+      // su signo. Default true (neto positivo si hubo ventas).
+      esIngreso: true,
+    ));
+  }
+
+  // ── Pass 4: construir grupos barridoCierre (apertura S/0) ──
   for (final items in barridoBuckets.values) {
     items.sort((a, b) => a.metodoPago.index.compareTo(b.metodoPago.index));
     final first = items.first;
     final codigo =
         first.metadata?['cajaOrigenCodigo'] as String? ?? 'caja';
     final monto = items.fold<double>(0, (s, m) => s + m.monto);
-
-    // Diferenciamos cajero titular (dueño de la caja origen) vs el
-    // que efectivamente cerró (puede ser admin). Si coinciden, mostramos
-    // un solo nombre; si difieren, ambos.
     final cajero = first.metadata?['cajaOrigenUsuarioNombre'] as String?;
     final cierra = first.registradoPorNombre;
     final subt = _buildBarridoSubtitulo(cajero: cajero, cierra: cierra);
@@ -180,14 +308,12 @@ List<TesoreriaGroup> groupTesoreriaMovimientos(List<MovimientoCaja> movs) {
     ));
   }
 
+  // ── Pass 5: construir grupos reversoCajaCerrada ──
   for (final items in reversoBuckets.values) {
     items.sort((a, b) => a.metodoPago.index.compareTo(b.metodoPago.index));
     final monto = items.fold<double>(0, (s, m) => s + m.monto);
     final cajaOrigen =
         items.first.metadata?['cajaOrigenCodigo'] as String? ?? 'caja cerrada';
-
-    // Construir titulo "Reverso <tipo> <codigo>" cuando tenemos codigo,
-    // si no caer a tipo generico ("Reverso de venta").
     final first = items.first;
     String tipoRef;
     String? codigoRef;
@@ -227,9 +353,8 @@ List<TesoreriaGroup> groupTesoreriaMovimientos(List<MovimientoCaja> movs) {
     ));
   }
 
+  // ── Pass 6: construir grupos individuales ──
   for (final m in individuales) {
-    // Para movs sueltos (ajuste manual, devolución de adelanto en
-    // tesorería, etc.), anexamos el usuario al subtitulo si está disponible.
     final base = m.descripcion?.isNotEmpty == true ? m.descripcion! : '';
     final usuario = m.registradoPorNombre;
     String? subtI;
@@ -251,13 +376,17 @@ List<TesoreriaGroup> groupTesoreriaMovimientos(List<MovimientoCaja> movs) {
     ));
   }
 
-  grupos.sort((a, b) =>
-      b.items.first.fechaMovimiento.compareTo(a.items.first.fechaMovimiento));
+  // Ordenar por fecha del item más reciente del grupo (cicloCaja usa el
+  // depósito si existe, sino el retiro).
+  grupos.sort((a, b) {
+    final fa = _fechaParaOrden(a);
+    final fb = _fechaParaOrden(b);
+    return fb.compareTo(fa);
+  });
 
-  // ── Cross-link afectaciones → deposito ──
-  // Para cada grupo barridoCierre, vincular movs en tesoreria que apuntan a
-  // esa caja origen via metadata.cajaOrigenId. Diferenciamos por tipo
-  // para que el banner pueda mostrar desglose ventas / cotizaciones.
+  // ── Pass 7: cross-link afectaciones a depósitos (banner naranja) ──
+  // Aplica a barridoCierre Y cicloCaja (los depósitos del ciclo pueden
+  // haber sido afectados por anulaciones posteriores).
   final acumPorCaja = <String,
       ({
         double montoVenta,
@@ -292,37 +421,20 @@ List<TesoreriaGroup> groupTesoreriaMovimientos(List<MovimientoCaja> movs) {
     }
   }
 
-  // ── Cross-link retiro apertura → depósito cierre ──
-  // Set de cajas que ya tienen depósito (= ya cerraron). Permite marcar
-  // como "devuelto al cierre" los RETIRO_TESORERIA de apertura cuya
-  // caja correspondiente ya completó su ciclo.
-  final cajasYaCerradas = <String>{};
-  for (final g in grupos) {
-    if (g.kind != TesoreriaGroupKind.barridoCierre) continue;
-    final cajaEspejoId =
-        g.items.first.metadata?['cajaEspejoId'] as String?;
-    if (cajaEspejoId != null) cajasYaCerradas.add(cajaEspejoId);
-  }
-
   return grupos.map((g) {
-    // Marcar RETIRO_TESORERIA de apertura como devuelto cuando aplique.
-    if (g.kind == TesoreriaGroupKind.individual &&
-        g.items.length == 1 &&
-        g.items.first.categoria == CategoriaMovimientoCaja.retiroTesoreria) {
-      final meta = g.items.first.metadata;
-      if (meta != null && meta['esRetiroApertura'] == true) {
-        final cajaAperturaId = meta['cajaAperturaId'] as String?;
-        if (cajaAperturaId != null &&
-            cajasYaCerradas.contains(cajaAperturaId)) {
-          return g.copyWith(retiroAperturaDevuelto: true);
-        }
+    // Solo barridoCierre y cicloCaja reciben el cross-link.
+    if (g.kind != TesoreriaGroupKind.barridoCierre &&
+        g.kind != TesoreriaGroupKind.cicloCaja) {
+      return g;
+    }
+    // El cajaEspejoId puede venir del primer depósito.
+    String? cajaEspejoId;
+    for (final m in g.items) {
+      if (m.categoria == CategoriaMovimientoCaja.depositoTesoreria) {
+        cajaEspejoId = m.metadata?['cajaEspejoId'] as String?;
+        if (cajaEspejoId != null) break;
       }
     }
-
-    // Cross-link existente: afectaciones al depósito de barrido.
-    if (g.kind != TesoreriaGroupKind.barridoCierre) return g;
-    final cajaEspejoId =
-        g.items.first.metadata?['cajaEspejoId'] as String?;
     if (cajaEspejoId == null) return g;
     final acum = acumPorCaja[cajaEspejoId];
     if (acum == null) return g;
@@ -335,12 +447,15 @@ List<TesoreriaGroup> groupTesoreriaMovimientos(List<MovimientoCaja> movs) {
   }).toList();
 }
 
-/// Construye subtitulo para el barrido de cierre. Diferencia explicita
-/// entre cajero titular y quien hizo el cierre cuando son distintos.
-///
-/// - cajero null + cierra null  → "Recepción de cierre"
-/// - cajero == cierra (o cajero null) → "Recepción de cierre · X"
-/// - cajero != cierra            → "Recepción de cierre · Cajero: X · Cerró: Y"
+/// Fecha del item más relevante para ordenar. Para cicloCaja se usa la
+/// fecha del cierre (depósito); si aún no cerró, la del retiro.
+DateTime _fechaParaOrden(TesoreriaGroup g) {
+  if (g.kind == TesoreriaGroupKind.cicloCaja) {
+    return g.cicloFechaCierre ?? g.cicloFechaApertura ?? DateTime(2000);
+  }
+  return g.items.first.fechaMovimiento;
+}
+
 String _buildBarridoSubtitulo({String? cajero, String? cierra}) {
   if (cajero == null && cierra == null) return 'Recepción de cierre';
   if (cajero != null && cierra != null && _sameName(cajero, cierra)) {
