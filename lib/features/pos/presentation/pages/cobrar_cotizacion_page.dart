@@ -1077,7 +1077,11 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
           : SafeArea(
               top: false,
               child: _NumpadCobrarBar(
-                total: _total,
+                // El "Total" de la barra del numpad debe coincidir con el
+                // saldo que el cliente paga HOY: si hubo adelanto, no se
+                // suma de nuevo. El total bruto S/150 se ve arriba con el
+                // desglose "Adelanto + Saldo a cobrar".
+                total: _totalACobrar,
                 totalPagado: _totalPagado,
                 saldoPendiente: _saldoPendiente,
                 numpadController: _numpadController,
