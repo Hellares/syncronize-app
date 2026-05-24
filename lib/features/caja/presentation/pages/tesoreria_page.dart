@@ -484,7 +484,7 @@ class _Chip extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(
           color: selected ? AppColors.blue1 : Colors.transparent,
           borderRadius: BorderRadius.circular(16),
@@ -497,7 +497,7 @@ class _Chip extends StatelessWidget {
           style: TextStyle(
             color: selected ? AppColors.white : AppColors.textSecondary,
             fontWeight: FontWeight.w600,
-            fontSize: 12,
+            fontSize: 10,
           ),
         ),
       ),
