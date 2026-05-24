@@ -188,9 +188,10 @@ class _AjusteTesoreriaDialogState extends State<AjusteTesoreriaDialog> {
                     ),
                     const SizedBox(height: 14),
 
-                    // Descripción / motivo
+                    // Descripción / motivo (con dictado por voz)
                     CustomText(
                       controller: _descCtrl,
+                      textCase: TextCase.upper,
                       label: 'Motivo / descripción',
                       hintText: 'Ej: Reposición inicial, pago a banco',
                       borderColor: AppColors.blue1,
@@ -198,6 +199,7 @@ class _AjusteTesoreriaDialogState extends State<AjusteTesoreriaDialog> {
                       height: 56,
                       autovalidateMode: AutovalidateModeX.disabled,
                       validator: _validateDescripcion,
+                      enableVoiceInput: true,
                     ),
                   ],
                 ),

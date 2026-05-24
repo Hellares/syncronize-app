@@ -457,6 +457,10 @@ class CierreCajaEscPosGenerator {
         return 'REPO C.CH.';
       case CategoriaMovimientoCaja.adelantoServicio:
         return 'ADEL SERV';
+      case CategoriaMovimientoCaja.adelantoCotizacion:
+        return 'ADEL COT';
+      case CategoriaMovimientoCaja.devolucionAdelantoCotizacion:
+        return 'DEV ADEL COT';
       case CategoriaMovimientoCaja.pedidoMarketplace:
         return 'PEDIDO MKT';
       case CategoriaMovimientoCaja.venta:

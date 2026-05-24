@@ -54,6 +54,8 @@ enum CategoriaMovimientoCaja {
   compra,
   devolucion,
   adelantoServicio,
+  adelantoCotizacion,
+  devolucionAdelantoCotizacion,
   otroIngreso,
   pagoProveedor,
   gastoOperativo,
@@ -79,6 +81,10 @@ enum CategoriaMovimientoCaja {
         return 'Devolucion';
       case CategoriaMovimientoCaja.adelantoServicio:
         return 'Adelanto Servicio';
+      case CategoriaMovimientoCaja.adelantoCotizacion:
+        return 'Adelanto Cotización';
+      case CategoriaMovimientoCaja.devolucionAdelantoCotizacion:
+        return 'Devolución Adelanto Cotización';
       case CategoriaMovimientoCaja.otroIngreso:
         return 'Otro Ingreso';
       case CategoriaMovimientoCaja.pagoProveedor:
@@ -112,6 +118,10 @@ enum CategoriaMovimientoCaja {
         return 'DEVOLUCION';
       case CategoriaMovimientoCaja.adelantoServicio:
         return 'ADELANTO_SERVICIO';
+      case CategoriaMovimientoCaja.adelantoCotizacion:
+        return 'ADELANTO_COTIZACION';
+      case CategoriaMovimientoCaja.devolucionAdelantoCotizacion:
+        return 'DEVOLUCION_ADELANTO_COTIZACION';
       case CategoriaMovimientoCaja.otroIngreso:
         return 'OTRO_INGRESO';
       case CategoriaMovimientoCaja.pagoProveedor:
@@ -145,6 +155,10 @@ enum CategoriaMovimientoCaja {
         return Icons.assignment_return_rounded;
       case CategoriaMovimientoCaja.adelantoServicio:
         return Icons.handyman_rounded;
+      case CategoriaMovimientoCaja.adelantoCotizacion:
+        return Icons.request_quote_rounded;
+      case CategoriaMovimientoCaja.devolucionAdelantoCotizacion:
+        return Icons.assignment_return_outlined;
       case CategoriaMovimientoCaja.otroIngreso:
         return Icons.add_circle_rounded;
       case CategoriaMovimientoCaja.pagoProveedor:
@@ -171,12 +185,14 @@ enum CategoriaMovimientoCaja {
       case CategoriaMovimientoCaja.venta:
       case CategoriaMovimientoCaja.pedidoMarketplace:
       case CategoriaMovimientoCaja.adelantoServicio:
+      case CategoriaMovimientoCaja.adelantoCotizacion:
       case CategoriaMovimientoCaja.otroIngreso:
         return true;
       // COMPRA: pagamos al proveedor → sale plata de caja.
       // DEVOLUCION: devolvemos al cliente → sale plata de caja.
       case CategoriaMovimientoCaja.compra:
       case CategoriaMovimientoCaja.devolucion:
+      case CategoriaMovimientoCaja.devolucionAdelantoCotizacion:
       case CategoriaMovimientoCaja.pagoProveedor:
       case CategoriaMovimientoCaja.gastoOperativo:
       case CategoriaMovimientoCaja.otroEgreso:
@@ -221,6 +237,10 @@ enum CategoriaMovimientoCaja {
         return CategoriaMovimientoCaja.devolucion;
       case 'ADELANTO_SERVICIO':
         return CategoriaMovimientoCaja.adelantoServicio;
+      case 'ADELANTO_COTIZACION':
+        return CategoriaMovimientoCaja.adelantoCotizacion;
+      case 'DEVOLUCION_ADELANTO_COTIZACION':
+        return CategoriaMovimientoCaja.devolucionAdelantoCotizacion;
       case 'OTRO_INGRESO':
         return CategoriaMovimientoCaja.otroIngreso;
       case 'PAGO_PROVEEDOR':
