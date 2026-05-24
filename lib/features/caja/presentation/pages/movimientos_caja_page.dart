@@ -280,6 +280,32 @@ class _MovimientosCajaPageState extends State<MovimientosCajaPage> {
                             ),
                           ),
                         ],
+                        // Badge DEVUELTO: el ADELANTO_COTIZACION queda
+                        // marcado cuando la cotización vinculada termina
+                        // en RECHAZADA (se genero la devolucion correspondiente).
+                        if (mov.categoria ==
+                                CategoriaMovimientoCaja.adelantoCotizacion &&
+                            mov.cotizacionFueAnulada) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.withValues(alpha: 0.10),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                  color: Colors.orange.withValues(alpha: 0.40)),
+                            ),
+                            child: const Text(
+                              'DEVUELTO',
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.orange,
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                     const SizedBox(height: 4),

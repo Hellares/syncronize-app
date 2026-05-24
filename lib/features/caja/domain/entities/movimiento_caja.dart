@@ -361,6 +361,13 @@ class MovimientoCaja extends Equatable {
   final String? devolucionCodigo;
   final String? compraId;
   final String? compraCodigo;
+  final String? cotizacionId;
+  final String? cotizacionCodigo;
+  /// Estado de la cotización vinculada (si aplica). Apunta a si el
+  /// ADELANTO_COTIZACION asociado tuvo su devolución por anulación.
+  /// Valores backend: BORRADOR | PENDIENTE | APROBADA | RECHAZADA |
+  /// VENCIDA | CONVERTIDA.
+  final String? cotizacionEstado;
   final bool anulado;
   final String? motivoAnulacion;
 
@@ -388,10 +395,17 @@ class MovimientoCaja extends Equatable {
     this.devolucionCodigo,
     this.compraId,
     this.compraCodigo,
+    this.cotizacionId,
+    this.cotizacionCodigo,
+    this.cotizacionEstado,
     this.anulado = false,
     this.motivoAnulacion,
     this.metadata,
   });
+
+  /// True si la cotización vinculada a este movimiento de adelanto está
+  /// RECHAZADA (anulada). Indica que se generó la devolución correspondiente.
+  bool get cotizacionFueAnulada => cotizacionEstado == 'RECHAZADA';
 
   @override
   List<Object?> get props => [
@@ -413,6 +427,9 @@ class MovimientoCaja extends Equatable {
         devolucionCodigo,
         compraId,
         compraCodigo,
+        cotizacionId,
+        cotizacionCodigo,
+        cotizacionEstado,
         anulado,
         motivoAnulacion,
         metadata,

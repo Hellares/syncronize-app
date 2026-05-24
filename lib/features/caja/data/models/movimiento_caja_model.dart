@@ -20,6 +20,9 @@ class MovimientoCajaModel extends MovimientoCaja {
     super.devolucionCodigo,
     super.compraId,
     super.compraCodigo,
+    super.cotizacionId,
+    super.cotizacionCodigo,
+    super.cotizacionEstado,
     super.anulado,
     super.motivoAnulacion,
     super.metadata,
@@ -30,6 +33,7 @@ class MovimientoCajaModel extends MovimientoCaja {
     final pedido = json['pedido'] as Map<String, dynamic>?;
     final devolucion = json['devolucion'] as Map<String, dynamic>?;
     final compra = json['compra'] as Map<String, dynamic>?;
+    final cotizacion = json['cotizacion'] as Map<String, dynamic>?;
     final categoriaGasto = json['categoriaGasto'] as Map<String, dynamic>?;
     final meta = json['metadata'];
 
@@ -54,6 +58,9 @@ class MovimientoCajaModel extends MovimientoCaja {
       devolucionCodigo: devolucion?['codigo'] as String?,
       compraId: compra?['id'] as String? ?? json['compraId'] as String?,
       compraCodigo: compra?['codigo'] as String?,
+      cotizacionId: cotizacion?['id'] as String? ?? json['cotizacionId'] as String?,
+      cotizacionCodigo: cotizacion?['codigo'] as String?,
+      cotizacionEstado: cotizacion?['estado'] as String?,
       anulado: json['anulado'] as bool? ?? false,
       motivoAnulacion: json['motivoAnulacion'] as String?,
       metadata: meta is Map<String, dynamic> ? meta : null,
