@@ -148,23 +148,25 @@ List<TesoreriaGroup> groupTesoreriaMovimientos(List<MovimientoCaja> movs) {
 
   for (final items in barridoBuckets.values) {
     items.sort((a, b) => a.metodoPago.index.compareTo(b.metodoPago.index));
+    final first = items.first;
     final codigo =
-        items.first.metadata?['cajaOrigenCodigo'] as String? ?? 'caja';
+        first.metadata?['cajaOrigenCodigo'] as String? ?? 'caja';
     final monto = items.fold<double>(0, (s, m) => s + m.monto);
-    // Usuario que realizó el cierre (el barrido se registra con su id).
-    // Si es el cajero titular = nombre del cajero; si fue un admin
-    // cerrando la caja del cajero = nombre del admin.
-    final usuario = items.first.registradoPorNombre;
-    final subt = usuario != null
-        ? 'Recepción de cierre · $usuario'
-        : 'Recepción de cierre';
+
+    // Diferenciamos cajero titular (dueño de la caja origen) vs el
+    // que efectivamente cerró (puede ser admin). Si coinciden, mostramos
+    // un solo nombre; si difieren, ambos.
+    final cajero = first.metadata?['cajaOrigenUsuarioNombre'] as String?;
+    final cierra = first.registradoPorNombre;
+    final subt = _buildBarridoSubtitulo(cajero: cajero, cierra: cierra);
+
     grupos.add(TesoreriaGroup(
       items: items,
       kind: TesoreriaGroupKind.barridoCierre,
       titulo: 'Depósito de $codigo',
       subtitulo: subt,
       montoTotal: monto,
-      esIngreso: items.first.tipo == TipoMovimientoCaja.ingreso,
+      esIngreso: first.tipo == TipoMovimientoCaja.ingreso,
     ));
   }
 
@@ -196,10 +198,14 @@ List<TesoreriaGroup> groupTesoreriaMovimientos(List<MovimientoCaja> movs) {
         ? 'Reverso $tipoRef $codigoRef'
         : 'Reverso de $tipoRef';
 
-    final usuario = first.registradoPorNombre;
-    final subtR = usuario != null
-        ? '$cajaOrigen ya cerrada · $usuario'
-        : '$cajaOrigen ya cerrada';
+    final cajeroOrig =
+        first.metadata?['cajaOrigenUsuarioNombre'] as String?;
+    final cierra = first.registradoPorNombre;
+    final subtR = _buildReversoSubtitulo(
+      cajaOrigen: cajaOrigen,
+      cajero: cajeroOrig,
+      cierra: cierra,
+    );
 
     grupos.add(TesoreriaGroup(
       items: items,
@@ -293,3 +299,39 @@ List<TesoreriaGroup> groupTesoreriaMovimientos(List<MovimientoCaja> movs) {
     );
   }).toList();
 }
+
+/// Construye subtitulo para el barrido de cierre. Diferencia explicita
+/// entre cajero titular y quien hizo el cierre cuando son distintos.
+///
+/// - cajero null + cierra null  → "Recepción de cierre"
+/// - cajero == cierra (o cajero null) → "Recepción de cierre · X"
+/// - cajero != cierra            → "Recepción de cierre · Cajero: X · Cerró: Y"
+String _buildBarridoSubtitulo({String? cajero, String? cierra}) {
+  if (cajero == null && cierra == null) return 'Recepción de cierre';
+  if (cajero != null && cierra != null && _sameName(cajero, cierra)) {
+    return 'Recepción de cierre · $cajero';
+  }
+  if (cajero != null && cierra != null) {
+    return 'Recepción de cierre · Cajero: $cajero · Cerró: $cierra';
+  }
+  return 'Recepción de cierre · ${cajero ?? cierra}';
+}
+
+String _buildReversoSubtitulo({
+  required String cajaOrigen,
+  String? cajero,
+  String? cierra,
+}) {
+  final base = '$cajaOrigen ya cerrada';
+  if (cajero == null && cierra == null) return base;
+  if (cajero != null && cierra != null && _sameName(cajero, cierra)) {
+    return '$base · $cajero';
+  }
+  if (cajero != null && cierra != null) {
+    return '$base · Cajero: $cajero · Anuló: $cierra';
+  }
+  return '$base · ${cajero ?? cierra}';
+}
+
+bool _sameName(String a, String b) =>
+    a.trim().toLowerCase() == b.trim().toLowerCase();
