@@ -337,8 +337,15 @@ class MovimientoCaja extends Equatable {
   final String? ventaId;
   final String? ventaCodigo;
   final String? pedidoCodigo;
+  final String? devolucionId;
+  final String? compraId;
   final bool anulado;
   final String? motivoAnulacion;
+
+  /// Metadata libre (JSON). Usado por tesoreria para agrupar movs del
+  /// mismo cierre (`cierreId`), trazar el espejo (`movimientoEspejoId`)
+  /// y marcar reversos (`esReversoCajaCerrada`).
+  final Map<String, dynamic>? metadata;
 
   const MovimientoCaja({
     required this.id,
@@ -355,8 +362,11 @@ class MovimientoCaja extends Equatable {
     this.ventaId,
     this.ventaCodigo,
     this.pedidoCodigo,
+    this.devolucionId,
+    this.compraId,
     this.anulado = false,
     this.motivoAnulacion,
+    this.metadata,
   });
 
   @override
@@ -375,7 +385,10 @@ class MovimientoCaja extends Equatable {
         ventaId,
         ventaCodigo,
         pedidoCodigo,
+        devolucionId,
+        compraId,
         anulado,
         motivoAnulacion,
+        metadata,
       ];
 }

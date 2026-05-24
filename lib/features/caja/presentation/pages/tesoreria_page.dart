@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:syncronize/core/di/injection_container.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
-import 'package:syncronize/core/utils/date_formatter.dart';
 import '../../domain/entities/movimiento_caja.dart';
 import '../../domain/entities/tesoreria.dart';
 import '../bloc/tesoreria_cubit.dart';
 import '../bloc/tesoreria_state.dart';
+import '../utils/tesoreria_grouping.dart';
 import '../widgets/ajuste_tesoreria_dialog.dart';
+import '../widgets/tesoreria_group_card.dart';
 
 String _money(double v) => 'S/ ${v.toStringAsFixed(2)}';
 
@@ -157,13 +158,7 @@ class _Loaded extends StatelessWidget {
               ),
             )
           else
-            SliverList.separated(
-              itemCount: state.movimientos.items.length,
-              separatorBuilder: (_, __) =>
-                  const Divider(height: 1, indent: 16, endIndent: 16),
-              itemBuilder: (_, i) =>
-                  _MovimientoTile(mov: state.movimientos.items[i]),
-            ),
+            _GroupedList(items: state.movimientos.items),
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -508,92 +503,20 @@ class _Chip extends StatelessWidget {
   }
 }
 
-class _MovimientoTile extends StatelessWidget {
-  final MovimientoCaja mov;
+class _GroupedList extends StatelessWidget {
+  final List<MovimientoCaja> items;
 
-  const _MovimientoTile({required this.mov});
+  const _GroupedList({required this.items});
 
   @override
   Widget build(BuildContext context) {
-    final esIngreso = mov.tipo == TipoMovimientoCaja.ingreso;
-    final montoColor = esIngreso ? AppColors.greendark : AppColors.red;
-    final signo = esIngreso ? '+' : '-';
-
-    return ListTile(
-      leading: CircleAvatar(
-        radius: 18,
-        backgroundColor: montoColor.withValues(alpha: 0.12),
-        child: Icon(mov.categoria.icon, color: montoColor, size: 18),
-      ),
-      title: Text(
-        mov.categoria.label,
-        style: TextStyle(
-          fontWeight: FontWeight.w600,
-          decoration: mov.anulado ? TextDecoration.lineThrough : null,
-        ),
-      ),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (mov.descripcion != null && mov.descripcion!.isNotEmpty)
-            Text(
-              mov.descripcion!,
-              style: const TextStyle(fontSize: 12),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          const SizedBox(height: 2),
-          Row(
-            children: [
-              Icon(mov.metodoPago.icon,
-                  size: 12, color: AppColors.textSecondary),
-              const SizedBox(width: 4),
-              Text(
-                mov.metodoPago.label,
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                DateFormatter.formatDateTime(mov.fechaMovimiento),
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              if (mov.anulado) ...[
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 4, vertical: 1),
-                  decoration: BoxDecoration(
-                    color: AppColors.red.withValues(alpha: 0.10),
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                  child: const Text(
-                    'ANULADO',
-                    style: TextStyle(
-                      fontSize: 9,
-                      color: AppColors.red,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ],
-      ),
-      trailing: Text(
-        '$signo${_money(mov.monto)}',
-        style: TextStyle(
-          color: montoColor,
-          fontWeight: FontWeight.w700,
-          fontSize: 14,
-        ),
-      ),
+    final grupos = groupTesoreriaMovimientos(items);
+    return SliverList.separated(
+      itemCount: grupos.length,
+      separatorBuilder: (_, i) => grupos[i].isGrouped
+          ? const SizedBox(height: 2)
+          : const Divider(height: 1, indent: 16, endIndent: 16),
+      itemBuilder: (_, i) => TesoreriaGroupCard(group: grupos[i]),
     );
   }
 }

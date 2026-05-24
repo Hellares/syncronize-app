@@ -16,14 +16,20 @@ class MovimientoCajaModel extends MovimientoCaja {
     super.ventaId,
     super.ventaCodigo,
     super.pedidoCodigo,
+    super.devolucionId,
+    super.compraId,
     super.anulado,
     super.motivoAnulacion,
+    super.metadata,
   });
 
   factory MovimientoCajaModel.fromJson(Map<String, dynamic> json) {
     final venta = json['venta'] as Map<String, dynamic>?;
     final pedido = json['pedido'] as Map<String, dynamic>?;
+    final devolucion = json['devolucion'] as Map<String, dynamic>?;
+    final compra = json['compra'] as Map<String, dynamic>?;
     final categoriaGasto = json['categoriaGasto'] as Map<String, dynamic>?;
+    final meta = json['metadata'];
 
     return MovimientoCajaModel(
       id: json['id'] as String,
@@ -42,8 +48,11 @@ class MovimientoCajaModel extends MovimientoCaja {
       ventaCodigo: venta?['codigo'] as String? ?? json['ventaCodigo'] as String?,
       pedidoCodigo:
           pedido?['codigo'] as String? ?? json['pedidoCodigo'] as String?,
+      devolucionId: devolucion?['id'] as String? ?? json['devolucionId'] as String?,
+      compraId: compra?['id'] as String? ?? json['compraId'] as String?,
       anulado: json['anulado'] as bool? ?? false,
       motivoAnulacion: json['motivoAnulacion'] as String?,
+      metadata: meta is Map<String, dynamic> ? meta : null,
     );
   }
 
