@@ -38,6 +38,12 @@ class TesoreriaGroup {
   final double montoDevolucionesCotizacion;
   final int cantidadDevolucionesCotizacion;
 
+  /// Solo para grupos individuales de `RETIRO_TESORERIA` con
+  /// `metadata.esRetiroApertura`: indica si la caja correspondiente ya
+  /// fue cerrada (existe un DEPOSITO_TESORERIA con el mismo
+  /// `cajaAperturaId`). Permite mostrar badge "DEVUELTO AL CIERRE".
+  final bool retiroAperturaDevuelto;
+
   const TesoreriaGroup({
     required this.items,
     required this.kind,
@@ -49,6 +55,7 @@ class TesoreriaGroup {
     this.cantidadReversosVenta = 0,
     this.montoDevolucionesCotizacion = 0,
     this.cantidadDevolucionesCotizacion = 0,
+    this.retiroAperturaDevuelto = false,
   });
 
   bool get isGrouped => items.length > 1;
@@ -75,6 +82,7 @@ class TesoreriaGroup {
     int? cantidadReversosVenta,
     double? montoDevolucionesCotizacion,
     int? cantidadDevolucionesCotizacion,
+    bool? retiroAperturaDevuelto,
   }) {
     return TesoreriaGroup(
       items: items,
@@ -90,6 +98,8 @@ class TesoreriaGroup {
           montoDevolucionesCotizacion ?? this.montoDevolucionesCotizacion,
       cantidadDevolucionesCotizacion: cantidadDevolucionesCotizacion ??
           this.cantidadDevolucionesCotizacion,
+      retiroAperturaDevuelto:
+          retiroAperturaDevuelto ?? this.retiroAperturaDevuelto,
     );
   }
 }
@@ -282,9 +292,34 @@ List<TesoreriaGroup> groupTesoreriaMovimientos(List<MovimientoCaja> movs) {
     }
   }
 
-  if (acumPorCaja.isEmpty) return grupos;
+  // ── Cross-link retiro apertura → depósito cierre ──
+  // Set de cajas que ya tienen depósito (= ya cerraron). Permite marcar
+  // como "devuelto al cierre" los RETIRO_TESORERIA de apertura cuya
+  // caja correspondiente ya completó su ciclo.
+  final cajasYaCerradas = <String>{};
+  for (final g in grupos) {
+    if (g.kind != TesoreriaGroupKind.barridoCierre) continue;
+    final cajaEspejoId =
+        g.items.first.metadata?['cajaEspejoId'] as String?;
+    if (cajaEspejoId != null) cajasYaCerradas.add(cajaEspejoId);
+  }
 
   return grupos.map((g) {
+    // Marcar RETIRO_TESORERIA de apertura como devuelto cuando aplique.
+    if (g.kind == TesoreriaGroupKind.individual &&
+        g.items.length == 1 &&
+        g.items.first.categoria == CategoriaMovimientoCaja.retiroTesoreria) {
+      final meta = g.items.first.metadata;
+      if (meta != null && meta['esRetiroApertura'] == true) {
+        final cajaAperturaId = meta['cajaAperturaId'] as String?;
+        if (cajaAperturaId != null &&
+            cajasYaCerradas.contains(cajaAperturaId)) {
+          return g.copyWith(retiroAperturaDevuelto: true);
+        }
+      }
+    }
+
+    // Cross-link existente: afectaciones al depósito de barrido.
     if (g.kind != TesoreriaGroupKind.barridoCierre) return g;
     final cajaEspejoId =
         g.items.first.metadata?['cajaEspejoId'] as String?;

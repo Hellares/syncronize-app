@@ -109,6 +109,12 @@ class TesoreriaGroupCard extends StatelessWidget {
                 const SizedBox(width: 8),
                 _badgeAnulado(),
               ],
+              // Badge: RETIRO_TESORERIA de apertura cuya caja ya cerró
+              // (cross-link en groupTesoreriaMovimientos detecta el ciclo).
+              if (group.retiroAperturaDevuelto) ...[
+                const SizedBox(width: 8),
+                _badgeDevueltoAlCierre(),
+              ],
             ],
           ),
         ],
@@ -219,6 +225,29 @@ class TesoreriaGroupCard extends StatelessWidget {
         style: TextStyle(
           fontSize: 8,
           color: AppColors.red,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
+  /// Badge para RETIRO_TESORERIA cuya caja correspondiente ya cerró
+  /// (el ciclo apertura → cierre se completó; el dinero ya volvió en
+  /// el barrido del cierre como DEPOSITO_TESORERIA).
+  Widget _badgeDevueltoAlCierre() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+      decoration: BoxDecoration(
+        color: AppColors.orange.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(3),
+        border: Border.all(
+            color: AppColors.orange.withValues(alpha: 0.40), width: 0.6),
+      ),
+      child: const Text(
+        'DEVUELTO AL CIERRE',
+        style: TextStyle(
+          fontSize: 8,
+          color: AppColors.orange,
           fontWeight: FontWeight.w700,
         ),
       ),
