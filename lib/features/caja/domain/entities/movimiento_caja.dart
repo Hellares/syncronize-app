@@ -338,7 +338,9 @@ class MovimientoCaja extends Equatable {
   final String? ventaCodigo;
   final String? pedidoCodigo;
   final String? devolucionId;
+  final String? devolucionCodigo;
   final String? compraId;
+  final String? compraCodigo;
   final bool anulado;
   final String? motivoAnulacion;
 
@@ -363,7 +365,9 @@ class MovimientoCaja extends Equatable {
     this.ventaCodigo,
     this.pedidoCodigo,
     this.devolucionId,
+    this.devolucionCodigo,
     this.compraId,
+    this.compraCodigo,
     this.anulado = false,
     this.motivoAnulacion,
     this.metadata,
@@ -386,7 +390,9 @@ class MovimientoCaja extends Equatable {
         ventaCodigo,
         pedidoCodigo,
         devolucionId,
+        devolucionCodigo,
         compraId,
+        compraCodigo,
         anulado,
         motivoAnulacion,
         metadata,

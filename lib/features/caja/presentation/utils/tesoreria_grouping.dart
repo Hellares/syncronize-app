@@ -143,20 +143,36 @@ List<TesoreriaGroup> groupTesoreriaMovimientos(List<MovimientoCaja> movs) {
     final monto = items.fold<double>(0, (s, m) => s + m.monto);
     final cajaOrigen =
         items.first.metadata?['cajaOrigenCodigo'] as String? ?? 'caja cerrada';
-    final ref = items.first.ventaId != null
-        ? 'venta'
-        : items.first.devolucionId != null
-            ? 'devolución'
-            : items.first.compraId != null
-                ? 'compra'
-                : 'operación';
+
+    // Construir titulo "Reverso <tipo> <codigo>" cuando tenemos codigo,
+    // si no caer a tipo generico ("Reverso de venta").
+    final first = items.first;
+    String tipoRef;
+    String? codigoRef;
+    if (first.ventaId != null) {
+      tipoRef = 'venta';
+      codigoRef = first.ventaCodigo;
+    } else if (first.devolucionId != null) {
+      tipoRef = 'devolución';
+      codigoRef = first.devolucionCodigo;
+    } else if (first.compraId != null) {
+      tipoRef = 'compra';
+      codigoRef = first.compraCodigo;
+    } else {
+      tipoRef = 'operación';
+      codigoRef = null;
+    }
+    final titulo = codigoRef != null
+        ? 'Reverso $tipoRef $codigoRef'
+        : 'Reverso de $tipoRef';
+
     grupos.add(TesoreriaGroup(
       items: items,
       kind: TesoreriaGroupKind.reversoCajaCerrada,
-      titulo: 'Reverso de $ref',
+      titulo: titulo,
       subtitulo: '$cajaOrigen ya cerrada',
       montoTotal: monto,
-      esIngreso: items.first.tipo == TipoMovimientoCaja.ingreso,
+      esIngreso: first.tipo == TipoMovimientoCaja.ingreso,
     ));
   }
 
