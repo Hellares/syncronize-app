@@ -22,6 +22,7 @@ import '../widgets/sedes_section.dart';
 import '../widgets/usage_limit_card.dart';
 import '../widgets/resumen_financiero_mini_cards.dart';
 import '../widgets/accesos_rapidos_section.dart';
+import '../widgets/mi_caja_banner.dart';
 import '../widgets/mi_rendimiento_banner.dart';
 import '../widgets/cajas_activas_card.dart';
 import '../widgets/alertas_activas_card.dart';
@@ -316,6 +317,9 @@ class _EmpresaDashboardPageState extends State<EmpresaDashboardPage> {
                   canManageSettings: p.canManageSettings,
                 ))
                   const MiRendimientoBanner(),
+
+                // Banner estado de caja del usuario
+                if (!esAdmin) const MiCajaBanner(),
 
                 // Accesos rápidos (filtrados por permisos en su widget)
                 const AccesosRapidosSection(),
