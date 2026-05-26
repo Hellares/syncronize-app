@@ -18,6 +18,7 @@ import '../../../../core/widgets/pagos_section_widget.dart'
         umbralBancarizacionPen;
 import '../../../../core/widgets/autorizacion_dialog.dart';
 import '../../../../core/widgets/confirm_dialog.dart';
+import '../../../../core/utils/cuota_calculator.dart';
 import '../../../auth/presentation/widgets/custom_text.dart';
 import '../../../producto/presentation/bloc/producto_list/producto_list_cubit.dart';
 import '../../../venta/domain/entities/venta_detalle_input.dart';
@@ -332,7 +333,8 @@ class _CobroViewState extends State<_CobroView> {
         .fold<double>(0, (s, p) => s + (p['monto'] as num).toDouble());
 
     bool aceptaRiesgo = false;
-    if (aplicaBancarizacion(totalVentaPen: state.total) &&
+    if (!state.esCredito &&
+        aplicaBancarizacion(totalVentaPen: state.total) &&
         totalEfectivo > 0 &&
         totalBancarizado < umbralBancarizacionPen) {
       final ok = await _confirmarRiesgoBancarizacion(
@@ -538,10 +540,16 @@ class _CobroViewState extends State<_CobroView> {
               requiereBancoPago(p.metodo) &&
               (p.banco == null || p.banco!.isEmpty);
         });
+    final creditoSinCliente = state.esCredito &&
+        (state.clienteGenerico ||
+         state.numeroDocCliente.isEmpty ||
+         state.numeroDocCliente == '00000000' ||
+         (state.clienteId == null && state.clienteEmpresaId == null));
     final puedeCobrar = !state.procesando &&
         faltante <= 0 &&
         state.items.isNotEmpty &&
-        !faltaBanco;
+        !faltaBanco &&
+        !creditoSinCliente;
     final esModoMonto = _modoNumpad == _ModoNumpad.monto;
 
     final accionAtras = NumpadAction(
@@ -555,7 +563,6 @@ class _CobroViewState extends State<_CobroView> {
     final accionExacto = NumpadAction(
       label: 'Exacto',
       icon: Icons.flash_on,
-      // En modo documento (DNI/RUC/N° op) Exacto no aplica.
       enabled: esModoMonto && faltante > 0 && _numpadCtrl != null,
       onTap: () {
         if (faltante <= 0) return;
@@ -566,7 +573,9 @@ class _CobroViewState extends State<_CobroView> {
 
     final etiquetaCobrar = faltante > 0
         ? 'Falta S/ ${faltante.toStringAsFixed(2)}'
-        : (faltaBanco ? 'Falta banco' : 'Cobrar');
+        : (faltaBanco
+            ? 'Falta banco'
+            : (creditoSinCliente ? 'Falta cliente' : 'Cobrar'));
     final accionCobrar = NumpadAction(
       label: etiquetaCobrar,
       icon: (faltante > 0 || faltaBanco) ? null : Icons.check_circle_outline,
@@ -749,8 +758,9 @@ class _CobroViewState extends State<_CobroView> {
         final totalCobrar = state.total;
         final totalRecibido = _calcularTotalRecibido();
         final diferencia = totalRecibido - totalCobrar;
-        // Tolerancia de medio centavo para no mostrar "falta 0.00" por redondeo.
-        final faltante = diferencia < -_kPenRoundingTolerance ? -diferencia : 0.0;
+        final faltante = state.esCredito
+            ? 0.0
+            : (diferencia < -_kPenRoundingTolerance ? -diferencia : 0.0);
         final vuelto = diferencia > _kPenRoundingTolerance ? diferencia : 0.0;
 
         return Scaffold(
@@ -939,24 +949,43 @@ class _CobroViewState extends State<_CobroView> {
                   ),
                 //const SizedBox(height: 14),
 
-                Row(
-                  children: [
-                    // Indicador visual fijo (Venta Rápida es siempre Contado);
-                    // antes era un Radio deshabilitado pero la API quedó
-                    // deprecada en Flutter 3.32 a favor de RadioGroup.
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      child: Icon(
-                        Icons.radio_button_checked,
-                        size: 20,
-                        color: AppColors.blue1,
+                // Toggle CONTADO / CRÉDITO
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  child: Row(
+                    children: [
+                      _CondicionPagoChip(
+                        label: 'Contado',
+                        icon: Icons.payments_outlined,
+                        selected: !state.esCredito,
+                        onTap: () => context.read<VentaRapidaCubit>().setCondicionPago('CONTADO'),
                       ),
-                    ),
-                    const Text('Contado', style: TextStyle(fontSize: 12)),
-                    const Spacer(),
-                  ],
+                      const SizedBox(width: 8),
+                      _CondicionPagoChip(
+                        label: 'Credito',
+                        icon: Icons.credit_score,
+                        selected: state.esCredito,
+                        color: Colors.orange,
+                        onTap: () => context.read<VentaRapidaCubit>().setCondicionPago('CREDITO'),
+                      ),
+                    ],
+                  ),
                 ),
-                //const SizedBox(height: 14),
+
+                // Sección crédito (cuotas + preview)
+                if (state.esCredito)
+                  _buildCreditoSection(context, state),
+
+                // Label adelanto opcional
+                if (state.esCredito)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 12, top: 4, bottom: 2),
+                    child: Text(
+                      'Adelanto (opcional)',
+                      style: TextStyle(fontSize: 11, color: Colors.grey.shade600,
+                          fontStyle: FontStyle.italic),
+                    ),
+                  ),
 
                 _PagoRow(
                   label: 'Pago efectivo',
@@ -1050,12 +1079,44 @@ class _CobroViewState extends State<_CobroView> {
                 const Divider(),
                 Builder(
                   builder: (_) {
+                    if (state.esCredito && totalRecibido <= _kPenRoundingTolerance) {
+                      return Row(
+                        children: [
+                          Text(
+                            totalCobrar.toStringAsFixed(2),
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w400,
+                              color: Colors.orange.shade700,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Text('a credito',
+                              style: TextStyle(fontSize: 14, color: Colors.orange.shade700)),
+                        ],
+                      );
+                    }
                     final mostrarFalta = faltante > 0;
                     final color = mostrarFalta
                         ? Colors.orange.shade800
                         : (vuelto > 0 ? Colors.green.shade700 : Colors.black54);
                     final monto = mostrarFalta ? faltante : vuelto;
                     final etiqueta = mostrarFalta ? 'Falta' : 'Vuelto';
+                    if (state.esCredito && totalRecibido > 0) {
+                      final montoCredito = totalCobrar - totalRecibido;
+                      return Row(
+                        children: [
+                          Text(
+                            montoCredito > 0 ? montoCredito.toStringAsFixed(2) : '0.00',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w400,
+                                color: Colors.orange.shade700),
+                          ),
+                          const SizedBox(width: 10),
+                          Text('a credito',
+                              style: TextStyle(fontSize: 14, color: Colors.orange.shade700)),
+                        ],
+                      );
+                    }
                     return Row(
                       children: [
                         Text(
@@ -1445,6 +1506,128 @@ class _CobroViewState extends State<_CobroView> {
       cubit.descartarAvisoStockInsuficiente();
     }
   }
+
+  Widget _buildCreditoSection(BuildContext context, VentaRapidaState state) {
+    final montoCredito = state.total;
+    final cuotas = CuotaCalculator.calcular(
+      montoCredito: montoCredito,
+      numeroCuotas: state.numeroCuotas,
+    );
+    final clienteOk = !state.clienteGenerico &&
+        state.numeroDocCliente.isNotEmpty &&
+        state.numeroDocCliente != '00000000' &&
+        (state.clienteId != null || state.clienteEmpresaId != null);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: Colors.orange.shade50,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.orange.shade200),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Cuotas chips
+            Row(
+              children: [
+                Text('Cuotas:', style: TextStyle(fontSize: 12,
+                    color: Colors.orange.shade700, fontWeight: FontWeight.w600)),
+                const SizedBox(width: 10),
+                for (final n in [1, 2, 3, 6, 12]) ...[
+                  GestureDetector(
+                    onTap: () => context.read<VentaRapidaCubit>().setNumeroCuotas(n),
+                    child: Container(
+                      width: 38, height: 28,
+                      margin: const EdgeInsets.only(right: 6),
+                      decoration: BoxDecoration(
+                        color: state.numeroCuotas == n
+                            ? Colors.orange.shade700
+                            : Colors.white,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: state.numeroCuotas == n
+                              ? Colors.orange.shade700
+                              : Colors.grey.shade300,
+                        ),
+                      ),
+                      child: Center(
+                        child: Text('$n',
+                          style: TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w700,
+                            color: state.numeroCuotas == n
+                                ? Colors.white
+                                : Colors.grey.shade700,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            // Preview cuotas
+            if (cuotas.isNotEmpty && state.items.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '${cuotas.length} cuota${cuotas.length > 1 ? 's' : ''} de S/ ${cuotas.first.monto.toStringAsFixed(2)}',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700,
+                              color: Colors.blue.shade700),
+                        ),
+                        Text('Total: S/ ${montoCredito.toStringAsFixed(2)}',
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600,
+                                color: Colors.blue.shade700)),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Primera: ${_fmtFecha(cuotas.first.fechaVencimiento)}'
+                      '${cuotas.length > 1 ? '  ·  Ultima: ${_fmtFecha(cuotas.last.fechaVencimiento)}' : ''}',
+                      style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            // Warning sin cliente
+            if (!clienteOk) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(Icons.person_off, size: 14, color: Colors.red.shade700),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Credito requiere cliente identificado (DNI o RUC)',
+                      style: TextStyle(fontSize: 10, color: Colors.red.shade700),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _fmtFecha(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 }
 
 /// Acción elegida en el dialog de precios desactualizados.
@@ -1664,6 +1847,56 @@ class _PagoRow extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+class _CondicionPagoChip extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _CondicionPagoChip({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+    this.color = AppColors.blue1,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: selected ? color : color.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: selected ? color : color.withValues(alpha: 0.3),
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 16, color: selected ? Colors.white : color),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: selected ? Colors.white : color,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

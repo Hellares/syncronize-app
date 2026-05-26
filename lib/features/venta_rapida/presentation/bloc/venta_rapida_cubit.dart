@@ -427,6 +427,8 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     emit(state.copyWith(
       items: [],
       pagos: [],
+      condicionPago: 'CONTADO',
+      numeroCuotas: 1,
       tipoComprobante: 'TICKET',
       clienteGenerico: false,
       clienteId: null,
@@ -459,6 +461,18 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       return;
     }
     emit(state.copyWith(tipoComprobante: tipo));
+  }
+
+  void setCondicionPago(String condicion) {
+    emit(state.copyWith(
+      condicionPago: condicion,
+      pagos: [],
+    ));
+  }
+
+  void setNumeroCuotas(int cuotas) {
+    if (cuotas < 1) return;
+    emit(state.copyWith(numeroCuotas: cuotas));
   }
 
   void setClienteGenerico() {
@@ -611,11 +625,11 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       emit(state.copyWith(error: 'Agrega al menos un producto'));
       return;
     }
-    if (state.pagos.isEmpty) {
+    if (!state.esCredito && state.pagos.isEmpty) {
       emit(state.copyWith(error: 'Agrega al menos un pago'));
       return;
     }
-    if (state.totalPagado + _kPenPaymentTolerance < state.total) {
+    if (!state.esCredito && state.totalPagado + _kPenPaymentTolerance < state.total) {
       emit(state.copyWith(error: 'Monto recibido insuficiente'));
       return;
     }
@@ -638,6 +652,14 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     final esGenerico = !tieneClienteRucResuelto &&
         !tieneClienteDniResuelto &&
         (state.clienteGenerico || docTipeado.isEmpty || docTipeado == '00000000');
+
+    if (state.esCredito && esGenerico) {
+      emit(state.copyWith(
+        procesando: false,
+        error: 'Credito requiere un cliente identificado (DNI o RUC)',
+      ));
+      return;
+    }
 
     String? clienteId = tieneClienteDniResuelto ? state.clienteId : null;
     String? clienteEmpresaId = tieneClienteRucResuelto ? state.clienteEmpresaId : null;
@@ -667,18 +689,24 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       if (docCliente.isNotEmpty) 'documentoCliente': docCliente,
       'moneda': state.moneda,
       'tipoComprobante': state.tipoComprobante,
-      'esCredito': false,
+      'esCredito': state.esCredito,
+      if (state.esCredito) ...{
+        'plazoCredito': state.numeroCuotas * 30,
+        'numeroCuotas': state.numeroCuotas,
+      },
       if (aceptaRiesgoBancarizacion) 'aceptaRiesgoBancarizacion': true,
       if (ventaBajoCostoAutorizadaPorId != null)
         'ventaBajoCostoAutorizadaPorId': ventaBajoCostoAutorizadaPorId,
-      'metodoPago': state.pagos.first['metodo'],
-      'montoRecibido': state.totalPagado,
-      'pagos': state.pagos.map((p) => {
-            'metodoPago': p['metodo'],
-            'monto': p['monto'],
-            if (p['banco'] != null) 'banco': p['banco'],
-            if (p['referencia'] != null) 'referencia': p['referencia'],
-          }).toList(),
+      if (state.pagos.isNotEmpty) ...{
+        'metodoPago': state.pagos.first['metodo'],
+        'montoRecibido': state.totalPagado,
+        'pagos': state.pagos.map((p) => {
+              'metodoPago': p['metodo'],
+              'monto': p['monto'],
+              if (p['banco'] != null) 'banco': p['banco'],
+              if (p['referencia'] != null) 'referencia': p['referencia'],
+            }).toList(),
+      },
       'detalles': state.items.map((item) => item.toMap()).toList(),
       // No enviamos `observaciones` para que el ticket no muestre el texto
       // "Venta rápida". La trazabilidad de origen se mantiene a través de
@@ -1134,6 +1162,8 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     emit(state.copyWith(
       items: [],
       pagos: [],
+      condicionPago: 'CONTADO',
+      numeroCuotas: 1,
       tipoComprobante: 'TICKET',
       clienteGenerico: false,
       clienteId: null,

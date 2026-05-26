@@ -26,6 +26,10 @@ class VentaRapidaState extends Equatable {
   /// True mientras se está consultando el DNI/RUC (externo + upsert backend).
   final bool buscandoCliente;
 
+  // Crédito
+  final String condicionPago; // CONTADO | CREDITO
+  final int numeroCuotas;
+
   // Pagos
   final List<Map<String, dynamic>> pagos;
 
@@ -70,6 +74,8 @@ class VentaRapidaState extends Equatable {
     this.numeroDocCliente = '',
     this.nombreClienteResuelto = '',
     this.buscandoCliente = false,
+    this.condicionPago = 'CONTADO',
+    this.numeroCuotas = 1,
     this.pagos = const [],
     this.procesando = false,
     this.error,
@@ -90,6 +96,7 @@ class VentaRapidaState extends Equatable {
   /// Suma de unidades de todos los productos en el carrito (para el badge UX).
   int get cantidadUnidades =>
       items.fold(0, (sum, i) => sum + i.cantidad.toInt());
+  bool get esCredito => condicionPago == 'CREDITO';
   double get totalPagado => pagos.fold(0.0, (sum, p) => sum + ((p['monto'] as num).toDouble()));
   double get vuelto {
     final v = totalPagado - total;
@@ -111,6 +118,8 @@ class VentaRapidaState extends Equatable {
     String? numeroDocCliente,
     String? nombreClienteResuelto,
     bool? buscandoCliente,
+    String? condicionPago,
+    int? numeroCuotas,
     List<Map<String, dynamic>>? pagos,
     bool? procesando,
     String? error,
@@ -139,6 +148,8 @@ class VentaRapidaState extends Equatable {
       numeroDocCliente: numeroDocCliente ?? this.numeroDocCliente,
       nombreClienteResuelto: nombreClienteResuelto ?? this.nombreClienteResuelto,
       buscandoCliente: buscandoCliente ?? this.buscandoCliente,
+      condicionPago: condicionPago ?? this.condicionPago,
+      numeroCuotas: numeroCuotas ?? this.numeroCuotas,
       pagos: pagos ?? this.pagos,
       procesando: procesando ?? this.procesando,
       error: clearError ? null : (error ?? this.error),
@@ -162,6 +173,7 @@ class VentaRapidaState extends Equatable {
         empresaId, sedeId, vendedorId, impuestoPorcentaje, moneda,
         items, tipoComprobante, clienteGenerico, clienteId, clienteEmpresaId,
         tipoDocCliente, numeroDocCliente, nombreClienteResuelto, buscandoCliente,
+        condicionPago, numeroCuotas,
         pagos, procesando, error, ventaCompletadaId, comboPendienteOferta,
         preciosDesactualizados, stockInsuficiente,
       ];
