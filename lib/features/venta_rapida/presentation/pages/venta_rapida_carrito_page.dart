@@ -4,8 +4,11 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/autorizacion_dialog.dart';
 import '../../../../core/widgets/confirm_dialog.dart';
 import '../../../auth/presentation/widgets/custom_text.dart';
+import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
+import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../bloc/venta_rapida_cubit.dart';
 import '../widgets/tipo_comprobante_dialog.dart';
 
@@ -299,7 +302,25 @@ class _CarritoView extends StatelessWidget {
     );
   }
 
-  void _mostrarDescuentoItem(BuildContext context, int index, dynamic item) {
+  bool _esAdmin(BuildContext context) {
+    final empresaState = context.read<EmpresaContextCubit>().state;
+    if (empresaState is EmpresaContextLoaded) {
+      return empresaState.context.permissions.canManageDiscounts;
+    }
+    return false;
+  }
+
+  Future<void> _mostrarDescuentoItem(BuildContext context, int index, dynamic item) async {
+    if (!_esAdmin(context)) {
+      final auth = await showAutorizacionDialog(
+        context,
+        operacion: 'APLICAR_DESCUENTO',
+        titulo: 'Autorizar descuento',
+        descripcion: 'Un administrador debe autorizar la aplicación de descuentos.',
+      );
+      if (auth == null || !context.mounted) return;
+    }
+    if (!context.mounted) return;
     _showDescuentoDialog(
       context,
       titulo: item.descripcion as String,
@@ -311,7 +332,17 @@ class _CarritoView extends StatelessWidget {
     );
   }
 
-  void _mostrarDescuentoGlobal(BuildContext context, VentaRapidaState state) {
+  Future<void> _mostrarDescuentoGlobal(BuildContext context, VentaRapidaState state) async {
+    if (!_esAdmin(context)) {
+      final auth = await showAutorizacionDialog(
+        context,
+        operacion: 'APLICAR_DESCUENTO',
+        titulo: 'Autorizar descuento',
+        descripcion: 'Un administrador debe autorizar la aplicación de descuentos.',
+      );
+      if (auth == null || !context.mounted) return;
+    }
+    if (!context.mounted) return;
     final brutoTotal = state.items
         .where((i) => i.origenComboId == null)
         .fold(0.0, (sum, i) => sum + i.cantidad * i.precioUnitario);
