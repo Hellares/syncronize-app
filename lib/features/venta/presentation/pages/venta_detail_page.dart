@@ -776,41 +776,72 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
               ),
               const SizedBox(height: 6),
               ...v.pagos!.map((pago) {
+                final tieneVuelto = pago.metodoPago == MetodoPago.efectivo &&
+                    v.montoCambio != null &&
+                    v.montoCambio! > 0;
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 6),
-                  child: Row(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              pago.metodoPago.label,
-                              style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  pago.metodoPago.label,
+                                  style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600),
+                                ),
+                                Text(
+                                  DateFormatter.formatDateTime(pago.fechaPago),
+                                  style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.grey.shade600),
+                                ),
+                                if (pago.referencia != null)
+                                  Text(
+                                    'Ref: ${pago.referencia}',
+                                    style: TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.grey.shade500),
+                                  ),
+                              ],
                             ),
-                            Text(
-                              DateFormatter.formatDateTime(pago.fechaPago),
-                              style: TextStyle(
-                                  fontSize: 10,
-                                  color: Colors.grey.shade600),
-                            ),
-                            if (pago.referencia != null)
+                          ),
+                          Text(
+                            '${v.moneda} ${pago.monto.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w600, fontSize: 13),
+                          ),
+                        ],
+                      ),
+                      if (tieneVuelto)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2, left: 8),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
                               Text(
-                                'Ref: ${pago.referencia}',
+                                '↳ ',
                                 style: TextStyle(
-                                    fontSize: 10,
-                                    color: Colors.grey.shade500),
+                                  fontSize: 16,
+                                  color: Colors.orange.shade700,
+                                ),
                               ),
-                          ],
+                              Text(
+                                'Vuelto: ${v.moneda} ${v.montoCambio!.toStringAsFixed(2)}',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.orange.shade700,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      Text(
-                        '${v.moneda} ${pago.monto.toStringAsFixed(2)}',
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w600, fontSize: 13),
-                      ),
                     ],
                   ),
                 );
