@@ -375,7 +375,7 @@ class _CarritoView extends StatelessWidget {
     final montoCtrl = TextEditingController(
       text: descuentoActual > 0 ? descuentoActual.toStringAsFixed(2) : '',
     );
-    bool esPorcentaje = true;
+    bool esPorcentaje = false;
 
     showDialog(
       context: context,
