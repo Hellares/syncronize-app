@@ -32,7 +32,8 @@ class RefreshTokenInterceptor extends QueuedInterceptorsWrapper {
     final isAuthEndpoint = err.requestOptions.path.contains(ApiConstants.refreshToken) ||
         err.requestOptions.path.contains(ApiConstants.login) ||
         err.requestOptions.path.contains(ApiConstants.register) ||
-        err.requestOptions.path.contains('/logout');
+        err.requestOptions.path.contains('/logout') ||
+        err.requestOptions.path.contains('/auth/autorizar-operacion');
 
     if (err.response?.statusCode == 401 && !isAuthEndpoint) {
       try {
