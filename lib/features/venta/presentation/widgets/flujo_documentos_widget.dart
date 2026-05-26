@@ -118,7 +118,9 @@ class _FlujoDocumentosWidgetState extends State<FlujoDocumentosWidget> {
     final hijos = nodo['hijos'] as List<dynamic>? ?? [];
     final pdfUrl = nodo['pdfUrl'] as String?;
 
-    final vuelto = nodo['vuelto'];
+    final vueltoRaw = nodo['vuelto'];
+    final vueltoNum = vueltoRaw is num ? vueltoRaw : double.tryParse(vueltoRaw?.toString() ?? '') ?? 0;
+    final tieneVuelto = vueltoNum > 0;
     final config = _tipoConfig(tipo);
     final simbolo = moneda == 'USD' ? '\$' : 'S/';
     final esRaiz = depth == 0;
@@ -190,11 +192,11 @@ class _FlujoDocumentosWidgetState extends State<FlujoDocumentosWidget> {
                             ),
                             if (detalle != null && detalle.isNotEmpty)
                               AppText(detalle, size: 8, color: Colors.grey.shade600),
-                            if (vuelto != null && vuelto is num && vuelto > 0)
+                            if (tieneVuelto)
                               Padding(
                                 padding: const EdgeInsets.only(top: 1),
                                 child: Text(
-                                  'Recibido $simbolo ${_formatMonto(monto)} · Vuelto $simbolo ${(vuelto as num).toStringAsFixed(2)}',
+                                  'Recibido $simbolo ${_formatMonto(monto)} · Vuelto $simbolo ${vueltoNum.toStringAsFixed(2)}',
                                   style: TextStyle(fontSize: 8, color: Colors.orange.shade700),
                                 ),
                               ),
@@ -203,7 +205,7 @@ class _FlujoDocumentosWidgetState extends State<FlujoDocumentosWidget> {
                       ),
                       if (monto != null)
                         AppText(
-                          '$simbolo ${_formatMonto(vuelto != null && vuelto is num && vuelto > 0 ? (monto as num) - (vuelto as num) : monto)}',
+                          '$simbolo ${tieneVuelto ? (_parseMonto(monto) - vueltoNum).toStringAsFixed(2) : _formatMonto(monto)}',
                           size: esRaiz ? 11 : 10, fontWeight: FontWeight.w700, color: config.color,
                         ),
                       if (pdfUrl != null)
@@ -255,6 +257,11 @@ class _FlujoDocumentosWidgetState extends State<FlujoDocumentosWidget> {
     if (monto is num) return monto.toStringAsFixed(2);
     final parsed = double.tryParse(monto.toString());
     return parsed?.toStringAsFixed(2) ?? '0.00';
+  }
+
+  double _parseMonto(dynamic monto) {
+    if (monto is num) return monto.toDouble();
+    return double.tryParse(monto.toString()) ?? 0;
   }
 
   _TipoConfig _tipoConfig(String tipo) {
