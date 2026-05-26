@@ -308,6 +308,7 @@ class _EmpresaDashboardPageState extends State<EmpresaDashboardPage> {
                 if (esAdmin) ...[
                   PlanSuscripcionCard(empresaContext: empresaContext),
                   const SizedBox(height: 16),
+                  const MiCajaBanner(),
                 ],
 
                 // Banner "Mi rendimiento" — vendedor/cajero no-admin
