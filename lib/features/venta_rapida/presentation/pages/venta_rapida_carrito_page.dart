@@ -6,6 +6,7 @@ import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/autorizacion_dialog.dart';
 import '../../../../core/widgets/confirm_dialog.dart';
+import '../../../../core/widgets/styled_dialog.dart';
 import '../../../auth/presentation/widgets/custom_text.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
@@ -379,126 +380,158 @@ class _CarritoView extends StatelessWidget {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) {
-          return AlertDialog(
-            title: Text(titulo, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700), maxLines: 2, overflow: TextOverflow.ellipsis),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('Subtotal: S/ ${bruto.toStringAsFixed(2)}',
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-                const SizedBox(height: 12),
-                Row(
+          return StyledDialog(
+            accentColor: Colors.orange.shade700,
+            icon: Icons.discount_outlined,
+            titulo: titulo,
+            content: [
+              // Subtotal
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => setDialogState(() => esPorcentaje = true),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          decoration: BoxDecoration(
-                            color: esPorcentaje ? AppColors.blue1 : Colors.grey.shade100,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Center(
-                            child: Text('%',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  color: esPorcentaje ? Colors.white : Colors.grey.shade600,
-                                )),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => setDialogState(() => esPorcentaje = false),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          decoration: BoxDecoration(
-                            color: !esPorcentaje ? AppColors.blue1 : Colors.grey.shade100,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Center(
-                            child: Text('S/',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  color: !esPorcentaje ? Colors.white : Colors.grey.shade600,
-                                )),
-                          ),
-                        ),
-                      ),
-                    ),
+                    Text('Subtotal', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                    Text('S/ ${bruto.toStringAsFixed(2)}',
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
                   ],
                 ),
-                const SizedBox(height: 12),
-                if (esPorcentaje)
-                  TextField(
-                    controller: pctCtrl,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    autofocus: true,
-                    decoration: InputDecoration(
-                      labelText: 'Porcentaje',
-                      suffixText: '%',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                      isDense: true,
+              ),
+              const SizedBox(height: 12),
+              // Toggle % / S/
+              Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => setDialogState(() => esPorcentaje = true),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        decoration: BoxDecoration(
+                          color: esPorcentaje ? Colors.orange.shade700 : Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Center(
+                          child: Text('%',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                color: esPorcentaje ? Colors.white : Colors.grey.shade600,
+                              )),
+                        ),
+                      ),
                     ),
-                    onChanged: (v) {
-                      final pct = double.tryParse(v) ?? 0;
-                      montoCtrl.text = (bruto * pct / 100).toStringAsFixed(2);
-                    },
-                  )
-                else
-                  TextField(
-                    controller: montoCtrl,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    autofocus: true,
-                    decoration: InputDecoration(
-                      labelText: 'Monto',
-                      prefixText: 'S/ ',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                      isDense: true,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => setDialogState(() => esPorcentaje = false),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        decoration: BoxDecoration(
+                          color: !esPorcentaje ? Colors.orange.shade700 : Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Center(
+                          child: Text('S/',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                color: !esPorcentaje ? Colors.white : Colors.grey.shade600,
+                              )),
+                        ),
+                      ),
                     ),
-                    onChanged: (v) {
-                      final m = double.tryParse(v) ?? 0;
-                      pctCtrl.text = bruto > 0 ? ((m / bruto) * 100).toStringAsFixed(1) : '0';
-                    },
                   ),
-                const SizedBox(height: 4),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: Text(
-                    esPorcentaje
-                        ? 'Descuento: S/ ${montoCtrl.text.isEmpty ? "0.00" : montoCtrl.text}'
-                        : 'Equivale a ${pctCtrl.text.isEmpty ? "0" : pctCtrl.text}%',
-                    style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
-                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              // Input
+              if (esPorcentaje)
+                CustomText(
+                  controller: pctCtrl,
+                  label: 'Porcentaje',
+                  suffixText: '%',
+                  borderColor: Colors.orange.shade700,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  height: 38,
+                  onChanged: (v) {
+                    final pct = double.tryParse(v) ?? 0;
+                    montoCtrl.text = (bruto * pct / 100).toStringAsFixed(2);
+                    setDialogState(() {});
+                  },
+                )
+              else
+                CustomText(
+                  controller: montoCtrl,
+                  label: 'Monto',
+                  prefixText: 'S/ ',
+                  borderColor: Colors.orange.shade700,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  height: 38,
+                  onChanged: (v) {
+                    final m = double.tryParse(v) ?? 0;
+                    pctCtrl.text = bruto > 0 ? ((m / bruto) * 100).toStringAsFixed(1) : '0';
+                    setDialogState(() {});
+                  },
                 ),
-              ],
-            ),
+              const SizedBox(height: 6),
+              // Preview
+              Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  esPorcentaje
+                      ? 'Descuento: S/ ${montoCtrl.text.isEmpty ? "0.00" : montoCtrl.text}'
+                      : 'Equivale a ${pctCtrl.text.isEmpty ? "0" : pctCtrl.text}%',
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                ),
+              ),
+            ],
             actions: [
               if (descuentoActual > 0)
-                TextButton(
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () {
+                      onAplicar(0);
+                      Navigator.pop(ctx);
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red.shade600,
+                      side: BorderSide(color: Colors.red.shade300),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      minimumSize: const Size(0, 40),
+                    ),
+                    child: const Text('Quitar'),
+                  ),
+                ),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  style: OutlinedButton.styleFrom(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    minimumSize: const Size(0, 40),
+                  ),
+                  child: const Text('Cancelar'),
+                ),
+              ),
+              Expanded(
+                flex: 2,
+                child: ElevatedButton(
                   onPressed: () {
-                    onAplicar(0);
+                    final monto = double.tryParse(montoCtrl.text) ?? 0;
+                    onAplicar(monto.clamp(0, bruto));
                     Navigator.pop(ctx);
                   },
-                  child: Text('Quitar', style: TextStyle(color: Colors.red.shade600)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange.shade700,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    minimumSize: const Size(0, 40),
+                  ),
+                  child: const Text('Aplicar'),
                 ),
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cancelar'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  final monto = double.tryParse(montoCtrl.text) ?? 0;
-                  onAplicar(monto.clamp(0, bruto));
-                  Navigator.pop(ctx);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.blue1,
-                  foregroundColor: Colors.white,
-                ),
-                child: const Text('Aplicar'),
               ),
             ],
           );
