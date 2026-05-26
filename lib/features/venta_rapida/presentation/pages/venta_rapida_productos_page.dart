@@ -3,7 +3,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/utils/resource.dart';
 import '../../../auth/presentation/bloc/auth/auth_bloc.dart';
+import '../../../caja/domain/entities/caja.dart';
+import '../../../caja/domain/usecases/get_caja_activa_usecase.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../../producto/domain/entities/producto_filtros.dart';
@@ -76,6 +79,33 @@ class _VentaRapidaProductosView extends StatelessWidget {
   final String sedeId;
   const _VentaRapidaProductosView({required this.sedeId});
 
+  Future<void> _verificarCajaYNavegar(BuildContext context) async {
+    final result = await locator<GetCajaActivaUseCase>()();
+    if (!context.mounted) return;
+    if (result is Success<Caja?> && result.data != null) {
+      context.push('/empresa/venta-rapida/carrito');
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.white, size: 18),
+              SizedBox(width: 8),
+              Expanded(child: Text('Debes abrir tu caja antes de continuar')),
+            ],
+          ),
+          backgroundColor: Colors.orange.shade700,
+          behavior: SnackBarBehavior.floating,
+          action: SnackBarAction(
+            label: 'Abrir Caja',
+            textColor: Colors.white,
+            onPressed: () => context.push('/empresa/caja'),
+          ),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final cubit = context.read<VentaRapidaCubit>();
@@ -86,7 +116,7 @@ class _VentaRapidaProductosView extends StatelessWidget {
         comboPendienteOferta: s.comboPendienteOferta,
       ),
       tituloBuilder: (_) => 'Productos',
-      onIrAlCarrito: () => context.push('/empresa/venta-rapida/carrito'),
+      onIrAlCarrito: () => _verificarCajaYNavegar(context),
       onAgregarProducto: cubit.agregarProducto,
       onDecrementarProducto: cubit.decrementarProducto,
       onCargarNiveles: cubit.getNivelesProducto,
