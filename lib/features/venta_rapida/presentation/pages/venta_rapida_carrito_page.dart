@@ -6,6 +6,7 @@ import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/autorizacion_dialog.dart';
 import '../../../../core/widgets/confirm_dialog.dart';
+import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/styled_dialog.dart';
 import '../../../auth/presentation/widgets/custom_text.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
@@ -456,7 +457,6 @@ class _CarritoView extends StatelessWidget {
                   suffixText: '%',
                   borderColor: Colors.orange.shade700,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  height: 38,
                   onChanged: (v) {
                     final pct = double.tryParse(v) ?? 0;
                     montoCtrl.text = (bruto * pct / 100).toStringAsFixed(2);
@@ -470,7 +470,6 @@ class _CarritoView extends StatelessWidget {
                   prefixText: 'S/ ',
                   borderColor: Colors.orange.shade700,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  height: 38,
                   onChanged: (v) {
                     final m = double.tryParse(v) ?? 0;
                     pctCtrl.text = bruto > 0 ? ((m / bruto) * 100).toStringAsFixed(1) : '0';
@@ -492,44 +491,38 @@ class _CarritoView extends StatelessWidget {
             actions: [
               if (descuentoActual > 0)
                 Expanded(
-                  child: OutlinedButton(
+                  child: CustomButton(
+                    text: 'Quitar',
+                    isOutlined: true,
+                    borderColor: Colors.red.shade400,
+                    textColor: Colors.red.shade600,
+                    enableShadows: false,
                     onPressed: () {
                       onAplicar(0);
                       Navigator.pop(ctx);
                     },
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.red.shade600,
-                      side: BorderSide(color: Colors.red.shade300),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      minimumSize: const Size(0, 40),
-                    ),
-                    child: const Text('Quitar'),
                   ),
                 ),
               Expanded(
-                child: OutlinedButton(
+                child: CustomButton(
+                  text: 'Cancelar',
+                  isOutlined: true,
+                  borderColor: Colors.grey.shade400,
+                  textColor: Colors.grey.shade700,
+                  enableShadows: false,
                   onPressed: () => Navigator.pop(ctx),
-                  style: OutlinedButton.styleFrom(
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    minimumSize: const Size(0, 40),
-                  ),
-                  child: const Text('Cancelar'),
                 ),
               ),
               Expanded(
-                child: ElevatedButton(
+                child: CustomButton(
+                  text: 'Aplicar',
+                  backgroundColor: Colors.orange.shade700,
+                  textColor: Colors.white,
                   onPressed: () {
                     final monto = double.tryParse(montoCtrl.text) ?? 0;
                     onAplicar(monto.clamp(0, bruto));
                     Navigator.pop(ctx);
                   },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange.shade700,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    minimumSize: const Size(0, 40),
-                  ),
-                  child: const Text('Aplicar'),
                 ),
               ),
             ],
