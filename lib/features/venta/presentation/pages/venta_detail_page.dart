@@ -779,6 +779,9 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                 final tieneVuelto = pago.metodoPago == MetodoPago.efectivo &&
                     v.montoCambio != null &&
                     v.montoCambio! > 0;
+                final montoNeto = tieneVuelto
+                    ? pago.monto - v.montoCambio!
+                    : pago.monto;
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 6),
                   child: Column(
@@ -813,7 +816,7 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                             ),
                           ),
                           Text(
-                            '${v.moneda} ${pago.monto.toStringAsFixed(2)}',
+                            '${v.moneda} ${montoNeto.toStringAsFixed(2)}',
                             style: const TextStyle(
                                 fontWeight: FontWeight.w600, fontSize: 13),
                           ),
@@ -822,24 +825,12 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                       if (tieneVuelto)
                         Padding(
                           padding: const EdgeInsets.only(top: 2, left: 8),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                '↳ ',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.orange.shade700,
-                                ),
-                              ),
-                              Text(
-                                'Vuelto: ${v.moneda} ${v.montoCambio!.toStringAsFixed(2)}',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: Colors.orange.shade700,
-                                ),
-                              ),
-                            ],
+                          child: Text(
+                            'Recibido S/ ${pago.monto.toStringAsFixed(2)} · Vuelto S/ ${v.montoCambio!.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.orange.shade700,
+                            ),
                           ),
                         ),
                     ],

@@ -193,22 +193,19 @@ class _FlujoDocumentosWidgetState extends State<FlujoDocumentosWidget> {
                             if (vuelto != null && vuelto is num && vuelto > 0)
                               Padding(
                                 padding: const EdgeInsets.only(top: 1),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text('↳ ', style: TextStyle(fontSize: 12, color: Colors.orange.shade700)),
-                                    Text(
-                                      'Vuelto: $simbolo ${(vuelto as num).toStringAsFixed(2)}',
-                                      style: TextStyle(fontSize: 8, color: Colors.orange.shade700),
-                                    ),
-                                  ],
+                                child: Text(
+                                  'Recibido $simbolo ${_formatMonto(monto)} · Vuelto $simbolo ${(vuelto as num).toStringAsFixed(2)}',
+                                  style: TextStyle(fontSize: 8, color: Colors.orange.shade700),
                                 ),
                               ),
                           ],
                         ),
                       ),
                       if (monto != null)
-                        AppText('$simbolo ${_formatMonto(monto)}', size: esRaiz ? 11 : 10, fontWeight: FontWeight.w700, color: config.color),
+                        AppText(
+                          '$simbolo ${_formatMonto(vuelto != null && vuelto is num && vuelto > 0 ? (monto as num) - (vuelto as num) : monto)}',
+                          size: esRaiz ? 11 : 10, fontWeight: FontWeight.w700, color: config.color,
+                        ),
                       if (pdfUrl != null)
                         Padding(padding: const EdgeInsets.only(left: 4), child: Icon(Icons.picture_as_pdf, size: 12, color: Colors.red.shade300)),
                       if (ruta != null)
