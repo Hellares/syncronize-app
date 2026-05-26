@@ -517,7 +517,6 @@ class _CarritoView extends StatelessWidget {
                 ),
               ),
               Expanded(
-                flex: 2,
                 child: ElevatedButton(
                   onPressed: () {
                     final monto = double.tryParse(montoCtrl.text) ?? 0;
