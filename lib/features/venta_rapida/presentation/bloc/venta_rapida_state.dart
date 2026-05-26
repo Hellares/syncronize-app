@@ -81,6 +81,7 @@ class VentaRapidaState extends Equatable {
 
   // Totales calculados
   double get subtotal => items.fold(0, (sum, i) => sum + i.subtotal);
+  double get descuentoTotal => items.fold(0.0, (sum, i) => sum + i.descuento);
   double get igv => items.fold(0, (sum, i) => sum + i.igv);
   double get icbper => items.fold(0, (sum, i) => sum + i.icbper);
   double get total => items.fold(0, (sum, i) => sum + i.total);

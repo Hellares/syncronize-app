@@ -347,20 +347,36 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     if (index < 0 || index >= state.items.length) return;
     final actual = state.items[index];
     final descuentoCalc = (actual.cantidad * actual.precioUnitario) * (porcentaje / 100);
-    final nueva = VentaDetalleInput(
-      productoId: actual.productoId,
-      descripcion: actual.descripcion,
-      cantidad: actual.cantidad,
-      precioUnitario: actual.precioUnitario,
-      descuento: descuentoCalc,
-      porcentajeIGV: actual.porcentajeIGV,
-      precioIncluyeIgv: actual.precioIncluyeIgv,
-      tipoAfectacion: actual.tipoAfectacion,
-      icbper: actual.icbper,
-      stockDisponible: actual.stockDisponible,
-    );
     final lista = [...state.items];
-    lista[index] = nueva;
+    lista[index] = actual.copyWith(descuento: descuentoCalc);
+    emit(state.copyWith(items: lista, clearError: true));
+  }
+
+  void actualizarDescuentoMonto(int index, double monto) {
+    if (index < 0 || index >= state.items.length) return;
+    final actual = state.items[index];
+    final bruto = actual.cantidad * actual.precioUnitario;
+    final descuentoFinal = monto.clamp(0, bruto).toDouble();
+    final lista = [...state.items];
+    lista[index] = actual.copyWith(descuento: descuentoFinal);
+    emit(state.copyWith(items: lista, clearError: true));
+  }
+
+  void aplicarDescuentoGlobal(double porcentaje) {
+    if (porcentaje <= 0 || porcentaje > 100) return;
+    final lista = state.items.map((item) {
+      if (item.origenComboId != null) return item;
+      final descuentoCalc = (item.cantidad * item.precioUnitario) * (porcentaje / 100);
+      return item.copyWith(descuento: descuentoCalc);
+    }).toList();
+    emit(state.copyWith(items: lista, clearError: true));
+  }
+
+  void limpiarDescuentos() {
+    final lista = state.items.map((item) {
+      if (item.descuento == 0) return item;
+      return item.copyWith(descuento: 0);
+    }).toList();
     emit(state.copyWith(items: lista, clearError: true));
   }
 

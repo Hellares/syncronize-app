@@ -158,9 +158,14 @@ class _CarritoView extends StatelessWidget {
                                 .read<VentaRapidaCubit>()
                                 .eliminarItem(row.index!);
                           },
-                          child: _ItemRow(
-                            index: row.index!,
-                            item: item,
+                          child: GestureDetector(
+                            onLongPress: () => _mostrarDescuentoItem(
+                              context, row.index!, item,
+                            ),
+                            child: _ItemRow(
+                              index: row.index!,
+                              item: item,
+                            ),
                           ),
                         );
                       },
@@ -168,28 +173,78 @@ class _CarritoView extends StatelessWidget {
                   },
                 ),
               ),
-              // Footer: IGV + botones
+              // Footer: Descuento + IGV + botones
               Container(
                 color: Colors.grey.shade100,
-                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                child: Center(
-                  child: Column(
-                    children: [
-                      Text(
-                        state.tipoComprobante == 'TICKET'
-                            ? 'IGV INCLUIDO'
-                            : 'IGV IMPUESTO GENERAL A LAS VENTAS',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.blue1,
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                child: Column(
+                  children: [
+                    // Botón descuento global
+                    GestureDetector(
+                      onTap: () => _mostrarDescuentoGlobal(context, state),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: state.descuentoTotal > 0
+                              ? Colors.red.shade50
+                              : Colors.white,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: state.descuentoTotal > 0
+                                ? Colors.red.shade300
+                                : Colors.grey.shade300,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.discount_outlined,
+                              size: 16,
+                              color: state.descuentoTotal > 0
+                                  ? Colors.red.shade700
+                                  : Colors.grey.shade600,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              state.descuentoTotal > 0
+                                  ? 'Descuento: -S/ ${state.descuentoTotal.toStringAsFixed(2)}'
+                                  : 'Aplicar Descuento',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: state.descuentoTotal > 0
+                                    ? Colors.red.shade700
+                                    : Colors.grey.shade700,
+                              ),
+                            ),
+                            if (state.descuentoTotal > 0) ...[
+                              const Spacer(),
+                              GestureDetector(
+                                onTap: () => context.read<VentaRapidaCubit>().limpiarDescuentos(),
+                                child: Icon(Icons.close, size: 16, color: Colors.red.shade400),
+                              ),
+                            ],
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text('S/ ${state.igv.toStringAsFixed(2)}',
-                          style: const TextStyle(fontSize: 13)),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 6),
+                    // IGV
+                    Text(
+                      state.tipoComprobante == 'TICKET'
+                          ? 'IGV INCLUIDO'
+                          : 'IGV IMPUESTO GENERAL A LAS VENTAS',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.blue1,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text('S/ ${state.igv.toStringAsFixed(2)}',
+                        style: const TextStyle(fontSize: 13)),
+                  ],
                 ),
               ),
               SafeArea(
@@ -236,6 +291,183 @@ class _CarritoView extends StatelessWidget {
                     ],
                   ),
                 ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  void _mostrarDescuentoItem(BuildContext context, int index, dynamic item) {
+    _showDescuentoDialog(
+      context,
+      titulo: item.descripcion as String,
+      bruto: (item.cantidad as double) * (item.precioUnitario as double),
+      descuentoActual: item.descuento as double,
+      onAplicar: (monto) {
+        context.read<VentaRapidaCubit>().actualizarDescuentoMonto(index, monto);
+      },
+    );
+  }
+
+  void _mostrarDescuentoGlobal(BuildContext context, VentaRapidaState state) {
+    final brutoTotal = state.items
+        .where((i) => i.origenComboId == null)
+        .fold(0.0, (sum, i) => sum + i.cantidad * i.precioUnitario);
+    _showDescuentoDialog(
+      context,
+      titulo: 'Descuento Global',
+      bruto: brutoTotal,
+      descuentoActual: state.descuentoTotal,
+      onAplicar: (monto) {
+        final porcentaje = brutoTotal > 0 ? (monto / brutoTotal) * 100 : 0.0;
+        context.read<VentaRapidaCubit>().aplicarDescuentoGlobal(porcentaje);
+      },
+    );
+  }
+
+  void _showDescuentoDialog(
+    BuildContext context, {
+    required String titulo,
+    required double bruto,
+    required double descuentoActual,
+    required void Function(double monto) onAplicar,
+  }) {
+    final pctCtrl = TextEditingController(
+      text: descuentoActual > 0 && bruto > 0
+          ? ((descuentoActual / bruto) * 100).toStringAsFixed(1)
+          : '',
+    );
+    final montoCtrl = TextEditingController(
+      text: descuentoActual > 0 ? descuentoActual.toStringAsFixed(2) : '',
+    );
+    bool esPorcentaje = true;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          return AlertDialog(
+            title: Text(titulo, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700), maxLines: 2, overflow: TextOverflow.ellipsis),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Subtotal: S/ ${bruto.toStringAsFixed(2)}',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setDialogState(() => esPorcentaje = true),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          decoration: BoxDecoration(
+                            color: esPorcentaje ? AppColors.blue1 : Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Center(
+                            child: Text('%',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  color: esPorcentaje ? Colors.white : Colors.grey.shade600,
+                                )),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setDialogState(() => esPorcentaje = false),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          decoration: BoxDecoration(
+                            color: !esPorcentaje ? AppColors.blue1 : Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Center(
+                            child: Text('S/',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  color: !esPorcentaje ? Colors.white : Colors.grey.shade600,
+                                )),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                if (esPorcentaje)
+                  TextField(
+                    controller: pctCtrl,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      labelText: 'Porcentaje',
+                      suffixText: '%',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      isDense: true,
+                    ),
+                    onChanged: (v) {
+                      final pct = double.tryParse(v) ?? 0;
+                      montoCtrl.text = (bruto * pct / 100).toStringAsFixed(2);
+                    },
+                  )
+                else
+                  TextField(
+                    controller: montoCtrl,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      labelText: 'Monto',
+                      prefixText: 'S/ ',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      isDense: true,
+                    ),
+                    onChanged: (v) {
+                      final m = double.tryParse(v) ?? 0;
+                      pctCtrl.text = bruto > 0 ? ((m / bruto) * 100).toStringAsFixed(1) : '0';
+                    },
+                  ),
+                const SizedBox(height: 4),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    esPorcentaje
+                        ? 'Descuento: S/ ${montoCtrl.text.isEmpty ? "0.00" : montoCtrl.text}'
+                        : 'Equivale a ${pctCtrl.text.isEmpty ? "0" : pctCtrl.text}%',
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              if (descuentoActual > 0)
+                TextButton(
+                  onPressed: () {
+                    onAplicar(0);
+                    Navigator.pop(ctx);
+                  },
+                  child: Text('Quitar', style: TextStyle(color: Colors.red.shade600)),
+                ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  final monto = double.tryParse(montoCtrl.text) ?? 0;
+                  onAplicar(monto.clamp(0, bruto));
+                  Navigator.pop(ctx);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.blue1,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Aplicar'),
               ),
             ],
           );
@@ -393,6 +625,27 @@ class _ItemRowState extends State<_ItemRow> {
                       style: TextStyle(
                         fontSize: 9,
                         color: Colors.green.shade700,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+                if (item.descuento > 0) ...[
+                  const SizedBox(height: 2),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 5, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(
+                          color: Colors.red.shade300, width: 0.5),
+                    ),
+                    child: Text(
+                      '-S/ ${item.descuento.toStringAsFixed(2)}',
+                      style: TextStyle(
+                        fontSize: 9,
+                        color: Colors.red.shade700,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
