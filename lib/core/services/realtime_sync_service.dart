@@ -316,10 +316,8 @@ class RealtimeSyncService {
 
     switch (tipo) {
       case 'PRECIO_CAMBIADO':
-        // Cuando cambia un precio, también los niveles cacheados podrían
-        // estar obsoletos si el admin tocó la oferta o un nivel.
-        // Invalidamos por las dudas.
         if (productoId != null) _nivelCacheService.invalidate(productoId);
+        if (varianteId != null) _nivelCacheService.invalidateVariante(varianteId);
         _eventsController.add(RealtimePrecioCambiado(
           empresaId: empresaId,
           productoId: productoId,
@@ -339,6 +337,7 @@ class RealtimeSyncService {
 
       case 'NIVELES_CAMBIADOS':
         if (productoId != null) _nivelCacheService.invalidate(productoId);
+        if (varianteId != null) _nivelCacheService.invalidateVariante(varianteId);
         _eventsController.add(RealtimeNivelesCambiados(
           empresaId: empresaId,
           productoId: productoId,
