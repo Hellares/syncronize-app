@@ -10,6 +10,7 @@ import 'package:syncronize/core/utils/resource.dart';
 import 'package:syncronize/core/widgets/currency/currency_formatter.dart';
 import 'package:syncronize/core/widgets/currency/currency_textfield.dart';
 import 'package:syncronize/core/widgets/custom_button.dart';
+import 'package:syncronize/core/widgets/styled_dialog.dart';
 import 'package:syncronize/core/widgets/custom_dropdown.dart';
 import 'package:syncronize/core/widgets/date/custom_date.dart';
 import '../../domain/entities/precio_nivel.dart';
@@ -962,29 +963,40 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
   Future<void> _confirmarYEliminarNivel(PrecioNivel n) async {
     final esFijo = n.tipoPrecio == TipoPrecioNivel.precioFijo;
     final tipoLabel = esFijo ? 'fijo' : 'porcentual';
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Eliminar nivel de precio'),
-        content: Text(
-          '¿Seguro que quieres eliminar el nivel $tipoLabel "${n.nombre}" '
-          '(${n.rangoString})? Esta acción se puede revertir reconfigurándolo.',
+    final confirm = await StyledDialog.show<bool>(
+      context,
+      accentColor: Colors.red,
+      icon: Icons.delete_outline,
+      titulo: 'Eliminar nivel de precio',
+      content: [
+        Text(
+          '¿Eliminar el nivel $tipoLabel "${n.nombre}" (${n.rangoString})?',
+          style: const TextStyle(fontSize: 13),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancelar'),
+        const SizedBox(height: 6),
+        Text(
+          'Puede reconfigurarse después.',
+          style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+        ),
+      ],
+      actions: [
+        Expanded(
+          child: TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Cancelar',
+                style: TextStyle(color: Colors.grey.shade600)),
           ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red.shade400,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Eliminar'),
+        ),
+        Expanded(
+          child: CustomButton(
+            text: 'Eliminar',
+            icon: const Icon(Icons.delete, size: 14, color: Colors.white),
+            backgroundColor: Colors.red,
+            textColor: Colors.white,
+            onPressed: () => Navigator.pop(context, true),
           ),
-        ],
-      ),
+        ),
+      ],
     );
     if (confirm != true || !mounted) return;
 
