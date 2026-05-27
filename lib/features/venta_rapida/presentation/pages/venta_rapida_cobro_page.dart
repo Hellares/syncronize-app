@@ -1522,84 +1522,47 @@ class _CobroViewState extends State<_CobroView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Cuotas chips
+            // Cuotas + Plazo en una sola row
             Row(
               children: [
-                Text('Cuotas:', style: TextStyle(fontSize: 12,
-                    color: Colors.orange.shade700, fontWeight: FontWeight.w600)),
-                const SizedBox(width: 10),
-                for (final n in [1, 2, 3, 6, 12]) ...[
-                  GestureDetector(
-                    onTap: () => context.read<VentaRapidaCubit>().setNumeroCuotas(n),
-                    child: Container(
-                      width: 38, height: 28,
-                      margin: const EdgeInsets.only(right: 6),
-                      decoration: BoxDecoration(
-                        color: state.numeroCuotas == n
-                            ? Colors.orange.shade700
-                            : Colors.white,
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: state.numeroCuotas == n
-                              ? Colors.orange.shade700
-                              : Colors.grey.shade300,
-                        ),
-                      ),
-                      child: Center(
-                        child: Text('$n',
-                          style: TextStyle(
-                            fontSize: 12, fontWeight: FontWeight.w700,
-                            color: state.numeroCuotas == n
-                                ? Colors.white
-                                : Colors.grey.shade700,
-                          ),
-                        ),
-                      ),
-                    ),
+                Expanded(
+                  child: CustomDropdown<int>(
+                    label: 'Cuotas',
+                    value: state.numeroCuotas,
+                    borderColor: Colors.orange.shade700,
+                    height: 36,
+                    items: const [
+                      DropdownItem(value: 1, label: '1 cuota'),
+                      DropdownItem(value: 2, label: '2 cuotas'),
+                      DropdownItem(value: 3, label: '3 cuotas'),
+                      DropdownItem(value: 6, label: '6 cuotas'),
+                      DropdownItem(value: 12, label: '12 cuotas'),
+                    ],
+                    onChanged: (v) {
+                      if (v != null) context.read<VentaRapidaCubit>().setNumeroCuotas(v);
+                    },
                   ),
-                ],
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: CustomDropdown<int>(
+                    label: 'Plazo',
+                    value: state.plazoDias,
+                    borderColor: Colors.orange.shade700,
+                    height: 36,
+                    items: const [
+                      DropdownItem(value: 30, label: '30 dias'),
+                      DropdownItem(value: 60, label: '60 dias'),
+                      DropdownItem(value: 90, label: '90 dias'),
+                      DropdownItem(value: 120, label: '120 dias'),
+                    ],
+                    onChanged: (v) {
+                      if (v != null) context.read<VentaRapidaCubit>().setPlazoDias(v);
+                    },
+                  ),
+                ),
               ],
             ),
-            // Plazo configurable cuando es 1 cuota (pago diferido)
-            if (state.numeroCuotas == 1) ...[
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Text('Plazo:', style: TextStyle(fontSize: 12,
-                      color: Colors.orange.shade700, fontWeight: FontWeight.w600)),
-                  const SizedBox(width: 10),
-                  for (final d in [30, 60, 90, 120]) ...[
-                    GestureDetector(
-                      onTap: () => context.read<VentaRapidaCubit>().setPlazoDias(d),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        margin: const EdgeInsets.only(right: 6),
-                        decoration: BoxDecoration(
-                          color: state.plazoDias == d
-                              ? Colors.orange.shade700
-                              : Colors.white,
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(
-                            color: state.plazoDias == d
-                                ? Colors.orange.shade700
-                                : Colors.grey.shade300,
-                          ),
-                        ),
-                        child: Text(
-                          '${d}d',
-                          style: TextStyle(
-                            fontSize: 11, fontWeight: FontWeight.w700,
-                            color: state.plazoDias == d
-                                ? Colors.white
-                                : Colors.grey.shade700,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ],
             // Preview cuotas
             if (cuotas.isNotEmpty && state.items.isNotEmpty) ...[
               const SizedBox(height: 8),
