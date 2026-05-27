@@ -482,7 +482,9 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
     final niveles = await _nivelCacheService.getNiveles(productoId);
     if (isClosed) return;
     final items = state.items;
-    final idx = items.indexWhere((i) => i.productoId == productoId);
+    final idx = items.indexWhere(
+      (i) => i.productoId == productoId && i.varianteId == null,
+    );
     if (idx < 0) return;
     final actualizado = items[idx]
         .copyWith(niveles: niveles)
@@ -557,7 +559,10 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
 
   void decrementarProducto(String productoId) {
     final idx = state.items.indexWhere(
-      (i) => i.productoId == productoId && i.origenComboId == null,
+      (i) =>
+          i.productoId == productoId &&
+          i.varianteId == null &&
+          i.origenComboId == null,
     );
     if (idx < 0) return;
     final actual = state.items[idx];

@@ -376,8 +376,10 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     // Reaplicar a TODOS los items del carrito que coincidan con este productoId
     // (puede haber sido recreado / sumado / decrementado mientras esperábamos).
     final items = state.items;
-    final idx = items.indexWhere((i) => i.productoId == productoId);
-    if (idx < 0) return; // item ya no está en el carrito
+    final idx = items.indexWhere(
+      (i) => i.productoId == productoId && i.varianteId == null,
+    );
+    if (idx < 0) return;
     final actualizado = items[idx]
         .copyWith(niveles: niveles)
         .recalcularPrecioPorNiveles(items[idx].cantidad);
@@ -471,7 +473,10 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
   /// se manipulan en grupo desde la UI del carrito.
   void decrementarProducto(String productoId) {
     final idx = state.items.indexWhere(
-      (i) => i.productoId == productoId && i.origenComboId == null,
+      (i) =>
+          i.productoId == productoId &&
+          i.varianteId == null &&
+          i.origenComboId == null,
     );
     if (idx < 0) return;
     final actual = state.items[idx];
