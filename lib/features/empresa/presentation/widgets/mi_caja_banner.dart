@@ -62,7 +62,7 @@ class _MiCajaBannerState extends State<MiCajaBanner> {
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(8),
           border: Border.all(color: Colors.green.shade300),
           boxShadow: [
             BoxShadow(
@@ -156,7 +156,7 @@ class _MiCajaBannerState extends State<MiCajaBanner> {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
           color: Colors.grey.shade50,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(8),
           border: Border.all(color: Colors.grey.shade300),
         ),
         child: Row(

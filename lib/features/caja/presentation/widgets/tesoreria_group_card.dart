@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/utils/date_formatter.dart';
+import '../../../../core/fonts/app_text_widgets.dart';
 import '../../domain/entities/movimiento_caja.dart';
 import '../utils/tesoreria_grouping.dart';
 
@@ -112,43 +113,18 @@ class TesoreriaGroupCard extends StatelessWidget {
     final fechaStr = DateFormatter.formatDateTime(retiro.fechaMovimiento);
 
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Retiro de Tesorería',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
-                ),
-              ),
+              AppSubtitle('Retiro de Tesorería', color: AppColors.red),
               const SizedBox(height: 4),
-              Text(
-                'Retiro para apertura: $cajaCodigo',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: AppColors.textSecondary,
-                ),
-              ),
+              AppSubtitle('Retiro para apertura: $cajaCodigo', color: AppColors.black54),
               if (cajero != null)
-                Text(
-                  'Cajero: $cajero',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              Text(
-                '$metodoLabel · $fechaStr',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: AppColors.textSecondary,
-                ),
-              ),
+                AppLabelText('Cajero: $cajero', color: AppColors.black54),
+              AppLabelText('$metodoLabel · $fechaStr', color: AppColors.black54),
             ],
           ),
         ),
@@ -156,7 +132,7 @@ class TesoreriaGroupCard extends StatelessWidget {
         Text(
           '-${_money(retiro.monto)}',
           style: TextStyle(
-            fontSize: 15,
+            fontSize: 12,
             fontWeight: FontWeight.w800,
             color: AppColors.red,
           ),
@@ -183,7 +159,7 @@ class TesoreriaGroupCard extends StatelessWidget {
         cajero != null && cierra != null && _sameName(cajero, cierra);
 
     return Padding(
-      padding: EdgeInsets.only(left: indent ? 20 : 0),
+      padding: EdgeInsets.only(left: indent ? 15 : 0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -200,47 +176,16 @@ class TesoreriaGroupCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Depósito de $cajaCodigo',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
+                  AppSubtitle('Depósito de $cajaCodigo', color: AppColors.green),
                 const SizedBox(height: 4),
                 if (cajero != null)
-                  Text(
-                    'Cajero: $cajero',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
+                  AppLabelText('Cajero: $cajero', color: AppColors.black54),
                 if (cierra != null && !cajeroEsCerro)
-                  Text(
-                    'Cerró: $cierra',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
+                  AppLabelText('Cerró: $cierra', color: AppColors.black54),
                 if (!multiMetodo)
-                  Text(
-                    '${depositos.first.metodoPago.label} · $fechaStr',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: AppColors.textSecondary,
-                    ),
-                  )
+                  AppLabelText('${depositos.first.metodoPago.label} · $fechaStr', color: AppColors.black54)
                 else ...[
-                  Text(
-                    fechaStr,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
+                    AppLabelText(fechaStr, color: AppColors.black54),
                   const SizedBox(height: 4),
                   Wrap(
                     spacing: 4,
@@ -262,7 +207,7 @@ class TesoreriaGroupCard extends StatelessWidget {
           Text(
             '+${_money(montoTotal)}',
             style: TextStyle(
-              fontSize: 15,
+              fontSize: 12,
               fontWeight: FontWeight.w800,
               color: AppColors.greendark,
             ),
@@ -330,21 +275,32 @@ class TesoreriaGroupCard extends StatelessWidget {
         backgroundColor: _color.withValues(alpha: 0.12),
         child: Icon(mov.categoria.icon, color: _color, size: 16),
       ),
-      title: Text(
+      title: 
+      // Text(
+      //   group.titulo,
+      //   style: TextStyle(
+      //     fontWeight: FontWeight.w600,
+      //     decoration: mov.anulado ? TextDecoration.lineThrough : null,
+      //     fontSize: 11,
+      //   ),
+      // ),
+      AppSubtitle(
         group.titulo,
-        style: TextStyle(
-          fontWeight: FontWeight.w600,
-          decoration: mov.anulado ? TextDecoration.lineThrough : null,
-          fontSize: 11,
-        ),
+        color: mov.anulado ? AppColors.textSecondary : null,
       ),
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (group.subtitulo != null && group.subtitulo!.isNotEmpty)
-            Text(
+            // Text(
+            //   group.subtitulo!,
+            //   style: const TextStyle(fontSize: 10),
+            //   maxLines: 2,
+            //   overflow: TextOverflow.ellipsis,
+            // ),
+            AppLabelText(
               group.subtitulo!,
-              style: const TextStyle(fontSize: 10),
+              color: AppColors.textSecondary,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
@@ -354,21 +310,31 @@ class TesoreriaGroupCard extends StatelessWidget {
               Icon(mov.metodoPago.icon,
                   size: 12, color: AppColors.textSecondary),
               const SizedBox(width: 4),
-              Text(
+              // Text(
+              //   mov.metodoPago.label,
+              //   style: const TextStyle(
+              //     fontSize: 11,
+              //     color: AppColors.textSecondary,
+              //   ),
+              // ),
+              AppLabelText(
                 mov.metodoPago.label,
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: AppColors.textSecondary,
-                ),
+                color: AppColors.textSecondary,
               ),
               const SizedBox(width: 8),
               Flexible(
-                child: Text(
+                child: 
+                // Text(
+                //   DateFormatter.formatDateTime(mov.fechaMovimiento),
+                //   style: const TextStyle(
+                //     fontSize: 11,
+                //     color: AppColors.textSecondary,
+                //   ),
+                //   overflow: TextOverflow.ellipsis,
+                // ),
+                AppLabelText(
                   DateFormatter.formatDateTime(mov.fechaMovimiento),
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: AppColors.textSecondary,
-                  ),
+                  color: AppColors.textSecondary,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -435,21 +401,19 @@ class TesoreriaGroupCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          group.titulo,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 11,
-                          ),
-                        ),
+                        AppSubtitle(group.titulo, color: _color),
                         if (group.subtitulo != null) ...[
                           const SizedBox(height: 2),
-                          Text(
+                          // Text(
+                          //   '${group.subtitulo!} · ${DateFormatter.formatDateTime(group.items.first.fechaMovimiento)}',
+                          //   style: const TextStyle(
+                          //     fontSize: 11,
+                          //     color: AppColors.textSecondary,
+                          //   ),
+                          // ),
+                          AppLabelText(
                             '${group.subtitulo!} · ${DateFormatter.formatDateTime(group.items.first.fechaMovimiento)}',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: AppColors.textSecondary,
-                            ),
+                            color: AppColors.textSecondary,
                           ),
                         ],
                       ],
@@ -564,11 +528,11 @@ class _ReversosAfectanBanner extends StatelessWidget {
     final monto = group.montoAfectadoPorReversos;
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: AppColors.orange.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: AppColors.orange.withValues(alpha: 0.30)),
+        border: Border.all(color: AppColors.orange.withValues(alpha: 0.30),width: 0.5),
       ),
       child: Row(
         children: [
@@ -578,8 +542,7 @@ class _ReversosAfectanBanner extends StatelessWidget {
             child: Text(
               label,
               style: const TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
+                fontSize: 9,
                 color: AppColors.orange,
               ),
             ),
@@ -628,7 +591,7 @@ class _MetodoChip extends StatelessWidget {
           const SizedBox(width: 4),
           Text(
             metodo.label,
-            style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w600),
+            style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w500),
           ),
           const SizedBox(width: 6),
           Text(

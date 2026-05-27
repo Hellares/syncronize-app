@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../theme/app_colors.dart';
 import '../theme/gradient_container.dart';
 
 /// Dialog estilizado reutilizable con GradientContainer, borde de color
@@ -61,19 +60,19 @@ class StyledDialog extends StatelessWidget {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
                     color: accentColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(icon, color: accentColor, size: 22),
+                  child: Icon(icon, color: accentColor, size: 18),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     titulo,
                     style: TextStyle(
-                      fontSize: 15,
+                      fontSize: 13,
                       fontWeight: FontWeight.bold,
                       color: accentColor,
                     ),

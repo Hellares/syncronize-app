@@ -2014,7 +2014,7 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
           Icon(icon, size: 14, color: Colors.grey.shade500),
           const SizedBox(width: 8),
           SizedBox(
-            width: 80,
+            width: 90,
             child: Text(
               label,
               style: TextStyle(fontSize: 11, color: Colors.grey.shade600),

@@ -245,22 +245,22 @@ class _CerrarCajaPageState extends State<CerrarCajaPage> {
         .fold<double>(0, (sum, m) => sum + m.monto);
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Summary header
           GradientContainer(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const AppSubtitle(
                   'Resumen del Sistema',
-                  fontSize: 16,
+                  fontSize: 12,
                   color: AppColors.blue3,
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 if (montoApertura != null) ...[
                   _buildSummaryRow(
                     'Monto de Apertura',
@@ -281,7 +281,7 @@ class _CerrarCajaPageState extends State<CerrarCajaPage> {
                     child: Text(
                       '(− ${currencyFormat.format(resumen.egresoAnulacionVenta)} anulados)',
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: 10,
                         fontStyle: FontStyle.italic,
                         color: AppColors.textSecondary,
                       ),
@@ -303,14 +303,14 @@ class _CerrarCajaPageState extends State<CerrarCajaPage> {
                             '· ${e.label}'
                             '${e.cantidad > 0 ? " (${e.cantidad})" : ""}',
                             style: TextStyle(
-                              fontSize: 11,
+                              fontSize: 10,
                               color: AppColors.textSecondary,
                             ),
                           ),
                           Text(
                             currencyFormat.format(e.total),
                             style: TextStyle(
-                              fontSize: 11,
+                              fontSize: 10,
                               fontWeight: FontWeight.w500,
                               color: AppColors.red.withValues(alpha: 0.85),
                             ),
@@ -350,7 +350,7 @@ class _CerrarCajaPageState extends State<CerrarCajaPage> {
                         Text(
                           currencyFormat.format(resumen.egresoAnulacionVenta),
                           style: TextStyle(
-                            fontSize: 11,
+                            fontSize: 10,
                             fontStyle: FontStyle.italic,
                             color: AppColors.textSecondary,
                           ),
@@ -374,14 +374,14 @@ class _CerrarCajaPageState extends State<CerrarCajaPage> {
           // Conteo por metodo de pago
           const AppSubtitle(
             'Conteo Fisico por Metodo de Pago',
-            fontSize: 16,
+            fontSize: 12,
             color: AppColors.blue3,
           ),
-          const SizedBox(height: 8),
+          //const SizedBox(height: 8),
           const Text(
             'Ingresa el monto fisico contado para cada metodo de pago',
             style: TextStyle(
-              fontSize: 13,
+              fontSize: 10,
               color: AppColors.textSecondary,
             ),
           ),
@@ -467,7 +467,7 @@ class _CerrarCajaPageState extends State<CerrarCajaPage> {
             const Icon(
               Icons.account_balance_rounded,
               color: AppColors.blue1,
-              size: 22,
+              size: 20,
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -477,7 +477,7 @@ class _CerrarCajaPageState extends State<CerrarCajaPage> {
                   const Text(
                     'Se depositará en Tesorería',
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: AppColors.blue1,
                     ),
@@ -496,7 +496,7 @@ class _CerrarCajaPageState extends State<CerrarCajaPage> {
             Text(
               currencyFormat.format(totalDeposito),
               style: const TextStyle(
-                fontSize: 16,
+                fontSize: 14,
                 fontWeight: FontWeight.w800,
                 color: AppColors.blue1,
               ),
@@ -521,22 +521,21 @@ class _CerrarCajaPageState extends State<CerrarCajaPage> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: GradientContainer(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(metodo.icon, size: 20, color: AppColors.blue3),
+                Icon(metodo.icon, size: 18, color: AppColors.blue3),
                 const SizedBox(width: 8),
                 AppSubtitle(
                   metodo.label,
-                  fontSize: 14,
+                  fontSize: 12,
                   color: AppColors.blue3,
                 ),
               ],
             ),
-            const SizedBox(height: 10),
             Row(
               children: [
                 Expanded(
@@ -546,14 +545,14 @@ class _CerrarCajaPageState extends State<CerrarCajaPage> {
                       const Text(
                         'Esperado',
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 11,
                           color: AppColors.textSecondary,
                         ),
                       ),
                       Text(
                         currencyFormat.format(esperado),
                         style: const TextStyle(
-                          fontSize: 15,
+                          fontSize: 13,
                           fontWeight: FontWeight.w700,
                           color: AppColors.blue3,
                         ),
@@ -569,7 +568,6 @@ class _CerrarCajaPageState extends State<CerrarCajaPage> {
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
                     prefixText: 'S/ ',
-                    height: 38,
                     onChanged: (_) => setState(() {}),
                   ),
                 ),
@@ -600,7 +598,7 @@ class _CerrarCajaPageState extends State<CerrarCajaPage> {
                     Text(
                       'Diferencia: ${currencyFormat.format(diferencia.abs())}',
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: 10,
                         fontWeight: FontWeight.w600,
                         color:
                             diferencia > 0 ? AppColors.green : AppColors.red,
@@ -628,7 +626,7 @@ class _CerrarCajaPageState extends State<CerrarCajaPage> {
         Text(
           label,
           style: TextStyle(
-            fontSize: isBold ? 15 : 13,
+            fontSize: isBold ? 13 : 11,
             fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
             color: AppColors.textPrimary,
           ),
@@ -636,7 +634,7 @@ class _CerrarCajaPageState extends State<CerrarCajaPage> {
         Text(
           value,
           style: TextStyle(
-            fontSize: isBold ? 16 : 14,
+            fontSize: isBold ? 14 : 12,
             fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
             color: color,
           ),

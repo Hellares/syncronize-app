@@ -518,17 +518,17 @@ class _CajaMonitorPageState extends State<CajaMonitorPage> {
               const SizedBox(width: 4),
               Text(
                 '${caja.totalMovimientos} mov.',
-                style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                style: const TextStyle(fontSize: 10, color: AppColors.textSecondary),
               ),
               if (caja.ultimoMovimiento != null) ...[
                 const SizedBox(width: 6),
-                const Text('|', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                const Text('|', style: TextStyle(fontSize: 10, color: AppColors.textSecondary)),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
                     _buildUltimoMovimientoText(caja.ultimoMovimiento!),
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 10,
                       color: caja.ultimoMovimiento!.tipo == 'INGRESO'
                           ? AppColors.green
                           : AppColors.red,
@@ -571,7 +571,7 @@ class _CajaMonitorPageState extends State<CajaMonitorPage> {
           ],
           // Promedio por movimiento
           if (caja.totalMovimientos > 0 && caja.totalIngresos > 0) ...[
-            const SizedBox(height: 6),
+            //const SizedBox(height: 6),
             Row(
               children: [
                 Icon(Icons.trending_up, size: 12, color: Colors.grey[500]),
