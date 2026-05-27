@@ -222,11 +222,26 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
     }
   }
 
+  bool _varianteSheetOpen = false;
+  bool _navegandoAlCarrito = false;
+
+  void _irAlCarritoGuarded() {
+    if (_navegandoAlCarrito) return;
+    _navegandoAlCarrito = true;
+    widget.onIrAlCarrito();
+    Future.delayed(const Duration(milliseconds: 500), () {
+      _navegandoAlCarrito = false;
+    });
+  }
+
   Future<void> _onProductoTap(ProductoListItem p) async {
     if (p.tieneVariantes &&
         p.variantes != null &&
         p.variantes!.isNotEmpty &&
         widget.onAgregarVariante != null) {
+      if (_varianteSheetOpen) return;
+      _varianteSheetOpen = true;
+
       final cubitState = context.read<TCubit>().state;
       final items = widget.snapshotBuilder(cubitState).items;
       final cantidades = <String, int>{};
@@ -235,6 +250,7 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
           cantidades[i.varianteId!] = i.cantidad.toInt();
         }
       }
+      // Niveles: primero peek sincrónico, luego fetch async en background
       final nivelCache = locator<PrecioNivelCacheService>();
       final nivelesMap = <String, List<PrecioNivel>>{};
       for (final v in p.variantes ?? <ProductoVariante>[]) {
@@ -243,13 +259,15 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
           nivelesMap[v.id] = cached;
         }
       }
+      // No bloquear la apertura — abrir el sheet inmediato y cargar
+      // niveles faltantes en background (el sheet muestra precios base
+      // hasta que los niveles lleguen en la próxima apertura).
       if (nivelesMap.isEmpty) {
         for (final v in p.variantes ?? <ProductoVariante>[]) {
-          final niveles = await nivelCache.getNivelesVariante(v.id);
-          if (niveles.isNotEmpty) nivelesMap[v.id] = niveles;
+          unawaited(nivelCache.getNivelesVariante(v.id));
         }
       }
-      if (!mounted) return;
+      if (!mounted) { _varianteSheetOpen = false; return; }
       await showVarianteSelectorSheet(
         context: context,
         producto: p,
@@ -265,6 +283,7 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
               }
             : null,
       );
+      _varianteSheetOpen = false;
     } else {
       widget.onAgregarProducto(p);
     }
@@ -515,7 +534,7 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
                   IconButton(
                     icon: const Icon(Icons.shopping_cart_checkout),
                     onPressed:
-                        snap.items.isEmpty ? null : widget.onIrAlCarrito,
+                        snap.items.isEmpty ? null : _irAlCarritoGuarded,
                   ),
                   if (cantidadUnidades > 0)
                     Positioned(
@@ -1306,9 +1325,9 @@ class _ProductoCard<TCubit extends Cubit<TState>, TState>
                     ),
                   ),
                   // Botón discreto para abrir bottom sheet de precios por mayor.
-                  // En esquina inferior izquierda — la derecha la ocupan el
-                  // badge "agregado" y el stepper cuando el producto está en
-                  // el carrito.
+                  // Oculto para productos con variantes — los niveles se
+                  // muestran en el selector de variantes directamente.
+                  if (!producto.tieneVariantes)
                   Positioned(
                     bottom: 4,
                     left: 4,

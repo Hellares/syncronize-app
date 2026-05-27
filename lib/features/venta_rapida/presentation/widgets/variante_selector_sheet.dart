@@ -22,7 +22,8 @@ Future<void> showVarianteSelectorSheet({
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
     constraints: BoxConstraints(
-      maxHeight: MediaQuery.of(context).size.height * 0.65,
+      maxHeight: MediaQuery.of(context).size.height * 0.70,
+      minHeight: MediaQuery.of(context).size.height * 0.70,
     ),
     builder: (_) => _VarianteSelectorSheet(
       producto: producto,
