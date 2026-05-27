@@ -1428,17 +1428,18 @@ class _ProductoCard<TCubit extends Cubit<TState>, TState>
                                 ),
                               ),
                             ),
-                            InkWell(
-                              borderRadius: const BorderRadius.vertical(
-                                  bottom: Radius.circular(14)),
-                              onTap: onDecrementar,
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 3, vertical: 6),
-                                child: Icon(Icons.remove,
-                                    size: 16, color: Colors.green.shade700),
+                            if (!producto.tieneVariantes)
+                              InkWell(
+                                borderRadius: const BorderRadius.vertical(
+                                    bottom: Radius.circular(14)),
+                                onTap: onDecrementar,
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 3, vertical: 6),
+                                  child: Icon(Icons.remove,
+                                      size: 16, color: Colors.green.shade700),
+                                ),
                               ),
-                            ),
                           ],
                         ),
                       ),
