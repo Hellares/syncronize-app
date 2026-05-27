@@ -930,27 +930,35 @@ class _ProductoCard<TCubit extends Cubit<TState>, TState>
 
   double _qtyEnCarrito(TState state) {
     final items = snapshotBuilder(state).items;
+    double total = 0;
     for (final i in items) {
-      if (i.productoId == producto.id) return i.cantidad;
+      if (i.productoId == producto.id && i.origenComboId == null) {
+        total += i.cantidad;
+      }
     }
-    return 0;
+    return total;
   }
 
   /// Devuelve los datos del item en carrito (precio con nivel aplicado y
   /// nombre del nivel) para que la card refleje el precio efectivo en vez
-  /// del precio base. Si el producto no está en el carrito, devuelve null.
+  /// del precio base. Para productos con variantes (múltiples líneas en
+  /// carrito), devuelve null — no tiene sentido mostrar el precio de una
+  /// sola variante como representativo del producto completo.
   ({double precioUnitario, String? nivelAplicado})? _itemInfoEnCarrito(
       TState state) {
     final items = snapshotBuilder(state).items;
+    ({double precioUnitario, String? nivelAplicado})? found;
+    int count = 0;
     for (final i in items) {
-      if (i.productoId == producto.id) {
-        return (
+      if (i.productoId == producto.id && i.origenComboId == null) {
+        found = (
           precioUnitario: i.precioUnitario,
           nivelAplicado: i.nivelAplicado,
         );
+        count++;
       }
     }
-    return null;
+    return count == 1 ? found : null;
   }
 
   /// Long-press de la card: abre el manager de imágenes del producto
