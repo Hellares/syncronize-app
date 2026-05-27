@@ -618,9 +618,13 @@ class _ProductosPageState extends State<ProductosPage>
             child: ConfigurarPreciosDialog(stock: stock, empresaId: empresaId),
           ),
         ).then((result) {
-          // Si se guardaron los precios correctamente, recargar la lista
           if (result == true && mounted) {
-            _loadProductos();
+            final sedeId = _getSedeIdActual(
+              (context.read<EmpresaContextCubit>().state as EmpresaContextLoaded)
+                  .context
+                  .sedes,
+            );
+            context.read<ProductoListCubit>().revalidarSinDeltas(sedeId: sedeId);
           }
         });
       } else if (result is Error<ProductoStock>) {

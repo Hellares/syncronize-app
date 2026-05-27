@@ -482,6 +482,7 @@ class ProductoListCubit extends Cubit<ProductoListState> {
   Future<void> revalidarSinDeltas({String? sedeId}) async {
     if (_currentEmpresaId == null) return;
     final sedeIdReal = sedeId ?? _currentSedeId;
+    _memoryCache.invalidateEmpresa(_currentEmpresaId!);
     unawaited(
       _localStore.clearLastSync(
         empresaId: _currentEmpresaId!,
