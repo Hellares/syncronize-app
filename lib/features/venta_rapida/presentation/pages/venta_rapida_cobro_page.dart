@@ -768,6 +768,20 @@ class _CobroViewState extends State<_CobroView> {
             backgroundColor: AppColors.blue1,
             foregroundColor: Colors.white,
             title: Text(tituloAppBar),
+            actions: [
+              _AppBarCondicionChip(
+                label: 'Contado',
+                selected: !state.esCredito,
+                onTap: () => context.read<VentaRapidaCubit>().setCondicionPago('CONTADO'),
+              ),
+              _AppBarCondicionChip(
+                label: 'Credito',
+                selected: state.esCredito,
+                selectedColor: Colors.orange,
+                onTap: () => context.read<VentaRapidaCubit>().setCondicionPago('CREDITO'),
+              ),
+              const SizedBox(width: 8),
+            ],
           ),
           body: SingleChildScrollView(
             padding: const EdgeInsets.only(left: 16, right: 16),
@@ -948,29 +962,6 @@ class _CobroViewState extends State<_CobroView> {
                     ),
                   ),
                 //const SizedBox(height: 14),
-
-                // Toggle CONTADO / CRÉDITO
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  child: Row(
-                    children: [
-                      _CondicionPagoChip(
-                        label: 'Contado',
-                        icon: Icons.payments_outlined,
-                        selected: !state.esCredito,
-                        onTap: () => context.read<VentaRapidaCubit>().setCondicionPago('CONTADO'),
-                      ),
-                      const SizedBox(width: 8),
-                      _CondicionPagoChip(
-                        label: 'Credito',
-                        icon: Icons.credit_score,
-                        selected: state.esCredito,
-                        color: Colors.orange,
-                        onTap: () => context.read<VentaRapidaCubit>().setCondicionPago('CREDITO'),
-                      ),
-                    ],
-                  ),
-                ),
 
                 // Sección crédito (cuotas + preview)
                 if (state.esCredito)
@@ -1892,49 +1883,41 @@ class _PagoRow extends StatelessWidget {
   }
 }
 
-class _CondicionPagoChip extends StatelessWidget {
+class _AppBarCondicionChip extends StatelessWidget {
   final String label;
-  final IconData icon;
   final bool selected;
-  final Color color;
+  final Color selectedColor;
   final VoidCallback onTap;
 
-  const _CondicionPagoChip({
+  const _AppBarCondicionChip({
     required this.label,
-    required this.icon,
     required this.selected,
     required this.onTap,
-    this.color = AppColors.blue1,
+    this.selectedColor = Colors.white,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            color: selected ? color : color.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: selected ? color : color.withValues(alpha: 0.3),
-            ),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 3),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        decoration: BoxDecoration(
+          color: selected ? selectedColor : Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: selected ? selectedColor : Colors.white54,
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 16, color: selected ? Colors.white : color),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: selected ? Colors.white : color,
-                ),
-              ),
-            ],
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: selected
+                ? (selectedColor == Colors.white ? AppColors.blue1 : Colors.white)
+                : Colors.white70,
           ),
         ),
       ),
