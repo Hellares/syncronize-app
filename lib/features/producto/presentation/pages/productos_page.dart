@@ -129,9 +129,16 @@ class _ProductosPageState extends State<ProductosPage>
                 .revalidarSinDeltas(sedeId: sedeId);
           }
         } else {
-          // Resto de eventos (precio/stock/niveles/imagen): syncDeltas
-          // alcanza — actualiza in-place sin descartar cache.
-          _loadProductos();
+          // Resto de eventos (precio/stock/niveles/imagen): invalidar
+          // memory cache y forzar fetch full para que precios de
+          // variantes se actualicen inmediatamente.
+          final empresaState = context.read<EmpresaContextCubit>().state;
+          if (empresaState is EmpresaContextLoaded) {
+            final sedeId = _getSedeIdActual(empresaState.context.sedes);
+            context
+                .read<ProductoListCubit>()
+                .revalidarSinDeltas(sedeId: sedeId);
+          }
         }
       });
     });

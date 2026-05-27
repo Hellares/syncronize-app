@@ -5,12 +5,13 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../producto/domain/entities/producto_list_item.dart';
 import '../../../producto/domain/entities/producto_variante.dart';
 
-Future<ProductoVariante?> showVarianteSelectorSheet({
+Future<void> showVarianteSelectorSheet({
   required BuildContext context,
   required ProductoListItem producto,
   required String sedeId,
+  required void Function(ProductoVariante variante) onSeleccionada,
 }) {
-  return showModalBottomSheet<ProductoVariante>(
+  return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
@@ -20,29 +21,44 @@ Future<ProductoVariante?> showVarianteSelectorSheet({
     builder: (_) => _VarianteSelectorSheet(
       producto: producto,
       sedeId: sedeId,
+      onSeleccionada: onSeleccionada,
     ),
   );
 }
 
-class _VarianteSelectorSheet extends StatelessWidget {
+class _VarianteSelectorSheet extends StatefulWidget {
   final ProductoListItem producto;
   final String sedeId;
+  final void Function(ProductoVariante) onSeleccionada;
 
   const _VarianteSelectorSheet({
     required this.producto,
     required this.sedeId,
+    required this.onSeleccionada,
   });
 
   @override
+  State<_VarianteSelectorSheet> createState() => _VarianteSelectorSheetState();
+}
+
+class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
+  final Map<String, int> _agregados = {};
+
+  int _stockDisponible(ProductoVariante v) {
+    final real = v.stockEnSede(widget.sedeId) ?? 0;
+    return (real - (_agregados[v.id] ?? 0)).clamp(0, real);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final variantes = producto.variantes
+    final variantes = widget.producto.variantes
             ?.where((v) => v.isActive)
             .toList() ??
         [];
 
     variantes.sort((a, b) {
-      final stockA = a.stockEnSede(sedeId) ?? 0;
-      final stockB = b.stockEnSede(sedeId) ?? 0;
+      final stockA = _stockDisponible(a);
+      final stockB = _stockDisponible(b);
       if (stockA > 0 && stockB <= 0) return -1;
       if (stockA <= 0 && stockB > 0) return 1;
       return a.orden.compareTo(b.orden);
@@ -56,7 +72,6 @@ class _VarianteSelectorSheet extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Handle bar
           Container(
             margin: const EdgeInsets.only(top: 10),
             width: 40,
@@ -66,7 +81,6 @@ class _VarianteSelectorSheet extends StatelessWidget {
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-          // Header
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 8, 8),
             child: Row(
@@ -93,7 +107,7 @@ class _VarianteSelectorSheet extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        producto.nombre,
+                        widget.producto.nombre,
                         style: TextStyle(
                           fontSize: 11,
                           color: Colors.grey.shade600,
@@ -113,7 +127,6 @@ class _VarianteSelectorSheet extends StatelessWidget {
             ),
           ),
           const Divider(height: 1),
-          // Lista de variantes
           if (variantes.isEmpty)
             Padding(
               padding: const EdgeInsets.all(32),
@@ -128,26 +141,38 @@ class _VarianteSelectorSheet extends StatelessWidget {
                 shrinkWrap: true,
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 itemCount: variantes.length,
-                separatorBuilder: (_, __) =>
-                    Divider(height: 1, indent: 16, endIndent: 16, color: Colors.grey.shade100),
-                itemBuilder: (ctx, i) => _VarianteTile(
-                  variante: variantes[i],
-                  sedeId: sedeId,
-                  onTap: () {
-                    final stock = variantes[i].stockEnSede(sedeId) ?? 0;
-                    if (stock <= 0) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Sin stock: ${variantes[i].nombre}'),
-                          duration: const Duration(seconds: 1),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                      return;
-                    }
-                    Navigator.pop(context, variantes[i]);
-                  },
-                ),
+                separatorBuilder: (_, __) => Divider(
+                    height: 1,
+                    indent: 16,
+                    endIndent: 16,
+                    color: Colors.grey.shade100),
+                itemBuilder: (ctx, i) {
+                  final v = variantes[i];
+                  final stockDisp = _stockDisponible(v);
+                  final qty = _agregados[v.id] ?? 0;
+                  return _VarianteTile(
+                    variante: v,
+                    sedeId: widget.sedeId,
+                    stockDisponible: stockDisp,
+                    cantidadAgregada: qty,
+                    onTap: () {
+                      if (stockDisp <= 0) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Sin stock: ${v.nombre}'),
+                            duration: const Duration(seconds: 1),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                        return;
+                      }
+                      setState(() {
+                        _agregados[v.id] = qty + 1;
+                      });
+                      widget.onSeleccionada(v);
+                    },
+                  );
+                },
               ),
             ),
           SizedBox(height: MediaQuery.of(context).padding.bottom + 8),
@@ -160,18 +185,21 @@ class _VarianteSelectorSheet extends StatelessWidget {
 class _VarianteTile extends StatelessWidget {
   final ProductoVariante variante;
   final String sedeId;
+  final int stockDisponible;
+  final int cantidadAgregada;
   final VoidCallback onTap;
 
   const _VarianteTile({
     required this.variante,
     required this.sedeId,
+    required this.stockDisponible,
+    required this.cantidadAgregada,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final stock = variante.stockEnSede(sedeId) ?? 0;
-    final agotado = stock <= 0;
+    final agotado = stockDisponible <= 0;
     final precio = variante.precioEfectivoEnSede(sedeId) ??
         variante.precioEnSede(sedeId);
     final enOferta = variante.enOfertaEnSede(sedeId);
@@ -208,7 +236,8 @@ class _VarianteTile extends StatelessWidget {
                       width: 44,
                       height: 44,
                       color: Colors.grey.shade100,
-                      child: Icon(Icons.image, size: 20, color: Colors.grey.shade400),
+                      child: Icon(Icons.image,
+                          size: 20, color: Colors.grey.shade400),
                     ),
                   ),
                 )
@@ -220,7 +249,9 @@ class _VarianteTile extends StatelessWidget {
                     color: AppColors.blue1.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(6),
                   ),
-                  child: Icon(Icons.style, size: 20, color: AppColors.blue1.withValues(alpha: 0.5)),
+                  child: Icon(Icons.style,
+                      size: 20,
+                      color: AppColors.blue1.withValues(alpha: 0.5)),
                 ),
               const SizedBox(width: 12),
               // Info
@@ -251,37 +282,64 @@ class _VarianteTile extends StatelessWidget {
                     Row(
                       children: [
                         Text(
-                          agotado ? 'Sin stock' : 'Stock: $stock',
+                          agotado ? 'Sin stock' : 'Stock: $stockDisponible',
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w500,
                             color: agotado ? Colors.red : Colors.grey.shade700,
                           ),
                         ),
+                        if (cantidadAgregada > 0) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 5, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: Colors.green.shade600,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              '+$cantidadAgregada',
+                              style: const TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
                         if (enLiquidacion) ...[
                           const SizedBox(width: 6),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 4, vertical: 1),
                             decoration: BoxDecoration(
                               color: Colors.deepOrange.shade700,
                               borderRadius: BorderRadius.circular(3),
                             ),
                             child: const Text(
                               'LIQ.',
-                              style: TextStyle(fontSize: 7, fontWeight: FontWeight.w800, color: Colors.white),
+                              style: TextStyle(
+                                  fontSize: 7,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white),
                             ),
                           ),
                         ] else if (enOferta) ...[
                           const SizedBox(width: 6),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 4, vertical: 1),
                             decoration: BoxDecoration(
                               color: Colors.green.shade700,
                               borderRadius: BorderRadius.circular(3),
                             ),
                             child: const Text(
                               'OFERTA',
-                              style: TextStyle(fontSize: 7, fontWeight: FontWeight.w800, color: Colors.white),
+                              style: TextStyle(
+                                  fontSize: 7,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white),
                             ),
                           ),
                         ],

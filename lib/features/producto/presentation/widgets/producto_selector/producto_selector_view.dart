@@ -183,14 +183,10 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
             // brusco — la pantalla no vacía la lista en el medio.
             cubit.revalidarSinDeltas(sedeId: widget.sedeId);
           } else {
-            // PRECIO/STOCK/NIVELES/IMAGEN: syncDeltas alcanza — solo
-            // actualiza productos existentes in-place. Mantenemos la
-            // grilla visible con la barra fina de `isFiltering`
-            // mientras revalida (evita parpadeo de Loading completo).
-            cubit.applyFiltros(
-              const ProductoFiltros(isActive: true, esInsumo: false),
-              sedeId: widget.sedeId,
-            );
+            // PRECIO/STOCK/NIVELES/IMAGEN: invalidar memory cache y
+            // forzar fetch full para que los precios/stock de variantes
+            // se actualicen inmediatamente (no stale-while-revalidate).
+            cubit.revalidarSinDeltas(sedeId: widget.sedeId);
           }
         } catch (_) {/* cubit no disponible en este momento */}
       });
@@ -226,14 +222,14 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
         p.variantes != null &&
         p.variantes!.isNotEmpty &&
         widget.onAgregarVariante != null) {
-      final variante = await showVarianteSelectorSheet(
+      await showVarianteSelectorSheet(
         context: context,
         producto: p,
         sedeId: widget.sedeId,
+        onSeleccionada: (variante) {
+          widget.onAgregarVariante!(p, variante);
+        },
       );
-      if (variante != null && mounted) {
-        widget.onAgregarVariante!(p, variante);
-      }
     } else {
       widget.onAgregarProducto(p);
     }
@@ -1111,7 +1107,7 @@ class _ProductoCard<TCubit extends Cubit<TState>, TState>
                                     borderRadius: BorderRadius.circular(3),
                                   ),
                                   child: Icon(Icons.style,
-                                      size: 10, color: AppColors.blue1),
+                                      size: 16, color: AppColors.blue1),
                                 ),
                             ],
                           ),
