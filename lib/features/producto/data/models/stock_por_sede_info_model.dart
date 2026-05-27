@@ -98,6 +98,10 @@ class StockPorSedeInfoModel extends StockPorSedeInfo {
       'enOferta': enOferta,
       if (fechaInicioOferta != null) 'fechaInicioOferta': fechaInicioOferta!.toIso8601String(),
       if (fechaFinOferta != null) 'fechaFinOferta': fechaFinOferta!.toIso8601String(),
+      'enLiquidacion': enLiquidacion,
+      if (precioLiquidacion != null) 'precioLiquidacion': precioLiquidacion,
+      if (fechaInicioLiquidacion != null) 'fechaInicioLiquidacion': fechaInicioLiquidacion!.toIso8601String(),
+      if (fechaFinLiquidacion != null) 'fechaFinLiquidacion': fechaFinLiquidacion!.toIso8601String(),
       'precioConfigurado': precioConfigurado,
       'precioIncluyeIgv': precioIncluyeIgv,
     };
