@@ -1000,9 +1000,11 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
     }
 
     // Invalida cache compartido para que VR/Cot Rápida re-fetch al
-    // próximo agregar de este producto.
+    // próximo agregar de este producto/variante.
     final pid = widget.stock.productoId;
+    final vid = widget.stock.varianteId;
     if (pid != null) _nivelCacheService.invalidate(pid);
+    if (vid != null) _nivelCacheService.invalidateVariante(vid);
 
     // Refrescar la lista de niveles desde el backend.
     await _cargarNivelesExistentes();
@@ -1079,6 +1081,7 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
           }
           // Invalida cache compartido tras crear/actualizar.
           if (productoId != null) _nivelCacheService.invalidate(productoId);
+          if (varianteId != null) _nivelCacheService.invalidateVariante(varianteId);
           await _cargarNivelesExistentes();
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
