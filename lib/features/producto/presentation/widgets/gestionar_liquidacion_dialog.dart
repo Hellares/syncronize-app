@@ -71,9 +71,9 @@ class _GestionarLiquidacionDialogState
           'Configura primero el precio de costo del producto antes de liquidar.');
       return;
     }
-    if (precio >= costo) {
+    if (precio > costo) {
       setState(() => _error =
-          'El precio de liquidación debe ser menor al costo (S/${costo.toStringAsFixed(2)}). Si es mayor, usa una oferta normal.');
+          'El precio de liquidación debe ser igual o menor al costo (S/${costo.toStringAsFixed(2)}). Si es mayor, usa una oferta normal.');
       return;
     }
     if (_motivo == MotivoLiquidacion.otro &&
@@ -302,8 +302,8 @@ class _GestionarLiquidacionDialogState
                   if (costo != null && costo > 0) ...[
                     const SizedBox(height: 4),
                     Text(
-                      'Debe ser menor a S/${costo.toStringAsFixed(2)}',
-                      style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                      'Debe ser igual o menor al precio costo S/${costo.toStringAsFixed(2)}',
+                      style: TextStyle(fontSize: 11, color: Colors.deepOrange.shade400),
                     ),
                   ],
                   const SizedBox(height: 14),
