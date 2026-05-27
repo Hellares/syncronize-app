@@ -75,6 +75,9 @@ class ProductoSelectorView<TCubit extends Cubit<TState>, TState>
   /// Callback para agregar una variante específica al carrito.
   final void Function(ProductoListItem, ProductoVariante)? onAgregarVariante;
 
+  /// Callback para decrementar una variante desde el sheet.
+  final void Function(ProductoListItem, ProductoVariante)? onDecrementarVariante;
+
   /// Callback para decrementar 1 unidad desde el stepper de la card.
   final void Function(String productoId) onDecrementarProducto;
 
@@ -105,6 +108,7 @@ class ProductoSelectorView<TCubit extends Cubit<TState>, TState>
     required this.onIrAlCarrito,
     required this.onAgregarProducto,
     this.onAgregarVariante,
+    this.onDecrementarVariante,
     required this.onDecrementarProducto,
     required this.onCargarNiveles,
     required this.onAceptarComboOferta,
@@ -222,13 +226,27 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
         p.variantes != null &&
         p.variantes!.isNotEmpty &&
         widget.onAgregarVariante != null) {
+      final cubitState = context.read<TCubit>().state;
+      final items = widget.snapshotBuilder(cubitState).items;
+      final cantidades = <String, int>{};
+      for (final i in items) {
+        if (i.productoId == p.id && i.varianteId != null && i.origenComboId == null) {
+          cantidades[i.varianteId!] = i.cantidad.toInt();
+        }
+      }
       await showVarianteSelectorSheet(
         context: context,
         producto: p,
         sedeId: widget.sedeId,
+        cantidadesEnCarrito: cantidades,
         onSeleccionada: (variante) {
           widget.onAgregarVariante!(p, variante);
         },
+        onDecrementada: widget.onDecrementarVariante != null
+            ? (variante) {
+                widget.onDecrementarVariante!(p, variante);
+              }
+            : null,
       );
     } else {
       widget.onAgregarProducto(p);

@@ -565,6 +565,21 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
           i.origenComboId == null,
     );
     if (idx < 0) return;
+    _decrementarEnIndice(idx);
+  }
+
+  void decrementarVariante(String productoId, String varianteId) {
+    final idx = state.items.indexWhere(
+      (i) =>
+          i.productoId == productoId &&
+          i.varianteId == varianteId &&
+          i.origenComboId == null,
+    );
+    if (idx < 0) return;
+    _decrementarEnIndice(idx);
+  }
+
+  void _decrementarEnIndice(int idx) {
     final actual = state.items[idx];
     if (actual.cantidad <= 1) {
       eliminarItem(idx);

@@ -479,13 +479,27 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
           i.origenComboId == null,
     );
     if (idx < 0) return;
+    _decrementarEnIndice(idx);
+  }
+
+  void decrementarVariante(String productoId, String varianteId) {
+    final idx = state.items.indexWhere(
+      (i) =>
+          i.productoId == productoId &&
+          i.varianteId == varianteId &&
+          i.origenComboId == null,
+    );
+    if (idx < 0) return;
+    _decrementarEnIndice(idx);
+  }
+
+  void _decrementarEnIndice(int idx) {
     final actual = state.items[idx];
     if (actual.cantidad <= 1) {
       eliminarItem(idx);
       return;
     }
     final nuevaCantidad = actual.cantidad - 1;
-    // Mantener icbper proporcional a la cantidad.
     final icbperPerUnit =
         actual.cantidad > 0 ? actual.icbper / actual.cantidad : 0.0;
     final nueva = actual
