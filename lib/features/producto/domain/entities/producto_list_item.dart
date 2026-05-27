@@ -72,6 +72,15 @@ class ProductoListItem extends Equatable with StockPorSedeMixin {
     return variantes!.any((v) => v.enLiquidacionEnSede(sedeId));
   }
 
+  /// True si el producto base O alguna variante tiene oferta activa en
+  /// la sede, Y NO está en liquidación (liquidación tiene prioridad).
+  bool tieneOfertaActivaEnSede(String sedeId) {
+    if (tieneLiquidacionActivaEnSede(sedeId)) return false;
+    if (enOfertaEnSede(sedeId)) return true;
+    if (variantes == null) return false;
+    return variantes!.any((v) => v.enOfertaEnSede(sedeId));
+  }
+
   @override
   List<Object?> get props => [
         id,

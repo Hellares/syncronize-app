@@ -51,6 +51,7 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
   DateTime? _fechaFinOferta;
 
   bool _precioIncluyeIGV = false;
+  bool _desgloseVisible = false;
   double _porcentajeIGV = 18.0;
   String _nombreImpuesto = 'IGV';
   String _simboloMoneda = 'S/';
@@ -394,8 +395,37 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
                         ),
                       ],
 
-                      // Desglose de precio (visible solo cuando toggle=ON y precio>0)
-                      if (_precioIncluyeIGV) _buildDesgloseIGV(),
+                      // Desglose de precio colapsable
+                      if (_precioIncluyeIGV &&
+                          CurrencyUtilsImproved.parseToDouble(_precioController.text) > 0)
+                        InkWell(
+                          onTap: () => setState(() => _desgloseVisible = !_desgloseVisible),
+                          borderRadius: BorderRadius.circular(6),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  _desgloseVisible
+                                      ? Icons.expand_less
+                                      : Icons.expand_more,
+                                  size: 16,
+                                  color: AppColors.blue1,
+                                ),
+                                const SizedBox(width: 2),
+                                Text(
+                                  'Ver desglose $_nombreImpuesto',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: AppColors.blue1,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      if (_precioIncluyeIGV && _desgloseVisible) _buildDesgloseIGV(),
 
                       const SizedBox(height: 12),
 
@@ -405,75 +435,27 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
                         children: [
                           Expanded(
                             flex: 1,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                CurrencyTextField(
-                                  label: 'Precio de Costo (por unidad)',
-                                  controller: _precioCostoController,
-                                  borderColor: AppColors.blue1,
-                                  allowZero: false,
-                                  // Editable siempre. Antes se desabilitaba para
-                                  // proteger reporteria historica; ahora no es
-                                  // necesario porque VentaDetalle.precioCostoSnapshot
-                                  // preserva el costo de cada venta vieja y todo
-                                  // cambio queda registrado en
-                                  // ProductoPrecioHistorialSede (con motivo +
-                                  // tipoCambio + usuario via dialog auditoria).
-                                  validator: (value) {
-                                    if (value == null || value.trim().isEmpty) {
-                                      return null;
-                                    }
-                                    final nuevoCosto = CurrencyUtilsImproved
-                                        .parseToDouble(value);
-                                    // Si hay liquidacion activa y el nuevo costo
-                                    // es <= precio liquidacion, la liquidacion
-                                    // ya no es "bajo costo" (margen no es
-                                    // negativo). Pedir desactivar primero.
-                                    final liq =
-                                        _stockEfectivo.precioLiquidacion;
-                                    if (_stockEfectivo.isLiquidacionActiva &&
-                                        liq != null &&
-                                        nuevoCosto > 0 &&
-                                        nuevoCosto <= liq) {
-                                      return 'Costo ≤ liquidación (S/${liq.toStringAsFixed(2)}). Desactivá la liquidación primero.';
-                                    }
-                                    return null;
-                                  },
-                                ),
-                                // Ayuda "calcular desde lote": evita el error
-                                // típico de tipear el TOTAL de la compra
-                                // en lugar del unitario (100 vs 100/50=2).
-                                InkWell(
-                                  onTap: _abrirCalculadoraLote,
-                                  borderRadius: BorderRadius.circular(4),
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 4, horizontal: 4),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(Icons.calculate_outlined,
-                                            size: 12,
-                                            color: AppColors.blue1),
-                                        const SizedBox(width: 4),
-                                        Flexible(
-                                          child: Text(
-                                            'Calcular desde compra',
-                                            overflow: TextOverflow.ellipsis,
-                                            style: TextStyle(
-                                              fontSize: 9,
-                                              color: AppColors.blue1,
-                                              decoration:
-                                                  TextDecoration.underline,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
+                            child: CurrencyTextField(
+                              label: 'Precio de Costo (por unidad)',
+                              controller: _precioCostoController,
+                              borderColor: AppColors.blue1,
+                              allowZero: false,
+                              validator: (value) {
+                                if (value == null || value.trim().isEmpty) {
+                                  return null;
+                                }
+                                final nuevoCosto = CurrencyUtilsImproved
+                                    .parseToDouble(value);
+                                final liq =
+                                    _stockEfectivo.precioLiquidacion;
+                                if (_stockEfectivo.isLiquidacionActiva &&
+                                    liq != null &&
+                                    nuevoCosto > 0 &&
+                                    nuevoCosto <= liq) {
+                                  return 'Costo ≤ liquidación (S/${liq.toStringAsFixed(2)}). Desactivá la liquidación primero.';
+                                }
+                                return null;
+                              },
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -522,50 +504,87 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
                           ),
                         ],
                       ),
+                      InkWell(
+                        onTap: _abrirCalculadoraLote,
+                        borderRadius: BorderRadius.circular(4),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 4, horizontal: 4),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.calculate_outlined,
+                                  size: 12, color: AppColors.blue1),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Calcular desde compra',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  color: AppColors.blue1,
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
 
                       if (_enOferta) ...[
                         const SizedBox(height: 8),
-                        CurrencyTextField(
-                          label: 'Precio de Oferta',
-                          controller: _precioOfertaController,
-                          borderColor: AppColors.blue1,
-                          allowZero: false,
-                          validator: (value) {
-                            if (!_enOferta) return null;
-                            final oferta = CurrencyUtilsImproved.parseToDouble(
-                                value ?? '');
-                            if (oferta <= 0) {
-                              return 'El precio de oferta debe ser mayor a 0';
-                            }
-                            final venta = _precioController.currencyValue;
-                            if (venta > 0 && oferta >= venta) {
-                              return 'Debe ser < precio normal';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 12),
                         Row(
+                          crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             Expanded(
-                              child: _buildDateField(
-                                'Fecha Inicio',
-                                _fechaInicioOferta,
-                                (date) => setState(() => _fechaInicioOferta =
-                                    date != null
-                                        ? date_utils.DateFormatter.startOfDay(date)
-                                        : null),
+                              flex: 2,
+                              child: CurrencyTextField(
+                                label: 'Precio de Oferta',
+                                controller: _precioOfertaController,
+                                borderColor: AppColors.blue1,
+                                allowZero: false,
+                                validator: (value) {
+                                  if (!_enOferta) return null;
+                                  final oferta = CurrencyUtilsImproved
+                                      .parseToDouble(value ?? '');
+                                  if (oferta <= 0) {
+                                    return 'El precio de oferta debe ser mayor a 0';
+                                  }
+                                  final venta =
+                                      _precioController.currencyValue;
+                                  if (venta > 0 && oferta >= venta) {
+                                    return 'Debe ser < precio normal';
+                                  }
+                                  return null;
+                                },
                               ),
                             ),
-                            const SizedBox(width: 10),
+                            const SizedBox(width: 8),
                             Expanded(
-                              child: _buildDateField(
-                                'Fecha Fin',
-                                _fechaFinOferta,
-                                (date) => setState(() => _fechaFinOferta =
-                                    date != null
-                                        ? date_utils.DateFormatter.endOfDay(date)
-                                        : null),
+                              flex: 3,
+                              child: CustomDate(
+                          label: 'Vigencia de la oferta',
+                          dateType: DateFieldType.dateRange,
+                          borderColor: AppColors.blue1,
+                          hintText: 'Seleccionar rango de fechas',
+                          firstDate: DateTime.now(),
+                          lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
+                          showDaysSelectedLabel: false,
+                          initialDateRange: _fechaInicioOferta != null || _fechaFinOferta != null
+                              ? DateRange(
+                                  startDate: _fechaInicioOferta,
+                                  endDate: _fechaFinOferta,
+                                )
+                              : null,
+                          onDateRangeSelected: (range) {
+                            setState(() {
+                              _fechaInicioOferta = range?.startDate != null
+                                  ? date_utils.DateFormatter.startOfDay(range!.startDate!)
+                                  : null;
+                              _fechaFinOferta = range?.endDate != null
+                                  ? date_utils.DateFormatter.endOfDay(range!.endDate!)
+                                  : null;
+                            });
+                          },
+                          rangeValidator: (_) => null,
                               ),
                             ),
                           ],
@@ -673,21 +692,6 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildDateField(
-    String label,
-    DateTime? value,
-    Function(DateTime?) onChanged,
-  ) {
-    return CustomDate(
-      label: label,
-      initialDate: value,
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-      borderColor: AppColors.blue1,
-      onDateSelected: onChanged,
     );
   }
 
@@ -1127,12 +1131,28 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
           ],
         ),
         const SizedBox(height: 6),
-        Text(
-          activa
-              ? 'Liquidación activa: S/ ${stock.precioLiquidacion!.toStringAsFixed(2)} (${stock.motivoLiquidacion?.label ?? '—'})'
-              : 'Remate por debajo de costo con motivo justificado y autorización gerencial.',
-          style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
-        ),
+        activa
+            ? RichText(
+                text: TextSpan(
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+                  children: [
+                    const TextSpan(text: 'Liquidación activa: '),
+                    TextSpan(
+                      text: 'S/ ${stock.precioLiquidacion!.toStringAsFixed(2)}',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        color: Colors.red.shade700,
+                        fontSize: 13,
+                      ),
+                    ),
+                    TextSpan(text: ' (${stock.motivoLiquidacion?.label ?? '—'})'),
+                  ],
+                ),
+              )
+            : Text(
+                'Remate por debajo de costo con motivo justificado y autorización gerencial.',
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+              ),
         const SizedBox(height: 8),
         CustomButton(
           text: activa ? 'Gestionar liquidación' : 'Activar liquidación',

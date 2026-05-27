@@ -8,6 +8,7 @@ import '../../../../../core/di/injection_container.dart';
 import '../../../../../core/services/realtime_sync_service.dart';
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/widgets/barcode_scanner_sheet.dart';
+import '../../../../../core/utils/date_formatter.dart';
 import '../../../../../core/widgets/custom_search_field.dart';
 import '../../../../combo/domain/entities/combo.dart';
 import '../../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
@@ -1169,11 +1170,60 @@ class _ProductoCard<TCubit extends Cubit<TState>, TState>
                       ),
                     ),
                   ),
+                  // Badge OFERTA (top-left) cuando tiene oferta activa sin
+                  // liquidación. Si hay liquidación activa, se muestra el
+                  // badge de liquidación en su lugar (tiene prioridad).
+                  if (producto.tieneOfertaActivaEnSede(sedeId))
+                    Builder(builder: (_) {
+                      final stockInfo = producto.stockSedeInfo(sedeId);
+                      final inicio = stockInfo?.fechaInicioOferta;
+                      final fin = stockInfo?.fechaFinOferta;
+                      String fechaLabel = '';
+                      if (inicio != null && fin != null) {
+                        fechaLabel =
+                            ' ${DateFormatter.formatDateShort(inicio)} - ${DateFormatter.formatDateShort(fin)}';
+                      } else if (fin != null) {
+                        fechaLabel =
+                            ' hasta ${DateFormatter.formatDateShort(fin)}';
+                      }
+                      return Positioned(
+                        top: 33,
+                        left: 6,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.green.shade700,
+                            borderRadius: BorderRadius.circular(4),
+                            boxShadow: [
+                              BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.2),
+                                  blurRadius: 2),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.local_offer,
+                                  size: 9, color: Colors.white),
+                              const SizedBox(width: 2),
+                              Text(
+                                'OFERTA$fechaLabel',
+                                style: const TextStyle(
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }),
+
                   // Badge LIQUIDACIÓN (top-left) cuando el producto está en
-                  // liquidación activa en la sede. Naranja oscuro para
-                  // diferenciarlo de la oferta normal y dejar claro al cajero
-                  // que el precio puede estar bajo costo. Considera tanto
-                  // producto base como variantes liquidadas.
+                  // liquidación activa en la sede.
                   if (producto.tieneLiquidacionActivaEnSede(sedeId))
                     Positioned(
                       top: 33,

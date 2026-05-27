@@ -10,6 +10,7 @@ import 'package:syncronize/core/services/storage_service.dart';
 import 'package:syncronize/features/producto/presentation/bloc/producto_list/producto_list_cubit.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/widgets/confirm_dialog.dart';
+import '../../../../core/widgets/styled_dialog.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../../../core/widgets/custom_dropdown.dart';
@@ -1360,88 +1361,53 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
   }
 
   Future<void> _mostrarDialogoAgregarStock(Producto producto) async {
-    final agregarStock = await showDialog<bool>(
-      context: context,
+    final agregarStock = await StyledDialog.show<bool>(
+      context,
+      accentColor: AppColors.green,
+      icon: Icons.check_circle,
+      titulo: 'Producto creado',
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.check_circle, color: AppColors.green, size: 28),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Text(
-                'Producto creado',
-                style: TextStyle(fontSize: 18),
-              ),
-            ),
-          ],
+      content: [
+        Text(
+          '"${producto.nombre}" fue creado exitosamente.',
+          style: const TextStyle(fontSize: 13),
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'El producto "${producto.nombre}" fue creado exitosamente.',
-              style: const TextStyle(fontSize: 14),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.blue1.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: AppColors.blue1.withValues(alpha: 0.3),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.info_outline,
-                    color: AppColors.blue1,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      '¿Desea agregar stock inicial ahora?',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: AppColors.blue1,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Podrá agregarlo más tarde desde la gestión de inventario.',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[600],
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-          ],
+        const SizedBox(height: 12),
+        Text(
+          '¿Desea agregar stock inicial ahora?',
+          style: TextStyle(
+            fontSize: 12,
+            color: AppColors.blue1,
+            fontWeight: FontWeight.w500,
+          ),
         ),
-        actions: [
-          TextButton(
+        const SizedBox(height: 4),
+        Text(
+          'Podrá agregarlo más tarde desde inventario.',
+          style: TextStyle(
+            fontSize: 11,
+            color: Colors.grey[600],
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+      ],
+      actions: [
+        Expanded(
+          child: TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Más tarde'),
+            child: Text('Más tarde', style: TextStyle(color: AppColors.blue1)),
           ),
-          ElevatedButton.icon(
+        ),
+        Expanded(
+          child: CustomButton(
+            text: 'Agregar stock',
+            icon: const Icon(Icons.inventory_2, size: 16, color: Colors.white),
+            backgroundColor: AppColors.green,
+            textColor: Colors.white,
             onPressed: () => Navigator.pop(context, true),
-            icon: const Icon(Icons.inventory_2),
-            label: const Text('Agregar stock'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.blue1,
-              foregroundColor: AppColors.white,
-            ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
 
     if (agregarStock == true && mounted) {

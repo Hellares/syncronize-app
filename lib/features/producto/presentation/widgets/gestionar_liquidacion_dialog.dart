@@ -6,7 +6,10 @@ import 'package:syncronize/core/utils/date_formatter.dart' as date_utils;
 import 'package:syncronize/core/utils/resource.dart';
 import 'package:syncronize/core/widgets/autorizacion_dialog.dart';
 import 'package:syncronize/core/widgets/currency/currency_textfield.dart';
+import 'package:syncronize/core/widgets/styled_dialog.dart';
 import 'package:syncronize/core/widgets/custom_dropdown.dart';
+import 'package:syncronize/core/theme/gradient_container.dart';
+import '../../../auth/presentation/widgets/custom_button.dart';
 import 'package:syncronize/core/widgets/date/custom_date.dart';
 import '../../../auth/presentation/bloc/auth/auth_bloc.dart';
 import '../../domain/entities/producto_stock.dart';
@@ -167,21 +170,36 @@ class _GestionarLiquidacionDialogState
   }
 
   Future<void> _desactivar() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Desactivar liquidación'),
-        content: Text(
-          '¿Desactivar la liquidación de "${widget.stock.nombreProducto}"? El producto volverá a venderse a precio regular u oferta.',
+    final confirmed = await StyledDialog.show<bool>(
+      context,
+      accentColor: Colors.deepOrange.shade700,
+      icon: Icons.local_fire_department,
+      titulo: 'Desactivar liquidación',
+      content: [
+        Text(
+          '¿Desactivar la liquidación de "${widget.stock.nombreProducto}"?',
+          style: const TextStyle(fontSize: 13),
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Desactivar', style: TextStyle(color: Colors.red)),
+        const SizedBox(height: 6),
+        Text(
+          'El producto volverá a venderse a precio regular u oferta.',
+          style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+        ),
+      ],
+      actions: [
+        Expanded(
+          child: TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Cancelar', style: TextStyle(color: Colors.grey[600])),
           ),
-        ],
-      ),
+        ),
+        Expanded(
+          child: TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('Desactivar', style: TextStyle(color: Colors.red.shade600, fontWeight: FontWeight.w600)),
+          ),
+        ),
+      ],
     );
     if (confirmed != true) return;
 
@@ -207,15 +225,23 @@ class _GestionarLiquidacionDialogState
     final costo = widget.stock.precioCosto;
     final precioBase = widget.stock.precio;
 
+    final accentColor = Colors.deepOrange.shade700;
+
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-        ),
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      child: GradientContainer(
+        borderColor: accentColor.withValues(alpha: 0.4),
+        borderWidth: 1,
+        customShadows: [
+          BoxShadow(
+            color: accentColor.withValues(alpha: 0.18),
+            blurRadius: 18,
+            spreadRadius: 1,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        padding: const EdgeInsets.all(18),
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
@@ -226,14 +252,24 @@ class _GestionarLiquidacionDialogState
                 // Header
                 Row(
                   children: [
-                    Icon(Icons.local_fire_department,
-                        color: Colors.deepOrange.shade700, size: 26),
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: accentColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(Icons.local_fire_department,
+                          color: accentColor, size: 18),
+                    ),
                     const SizedBox(width: 10),
-                    const Expanded(
+                    Expanded(
                       child: Text(
                         'Liquidación',
                         style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold),
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: accentColor,
+                        ),
                       ),
                     ),
                     if (activa)
@@ -261,7 +297,7 @@ class _GestionarLiquidacionDialogState
                               'desde ${date_utils.DateFormatter.formatDate(widget.stock.fechaInicioLiquidacion!.toLocal())}',
                               style: TextStyle(
                                 fontSize: 9,
-                                color: Colors.deepOrange.shade700,
+                                color: accentColor,
                                 fontStyle: FontStyle.italic,
                               ),
                             ),
@@ -270,9 +306,9 @@ class _GestionarLiquidacionDialogState
                       ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
 
-                // Card resumen precios actuales
+                // Card resumen precios
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
@@ -331,9 +367,6 @@ class _GestionarLiquidacionDialogState
                     lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
                     onDateSelected: (d) => setState(() => _fechaFin = d),
                     hintText: 'Sin vencimiento',
-                    // Campo 100% opcional: vacío = liquidación permanente
-                    // hasta desactivación manual. El validator por defecto
-                    // de CustomDate exige fecha, lo anulamos.
                     validator: (_) => null,
                   ),
                   const SizedBox(height: 14),
@@ -391,42 +424,36 @@ class _GestionarLiquidacionDialogState
                 Row(
                   children: [
                     Expanded(
-                      child: TextButton(
+                      child: CustomButton(
+                        text: 'Cerrar',
+                        isOutlined: true,
+                        borderColor: Colors.grey.shade400,
+                        borderWidth: 1,
+                        textColor: Colors.grey.shade600,
                         onPressed: _loading ? null : () => Navigator.pop(context),
-                        child: const Text('Cerrar'),
                       ),
                     ),
                     const SizedBox(width: 8),
                     if (activa)
                       Expanded(
-                        child: ElevatedButton.icon(
+                        child: CustomButton(
+                          text: 'Desactivar',
+                          icon: Icon(Icons.cancel_outlined, size: 16, color: Colors.white),
+                          backgroundColor: Colors.red.shade600,
+                          textColor: Colors.white,
                           onPressed: _loading ? null : _desactivar,
-                          icon: const Icon(Icons.cancel_outlined),
-                          label: const Text('Desactivar'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red.shade600,
-                            foregroundColor: Colors.white,
-                          ),
                         ),
                       )
                     else
                       Expanded(
                         flex: 2,
-                        child: ElevatedButton.icon(
+                        child: CustomButton(
+                          text: 'Activar liquidación',
+                          isLoading: _loading,
+                          icon: const Icon(Icons.local_fire_department, size: 16, color: Colors.white),
+                          backgroundColor: accentColor,
+                          textColor: Colors.white,
                           onPressed: _loading ? null : _activar,
-                          icon: _loading
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2, color: Colors.white),
-                                )
-                              : const Icon(Icons.local_fire_department),
-                          label: const Text('Activar liquidación'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.deepOrange.shade700,
-                            foregroundColor: Colors.white,
-                          ),
                         ),
                       ),
                   ],
