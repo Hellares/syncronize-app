@@ -132,6 +132,7 @@ class _CotizacionProductosView extends StatelessWidget {
       onIrAlCarrito: () =>
           context.push('/empresa/cotizaciones/nueva/carrito'),
       onAgregarProducto: cubit.agregarProducto,
+      onAgregarVariante: cubit.agregarVariante,
       onDecrementarProducto: cubit.decrementarProducto,
       onCargarNiveles: cubit.getNivelesProducto,
       onAceptarComboOferta: (aceptar) {

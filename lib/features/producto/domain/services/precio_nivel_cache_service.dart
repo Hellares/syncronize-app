@@ -69,6 +69,41 @@ class PrecioNivelCacheService {
     _cache.remove(productoId);
   }
 
+  // ── Variantes ──
+
+  List<PrecioNivel>? peekVariante(String varianteId) => _cache['v:$varianteId'];
+
+  Future<List<PrecioNivel>> getNivelesVariante(String varianteId) {
+    final key = 'v:$varianteId';
+    final cached = _cache[key];
+    if (cached != null) return Future.value(cached);
+    final inFlight = _inFlight[key];
+    if (inFlight != null) return inFlight;
+    final future = _fetchVariante(varianteId);
+    _inFlight[key] = future;
+    return future;
+  }
+
+  Future<List<PrecioNivel>> _fetchVariante(String varianteId) async {
+    final key = 'v:$varianteId';
+    try {
+      final result =
+          await _repository.getPreciosNivelVariante(varianteId: varianteId);
+      if (result is Success<List<PrecioNivel>>) {
+        _cache[key] = result.data;
+        return result.data;
+      }
+      _cache[key] = const [];
+      return const [];
+    } finally {
+      _inFlight.remove(key);
+    }
+  }
+
+  void invalidateVariante(String varianteId) {
+    _cache.remove('v:$varianteId');
+  }
+
   /// Limpia todo el cache. Útil al cambiar de tenant/sede o cerrar sesión.
   void clear() {
     _cache.clear();

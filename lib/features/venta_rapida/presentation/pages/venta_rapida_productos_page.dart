@@ -118,6 +118,7 @@ class _VentaRapidaProductosView extends StatelessWidget {
       tituloBuilder: (_) => 'Productos',
       onIrAlCarrito: () => _verificarCajaYNavegar(context),
       onAgregarProducto: cubit.agregarProducto,
+      onAgregarVariante: cubit.agregarVariante,
       onDecrementarProducto: cubit.decrementarProducto,
       onCargarNiveles: cubit.getNivelesProducto,
       onAceptarComboOferta: (aceptar) {

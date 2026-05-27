@@ -11,6 +11,7 @@ import '../../../combo/domain/entities/combo.dart';
 import '../../../combo/domain/repositories/combo_repository.dart';
 import '../../../producto/domain/entities/precio_nivel.dart';
 import '../../../producto/domain/entities/producto_list_item.dart';
+import '../../../producto/domain/entities/producto_variante.dart';
 import '../../../producto/domain/entities/producto_stock.dart';
 import '../../../producto/domain/repositories/producto_stock_repository.dart';
 import '../../../producto/domain/services/precio_nivel_cache_service.dart';
@@ -144,6 +145,82 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     if (nivelesEnCache == null) {
       _cargarNivelesYActualizar(producto.id);
     }
+  }
+
+  void agregarVariante(ProductoListItem producto, ProductoVariante variante) {
+    final sedeId = state.sedeId ?? '';
+    final precio = variante.precioEfectivoEnSede(sedeId) ??
+        variante.precioEnSede(sedeId) ??
+        producto.precioEfectivoEnSede(sedeId) ??
+        0.0;
+    final igvPorc = producto.impuestoPorcentaje ?? state.impuestoPorcentaje;
+    final tipoAfect = _mapTipoAfectacion(producto.tipoAfectacionIgv);
+    final icbperUnit = producto.aplicaIcbper ? 0.20 : 0.0;
+    final stockDisp = variante.stockEnSede(sedeId);
+
+    final idx = state.items.indexWhere(
+      (i) =>
+          i.productoId == producto.id &&
+          i.varianteId == variante.id &&
+          i.origenComboId == null,
+    );
+    if (idx >= 0) {
+      final actual = state.items[idx];
+      final nuevaCantidad = actual.cantidad + 1;
+      final icbperPerUnit =
+          actual.cantidad > 0 ? actual.icbper / actual.cantidad : icbperUnit;
+      final nueva = actual
+          .recalcularPrecioPorNiveles(nuevaCantidad)
+          .copyWith(icbper: icbperPerUnit * nuevaCantidad);
+      final lista = [...state.items];
+      lista[idx] = nueva;
+      emit(state.copyWith(items: lista, clearError: true));
+      return;
+    }
+
+    final descripcion = '${producto.nombre} - ${variante.nombre}';
+    final nivelesEnCache = _nivelCacheService.peekVariante(variante.id);
+    final item = VentaDetalleInput(
+      productoId: producto.id,
+      varianteId: variante.id,
+      descripcion: descripcion,
+      cantidad: 1,
+      precioUnitario: precio,
+      precioBase: precio,
+      porcentajeIGV: igvPorc,
+      precioIncluyeIgv:
+          variante.precioIncluyeIgvEnSede(sedeId),
+      tipoAfectacion: tipoAfect,
+      icbper: icbperUnit,
+      stockDisponible: stockDisp,
+      niveles: nivelesEnCache ?? const [],
+      precioCostoSnapshot: variante.precioCostoEnSede(sedeId),
+      enLiquidacion: variante.enLiquidacionEnSede(sedeId),
+    );
+    final itemConNivel = nivelesEnCache != null
+        ? item.recalcularPrecioPorNiveles(1)
+        : item;
+    emit(state.copyWith(items: [...state.items, itemConNivel], clearError: true));
+
+    if (nivelesEnCache == null) {
+      _cargarNivelesVarianteYActualizar(variante.id);
+    }
+  }
+
+  Future<void> _cargarNivelesVarianteYActualizar(String varianteId) async {
+    final niveles = await _nivelCacheService.getNivelesVariante(varianteId);
+    if (isClosed) return;
+    final items = state.items;
+    final idx = items.indexWhere(
+      (i) => i.varianteId == varianteId && i.origenComboId == null,
+    );
+    if (idx < 0) return;
+    final actualizado = items[idx]
+        .copyWith(niveles: niveles)
+        .recalcularPrecioPorNiveles(items[idx].cantidad);
+    final lista = [...items];
+    lista[idx] = actualizado;
+    emit(state.copyWith(items: lista));
   }
 
   /// Expande un combo en N items de productos individuales con precio

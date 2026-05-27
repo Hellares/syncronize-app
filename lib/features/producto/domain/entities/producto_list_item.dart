@@ -63,6 +63,19 @@ class ProductoListItem extends Equatable with StockPorSedeMixin {
     return stockTotal;
   }
 
+  /// Stock en sede consolidando variantes: si tiene variantes, suma el
+  /// stock de todas las variantes activas en esa sede. Si no, usa el
+  /// stock directo del producto base.
+  int stockConsolidadoEnSede(String sedeId) {
+    if (tieneVariantes && variantes != null && variantes!.isNotEmpty) {
+      return variantes!.fold(
+        0,
+        (sum, v) => sum + (v.stockEnSede(sedeId) ?? 0),
+      );
+    }
+    return stockEnSede(sedeId) ?? 0;
+  }
+
   /// True si el producto base O alguna de sus variantes está en liquidación
   /// activa en la sede. Usado para mostrar badge "LIQ." en el card padre
   /// aunque la liquidación esté configurada a nivel variante.

@@ -16,6 +16,8 @@ import '../../../../empresa/presentation/bloc/empresa_context/empresa_context_st
 import '../../../../producto/domain/entities/precio_nivel.dart';
 import '../../../../producto/domain/entities/producto_filtros.dart';
 import '../../../../producto/domain/entities/producto_list_item.dart';
+import '../../../../producto/domain/entities/producto_variante.dart';
+import '../../../../venta_rapida/presentation/widgets/variante_selector_sheet.dart';
 import '../../../../producto/presentation/bloc/producto_list/producto_list_cubit.dart';
 import '../../../../producto/presentation/bloc/producto_list/producto_list_state.dart';
 import '../../../../venta/domain/entities/venta_detalle_input.dart';
@@ -70,6 +72,9 @@ class ProductoSelectorView<TCubit extends Cubit<TState>, TState>
   /// Callback para agregar al carrito (tap en card o auto-add escaneo).
   final void Function(ProductoListItem) onAgregarProducto;
 
+  /// Callback para agregar una variante específica al carrito.
+  final void Function(ProductoListItem, ProductoVariante)? onAgregarVariante;
+
   /// Callback para decrementar 1 unidad desde el stepper de la card.
   final void Function(String productoId) onDecrementarProducto;
 
@@ -99,6 +104,7 @@ class ProductoSelectorView<TCubit extends Cubit<TState>, TState>
     required this.tituloBuilder,
     required this.onIrAlCarrito,
     required this.onAgregarProducto,
+    this.onAgregarVariante,
     required this.onDecrementarProducto,
     required this.onCargarNiveles,
     required this.onAceptarComboOferta,
@@ -215,6 +221,24 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
     }
   }
 
+  Future<void> _onProductoTap(ProductoListItem p) async {
+    if (p.tieneVariantes &&
+        p.variantes != null &&
+        p.variantes!.isNotEmpty &&
+        widget.onAgregarVariante != null) {
+      final variante = await showVarianteSelectorSheet(
+        context: context,
+        producto: p,
+        sedeId: widget.sedeId,
+      );
+      if (variante != null && mounted) {
+        widget.onAgregarVariante!(p, variante);
+      }
+    } else {
+      widget.onAgregarProducto(p);
+    }
+  }
+
   /// Abre el scanner de cámara, captura un código de barras y lo busca.
   /// Si el backend devuelve exactamente 1 producto cuyo `codigoBarras`
   /// coincide con lo escaneado, lo auto-agrega al carrito y limpia el
@@ -258,7 +282,59 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
       return;
     }
     final p = ordenados.first;
-    final stock = p.stockEnSede(widget.sedeId) ?? 0;
+
+    // Si el producto tiene variantes, detectar cuál matchea por barcode.
+    if (p.tieneVariantes &&
+        p.variantes != null &&
+        widget.onAgregarVariante != null) {
+      final matchVariante = p.variantes!.cast<ProductoVariante?>().firstWhere(
+            (v) =>
+                v!.isActive &&
+                v.codigoBarras != null &&
+                v.codigoBarras!.toLowerCase() == code.toLowerCase(),
+            orElse: () => null,
+          );
+      if (matchVariante != null) {
+        final vStock = matchVariante.stockEnSede(widget.sedeId) ?? 0;
+        if (vStock <= 0) {
+          _lastScannedCode = null;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Sin stock: ${matchVariante.nombre}'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+          return;
+        }
+        widget.onAgregarVariante!(p, matchVariante);
+        _lastScannedCode = null;
+        _searchCtrl.clear();
+        context.read<ProductoListCubit>().applyFiltros(
+              const ProductoFiltros(isActive: true, esInsumo: false),
+              sedeId: widget.sedeId,
+            );
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✓ ${p.nombre} - ${matchVariante.nombre} agregado'),
+            backgroundColor: Colors.green.shade600,
+            duration: const Duration(seconds: 1),
+          ),
+        );
+        return;
+      }
+      // Barcode matcheó el producto pero no una variante específica — abrir selector.
+      _lastScannedCode = null;
+      _searchCtrl.clear();
+      context.read<ProductoListCubit>().applyFiltros(
+            const ProductoFiltros(isActive: true, esInsumo: false),
+            sedeId: widget.sedeId,
+          );
+      _onProductoTap(p);
+      return;
+    }
+
+    final stock = p.stockConsolidadoEnSede(widget.sedeId);
     if (stock <= 0) {
       _lastScannedCode = null;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -273,7 +349,6 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
     widget.onAgregarProducto(p);
     _lastScannedCode = null;
     _searchCtrl.clear();
-    // Reset al estado base: solo productos activos.
     context.read<ProductoListCubit>().applyFiltros(
           const ProductoFiltros(isActive: true, esInsumo: false),
           sedeId: widget.sedeId,
@@ -359,7 +434,7 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
     final conStock = <ProductoListItem>[];
     final sinStock = <ProductoListItem>[];
     for (final p in items) {
-      final s = p.stockEnSede(sedeId) ?? 0;
+      final s = p.stockConsolidadoEnSede(sedeId);
       if (s > 0) {
         conStock.add(p);
       } else {
@@ -722,7 +797,7 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
                           producto: p,
                           sedeId: widget.sedeId,
                           snapshotBuilder: widget.snapshotBuilder,
-                          onTap: () => widget.onAgregarProducto(p),
+                          onTap: () => _onProductoTap(p),
                           onDecrementar: () =>
                               widget.onDecrementarProducto(p.id),
                           onCargarNiveles: widget.onCargarNiveles,
@@ -917,7 +992,7 @@ class _ProductoCard<TCubit extends Cubit<TState>, TState>
     final precio = producto.precioEfectivoEnSede(sedeId) ??
         producto.precioEnSede(sedeId) ??
         0.0;
-    final stockTotal = producto.stockEnSede(sedeId) ?? 0;
+    final stockTotal = producto.stockConsolidadoEnSede(sedeId);
     final imagen = producto.imagenPrincipal;
 
     return BlocBuilder<TCubit, TState>(
@@ -1003,15 +1078,34 @@ class _ProductoCard<TCubit extends Cubit<TState>, TState>
                               ),
                             ),
                           ),
-                          child: Text(
-                            producto.nombre.toUpperCase(),
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.blue1,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  producto.nombre.toUpperCase(),
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.blue1,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (producto.tieneVariantes)
+                                Container(
+                                  margin: const EdgeInsets.only(left: 4),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 4, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color:
+                                        AppColors.blue1.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(3),
+                                  ),
+                                  child: Icon(Icons.style,
+                                      size: 10, color: AppColors.blue1),
+                                ),
+                            ],
                           ),
                         ),
                         // ── Body: imagen | info ──
