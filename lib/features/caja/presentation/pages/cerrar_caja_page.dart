@@ -516,7 +516,8 @@ class _CerrarCajaPageState extends State<CerrarCajaPage> {
     final conteoValue =
         double.tryParse(controller.text.replaceAll(',', '.')) ?? 0;
     final diferencia = conteoValue - esperado;
-    final hasDiferencia = controller.text.isNotEmpty && diferencia != 0;
+    final hasDiferencia =
+        controller.text.isNotEmpty && diferencia.abs() >= 0.005;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -666,7 +667,7 @@ class _CerrarCajaPageState extends State<CerrarCajaPage> {
           ? 0.0
           : (double.tryParse(text.replaceAll(',', '.')) ?? 0);
       final diferencia = conteo - esperado;
-      if (diferencia != 0) {
+      if (diferencia.abs() >= 0.005) {
         discrepancias.add(_Discrepancia(
           metodo: metodo,
           esperado: esperado,
