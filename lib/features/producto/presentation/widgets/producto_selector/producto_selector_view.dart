@@ -68,7 +68,7 @@ class ProductoSelectorView<TCubit extends Cubit<TState>, TState>
   /// Ruta del ícono "shopping_cart_checkout": se invoca cuando el cajero
   /// toca el badge del carrito en el AppBar. Si el carrito está vacío,
   /// se deshabilita automáticamente.
-  final VoidCallback onIrAlCarrito;
+  final Future<void> Function() onIrAlCarrito;
 
   /// Callback para agregar al carrito (tap en card o auto-add escaneo).
   final void Function(ProductoListItem) onAgregarProducto;
@@ -225,13 +225,14 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
   bool _varianteSheetOpen = false;
   bool _navegandoAlCarrito = false;
 
-  void _irAlCarritoGuarded() {
+  Future<void> _irAlCarritoGuarded() async {
     if (_navegandoAlCarrito) return;
     _navegandoAlCarrito = true;
-    widget.onIrAlCarrito();
-    Future.delayed(const Duration(milliseconds: 500), () {
+    try {
+      await widget.onIrAlCarrito();
+    } finally {
       _navegandoAlCarrito = false;
-    });
+    }
   }
 
   Future<void> _onProductoTap(ProductoListItem p) async {

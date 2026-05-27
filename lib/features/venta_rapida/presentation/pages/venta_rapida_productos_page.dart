@@ -83,7 +83,7 @@ class _VentaRapidaProductosView extends StatelessWidget {
     final result = await locator<GetCajaActivaUseCase>()();
     if (!context.mounted) return;
     if (result is Success<Caja?> && result.data != null) {
-      context.push('/empresa/venta-rapida/carrito');
+      await context.push('/empresa/venta-rapida/carrito');
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

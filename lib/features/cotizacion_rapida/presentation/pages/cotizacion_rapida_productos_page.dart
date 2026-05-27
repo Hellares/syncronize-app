@@ -129,8 +129,8 @@ class _CotizacionProductosView extends StatelessWidget {
         comboPendienteOferta: s.comboPendienteOferta,
       ),
       tituloBuilder: (s) => s.modoEdicion ? 'Editar items' : 'Cotización',
-      onIrAlCarrito: () =>
-          context.push('/empresa/cotizaciones/nueva/carrito'),
+      onIrAlCarrito: () async =>
+          await context.push('/empresa/cotizaciones/nueva/carrito'),
       onAgregarProducto: cubit.agregarProducto,
       onAgregarVariante: cubit.agregarVariante,
       onDecrementarVariante: (p, v) => cubit.decrementarVariante(p.id, v.id),
