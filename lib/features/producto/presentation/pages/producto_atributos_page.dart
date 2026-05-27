@@ -1,5 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:syncronize/core/fonts/app_text_widgets.dart';
+import 'package:syncronize/core/theme/app_colors.dart';
+import 'package:syncronize/core/theme/app_gradients.dart';
+import 'package:syncronize/core/theme/gradient_background.dart';
+import 'package:syncronize/core/theme/gradient_container.dart';
+import 'package:syncronize/core/widgets/custom_search_field.dart';
+import 'package:syncronize/core/widgets/floating_button_icon.dart';
+import 'package:syncronize/core/widgets/info_chip.dart';
+import 'package:syncronize/core/widgets/smart_appbar.dart';
+import 'package:syncronize/core/widgets/custom_switch_tile.dart';
+import 'package:syncronize/core/widgets/styled_dialog.dart';
+import '../../../../core/widgets/custom_dropdown.dart';
+import '../../../auth/presentation/widgets/custom_button.dart';
+import '../../../auth/presentation/widgets/custom_text.dart';
 import '../../domain/entities/producto_atributo.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
@@ -16,10 +30,19 @@ class ProductoAtributosPage extends StatefulWidget {
 }
 
 class _ProductoAtributosPageState extends State<ProductoAtributosPage> {
+  final _searchController = TextEditingController();
+  String _searchQuery = '';
+
   @override
   void initState() {
     super.initState();
     _loadAtributos();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   void _loadAtributos() {
@@ -31,65 +54,149 @@ class _ProductoAtributosPageState extends State<ProductoAtributosPage> {
     }
   }
 
+  List<ProductoAtributo> _filter(List<ProductoAtributo> source) {
+    if (_searchQuery.isEmpty) return source;
+    return source.where((a) {
+      final txt = '${a.nombre} ${a.descripcion ?? ''} ${a.tipo.name}'.toLowerCase();
+      return txt.contains(_searchQuery);
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Atributos de Productos'),
+      backgroundColor: Colors.transparent,
+      extendBodyBehindAppBar: true,
+      appBar: SmartAppBar(
+        title: 'Atributos de Productos',
+        backgroundColor: AppColors.blue1,
+        foregroundColor: AppColors.white,
+        showLogo: false,
+        centerTitle: false,
         actions: [
           IconButton(
-            icon: const Icon(Icons.help_outline),
-            onPressed: () {
-              _showHelpDialog();
-            },
+            icon: const Icon(Icons.help_outline, size: 18),
             tooltip: 'Ayuda',
+            onPressed: _showHelpDialog,
+          ),
+          IconButton(
+            icon: const Icon(Icons.refresh, size: 18),
+            tooltip: 'Actualizar',
+            onPressed: _loadAtributos,
           ),
         ],
       ),
-      body: BlocConsumer<ProductoAtributoCubit, ProductoAtributoState>(
-        listener: (context, state) {
-          if (state is ProductoAtributoOperationSuccess) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.message)),
-            );
-          } else if (state is ProductoAtributoError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-        },
-        builder: (context, state) {
-          if (state is ProductoAtributoLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (state is ProductoAtributoError) {
-            return _buildErrorView(state.message);
-          }
-
-          final atributos = state is ProductoAtributoLoaded
-              ? state.atributos
-              : state is ProductoAtributoOperationSuccess
+      body: GradientBackground(
+        style: GradientStyle.professional,
+        child: SafeArea(
+          child: BlocConsumer<ProductoAtributoCubit, ProductoAtributoState>(
+            listener: (context, state) {
+              if (state is ProductoAtributoOperationSuccess) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                      content: Text(state.message),
+                      backgroundColor: Colors.green),
+                );
+              } else if (state is ProductoAtributoError) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                      content: Text(state.message),
+                      backgroundColor: Colors.red),
+                );
+              }
+            },
+            builder: (context, state) {
+              if (state is ProductoAtributoLoading) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (state is ProductoAtributoError) {
+                return _buildErrorView(state.message);
+              }
+              final atributos = state is ProductoAtributoLoaded
                   ? state.atributos
-                  : <ProductoAtributo>[];
+                  : state is ProductoAtributoOperationSuccess
+                      ? state.atributos
+                      : <ProductoAtributo>[];
 
-          return RefreshIndicator(
-            onRefresh: () async => _loadAtributos(),
-            child: atributos.isEmpty
-                ? _buildEmptyState()
-                : _buildAtributosList(atributos),
-          );
-        },
+              return _buildContent(atributos);
+            },
+          ),
+        ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        heroTag: 'producto_atributos_fab',
+      floatingActionButton: FloatingButtonIcon(
+        icon: Icons.add,
         onPressed: () => _showAtributoDialog(),
-        icon: const Icon(Icons.add),
-        label: const Text('Nuevo Atributo'),
       ),
+    );
+  }
+
+  Widget _buildContent(List<ProductoAtributo> atributos) {
+    final filtered = _filter(atributos);
+    return Column(
+      children: [
+        const SizedBox(height: 8),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          child: CustomSearchField(
+            controller: _searchController,
+            hintText: 'Buscar atributo...',
+            borderColor: AppColors.blue1,
+            onChanged: (v) => setState(() => _searchQuery = v.toLowerCase()),
+            onClear: () => setState(() {
+              _searchQuery = '';
+              _searchController.clear();
+            }),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          child: Row(
+            children: [
+              Icon(Icons.tune, size: 14, color: AppColors.blue1),
+              const SizedBox(width: 6),
+              AppSubtitle('Atributos configurados',
+                  fontSize: 11, color: AppColors.blue1),
+              const Spacer(),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.blue1.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                      color: AppColors.blue1.withValues(alpha: 0.3),
+                      width: 0.5),
+                ),
+                child: Text(
+                  '${filtered.length} ${filtered.length == 1 ? 'atributo' : 'atributos'}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.blue1,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 6),
+        Expanded(
+          child: atributos.isEmpty
+              ? _buildEmptyState()
+              : filtered.isEmpty
+                  ? _buildEmptyFilteredState()
+                  : RefreshIndicator(
+                      onRefresh: () async => _loadAtributos(),
+                      child: ListView.builder(
+                        padding: const EdgeInsets.fromLTRB(10, 4, 10, 80),
+                        itemCount: filtered.length,
+                        itemBuilder: (_, i) =>
+                            _buildAtributoCard(filtered[i]),
+                      ),
+                    ),
+        ),
+      ],
     );
   }
 
@@ -100,40 +207,28 @@ class _ProductoAtributosPageState extends State<ProductoAtributosPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.tune,
-              size: 80,
-              color: Colors.grey[400],
-            ),
+            Icon(Icons.tune, size: 80, color: Colors.grey.shade400),
             const SizedBox(height: 16),
             Text(
               'No hay atributos configurados',
               style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w500,
-                color: Colors.grey[600],
-              ),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey.shade700),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Text(
-              'Los atributos te permiten crear variantes de productos con características específicas como color, talla, material, etc.',
+              'Los atributos te permiten crear variantes de productos (color, talla, material, etc.)',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
-              ),
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
             ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
+            const SizedBox(height: 20),
+            CustomButton(
+              text: 'Crear Atributo',
+              icon: const Icon(Icons.add, size: 16, color: Colors.white),
+              backgroundColor: AppColors.blue1,
+              textColor: Colors.white,
               onPressed: () => _showAtributoDialog(),
-              icon: const Icon(Icons.add),
-              label: const Text('Crear Atributo'),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 12,
-                ),
-              ),
             ),
           ],
         ),
@@ -141,15 +236,22 @@ class _ProductoAtributosPageState extends State<ProductoAtributosPage> {
     );
   }
 
-  Widget _buildAtributosList(List<ProductoAtributo> atributos) {
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
-      itemCount: atributos.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        final atributo = atributos[index];
-        return _buildAtributoCard(atributo);
-      },
+  Widget _buildEmptyFilteredState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.search_off, size: 48, color: Colors.grey.shade400),
+            const SizedBox(height: 12),
+            Text(
+              'Sin resultados para "$_searchQuery"',
+              style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -160,18 +262,16 @@ class _ProductoAtributosPageState extends State<ProductoAtributosPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline, size: 64, color: Colors.red),
+            const Icon(Icons.error_outline, size: 48, color: Colors.red),
             const SizedBox(height: 16),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 16),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
+            Text(message, textAlign: TextAlign.center),
+            const SizedBox(height: 16),
+            CustomButton(
+              text: 'Reintentar',
+              icon: const Icon(Icons.refresh, size: 16, color: Colors.white),
+              backgroundColor: AppColors.blue1,
+              textColor: Colors.white,
               onPressed: _loadAtributos,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Reintentar'),
             ),
           ],
         ),
@@ -180,218 +280,198 @@ class _ProductoAtributosPageState extends State<ProductoAtributosPage> {
   }
 
   Widget _buildAtributoCard(ProductoAtributo atributo) {
-    return Card(
-      elevation: 2,
-      child: ExpansionTile(
-        leading: CircleAvatar(
-          backgroundColor: _getTipoColor(atributo.tipo).withValues(alpha: 0.2),
-          child: Icon(
-            _getTipoIcon(atributo.tipo),
-            color: _getTipoColor(atributo.tipo),
-            size: 20,
-          ),
-        ),
-        title: Text(
-          atributo.nombre,
-          style: const TextStyle(fontWeight: FontWeight.w600),
-        ),
-        subtitle: Text(
-          _getTipoLabel(atributo.tipo),
-          style: TextStyle(color: Colors.grey[600], fontSize: 13),
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (atributo.requerido)
-              Chip(
-                label: const Text('Requerido', style: TextStyle(fontSize: 11)),
-                backgroundColor: Colors.orange.shade50,
-                visualDensity: VisualDensity.compact,
-                side: BorderSide(color: Colors.orange.shade200),
+    final color = _getTipoColor(atributo.tipo);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: GradientContainer(
+        gradient: AppGradients.blueWhiteBlue(),
+        borderColor: AppColors.blueborder,
+        shadowStyle: ShadowStyle.colorful,
+        child: Theme(
+          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+          child: ExpansionTile(
+            tilePadding: const EdgeInsets.symmetric(horizontal: 14),
+            childrenPadding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            leading: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(8),
               ),
-            const SizedBox(width: 8),
-            PopupMenuButton(
-              itemBuilder: (context) => [
-                const PopupMenuItem(
-                  value: 'edit',
-                  child: Row(
-                    children: [
-                      Icon(Icons.edit, size: 18),
-                      SizedBox(width: 8),
-                      Text('Editar'),
-                    ],
-                  ),
-                ),
-                const PopupMenuItem(
-                  value: 'delete',
-                  child: Row(
-                    children: [
-                      Icon(Icons.delete, size: 18, color: Colors.red),
-                      SizedBox(width: 8),
-                      Text('Eliminar', style: TextStyle(color: Colors.red)),
-                    ],
-                  ),
-                ),
-              ],
-              onSelected: (value) {
-                if (value == 'edit') {
-                  _showAtributoDialog(atributo: atributo);
-                } else if (value == 'delete') {
-                  _confirmDelete(atributo);
-                }
-              },
+              child: Icon(_getTipoIcon(atributo.tipo), color: color, size: 16),
             ),
-          ],
-        ),
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            title: AppSubtitle(atributo.nombre, fontSize: 12),
+            subtitle: Row(
               children: [
-                if (atributo.descripcion != null) ...[
-                  Text(
-                    atributo.descripcion!,
-                    style: TextStyle(color: Colors.grey[700]),
+                Text(
+                  _getTipoLabel(atributo.tipo),
+                  style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                ),
+                if (atributo.requerido) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 5, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade50,
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: Colors.orange.shade300, width: 0.5),
+                    ),
+                    child: Text('Requerido',
+                        style: TextStyle(
+                            fontSize: 8,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.orange.shade700)),
                   ),
-                  const SizedBox(height: 12),
                 ],
-
-                // Valores
-                if (atributo.hasValores) ...[
-                  const Text(
-                    'Valores disponibles:',
-                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+              ],
+            ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                InkWell(
+                  onTap: () => _showAtributoDialog(atributo: atributo),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.all(6),
+                    child: Icon(Icons.edit_outlined,
+                        size: 16, color: AppColors.blue1),
                   ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: atributo.valores.map((valor) {
-                      return Chip(
-                        label: Text(valor, style: const TextStyle(fontSize: 12)),
-                        visualDensity: VisualDensity.compact,
-                        backgroundColor: Colors.blue.shade50,
-                      );
-                    }).toList(),
+                ),
+                InkWell(
+                  onTap: () => _confirmDelete(atributo),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.all(6),
+                    child:
+                        Icon(Icons.delete_outlined, size: 16, color: Colors.red),
                   ),
-                  const SizedBox(height: 12),
-                ],
-
-                // Configuración
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 8,
-                  children: [
-                    _buildConfigChip(
-                      'Mostrar en listado',
-                      atributo.mostrarEnListado,
-                      Icons.list,
-                    ),
-                    _buildConfigChip(
-                      'Usar para filtros',
-                      atributo.usarParaFiltros,
-                      Icons.filter_list,
-                    ),
-                    _buildConfigChip(
-                      'Mostrar en marketplace',
-                      atributo.mostrarEnMarketplace,
-                      Icons.store,
-                    ),
-                  ],
                 ),
               ],
             ),
+            children: [
+              if (atributo.descripcion != null &&
+                  atributo.descripcion!.isNotEmpty) ...[
+                Text(atributo.descripcion!,
+                    style: TextStyle(
+                        fontSize: 11, color: Colors.grey.shade700)),
+                const SizedBox(height: 8),
+              ],
+              if (atributo.hasValores) ...[
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: AppLabelText('Valores disponibles'),
+                ),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: atributo.valores.map((valor) {
+                    return InfoChip(
+                      text: valor,
+                      icon: Icons.label,
+                      fontSize: 9,
+                      backgroundColor: AppColors.white,
+                      borderColor: AppColors.blue1,
+                      borderRadius: 4,
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 5, vertical: 4),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 8),
+              ],
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  _configBadge('Listado', atributo.mostrarEnListado, Icons.list),
+                  _configBadge('Filtros', atributo.usarParaFiltros, Icons.filter_list),
+                  _configBadge('Marketplace', atributo.mostrarEnMarketplace, Icons.store),
+                ],
+              ),
+            ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _configBadge(String label, bool enabled, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      decoration: BoxDecoration(
+        color: enabled
+            ? Colors.green.shade50
+            : Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(
+          color: enabled ? Colors.green.shade300 : Colors.grey.shade300,
+          width: 0.5,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon,
+              size: 10, color: enabled ? Colors.green : Colors.grey.shade500),
+          const SizedBox(width: 3),
+          Text(label,
+              style: TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w600,
+                  color: enabled ? Colors.green.shade700 : Colors.grey.shade500)),
         ],
       ),
     );
   }
 
-  Widget _buildConfigChip(String label, bool enabled, IconData icon) {
-    return Chip(
-      avatar: Icon(
-        icon,
-        size: 14,
-        color: enabled ? Colors.green : Colors.grey,
-      ),
-      label: Text(label, style: const TextStyle(fontSize: 11)),
-      backgroundColor: enabled ? Colors.green.shade50 : Colors.grey.shade100,
-      side: BorderSide(
-        color: enabled ? Colors.green.shade200 : Colors.grey.shade300,
-      ),
-      visualDensity: VisualDensity.compact,
-    );
-  }
+  // ── Helpers ──
 
   IconData _getTipoIcon(AtributoTipo tipo) {
     switch (tipo) {
-      case AtributoTipo.color:
-        return Icons.palette;
-      case AtributoTipo.talla:
-        return Icons.straighten;
-      case AtributoTipo.material:
-        return Icons.category;
-      case AtributoTipo.capacidad:
-        return Icons.storage;
-      case AtributoTipo.select:
-        return Icons.list;
-      case AtributoTipo.multiSelect:
-        return Icons.checklist;
-      case AtributoTipo.boolean:
-        return Icons.toggle_on;
-      case AtributoTipo.numero:
-        return Icons.numbers;
-      case AtributoTipo.texto:
-        return Icons.text_fields;
+      case AtributoTipo.color: return Icons.palette;
+      case AtributoTipo.talla: return Icons.straighten;
+      case AtributoTipo.material: return Icons.category;
+      case AtributoTipo.capacidad: return Icons.storage;
+      case AtributoTipo.select: return Icons.list;
+      case AtributoTipo.multiSelect: return Icons.checklist;
+      case AtributoTipo.boolean: return Icons.toggle_on;
+      case AtributoTipo.numero: return Icons.numbers;
+      case AtributoTipo.texto: return Icons.text_fields;
     }
   }
 
   Color _getTipoColor(AtributoTipo tipo) {
     switch (tipo) {
-      case AtributoTipo.color:
-        return Colors.purple;
-      case AtributoTipo.talla:
-        return Colors.blue;
-      case AtributoTipo.material:
-        return Colors.brown;
-      case AtributoTipo.capacidad:
-        return Colors.orange;
-      case AtributoTipo.select:
-        return Colors.green;
-      case AtributoTipo.multiSelect:
-        return Colors.lightGreen;
-      case AtributoTipo.boolean:
-        return Colors.teal;
-      case AtributoTipo.numero:
-        return Colors.indigo;
-      case AtributoTipo.texto:
-        return Colors.cyan;
+      case AtributoTipo.color: return Colors.purple;
+      case AtributoTipo.talla: return Colors.blue;
+      case AtributoTipo.material: return Colors.brown;
+      case AtributoTipo.capacidad: return Colors.orange;
+      case AtributoTipo.select: return Colors.green;
+      case AtributoTipo.multiSelect: return Colors.lightGreen;
+      case AtributoTipo.boolean: return Colors.teal;
+      case AtributoTipo.numero: return Colors.indigo;
+      case AtributoTipo.texto: return Colors.cyan;
     }
   }
 
   String _getTipoLabel(AtributoTipo tipo) {
     switch (tipo) {
-      case AtributoTipo.color:
-        return 'Color';
-      case AtributoTipo.talla:
-        return 'Talla';
-      case AtributoTipo.material:
-        return 'Material';
-      case AtributoTipo.capacidad:
-        return 'Capacidad';
-      case AtributoTipo.select:
-        return 'Selección';
-      case AtributoTipo.multiSelect:
-        return 'Selección múltiple';
-      case AtributoTipo.boolean:
-        return 'Sí/No';
-      case AtributoTipo.numero:
-        return 'Número';
-      case AtributoTipo.texto:
-        return 'Texto';
+      case AtributoTipo.color: return 'Color';
+      case AtributoTipo.talla: return 'Talla';
+      case AtributoTipo.material: return 'Material';
+      case AtributoTipo.capacidad: return 'Capacidad';
+      case AtributoTipo.select: return 'Selección';
+      case AtributoTipo.multiSelect: return 'Selección múltiple';
+      case AtributoTipo.boolean: return 'Sí/No';
+      case AtributoTipo.numero: return 'Número';
+      case AtributoTipo.texto: return 'Texto';
     }
   }
+
+  // ── Dialogs ──
 
   void _showAtributoDialog({ProductoAtributo? atributo}) {
     final empresaState = context.read<EmpresaContextCubit>().state;
@@ -399,7 +479,7 @@ class _ProductoAtributosPageState extends State<ProductoAtributosPage> {
 
     showDialog(
       context: context,
-      builder: (dialogContext) => AtributoFormDialog(
+      builder: (dialogContext) => _AtributoFormDialog(
         atributo: atributo,
         empresaId: empresaState.context.empresa.id,
         onSave: (data) {
@@ -424,107 +504,108 @@ class _ProductoAtributosPageState extends State<ProductoAtributosPage> {
     final empresaState = context.read<EmpresaContextCubit>().state;
     if (empresaState is! EmpresaContextLoaded) return;
 
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Eliminar Atributo'),
-        content: Text(
-          '¿Estás seguro de eliminar el atributo "${atributo.nombre}"?\n\nEsto afectará a las variantes que usen este atributo.',
+    StyledDialog.show(
+      context,
+      accentColor: Colors.red,
+      icon: Icons.delete_outline,
+      titulo: 'Eliminar Atributo',
+      content: [
+        Text(
+          '¿Eliminar "${atributo.nombre}"?',
+          style: const TextStyle(fontSize: 13),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancelar'),
+        const SizedBox(height: 6),
+        Text(
+          'Esto afectará a las variantes que usen este atributo.',
+          style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+        ),
+      ],
+      actions: [
+        Expanded(
+          child: TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancelar',
+                style: TextStyle(color: Colors.grey.shade600)),
           ),
-          FilledButton(
+        ),
+        Expanded(
+          child: CustomButton(
+            text: 'Eliminar',
+            icon: const Icon(Icons.delete, size: 14, color: Colors.white),
+            backgroundColor: Colors.red,
+            textColor: Colors.white,
             onPressed: () {
-              Navigator.pop(dialogContext);
+              Navigator.pop(context);
               context.read<ProductoAtributoCubit>().eliminarAtributo(
                     atributoId: atributo.id,
                     empresaId: empresaState.context.empresa.id,
                   );
             },
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Eliminar'),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
   void _showHelpDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.help_outline),
-            SizedBox(width: 8),
-            Text('¿Qué son los atributos?'),
-          ],
+    StyledDialog.show(
+      context,
+      accentColor: AppColors.blue1,
+      icon: Icons.help_outline,
+      titulo: '¿Qué son los atributos?',
+      content: [
+        const Text(
+          'Los atributos son características configurables para crear variantes de tus productos.',
+          style: TextStyle(fontSize: 12),
         ),
-        content: const SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Los atributos son características configurables que puedes usar para crear variantes de tus productos.',
-                style: TextStyle(fontSize: 14),
-              ),
-              SizedBox(height: 16),
-              Text(
-                'Ejemplos de uso:',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 8),
-              Text('• Color: Rojo, Azul, Verde, Negro'),
-              Text('• Talla: XS, S, M, L, XL, XXL'),
-              Text('• Material: Algodón, Poliéster, Lana'),
-              Text('• Capacidad: 16GB, 32GB, 64GB, 128GB'),
-              Text('• Conexión: USB, Bluetooth, Inalámbrico'),
-              SizedBox(height: 16),
-              Text(
-                'Beneficios:',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 8),
-              Text('✓ Estandariza las características'),
-              Text('✓ Facilita la creación de variantes'),
-              Text('✓ Permite filtrar productos'),
-              Text('✓ Mejora la búsqueda en marketplace'),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
+        const SizedBox(height: 10),
+        Text('Ejemplos:',
+            style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: AppColors.blue1)),
+        const SizedBox(height: 4),
+        const Text('• Color: Rojo, Azul, Verde, Negro',
+            style: TextStyle(fontSize: 11)),
+        const Text('• Talla: XS, S, M, L, XL, XXL',
+            style: TextStyle(fontSize: 11)),
+        const Text('• Material: Algodón, Poliéster, Lana',
+            style: TextStyle(fontSize: 11)),
+        const Text('• Capacidad: 16GB, 32GB, 64GB',
+            style: TextStyle(fontSize: 11)),
+      ],
+      actions: [
+        Expanded(
+          child: CustomButton(
+            text: 'Entendido',
+            backgroundColor: AppColors.blue1,
+            textColor: Colors.white,
             onPressed: () => Navigator.pop(context),
-            child: const Text('Entendido'),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
 
-// Diálogo para crear/editar atributo
-class AtributoFormDialog extends StatefulWidget {
+// ── Dialog de formulario ──
+
+class _AtributoFormDialog extends StatefulWidget {
   final ProductoAtributo? atributo;
   final String empresaId;
   final Function(Map<String, dynamic>) onSave;
 
-  const AtributoFormDialog({
-    super.key,
+  const _AtributoFormDialog({
     this.atributo,
     required this.empresaId,
     required this.onSave,
   });
 
   @override
-  State<AtributoFormDialog> createState() => _AtributoFormDialogState();
+  State<_AtributoFormDialog> createState() => _AtributoFormDialogState();
 }
 
-class _AtributoFormDialogState extends State<AtributoFormDialog> {
+class _AtributoFormDialogState extends State<_AtributoFormDialog> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _nombreController;
   late TextEditingController _descripcionController;
@@ -542,9 +623,8 @@ class _AtributoFormDialogState extends State<AtributoFormDialog> {
     _nombreController = TextEditingController(text: widget.atributo?.nombre);
     _descripcionController =
         TextEditingController(text: widget.atributo?.descripcion);
-    _valoresController = TextEditingController(
-      text: widget.atributo?.valores.join(', '),
-    );
+    _valoresController =
+        TextEditingController(text: widget.atributo?.valores.join(', '));
     _selectedTipo = widget.atributo?.tipo ?? AtributoTipo.select;
     _requerido = widget.atributo?.requerido ?? false;
     _mostrarEnListado = widget.atributo?.mostrarEnListado ?? true;
@@ -563,12 +643,22 @@ class _AtributoFormDialogState extends State<AtributoFormDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(
-        widget.atributo == null ? 'Nuevo Atributo' : 'Editar Atributo',
-      ),
-      content: SizedBox(
-        width: MediaQuery.of(context).size.width * 0.9,
+    final isEditing = widget.atributo != null;
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      child: GradientContainer(
+        borderColor: AppColors.blue1.withValues(alpha: 0.4),
+        borderWidth: 1,
+        customShadows: [
+          BoxShadow(
+            color: AppColors.blue1.withValues(alpha: 0.18),
+            blurRadius: 18,
+            spreadRadius: 1,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        padding: const EdgeInsets.all(18),
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
@@ -576,136 +666,139 @@ class _AtributoFormDialogState extends State<AtributoFormDialog> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Selector de categoría
-                _buildCategoriaSelector(),
-                const SizedBox(height: 16),
-
-                TextFormField(
-                  controller: _nombreController,
-                  decoration: const InputDecoration(
-                    labelText: 'Nombre *',
-                    hintText: 'Ej: Color, Talla, Material',
-                    prefixIcon: Icon(Icons.label),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'El nombre es requerido';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                DropdownButtonFormField<AtributoTipo>(
-                  initialValue: _selectedTipo,
-                  decoration: const InputDecoration(
-                    labelText: 'Tipo de Atributo *',
-                    prefixIcon: Icon(Icons.category),
-                  ),
-                  items: AtributoTipo.values.map((tipo) {
-                    return DropdownMenuItem(
-                      value: tipo,
-                      child: Row(
-                        children: [
-                          Icon(_getTipoIcon(tipo), size: 18),
-                          const SizedBox(width: 8),
-                          Text(_getTipoLabel(tipo)),
-                        ],
+                // Header
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: AppColors.blue1.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() => _selectedTipo = value);
-                    }
+                      child: Icon(
+                          isEditing ? Icons.edit : Icons.add_circle_outline,
+                          color: AppColors.blue1,
+                          size: 18),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        isEditing ? 'Editar Atributo' : 'Nuevo Atributo',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.blue1,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close, size: 18),
+                      color: Colors.grey.shade500,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+
+                _buildCategoriaSelector(),
+                const SizedBox(height: 12),
+
+                CustomText(
+                  label: 'Nombre *',
+                  hintText: 'Ej: Color, Talla, Material',
+                  controller: _nombreController,
+                  borderColor: AppColors.blue1,
+                  validator: (v) =>
+                      v == null || v.trim().isEmpty ? 'Requerido' : null,
+                ),
+                const SizedBox(height: 12),
+
+                CustomDropdown<AtributoTipo>(
+                  label: 'Tipo de Atributo',
+                  borderColor: AppColors.blue1,
+                  value: _selectedTipo,
+                  items: AtributoTipo.values
+                      .map((t) => DropdownItem(value: t, label: _getTipoLabel(t)))
+                      .toList(),
+                  onChanged: (v) {
+                    if (v != null) setState(() => _selectedTipo = v);
                   },
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
 
-                TextFormField(
+                CustomText(
+                  label: 'Descripción (opcional)',
                   controller: _descripcionController,
-                  decoration: const InputDecoration(
-                    labelText: 'Descripción (opcional)',
-                    hintText: 'Descripción del atributo',
-                    prefixIcon: Icon(Icons.description),
-                  ),
+                  borderColor: AppColors.blue1,
                   maxLines: 2,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
 
-                TextFormField(
+                CustomText(
+                  label: 'Valores (separados por coma)',
+                  hintText: 'Rojo, Azul, Verde, Negro',
                   controller: _valoresController,
-                  decoration: const InputDecoration(
-                    labelText: 'Valores (separados por coma)',
-                    hintText: 'Rojo, Azul, Verde, Negro',
-                    prefixIcon: Icon(Icons.list),
-                    helperText: 'Separa los valores con comas',
-                  ),
-                  maxLines: 3,
+                  borderColor: AppColors.blue1,
+                  maxLines: 2,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
 
-                // Opciones
-                const Text(
-                  'Configuración:',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 8),
-
-                CheckboxListTile(
+                AppLabelText('Configuración'),
+                const SizedBox(height: 6),
+                CustomSwitchTile(
+                  title: 'Requerido al crear variantes',
                   value: _requerido,
-                  onChanged: (value) {
-                    setState(() => _requerido = value ?? false);
-                  },
-                  title: const Text('Requerido al crear variantes'),
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
+                  onChanged: (v) => setState(() => _requerido = v),
+                  padding: EdgeInsets.zero,
                 ),
-
-                CheckboxListTile(
+                CustomSwitchTile(
+                  title: 'Mostrar en listado',
                   value: _mostrarEnListado,
-                  onChanged: (value) {
-                    setState(() => _mostrarEnListado = value ?? true);
-                  },
-                  title: const Text('Mostrar en listado de productos'),
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
+                  onChanged: (v) => setState(() => _mostrarEnListado = v),
+                  padding: EdgeInsets.zero,
                 ),
-
-                CheckboxListTile(
+                CustomSwitchTile(
+                  title: 'Usar para filtros',
                   value: _usarParaFiltros,
-                  onChanged: (value) {
-                    setState(() => _usarParaFiltros = value ?? true);
-                  },
-                  title: const Text('Usar para filtros de búsqueda'),
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
+                  onChanged: (v) => setState(() => _usarParaFiltros = v),
+                  padding: EdgeInsets.zero,
+                ),
+                CustomSwitchTile(
+                  title: 'Mostrar en marketplace',
+                  value: _mostrarEnMarketplace,
+                  onChanged: (v) => setState(() => _mostrarEnMarketplace = v),
+                  padding: EdgeInsets.zero,
                 ),
 
-                CheckboxListTile(
-                  value: _mostrarEnMarketplace,
-                  onChanged: (value) {
-                    setState(() => _mostrarEnMarketplace = value ?? true);
-                  },
-                  title: const Text('Mostrar en marketplace'),
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: Text('Cancelar',
+                            style: TextStyle(color: Colors.grey.shade600)),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: CustomButton(
+                        text: 'Guardar',
+                        icon: const Icon(Icons.check, size: 16, color: Colors.white),
+                        backgroundColor: AppColors.blue1,
+                        textColor: Colors.white,
+                        onPressed: _save,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancelar'),
-        ),
-        FilledButton(
-          onPressed: _save,
-          child: const Text('Guardar'),
-        ),
-      ],
     );
   }
 
@@ -714,69 +807,74 @@ class _AtributoFormDialogState extends State<AtributoFormDialog> {
       builder: (context, state) {
         if (state is CategoriasEmpresaLoaded) {
           final categorias = state.categorias;
-
           return Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: Colors.blue.shade50,
+              color: AppColors.blue1.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.blue.shade200),
+              border: Border.all(
+                  color: AppColors.blue1.withValues(alpha: 0.2), width: 0.5),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Icon(Icons.category, size: 18, color: Colors.blue.shade700),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'Categorias (opcional)',
+                    Icon(Icons.category, size: 14, color: AppColors.blue1),
+                    const SizedBox(width: 6),
+                    const Text('Categorías (opcional)',
+                        style: TextStyle(
+                            fontSize: 11, fontWeight: FontWeight.w600)),
+                    const Spacer(),
+                    Text(
+                      _categoriaIds.isEmpty
+                          ? 'Global'
+                          : '${_categoriaIds.length} selec.',
                       style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
+                          fontSize: 10, color: Colors.grey.shade600),
                     ),
                   ],
                 ),
                 const SizedBox(height: 8),
-                Text(
-                  _categoriaIds.isEmpty
-                      ? 'Sin categorias seleccionadas (atributo global)'
-                      : '${_categoriaIds.length} categoria(s) seleccionada(s)',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-                const SizedBox(height: 12),
                 Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: categorias.map((categoria) {
-                    final isSelected = _categoriaIds.contains(categoria.id);
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: categorias.map((cat) {
+                    final sel = _categoriaIds.contains(cat.id);
                     return FilterChip(
-                      label: Text(
-                        categoria.nombreDisplay,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: isSelected ? Colors.white : null,
-                        ),
+                      label: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (sel) ...[
+                            const Icon(Icons.check, size: 12, color: Colors.white),
+                            const SizedBox(width: 3),
+                          ],
+                          Text(cat.nombreDisplay,
+                              style: TextStyle(
+                                  fontSize: 8,
+                                  color: sel ? Colors.white : null)),
+                        ],
                       ),
-                      selected: isSelected,
-                      onSelected: (selected) {
+                      padding: const EdgeInsets.symmetric(horizontal: 3),
+                      selected: sel,
+                      onSelected: (s) {
                         setState(() {
-                          if (selected) {
-                            _categoriaIds.add(categoria.id);
-                          } else {
-                            _categoriaIds.remove(categoria.id);
-                          }
+                          s ? _categoriaIds.add(cat.id)
+                            : _categoriaIds.remove(cat.id);
                         });
                       },
-                      selectedColor: Colors.blue.shade600,
-                      checkmarkColor: Colors.white,
+                      selectedColor: AppColors.blue1,
+                      showCheckmark: false,
                       backgroundColor: Colors.white,
-                      side: BorderSide(
-                        color: isSelected
-                            ? Colors.blue.shade600
-                            : Colors.grey.shade300,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(6),
+                        side: BorderSide(
+                            color: sel
+                                ? AppColors.blue1
+                                : Colors.grey.shade300),
                       ),
+                      visualDensity: VisualDensity.compact,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     );
                   }).toList(),
                 ),
@@ -784,134 +882,83 @@ class _AtributoFormDialogState extends State<AtributoFormDialog> {
             ),
           );
         }
-
-        // Si esta cargando, mostrar un indicador
         if (state is CategoriasEmpresaLoading) {
           return const Center(child: CircularProgressIndicator());
         }
-
-        // Si hay error o estado inicial, cargar categorias
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          context.read<CategoriasEmpresaCubit>().loadCategorias(widget.empresaId);
+          context
+              .read<CategoriasEmpresaCubit>()
+              .loadCategorias(widget.empresaId);
         });
-
         return const SizedBox.shrink();
       },
     );
   }
 
   void _save() {
-    if (_formKey.currentState!.validate()) {
-      final nombre = _nombreController.text.trim();
-      final valores = _valoresController.text
-          .split(',')
-          .map((e) => e.trim())
-          .where((e) => e.isNotEmpty)
-          .toList();
+    if (!_formKey.currentState!.validate()) return;
+    final nombre = _nombreController.text.trim();
+    final valores = _valoresController.text
+        .split(',')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
 
-      // Validación de consistencia entre tipo y valores
-      final requiresValues = [AtributoTipo.select, AtributoTipo.multiSelect];
-      final forbidsValues = [AtributoTipo.texto, AtributoTipo.numero, AtributoTipo.boolean];
+    final requiresValues = [AtributoTipo.select, AtributoTipo.multiSelect];
+    final forbidsValues = [AtributoTipo.texto, AtributoTipo.numero, AtributoTipo.boolean];
 
-      if (requiresValues.contains(_selectedTipo) && valores.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${_getTipoLabel(_selectedTipo)} requiere al menos un valor predefinido'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        return;
-      }
-
-      if (forbidsValues.contains(_selectedTipo) && valores.isNotEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${_getTipoLabel(_selectedTipo)} no admite valores predefinidos'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        return;
-      }
-
-      // Generar clave a partir del nombre (slug)
-      final clave = _generarClave(nombre);
-
-      final data = {
-        'nombre': nombre,
-        'clave': clave,
-        'tipo': _selectedTipo.value,
-        'descripcion': _descripcionController.text.trim().isEmpty
-            ? null
-            : _descripcionController.text.trim(),
-        'valores': valores,
-        'requerido': _requerido,
-        'mostrarEnListado': _mostrarEnListado,
-        'usarParaFiltros': _usarParaFiltros,
-        'mostrarEnMarketplace': _mostrarEnMarketplace,
-        'categoriaIds': _categoriaIds,
-      };
-
-      widget.onSave(data);
-      Navigator.pop(context);
+    if (requiresValues.contains(_selectedTipo) && valores.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(
+                '${_getTipoLabel(_selectedTipo)} requiere al menos un valor'),
+            backgroundColor: Colors.red),
+      );
+      return;
     }
-  }
+    if (forbidsValues.contains(_selectedTipo) && valores.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(
+                '${_getTipoLabel(_selectedTipo)} no admite valores predefinidos'),
+            backgroundColor: Colors.red),
+      );
+      return;
+    }
 
-  /// Genera una clave a partir del nombre (slug)
-  String _generarClave(String nombre) {
-    // Convertir a minúsculas
-    String clave = nombre.toLowerCase();
-    // Reemplazar espacios y caracteres especiales con guiones bajos
-    clave = clave.replaceAll(RegExp(r'[^a-z0-9]+'), '_');
-    // Eliminar guiones bajos al inicio y final
-    clave = clave.replaceAll(RegExp(r'^_+|_+$'), '');
-    // Si queda vacío, usar "atributo"
+    String clave = nombre.toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
+        .replaceAll(RegExp(r'^_+|_+$'), '');
     if (clave.isEmpty) clave = 'atributo';
-    return clave;
-  }
 
-  IconData _getTipoIcon(AtributoTipo tipo) {
-    switch (tipo) {
-      case AtributoTipo.color:
-        return Icons.palette;
-      case AtributoTipo.talla:
-        return Icons.straighten;
-      case AtributoTipo.material:
-        return Icons.category;
-      case AtributoTipo.capacidad:
-        return Icons.storage;
-      case AtributoTipo.select:
-        return Icons.list;
-      case AtributoTipo.multiSelect:
-        return Icons.checklist;
-      case AtributoTipo.boolean:
-        return Icons.toggle_on;
-      case AtributoTipo.numero:
-        return Icons.numbers;
-      case AtributoTipo.texto:
-        return Icons.text_fields;
-    }
+    widget.onSave({
+      'nombre': nombre,
+      'clave': clave,
+      'tipo': _selectedTipo.value,
+      'descripcion': _descripcionController.text.trim().isEmpty
+          ? null
+          : _descripcionController.text.trim(),
+      'valores': valores,
+      'requerido': _requerido,
+      'mostrarEnListado': _mostrarEnListado,
+      'usarParaFiltros': _usarParaFiltros,
+      'mostrarEnMarketplace': _mostrarEnMarketplace,
+      'categoriaIds': _categoriaIds,
+    });
+    Navigator.pop(context);
   }
 
   String _getTipoLabel(AtributoTipo tipo) {
     switch (tipo) {
-      case AtributoTipo.color:
-        return 'Color';
-      case AtributoTipo.talla:
-        return 'Talla';
-      case AtributoTipo.material:
-        return 'Material';
-      case AtributoTipo.capacidad:
-        return 'Capacidad';
-      case AtributoTipo.select:
-        return 'Selección';
-      case AtributoTipo.multiSelect:
-        return 'Selección múltiple';
-      case AtributoTipo.boolean:
-        return 'Sí/No';
-      case AtributoTipo.numero:
-        return 'Número';
-      case AtributoTipo.texto:
-        return 'Texto';
+      case AtributoTipo.color: return 'Color';
+      case AtributoTipo.talla: return 'Talla';
+      case AtributoTipo.material: return 'Material';
+      case AtributoTipo.capacidad: return 'Capacidad';
+      case AtributoTipo.select: return 'Selección';
+      case AtributoTipo.multiSelect: return 'Selección múltiple';
+      case AtributoTipo.boolean: return 'Sí/No';
+      case AtributoTipo.numero: return 'Número';
+      case AtributoTipo.texto: return 'Texto';
     }
   }
 }
