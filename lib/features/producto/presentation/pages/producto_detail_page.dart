@@ -233,6 +233,19 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
                   ? empresaState.context.empresa.id
                   : '';
 
+              if (_selectedVariante == null &&
+                  producto.tieneVariantes &&
+                  producto.variantes != null &&
+                  producto.variantes!.isNotEmpty) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) {
+                    setState(() {
+                      _selectedVariante = producto.variantes!.first;
+                    });
+                  }
+                });
+              }
+
               return RefreshIndicator(
                 onRefresh: () async => _loadProducto(),
                 child: SingleChildScrollView(
@@ -255,7 +268,11 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
                           children: [
                             // _buildHeader(producto),
                             // const SizedBox(height: 16),
-                            _buildPriceSection(producto),
+                            _buildPriceSection(
+                              producto.tieneVariantes && _selectedVariante != null
+                                  ? _selectedVariante!
+                                  : producto,
+                            ),
                             const SizedBox(height: 16),
 
                             if (!producto.tieneVariantes && !producto.esCombo) ...[
@@ -747,7 +764,7 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
                   iconSize: 14,
                 borderRadius: 4,
                 ),
-              if (producto.visibleMarketplace)
+              if (producto is! ProductoVariante && producto.visibleMarketplace == true)
                 InfoChip(
                   text: 'Marketplace',
                   icon: Icons.store,

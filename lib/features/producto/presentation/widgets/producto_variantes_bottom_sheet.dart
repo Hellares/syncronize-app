@@ -307,7 +307,9 @@ class _ProductoVariantesBottomSheetState extends State<ProductoVariantesBottomSh
     final precioStock = stocks != null && stocks.isNotEmpty
         ? (stocks.where((s) => s.precioConfigurado && s.precio != null).firstOrNull ?? stocks.first)
         : null;
-    final hasOferta = precioStock?.isOfertaActiva ?? false;
+    final hasLiquidacion = precioStock?.isLiquidacionActiva ?? false;
+    final hasOferta = !hasLiquidacion && (precioStock?.isOfertaActiva ?? false);
+    final hasPromo = hasLiquidacion || hasOferta;
     final precioActual = precioStock?.precioEfectivo ?? 0.0;
     final precioOriginal = precioStock?.precio ?? 0.0;
 
@@ -455,17 +457,21 @@ class _ProductoVariantesBottomSheetState extends State<ProductoVariantesBottomSh
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  if (hasOferta) ...[
-                                    Row(
-                                      children: [
-                                        Text(
-                                          'S/ ${precioActual.toStringAsFixed(2)}',
-                                          style: const TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.green,
-                                          ),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        'S/ ${precioActual.toStringAsFixed(2)}',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                          color: hasLiquidacion
+                                              ? Colors.deepOrange.shade700
+                                              : hasOferta
+                                                  ? Colors.green.shade700
+                                                  : AppColors.textPrimary,
                                         ),
+                                      ),
+                                      if (hasPromo) ...[
                                         const SizedBox(width: 6),
                                         Text(
                                           'S/ ${precioOriginal.toStringAsFixed(2)}',
@@ -475,18 +481,40 @@ class _ProductoVariantesBottomSheetState extends State<ProductoVariantesBottomSh
                                             color: Colors.grey[500],
                                           ),
                                         ),
+                                        const SizedBox(width: 6),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                          decoration: BoxDecoration(
+                                            color: hasLiquidacion
+                                                ? Colors.deepOrange.shade700
+                                                : Colors.green.shade700,
+                                            borderRadius: BorderRadius.circular(3),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                hasLiquidacion
+                                                    ? Icons.local_fire_department
+                                                    : Icons.local_offer,
+                                                size: 9,
+                                                color: Colors.white,
+                                              ),
+                                              const SizedBox(width: 2),
+                                              Text(
+                                                hasLiquidacion ? 'LIQ.' : 'OFERTA',
+                                                style: const TextStyle(
+                                                  fontSize: 7,
+                                                  fontWeight: FontWeight.w800,
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
                                       ],
-                                    ),
-                                  ] else ...[
-                                    Text(
-                                      'S/ ${precioActual.toStringAsFixed(2)}',
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppColors.textPrimary,
-                                      ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ],
                               ),
                             ),
