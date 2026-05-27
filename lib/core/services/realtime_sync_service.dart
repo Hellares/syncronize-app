@@ -166,6 +166,15 @@ class RealtimeSyncService {
   /// la app está en foreground — sino es trabajo inútil.
   bool _appIsForeground = true;
 
+  /// Instante en que la app fue a background. Permite calcular cuánto
+  /// tiempo estuvo fuera y forzar el heartbeat al volver si superó el
+  /// umbral, ignorando `_minGapBetweenEmits` (que fue diseñado para
+  /// evitar duplicados timer/FCM, no para bloquear revalidación post-
+  /// background).
+  DateTime? _pausedAt;
+
+  static const Duration _resumeSyncThreshold = Duration(minutes: 1);
+
   /// Cada cuánto disparar el heartbeat. 5 min cubre la mayoría de
   /// huecos de FCM sin saturar al backend (~12 req/hora/cajero;
   /// con 200 cajeros = 40 req/min total, mayormente skipped).
@@ -259,12 +268,28 @@ class RealtimeSyncService {
   /// emitimos heartbeats (nadie está mirando + ahorro de batería).
   void setAppForeground(bool isForeground) {
     _appIsForeground = isForeground;
+    if (!isForeground) {
+      _pausedAt = DateTime.now();
+    }
   }
 
   /// Disparar un heartbeat inmediato — usado cuando la app vuelve del
-  /// background. Si llegó un FCM hace muy poco, el skip natural del
-  /// `_minGapBetweenEmits` evita la doble revalidación.
+  /// background. Si estuvo fuera > [_resumeSyncThreshold], fuerza el
+  /// heartbeat ignorando `_minGapBetweenEmits` (cubre FCM perdidos por
+  /// battery saver / doze mode / red intermitente durante el background).
   void triggerResumeRefresh() {
+    final pausedAt = _pausedAt;
+    _pausedAt = null;
+    if (pausedAt != null) {
+      final backgroundDuration = DateTime.now().difference(pausedAt);
+      if (backgroundDuration > _resumeSyncThreshold) {
+        _lastEmitAt = DateTime.fromMillisecondsSinceEpoch(0);
+        debugPrint(
+          '[Realtime] App was in background for '
+          '${backgroundDuration.inSeconds}s — forcing sync',
+        );
+      }
+    }
     _tryEmitHeartbeat();
   }
 
