@@ -637,13 +637,72 @@ class _VarianteCard extends StatelessWidget {
                       final stockInfo = stocks != null && stocks.isNotEmpty
                           ? (stocks.where((s) => s.precioConfigurado && s.precio != null).firstOrNull ?? stocks.first)
                           : null;
-                      return Text(
-                      'S/${(stockInfo?.precioEfectivo ?? 0.0).toStringAsFixed(2)}',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green,
+                      final enLiq = stockInfo?.isLiquidacionActiva ?? false;
+                      final enOferta = stockInfo?.isOfertaActiva ?? false;
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                'S/${(stockInfo?.precioEfectivo ?? 0.0).toStringAsFixed(2)}',
+                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: enLiq
+                                          ? Colors.deepOrange.shade700
+                                          : enOferta
+                                              ? Colors.green.shade700
+                                              : Colors.green,
+                                    ),
+                              ),
+                              if (enLiq) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.deepOrange.shade700,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.local_fire_department, size: 10, color: Colors.white),
+                                      SizedBox(width: 2),
+                                      Text('LIQ.', style: TextStyle(fontSize: 8, fontWeight: FontWeight.w800, color: Colors.white)),
+                                    ],
+                                  ),
+                                ),
+                              ] else if (enOferta) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green.shade700,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.local_offer, size: 10, color: Colors.white),
+                                      SizedBox(width: 2),
+                                      Text('OFERTA', style: TextStyle(fontSize: 8, fontWeight: FontWeight.w800, color: Colors.white)),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
-                    );
+                          if (enLiq || enOferta)
+                            Text(
+                              'Base: S/${(stockInfo?.precio ?? 0.0).toStringAsFixed(2)}',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.grey.shade500,
+                                decoration: TextDecoration.lineThrough,
+                              ),
+                            ),
+                        ],
+                      );
                     }),
                   ],
                 ),
