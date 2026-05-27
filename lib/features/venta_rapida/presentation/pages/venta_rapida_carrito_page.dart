@@ -140,7 +140,7 @@ class _CarritoView extends StatelessWidget {
                           );
                         }
                         return Dismissible(
-                          key: ValueKey(item.productoId ?? 'item_${row.index}'),
+                          key: ValueKey('${item.productoId}_${item.varianteId ?? ''}_${row.index}'),
                           direction: DismissDirection.endToStart,
                           background: Container(
                             color: Colors.red.shade400,
