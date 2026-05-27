@@ -20,6 +20,8 @@ import '../../../../core/widgets/autorizacion_dialog.dart';
 import '../../../../core/widgets/confirm_dialog.dart';
 import '../../../../core/utils/cuota_calculator.dart';
 import '../../../auth/presentation/widgets/custom_text.dart';
+import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_cubit.dart';
+import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_state.dart';
 import '../../../producto/presentation/bloc/producto_list/producto_list_cubit.dart';
 import '../../../venta/domain/entities/venta_detalle_input.dart';
 import '../bloc/venta_rapida_cubit.dart';
@@ -313,6 +315,14 @@ class _CobroViewState extends State<_CobroView> {
   /// confirmación al cajero, y finalmente llama al cubit. La venta SE
   /// CONCRETA aunque se haya pagado en efectivo sobre el límite — el
   /// cliente asume el riesgo y queda registrado en `bancarizacionAdvertida`.
+  bool _creditoPermitido(BuildContext context) {
+    final configState = context.read<ConfiguracionEmpresaCubit>().state;
+    if (configState is ConfiguracionEmpresaLoaded) {
+      return configState.configuracion.ventaCreditoHabilitada;
+    }
+    return false;
+  }
+
   Future<void> _confirmarYCobrar(BuildContext context) async {
     _persistirPagos(context);
     final cubit = context.read<VentaRapidaCubit>();
@@ -769,18 +779,20 @@ class _CobroViewState extends State<_CobroView> {
             foregroundColor: Colors.white,
             title: Text(tituloAppBar),
             actions: [
-              _AppBarCondicionChip(
-                label: 'Contado',
-                selected: !state.esCredito,
-                onTap: () => context.read<VentaRapidaCubit>().setCondicionPago('CONTADO'),
-              ),
-              _AppBarCondicionChip(
-                label: 'Credito',
-                selected: state.esCredito,
-                selectedColor: Colors.orange,
-                onTap: () => context.read<VentaRapidaCubit>().setCondicionPago('CREDITO'),
-              ),
-              const SizedBox(width: 8),
+              if (_creditoPermitido(context)) ...[
+                _AppBarCondicionChip(
+                  label: 'Contado',
+                  selected: !state.esCredito,
+                  onTap: () => context.read<VentaRapidaCubit>().setCondicionPago('CONTADO'),
+                ),
+                _AppBarCondicionChip(
+                  label: 'Credito',
+                  selected: state.esCredito,
+                  selectedColor: Colors.orange,
+                  onTap: () => context.read<VentaRapidaCubit>().setCondicionPago('CREDITO'),
+                ),
+                const SizedBox(width: 8),
+              ],
             ],
           ),
           body: SingleChildScrollView(

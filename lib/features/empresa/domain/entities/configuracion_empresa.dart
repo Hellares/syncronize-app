@@ -12,7 +12,8 @@ class ConfiguracionEmpresa extends Equatable {
   final int diasVigenciaCotizacion;
   final String? condicionesDefault;
 
-  // Configuración de interés por crédito
+  // Configuración de venta a crédito
+  final bool ventaCreditoHabilitada;
   final bool interesHabilitado;
   final double porcentajeInteresDefault;
   final bool interesEsEditable;
@@ -41,6 +42,7 @@ class ConfiguracionEmpresa extends Equatable {
     this.monedasPermitidas = const ['PEN', 'USD'],
     this.diasVigenciaCotizacion = 30,
     this.condicionesDefault,
+    this.ventaCreditoHabilitada = false,
     this.interesHabilitado = false,
     this.porcentajeInteresDefault = 0,
     this.interesEsEditable = true,
@@ -68,6 +70,7 @@ class ConfiguracionEmpresa extends Equatable {
         id, empresaId, impuestoDefaultPorcentaje, nombreImpuesto,
         monedaPrincipal, simboloMoneda, monedasPermitidas,
         diasVigenciaCotizacion, condicionesDefault,
+        ventaCreditoHabilitada,
         interesHabilitado, porcentajeInteresDefault, interesEsEditable,
         moraHabilitada, porcentajeMoraDiario, moraMaximaPorcentaje, diasGraciaMora,
         etiquetaSeccionEquipo, etiquetaTipoEquipo, etiquetaMarcaEquipo,
@@ -84,6 +87,7 @@ class ConfiguracionEmpresa extends Equatable {
     List<String>? monedasPermitidas,
     int? diasVigenciaCotizacion,
     String? condicionesDefault,
+    bool? ventaCreditoHabilitada,
     bool? interesHabilitado,
     double? porcentajeInteresDefault,
     bool? interesEsEditable,
@@ -108,6 +112,7 @@ class ConfiguracionEmpresa extends Equatable {
       monedasPermitidas: monedasPermitidas ?? this.monedasPermitidas,
       diasVigenciaCotizacion: diasVigenciaCotizacion ?? this.diasVigenciaCotizacion,
       condicionesDefault: condicionesDefault ?? this.condicionesDefault,
+      ventaCreditoHabilitada: ventaCreditoHabilitada ?? this.ventaCreditoHabilitada,
       interesHabilitado: interesHabilitado ?? this.interesHabilitado,
       porcentajeInteresDefault: porcentajeInteresDefault ?? this.porcentajeInteresDefault,
       interesEsEditable: interesEsEditable ?? this.interesEsEditable,

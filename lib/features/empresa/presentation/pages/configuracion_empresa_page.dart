@@ -31,7 +31,8 @@ class _ConfiguracionEmpresaPageState extends State<ConfiguracionEmpresaPage> {
   final _diasVigenciaController = TextEditingController();
   final _condicionesController = TextEditingController();
 
-  // Interés por crédito
+  // Venta a crédito
+  bool _ventaCreditoHabilitada = false;
   final _porcentajeInteresController = TextEditingController();
   bool _interesHabilitado = false;
   bool _interesEsEditable = true;
@@ -105,7 +106,8 @@ class _ConfiguracionEmpresaPageState extends State<ConfiguracionEmpresaPage> {
     _etiquetaCondicionController.text = config.etiquetaCondicionEquipo ?? defaults['etiquetaCondicionEquipo'] ?? 'Condición del equipo';
     _mostrarSeccionEquipo = config.mostrarSeccionEquipo;
 
-    // Interés por crédito
+    // Venta a crédito
+    _ventaCreditoHabilitada = config.ventaCreditoHabilitada;
     _interesHabilitado = config.interesHabilitado;
     _porcentajeInteresController.text = config.porcentajeInteresDefault.toString();
     _interesEsEditable = config.interesEsEditable;
@@ -197,6 +199,7 @@ class _ConfiguracionEmpresaPageState extends State<ConfiguracionEmpresaPage> {
       etiquetaNumeroSerie: _etiquetaSerieController.text.trim(),
       etiquetaCondicionEquipo: _etiquetaCondicionController.text.trim(),
       mostrarSeccionEquipo: _mostrarSeccionEquipo,
+      ventaCreditoHabilitada: _ventaCreditoHabilitada,
       interesHabilitado: _interesHabilitado,
       porcentajeInteresDefault: double.tryParse(_porcentajeInteresController.text) ?? 0,
       interesEsEditable: _interesEsEditable,
@@ -461,6 +464,46 @@ class _ConfiguracionEmpresaPageState extends State<ConfiguracionEmpresaPage> {
                         maxLines: 4,
                         minLines: 2,
                         onChanged: (_) => _onChanged(),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // Sección: Venta a Crédito
+              _SectionHeader(
+                icon: Icons.credit_score,
+                title: 'Venta a Credito',
+                subtitle: 'Permitir ventas a crédito con cuotas',
+              ),
+              const SizedBox(height: 12),
+              GradientContainer(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const AppSubtitle('Habilitar venta a credito', fontSize: 12),
+                            AppText(
+                              'Permite a los cajeros vender a credito con cuotas',
+                              color: Colors.grey.shade600,
+                              size: 10,
+                            ),
+                          ],
+                        ),
+                      ),
+                      Switch(
+                        value: _ventaCreditoHabilitada,
+                        activeThumbColor: AppColors.blue1,
+                        onChanged: (v) {
+                          setState(() => _ventaCreditoHabilitada = v);
+                          _onChanged();
+                        },
                       ),
                     ],
                   ),
