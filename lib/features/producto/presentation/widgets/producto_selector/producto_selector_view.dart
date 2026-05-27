@@ -1194,45 +1194,72 @@ class _ProductoCard<TCubit extends Cubit<TState>, TState>
                                           .withValues(alpha: 0.05),
                                     ),
                                     // Bloque inferior: UND/nivel + precio.
-                                    // Si hay nivel aplicado por cantidad,
-                                    // "UND" cambia al nombre del nivel y
-                                    // todo se tiñe en azul1 para destacarlo.
+                                    // Para productos con múltiples variantes,
+                                    // no mostramos precio (se ve en el sheet).
                                     Padding(
                                       padding: const EdgeInsets.symmetric(
                                           horizontal: 6, vertical: 6),
-                                      child: Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Flexible(
-                                            child: Text(
-                                              precioConNivelAplicado
-                                                  ? nivelAplicado.toUpperCase()
-                                                  : 'UND',
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: TextStyle(
-                                                fontSize: 7,
-                                                color: precioConNivelAplicado
-                                                    ? AppColors.blue1
-                                                    : Colors.grey.shade600,
-                                                fontWeight: FontWeight.w700,
-                                                letterSpacing: 0.3,
-                                              ),
+                                      child: producto.tieneVariantes &&
+                                              producto.variantes != null &&
+                                              producto.variantes!.length > 1
+                                          ? Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              children: [
+                                                Icon(Icons.touch_app,
+                                                    size: 10,
+                                                    color: AppColors.blue1),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  'Ver variantes',
+                                                  style: TextStyle(
+                                                    fontSize: 9,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: AppColors.blue1,
+                                                  ),
+                                                ),
+                                              ],
+                                            )
+                                          : Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.spaceBetween,
+                                              children: [
+                                                Flexible(
+                                                  child: Text(
+                                                    precioConNivelAplicado
+                                                        ? nivelAplicado
+                                                            .toUpperCase()
+                                                        : 'UND',
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                    style: TextStyle(
+                                                      fontSize: 7,
+                                                      color:
+                                                          precioConNivelAplicado
+                                                              ? AppColors.blue1
+                                                              : Colors
+                                                                  .grey.shade600,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                      letterSpacing: 0.3,
+                                                    ),
+                                                  ),
+                                                ),
+                                                Text(
+                                                  'S/ ${precioMostrado.toStringAsFixed(2)}',
+                                                  style: TextStyle(
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.w700,
+                                                    color:
+                                                        precioConNivelAplicado
+                                                            ? AppColors.blue1
+                                                            : Colors
+                                                                .grey.shade800,
+                                                  ),
+                                                ),
+                                              ],
                                             ),
-                                          ),
-                                          Text(
-                                            'S/ ${precioMostrado.toStringAsFixed(2)}',
-                                            style: TextStyle(
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.w700,
-                                              color: precioConNivelAplicado
-                                                  ? AppColors.blue1
-                                                  : Colors.grey.shade800,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
                                     ),
                                   ],
                                 ),

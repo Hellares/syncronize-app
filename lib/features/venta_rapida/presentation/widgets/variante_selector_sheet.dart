@@ -218,41 +218,88 @@ class _VarianteTile extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           child: Row(
             children: [
-              // Thumbnail
-              if (imagen != null)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
-                  child: CachedNetworkImage(
-                    imageUrl: imagen,
-                    width: 44,
-                    height: 44,
-                    fit: BoxFit.cover,
-                    placeholder: (_, __) => Container(
-                      width: 44,
-                      height: 44,
-                      color: Colors.grey.shade100,
-                    ),
-                    errorWidget: (_, __, ___) => Container(
-                      width: 44,
-                      height: 44,
-                      color: Colors.grey.shade100,
-                      child: Icon(Icons.image,
-                          size: 20, color: Colors.grey.shade400),
-                    ),
-                  ),
-                )
-              else
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: AppColors.blue1.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Icon(Icons.style,
-                      size: 20,
-                      color: AppColors.blue1.withValues(alpha: 0.5)),
-                ),
+              // Thumbnail (long press → imagen completa)
+              GestureDetector(
+                onLongPress: () {
+                  final fullUrl = variante.imagenPrincipal ?? imagen;
+                  if (fullUrl != null) {
+                    Navigator.of(context).push(
+                      PageRouteBuilder(
+                        opaque: false,
+                        barrierColor: Colors.black87,
+                        barrierDismissible: true,
+                        pageBuilder: (_, __, ___) => Scaffold(
+                          backgroundColor: Colors.black87,
+                          appBar: AppBar(
+                            backgroundColor: Colors.transparent,
+                            elevation: 0,
+                            leading: IconButton(
+                              icon: const Icon(Icons.close, color: Colors.white),
+                              onPressed: () => Navigator.pop(context),
+                            ),
+                            title: Text(
+                              variante.nombre,
+                              style: const TextStyle(
+                                  color: Colors.white, fontSize: 14),
+                            ),
+                          ),
+                          body: InteractiveViewer(
+                            minScale: 0.5,
+                            maxScale: 5.0,
+                            child: Center(
+                              child: CachedNetworkImage(
+                                imageUrl: fullUrl,
+                                fit: BoxFit.contain,
+                                placeholder: (_, __) => const Center(
+                                  child: CircularProgressIndicator(
+                                      color: Colors.white),
+                                ),
+                                errorWidget: (_, __, ___) => const Icon(
+                                    Icons.broken_image,
+                                    size: 48,
+                                    color: Colors.white54),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+                },
+                child: imagen != null
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: CachedNetworkImage(
+                          imageUrl: imagen,
+                          width: 44,
+                          height: 44,
+                          fit: BoxFit.cover,
+                          placeholder: (_, __) => Container(
+                            width: 44,
+                            height: 44,
+                            color: Colors.grey.shade100,
+                          ),
+                          errorWidget: (_, __, ___) => Container(
+                            width: 44,
+                            height: 44,
+                            color: Colors.grey.shade100,
+                            child: Icon(Icons.image,
+                                size: 20, color: Colors.grey.shade400),
+                          ),
+                        ),
+                      )
+                    : Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: AppColors.blue1.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Icon(Icons.style,
+                            size: 20,
+                            color: AppColors.blue1.withValues(alpha: 0.5)),
+                      ),
+              ),
               const SizedBox(width: 12),
               // Info
               Expanded(
