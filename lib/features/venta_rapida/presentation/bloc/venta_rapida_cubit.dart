@@ -429,6 +429,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       pagos: [],
       condicionPago: 'CONTADO',
       numeroCuotas: 1,
+      plazoDias: 30,
       tipoComprobante: 'TICKET',
       clienteGenerico: false,
       clienteId: null,
@@ -472,7 +473,15 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
 
   void setNumeroCuotas(int cuotas) {
     if (cuotas < 1) return;
-    emit(state.copyWith(numeroCuotas: cuotas));
+    emit(state.copyWith(
+      numeroCuotas: cuotas,
+      plazoDias: cuotas * 30,
+    ));
+  }
+
+  void setPlazoDias(int dias) {
+    if (dias < 1) return;
+    emit(state.copyWith(plazoDias: dias));
   }
 
   void setClienteGenerico() {
@@ -691,7 +700,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       'tipoComprobante': state.tipoComprobante,
       'esCredito': state.esCredito,
       if (state.esCredito) ...{
-        'plazoCredito': state.numeroCuotas * 30,
+        'plazoCredito': state.plazoDias,
         'numeroCuotas': state.numeroCuotas,
       },
       if (aceptaRiesgoBancarizacion) 'aceptaRiesgoBancarizacion': true,
@@ -1164,6 +1173,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       pagos: [],
       condicionPago: 'CONTADO',
       numeroCuotas: 1,
+      plazoDias: 30,
       tipoComprobante: 'TICKET',
       clienteGenerico: false,
       clienteId: null,

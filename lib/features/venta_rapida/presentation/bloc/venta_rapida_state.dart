@@ -29,6 +29,7 @@ class VentaRapidaState extends Equatable {
   // Crédito
   final String condicionPago; // CONTADO | CREDITO
   final int numeroCuotas;
+  final int plazoDias;
 
   // Pagos
   final List<Map<String, dynamic>> pagos;
@@ -76,6 +77,7 @@ class VentaRapidaState extends Equatable {
     this.buscandoCliente = false,
     this.condicionPago = 'CONTADO',
     this.numeroCuotas = 1,
+    this.plazoDias = 30,
     this.pagos = const [],
     this.procesando = false,
     this.error,
@@ -120,6 +122,7 @@ class VentaRapidaState extends Equatable {
     bool? buscandoCliente,
     String? condicionPago,
     int? numeroCuotas,
+    int? plazoDias,
     List<Map<String, dynamic>>? pagos,
     bool? procesando,
     String? error,
@@ -150,6 +153,7 @@ class VentaRapidaState extends Equatable {
       buscandoCliente: buscandoCliente ?? this.buscandoCliente,
       condicionPago: condicionPago ?? this.condicionPago,
       numeroCuotas: numeroCuotas ?? this.numeroCuotas,
+      plazoDias: plazoDias ?? this.plazoDias,
       pagos: pagos ?? this.pagos,
       procesando: procesando ?? this.procesando,
       error: clearError ? null : (error ?? this.error),
@@ -173,7 +177,7 @@ class VentaRapidaState extends Equatable {
         empresaId, sedeId, vendedorId, impuestoPorcentaje, moneda,
         items, tipoComprobante, clienteGenerico, clienteId, clienteEmpresaId,
         tipoDocCliente, numeroDocCliente, nombreClienteResuelto, buscandoCliente,
-        condicionPago, numeroCuotas,
+        condicionPago, numeroCuotas, plazoDias,
         pagos, procesando, error, ventaCompletadaId, comboPendienteOferta,
         preciosDesactualizados, stockInsuficiente,
       ];

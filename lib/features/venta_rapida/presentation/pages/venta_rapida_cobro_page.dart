@@ -1512,6 +1512,7 @@ class _CobroViewState extends State<_CobroView> {
     final cuotas = CuotaCalculator.calcular(
       montoCredito: montoCredito,
       numeroCuotas: state.numeroCuotas,
+      plazoDias: state.plazoDias,
     );
     final clienteOk = !state.clienteGenerico &&
         state.numeroDocCliente.isNotEmpty &&
@@ -1568,6 +1569,46 @@ class _CobroViewState extends State<_CobroView> {
                 ],
               ],
             ),
+            // Plazo configurable cuando es 1 cuota (pago diferido)
+            if (state.numeroCuotas == 1) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Text('Plazo:', style: TextStyle(fontSize: 12,
+                      color: Colors.orange.shade700, fontWeight: FontWeight.w600)),
+                  const SizedBox(width: 10),
+                  for (final d in [30, 60, 90, 120]) ...[
+                    GestureDetector(
+                      onTap: () => context.read<VentaRapidaCubit>().setPlazoDias(d),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        margin: const EdgeInsets.only(right: 6),
+                        decoration: BoxDecoration(
+                          color: state.plazoDias == d
+                              ? Colors.orange.shade700
+                              : Colors.white,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: state.plazoDias == d
+                                ? Colors.orange.shade700
+                                : Colors.grey.shade300,
+                          ),
+                        ),
+                        child: Text(
+                          '${d}d',
+                          style: TextStyle(
+                            fontSize: 11, fontWeight: FontWeight.w700,
+                            color: state.plazoDias == d
+                                ? Colors.white
+                                : Colors.grey.shade700,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ],
             // Preview cuotas
             if (cuotas.isNotEmpty && state.items.isNotEmpty) ...[
               const SizedBox(height: 8),
