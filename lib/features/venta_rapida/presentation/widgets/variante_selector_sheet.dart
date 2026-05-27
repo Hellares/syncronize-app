@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../producto/domain/entities/precio_nivel.dart';
 import '../../../producto/domain/entities/producto_list_item.dart';
 import '../../../producto/domain/entities/producto_variante.dart';
+import '../../../venta/domain/entities/venta_detalle_input.dart';
 
 Future<void> showVarianteSelectorSheet({
   required BuildContext context,
@@ -13,6 +15,7 @@ Future<void> showVarianteSelectorSheet({
   required void Function(ProductoVariante variante) onSeleccionada,
   void Function(ProductoVariante variante)? onDecrementada,
   Map<String, int> cantidadesEnCarrito = const {},
+  Map<String, List<PrecioNivel>> nivelesVariantes = const {},
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -27,6 +30,7 @@ Future<void> showVarianteSelectorSheet({
       onSeleccionada: onSeleccionada,
       onDecrementada: onDecrementada,
       cantidadesIniciales: cantidadesEnCarrito,
+      nivelesVariantes: nivelesVariantes,
     ),
   );
 }
@@ -37,6 +41,7 @@ class _VarianteSelectorSheet extends StatefulWidget {
   final void Function(ProductoVariante) onSeleccionada;
   final void Function(ProductoVariante)? onDecrementada;
   final Map<String, int> cantidadesIniciales;
+  final Map<String, List<PrecioNivel>> nivelesVariantes;
 
   const _VarianteSelectorSheet({
     required this.producto,
@@ -44,6 +49,7 @@ class _VarianteSelectorSheet extends StatefulWidget {
     required this.onSeleccionada,
     this.onDecrementada,
     this.cantidadesIniciales = const {},
+    this.nivelesVariantes = const {},
   });
 
   @override
@@ -200,6 +206,7 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
                     sedeId: widget.sedeId,
                     stockDisponible: stockDisp,
                     cantidadEnCarrito: qty,
+                    niveles: widget.nivelesVariantes[v.id] ?? const [],
                     onIncrement: () => _incrementar(v),
                     onDecrement: qty > 0 ? () => _decrementar(v) : null,
                   );
@@ -218,6 +225,7 @@ class _VarianteTile extends StatelessWidget {
   final String sedeId;
   final int stockDisponible;
   final int cantidadEnCarrito;
+  final List<PrecioNivel> niveles;
   final VoidCallback onIncrement;
   final VoidCallback? onDecrement;
 
@@ -226,6 +234,7 @@ class _VarianteTile extends StatelessWidget {
     required this.sedeId,
     required this.stockDisponible,
     required this.cantidadEnCarrito,
+    this.niveles = const [],
     required this.onIncrement,
     this.onDecrement,
   });
@@ -233,8 +242,15 @@ class _VarianteTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final agotado = stockDisponible <= 0 && cantidadEnCarrito == 0;
-    final precio = variante.precioEfectivoEnSede(sedeId) ??
+    final precioBase = variante.precioEfectivoEnSede(sedeId) ??
         variante.precioEnSede(sedeId);
+    final nivelAplicado = cantidadEnCarrito > 0 && niveles.isNotEmpty
+        ? VentaDetalleInput.nivelAplicableParaCantidad(
+            niveles, cantidadEnCarrito.toDouble())
+        : null;
+    final precio = nivelAplicado != null && precioBase != null
+        ? nivelAplicado.calcularPrecioFinal(precioBase)
+        : precioBase;
     final enOferta = variante.enOfertaEnSede(sedeId);
     final enLiquidacion = variante.enLiquidacionEnSede(sedeId);
     final imagen = variante.thumbnailPrincipal;
@@ -411,13 +427,40 @@ class _VarianteTile extends StatelessWidget {
             if (precio != null)
               Padding(
                 padding: const EdgeInsets.only(right: 8),
-                child: Text(
-                  'S/ ${precio.toStringAsFixed(2)}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: agotado ? Colors.grey : AppColors.blue1,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      'S/ ${precio.toStringAsFixed(2)}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: agotado
+                            ? Colors.grey
+                            : nivelAplicado != null
+                                ? AppColors.blue1
+                                : Colors.grey.shade800,
+                      ),
+                    ),
+                    if (nivelAplicado != null && precioBase != null) ...[
+                      Text(
+                        'S/ ${precioBase.toStringAsFixed(2)}',
+                        style: TextStyle(
+                          fontSize: 9,
+                          color: Colors.grey.shade500,
+                          decoration: TextDecoration.lineThrough,
+                        ),
+                      ),
+                      Text(
+                        nivelAplicado.nombre,
+                        style: TextStyle(
+                          fontSize: 8,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.blue1,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
             // Stepper
@@ -439,7 +482,7 @@ class _VarianteTile extends StatelessWidget {
                       child: Padding(
                         padding: const EdgeInsets.all(6),
                         child: Icon(Icons.remove,
-                            size: 14, color: Colors.green.shade700),
+                            size: 16, color: Colors.green.shade700),
                       ),
                     ),
                     Container(
@@ -464,7 +507,7 @@ class _VarianteTile extends StatelessWidget {
                     child: Padding(
                       padding: const EdgeInsets.all(6),
                       child: Icon(Icons.add,
-                          size: 14,
+                          size: 16,
                           color: stockDisponible > 0
                               ? Colors.green.shade700
                               : Colors.grey.shade400),

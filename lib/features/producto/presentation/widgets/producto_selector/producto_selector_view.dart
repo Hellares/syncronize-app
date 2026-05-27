@@ -229,9 +229,13 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
       final cubitState = context.read<TCubit>().state;
       final items = widget.snapshotBuilder(cubitState).items;
       final cantidades = <String, int>{};
+      final nivelesMap = <String, List<PrecioNivel>>{};
       for (final i in items) {
         if (i.productoId == p.id && i.varianteId != null && i.origenComboId == null) {
           cantidades[i.varianteId!] = i.cantidad.toInt();
+          if (i.niveles.isNotEmpty) {
+            nivelesMap[i.varianteId!] = i.niveles;
+          }
         }
       }
       await showVarianteSelectorSheet(
@@ -239,6 +243,7 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
         producto: p,
         sedeId: widget.sedeId,
         cantidadesEnCarrito: cantidades,
+        nivelesVariantes: nivelesMap,
         onSeleccionada: (variante) {
           widget.onAgregarVariante!(p, variante);
         },
