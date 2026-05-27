@@ -14,6 +14,7 @@ import '../../../../combo/domain/entities/combo.dart';
 import '../../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../../../producto/domain/entities/precio_nivel.dart';
+import '../../../../producto/domain/services/precio_nivel_cache_service.dart';
 import '../../../../producto/domain/entities/producto_filtros.dart';
 import '../../../../producto/domain/entities/producto_list_item.dart';
 import '../../../../producto/domain/entities/producto_variante.dart';
@@ -229,15 +230,26 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
       final cubitState = context.read<TCubit>().state;
       final items = widget.snapshotBuilder(cubitState).items;
       final cantidades = <String, int>{};
-      final nivelesMap = <String, List<PrecioNivel>>{};
       for (final i in items) {
         if (i.productoId == p.id && i.varianteId != null && i.origenComboId == null) {
           cantidades[i.varianteId!] = i.cantidad.toInt();
-          if (i.niveles.isNotEmpty) {
-            nivelesMap[i.varianteId!] = i.niveles;
-          }
         }
       }
+      final nivelCache = locator<PrecioNivelCacheService>();
+      final nivelesMap = <String, List<PrecioNivel>>{};
+      for (final v in p.variantes ?? <ProductoVariante>[]) {
+        final cached = nivelCache.peekVariante(v.id);
+        if (cached != null && cached.isNotEmpty) {
+          nivelesMap[v.id] = cached;
+        }
+      }
+      if (nivelesMap.isEmpty) {
+        for (final v in p.variantes ?? <ProductoVariante>[]) {
+          final niveles = await nivelCache.getNivelesVariante(v.id);
+          if (niveles.isNotEmpty) nivelesMap[v.id] = niveles;
+        }
+      }
+      if (!mounted) return;
       await showVarianteSelectorSheet(
         context: context,
         producto: p,
