@@ -107,6 +107,15 @@ class ProductoVarianteModel extends ProductoVariante {
       if (dimensiones != null) 'dimensiones': dimensiones,
       'isActive': isActive,
       'orden': orden,
+      if (archivos != null)
+        'archivos': archivos!
+            .map((a) => ProductoVarianteArchivoModel(
+                  id: a.id,
+                  url: a.url,
+                  urlThumbnail: a.urlThumbnail,
+                  orden: a.orden,
+                ).toJson())
+            .toList(),
       'creadoEn': creadoEn.toIso8601String(),
       'actualizadoEn': actualizadoEn.toIso8601String(),
     };

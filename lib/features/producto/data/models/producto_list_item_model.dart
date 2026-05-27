@@ -103,6 +103,14 @@ class ProductoListItemModel extends ProductoListItem {
         'stocksPorSede': stocksPorSede!
             .map((s) => StockPorSedeInfoModel.fromEntity(s).toJson())
             .toList(),
+      'comboReservado': comboReservado,
+      if (impuestoPorcentaje != null) 'impuestoPorcentaje': impuestoPorcentaje,
+      if (descuentoMaximo != null) 'descuentoMaximo': descuentoMaximo,
+      'tipoAfectacionIgv': tipoAfectacionIgv,
+      'aplicaIcbper': aplicaIcbper,
+      if (factorCompra != null) 'factorCompra': factorCompra,
+      if (unidadCompraSimbolo != null)
+        'unidadCompra': {'simboloLocal': unidadCompraSimbolo},
     };
   }
 
