@@ -46,6 +46,10 @@ class AppSubtitle extends StatelessWidget {
   final AppFont font;
   final Color? color;
   final double? fontSize;
+  final FontWeight? fontWeight;
+  final FontStyle? fontStyle;
+  final TextDecoration? decoration;
+  final Color? decorationColor;
   final TextAlign? textAlign;
   final TextStyle? textStyle;
   final TextOverflow? overflow;
@@ -57,6 +61,10 @@ class AppSubtitle extends StatelessWidget {
     this.font = AppFont.oxygenBold,
     this.color,
     this.fontSize,
+    this.fontWeight,
+    this.fontStyle,
+    this.decoration,
+    this.decorationColor,
     this.textAlign,
     this.textStyle,
     this.overflow,
@@ -70,7 +78,11 @@ class AppSubtitle extends StatelessWidget {
       style: font.subtitle.copyWith(
         color: color ?? AppColors.blue3,
         fontSize: fontSize,
-      ),
+        fontWeight: fontWeight,
+        fontStyle: fontStyle,
+        decoration: decoration,
+        decorationColor: decorationColor,
+      ).merge(textStyle),
       textAlign: textAlign,
       overflow: overflow,
       maxLines: maxLines,

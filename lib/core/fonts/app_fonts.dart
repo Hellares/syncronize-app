@@ -16,7 +16,12 @@ enum AppFont {
   oxygenLight,
   oxygenRegular,
   fonartoXt,
-  amazonEmber,
+  amazonEmberRegular,
+  amazonEmberMedium,
+  amazonEmberBold,
+  amazonEmberItalic,
+  amazonEmberLightItalic,
+  amazonEmberMediumItalic,
   amazonEmberDisplay,
   amazonEmberMono,
 }
@@ -35,9 +40,14 @@ class AppFonts {
     AppFont.oxygenLight: 'Oxygen-Light',
     AppFont.oxygenRegular: 'Oxygen-Regular',
     AppFont.fonartoXt: 'fonarto.xt',
-    AppFont.amazonEmber: 'AmazonEmber',
-    AppFont.amazonEmberDisplay: 'AmazonEmberDisplay',
-    AppFont.amazonEmberMono: 'AmazonEmberMono',
+    AppFont.amazonEmberRegular: 'AmazonEmber-Regular',
+    AppFont.amazonEmberMedium: 'AmazonEmber-Medium',
+    AppFont.amazonEmberBold: 'AmazonEmber-Bold',
+    AppFont.amazonEmberItalic: 'AmazonEmber-Italic',
+    AppFont.amazonEmberLightItalic: 'AmazonEmber-LightItalic',
+    AppFont.amazonEmberMediumItalic: 'AmazonEmber-MediumItalic',
+    AppFont.amazonEmberDisplay: 'AmazonEmber-DisplayLight',
+    AppFont.amazonEmberMono: 'AmazonEmber-Mono',
   };
 
   static String getFontFamily(AppFont font) => _fontMap[font] ?? 'oxygenRegular';
