@@ -275,13 +275,15 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
         sedeId: widget.sedeId,
         cantidadesEnCarrito: cantidades,
         nivelesVariantes: nivelesMap,
-        onSeleccionada: (variante) {
-          widget.onAgregarVariante!(p, variante);
+        onAgregar: (variante, cantidad) {
+          // `agregarVariante` suma 1 (y mergea por varianteId); para N
+          // unidades lo invocamos N veces.
+          for (var k = 0; k < cantidad; k++) {
+            widget.onAgregarVariante!(p, variante);
+          }
         },
-        onDecrementada: widget.onDecrementarVariante != null
-            ? (variante) {
-                widget.onDecrementarVariante!(p, variante);
-              }
+        onQuitarUnidad: widget.onDecrementarVariante != null
+            ? (variante) => widget.onDecrementarVariante!(p, variante)
             : null,
       );
       _varianteSheetOpen = false;
