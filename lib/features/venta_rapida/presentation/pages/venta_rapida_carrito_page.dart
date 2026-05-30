@@ -871,6 +871,27 @@ class _ItemRowState extends State<_ItemRow> {
                     ),
                   ),
                 ],
+                if (item.enLiquidacion) ...[
+                  const SizedBox(height: 2),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 5, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: Colors.deepOrange.shade50,
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(
+                          color: Colors.deepOrange.shade300, width: 0.5),
+                    ),
+                    child: Text(
+                      'LIQUIDACIÓN',
+                      style: TextStyle(
+                        fontSize: 9,
+                        color: Colors.deepOrange.shade700,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
                 if (item.descuento > 0) ...[
                   const SizedBox(height: 2),
                   Container(
@@ -901,7 +922,8 @@ class _ItemRowState extends State<_ItemRow> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (item.nivelAplicado != null && item.precioBase != null)
+                  if (item.precioBase != null &&
+                      item.precioBase! > item.precioUnitario + 0.001)
                     Text(
                       item.precioBase!.toStringAsFixed(2),
                       style: TextStyle(
@@ -914,12 +936,15 @@ class _ItemRowState extends State<_ItemRow> {
                     item.precioUnitario.toStringAsFixed(2),
                     style: TextStyle(
                       fontSize: 12,
-                      fontWeight: item.nivelAplicado != null
-                          ? FontWeight.w600
-                          : FontWeight.normal,
-                      color: item.nivelAplicado != null
-                          ? Colors.green.shade700
-                          : null,
+                      fontWeight:
+                          (item.nivelAplicado != null || item.enLiquidacion)
+                              ? FontWeight.w600
+                              : FontWeight.normal,
+                      color: item.enLiquidacion
+                          ? Colors.deepOrange.shade700
+                          : (item.nivelAplicado != null
+                              ? Colors.green.shade700
+                              : null),
                     ),
                   ),
                 ],

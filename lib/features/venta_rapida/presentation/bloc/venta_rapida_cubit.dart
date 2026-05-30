@@ -314,6 +314,9 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       // así coincide con lo que el backend valida al cobrar (no 409).
       final precioEfectivo =
           c.componenteInfo?.precioVenta ?? c.precioUnitarioRegular;
+      // Base real (sin oferta/liquidación) para tachar en la UI cuando el
+      // efectivo es menor (liquidación/oferta).
+      final precioBaseReal = c.precioUnitarioRegular;
       final enLiq = c.componenteInfo?.enLiquidacion ?? false;
       return VentaDetalleInput(
         productoId: c.componenteProductoId,
@@ -323,7 +326,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
         precioUnitario: precioEfectivo,
         descuento: 0,
         descuentoManual: 0,
-        precioBase: precioEfectivo,
+        precioBase: precioBaseReal,
         porcentajeIGV: igvPorc,
         precioIncluyeIgv: true,
         tipoAfectacion: '10',
@@ -552,6 +555,10 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
         producto.precioEfectivoEnSede(sedeId) ??
         producto.precioEnSede(sedeId) ??
         0.0;
+    // Base real (sin oferta/liquidación) para tachar en la UI.
+    final precioBaseReal = variante?.precioEnSede(sedeId) ??
+        producto.precioEnSede(sedeId) ??
+        precio;
     final igvPorc = producto.impuestoPorcentaje ?? state.impuestoPorcentaje;
     return VentaDetalleInput(
       productoId: producto.id,
@@ -561,7 +568,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
           : producto.nombre,
       cantidad: cantidad,
       precioUnitario: precio,
-      precioBase: precio,
+      precioBase: precioBaseReal,
       descuento: 0,
       descuentoManual: 0,
       porcentajeIGV: igvPorc,
