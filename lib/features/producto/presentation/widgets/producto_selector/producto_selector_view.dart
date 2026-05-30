@@ -1120,7 +1120,12 @@ class _ProductoCard<TCubit extends Cubit<TState>, TState>
                                 fontSize: 12, color: Colors.grey.shade600)),
                       );
                     }
-                    return ListView.separated(
+                    final combo = res.data;
+                    final ahorro = combo.descuentoAplicado ?? 0;
+                    return Column(
+                      children: [
+                        Expanded(
+                          child: ListView.separated(
                       itemCount: comps.length,
                       separatorBuilder: (_, __) =>
                           Divider(height: 1, color: Colors.grey.shade200),
@@ -1183,6 +1188,52 @@ class _ProductoCard<TCubit extends Cubit<TState>, TState>
                           ),
                         );
                       },
+                          ),
+                        ),
+                        const Divider(height: 1),
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8, bottom: 2),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                ahorro > 0
+                                    ? 'Total combo · ahorro S/ ${ahorro.toStringAsFixed(2)}'
+                                    : 'Total combo',
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.grey.shade700),
+                              ),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (ahorro > 0) ...[
+                                    Text(
+                                      'S/ ${combo.precioRegularTotal.toStringAsFixed(2)}',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.grey.shade500,
+                                        decoration:
+                                            TextDecoration.lineThrough,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                  ],
+                                  Text(
+                                    'S/ ${combo.precioFinal.toStringAsFixed(2)}',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.blue1,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     );
                   },
                 ),
