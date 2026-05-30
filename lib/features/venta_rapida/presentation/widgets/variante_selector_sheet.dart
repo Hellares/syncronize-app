@@ -2,11 +2,13 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../producto/domain/entities/precio_nivel.dart';
 import '../../../producto/domain/entities/producto_list_item.dart';
 import '../../../producto/domain/entities/producto_variante.dart';
+import '../../../producto/domain/services/precio_nivel_cache_service.dart';
 import '../../../venta/domain/entities/venta_detalle_input.dart';
 
 /// Sheet de selección de variante POR ATRIBUTO.
@@ -95,6 +97,16 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
   /// Se actualiza localmente al "Limpiar" para refrescar el stock disponible.
   late Map<String, int> _enCarrito;
 
+  /// Niveles de precio (por volumen) por varianteId. Se siembra con el
+  /// snapshot recibido y se va completando al resolver cada variante.
+  late Map<String, List<PrecioNivel>> _niveles;
+
+  /// varianteIds cuyos niveles ya pedimos en esta sesión del sheet (evita
+  /// refetch repetido al re-seleccionar la misma combinación).
+  final Set<String> _nivelesPedidos = {};
+
+  final PrecioNivelCacheService _nivelCache = locator<PrecioNivelCacheService>();
+
   @override
   void initState() {
     super.initState();
@@ -102,8 +114,26 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
         .where((v) => v.isActive)
         .toList();
     _enCarrito = Map.of(widget.cantidadesEnCarrito);
+    _niveles = Map.of(widget.nivelesVariantes);
     _grupos = _derivarGrupos(_variantes);
     _autoSeleccionInicial();
+    // Cargar (fresco) los niveles de la variante inicial.
+    _cargarNivelesResuelta();
+  }
+
+  /// Carga los niveles de la variante resuelta y reconstruye. Fuerza un
+  /// refresco del cache la primera vez que se ve cada variante en esta
+  /// sesión, para tomar niveles recién creados/editados (el cache compartido
+  /// pudo haber guardado `[]` antes de que existiera el nivel).
+  void _cargarNivelesResuelta() {
+    final v = _varianteResuelta;
+    if (v == null || _nivelesPedidos.contains(v.id)) return;
+    _nivelesPedidos.add(v.id);
+    _nivelCache.invalidateVariante(v.id);
+    _nivelCache.getNivelesVariante(v.id).then((niveles) {
+      if (!mounted) return;
+      setState(() => _niveles[v.id] = niveles);
+    });
   }
 
   // ---- Derivación de atributos ---------------------------------------------
@@ -238,6 +268,8 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
       final rest = _stockRestante;
       _cantidad = rest > 0 ? _cantidad.clamp(1, rest) : 0;
     });
+    // Cargar niveles de la nueva variante resuelta (si aún no se pidieron).
+    _cargarNivelesResuelta();
   }
 
   void _cambiarCantidad(int delta) {
@@ -296,12 +328,24 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
     final base = v.precioEfectivoEnSede(widget.sedeId) ??
         v.precioEnSede(widget.sedeId);
     if (base == null) return (precio: null, base: null, nivel: null);
-    final niveles = widget.nivelesVariantes[v.id] ?? const <PrecioNivel>[];
+    // La liquidación GANA siempre: si la variante está en liquidación se
+    // ignoran los niveles por mayor (aplicar un nivel "Por Mayor S/45" sobre
+    // un remate de S/30 lo subiría, contradiciendo la liquidación). Coincide
+    // con el guard de VentaDetalleInput.recalcularPrecioPorNiveles.
+    final enLiquidacion = v.enLiquidacionEnSede(widget.sedeId);
+    final niveles = enLiquidacion
+        ? const <PrecioNivel>[]
+        : (_niveles[v.id] ?? const <PrecioNivel>[]);
     final nivel = _cantidad > 0 && niveles.isNotEmpty
         ? VentaDetalleInput.nivelAplicableParaCantidad(niveles, _cantidad.toDouble())
         : null;
     if (nivel != null) {
-      return (precio: nivel.calcularPrecioFinal(base), base: base, nivel: nivel.nombre);
+      final precioNivel = nivel.calcularPrecioFinal(base);
+      // Un nivel solo aplica si BAJA el precio (igual que el backend que toma
+      // el menor). Nunca lo sube.
+      if (precioNivel < base) {
+        return (precio: precioNivel, base: base, nivel: nivel.nombre);
+      }
     }
     return (precio: base, base: null, nivel: null);
   }

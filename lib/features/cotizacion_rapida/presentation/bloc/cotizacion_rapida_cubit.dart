@@ -194,6 +194,8 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
       icbper: icbperUnit,
       stockDisponible: stockDisp,
       niveles: nivelesEnCache ?? const [],
+      // En liquidación los niveles por mayor se ignoran (la liquidación gana).
+      enLiquidacion: producto.enLiquidacionEnSede(sedeId),
     );
     final itemConNivel = nivelesEnCache != null
         ? item.recalcularPrecioPorNiveles(1)
@@ -254,6 +256,8 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
       icbper: icbperUnit,
       stockDisponible: stockDisp,
       niveles: nivelesEnCache ?? const [],
+      // En liquidación los niveles por mayor se ignoran (la liquidación gana).
+      enLiquidacion: variante.enLiquidacionEnSede(sedeId),
     );
     final itemConNivel = nivelesEnCache != null
         ? item.recalcularPrecioPorNiveles(1)

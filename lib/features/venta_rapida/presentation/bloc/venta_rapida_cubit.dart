@@ -907,9 +907,42 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       fetched,
     );
 
-    // 3. Aplicar nuevo precio base + nuevos niveles a cada item. Después
-    //    recalcular `precioUnitario` con la cantidad actual usando los
-    //    niveles nuevos.
+    // 2b. Refrescar el estado de liquidación (y costo) de los items afectados.
+    //     Si el admin activó liquidación mientras tanto, hay que actualizar el
+    //     flag para que `recalcularPrecioPorNiveles` ignore los niveles (la
+    //     liquidación gana). Sin esto, un nivel % podría bajar el precio por
+    //     debajo del remate.
+    final sedeId = state.sedeId;
+    final liquidacionPorKey = <String, bool>{};
+    final costoPorKey = <String, double?>{};
+    if (sedeId != null) {
+      final stockEntries = await Future.wait(
+        state.items
+            .where((i) =>
+                mapaPrecios.containsKey(keyFor(i.productoId, i.varianteId, null)))
+            .map((i) async {
+          final pid = i.productoId;
+          if (pid == null) return null;
+          final result = i.varianteId != null
+              ? await _stockRepository.getStockVarianteEnSede(
+                  varianteId: i.varianteId!, sedeId: sedeId)
+              : await _stockRepository.getStockProductoEnSede(
+                  productoId: pid, sedeId: sedeId);
+          if (result is Success<ProductoStock>) {
+            return MapEntry(keyFor(i.productoId, i.varianteId, null), result.data);
+          }
+          return null;
+        }),
+      );
+      for (final entry in stockEntries) {
+        if (entry == null) continue;
+        liquidacionPorKey[entry.key] = entry.value.isLiquidacionActiva;
+        costoPorKey[entry.key] = entry.value.precioCosto;
+      }
+    }
+
+    // 3. Aplicar nuevo precio base + nuevos niveles + liquidación a cada item.
+    //    Después recalcular `precioUnitario` con la cantidad actual.
     final nuevos = state.items.map((item) {
       final k = keyFor(item.productoId, item.varianteId, null);
       final precioNuevo = mapaPrecios[k];
@@ -922,6 +955,8 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
             precioBase: precioNuevo,
             precioUnitario: precioNuevo,
             niveles: nivelesNuevos,
+            enLiquidacion: liquidacionPorKey[k] ?? item.enLiquidacion,
+            precioCostoSnapshot: costoPorKey[k] ?? item.precioCostoSnapshot,
           )
           .recalcularPrecioPorNiveles(item.cantidad);
     }).toList();
@@ -984,6 +1019,38 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       fetched,
     );
 
+    // Refrescar estado de liquidación (y costo) de los afectados, por si el
+    // admin activó liquidación mientras tanto — la liquidación gana sobre
+    // los niveles al recalcular con la nueva cantidad.
+    final sedeId = state.sedeId;
+    final liquidacionPorKey = <String, bool>{};
+    final costoPorKey = <String, double?>{};
+    if (sedeId != null) {
+      final stockEntries = await Future.wait(
+        state.items
+            .where((i) =>
+                mapaDisponibles.containsKey(keyFor(i.productoId, i.varianteId, null)))
+            .map((i) async {
+          final pid = i.productoId;
+          if (pid == null) return null;
+          final result = i.varianteId != null
+              ? await _stockRepository.getStockVarianteEnSede(
+                  varianteId: i.varianteId!, sedeId: sedeId)
+              : await _stockRepository.getStockProductoEnSede(
+                  productoId: pid, sedeId: sedeId);
+          if (result is Success<ProductoStock>) {
+            return MapEntry(keyFor(i.productoId, i.varianteId, null), result.data);
+          }
+          return null;
+        }),
+      );
+      for (final entry in stockEntries) {
+        if (entry == null) continue;
+        liquidacionPorKey[entry.key] = entry.value.isLiquidacionActiva;
+        costoPorKey[entry.key] = entry.value.precioCosto;
+      }
+    }
+
     // Ajustar cada item: quitar si stockDisponible=0, sino recalcular
     // con nueva cantidad y niveles frescos.
     final nuevos = <VentaDetalleInput>[];
@@ -1007,6 +1074,8 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
               cantidad: disponible.toDouble(),
               niveles: nivelesNuevos,
               stockDisponible: disponible,
+              enLiquidacion: liquidacionPorKey[k] ?? item.enLiquidacion,
+              precioCostoSnapshot: costoPorKey[k] ?? item.precioCostoSnapshot,
             )
             .recalcularPrecioPorNiveles(disponible.toDouble()),
       );

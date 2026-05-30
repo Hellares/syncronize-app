@@ -240,6 +240,20 @@ class VentaDetalleInput {
     }
 
     final precioConNivel = nivel.calcularPrecioFinal(base);
+
+    // Un nivel por volumen NUNCA sube el precio: si el nivel resulta >= base,
+    // se ignora y manda el base. Coincide con el backend, que elige el menor
+    // entre base/nivel/oferta (calcularPrecioSegunCantidad). Evita mostrar un
+    // precio inflado y el consecuente 409 PRECIO_DESACTUALIZADO al cobrar.
+    if (precioConNivel >= base) {
+      return copyWith(
+        cantidad: cantidad,
+        precioUnitario: base,
+        precioBase: base,
+        clearNivelAplicado: true,
+      );
+    }
+
     final descuentoPct = nivel.calcularDescuentoPorcentaje(base);
     return copyWith(
       cantidad: cantidad,
