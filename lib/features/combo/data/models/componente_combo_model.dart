@@ -78,6 +78,9 @@ class ComponenteInfoModel extends ComponenteInfo {
     super.precioOferta,
     super.fechaInicioOferta,
     super.fechaFinOferta,
+    super.precioEfectivoBackend,
+    super.enLiquidacion,
+    super.precioLiquidacion,
   });
 
   factory ComponenteInfoModel.fromJson(Map<String, dynamic> json) {
@@ -104,6 +107,13 @@ class ComponenteInfoModel extends ComponenteInfo {
           : null,
       fechaFinOferta: json['fechaFinOferta'] != null
           ? DateTime.parse(json['fechaFinOferta'] as String).toLocal()
+          : null,
+      precioEfectivoBackend: json['precioEfectivo'] != null
+          ? (json['precioEfectivo'] as num).toDouble()
+          : null,
+      enLiquidacion: json['enLiquidacion'] as bool? ?? false,
+      precioLiquidacion: json['precioLiquidacion'] != null
+          ? (json['precioLiquidacion'] as num).toDouble()
           : null,
     );
   }

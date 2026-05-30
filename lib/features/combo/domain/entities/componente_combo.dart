@@ -93,6 +93,18 @@ class ComponenteInfo extends Equatable {
   final DateTime? fechaInicioOferta;
   final DateTime? fechaFinOferta;
 
+  /// Precio efectivo calculado por el backend = min(base, oferta, liquidación)
+  /// o el override `precioEnCombo`. Es el precio con el que se debe vender el
+  /// componente dentro del combo (SIN niveles por mayor); el cliente expande
+  /// el combo con este valor para no divergir (409) al cobrar. Null si el
+  /// backend no lo envió (combos viejos) → se usa el fallback local.
+  final double? precioEfectivoBackend;
+
+  /// El componente está en liquidación vigente. El combo NO le apila su
+  /// descuento (liquidación gana sola).
+  final bool enLiquidacion;
+  final double? precioLiquidacion;
+
   const ComponenteInfo({
     required this.id,
     required this.nombre,
@@ -108,10 +120,17 @@ class ComponenteInfo extends Equatable {
     this.precioOferta,
     this.fechaInicioOferta,
     this.fechaFinOferta,
+    this.precioEfectivoBackend,
+    this.enLiquidacion = false,
+    this.precioLiquidacion,
   });
 
   /// Precio efectivo dentro del combo: usa override si existe, sino el precio regular
   double get precioEfectivo => precioEnCombo ?? precio;
+
+  /// Precio al que se vende el componente dentro del combo: el efectivo del
+  /// backend (base/oferta/liquidación) si vino, si no el fallback local.
+  double get precioVenta => precioEfectivoBackend ?? precioEfectivo;
 
   /// Si tiene precio diferente al regular dentro del combo
   bool get tienePrecioOverride => precioEnCombo != null && precioEnCombo != precio;
@@ -146,5 +165,8 @@ class ComponenteInfo extends Equatable {
         precioOferta,
         fechaInicioOferta,
         fechaFinOferta,
+        precioEfectivoBackend,
+        enLiquidacion,
+        precioLiquidacion,
       ];
 }

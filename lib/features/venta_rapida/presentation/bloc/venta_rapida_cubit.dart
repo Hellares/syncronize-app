@@ -310,16 +310,20 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
   void _expandirYAgregarCombo(Combo combo) {
     final igvPorc = state.impuestoPorcentaje;
     final nuevos = combo.componentes.map((c) {
-      final precioRegularComponente = c.precioUnitarioRegular;
+      // Precio EFECTIVO del backend (base/oferta/liquidación, sin niveles),
+      // así coincide con lo que el backend valida al cobrar (no 409).
+      final precioEfectivo =
+          c.componenteInfo?.precioVenta ?? c.precioUnitarioRegular;
+      final enLiq = c.componenteInfo?.enLiquidacion ?? false;
       return VentaDetalleInput(
         productoId: c.componenteProductoId,
         varianteId: c.componenteVarianteId,
         descripcion: c.nombre,
         cantidad: c.cantidad.toDouble(),
-        precioUnitario: precioRegularComponente,
+        precioUnitario: precioEfectivo,
         descuento: 0,
         descuentoManual: 0,
-        precioBase: precioRegularComponente,
+        precioBase: precioEfectivo,
         porcentajeIGV: igvPorc,
         precioIncluyeIgv: true,
         tipoAfectacion: '10',
@@ -327,6 +331,8 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
         stockDisponible: c.stockDisponible,
         origenComboId: combo.id,
         origenComboNombre: combo.nombre,
+        // Liquidación gana sola: no se le apila el descuento del combo.
+        enLiquidacion: enLiq,
         // Contexto de pricing para re-precio al editar componentes.
         comboTipoPrecio: combo.tipoPrecioCombo.name,
         comboDescuentoPct: combo.descuentoPorcentaje,
@@ -370,11 +376,19 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
 
     final regularTotal =
         lineas.fold<double>(0, (s, l) => s + l.precioUnitario * l.cantidad);
+    // Liquidación gana sola: las líneas en liquidación se venden a su precio
+    // de remate y NO reciben descuento del combo. El descuento se reparte
+    // SOLO entre las líneas sin liquidación.
+    final regularNoLiq = lineas
+        .where((l) => !l.enLiquidacion)
+        .fold<double>(0, (s, l) => s + l.precioUnitario * l.cantidad);
+    final regularLiq = regularTotal - regularNoLiq;
 
     double objetivo;
     switch (tipo) {
       case 'calculadoConDescuento':
-        objetivo = regularTotal * (1 - pct / 100);
+        // Liquidación a precio pleno; el resto con el % del combo.
+        objetivo = regularLiq + regularNoLiq * (1 - pct / 100);
         break;
       case 'fijo':
         objetivo = objetivoFijoOverride ??
@@ -385,24 +399,28 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
         objetivo = regularTotal;
     }
     objetivo = objetivo.clamp(0, regularTotal).toDouble();
+    // El descuento solo puede salir de las líneas sin liquidación.
     final descuentoTotal =
-        (regularTotal - objetivo).clamp(0, double.infinity).toDouble();
+        (regularTotal - objetivo).clamp(0, regularNoLiq).toDouble();
+    // Última línea sin liquidación: compensa el redondeo del prorrateo.
+    final ultimoNoLiq = lineas.lastIndexWhere((l) => !l.enLiquidacion);
 
     double acumulado = 0;
     final recomputadas = <VentaDetalleInput>[];
     for (var i = 0; i < lineas.length; i++) {
       final l = lineas[i];
-      final esUltimo = i == lineas.length - 1;
-      final lineaRegular = l.precioUnitario * l.cantidad;
       double descCombo;
-      if (esUltimo) {
+      if (l.enLiquidacion) {
+        descCombo = 0;
+      } else if (i == ultimoNoLiq) {
         descCombo = descuentoTotal - acumulado;
-      } else if (regularTotal > 0) {
+      } else if (regularNoLiq > 0) {
+        final lineaRegular = l.precioUnitario * l.cantidad;
         descCombo =
-            (descuentoTotal * (lineaRegular / regularTotal) * 100).round() /
+            (descuentoTotal * (lineaRegular / regularNoLiq) * 100).round() /
                 100.0;
       } else {
-        descCombo = (descuentoTotal / lineas.length * 100).round() / 100.0;
+        descCombo = 0;
       }
       if (descCombo < 0) descCombo = 0;
       acumulado += descCombo;
