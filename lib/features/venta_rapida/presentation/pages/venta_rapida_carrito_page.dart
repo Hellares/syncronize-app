@@ -483,9 +483,9 @@ class _CarritoView extends StatelessWidget {
         padding:
             EdgeInsets.only(bottom: MediaQuery.of(sheetCtx).viewInsets.bottom),
         child: SizedBox(
-          // Alto fijo al 50% de la pantalla — deja aire para el dropdown
+          // Alto fijo al 40% de la pantalla — deja aire para el dropdown
           // de resultados del selector.
-          height: MediaQuery.of(sheetCtx).size.height * 0.5,
+          height: MediaQuery.of(sheetCtx).size.height * 0.4,
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: Column(
@@ -1141,7 +1141,7 @@ class _ComboHeaderTile extends StatelessWidget {
                   color: Colors.amber.shade900,
                 ),
               ),
-              const SizedBox(width: 4),
+              const SizedBox(width: 8),
               InkWell(
                 onTap: onAgregarComponente,
                 borderRadius: BorderRadius.circular(12),
@@ -1151,6 +1151,7 @@ class _ComboHeaderTile extends StatelessWidget {
                       size: 18, color: AppColors.blue1),
                 ),
               ),
+              const SizedBox(width: 12),
               InkWell(
                 onTap: onEliminar,
                 borderRadius: BorderRadius.circular(12),
