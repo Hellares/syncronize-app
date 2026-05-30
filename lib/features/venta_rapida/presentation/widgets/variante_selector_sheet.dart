@@ -1,6 +1,8 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:syncronize/core/fonts/app_fonts.dart';
+import 'package:syncronize/core/fonts/app_text_widgets.dart';
 
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -403,13 +405,10 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              'Elige la variante',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.grey.shade800,
-                              ),
+                            AppSubtitle(
+                              font: AppFont.amazonEmberBold, 
+                              'Elige la variante:',
+                              fontSize: 13,
                             ),
                             InkWell(
                               onTap: _limpiarSeleccion,
@@ -423,14 +422,13 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
                                     Icon(Icons.refresh,
                                         size: 14, color: Colors.grey.shade600),
                                     const SizedBox(width: 3),
-                                    Text(
+                                    AppSubtitle(
+                                      font: AppFont.amazonEmberMedium,
                                       'Limpiar',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.grey.shade600,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.grey.shade600,
                                       ),
-                                    ),
                                   ],
                                 ),
                               ),
@@ -481,12 +479,10 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                AppSubtitle(
+                  font: AppFont.amazonEmberBold, 
                   widget.producto.nombre,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  fontSize: 13,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -495,15 +491,13 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Text(
+                      AppSubtitle(
+                        font: AppFont.amazonEmberBold, 
                         'S/ ${precioInfo.precio!.toStringAsFixed(2)}',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                          color: precioInfo.nivel != null
-                              ? AppColors.blue1
-                              : Colors.grey.shade800,
-                        ),
+                        fontSize: 15,
+                        color: precioInfo.nivel != null
+                            ? AppColors.blue1
+                            : Colors.grey.shade800,
                       ),
                       if (precioInfo.base != null) ...[
                         const SizedBox(width: 6),
@@ -519,9 +513,11 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
                     ],
                   )
                 else
-                  Text(
+                  AppSubtitle(
+                    font: AppFont.amazonEmberMedium, 
                     'Selecciona una combinación',
-                    style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                    fontSize: 11,
+                    color: Colors.grey.shade500,
                   ),
                 if (resuelta != null) ...[
                   const SizedBox(height: 3),
@@ -535,17 +531,16 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
                             : Colors.red.shade400,
                       ),
                       const SizedBox(width: 4),
-                      Text(
+                      AppSubtitle(
+                        font: AppFont.amazonEmberMedium,
                         _stockRestante > 0
                             ? 'Stock disponible: $_stockRestante'
                             : 'Sin stock',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: _stockRestante > 0
-                              ? Colors.green.shade700
-                              : Colors.red,
-                        ),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: _stockRestante > 0
+                            ? Colors.green.shade700
+                            : Colors.red,
                       ),
                     ],
                   ),
@@ -556,7 +551,7 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
           ),
           IconButton(
             onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.close, size: 20),
+            icon: const Icon(Icons.close, size: 22),
             color: Colors.grey.shade500,
           ),
         ],
@@ -594,16 +589,22 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          // Text(
+          //   g.nombre.toUpperCase(),
+          //   style: TextStyle(
+          //     fontSize: 11,
+          //     fontWeight: FontWeight.w800,
+          //     color: Colors.grey.shade700,
+          //     letterSpacing: 0.3,
+          //   ),
+          // ),
+          AppSubtitle(
+            font: AppFont.amazonEmberMedium,
             g.nombre.toUpperCase(),
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-              color: Colors.grey.shade700,
-              letterSpacing: 0.3,
-            ),
+            fontSize: 11,
+            color: Colors.grey.shade700,
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -714,7 +715,7 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(Icons.style,
-            size: 30, color: AppColors.blue1.withValues(alpha: 0.5)),
+            size: 40, color: AppColors.blue1.withValues(alpha: 0.5)),
       );
 
   void _verImagenCompleta(ProductoVariante? v, String? thumb) {
@@ -789,29 +790,27 @@ class _AtributoValorChip extends StatelessWidget {
         onTap: enabled ? onTap : null,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.fromLTRB(10, 9, 12, 9),
+          padding: const EdgeInsets.fromLTRB(10, 8, 12, 8),
           decoration: BoxDecoration(
             color: selected ? AppColors.blue1.withValues(alpha: 0.06) : Colors.white,
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(6),
             border: Border.all(
               color: borderColor,
-              width: selected ? 1.5 : 1,
+              width: selected ? 1 : 0.6,
             ),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               _radio(),
-              const SizedBox(width: 8),
-              Text(
+              const SizedBox(width: 6),
+              AppSubtitle(
+                font: AppFont.amazonEmberMedium,
                 label,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                  color: textColor,
-                  decoration:
-                      enabled ? null : TextDecoration.lineThrough,
-                ),
+                fontSize: 10,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                color: textColor,
+                decoration: enabled ? null : TextDecoration.lineThrough,
               ),
             ],
           ),
@@ -825,17 +824,17 @@ class _AtributoValorChip extends StatelessWidget {
         ? AppColors.blue1
         : (enabled ? Colors.grey.shade400 : Colors.grey.shade300);
     return Container(
-      width: 18,
-      height: 18,
+      width: 16,
+      height: 16,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        border: Border.all(color: color, width: 2),
+        border: Border.all(color: color, width: 1.5),
       ),
       child: selected
           ? Center(
               child: Container(
-                width: 9,
-                height: 9,
+                width: 7,
+                height: 7,
                 decoration: const BoxDecoration(
                   shape: BoxShape.circle,
                   color: AppColors.blue1,
