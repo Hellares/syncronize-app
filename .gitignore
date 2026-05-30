@@ -46,3 +46,6 @@ app.*.map.json
 
 # Kotlin incremental build cache
 /android/.kotlin/
+
+# Carpeta de imágenes de referencia (no son assets de la app)
+/lib/public/
