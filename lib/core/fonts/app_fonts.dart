@@ -16,6 +16,9 @@ enum AppFont {
   oxygenLight,
   oxygenRegular,
   fonartoXt,
+  amazonEmber,
+  amazonEmberDisplay,
+  amazonEmberMono,
 }
 
 /// Clase que contiene el mapeo de fuentes y métodos de estilo
@@ -32,6 +35,9 @@ class AppFonts {
     AppFont.oxygenLight: 'Oxygen-Light',
     AppFont.oxygenRegular: 'Oxygen-Regular',
     AppFont.fonartoXt: 'fonarto.xt',
+    AppFont.amazonEmber: 'AmazonEmber',
+    AppFont.amazonEmberDisplay: 'AmazonEmberDisplay',
+    AppFont.amazonEmberMono: 'AmazonEmberMono',
   };
 
   static String getFontFamily(AppFont font) => _fontMap[font] ?? 'oxygenRegular';
@@ -40,6 +46,7 @@ class AppFonts {
     AppFont font, {
     double? fontSize,
     FontWeight? fontWeight,
+    FontStyle? fontStyle,
     Color? color,
     double? letterSpacing,
     double? height,
@@ -50,6 +57,7 @@ class AppFonts {
       fontFamily: getFontFamily(font),
       fontSize: fontSize,
       fontWeight: fontWeight,
+      fontStyle: fontStyle,
       color: color,
       letterSpacing: letterSpacing,
       height: height,
@@ -71,6 +79,7 @@ extension AppFontExtension on AppFont {
   TextStyle style({
     double? fontSize,
     FontWeight? fontWeight,
+    FontStyle? fontStyle,
     Color? color,
     double? letterSpacing,
     double? height,
@@ -81,6 +90,7 @@ extension AppFontExtension on AppFont {
       this,
       fontSize: fontSize,
       fontWeight: fontWeight,
+      fontStyle: fontStyle,
       color: color,
       letterSpacing: letterSpacing,
       height: height,
