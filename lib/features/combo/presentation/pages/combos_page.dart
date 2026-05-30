@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -7,6 +9,7 @@ import 'package:syncronize/core/widgets/custom_search_field.dart';
 import 'package:syncronize/core/widgets/custom_sede_selector.dart';
 import 'package:syncronize/core/widgets/floating_button_icon.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
+import 'package:syncronize/core/services/realtime_sync_service.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../auth/presentation/widgets/custom_button.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
@@ -52,23 +55,61 @@ class _CombosViewState extends State<_CombosView> {
   bool? _filtroOferta;
   bool _soloConStock = false;
 
+  // Realtime: la lista se autoactualiza ante eventos FCM (combo creado,
+  // componentes/precio/stock cambiados) y el heartbeat periódico, sin
+  // necesidad de refrescar a mano.
+  StreamSubscription<RealtimeEvent>? _realtimeSub;
+  Timer? _realtimeDebounce;
+
   @override
   void initState() {
     super.initState();
     _loadCombos();
+    _suscribirRealtime();
   }
 
   @override
   void dispose() {
+    _realtimeDebounce?.cancel();
+    _realtimeSub?.cancel();
     _searchController.dispose();
     super.dispose();
   }
 
-  void _loadCombos() {
+  void _loadCombos({bool silent = false}) {
     context.read<ComboCubit>().loadCombos(
           empresaId: widget.empresaId,
           sedeId: _getSedeId(),
+          silent: silent,
         );
+  }
+
+  /// Suscribe la lista a [RealtimeSyncService]. Cualquier evento de la
+  /// empresa actual (combo nuevo, componentes/precio/stock o heartbeat)
+  /// dispara un reload silencioso con debounce, igual que la grilla de
+  /// productos. El heartbeat (cada 5 min / al volver del background) es la
+  /// red de seguridad si un FCM se perdió.
+  void _suscribirRealtime() {
+    final realtime = locator<RealtimeSyncService>();
+    _realtimeSub = realtime.events.listen((event) {
+      if (_eventEmpresaId(event) != widget.empresaId) return;
+      _realtimeDebounce?.cancel();
+      _realtimeDebounce = Timer(const Duration(milliseconds: 500), () {
+        if (!mounted) return;
+        _loadCombos(silent: true);
+      });
+    });
+  }
+
+  String? _eventEmpresaId(RealtimeEvent event) {
+    if (event is RealtimeProductoCreado) return event.empresaId;
+    if (event is RealtimeProductoActualizado) return event.empresaId;
+    if (event is RealtimePrecioCambiado) return event.empresaId;
+    if (event is RealtimeStockCambiado) return event.empresaId;
+    if (event is RealtimeNivelesCambiados) return event.empresaId;
+    if (event is RealtimeImagenCambiada) return event.empresaId;
+    if (event is RealtimeHeartbeat) return event.empresaId;
+    return null;
   }
 
   String _getSedeId() {

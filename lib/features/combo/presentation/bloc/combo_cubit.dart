@@ -82,12 +82,19 @@ class ComboCubit extends Cubit<ComboState> {
     }
   }
 
-  /// Obtiene todos los combos de una empresa
+  /// Obtiene todos los combos de una empresa.
+  ///
+  /// [silent]: refresh en background (realtime/heartbeat). No emite
+  /// [ComboLoading] para evitar parpadeo del spinner, y un error
+  /// transitorio no reemplaza la lista visible por una pantalla de error.
   Future<void> loadCombos({
     required String empresaId,
     required String sedeId,
+    bool silent = false,
   }) async {
-    emit(ComboLoading());
+    if (!silent) {
+      emit(ComboLoading());
+    }
 
     final result = await getCombos(
       empresaId: empresaId,
@@ -97,6 +104,9 @@ class ComboCubit extends Cubit<ComboState> {
     if (result is Success<List<Combo>>) {
       emit(CombosLoaded(result.data));
     } else if (result is Error) {
+      // En modo silencioso conservamos la lista actual ante un fallo
+      // transitorio de red en vez de mostrar error.
+      if (silent && state is CombosLoaded) return;
       final error = result as Error;
       emit(ComboError(
         error.message,
