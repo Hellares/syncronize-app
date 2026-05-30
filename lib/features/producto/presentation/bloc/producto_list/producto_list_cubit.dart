@@ -569,10 +569,17 @@ class ProductoListCubit extends Cubit<ProductoListState> {
     final deltas = result.data;
     if (deltas.fullSyncRequired) return false;
 
-    // Aplicar deltas sobre cache local.
+    // Aplicar deltas sobre cache local, contando los cambios REALES al total:
+    // `deltas.updated` incluye productos MODIFICADOS (no solo nuevos), así que
+    // sumar `updated.length` infla el contador en cada edición. Solo cuenta como
+    // nuevo el que no existía (idx < 0); modificar uno existente no cambia el total.
+    var nuevos = 0;
+    var eliminados = 0;
     for (final id in deltas.deleted) {
       _vistosCache.remove(id);
+      final antes = _allProductos.length;
       _allProductos.removeWhere((p) => p.id == id);
+      if (_allProductos.length < antes) eliminados++;
     }
     for (final p in deltas.updated) {
       _vistosCache[p.id] = p;
@@ -581,6 +588,7 @@ class ProductoListCubit extends Cubit<ProductoListState> {
         _allProductos[idx] = p;
       } else {
         _allProductos.add(p);
+        nuevos++;
       }
     }
     _recortarBiblioteca();
@@ -601,6 +609,9 @@ class ProductoListCubit extends Cubit<ProductoListState> {
     );
     final current = state;
     if (current is ProductoListLoaded) {
+      // Total autoritativo del server si el delta lo trae; si no, el conteo
+      // corregido (nuevos reales - eliminados reales).
+      final nuevoTotal = deltas.total ?? (current.total + nuevos - eliminados);
       unawaited(
         _localStore.write(
           empresaId: empresaId,
@@ -608,7 +619,7 @@ class ProductoListCubit extends Cubit<ProductoListState> {
           snapshot: CatalogoLocalSnapshot(
             version: CatalogoLocalSnapshot.currentVersion,
             productos: List.of(_allProductos),
-            total: current.total + deltas.updated.length - deltas.deleted.length,
+            total: nuevoTotal,
             currentPage: current.currentPage,
             totalPages: current.totalPages,
             hasMore: current.hasMore,
@@ -623,7 +634,7 @@ class ProductoListCubit extends Cubit<ProductoListState> {
         _currentFiltros,
         CatalogoCacheEntry(
           productos: List.of(_allProductos),
-          total: current.total + deltas.updated.length - deltas.deleted.length,
+          total: nuevoTotal,
           currentPage: current.currentPage,
           totalPages: current.totalPages,
           hasMore: current.hasMore,
@@ -636,7 +647,7 @@ class ProductoListCubit extends Cubit<ProductoListState> {
       emit(
         current.copyWith(
           productos: _allProductos,
-          total: current.total + deltas.updated.length - deltas.deleted.length,
+          total: nuevoTotal,
           isFiltering: false,
         ),
       );

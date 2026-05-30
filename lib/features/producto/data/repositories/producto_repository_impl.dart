@@ -318,6 +318,7 @@ class ProductoRepositoryImpl implements ProductoRepository {
           serverTime: raw['serverTime'] as String? ??
               DateTime.now().toIso8601String(),
           fullSyncRequired: raw['fullSyncRequired'] as bool? ?? true,
+          total: (raw['total'] as num?)?.toInt(),
         ),
       );
     } catch (e) {

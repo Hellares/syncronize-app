@@ -15,13 +15,19 @@ class SyncDeltasResult extends Equatable {
   final String serverTime;
   final bool fullSyncRequired;
 
+  /// Total autoritativo de productos del catálogo base (server). Null si el
+  /// backend no lo envía (versión vieja) — el cliente cae a un conteo local.
+  final int? total;
+
   const SyncDeltasResult({
     required this.updated,
     required this.deleted,
     required this.serverTime,
     required this.fullSyncRequired,
+    this.total,
   });
 
   @override
-  List<Object?> get props => [updated, deleted, serverTime, fullSyncRequired];
+  List<Object?> get props =>
+      [updated, deleted, serverTime, fullSyncRequired, total];
 }
