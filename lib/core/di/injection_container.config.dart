@@ -338,6 +338,8 @@ import '../../features/combo/domain/usecases/agregar_componentes_batch_usecase.d
 import '../../features/combo/domain/usecases/create_combo_usecase.dart' as _i53;
 import '../../features/combo/domain/usecases/desactivar_oferta_combo_usecase.dart'
     as _i840;
+import '../../features/combo/domain/usecases/eliminar_combo_usecase.dart'
+    as _i769;
 import '../../features/combo/domain/usecases/eliminar_componente_usecase.dart'
     as _i40;
 import '../../features/combo/domain/usecases/eliminar_componentes_batch_usecase.dart'
@@ -4372,6 +4374,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i840.DesactivarOfertaComboUseCase>(
       () => _i840.DesactivarOfertaComboUseCase(gh<_i200.ComboRepository>()),
     );
+    gh.factory<_i769.EliminarComboUseCase>(
+      () => _i769.EliminarComboUseCase(gh<_i200.ComboRepository>()),
+    );
     gh.factory<_i40.EliminarComponenteUseCase>(
       () => _i40.EliminarComponenteUseCase(gh<_i200.ComboRepository>()),
     );
@@ -4486,26 +4491,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i532.ConfirmarPedidoUseCase>(),
       ),
     );
-    gh.factory<_i1039.ComboCubit>(
-      () => _i1039.ComboCubit(
-        createComboUseCase: gh<_i53.CreateComboUseCase>(),
-        getCombos: gh<_i235.GetCombosUseCase>(),
-        getComboCompleto: gh<_i209.GetComboCompletoUseCase>(),
-        agregarComponente: gh<_i237.AgregarComponenteUseCase>(),
-        agregarComponentesBatch: gh<_i378.AgregarComponentesBatchUseCase>(),
-        getComponentes: gh<_i330.GetComponentesUseCase>(),
-        eliminarComponente: gh<_i40.EliminarComponenteUseCase>(),
-        eliminarComponentesBatch: gh<_i619.EliminarComponentesBatchUseCase>(),
-        getReservacionUseCase: gh<_i1031.GetReservacionUseCase>(),
-        reservarStockUseCase: gh<_i409.ReservarStockUseCase>(),
-        liberarReservaUseCase: gh<_i813.LiberarReservaUseCase>(),
-        actualizarPrecioComboUseCase: gh<_i1067.ActualizarPrecioComboUseCase>(),
-        actualizarOfertaComboUseCase: gh<_i370.ActualizarOfertaComboUseCase>(),
-        desactivarOfertaComboUseCase: gh<_i840.DesactivarOfertaComboUseCase>(),
-        getHistorialPreciosComboUseCase:
-            gh<_i824.GetHistorialPreciosComboUseCase>(),
-      ),
-    );
     gh.factory<_i282.CajaMonitorCubit>(
       () => _i282.CajaMonitorCubit(gh<_i519.GetMonitorUseCase>()),
     );
@@ -4537,6 +4522,27 @@ extension GetItInjectableX on _i174.GetIt {
         crearUseCase: gh<_i60.CrearDevolucionUseCase>(),
         aprobarUseCase: gh<_i234.AprobarDevolucionUseCase>(),
         procesarUseCase: gh<_i1045.ProcesarDevolucionUseCase>(),
+      ),
+    );
+    gh.factory<_i1039.ComboCubit>(
+      () => _i1039.ComboCubit(
+        createComboUseCase: gh<_i53.CreateComboUseCase>(),
+        getCombos: gh<_i235.GetCombosUseCase>(),
+        getComboCompleto: gh<_i209.GetComboCompletoUseCase>(),
+        agregarComponente: gh<_i237.AgregarComponenteUseCase>(),
+        agregarComponentesBatch: gh<_i378.AgregarComponentesBatchUseCase>(),
+        getComponentes: gh<_i330.GetComponentesUseCase>(),
+        eliminarComboUseCase: gh<_i769.EliminarComboUseCase>(),
+        eliminarComponente: gh<_i40.EliminarComponenteUseCase>(),
+        eliminarComponentesBatch: gh<_i619.EliminarComponentesBatchUseCase>(),
+        getReservacionUseCase: gh<_i1031.GetReservacionUseCase>(),
+        reservarStockUseCase: gh<_i409.ReservarStockUseCase>(),
+        liberarReservaUseCase: gh<_i813.LiberarReservaUseCase>(),
+        actualizarPrecioComboUseCase: gh<_i1067.ActualizarPrecioComboUseCase>(),
+        actualizarOfertaComboUseCase: gh<_i370.ActualizarOfertaComboUseCase>(),
+        desactivarOfertaComboUseCase: gh<_i840.DesactivarOfertaComboUseCase>(),
+        getHistorialPreciosComboUseCase:
+            gh<_i824.GetHistorialPreciosComboUseCase>(),
       ),
     );
     gh.factory<_i685.CerrarCajaCubit>(

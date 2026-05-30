@@ -7,6 +7,7 @@ import '../../domain/entities/componente_combo.dart';
 import '../../domain/usecases/agregar_componente_usecase.dart';
 import '../../domain/usecases/agregar_componentes_batch_usecase.dart';
 import '../../domain/usecases/create_combo_usecase.dart';
+import '../../domain/usecases/eliminar_combo_usecase.dart';
 import '../../domain/usecases/eliminar_componente_usecase.dart';
 import '../../domain/usecases/eliminar_componentes_batch_usecase.dart';
 import '../../domain/usecases/get_combo_completo_usecase.dart';
@@ -32,6 +33,7 @@ class ComboCubit extends Cubit<ComboState> {
   final AgregarComponenteUseCase agregarComponente;
   final AgregarComponentesBatchUseCase agregarComponentesBatch;
   final GetComponentesUseCase getComponentes;
+  final EliminarComboUseCase eliminarComboUseCase;
   final EliminarComponenteUseCase eliminarComponente;
   final EliminarComponentesBatchUseCase eliminarComponentesBatch;
   final GetReservacionUseCase getReservacionUseCase;
@@ -49,6 +51,7 @@ class ComboCubit extends Cubit<ComboState> {
     required this.agregarComponente,
     required this.agregarComponentesBatch,
     required this.getComponentes,
+    required this.eliminarComboUseCase,
     required this.eliminarComponente,
     required this.eliminarComponentesBatch,
     required this.getReservacionUseCase,
@@ -79,6 +82,24 @@ class ComboCubit extends Cubit<ComboState> {
         error.message,
         errorCode: error.errorCode,
       ));
+    }
+  }
+
+  /// Elimina el combo completo (soft delete). No emite [ComboLoading]: la
+  /// lista se mantiene visible y la página recarga (silent) al recibir
+  /// [ComboOperationSuccess].
+  Future<void> deleteCombo({
+    required String comboId,
+    required String empresaId,
+  }) async {
+    final result = await eliminarComboUseCase(
+      comboId: comboId,
+      empresaId: empresaId,
+    );
+    if (result is Success) {
+      emit(const ComboOperationSuccess('Combo eliminado'));
+    } else if (result is Error) {
+      emit(ComboError(result.message, errorCode: result.errorCode));
     }
   }
 

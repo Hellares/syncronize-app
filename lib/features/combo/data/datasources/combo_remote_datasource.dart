@@ -137,6 +137,13 @@ class ComboRemoteDataSource {
         response.data as Map<String, dynamic>);
   }
 
+  /// Elimina el combo COMPLETO (soft delete). El combo es un Producto
+  /// (esCombo=true), así que reusa el endpoint genérico de producto:
+  /// DELETE /api/productos/:id — que hace soft-delete + FCM + bump.
+  Future<void> eliminarCombo({required String comboId}) async {
+    await _dioClient.delete('${ApiConstants.productos}/$comboId');
+  }
+
   /// Elimina un componente del combo
   ///
   /// DELETE /api/combos/componentes/:id

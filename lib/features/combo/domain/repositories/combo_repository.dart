@@ -66,6 +66,12 @@ abstract class ComboRepository {
   });
 
   /// Elimina un componente del combo
+  /// Elimina el combo completo (soft delete, reusa el endpoint de producto).
+  Future<Resource<void>> eliminarCombo({
+    required String comboId,
+    required String empresaId,
+  });
+
   Future<Resource<void>> eliminarComponente({
     required String componenteId,
     required String empresaId,

@@ -12,6 +12,7 @@ class ComboCard extends StatelessWidget {
   final VoidCallback? onTap;
   final VoidCallback? onEdit;
   final VoidCallback? onManageComponents;
+  final VoidCallback? onDelete;
 
   const ComboCard({
     super.key,
@@ -19,6 +20,7 @@ class ComboCard extends StatelessWidget {
     this.onTap,
     this.onEdit,
     this.onManageComponents,
+    this.onDelete,
   });
 
   @override
@@ -82,6 +84,16 @@ class ComboCard extends StatelessWidget {
                         ],
                       ),
                     ),
+                    if (onDelete != null)
+                      InkWell(
+                        onTap: onDelete,
+                        borderRadius: BorderRadius.circular(12),
+                        child: Padding(
+                          padding: const EdgeInsets.all(4),
+                          child: Icon(Icons.delete_outline,
+                              size: 18, color: Colors.red.shade400),
+                        ),
+                      ),
                     _buildPopupMenu(),
                   ],
                 ),

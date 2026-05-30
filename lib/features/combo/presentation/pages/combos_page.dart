@@ -20,6 +20,7 @@ import '../../domain/entities/combo.dart';
 import '../bloc/combo_cubit.dart';
 import '../bloc/combo_state.dart';
 import '../widgets/combo_card.dart';
+import '../../../../core/widgets/confirm_dialog.dart';
 
 class CombosPage extends StatelessWidget {
   final String empresaId;
@@ -81,6 +82,24 @@ class _CombosViewState extends State<_CombosView> {
           empresaId: widget.empresaId,
           sedeId: _getSedeId(),
           silent: silent,
+        );
+  }
+
+  /// Confirma y elimina el combo completo (soft-delete → papelera). Tras el
+  /// éxito, el listener recarga la lista en silencio.
+  Future<void> _confirmarEliminar(Combo combo) async {
+    final confirma = await ConfirmDialog.show(
+      context: context,
+      type: ConfirmDialogType.destructive,
+      title: 'Eliminar combo',
+      message: '¿Eliminar el combo "${combo.nombre}"? Deja de mostrarse en el '
+          'catálogo (soft-delete, recuperable desde la papelera).',
+      confirmText: 'Eliminar',
+    );
+    if (confirma != true || !mounted) return;
+    context.read<ComboCubit>().deleteCombo(
+          comboId: combo.id,
+          empresaId: widget.empresaId,
         );
   }
 
@@ -173,6 +192,9 @@ class _CombosViewState extends State<_CombosView> {
         style: GradientStyle.professional,
         child: SafeArea(
           child: BlocConsumer<ComboCubit, ComboState>(
+            // No reconstruir ante ComboOperationSuccess (delete): mantenemos
+            // la lista visible y el listener la recarga en silencio.
+            buildWhen: (prev, curr) => curr is! ComboOperationSuccess,
             listener: (context, state) {
               if (state is ComboError) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -181,6 +203,15 @@ class _CombosViewState extends State<_CombosView> {
                     backgroundColor: Colors.red,
                   ),
                 );
+              }
+              if (state is ComboOperationSuccess) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(state.message),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+                _loadCombos(silent: true);
               }
             },
             builder: (context, state) {
@@ -401,6 +432,7 @@ class _CombosViewState extends State<_CombosView> {
                 '/empresa/combos/${combo.id}/componentes?empresaId=${widget.empresaId}',
               );
             },
+            onDelete: () => _confirmarEliminar(combo),
           );
         },
       ),

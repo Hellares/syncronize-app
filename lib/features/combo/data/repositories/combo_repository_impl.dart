@@ -217,6 +217,26 @@ class ComboRepositoryImpl implements ComboRepository {
   }
 
   @override
+  Future<Resource<void>> eliminarCombo({
+    required String comboId,
+    required String empresaId,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error(
+        'No hay conexión a internet',
+        errorCode: 'NETWORK_ERROR',
+      );
+    }
+
+    try {
+      await _remoteDataSource.eliminarCombo(comboId: comboId);
+      return Success(null);
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Combo');
+    }
+  }
+
+  @override
   Future<Resource<void>> eliminarComponente({
     required String componenteId,
     required String empresaId,
