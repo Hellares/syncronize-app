@@ -131,19 +131,43 @@ class _CarritoView extends StatelessWidget {
                           );
                         }
                         final item = row.item!;
-                        // Items del combo: readonly de cantidad, pero
-                        // mantené pulsado para editarlos (quitar / sustituir /
-                        // descuento). La composición se cambia desde ahí.
+                        // Items del combo: cantidad editable (re-precia el
+                        // combo), swipe para quitar, y mantené pulsado para
+                        // sustituir / aplicar descuento.
                         if (item.origenComboId != null) {
-                          return GestureDetector(
-                            onLongPress: () => _mostrarMenuComponente(
-                                context, row.index!, item, state),
-                            child: Container(
-                              color: Colors.amber.shade50,
-                              child: _ItemRow(
-                                index: row.index!,
-                                item: item,
-                                readonly: true,
+                          return Dismissible(
+                            key: ValueKey(
+                                'combo_${item.productoId}_${item.varianteId ?? ''}_${row.index}'),
+                            direction: DismissDirection.endToStart,
+                            background: Container(
+                              color: Colors.red.shade400,
+                              alignment: Alignment.centerRight,
+                              padding: const EdgeInsets.only(right: 24),
+                              child: const Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  Icon(Icons.delete, color: Colors.white),
+                                  SizedBox(width: 8),
+                                  Text('Quitar',
+                                      style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                            ),
+                            onDismissed: (_) => context
+                                .read<VentaRapidaCubit>()
+                                .quitarComponenteCombo(row.index!),
+                            child: GestureDetector(
+                              onLongPress: () => _mostrarMenuComponente(
+                                  context, row.index!, item, state),
+                              child: Container(
+                                color: Colors.amber.shade50,
+                                child: _ItemRow(
+                                  index: row.index!,
+                                  item: item,
+                                  readonly: false,
+                                ),
                               ),
                             ),
                           );

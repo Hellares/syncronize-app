@@ -618,6 +618,28 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     // nueva cantidad (consistente con `decrementarProducto`).
     final icbperPerUnit =
         actual.cantidad > 0 ? actual.icbper / actual.cantidad : 0.0;
+
+    // Línea de combo: cambia la cantidad del componente y re-precia el
+    // grupo. No aplica niveles — el combo usa precio regular + prorrateo.
+    // En FIJO ajusta el objetivo por la diferencia de cantidad.
+    if (actual.origenComboId != null) {
+      final cantidadAnterior = actual.cantidad;
+      final lista = [...state.items];
+      lista[index] = actual.copyWith(
+        cantidad: cantidadFinal,
+        icbper: icbperPerUnit * cantidadFinal,
+      );
+      emit(state.copyWith(items: lista, clearError: true));
+      final esFijo = actual.comboTipoPrecio == 'fijo';
+      final nuevoObjetivoFijo = esFijo
+          ? ((actual.comboPrecioObjetivo ?? 0) +
+              actual.precioUnitario * (cantidadFinal - cantidadAnterior))
+          : null;
+      _recalcularCombo(actual.origenComboId!,
+          objetivoFijoOverride: nuevoObjetivoFijo, marcarModificado: true);
+      return;
+    }
+
     final nueva = actual
         .recalcularPrecioPorNiveles(cantidadFinal)
         .copyWith(icbper: icbperPerUnit * cantidadFinal);
