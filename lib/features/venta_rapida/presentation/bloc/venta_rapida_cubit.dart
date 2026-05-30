@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
 import '../../../../core/services/realtime_sync_service.dart';
+import '../../domain/combo_prorrateo.dart';
 import '../../../../core/utils/resource.dart';
 import '../../../combo/domain/entities/combo.dart';
 import '../../../combo/domain/repositories/combo_repository.dart';
@@ -377,59 +378,33 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     final pct = lineas.first.comboDescuentoPct ?? 0;
     final modificado = marcarModificado ?? lineas.first.comboModificado;
 
+    // Objetivo de precio del combo (solo relevante para FIJO; los demás los
+    // deriva el helper desde las líneas). Se guarda en cada línea.
     final regularTotal =
         lineas.fold<double>(0, (s, l) => s + l.precioUnitario * l.cantidad);
-    // Liquidación gana sola: las líneas en liquidación se venden a su precio
-    // de remate y NO reciben descuento del combo. El descuento se reparte
-    // SOLO entre las líneas sin liquidación.
-    final regularNoLiq = lineas
-        .where((l) => !l.enLiquidacion)
-        .fold<double>(0, (s, l) => s + l.precioUnitario * l.cantidad);
-    final regularLiq = regularTotal - regularNoLiq;
+    final objetivoFijo = tipo == 'fijo'
+        ? (objetivoFijoOverride ?? lineas.first.comboPrecioObjetivo ?? regularTotal)
+        : null;
 
-    double objetivo;
-    switch (tipo) {
-      case 'calculadoConDescuento':
-        // Liquidación a precio pleno; el resto con el % del combo.
-        objetivo = regularLiq + regularNoLiq * (1 - pct / 100);
-        break;
-      case 'fijo':
-        objetivo = objetivoFijoOverride ??
-            lineas.first.comboPrecioObjetivo ??
-            regularTotal;
-        break;
-      default: // calculado
-        objetivo = regularTotal;
-    }
-    objetivo = objetivo.clamp(0, regularTotal).toDouble();
-    // El descuento solo puede salir de las líneas sin liquidación.
-    final descuentoTotal =
-        (regularTotal - objetivo).clamp(0, regularNoLiq).toDouble();
-    // Última línea sin liquidación: compensa el redondeo del prorrateo.
-    final ultimoNoLiq = lineas.lastIndexWhere((l) => !l.enLiquidacion);
+    // Prorrateo puro (excluye liquidación, reparte solo en las no-liq).
+    final descuentosCombo = prorratearDescuentoCombo(
+      lineas: lineas
+          .map((l) => (
+                regular: l.precioUnitario * l.cantidad,
+                enLiquidacion: l.enLiquidacion,
+              ))
+          .toList(),
+      tipo: tipo ?? 'calculado',
+      descuentoPct: pct,
+      objetivoFijo: objetivoFijo,
+    );
 
-    double acumulado = 0;
     final recomputadas = <VentaDetalleInput>[];
     for (var i = 0; i < lineas.length; i++) {
       final l = lineas[i];
-      double descCombo;
-      if (l.enLiquidacion) {
-        descCombo = 0;
-      } else if (i == ultimoNoLiq) {
-        descCombo = descuentoTotal - acumulado;
-      } else if (regularNoLiq > 0) {
-        final lineaRegular = l.precioUnitario * l.cantidad;
-        descCombo =
-            (descuentoTotal * (lineaRegular / regularNoLiq) * 100).round() /
-                100.0;
-      } else {
-        descCombo = 0;
-      }
-      if (descCombo < 0) descCombo = 0;
-      acumulado += descCombo;
       recomputadas.add(l.copyWith(
-        descuento: descCombo + l.descuentoManual,
-        comboPrecioObjetivo: objetivo,
+        descuento: descuentosCombo[i] + l.descuentoManual,
+        comboPrecioObjetivo: objetivoFijo ?? l.comboPrecioObjetivo,
         comboModificado: modificado,
       ));
     }
