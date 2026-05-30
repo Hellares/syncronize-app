@@ -554,7 +554,11 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                                   ),
                                 ),
                                 // Nivel/precio aplicado al vender (snapshot).
-                                if (detalles[i].nivelAplicadoSnapshot != null) ...[
+                                // Las líneas de combo expandido (origenComboId)
+                                // no muestran nivel: su precio es regular +
+                                // descuento prorrateado, no un nivel real.
+                                if (detalles[i].nivelAplicadoSnapshot != null &&
+                                    detalles[i].origenComboId == null) ...[
                                   const SizedBox(height: 2),
                                   Container(
                                     padding: const EdgeInsets.symmetric(
