@@ -215,13 +215,19 @@ class ComboCubit extends Cubit<ComboState> {
     }
   }
 
-  /// Carga los componentes de un combo
+  /// Carga los componentes de un combo.
+  ///
+  /// [silent]: refresh en background (realtime/heartbeat). No emite
+  /// [ComboLoading] ni reemplaza la lista visible ante un error transitorio.
   Future<void> loadComponentes({
     required String comboId,
     required String empresaId,
     required String sedeId,
+    bool silent = false,
   }) async {
-    emit(ComboLoading());
+    if (!silent) {
+      emit(ComboLoading());
+    }
 
     final result = await getComponentes(
       comboId: comboId,
@@ -232,6 +238,7 @@ class ComboCubit extends Cubit<ComboState> {
     if (result is Success<List<ComponenteCombo>>) {
       emit(ComponentesLoaded(result.data));
     } else if (result is Error) {
+      if (silent && state is ComponentesLoaded) return;
       final error = result as Error;
       emit(ComboError(
         error.message,

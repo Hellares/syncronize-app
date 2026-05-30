@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/widgets/custom_button.dart';
 import 'package:syncronize/core/widgets/floating_button_text.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
+import 'package:syncronize/core/services/realtime_sync_service.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
@@ -76,6 +79,91 @@ class _ComboComponentesViewState extends State<_ComboComponentesView> {
 
   // Flag para trackear si hubo cambios (agregar/eliminar componentes)
   bool _huboCambios = false;
+
+  // Realtime: refresca los componentes ante cambios hechos desde otro
+  // dispositivo (componentes del combo, o precio/stock de un componente)
+  // y el heartbeat. Silencioso y solo fuera del modo selección.
+  StreamSubscription<RealtimeEvent>? _realtimeSub;
+  Timer? _realtimeDebounce;
+
+  @override
+  void initState() {
+    super.initState();
+    _suscribirRealtime();
+  }
+
+  @override
+  void dispose() {
+    _realtimeDebounce?.cancel();
+    _realtimeSub?.cancel();
+    super.dispose();
+  }
+
+  void _suscribirRealtime() {
+    final realtime = locator<RealtimeSyncService>();
+    _realtimeSub = realtime.events.listen((event) {
+      if (_eventEmpresaId(event) != widget.empresaId) return;
+      if (_modoSeleccion) return; // no interrumpir selección/eliminación
+      if (!_esEventoRelevante(event)) return;
+      _realtimeDebounce?.cancel();
+      _realtimeDebounce = Timer(const Duration(milliseconds: 500), () {
+        if (!mounted || _modoSeleccion) return;
+        context.read<ComboCubit>().loadComponentes(
+              comboId: widget.comboId,
+              empresaId: widget.empresaId,
+              sedeId: widget.sedeId,
+              silent: true,
+            );
+      });
+    });
+  }
+
+  /// Solo recarga ante eventos que afectan a ESTE combo o a alguno de sus
+  /// componentes; el heartbeat siempre revalida como red de seguridad.
+  bool _esEventoRelevante(RealtimeEvent event) {
+    if (event is RealtimeHeartbeat) return true;
+    final pid = _eventProductoId(event);
+    final vid = _eventVarianteId(event);
+    if (pid == null && vid == null) return true; // cambio masivo
+    if (pid == widget.comboId) return true; // cambios estructurales del combo
+    final st = context.read<ComboCubit>().state;
+    if (st is ComponentesLoaded) {
+      for (final c in st.componentes) {
+        if (pid != null && c.componenteProductoId == pid) return true;
+        if (vid != null && c.componenteVarianteId == vid) return true;
+      }
+    }
+    return false;
+  }
+
+  String? _eventEmpresaId(RealtimeEvent event) {
+    if (event is RealtimeProductoCreado) return event.empresaId;
+    if (event is RealtimeProductoActualizado) return event.empresaId;
+    if (event is RealtimePrecioCambiado) return event.empresaId;
+    if (event is RealtimeStockCambiado) return event.empresaId;
+    if (event is RealtimeNivelesCambiados) return event.empresaId;
+    if (event is RealtimeImagenCambiada) return event.empresaId;
+    if (event is RealtimeHeartbeat) return event.empresaId;
+    return null;
+  }
+
+  String? _eventProductoId(RealtimeEvent event) {
+    if (event is RealtimeProductoCreado) return event.productoId;
+    if (event is RealtimeProductoActualizado) return event.productoId;
+    if (event is RealtimePrecioCambiado) return event.productoId;
+    if (event is RealtimeStockCambiado) return event.productoId;
+    if (event is RealtimeNivelesCambiados) return event.productoId;
+    if (event is RealtimeImagenCambiada) return event.productoId;
+    return null;
+  }
+
+  String? _eventVarianteId(RealtimeEvent event) {
+    if (event is RealtimePrecioCambiado) return event.varianteId;
+    if (event is RealtimeStockCambiado) return event.varianteId;
+    if (event is RealtimeNivelesCambiados) return event.varianteId;
+    if (event is RealtimeImagenCambiada) return event.varianteId;
+    return null;
+  }
 
   void _toggleModoSeleccion() {
     setState(() {
