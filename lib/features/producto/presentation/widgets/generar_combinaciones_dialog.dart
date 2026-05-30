@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/app_gradients.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
-import 'package:syncronize/core/widgets/info_chip.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../auth/presentation/widgets/custom_text.dart';
 import '../../domain/entities/producto_atributo.dart';
@@ -151,6 +150,7 @@ class _GenerarCombinacionesDialogState
     final screenHeight = MediaQuery.of(context).size.height;
 
     return Dialog(
+      backgroundColor: Colors.white,
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: ConstrainedBox(
@@ -163,7 +163,7 @@ class _GenerarCombinacionesDialogState
           children: [
             // Header
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(10),
               decoration: const BoxDecoration(
                 color: AppColors.blue1,
                 borderRadius: BorderRadius.only(
@@ -173,8 +173,8 @@ class _GenerarCombinacionesDialogState
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.auto_awesome, color: Colors.white, size: 24),
-                  const SizedBox(width: 12),
+                  const Icon(Icons.auto_awesome, color: Colors.white, size: 18),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -183,7 +183,7 @@ class _GenerarCombinacionesDialogState
                           'Generar Variantes por Combinacion',
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: 14,
+                            fontSize: 12,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -191,7 +191,7 @@ class _GenerarCombinacionesDialogState
                           widget.productoNombre,
                           style: const TextStyle(
                             color: Colors.white70,
-                            fontSize: 11,
+                            fontSize: 10,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -211,7 +211,7 @@ class _GenerarCombinacionesDialogState
             // Body
             Flexible(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(12),
                 child: Form(
                   key: _formKey,
                   child: Column(
@@ -247,12 +247,11 @@ class _GenerarCombinacionesDialogState
                         ],
                       ),
                       const Divider(),
-                      const SizedBox(height: 8),
 
                       // Atributos con chips seleccionables
                       if (_atributos.isEmpty)
                         Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          padding: const EdgeInsets.symmetric(vertical: 10),
                           child: Center(
                             child: Column(
                               children: [
@@ -276,7 +275,7 @@ class _GenerarCombinacionesDialogState
                       else ...[
                         ..._atributos.map((atributo) {
                           return Padding(
-                            padding: const EdgeInsets.only(bottom: 16),
+                            padding: const EdgeInsets.only(bottom: 10),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -284,21 +283,38 @@ class _GenerarCombinacionesDialogState
                                   atributo.nombre,
                                   style: const TextStyle(
                                     fontWeight: FontWeight.w600,
-                                    fontSize: 13,
+                                    fontSize: 11,
                                     color: AppColors.blue1,
                                   ),
                                 ),
-                                const SizedBox(height: 8),
+                                const SizedBox(height: 3),
                                 Wrap(
-                                  spacing: 8,
-                                  runSpacing: 8,
+                                  spacing: 6,
+                                  runSpacing: 6,
                                   children: atributo.valores.map((valor) {
                                     final isSelected =
                                         _selectedValues[atributo.atributoId]
                                                 ?.contains(valor) ??
                                             false;
-                                    return InfoChip(
-                                      text: valor,
+                                    return FilterChip(
+                                      label: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          if (isSelected) ...[
+                                            const Icon(Icons.check,
+                                                size: 12, color: Colors.white),
+                                            const SizedBox(width: 3),
+                                          ],
+                                          Text(valor,
+                                              style: TextStyle(
+                                                  fontSize: 8,
+                                                  color: isSelected
+                                                      ? Colors.white
+                                                      : null)),
+                                        ],
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 3),
                                       selected: isSelected,
                                       onSelected: (selected) {
                                         setState(() {
@@ -313,18 +329,19 @@ class _GenerarCombinacionesDialogState
                                           }
                                         });
                                       },
-                                      backgroundColor: AppColors.bluechip,
-                                      textColor: AppColors.blue2,
-                                      selectedBackgroundColor: AppColors.blue1,
-                                      selectedTextColor: Colors.white,
-                                      borderColor: AppColors.blue1,
-                                      borderWidth: 1,
-                                      borderRadius: 20,
-                                      showCheckmark: true,
-                                      fontSize: 12,
-                                      contentPadding:
-                                          const EdgeInsets.symmetric(
-                                              horizontal: 12, vertical: 6),
+                                      selectedColor: AppColors.blue1,
+                                      showCheckmark: false,
+                                      backgroundColor: Colors.white,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(6),
+                                        side: BorderSide(
+                                            color: isSelected
+                                                ? AppColors.blue1
+                                                : Colors.grey.shade300),
+                                      ),
+                                      visualDensity: VisualDensity.compact,
+                                      materialTapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
                                     );
                                   }).toList(),
                                 ),
@@ -335,7 +352,7 @@ class _GenerarCombinacionesDialogState
                       ],
 
                       const Divider(),
-                      const SizedBox(height: 8),
+                      //const SizedBox(height: 8),
 
                       // Precio base
                       CustomText(
@@ -357,7 +374,7 @@ class _GenerarCombinacionesDialogState
                           return null;
                         },
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 6),
 
                       // Precio costo
                       CustomText(
@@ -380,11 +397,11 @@ class _GenerarCombinacionesDialogState
                         },
                       ),
 
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 10),
 
                       // Stock distribution
                       Text('Stock Inicial',
-                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.blue1)),
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.blue1)),
                       const SizedBox(height: 8),
                       Row(
                         children: [
@@ -489,7 +506,7 @@ class _GenerarCombinacionesDialogState
                                     'Preview: ${combos.length} variantes',
                                     style: const TextStyle(
                                       fontWeight: FontWeight.bold,
-                                      fontSize: 13,
+                                      fontSize: 11,
                                       color: AppColors.blue1,
                                     ),
                                   ),
@@ -502,7 +519,7 @@ class _GenerarCombinacionesDialogState
                                   child: Text(
                                     'Maximo 50 combinaciones permitidas. Reduzca la seleccion.',
                                     style: TextStyle(
-                                        color: Colors.red, fontSize: 12),
+                                        color: Colors.red, fontSize: 9),
                                   ),
                                 ),
                               ...combos.take(20).map((combo) {
@@ -517,7 +534,7 @@ class _GenerarCombinacionesDialogState
                                       Expanded(
                                         child: Text(
                                           _nombreCombinacion(combo),
-                                          style: const TextStyle(fontSize: 12),
+                                          style: const TextStyle(fontSize: 9),
                                         ),
                                       ),
                                     ],
@@ -530,7 +547,7 @@ class _GenerarCombinacionesDialogState
                                   child: Text(
                                     '... y ${combos.length - 20} mas',
                                     style: const TextStyle(
-                                      fontSize: 11,
+                                      fontSize: 9,
                                       color: Colors.grey,
                                       fontStyle: FontStyle.italic,
                                     ),

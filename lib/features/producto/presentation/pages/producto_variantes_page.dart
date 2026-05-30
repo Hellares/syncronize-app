@@ -276,43 +276,132 @@ class _ProductoVariantesViewState extends State<_ProductoVariantesView> {
   }
 
   Widget _buildFab() {
-    return PopupMenuButton<String>(
-      onSelected: (value) {
-        if (value == 'nueva') {
-          _showVarianteDialog(null);
-        } else if (value == 'combinaciones') {
-          _showGenerarCombinacionesDialog();
-        }
-      },
-      itemBuilder: (context) => [
-        const PopupMenuItem(
-          value: 'nueva',
-          child: Row(
-            children: [
-              Icon(Icons.add, size: 20, color: AppColors.blue1),
-              SizedBox(width: 8),
-              Text('Nueva Variante'),
-            ],
-          ),
-        ),
-        const PopupMenuItem(
-          value: 'combinaciones',
-          child: Row(
-            children: [
-              Icon(Icons.auto_awesome, size: 20, color: AppColors.blue1),
-              SizedBox(width: 8),
-              Text('Generar Combinaciones'),
-            ],
-          ),
-        ),
-      ],
-      child: FloatingActionButton.extended(
-        heroTag: 'producto_variantes_fab',
-        onPressed: null,
-        icon: const Icon(Icons.add),
-        label: const Text('Variantes'),
+    return FloatingActionButton.extended(
+      heroTag: 'producto_variantes_fab',
+      onPressed: _showAgregarVarianteMenu,
+      backgroundColor: AppColors.blue1,
+      foregroundColor: Colors.white,
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      icon: const Icon(Icons.add, size: 20),
+      label: const Text(
+        'Agregar',
+        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
       ),
-     
+    );
+  }
+
+  /// Bottom sheet estilizado con las opciones para agregar variantes.
+  void _showAgregarVarianteMenu() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                margin: const EdgeInsets.only(top: 10),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: AppColors.blue1.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.tune,
+                          color: AppColors.blue1, size: 18),
+                    ),
+                    const SizedBox(width: 10),
+                    const AppSubtitle('Agregar variantes'),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              _menuOpcion(
+                icon: Icons.add,
+                titulo: 'Nueva variante',
+                subtitulo: 'Crear una variante manualmente',
+                onTap: () {
+                  Navigator.pop(sheetCtx);
+                  _showVarianteDialog(null);
+                },
+              ),
+              _menuOpcion(
+                icon: Icons.auto_awesome,
+                titulo: 'Generar combinaciones',
+                subtitulo: 'Crea variantes desde los atributos del producto',
+                onTap: () {
+                  Navigator.pop(sheetCtx);
+                  _showGenerarCombinacionesDialog();
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _menuOpcion({
+    required IconData icon,
+    required String titulo,
+    required String subtitulo,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.blue1.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: AppColors.blue1, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    titulo,
+                    style: const TextStyle(
+                        fontSize: 14, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitulo,
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, size: 20, color: Colors.grey.shade400),
+          ],
+        ),
+      ),
     );
   }
 
