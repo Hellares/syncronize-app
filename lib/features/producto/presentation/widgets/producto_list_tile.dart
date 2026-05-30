@@ -13,6 +13,7 @@ class ProductoListTile extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback? onManageFiles;
   final VoidCallback? onViewVariants;
+  final VoidCallback? onManageVariants; // Navega directo a gestión de variantes
   final VoidCallback? onStockDoubleTap;
   final VoidCallback? onPrecioTap; // Callback para configurar precios
   final VoidCallback? onComponentesTap; // Callback para componentes/BOM
@@ -25,6 +26,7 @@ class ProductoListTile extends StatelessWidget {
     required this.sedeId,
     this.onManageFiles,
     this.onViewVariants,
+    this.onManageVariants,
     this.onStockDoubleTap,
     this.onPrecioTap,
     this.onComponentesTap,
@@ -677,6 +679,37 @@ class ProductoListTile extends StatelessWidget {
                   ),
                 ),
               ),
+              // GESTIONAR badge → navega directo a la gestión de variantes
+              if (onManageVariants != null) ...[
+                const SizedBox(width: 4),
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: onManageVariants,
+                    borderRadius: BorderRadius.circular(4),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4.5),
+                      decoration: BoxDecoration(
+                        color: AppColors.blue1,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.tune, size: 10, color: Colors.white),
+                          const SizedBox(width: 4),
+                          AppSubtitle(
+                            'GESTIONAR',
+                            fontSize: 8,
+                            color: Colors.white,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ],
           ],
         ),

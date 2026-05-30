@@ -446,6 +446,21 @@ class _ProductosPageState extends State<ProductosPage>
     );
   }
 
+  /// Navega directo a la pantalla de gestión de variantes del producto
+  /// (crear/editar/eliminar variantes y sus atributos), sin pasar por la
+  /// edición del producto. Al volver, refresca la lista.
+  void _manageVariantes(ProductoListItem producto) {
+    context
+        .push(
+          '/empresa/productos/${producto.id}/variantes'
+          '?nombre=${Uri.encodeComponent(producto.nombre)}'
+          '&isActive=${producto.isActive}',
+        )
+        .then((_) {
+      if (mounted) _loadProductos();
+    });
+  }
+
   Future<void> _handleStockDoubleTap(ProductoListItem producto) async {
     final empresaState = context.read<EmpresaContextCubit>().state;
     if (empresaState is! EmpresaContextLoaded) return;
@@ -1136,6 +1151,9 @@ class _ProductosPageState extends State<ProductosPage>
                       _showArchivoManager(producto.id, producto.nombre),
                   onViewVariants: producto.tieneVariantes
                       ? () => _showVariantes(producto.id, producto.nombre)
+                      : null,
+                  onManageVariants: producto.tieneVariantes
+                      ? () => _manageVariantes(producto)
                       : null,
                   onStockDoubleTap: () => _handleStockDoubleTap(producto),
                   onPrecioTap: () => _handlePrecioTap(producto),
