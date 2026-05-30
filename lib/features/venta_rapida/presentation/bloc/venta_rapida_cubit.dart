@@ -308,41 +308,17 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
   /// El último componente compensa centavos de redondeo para que la suma
   /// `Σ (precioUnitario·cantidad − descuento)` sea exactamente `precioFinal`.
   void _expandirYAgregarCombo(Combo combo) {
-    final precioFinal = combo.precioFinal;
-    final precioRegularTotal = combo.precioRegularTotal;
-    final descuentoTotal = (precioRegularTotal - precioFinal).clamp(0, double.infinity).toDouble();
     final igvPorc = state.impuestoPorcentaje;
-    final componentes = combo.componentes;
-
-    double descuentoAcumulado = 0;
-    final nuevos = <VentaDetalleInput>[];
-    for (var i = 0; i < componentes.length; i++) {
-      final c = componentes[i];
-      final esUltimo = i == componentes.length - 1;
+    final nuevos = combo.componentes.map((c) {
       final precioRegularComponente = c.precioUnitarioRegular;
-      final precioRegularTotalComp = precioRegularComponente * c.cantidad;
-
-      double descuentoComponente;
-      if (esUltimo) {
-        // El último compensa el redondeo: completa el descuento total.
-        descuentoComponente = descuentoTotal - descuentoAcumulado;
-      } else if (precioRegularTotal > 0) {
-        descuentoComponente =
-            descuentoTotal * (precioRegularTotalComp / precioRegularTotal);
-        descuentoComponente = (descuentoComponente * 100).round() / 100.0;
-      } else {
-        descuentoComponente = descuentoTotal / componentes.length;
-        descuentoComponente = (descuentoComponente * 100).round() / 100.0;
-      }
-      descuentoAcumulado += descuentoComponente;
-
-      nuevos.add(VentaDetalleInput(
+      return VentaDetalleInput(
         productoId: c.componenteProductoId,
         varianteId: c.componenteVarianteId,
         descripcion: c.nombre,
         cantidad: c.cantidad.toDouble(),
         precioUnitario: precioRegularComponente,
-        descuento: descuentoComponente,
+        descuento: 0,
+        descuentoManual: 0,
         precioBase: precioRegularComponente,
         porcentajeIGV: igvPorc,
         precioIncluyeIgv: true,
@@ -351,13 +327,241 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
         stockDisponible: c.stockDisponible,
         origenComboId: combo.id,
         origenComboNombre: combo.nombre,
-      ));
-    }
+        // Contexto de pricing para re-precio al editar componentes.
+        comboTipoPrecio: combo.tipoPrecioCombo.name,
+        comboDescuentoPct: combo.descuentoPorcentaje,
+        comboPrecioObjetivo: combo.precioFinal,
+        comboModificado: false,
+      );
+    }).toList();
 
     emit(state.copyWith(
       items: [...state.items, ...nuevos],
       clearError: true,
     ));
+    // Prorratea el descuento del combo entre las líneas según su regla.
+    _recalcularCombo(combo.id);
+  }
+
+  /// Re-prorratea el descuento del combo entre sus líneas según la regla de
+  /// pricing, preservando y apilando el descuento manual de cada línea.
+  ///
+  /// Objetivo de precio del combo:
+  /// - `calculado`: suma de componentes (sin descuento).
+  /// - `calculadoConDescuento`: suma × (1 − %).
+  /// - `fijo`: [objetivoFijoOverride] si viene (al editar un componente se
+  ///   ajusta por la diferencia de precio), si no el `comboPrecioObjetivo`
+  ///   guardado.
+  ///
+  /// `descuento` de cada línea queda en `prorrateoCombo + descuentoManual`.
+  /// El último componente compensa el redondeo para que la suma cuadre.
+  void _recalcularCombo(
+    String origenComboId, {
+    double? objetivoFijoOverride,
+    bool? marcarModificado,
+  }) {
+    final lineas =
+        state.items.where((i) => i.origenComboId == origenComboId).toList();
+    if (lineas.isEmpty) return;
+
+    final tipo = lineas.first.comboTipoPrecio;
+    final pct = lineas.first.comboDescuentoPct ?? 0;
+    final modificado = marcarModificado ?? lineas.first.comboModificado;
+
+    final regularTotal =
+        lineas.fold<double>(0, (s, l) => s + l.precioUnitario * l.cantidad);
+
+    double objetivo;
+    switch (tipo) {
+      case 'calculadoConDescuento':
+        objetivo = regularTotal * (1 - pct / 100);
+        break;
+      case 'fijo':
+        objetivo = objetivoFijoOverride ??
+            lineas.first.comboPrecioObjetivo ??
+            regularTotal;
+        break;
+      default: // calculado
+        objetivo = regularTotal;
+    }
+    objetivo = objetivo.clamp(0, regularTotal).toDouble();
+    final descuentoTotal =
+        (regularTotal - objetivo).clamp(0, double.infinity).toDouble();
+
+    double acumulado = 0;
+    final recomputadas = <VentaDetalleInput>[];
+    for (var i = 0; i < lineas.length; i++) {
+      final l = lineas[i];
+      final esUltimo = i == lineas.length - 1;
+      final lineaRegular = l.precioUnitario * l.cantidad;
+      double descCombo;
+      if (esUltimo) {
+        descCombo = descuentoTotal - acumulado;
+      } else if (regularTotal > 0) {
+        descCombo =
+            (descuentoTotal * (lineaRegular / regularTotal) * 100).round() /
+                100.0;
+      } else {
+        descCombo = (descuentoTotal / lineas.length * 100).round() / 100.0;
+      }
+      if (descCombo < 0) descCombo = 0;
+      acumulado += descCombo;
+      recomputadas.add(l.copyWith(
+        descuento: descCombo + l.descuentoManual,
+        comboPrecioObjetivo: objetivo,
+        comboModificado: modificado,
+      ));
+    }
+
+    var idx = 0;
+    final items = state.items.map((it) {
+      if (it.origenComboId == origenComboId) {
+        return recomputadas[idx++];
+      }
+      return it;
+    }).toList();
+    emit(state.copyWith(items: items, clearError: true));
+  }
+
+  /// Quita el componente en [index] (debe ser línea de combo) y re-precia
+  /// el grupo. En FIJO baja el objetivo por el precio del componente
+  /// quitado (la diferencia se descuenta del total). Marca "Modificado".
+  void quitarComponenteCombo(int index) {
+    if (index < 0 || index >= state.items.length) return;
+    final linea = state.items[index];
+    final comboId = linea.origenComboId;
+    if (comboId == null) return;
+
+    final esFijo = linea.comboTipoPrecio == 'fijo';
+    final nuevoObjetivoFijo = esFijo
+        ? ((linea.comboPrecioObjetivo ?? 0) -
+            linea.precioUnitario * linea.cantidad)
+        : null;
+
+    final lista = [...state.items]..removeAt(index);
+    emit(state.copyWith(items: lista, clearError: true));
+
+    if (lista.any((i) => i.origenComboId == comboId)) {
+      _recalcularCombo(comboId,
+          objetivoFijoOverride: nuevoObjetivoFijo, marcarModificado: true);
+    }
+  }
+
+  /// Agrega un producto/variante como componente nuevo de un combo
+  /// existente (ej. sumar un accesorio al kit). En FIJO sube el objetivo
+  /// por el precio del nuevo componente. Marca "Modificado".
+  void agregarComponenteACombo(
+    String origenComboId,
+    ProductoListItem producto, {
+    ProductoVariante? variante,
+    int cantidad = 1,
+  }) {
+    final grupo =
+        state.items.where((i) => i.origenComboId == origenComboId).toList();
+    if (grupo.isEmpty) return;
+    final ctx = grupo.first;
+    final nueva = _construirLineaComponente(
+      origenComboId: origenComboId,
+      ctx: ctx,
+      producto: producto,
+      variante: variante,
+      cantidad: cantidad.toDouble(),
+    );
+
+    final lista = [...state.items];
+    final ultimoIdx =
+        lista.lastIndexWhere((i) => i.origenComboId == origenComboId);
+    lista.insert(ultimoIdx + 1, nueva);
+    emit(state.copyWith(items: lista, clearError: true));
+
+    final esFijo = ctx.comboTipoPrecio == 'fijo';
+    final nuevoObjetivoFijo = esFijo
+        ? ((ctx.comboPrecioObjetivo ?? 0) +
+            nueva.precioUnitario * nueva.cantidad)
+        : null;
+    _recalcularCombo(origenComboId,
+        objetivoFijoOverride: nuevoObjetivoFijo, marcarModificado: true);
+  }
+
+  /// Sustituye el componente en [index] por otro producto/variante (ej.
+  /// upgrade de un componente del kit), conservando la cantidad. En FIJO
+  /// ajusta el objetivo por la diferencia de precio. Marca "Modificado".
+  void sustituirComponenteCombo(
+    int index,
+    ProductoListItem producto, {
+    ProductoVariante? variante,
+  }) {
+    if (index < 0 || index >= state.items.length) return;
+    final vieja = state.items[index];
+    final comboId = vieja.origenComboId;
+    if (comboId == null) return;
+
+    final nueva = _construirLineaComponente(
+      origenComboId: comboId,
+      ctx: vieja,
+      producto: producto,
+      variante: variante,
+      cantidad: vieja.cantidad,
+    );
+
+    final lista = [...state.items];
+    lista[index] = nueva;
+    emit(state.copyWith(items: lista, clearError: true));
+
+    final esFijo = vieja.comboTipoPrecio == 'fijo';
+    final delta = nueva.precioUnitario * nueva.cantidad -
+        vieja.precioUnitario * vieja.cantidad;
+    final nuevoObjetivoFijo =
+        esFijo ? ((vieja.comboPrecioObjetivo ?? 0) + delta) : null;
+    _recalcularCombo(comboId,
+        objetivoFijoOverride: nuevoObjetivoFijo, marcarModificado: true);
+  }
+
+  /// Construye una línea-componente de combo a partir de un producto/
+  /// variante del catálogo, precio efectivo de sede (base/oferta/liq) y el
+  /// contexto de pricing del combo [ctx]. El descuento del combo lo
+  /// recalcula `_recalcularCombo` después.
+  VentaDetalleInput _construirLineaComponente({
+    required String origenComboId,
+    required VentaDetalleInput ctx,
+    required ProductoListItem producto,
+    ProductoVariante? variante,
+    required double cantidad,
+  }) {
+    final sedeId = state.sedeId ?? '';
+    final precio = variante?.precioEfectivoEnSede(sedeId) ??
+        variante?.precioEnSede(sedeId) ??
+        producto.precioEfectivoEnSede(sedeId) ??
+        producto.precioEnSede(sedeId) ??
+        0.0;
+    final igvPorc = producto.impuestoPorcentaje ?? state.impuestoPorcentaje;
+    return VentaDetalleInput(
+      productoId: producto.id,
+      varianteId: variante?.id,
+      descripcion: variante != null
+          ? '${producto.nombre} - ${variante.nombre}'
+          : producto.nombre,
+      cantidad: cantidad,
+      precioUnitario: precio,
+      precioBase: precio,
+      descuento: 0,
+      descuentoManual: 0,
+      porcentajeIGV: igvPorc,
+      precioIncluyeIgv: producto.precioIncluyeIgvEnSede(sedeId),
+      tipoAfectacion: _mapTipoAfectacion(producto.tipoAfectacionIgv),
+      icbper: producto.aplicaIcbper ? 0.20 : 0.0,
+      stockDisponible:
+          variante?.stockEnSede(sedeId) ?? producto.stockEnSede(sedeId),
+      origenComboId: origenComboId,
+      origenComboNombre: ctx.origenComboNombre,
+      comboTipoPrecio: ctx.comboTipoPrecio,
+      comboDescuentoPct: ctx.comboDescuentoPct,
+      comboPrecioObjetivo: ctx.comboPrecioObjetivo,
+      comboModificado: true,
+      precioCostoSnapshot: producto.precioCostoEnSede(sedeId),
+      enLiquidacion: variante?.enLiquidacionEnSede(sedeId) ??
+          producto.enLiquidacionEnSede(sedeId),
+    );
   }
 
   /// Devuelve los niveles de precio del producto. Delegada al
@@ -422,39 +626,56 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     emit(state.copyWith(items: lista, clearError: true));
   }
 
+  /// Setea el descuento MANUAL de una línea (por ítem / global) preservando
+  /// el prorrateo del combo, y lo apila: `descuento = prorrateoCombo +
+  /// manual`. En líneas sueltas el prorrateo es 0, así que `descuento ==
+  /// manual` (comportamiento de siempre). El manual se capea para que el
+  /// total de descuento no supere el bruto de la línea.
+  VentaDetalleInput _conDescuentoManual(VentaDetalleInput l, double manual) {
+    final bruto = l.cantidad * l.precioUnitario;
+    final prorrateoCombo =
+        (l.descuento - l.descuentoManual).clamp(0, double.infinity).toDouble();
+    final topeManual = (bruto - prorrateoCombo).clamp(0, double.infinity).toDouble();
+    final manualFinal = manual.clamp(0, topeManual).toDouble();
+    return l.copyWith(
+      descuentoManual: manualFinal,
+      descuento: prorrateoCombo + manualFinal,
+    );
+  }
+
   void actualizarDescuento(int index, double porcentaje) {
     if (index < 0 || index >= state.items.length) return;
     final actual = state.items[index];
-    final descuentoCalc = (actual.cantidad * actual.precioUnitario) * (porcentaje / 100);
+    final monto = (actual.cantidad * actual.precioUnitario) * (porcentaje / 100);
     final lista = [...state.items];
-    lista[index] = actual.copyWith(descuento: descuentoCalc);
+    lista[index] = _conDescuentoManual(actual, monto);
     emit(state.copyWith(items: lista, clearError: true));
   }
 
   void actualizarDescuentoMonto(int index, double monto) {
     if (index < 0 || index >= state.items.length) return;
-    final actual = state.items[index];
-    final bruto = actual.cantidad * actual.precioUnitario;
-    final descuentoFinal = monto.clamp(0, bruto).toDouble();
     final lista = [...state.items];
-    lista[index] = actual.copyWith(descuento: descuentoFinal);
+    lista[index] = _conDescuentoManual(state.items[index], monto);
     emit(state.copyWith(items: lista, clearError: true));
   }
 
+  /// Aplica un descuento global por porcentaje a TODAS las líneas, incluidas
+  /// las de combo (se apila sobre el ahorro prorrateado del combo).
   void aplicarDescuentoGlobal(double porcentaje) {
     if (porcentaje <= 0 || porcentaje > 100) return;
     final lista = state.items.map((item) {
-      if (item.origenComboId != null) return item;
-      final descuentoCalc = (item.cantidad * item.precioUnitario) * (porcentaje / 100);
-      return item.copyWith(descuento: descuentoCalc);
+      final manual = (item.cantidad * item.precioUnitario) * (porcentaje / 100);
+      return _conDescuentoManual(item, manual);
     }).toList();
     emit(state.copyWith(items: lista, clearError: true));
   }
 
+  /// Limpia los descuentos MANUALES (por ítem y global). El ahorro
+  /// intrínseco del combo (prorrateo) se conserva.
   void limpiarDescuentos() {
     final lista = state.items.map((item) {
-      if (item.descuento == 0) return item;
-      return item.copyWith(descuento: 0);
+      if (item.descuentoManual == 0) return item;
+      return _conDescuentoManual(item, 0);
     }).toList();
     emit(state.copyWith(items: lista, clearError: true));
   }

@@ -43,6 +43,26 @@ class VentaDetalleInput {
   /// Nombre del combo origen para display (ej. "Combo: Pack Familiar").
   final String? origenComboNombre;
 
+  /// Parte MANUAL del descuento de la línea (por ítem / global aplicado por
+  /// el cajero). En líneas de combo, `descuento` = prorrateo del combo +
+  /// `descuentoManual`; guardarlo aparte permite re-prorratear el combo al
+  /// editar componentes sin perder el descuento manual apilado. En líneas
+  /// sueltas suele coincidir con `descuento` (y este queda en 0).
+  final double descuentoManual;
+
+  /// Contexto de pricing del combo origen (solo en líneas con
+  /// `origenComboId`), necesario para re-precio al editar componentes:
+  /// - [comboTipoPrecio]: 'FIJO' | 'CALCULADO' | 'CALCULADO_CON_DESCUENTO'.
+  /// - [comboDescuentoPct]: % del combo (para CALCULADO_CON_DESCUENTO).
+  /// - [comboPrecioObjetivo]: precio total objetivo del combo (para FIJO se
+  ///   ajusta por la diferencia del componente cambiado; en los demás se
+  ///   recalcula desde los componentes).
+  /// - [comboModificado]: la receta cambió respecto del combo original.
+  final String? comboTipoPrecio;
+  final double? comboDescuentoPct;
+  final double? comboPrecioObjetivo;
+  final bool comboModificado;
+
   /// Snapshot del precio de costo en sede al momento de agregar al carrito.
   /// Permite calcular margen local (preview "vendiendo bajo costo") y
   /// dispara el dialog de autorización gerencial al cobrar si es negativo.
@@ -74,6 +94,11 @@ class VentaDetalleInput {
     this.descuentoNivelPct,
     this.origenComboId,
     this.origenComboNombre,
+    this.descuentoManual = 0,
+    this.comboTipoPrecio,
+    this.comboDescuentoPct,
+    this.comboPrecioObjetivo,
+    this.comboModificado = false,
     this.precioCostoSnapshot,
     this.enLiquidacion = false,
   });
@@ -156,6 +181,11 @@ class VentaDetalleInput {
     double? descuentoNivelPct,
     String? origenComboId,
     String? origenComboNombre,
+    double? descuentoManual,
+    String? comboTipoPrecio,
+    double? comboDescuentoPct,
+    double? comboPrecioObjetivo,
+    bool? comboModificado,
     double? precioCostoSnapshot,
     bool? enLiquidacion,
     bool clearNivelAplicado = false,
@@ -184,6 +214,11 @@ class VentaDetalleInput {
           : (descuentoNivelPct ?? this.descuentoNivelPct),
       origenComboId: origenComboId ?? this.origenComboId,
       origenComboNombre: origenComboNombre ?? this.origenComboNombre,
+      descuentoManual: descuentoManual ?? this.descuentoManual,
+      comboTipoPrecio: comboTipoPrecio ?? this.comboTipoPrecio,
+      comboDescuentoPct: comboDescuentoPct ?? this.comboDescuentoPct,
+      comboPrecioObjetivo: comboPrecioObjetivo ?? this.comboPrecioObjetivo,
+      comboModificado: comboModificado ?? this.comboModificado,
       precioCostoSnapshot: precioCostoSnapshot ?? this.precioCostoSnapshot,
       enLiquidacion: enLiquidacion ?? this.enLiquidacion,
     );
