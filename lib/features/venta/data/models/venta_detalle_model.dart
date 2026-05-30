@@ -27,6 +27,7 @@ class VentaDetalleModel extends VentaDetalle {
     super.servicioCodigo,
     super.origenComboId,
     super.origenComboNombre,
+    super.nivelAplicadoSnapshot,
   });
 
   factory VentaDetalleModel.fromJson(Map<String, dynamic> json) {
@@ -60,6 +61,7 @@ class VentaDetalleModel extends VentaDetalle {
       servicioCodigo: servicio?['codigoEmpresa'] as String?,
       origenComboId: json['origenComboId'] as String?,
       origenComboNombre: json['origenComboNombre'] as String?,
+      nivelAplicadoSnapshot: json['nivelAplicadoSnapshot'] as String?,
     );
   }
 

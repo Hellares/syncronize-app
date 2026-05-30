@@ -34,6 +34,10 @@ class VentaDetalle extends Equatable {
   final String? origenComboId;
   final String? origenComboNombre;
 
+  /// Etiqueta del precio aplicado al vender (snapshot): nombre del nivel
+  /// ("Por Mayor"), "Oferta" o "Liquidación". Null si fue precio base.
+  final String? nivelAplicadoSnapshot;
+
   const VentaDetalle({
     required this.id,
     required this.ventaId,
@@ -60,6 +64,7 @@ class VentaDetalle extends Equatable {
     this.servicioCodigo,
     this.origenComboId,
     this.origenComboNombre,
+    this.nivelAplicadoSnapshot,
   });
 
   String get tipoItem {
@@ -91,5 +96,6 @@ class VentaDetalle extends Equatable {
         orden,
         origenComboId,
         origenComboNombre,
+        nivelAplicadoSnapshot,
       ];
 }

@@ -542,12 +542,39 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                           ),
                           Expanded(
                             flex: 5,
-                            child: Text(
-                              detalles[i].descripcion,
-                              style: const TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w500,
-                              ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  detalles[i].descripcion,
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                // Nivel/precio aplicado al vender (snapshot).
+                                if (detalles[i].nivelAplicadoSnapshot != null) ...[
+                                  const SizedBox(height: 2),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 5, vertical: 1),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.blue1
+                                          .withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(3),
+                                    ),
+                                    child: Text(
+                                      detalles[i].nivelAplicadoSnapshot!,
+                                      style: const TextStyle(
+                                        fontSize: 8,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.blue1,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
                           ),
                           Expanded(
