@@ -446,7 +446,7 @@ class _ProductoVariantesBottomSheetState extends State<ProductoVariantesBottomSh
                         Container(
                           height: 1,
                           color: Colors.grey[300],
-                          margin: const EdgeInsets.symmetric(vertical: 4),
+                          margin: const EdgeInsets.symmetric(vertical: 3),
                         ),
 
                         // Footer: Precio + Stock

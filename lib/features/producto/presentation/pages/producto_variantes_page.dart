@@ -254,7 +254,7 @@ class _ProductoVariantesViewState extends State<_ProductoVariantesView> {
             return RefreshIndicator(
               onRefresh: () async => _loadData(),
               child: ListView.builder(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(12),
                 itemCount: variantes.length,
                 itemBuilder: (context, index) {
                   final variante = variantes[index];
@@ -536,7 +536,7 @@ class _VarianteCard extends StatelessWidget {
       gradient: AppGradients.blueWhiteBlue(),
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
-        padding: const EdgeInsets.only( left: 14, right: 14, bottom: 5, top: 5),
+        padding: const EdgeInsets.only( left: 10, right: 10, bottom: 5, top: 5),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -621,10 +621,10 @@ class _VarianteCard extends StatelessWidget {
                   );
                 }).toList(),
               ),
-              const SizedBox(height: 4),
+              //const SizedBox(height: 4),
             ],
             const Divider(),
-            const SizedBox(height: 4),
+            //const SizedBox(height: 4),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [

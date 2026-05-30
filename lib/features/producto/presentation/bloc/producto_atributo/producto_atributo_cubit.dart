@@ -123,7 +123,11 @@ class ProductoAtributoCubit extends Cubit<ProductoAtributoState> {
       if (categoriaId == null) {
         return currentState.atributos.where((a) => a.categoriaIds.isEmpty).toList();
       }
-      return currentState.atributos.where((a) => a.categoriaIds.contains(categoriaId)).toList();
+      // Un atributo con `categoriaIds` vacío es GLOBAL → aplica a TODAS las
+      // categorías. Por eso se incluye junto con los específicos de la categoría.
+      return currentState.atributos
+          .where((a) => a.categoriaIds.isEmpty || a.categoriaIds.contains(categoriaId))
+          .toList();
     }
     return [];
   }

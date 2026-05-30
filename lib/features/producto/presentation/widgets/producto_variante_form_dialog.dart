@@ -4,6 +4,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/widgets/floating_button_text.dart';
+import 'package:syncronize/core/widgets/custom_button.dart';
+import 'package:syncronize/core/widgets/custom_switch_tile.dart';
 import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import '../../../../core/widgets/barcode_scanner_button.dart';
 import '../../../../core/theme/gradient_container.dart';
@@ -305,12 +307,12 @@ class _ProductoVarianteFormDialogState
                     ],
 
                     // Peso
-                    TextFormField(
+                    CustomText(
                       controller: _pesoController,
-                      decoration: const InputDecoration(
-                        labelText: 'Peso (kg)',
-                        prefixIcon: Icon(Icons.scale),
-                      ),
+                      borderColor: AppColors.blue1,
+                      label: 'Peso (kg)',
+                      hintText: 'Ej: 0.50',
+                      prefixIcon: const Icon(Icons.scale),
                       keyboardType:
                           const TextInputType.numberWithOptions(decimal: true),
                       inputFormatters: [
@@ -321,30 +323,35 @@ class _ProductoVarianteFormDialogState
                     const SizedBox(height: 24),
 
                     // Estado
-                    SwitchListTile(
+                    CustomSwitchTile(
                       value: _isActive,
-                      onChanged: widget.productoIsActive ? (value) {
-                        // Validar que no se pueda activar la variante si el padre está inactivo
-                        if (value && !widget.productoIsActive) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('No se puede activar una variante cuando el producto padre está inactivo'),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
-                          return;
-                        }
-                        setState(() => _isActive = value);
-                      } : null, // Deshabilitar si el padre está inactivo
-                      title: const Text('Variante activa'),
-                      subtitle: Text(
-                        widget.productoIsActive
-                            ? 'Las variantes inactivas no se muestran a los clientes'
-                            : 'El producto padre está inactivo. Actívalo primero para poder activar variantes.',
-                        style: TextStyle(
-                          color: widget.productoIsActive ? Colors.grey[600] : Colors.red[600],
-                        ),
+                      activeColor: AppColors.blue1,
+                      title: 'Variante activa',
+                      subtitle: widget.productoIsActive
+                          ? 'Las variantes inactivas no se muestran a los clientes'
+                          : 'El producto padre está inactivo. Actívalo primero para poder activar variantes.',
+                      subtitleStyle: TextStyle(
+                        color: widget.productoIsActive
+                            ? Colors.grey[600]
+                            : Colors.red[600],
+                            fontSize: 10,
                       ),
+                      // Deshabilitado si el padre está inactivo.
+                      onChanged: widget.productoIsActive
+                          ? (value) {
+                              if (value && !widget.productoIsActive) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                        'No se puede activar una variante cuando el producto padre está inactivo'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                                return;
+                              }
+                              setState(() => _isActive = value);
+                            }
+                          : null,
                     ),
                     if (!widget.productoIsActive)
                       Container(
@@ -384,17 +391,25 @@ class _ProductoVarianteFormDialogState
                 border: Border(top: BorderSide(color: Colors.grey.shade300)),
               ),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Cancelar'),
+                  Expanded(
+                    child: CustomButton(
+                      text: 'Cancelar',
+                      backgroundColor: AppColors.white,
+                      borderColor: Colors.grey.shade400,
+                      textColor: Colors.grey.shade700,
+                      onPressed: () => Navigator.pop(context),
+                    ),
                   ),
                   const SizedBox(width: 12),
-                  FilledButton.icon(
-                    onPressed: _save,
-                    icon: const Icon(Icons.save),
-                    label: const Text('Guardar'),
+                  Expanded(
+                    child: CustomButton(
+                      text: 'Guardar',
+                      backgroundColor: AppColors.blue1,
+                      iconColor: AppColors.white,
+                      icon: const Icon(Icons.save, size: 16, color: Colors.white),
+                      onPressed: _save,
+                    ),
                   ),
                 ],
               ),
