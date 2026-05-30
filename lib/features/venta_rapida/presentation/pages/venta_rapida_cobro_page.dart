@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/styled_dialog.dart';
+import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/currency/currency_formatter.dart';
 import '../../../../core/widgets/currency/currency_textfield.dart';
 import '../../../../core/widgets/custom_dropdown.dart';
@@ -1170,6 +1172,20 @@ class _CobroViewState extends State<_CobroView> {
     _agregarOtraFila(metodoElegido);
   }
 
+  /// Color del badge de motivo según el nivel de precio aplicado por el
+  /// backend en la divergencia: Liquidación en naranja-rojizo (remate),
+  /// Oferta en verde, y los niveles por mayor en azul.
+  Color _colorNivelDivergencia(String? nivel) {
+    switch (nivel) {
+      case 'Liquidación':
+        return Colors.deepOrange.shade700;
+      case 'Oferta':
+        return AppColors.greendark;
+      default:
+        return AppColors.blue1;
+    }
+  }
+
   /// Muestra un dialog con la lista de productos cuyo precio cambió en el
   /// backend mientras el cajero tenía el carrito armado (admin actualizó el
   /// precio). El cajero puede elegir:
@@ -1185,131 +1201,163 @@ class _CobroViewState extends State<_CobroView> {
     BuildContext context,
     List<Map<String, dynamic>> divergencias,
   ) async {
+    // Si NINGÚN precio subió, el cambio es a favor del cliente (liquidación/
+    // oferta/por mayor ganaron) → tono verde. Si alguno subió, tono naranja.
+    final algunoSubio = divergencias.any((d) {
+      final viejo = (d['precioCliente'] as num?)?.toDouble() ?? 0;
+      final nuevo = (d['precioServer'] as num?)?.toDouble() ?? 0;
+      return nuevo > viejo;
+    });
+    final accent = algunoSubio ? Colors.orange.shade700 : AppColors.greendark;
+
     final accion = await showDialog<_AccionPrecios>(
       context: context,
       barrierDismissible: false,
-      builder: (dialogCtx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            Icon(Icons.warning_amber_rounded,
-                color: Colors.orange.shade700, size: 22),
-            const SizedBox(width: 8),
-            const Expanded(
-              child: Text(
-                'Precios actualizados',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-              ),
-            ),
-          ],
-        ),
-        content: SizedBox(
-          width: 320,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                divergencias.length == 1
+      builder: (dialogCtx) => StyledDialog(
+        accentColor: accent,
+        icon: algunoSubio ? Icons.price_change_outlined : Icons.sell_outlined,
+        titulo: algunoSubio
+            ? 'Precios actualizados'
+            : (divergencias.length == 1
+                ? 'Precio más bajo disponible'
+                : 'Precios más bajos disponibles'),
+        content: [
+          Text(
+            algunoSubio
+                ? (divergencias.length == 1
                     ? '1 producto del carrito tiene un precio nuevo:'
-                    : '${divergencias.length} productos del carrito tienen precios nuevos:',
-                style: TextStyle(
-                    fontSize: 12, color: Colors.grey.shade700),
-              ),
-              const SizedBox(height: 10),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 240),
-                child: SingleChildScrollView(
-                  child: Column(
-                    children: divergencias.map((d) {
-                      final desc = (d['descripcion'] as String?) ?? 'Item';
-                      final viejo = (d['precioCliente'] as num?)?.toDouble() ?? 0;
-                      final nuevo = (d['precioServer'] as num?)?.toDouble() ?? 0;
-                      final cant = (d['cantidad'] as num?)?.toDouble() ?? 0;
-                      final subio = nuevo > viejo;
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 6),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                              color: Colors.grey.shade200, width: 0.5),
+                    : '${divergencias.length} productos del carrito tienen precios nuevos:')
+                : 'Se aplica el menor precio vigente (liquidación, oferta o por mayor):',
+            style: TextStyle(fontSize: 11.5, color: Colors.grey.shade600),
+          ),
+          const SizedBox(height: 10),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 240),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: divergencias.map((d) {
+                  final desc = (d['descripcion'] as String?) ?? 'Item';
+                  final viejo = (d['precioCliente'] as num?)?.toDouble() ?? 0;
+                  final nuevo = (d['precioServer'] as num?)?.toDouble() ?? 0;
+                  final cant = (d['cantidad'] as num?)?.toDouble() ?? 0;
+                  final nivel = d['nivelAplicado'] as String?;
+                  final subio = nuevo > viejo;
+                  final dirColor =
+                      subio ? Colors.red.shade700 : AppColors.greendark;
+                  final badge = _colorNivelDivergencia(nivel);
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 6),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.6),
+                      borderRadius: BorderRadius.circular(8),
+                      border:
+                          Border.all(color: Colors.grey.shade200, width: 0.5),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                desc,
+                                style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            // Motivo del precio aplicado (Liquidación / Oferta /
+                            // nombre del nivel por mayor).
+                            if (nivel != null && nivel.isNotEmpty) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: badge.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(
+                                      color: badge.withValues(alpha: 0.35),
+                                      width: 0.5),
+                                ),
+                                child: Text(
+                                  nivel,
+                                  style: TextStyle(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w700,
+                                      color: badge),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        const SizedBox(height: 3),
+                        Row(
                           children: [
                             Text(
-                              desc,
-                              style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600),
+                              '${cant.toStringAsFixed(cant.truncateToDouble() == cant ? 0 : 2)} u  ·  ',
+                              style: TextStyle(
+                                  fontSize: 11, color: Colors.grey.shade600),
                             ),
-                            const SizedBox(height: 2),
-                            Row(
-                              children: [
-                                Text(
-                                  '${cant.toStringAsFixed(cant.truncateToDouble() == cant ? 0 : 2)} u  ·  ',
-                                  style: TextStyle(
-                                      fontSize: 11,
-                                      color: Colors.grey.shade600),
-                                ),
-                                Text(
-                                  'S/ ${viejo.toStringAsFixed(2)}',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: Colors.grey.shade600,
-                                    decoration: TextDecoration.lineThrough,
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                Icon(
-                                  subio
-                                      ? Icons.arrow_upward
-                                      : Icons.arrow_downward,
-                                  size: 12,
-                                  color: subio
-                                      ? Colors.red.shade600
-                                      : Colors.green.shade700,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'S/ ${nuevo.toStringAsFixed(2)}',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: subio
-                                        ? Colors.red.shade700
-                                        : Colors.green.shade700,
-                                  ),
-                                ),
-                              ],
+                            Text(
+                              'S/ ${viejo.toStringAsFixed(2)}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey.shade500,
+                                decoration: TextDecoration.lineThrough,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Icon(
+                              subio
+                                  ? Icons.arrow_upward
+                                  : Icons.arrow_downward,
+                              size: 12,
+                              color: dirColor,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'S/ ${nuevo.toStringAsFixed(2)}',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w800,
+                                color: dirColor,
+                              ),
                             ),
                           ],
                         ),
-                      );
-                    }).toList(),
-                  ),
-                ),
+                      ],
+                    ),
+                  );
+                }).toList(),
               ),
-            ],
+            ),
           ),
-        ),
+        ],
         actions: [
-          TextButton(
-            onPressed: () =>
-                Navigator.pop(dialogCtx, _AccionPrecios.cancelar),
-            child: const Text('Cancelar'),
+          Expanded(
+            child: CustomButton(
+              text: 'Cancelar',
+              isOutlined: true,
+              borderColor: Colors.grey.shade400,
+              textColor: Colors.grey.shade700,
+              enableShadows: false,
+              onPressed: () =>
+                  Navigator.pop(dialogCtx, _AccionPrecios.cancelar),
+            ),
           ),
-          ElevatedButton.icon(
-            onPressed: () =>
-                Navigator.pop(dialogCtx, _AccionPrecios.aplicar),
-            icon: const Icon(Icons.refresh, size: 16),
-            label: const Text('Actualizar precios'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.blue1,
-              foregroundColor: Colors.white,
+          Expanded(
+            child: CustomButton(
+              text: 'Actualizar',
+              backgroundColor: accent,
+              textColor: Colors.white,
+              onPressed: () =>
+                  Navigator.pop(dialogCtx, _AccionPrecios.aplicar),
             ),
           ),
         ],
