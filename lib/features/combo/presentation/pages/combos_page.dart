@@ -182,6 +182,11 @@ class _CombosViewState extends State<_CombosView> {
         actions: [
           _buildSedeSelector(),
           IconButton(
+            icon: const Icon(Icons.delete_sweep_outlined, size: 18),
+            onPressed: () => context.push('/empresa/combos/eliminados'),
+            tooltip: 'Combos eliminados',
+          ),
+          IconButton(
             icon: const Icon(Icons.refresh, size: 18),
             onPressed: _loadCombos,
             tooltip: 'Actualizar',

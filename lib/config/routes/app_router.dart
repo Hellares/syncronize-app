@@ -824,6 +824,12 @@ class AppRouter {
         builder: (context, state) => const ComboCreatePage(),
       ),
       GoRoute(
+        // Estática antes de `:comboId` para que no la matchee como param.
+        path: '/empresa/combos/eliminados',
+        name: 'empresa-combos-eliminados',
+        builder: (context, state) => const CombosEliminadosPage(),
+      ),
+      GoRoute(
         path: '/empresa/combos/:comboId',
         name: 'empresa-combo-detalle',
         builder: (context, state) {
