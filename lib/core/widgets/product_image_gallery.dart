@@ -1,6 +1,7 @@
 // lib/features/product/presentation/widgets/product_image_gallery.dart
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/app_gradients.dart';
@@ -62,6 +63,25 @@ class _ProductImageGalleryState extends State<ProductImageGallery> {
     _pageController = PageController();
     _imageIndexNotifier = ValueNotifier<int>(_currentImageIndex);
     _initializeVideo();
+  }
+
+  @override
+  void didUpdateWidget(ProductImageGallery oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Si cambió el set de imágenes (ej. al seleccionar otra variante con sus
+    // propias imágenes), volver a la primera imagen para mostrarla — si no, el
+    // PageView se queda en el índice viejo (que puede caer fuera de rango).
+    if (!listEquals(oldWidget.images, widget.images)) {
+      final hasVideo = widget.videoUrl != null && widget.videoUrl!.isNotEmpty;
+      final primera = hasVideo ? 1 : 0;
+      _currentImageIndex = primera;
+      _imageIndexNotifier.value = primera;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _pageController.hasClients) {
+          _pageController.jumpToPage(primera);
+        }
+      });
+    }
   }
 
   void _initializeVideo() {
@@ -259,7 +279,9 @@ class _ProductImageGalleryState extends State<ProductImageGallery> {
           child: ClipRRect(
             borderRadius: widget.borderRadius,
             child: PageView.builder(
-              key: const PageStorageKey('producto_image_gallery'),
+              // Única por producto (vía heroTag) para no restaurar la posición
+              // de scroll de otra galería.
+              key: PageStorageKey('producto_image_gallery_${widget.heroTag ?? ''}'),
               controller: _pageController,
               itemCount: totalCount,
               onPageChanged: (index) {
@@ -618,6 +640,7 @@ class _ProductImageGalleryState extends State<ProductImageGallery> {
         child: Hero(
           tag: tag ?? imageIndex,
           child: CachedNetworkImage(
+            key: ValueKey(url),
             imageUrl: url,
             fit: BoxFit.contain,
             fadeInDuration: const Duration(milliseconds: 200),

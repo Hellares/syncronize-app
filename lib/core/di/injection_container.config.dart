@@ -924,6 +924,8 @@ import '../../features/producto/data/cache/producto_catalogo_local_store.dart'
     as _i559;
 import '../../features/producto/data/cache/producto_catalogo_memory_cache.dart'
     as _i881;
+import '../../features/producto/data/cache/variante_imagenes_local_store.dart'
+    as _i486;
 import '../../features/producto/data/datasources/configuracion_precio_remote_datasource.dart'
     as _i134;
 import '../../features/producto/data/datasources/plantilla_remote_datasource.dart'
@@ -1565,6 +1567,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i881.ProductoCatalogoMemoryCache>(
       () => _i881.ProductoCatalogoMemoryCache(),
+    );
+    gh.lazySingleton<_i486.VarianteImagenesLocalStore>(
+      () => _i486.VarianteImagenesLocalStore(),
     );
     gh.factory<_i528.SedeSelectionCubit>(
       () => _i528.SedeSelectionCubit(gh<_i460.SharedPreferences>()),
@@ -4519,9 +4524,6 @@ extension GetItInjectableX on _i174.GetIt {
         sessionExpiredNotifier: gh<_i284.SessionExpiredNotifier>(),
       ),
     );
-    gh.lazySingleton<_i805.RealtimeSyncService>(
-      () => _i805.RealtimeSyncService(gh<_i574.PrecioNivelCacheService>()),
-    );
     gh.factory<_i712.DevolucionListCubit>(
       () => _i712.DevolucionListCubit(gh<_i216.GetDevolucionesUseCase>()),
     );
@@ -4566,6 +4568,12 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i951.ForgotPasswordCubit>(
       () => _i951.ForgotPasswordCubit(gh<_i560.ForgotPasswordUseCase>()),
+    );
+    gh.lazySingleton<_i805.RealtimeSyncService>(
+      () => _i805.RealtimeSyncService(
+        gh<_i574.PrecioNivelCacheService>(),
+        gh<_i486.VarianteImagenesLocalStore>(),
+      ),
     );
     gh.factory<_i337.ArqueosCajaCubit>(
       () => _i337.ArqueosCajaCubit(

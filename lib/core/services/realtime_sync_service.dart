@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 
+import '../../features/producto/data/cache/variante_imagenes_local_store.dart';
 import '../../features/producto/domain/services/precio_nivel_cache_service.dart';
 import 'push_notification_service.dart';
 
@@ -133,6 +134,7 @@ class RealtimeImagenCambiada extends RealtimeEvent {
 @lazySingleton
 class RealtimeSyncService {
   final PrecioNivelCacheService _nivelCacheService;
+  final VarianteImagenesLocalStore _varianteImagenesStore;
 
   final _eventsController = StreamController<RealtimeEvent>.broadcast();
   Stream<RealtimeEvent> get events => _eventsController.stream;
@@ -185,7 +187,7 @@ class RealtimeSyncService {
   /// FCM real recientemente.
   static const Duration _minGapBetweenEmits = Duration(minutes: 4);
 
-  RealtimeSyncService(this._nivelCacheService);
+  RealtimeSyncService(this._nivelCacheService, this._varianteImagenesStore);
 
   /// Suscribe al topic FCM de la empresa actual. Llamar tras
   /// switch-tenant exitoso. Idempotente: si ya estaba suscrito al
@@ -346,6 +348,14 @@ class RealtimeSyncService {
         break;
 
       case 'IMAGEN_CAMBIADA':
+        // Invalidar el cache en disco de variantes-completas del producto
+        // para que el detalle vuelva a fetchear las imágenes nuevas.
+        if (productoId != null) {
+          unawaited(_varianteImagenesStore.invalidate(
+            empresaId: empresaId,
+            productoId: productoId,
+          ));
+        }
         _eventsController.add(RealtimeImagenCambiada(
           empresaId: empresaId,
           productoId: productoId,
@@ -361,6 +371,12 @@ class RealtimeSyncService {
         break;
 
       case 'PRODUCTO_ACTUALIZADO':
+        if (productoId != null) {
+          unawaited(_varianteImagenesStore.invalidate(
+            empresaId: empresaId,
+            productoId: productoId,
+          ));
+        }
         _eventsController.add(RealtimeProductoActualizado(
           empresaId: empresaId,
           productoId: productoId,

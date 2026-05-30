@@ -90,20 +90,23 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
   /// - Si hay variante seleccionada: muestra sus imágenes
   /// - Si tiene variantes sin selección: imágenes del producto + todas las de variantes
   /// - Si no tiene variantes: solo imágenes del producto
-  List<String> _getImagenesParaSlider(Producto producto) {
-    // Si hay una variante seleccionada, mostrar sus imágenes
-    if (_selectedVariante != null) {
-      final varianteImages = _selectedVariante!.archivos
+  List<String> _getImagenesParaSlider(
+      Producto producto, ProductoVariante? selectedVariante) {
+    // Con una variante seleccionada mostramos SOLO sus imágenes. Si la variante
+    // no tiene imágenes propias, caemos a la imagen base del producto (o vacío
+    // → placeholder); NUNCA a las imágenes de OTRA variante.
+    if (selectedVariante != null) {
+      final varianteImages = selectedVariante.archivos
               ?.map((a) => a.url)
               .toList() ??
           [];
-      // Si la variante no tiene imágenes, mostrar las del producto base
       if (varianteImages.isNotEmpty) return varianteImages;
+      return producto.imagenes ?? [];
     }
 
     final productoImages = producto.imagenes ?? [];
 
-    // Si tiene variantes, combinar imágenes del producto + variantes
+    // Sin variante seleccionada: combinar imágenes del producto + variantes.
     if (producto.tieneVariantes &&
         producto.variantes != null &&
         producto.variantes!.isNotEmpty) {
@@ -233,7 +236,17 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
                   ? empresaState.context.empresa.id
                   : '';
 
-              if (_selectedVariante == null &&
+              // El cubit es compartido: al navegar a otro producto, la página
+              // pinta primero con los datos viejos y `_selectedVariante` puede
+              // quedar apuntando a una variante del producto ANTERIOR. Solo es
+              // válida si pertenece al producto actual.
+              final ProductoVariante? selectedVariante =
+                  (_selectedVariante != null &&
+                          _selectedVariante!.productoId == producto.id)
+                      ? _selectedVariante
+                      : null;
+
+              if (selectedVariante == null &&
                   producto.tieneVariantes &&
                   producto.variantes != null &&
                   producto.variantes!.isNotEmpty) {
@@ -255,7 +268,11 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
                     children: [
                       // Slider sin padding - ocupa toda la pantalla
                       ProductImageGallery(
-                        images: _getImagenesParaSlider(producto),
+                        // Key por producto: fuerza un State fresco al navegar a
+                        // otro producto (evita reusar el estado de la galería
+                        // anterior y mostrar su imagen).
+                        key: ValueKey('gallery-${producto.id}'),
+                        images: _getImagenesParaSlider(producto, selectedVariante),
                         videoUrl: producto.videoUrl,
                         heroTag: 'product-image-${producto.id}',
                       ),
@@ -269,8 +286,8 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
                             // _buildHeader(producto),
                             // const SizedBox(height: 16),
                             _buildPriceSection(
-                              producto.tieneVariantes && _selectedVariante != null
-                                  ? _selectedVariante!
+                              producto.tieneVariantes && selectedVariante != null
+                                  ? selectedVariante
                                   : producto,
                             ),
                             const SizedBox(height: 16),
@@ -286,7 +303,7 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
                                 producto.variantes!.isNotEmpty) ...[
                               ProductoVariantesSection(
                                 variantes: producto.variantes!,
-                                selectedVariante: _selectedVariante,
+                                selectedVariante: selectedVariante,
                                 empresaId: empresaId,
                                 productoId: producto.id,
                                 onVarianteSelected: (variante) {

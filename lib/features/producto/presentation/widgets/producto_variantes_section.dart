@@ -6,6 +6,7 @@ import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/app_gradients.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/widgets/info_chip.dart';
+import '../../data/cache/variante_imagenes_local_store.dart';
 import '../../data/datasources/producto_remote_datasource.dart';
 import '../../domain/entities/producto_variante.dart';
 import 'variante_detail_dialog.dart';
@@ -47,21 +48,51 @@ class _ProductoVariantesSectionState extends State<ProductoVariantesSection> {
 
   Future<void> _fetchVariantesCompletas() async {
     if (widget.variantes.isEmpty) return;
+    final store = locator<VarianteImagenesLocalStore>();
+
+    // 1. Disco primero (fresco < 24h): instantáneo + offline, sin re-fetch.
+    final cached = await store.read(
+      empresaId: widget.empresaId,
+      productoId: widget.productoId,
+    );
+    if (cached != null && cached.isNotEmpty && mounted) {
+      setState(() {
+        _variantesCompletas = {for (final v in cached) v.id: v};
+      });
+      _notificarSeleccionEnriquecida();
+      return;
+    }
+
+    // 2. Fetch al backend (on-demand) y persistir para próximas aperturas.
     try {
       final datasource = locator<ProductoRemoteDataSource>();
       final variantes = await datasource.getVariantes(
         productoId: widget.productoId,
         empresaId: widget.empresaId,
       );
+      await store.write(
+        empresaId: widget.empresaId,
+        productoId: widget.productoId,
+        variantes: variantes,
+      );
       if (mounted) {
         setState(() {
-          _variantesCompletas = {
-            for (final v in variantes) v.id: v,
-          };
+          _variantesCompletas = {for (final v in variantes) v.id: v};
         });
+        _notificarSeleccionEnriquecida();
       }
     } catch (e) {
       debugPrint('Error al cargar variantes completas: $e');
+    }
+  }
+
+  /// Avisa al padre con la variante seleccionada ENRIQUECIDA (con archivos)
+  /// para que el detalle muestre su imagen sin esperar a que el usuario toque
+  /// otra.
+  void _notificarSeleccionEnriquecida() {
+    final sel = _selectedVariante;
+    if (sel != null && _variantesCompletas.containsKey(sel.id)) {
+      widget.onVarianteSelected?.call(_variantesCompletas[sel.id]!);
     }
   }
 
@@ -81,7 +112,7 @@ class _ProductoVariantesSectionState extends State<ProductoVariantesSection> {
       shadowStyle: ShadowStyle.colorful,
       borderColor: AppColors.blueborder,
       child: Padding(
-        padding: const EdgeInsets.only(left: 16, right: 16, top: 10, bottom: 8),
+        padding: const EdgeInsets.only(left: 10, right: 10, top: 10, bottom: 8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -169,7 +200,10 @@ class _ProductoVariantesSectionState extends State<ProductoVariantesSection> {
         setState(() {
           _selectedVariante = variante;
         });
-        widget.onVarianteSelected?.call(variante);
+        // Pasar la variante ENRIQUECIDA (con archivos/imágenes) para que el
+        // detalle pueda mostrar la imagen de esta variante. La `variante` cruda
+        // de `widget.variantes` no trae los archivos.
+        widget.onVarianteSelected?.call(_getVarianteCompleta(variante));
       },
       onLongPress: () => showVarianteDetailDialog(
         context: context,
