@@ -8,6 +8,9 @@ import '../../../../core/widgets/autorizacion_dialog.dart';
 import '../../../../core/widgets/confirm_dialog.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/styled_dialog.dart';
+import '../../../../core/widgets/producto_sede_selector/producto_sede_selector.dart';
+import '../../../producto/domain/entities/producto_list_item.dart';
+import '../../../producto/domain/entities/producto_variante.dart';
 import '../../../auth/presentation/widgets/custom_text.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
@@ -119,23 +122,29 @@ class _CarritoView extends StatelessWidget {
                             nombre: row.comboNombre!,
                             total: row.comboTotal!,
                             ahorro: row.comboAhorro!,
+                            modificado: row.comboModificado,
                             onEliminar: () => context
                                 .read<VentaRapidaCubit>()
                                 .eliminarCombo(row.comboId!),
+                            onAgregarComponente: () => _agregarComponente(
+                                context, row.comboId!, state),
                           );
                         }
                         final item = row.item!;
-                        // Items del combo NO son dismissibles: solo se eliminan
-                        // desde el header (botón "X" del combo). Son readonly:
-                        // no se puede editar cantidad — para cambiar el combo
-                        // hay que eliminarlo y volver a tocarlo.
+                        // Items del combo: readonly de cantidad, pero
+                        // mantené pulsado para editarlos (quitar / sustituir /
+                        // descuento). La composición se cambia desde ahí.
                         if (item.origenComboId != null) {
-                          return Container(
-                            color: Colors.amber.shade50,
-                            child: _ItemRow(
-                              index: row.index!,
-                              item: item,
-                              readonly: true,
+                          return GestureDetector(
+                            onLongPress: () => _mostrarMenuComponente(
+                                context, row.index!, item, state),
+                            child: Container(
+                              color: Colors.amber.shade50,
+                              child: _ItemRow(
+                                index: row.index!,
+                                item: item,
+                                readonly: true,
+                              ),
                             ),
                           );
                         }
@@ -323,14 +332,163 @@ class _CarritoView extends StatelessWidget {
       if (auth == null || !context.mounted) return;
     }
     if (!context.mounted) return;
+    // En líneas de combo el dialog edita el descuento MANUAL (la parte
+    // apilada sobre el prorrateo), por eso prefill con descuentoManual.
+    final esCombo = (item.origenComboId as String?) != null;
     _showDescuentoDialog(
       context,
       titulo: item.descripcion as String,
       bruto: (item.cantidad as double) * (item.precioUnitario as double),
-      descuentoActual: item.descuento as double,
+      descuentoActual:
+          esCombo ? (item.descuentoManual as double) : (item.descuento as double),
       onAplicar: (monto) {
         context.read<VentaRapidaCubit>().actualizarDescuentoMonto(index, monto);
       },
+    );
+  }
+
+  /// Menú de edición de un componente de combo (mantené pulsado): sustituir,
+  /// aplicar descuento o quitar.
+  Future<void> _mostrarMenuComponente(
+    BuildContext context,
+    int index,
+    dynamic item,
+    VentaRapidaState state,
+  ) async {
+    final accion = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 10),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              child: Row(
+                children: [
+                  Icon(Icons.tune, size: 16, color: Colors.amber.shade800),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      item.descripcion as String,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: Icon(Icons.swap_horiz, color: AppColors.blue1),
+              title: const Text('Sustituir componente'),
+              onTap: () => Navigator.pop(ctx, 'sustituir'),
+            ),
+            ListTile(
+              leading: Icon(Icons.discount_outlined, color: Colors.orange.shade700),
+              title: const Text('Aplicar descuento'),
+              onTap: () => Navigator.pop(ctx, 'descuento'),
+            ),
+            ListTile(
+              leading: Icon(Icons.delete_outline, color: Colors.red.shade600),
+              title: const Text('Quitar componente'),
+              onTap: () => Navigator.pop(ctx, 'quitar'),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (accion == null || !context.mounted) return;
+    final cubit = context.read<VentaRapidaCubit>();
+    switch (accion) {
+      case 'quitar':
+        cubit.quitarComponenteCombo(index);
+        break;
+      case 'descuento':
+        await _mostrarDescuentoItem(context, index, item);
+        break;
+      case 'sustituir':
+        final sel = await _pickProducto(context, state,
+            titulo: 'Sustituir por...');
+        if (sel == null || !context.mounted) return;
+        cubit.sustituirComponenteCombo(index, sel.producto,
+            variante: sel.variante);
+        break;
+    }
+  }
+
+  /// Abre el selector de producto para sumar un componente nuevo al combo.
+  Future<void> _agregarComponente(
+    BuildContext context,
+    String comboId,
+    VentaRapidaState state,
+  ) async {
+    final sel = await _pickProducto(context, state, titulo: 'Agregar componente');
+    if (sel == null || !context.mounted) return;
+    context
+        .read<VentaRapidaCubit>()
+        .agregarComponenteACombo(comboId, sel.producto, variante: sel.variante);
+  }
+
+  /// Modal con [ProductoSedeSelector] (sede fija = la de la venta) que
+  /// devuelve el producto + variante elegidos.
+  Future<({ProductoListItem producto, ProductoVariante? variante})?>
+      _pickProducto(
+    BuildContext context,
+    VentaRapidaState state, {
+    required String titulo,
+  }) async {
+    final empresaId = state.empresaId;
+    final sedeId = state.sedeId;
+    if (empresaId == null || sedeId == null) return null;
+    return showModalBottomSheet<
+        ({ProductoListItem producto, ProductoVariante? variante})>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (sheetCtx) => Padding(
+        padding: EdgeInsets.only(
+          left: 16,
+          right: 16,
+          top: 16,
+          bottom: MediaQuery.of(sheetCtx).viewInsets.bottom + 16,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(titulo,
+                style:
+                    const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 12),
+            ProductoSedeSelector(
+              empresaId: empresaId,
+              sedeIdInicial: sedeId,
+              mostrarSelectorSede: false,
+              label: 'Producto',
+              hintText: 'Buscar producto...',
+              onProductoSeleccionado: ({
+                required producto,
+                required sedeId,
+                variante,
+              }) {
+                Navigator.pop(
+                    sheetCtx, (producto: producto, variante: variante));
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
     );
   }
 
@@ -819,6 +977,7 @@ class _CarritoRow {
   final String? comboNombre;
   final double? comboTotal;
   final double? comboAhorro;
+  final bool comboModificado;
   final dynamic item; // VentaDetalleInput
   final int? index; // índice en state.items (para callbacks que esperan index)
 
@@ -827,6 +986,7 @@ class _CarritoRow {
     required String this.comboNombre,
     required double this.comboTotal,
     required double this.comboAhorro,
+    required this.comboModificado,
   })  : isHeader = true,
         item = null,
         index = null;
@@ -838,7 +998,8 @@ class _CarritoRow {
   })  : isHeader = false,
         comboNombre = null,
         comboTotal = null,
-        comboAhorro = null;
+        comboAhorro = null,
+        comboModificado = false;
 }
 
 /// Construye la lista de rows agrupando items por `origenComboId`.
@@ -856,10 +1017,12 @@ List<_CarritoRow> _buildRows(List items) {
       // prorrateado que el cubit calculó al expandir el combo).
       double total = 0;
       double ahorro = 0;
+      bool modificado = false;
       for (final x in items) {
         if (x.origenComboId == origen) {
           total += x.total as double;
           ahorro += x.descuento as double;
+          if (x.comboModificado == true) modificado = true;
         }
       }
       rows.add(_CarritoRow.header(
@@ -867,6 +1030,7 @@ List<_CarritoRow> _buildRows(List items) {
         comboNombre: (it.origenComboNombre as String?) ?? 'Combo',
         comboTotal: total,
         comboAhorro: ahorro,
+        comboModificado: modificado,
       ));
       lastCombo = origen;
     }
@@ -884,13 +1048,17 @@ class _ComboHeaderTile extends StatelessWidget {
   final String nombre;
   final double total;
   final double ahorro;
+  final bool modificado;
   final VoidCallback onEliminar;
+  final VoidCallback onAgregarComponente;
 
   const _ComboHeaderTile({
     required this.nombre,
     required this.total,
     required this.ahorro,
+    required this.modificado,
     required this.onEliminar,
+    required this.onAgregarComponente,
   });
 
   @override
@@ -905,7 +1073,7 @@ class _ComboHeaderTile extends StatelessWidget {
             children: [
               Icon(Icons.local_offer, size: 16, color: Colors.amber.shade800),
               const SizedBox(width: 6),
-              Expanded(
+              Flexible(
                 child: Text(
                   nombre.toUpperCase(),
                   style: TextStyle(
@@ -917,6 +1085,27 @@ class _ComboHeaderTile extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
+              if (modificado) ...[
+                const SizedBox(width: 6),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: Colors.deepOrange.shade50,
+                    borderRadius: BorderRadius.circular(3),
+                    border: Border.all(color: Colors.deepOrange.shade200),
+                  ),
+                  child: Text(
+                    'Modificado',
+                    style: TextStyle(
+                      fontSize: 8,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.deepOrange.shade700,
+                    ),
+                  ),
+                ),
+              ],
+              const Spacer(),
               Text(
                 'S/ ${total.toStringAsFixed(2)}',
                 style: TextStyle(
@@ -925,7 +1114,16 @@ class _ComboHeaderTile extends StatelessWidget {
                   color: Colors.amber.shade900,
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 4),
+              InkWell(
+                onTap: onAgregarComponente,
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: Icon(Icons.add_circle_outline,
+                      size: 18, color: AppColors.blue1),
+                ),
+              ),
               InkWell(
                 onTap: onEliminar,
                 borderRadius: BorderRadius.circular(12),
