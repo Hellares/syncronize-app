@@ -480,37 +480,40 @@ class _CarritoView extends StatelessWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (sheetCtx) => Padding(
-        padding: EdgeInsets.only(
-          left: 16,
-          right: 16,
-          top: 16,
-          bottom: MediaQuery.of(sheetCtx).viewInsets.bottom + 16,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(titulo,
-                style:
-                    const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 12),
-            ProductoSedeSelector(
-              empresaId: empresaId,
-              sedeIdInicial: sedeId,
-              mostrarSelectorSede: false,
-              label: 'Producto',
-              hintText: 'Buscar producto...',
-              onProductoSeleccionado: ({
-                required producto,
-                required sedeId,
-                variante,
-              }) {
-                Navigator.pop(
-                    sheetCtx, (producto: producto, variante: variante));
-              },
+        padding:
+            EdgeInsets.only(bottom: MediaQuery.of(sheetCtx).viewInsets.bottom),
+        child: SizedBox(
+          // Alto fijo al 50% de la pantalla — deja aire para el dropdown
+          // de resultados del selector.
+          height: MediaQuery.of(sheetCtx).size.height * 0.5,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(titulo,
+                    style: const TextStyle(
+                        fontSize: 14, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 12),
+                ProductoSedeSelector(
+                  empresaId: empresaId,
+                  sedeIdInicial: sedeId,
+                  mostrarSelectorSede: false,
+                  label: 'Producto',
+                  hintText: 'Buscar producto...',
+                  onProductoSeleccionado: ({
+                    required producto,
+                    required sedeId,
+                    variante,
+                  }) {
+                    Navigator.pop(
+                        sheetCtx, (producto: producto, variante: variante));
+                  },
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-          ],
+          ),
         ),
       ),
     );
