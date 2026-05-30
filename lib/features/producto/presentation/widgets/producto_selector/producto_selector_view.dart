@@ -11,6 +11,8 @@ import '../../../../../core/widgets/barcode_scanner_sheet.dart';
 import '../../../../../core/utils/date_formatter.dart';
 import '../../../../../core/widgets/custom_search_field.dart';
 import '../../../../combo/domain/entities/combo.dart';
+import '../../../../combo/domain/usecases/get_combo_completo_usecase.dart';
+import '../../../../../core/utils/resource.dart';
 import '../../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../../../producto/domain/entities/precio_nivel.dart';
@@ -1048,6 +1050,150 @@ class _ProductoCard<TCubit extends Cubit<TState>, TState>
     );
   }
 
+  /// Bottom sheet con la lista de componentes de un combo (en vez del de
+  /// precios por mayor, que no aplica a combos). Trae el combo-completo y
+  /// muestra cada componente con su cantidad, precio de venta y badge de
+  /// liquidación si corresponde.
+  Future<void> _verComponentesCombo(BuildContext context) async {
+    final empresaState = context.read<EmpresaContextCubit>().state;
+    final empresaId = empresaState is EmpresaContextLoaded
+        ? empresaState.context.empresa.id
+        : null;
+    if (empresaId == null) return;
+    final future = locator<GetComboCompletoUseCase>()(
+      comboId: producto.id,
+      empresaId: empresaId,
+      sedeId: sedeId,
+    );
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (sheetCtx) => SizedBox(
+        height: MediaQuery.of(sheetCtx).size.height * 0.4,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.inventory_2_outlined,
+                      size: 16, color: AppColors.blue1),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Componentes · ${producto.nombre}',
+                      style: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w700),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              const Divider(height: 1),
+              Expanded(
+                child: FutureBuilder<Resource<Combo>>(
+                  future: future,
+                  builder: (ctx, snap) {
+                    if (!snap.hasData) {
+                      return const Center(
+                          child: CircularProgressIndicator(strokeWidth: 2));
+                    }
+                    final res = snap.data;
+                    if (res is! Success<Combo>) {
+                      return Center(
+                        child: Text('No se pudieron cargar los componentes',
+                            style: TextStyle(
+                                fontSize: 12, color: Colors.grey.shade600)),
+                      );
+                    }
+                    final comps = res.data.componentes;
+                    if (comps.isEmpty) {
+                      return Center(
+                        child: Text('Este combo no tiene componentes',
+                            style: TextStyle(
+                                fontSize: 12, color: Colors.grey.shade600)),
+                      );
+                    }
+                    return ListView.separated(
+                      itemCount: comps.length,
+                      separatorBuilder: (_, __) =>
+                          Divider(height: 1, color: Colors.grey.shade200),
+                      itemBuilder: (_, i) {
+                        final c = comps[i];
+                        final info = c.componenteInfo;
+                        final precio = info?.precioVenta ?? info?.precio ?? 0;
+                        final enLiq = info?.enLiquidacion ?? false;
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: AppColors.blue1.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text('x${c.cantidad}',
+                                    style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.blue1)),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(c.nombre,
+                                    style: const TextStyle(fontSize: 12),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis),
+                              ),
+                              if (enLiq) ...[
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 5, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: Colors.deepOrange.shade50,
+                                    borderRadius: BorderRadius.circular(3),
+                                    border: Border.all(
+                                        color: Colors.deepOrange.shade200,
+                                        width: 0.5),
+                                  ),
+                                  child: Text('LIQ',
+                                      style: TextStyle(
+                                          fontSize: 8,
+                                          fontWeight: FontWeight.w700,
+                                          color: Colors.deepOrange.shade700)),
+                                ),
+                                const SizedBox(width: 6),
+                              ],
+                              Text('S/ ${precio.toStringAsFixed(2)}',
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: enLiq
+                                          ? Colors.deepOrange.shade700
+                                          : null)),
+                            ],
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final precio = producto.precioEfectivoEnSede(sedeId) ??
@@ -1327,7 +1473,9 @@ class _ProductoCard<TCubit extends Cubit<TState>, TState>
                       ],
                     ),
                   ),
-                  // Botón discreto para abrir bottom sheet de precios por mayor.
+                  // Botón discreto (esquina inferior izquierda):
+                  // - Combos: abre la lista de COMPONENTES del combo.
+                  // - Producto simple: abre los precios por mayor (niveles).
                   // Oculto para productos con variantes — los niveles se
                   // muestran en el selector de variantes directamente.
                   if (!producto.tieneVariantes)
@@ -1340,11 +1488,15 @@ class _ProductoCard<TCubit extends Cubit<TState>, TState>
                       elevation: 1,
                       child: InkWell(
                         borderRadius: BorderRadius.circular(12),
-                        onTap: () => _abrirPreciosMayor(context),
+                        onTap: () => producto.esCombo
+                            ? _verComponentesCombo(context)
+                            : _abrirPreciosMayor(context),
                         child: Padding(
                           padding: const EdgeInsets.all(4),
                           child: Icon(
-                            Icons.auto_graph,
+                            producto.esCombo
+                                ? Icons.inventory_2_outlined
+                                : Icons.auto_graph,
                             size: 14,
                             color: AppColors.blue1,
                           ),
