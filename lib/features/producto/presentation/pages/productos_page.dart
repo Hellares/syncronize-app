@@ -1163,6 +1163,11 @@ class _ProductosPageState extends State<ProductosPage>
                       'nombre': producto.nombre,
                       'sedeId': sedeId,
                       'esInsumo': producto.esInsumo,
+                      'tieneVariantes': producto.tieneVariantes,
+                      'variantes': (producto.variantes ?? [])
+                          .where((v) => v.isActive)
+                          .map((v) => {'id': v.id, 'nombre': v.nombre})
+                          .toList(),
                     },
                   ),
                 );

@@ -83,8 +83,17 @@ class StyledDialog extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 14),
-            // Content
-            ...content,
+            // Content (scrollable: evita overflow cuando aparece el teclado;
+            // el header y las acciones quedan fijos).
+            Flexible(
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: content,
+                ),
+              ),
+            ),
             // Actions
             if (actions.isNotEmpty) ...[
               const SizedBox(height: 16),

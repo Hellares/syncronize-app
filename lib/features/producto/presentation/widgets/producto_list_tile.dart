@@ -43,6 +43,9 @@ class ProductoListTile extends StatelessWidget {
     return precioSede ?? 0.0;
   }
 
+  // Precio costo en la sede (para insumos, que no tienen precio de venta).
+  double? get _precioCosto => producto.precioCostoEnSede(sedeId);
+
   // Helper para formatear precios de manera segura
   String _formatPrecio(double precio) {
     return precio.toStringAsFixed(2);
@@ -224,13 +227,17 @@ class ProductoListTile extends StatelessWidget {
                 ),
 
               // Botón Componentes / BOM (productos compuestos: peluches, PCs armadas).
-              // Mismo criterio que precio: solo productos base.
+              // Disponible para productos base Y productos con variantes (cada
+              // variante tiene su propia receta). Los insumos NO llevan receta
+              // (son la materia prima) y los combos tampoco.
               if (onComponentesTap != null &&
-                  !producto.tieneVariantes &&
-                  !producto.esCombo)
+                  !producto.esCombo &&
+                  !producto.esInsumo)
                 Positioned(
                   bottom: 0,
-                  right: 70, // A la izquierda del botón de precio
+                  // En productos con variantes no hay botones de precio/stock
+                  // (van por variante), así que el ícono va pegado a la derecha.
+                  right: producto.tieneVariantes ? 0 : 70,
                   child: Material(
                     color: Colors.transparent,
                     child: InkWell(
@@ -466,7 +473,33 @@ class ProductoListTile extends StatelessWidget {
 
         // Línea 1: Precio (oculto para productos con variantes)
         if (!producto.tieneVariantes) ...[
-          if (!_tienePrecioConfigurado()) ...[
+          if (producto.esInsumo) ...[
+            // Insumo: no se vende, así que mostramos su PRECIO COSTO
+            // (en índigo, igual que el resto de la identidad de insumo).
+            Row(
+              children: [
+                Icon(
+                  Icons.shopping_cart_outlined,
+                  size: 12,
+                  color: _precioCosto != null ? Colors.indigo : Colors.orange,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  _precioCosto != null
+                      ? 'Costo: S/ ${_formatPrecio(_precioCosto!)}'
+                      : 'Sin costo',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: _precioCosto != null ? Colors.indigo : Colors.orange,
+                    fontStyle: _precioCosto != null
+                        ? FontStyle.normal
+                        : FontStyle.italic,
+                  ),
+                ),
+              ],
+            ),
+          ] else if (!_tienePrecioConfigurado()) ...[
             const Text(
               'Sin precio',
               style: TextStyle(
@@ -604,8 +637,12 @@ class ProductoListTile extends StatelessWidget {
               ),
             ],
 
-            // SIN PRECIO badge (solo si no tiene precio configurado y no es producto con variantes)
-            if (!producto.tieneVariantes && !_tienePrecioConfigurado()) ...[
+            // SIN PRECIO badge (solo si no tiene precio configurado y no es
+            // producto con variantes; los insumos no se venden, así que no
+            // aplica el concepto de "sin precio de venta").
+            if (!producto.tieneVariantes &&
+                !producto.esInsumo &&
+                !_tienePrecioConfigurado()) ...[
               const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4.5),

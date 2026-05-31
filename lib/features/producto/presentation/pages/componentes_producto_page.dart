@@ -10,6 +10,10 @@ import '../../../../core/widgets/confirm_dialog.dart';
 import '../../../../core/widgets/currency/currency_textfield.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/smart_appbar.dart';
+import '../../../../core/widgets/custom_dropdown.dart';
+import '../../../../core/widgets/custom_search_field.dart';
+import '../../../../core/widgets/styled_dialog.dart';
+import '../../../auth/presentation/widgets/custom_text.dart';
 import '../../../empresa/domain/entities/sede.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
@@ -32,12 +36,21 @@ class ComponentesProductoPage extends StatefulWidget {
   /// (el backend lo rechaza igual, pero ocultamos el botón).
   final bool esInsumo;
 
+  /// Si el producto tiene variantes, la receta y la fabricación se manejan
+  /// POR variante (cada talla/modelo consume distinta cantidad de insumos).
+  final bool tieneVariantes;
+
+  /// Variantes activas del producto: cada entrada {'id', 'nombre'}.
+  final List<Map<String, dynamic>> variantes;
+
   const ComponentesProductoPage({
     super.key,
     required this.productoId,
     required this.productoNombre,
     this.sedeIdInicial,
     this.esInsumo = false,
+    this.tieneVariantes = false,
+    this.variantes = const [],
   });
 
   @override
@@ -46,16 +59,31 @@ class ComponentesProductoPage extends StatefulWidget {
 }
 
 class _ComponentesProductoPageState extends State<ComponentesProductoPage> {
+  // Valor sentinela del dropdown para la "receta base" (varianteId null).
+  static const String _kBaseReceta = '__BASE__';
+
   final DioClient _dio = locator<DioClient>();
 
   List<Sede> _sedes = const [];
   String? _sedeId;
   String? _sedeNombre;
 
+  // Variante activa cuyo receta se está editando (null = receta base, solo
+  // para productos sin variantes). Para productos con variantes arranca en
+  // la primera.
+  String? _varianteId;
+
   bool _loading = false;
   String? _error;
   List<Map<String, dynamic>> _items = const [];
   bool _aplicando = false;
+  bool _copiando = false;
+
+  String? get _varianteNombre {
+    if (_varianteId == null) return null;
+    final m = widget.variantes.where((v) => v['id'] == _varianteId);
+    return m.isNotEmpty ? m.first['nombre'] as String? : null;
+  }
 
   @override
   void initState() {
@@ -70,6 +98,9 @@ class _ComponentesProductoPageState extends State<ComponentesProductoPage> {
         _sedeNombre = match.isNotEmpty ? match.first.nombre : null;
       }
     }
+    if (widget.tieneVariantes && widget.variantes.isNotEmpty) {
+      _varianteId = widget.variantes.first['id'] as String?;
+    }
     _cargar();
   }
 
@@ -82,7 +113,10 @@ class _ComponentesProductoPageState extends State<ComponentesProductoPage> {
     try {
       final resp = await _dio.get(
         '/productos/${widget.productoId}/componentes',
-        queryParameters: _sedeId != null ? {'sedeId': _sedeId} : null,
+        queryParameters: {
+          if (_sedeId != null) 'sedeId': _sedeId,
+          if (_varianteId != null) 'varianteId': _varianteId,
+        },
       );
       if (!mounted) return;
       setState(() {
@@ -116,6 +150,7 @@ class _ComponentesProductoPageState extends State<ComponentesProductoPage> {
       context: context,
       builder: (_) => _AgregarComponenteDialog(
         productoId: widget.productoId,
+        varianteId: _varianteId,
         sedeId: _sedeId,
         idsYaUsados: _items.map((i) => i['componenteId'] as String).toSet(),
       ),
@@ -133,16 +168,11 @@ class _ComponentesProductoPageState extends State<ComponentesProductoPage> {
       type: ConfirmDialogType.info,
       icon: Icons.edit_outlined,
       title: item['componente']['nombre'] as String,
-      customContent: TextField(
+      customContent: CustomText(
         controller: controller,
-        keyboardType:
-            const TextInputType.numberWithOptions(decimal: true),
-        autofocus: true,
-        decoration: InputDecoration(
-          labelText: 'Cantidad (${um ?? '—'})',
-          border: const OutlineInputBorder(),
-          isDense: true,
-        ),
+        label: 'Cantidad por unidad fabricada (${um ?? '—'})',
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        borderColor: AppColors.blue1,
       ),
       confirmText: 'Guardar',
     );
@@ -175,7 +205,7 @@ class _ComponentesProductoPageState extends State<ComponentesProductoPage> {
       type: ConfirmDialogType.destructive,
       title: 'Quitar componente',
       message:
-          '¿Quitar "${item['componente']['nombre']}" de la receta del combo?',
+          '¿Quitar "${item['componente']['nombre']}" de la receta de este producto?',
       confirmText: 'Quitar',
     );
     if (ok != true) return;
@@ -197,31 +227,68 @@ class _ComponentesProductoPageState extends State<ComponentesProductoPage> {
   /// y llama a PATCH /producto-stock/:id/precios con tipoCambio=COSTO.
   Future<void> _aplicarAlProducto() async {
     if (_sedeId == null || _items.isEmpty || _costoTotal <= 0) return;
+    final nuevoCosto = double.parse(_costoTotal.toStringAsFixed(2));
     setState(() => _aplicando = true);
     try {
-      // 1. Resolver stock id para esta sede
+      // 1. Resolver stock para esta sede. Si hay variante activa, se aplica
+      //    al stock de la VARIANTE; si no, al del producto base.
       final stockResp = await _dio.get(
-        '/producto-stock/producto/${widget.productoId}/sede/$_sedeId',
+        _varianteId != null
+            ? '/producto-stock/variante/$_varianteId/sede/$_sedeId'
+            : '/producto-stock/producto/${widget.productoId}/sede/$_sedeId',
       );
-      final stockId = (stockResp.data as Map?)?['id'] as String?;
+      final data = stockResp.data as Map?;
+      final stockId = data?['id'] as String?;
       if (stockId == null) {
-        throw 'No se encontró stock del producto en esta sede';
+        throw 'No se encontró stock en esta sede';
       }
-      // 2. Actualizar solo el precioCosto + auditar como cálculo BOM
+      // precioCosto viene como String (Decimal de Prisma serializado);
+      // stockActual como número. Parseo defensivo de ambos.
+      final stockRaw = data?['stockActual'];
+      final stockActual = stockRaw is num
+          ? stockRaw.toInt()
+          : int.tryParse('${stockRaw ?? ''}') ?? 0;
+      final costoRaw = data?['precioCosto'];
+      final costoActual = costoRaw is num
+          ? costoRaw.toDouble()
+          : (costoRaw is String ? double.tryParse(costoRaw) : null);
+
+      // 2. Advertencia inteligente: "Aplicar a Costo" REEMPLAZA el costo.
+      //    Si hay unidades en stock valorizadas a otro costo, eso pisa el
+      //    valor real de ese inventario (mejor dejar que la fabricación
+      //    pondere). Pedimos confirmación mostrando el impacto.
+      final hayImpacto = stockActual > 0 &&
+          costoActual != null &&
+          (costoActual - nuevoCosto).abs() >= 0.01;
+      if (hayImpacto) {
+        setState(() => _aplicando = false);
+        final confirmar = await _confirmarReemplazoCosto(
+          stockActual: stockActual,
+          costoActual: costoActual,
+          costoNuevo: nuevoCosto,
+        );
+        if (confirmar != true) return;
+        if (!mounted) return;
+        setState(() => _aplicando = true);
+      }
+
+      final sufijo =
+          _varianteNombre != null ? ' [$_varianteNombre]' : '';
+      // 3. Aplicar (reemplaza el precioCosto) + auditar como cálculo BOM.
       await _dio.patch(
         '/producto-stock/$stockId/precios',
         data: {
-          'precioCosto': double.parse(_costoTotal.toStringAsFixed(2)),
+          'precioCosto': nuevoCosto,
           'tipoCambio': 'COSTO',
           'razon':
-              'Recalculo desde ${_items.length} componente(s) (BOM) - $_sedeNombre',
+              'Recalculo desde ${_items.length} componente(s) (BOM) - $_sedeNombre$sufijo',
         },
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-              'Precio Costo actualizado: S/ ${_costoTotal.toStringAsFixed(2)}'),
+              'Precio Costo actualizado: S/ ${nuevoCosto.toStringAsFixed(2)}'),
           backgroundColor: Colors.green,
         ),
       );
@@ -236,6 +303,138 @@ class _ComponentesProductoPageState extends State<ComponentesProductoPage> {
       );
     } finally {
       if (mounted) setState(() => _aplicando = false);
+    }
+  }
+
+  /// Advertencia inteligente antes de REEMPLAZAR el costo de un stock que ya
+  /// tiene unidades valorizadas a otro costo. Muestra el impacto en el valor
+  /// del inventario y recuerda que la fabricación pondera (mejor para
+  /// trazabilidad). Devuelve true si el usuario decide reemplazar igual.
+  Future<bool?> _confirmarReemplazoCosto({
+    required int stockActual,
+    required double costoActual,
+    required double costoNuevo,
+  }) {
+    final valorAntes = stockActual * costoActual;
+    final valorDespues = stockActual * costoNuevo;
+    final diff = (valorAntes - valorDespues).abs();
+    final baja = costoNuevo < costoActual;
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => StyledDialog(
+        accentColor: AppColors.red,
+        icon: Icons.warning_amber_rounded,
+        titulo: 'Reemplazar costo existente',
+        content: [
+          Text(
+            'Este ${_varianteNombre != null ? 'variante' : 'producto'} ya tiene '
+            '$stockActual unidad(es) en stock valorizadas a '
+            'S/ ${costoActual.toStringAsFixed(2)} c/u. Aplicar el costo de la '
+            'receta las re-valoriza a S/ ${costoNuevo.toStringAsFixed(2)} c/u.',
+            style: const TextStyle(fontSize: 12),
+          ),
+          const SizedBox(height: 10),
+          _filaImpacto('Valor inventario actual', valorAntes),
+          _filaImpacto('Valor tras reemplazar', valorDespues),
+          _filaImpacto(
+            baja ? 'Costo real que se descarta' : 'Costo que se agrega',
+            diff,
+            destacar: true,
+          ),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: Colors.blue.shade100),
+            ),
+            child: Text(
+              '💡 Si esas unidades realmente costaron S/ ${costoActual.toStringAsFixed(2)} '
+              '(compra/producción previa), NO reemplaces: deja que la '
+              'fabricación pondere el costo. Reemplaza solo si el costo anterior '
+              'estaba mal cargado.',
+              style: TextStyle(fontSize: 10, color: Colors.blue.shade900),
+            ),
+          ),
+        ],
+        actions: [
+          Expanded(
+            child: CustomButton(
+              text: 'Cancelar',
+              isOutlined: true,
+              textColor: AppColors.red,
+              borderColor: AppColors.red.withValues(alpha: 0.4),
+              enableShadows: false,
+              height: 36,
+              onPressed: () => Navigator.pop(ctx, false),
+            ),
+          ),
+          Expanded(
+            child: CustomButton(
+              text: 'Reemplazar',
+              backgroundColor: AppColors.red,
+              textColor: Colors.white,
+              enableShadows: false,
+              height: 36,
+              onPressed: () => Navigator.pop(ctx, true),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _filaImpacto(String label, double valor, {bool destacar = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label,
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade700)),
+          Text(
+            'S/ ${valor.toStringAsFixed(2)}',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: destacar ? FontWeight.bold : FontWeight.w600,
+              color: destacar ? AppColors.red : Colors.black87,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Copia la receta base (varianteId null) del producto a la variante
+  /// activa, como plantilla inicial. Solo aplica con una variante seleccionada.
+  Future<void> _copiarRecetaBase() async {
+    if (_varianteId == null) return;
+    setState(() => _copiando = true);
+    try {
+      final resp = await _dio.post(
+        '/productos/${widget.productoId}/componentes/copiar-a-variante',
+        data: {'varianteId': _varianteId},
+      );
+      final copiados = (resp.data as Map?)?['copiados'] ?? 0;
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Receta base copiada: $copiados componente(s)'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      _cargar();
+    } catch (e) {
+      if (!mounted) return;
+      final msg = e is DioException
+          ? (e.response?.data?['message']?.toString() ?? e.message ?? 'Error')
+          : e.toString();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(msg), backgroundColor: Colors.red),
+      );
+    } finally {
+      if (mounted) setState(() => _copiando = false);
     }
   }
 
@@ -262,10 +461,64 @@ class _ComponentesProductoPageState extends State<ComponentesProductoPage> {
         body: Column(
           children: [
             _buildHeader(),
+            _buildBaseBanner(),
             Expanded(child: _buildBody()),
             _buildFooter(),
           ],
         ),
+      ),
+    );
+  }
+
+  /// Banner explicativo cuando se está editando la receta BASE (plantilla)
+  /// de un producto con variantes. Aclara que es común, editable y se copia
+  /// a las variantes (actuales o nuevas).
+  Widget _buildBaseBanner() {
+    if (!(widget.tieneVariantes && _varianteId == null)) {
+      return const SizedBox.shrink();
+    }
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.indigo.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.indigo.shade100),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.copy_all_outlined, size: 18, color: Colors.indigo.shade400),
+          const SizedBox(width: 8),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: TextStyle(
+                    fontSize: 10.5, color: Colors.indigo.shade900, height: 1.35),
+                children: [
+                  const TextSpan(
+                    text: 'Plantilla base. ',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const TextSpan(
+                    text:
+                        'Definí esta receta común una vez; luego, desde cada variante '
+                        '(actual o nueva) usá ',
+                  ),
+                  const TextSpan(
+                    text: '"Copiar receta base"',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const TextSpan(
+                    text:
+                        ' y ajustá las cantidades. No se vende ni se fabrica directamente.',
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -278,6 +531,8 @@ class _ComponentesProductoPageState extends State<ComponentesProductoPage> {
       builder: (_) => _HistorialFabricacionesSheet(
         productoId: widget.productoId,
         productoNombre: widget.productoNombre,
+        varianteId: _varianteId,
+        varianteNombre: _varianteNombre,
         sedeId: _sedeId,
         sedeNombre: _sedeNombre,
       ),
@@ -300,27 +555,21 @@ class _ComponentesProductoPageState extends State<ComponentesProductoPage> {
           ),
           const SizedBox(height: 6),
           if (_sedes.length > 1)
-            DropdownButtonFormField<String>(
-              initialValue: _sedeId,
-              decoration: InputDecoration(
-                isDense: true,
-                labelText: 'Sede (toma costos desde aquí)',
-                labelStyle: const TextStyle(fontSize: 11),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 8, vertical: 8),
-              ),
+            CustomDropdown<String>(
+              label: 'Sede (toma costos desde aquí)',
+              hintText: 'Selecciona sede',
+              value: _sedeId,
+              borderColor: AppColors.blue1,
+              prefixIcon: Icon(Icons.store,
+                  size: 16, color: Colors.grey.shade600),
               items: _sedes
-                  .map((s) => DropdownMenuItem(
+                  .map((s) => DropdownItem<String>(
                         value: s.id,
-                        child: Text(s.nombre,
-                            style: const TextStyle(fontSize: 12)),
+                        label: s.nombre,
                       ))
                   .toList(),
               onChanged: (v) {
-                if (v == null) return;
+                if (v == null || v == _sedeId) return;
                 setState(() {
                   _sedeId = v;
                   _sedeNombre = _sedes.firstWhere((s) => s.id == v).nombre;
@@ -339,6 +588,38 @@ class _ComponentesProductoPageState extends State<ComponentesProductoPage> {
                 ),
               ],
             ),
+
+          // Selector de variante: cada variante tiene su propia receta.
+          if (widget.tieneVariantes && widget.variantes.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            CustomDropdown<String>(
+              label: 'Receta de la variante',
+              hintText: 'Selecciona variante',
+              // _varianteId null = receta base → mostramos el sentinela.
+              value: _varianteId ?? _kBaseReceta,
+              borderColor: Colors.indigo,
+              prefixIcon: const Icon(Icons.widgets,
+                  size: 16, color: Colors.indigo),
+              items: [
+                // Plantilla común (varianteId null). Se define una vez y se
+                // copia a cada variante con "Copiar receta base".
+                const DropdownItem<String>(
+                  value: _kBaseReceta,
+                  label: 'Base (plantilla común)',
+                ),
+                ...widget.variantes.map((v) => DropdownItem<String>(
+                      value: v['id'] as String,
+                      label: (v['nombre'] as String?) ?? '—',
+                    )),
+              ],
+              onChanged: (v) {
+                final nuevo = (v == null || v == _kBaseReceta) ? null : v;
+                if (nuevo == _varianteId) return;
+                setState(() => _varianteId = nuevo);
+                _cargar();
+              },
+            ),
+          ],
         ],
       ),
     );
@@ -385,10 +666,34 @@ class _ComponentesProductoPageState extends State<ComponentesProductoPage> {
               ),
               const SizedBox(height: 6),
               Text(
-                'Agregá los insumos que componen este producto.\nEl costo se calculará sumando cantidad × precio costo.',
+                _varianteId != null
+                    ? 'Esta variante aún no tiene receta.\nAgregá insumos o copiá la receta base como punto de partida.'
+                    : widget.tieneVariantes
+                        ? 'Receta base (plantilla común).\nDefiníla una vez y luego copiala a cada variante.'
+                        : 'Agregá los insumos que componen este producto.\nEl costo se calculará sumando cantidad × precio costo.',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
               ),
+              // Atajo para variantes: copiar la receta base (varianteId null)
+              // a esta variante y luego ajustar cantidades por talla.
+              if (_varianteId != null) ...[
+                const SizedBox(height: 14),
+                OutlinedButton.icon(
+                  onPressed: _copiando ? null : _copiarRecetaBase,
+                  icon: _copiando
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.copy_all_outlined, size: 16),
+                  label: const Text('Copiar receta base'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.indigo,
+                    side: BorderSide(color: Colors.indigo.shade200),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -582,9 +887,13 @@ class _ComponentesProductoPageState extends State<ComponentesProductoPage> {
   }
 
   Widget _buildFooter() {
+    // Editando la receta BASE de un producto con variantes: es solo plantilla,
+    // no se fabrica ni se aplica costo (eso va por variante).
+    final esBasePlantilla = widget.tieneVariantes && _varianteId == null;
     final puedeFabricar = !widget.esInsumo &&
         _items.isNotEmpty &&
-        _sedeId != null;
+        _sedeId != null &&
+        !esBasePlantilla;
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
       decoration: BoxDecoration(
@@ -624,9 +933,10 @@ class _ComponentesProductoPageState extends State<ComponentesProductoPage> {
                     textColor: Colors.white,
                     enableShadows: false,
                     isLoading: _aplicando,
-                    onPressed: (_items.isNotEmpty && _costoTotal > 0)
-                        ? _aplicarAlProducto
-                        : null,
+                    onPressed:
+                        (_items.isNotEmpty && _costoTotal > 0 && !esBasePlantilla)
+                            ? _aplicarAlProducto
+                            : null,
                   ),
                 ),
               ],
@@ -663,6 +973,8 @@ class _ComponentesProductoPageState extends State<ComponentesProductoPage> {
       builder: (_) => _FabricarDialog(
         productoId: widget.productoId,
         productoNombre: widget.productoNombre,
+        varianteId: _varianteId,
+        varianteNombre: _varianteNombre,
         sedeId: _sedeId!,
         sedeNombre: _sedeNombre,
         componentes: _items,
@@ -701,11 +1013,13 @@ class _Hcell extends StatelessWidget {
 
 class _AgregarComponenteDialog extends StatefulWidget {
   final String productoId;
+  final String? varianteId;
   final String? sedeId;
   final Set<String> idsYaUsados;
 
   const _AgregarComponenteDialog({
     required this.productoId,
+    required this.varianteId,
     required this.sedeId,
     required this.idsYaUsados,
   });
@@ -719,7 +1033,6 @@ class _AgregarComponenteDialogState extends State<_AgregarComponenteDialog> {
   final DioClient _dio = locator<DioClient>();
   final _searchCtrl = TextEditingController();
   final _cantidadCtrl = TextEditingController();
-  Timer? _debounce;
 
   bool _searching = false;
   List<Map<String, dynamic>> _results = const [];
@@ -732,17 +1045,19 @@ class _AgregarComponenteDialogState extends State<_AgregarComponenteDialog> {
   int? _selectedStockActual;
   bool _loadingStockInfo = false;
 
+  // Conversión de unidad: la receta se guarda en la unidad ATÓMICA del insumo,
+  // pero el usuario puede ingresar en la unidad de compra (ej. metros) y el
+  // factor convierte a la atómica (ej. cm). Materiales continuos (cuero,
+  // pegamento) se modelan así para que el consumo sea entero.
+  double? _factorCompra; // cuántas unidades atómicas trae 1 de compra
+  String? _simboloCompra; // unidad de compra (ej. "m")
+  String? _simboloAtomico; // unidad base/atómica (ej. "cm")
+
   @override
   void dispose() {
-    _debounce?.cancel();
     _searchCtrl.dispose();
     _cantidadCtrl.dispose();
     super.dispose();
-  }
-
-  void _onSearchChanged(String q) {
-    _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 350), () => _buscar(q));
   }
 
   Future<void> _buscar(String q) async {
@@ -790,12 +1105,18 @@ class _AgregarComponenteDialogState extends State<_AgregarComponenteDialog> {
       _selectedStockId = null;
       _selectedCosto = null;
       _selectedStockActual = null;
+      _factorCompra = null;
+      _simboloCompra = null;
+      _simboloAtomico = null;
     });
     try {
       final resp = await _dio.get(
         '/producto-stock/producto/${_selected!['id']}/sede/${widget.sedeId}',
       );
       final data = resp.data as Map<String, dynamic>?;
+      // Detalle del insumo para el conversor de unidad (factor + símbolos).
+      final detResp = await _dio.get('/productos/${_selected!['id']}');
+      final det = detResp.data as Map<String, dynamic>?;
       if (!mounted) return;
       setState(() {
         _selectedStockId = data?['id'] as String?;
@@ -804,11 +1125,45 @@ class _AgregarComponenteDialogState extends State<_AgregarComponenteDialog> {
             ? costoRaw.toDouble()
             : (costoRaw is String ? double.tryParse(costoRaw) : null);
         _selectedStockActual = (data?['stockActual'] as num?)?.toInt();
+        final fc = det?['factorCompra'];
+        _factorCompra = fc is num
+            ? fc.toDouble()
+            : (fc is String ? double.tryParse(fc) : null);
+        _simboloCompra = _simboloDeUnidad(det?['unidadCompra']);
+        _simboloAtomico = _simboloDeUnidad(det?['unidadMedida']);
         _loadingStockInfo = false;
       });
     } catch (_) {
       if (mounted) setState(() => _loadingStockInfo = false);
     }
+  }
+
+  /// Resuelve el símbolo de una unidad (local > personalizado > maestra).
+  String? _simboloDeUnidad(dynamic um) {
+    if (um is! Map) return null;
+    final maestra = um['unidadMaestra'];
+    return (um['simboloLocal'] ??
+            um['simboloPersonalizado'] ??
+            (maestra is Map ? maestra['simbolo'] : null)) as String?;
+  }
+
+  /// Abre el conversor: ingresar en unidad de compra (ej. metros) → guarda
+  /// la cantidad en unidad atómica (ej. cm) en el campo de cantidad.
+  Future<void> _abrirConversorUnidad() async {
+    final factor = _factorCompra;
+    if (factor == null || factor <= 0) return;
+    final atomico = await showDialog<double>(
+      context: context,
+      builder: (_) => _ConversorUnidadDialog(
+        factor: factor,
+        simboloCompra: _simboloCompra ?? '',
+        simboloAtomico: _simboloAtomico ?? '',
+      ),
+    );
+    if (atomico == null) return;
+    _cantidadCtrl.text =
+        atomico % 1 == 0 ? atomico.toStringAsFixed(0) : atomico.toStringAsFixed(4);
+    setState(() {});
   }
 
   /// Abre la calculadora "total ÷ cantidad" y, si el usuario aplica,
@@ -962,6 +1317,7 @@ class _AgregarComponenteDialogState extends State<_AgregarComponenteDialog> {
         data: {
           'componenteId': _selected!['id'],
           'cantidad': cantidad,
+          if (widget.varianteId != null) 'varianteId': widget.varianteId,
         },
       );
       if (!mounted) return;
@@ -983,185 +1339,177 @@ class _AgregarComponenteDialogState extends State<_AgregarComponenteDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 420, maxHeight: 520),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.add_box_outlined,
-                      color: Colors.indigo.shade700, size: 20),
-                  const SizedBox(width: 8),
-                  const Expanded(
-                    child: Text(
-                      'Agregar componente',
-                      style: TextStyle(
-                          fontSize: 14, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close, size: 18),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              if (_selected == null) ...[
-                TextField(
-                  controller: _searchCtrl,
-                  autofocus: true,
-                  onChanged: _onSearchChanged,
-                  decoration: InputDecoration(
-                    hintText: 'Buscar producto (insumo)…',
-                    prefixIcon: const Icon(Icons.search, size: 18),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    isDense: true,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Expanded(
-                  child: _searching
-                      ? const Center(
-                          child: CircularProgressIndicator(strokeWidth: 2))
-                      : _results.isEmpty
-                          ? Center(
-                              child: Text(
-                                _searchCtrl.text.trim().length < 2
-                                    ? 'Escribí al menos 2 caracteres'
-                                    : 'Sin resultados',
-                                style: TextStyle(
-                                    fontSize: 11,
-                                    color: Colors.grey.shade600),
-                              ),
-                            )
-                          : ListView.builder(
-                              itemCount: _results.length,
-                              itemBuilder: (_, i) {
-                                final p = _results[i];
-                                return ListTile(
-                                  dense: true,
-                                  visualDensity: VisualDensity.compact,
-                                  title: Text(
-                                    p['nombre']?.toString() ?? '',
-                                    style: const TextStyle(fontSize: 12),
-                                  ),
-                                  subtitle: Text(
-                                    p['codigoEmpresa']?.toString() ?? '',
-                                    style: const TextStyle(fontSize: 10),
-                                  ),
-                                  onTap: () {
-                                    setState(() => _selected = p);
-                                    _cargarInfoSeleccionado();
-                                  },
-                                );
-                              },
+    return StyledDialog(
+      accentColor: Colors.indigo,
+      icon: Icons.add_box_outlined,
+      titulo: 'Agregar componente',
+      actions: [
+        Expanded(
+          child: CustomButton(
+            text: 'Cancelar',
+            isOutlined: true,
+            textColor: Colors.indigo,
+            borderColor: Colors.indigo.withValues(alpha: 0.4),
+            enableShadows: false,
+            height: 36,
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        if (_selected != null)
+          Expanded(
+            child: CustomButton(
+              text: 'Agregar',
+              backgroundColor: Colors.indigo,
+              textColor: Colors.white,
+              enableShadows: false,
+              isLoading: _saving,
+              height: 36,
+              icon: const Icon(Icons.check, size: 14, color: Colors.white),
+              onPressed: _guardar,
+            ),
+          ),
+      ],
+      content: [
+        if (_selected == null) ...[
+          CustomSearchField(
+            controller: _searchCtrl,
+            hintText: 'Buscar producto (insumo)…',
+            borderColor: Colors.indigo,
+            debounceDelay: const Duration(milliseconds: 350),
+            onChanged: _buscar,
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 240,
+            child: _searching
+                ? const Center(
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : _results.isEmpty
+                    ? Center(
+                        child: Text(
+                          _searchCtrl.text.trim().length < 2
+                              ? 'Escribí al menos 2 caracteres'
+                              : 'Sin resultados',
+                          style: TextStyle(
+                              fontSize: 11, color: Colors.grey.shade600),
+                        ),
+                      )
+                    : ListView.builder(
+                        itemCount: _results.length,
+                        itemBuilder: (_, i) {
+                          final p = _results[i];
+                          return ListTile(
+                            dense: true,
+                            visualDensity: VisualDensity.compact,
+                            title: Text(
+                              p['nombre']?.toString() ?? '',
+                              style: const TextStyle(fontSize: 12),
                             ),
-                ),
-              ] else ...[
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.indigo.shade50,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _selected!['nombre']?.toString() ?? '',
-                              style: const TextStyle(
-                                  fontSize: 12, fontWeight: FontWeight.w600),
-                            ),
-                            Text(
-                              _selected!['codigoEmpresa']?.toString() ?? '',
+                            subtitle: Text(
+                              p['codigoEmpresa']?.toString() ?? '',
                               style: const TextStyle(fontSize: 10),
                             ),
-                          ],
-                        ),
+                            onTap: () {
+                              setState(() => _selected = p);
+                              _cargarInfoSeleccionado();
+                            },
+                          );
+                        },
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.swap_horiz, size: 18),
-                        tooltip: 'Cambiar',
-                        onPressed: () => setState(() {
-                          _selected = null;
-                          _selectedStockId = null;
-                          _selectedCosto = null;
-                          _selectedStockActual = null;
-                        }),
+          ),
+        ] else ...[
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.indigo.shade50,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _selected!['nombre']?.toString() ?? '',
+                        style: const TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w600),
+                      ),
+                      Text(
+                        _selected!['codigoEmpresa']?.toString() ?? '',
+                        style: const TextStyle(fontSize: 10),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 8),
-                // Info de costo del insumo en la sede actual. Permite
-                // detectar de un vistazo si el costo unitario está mal
-                // cargado (caso típico: total de compra en lugar de
-                // unitario) y corregirlo desde acá.
-                _buildInfoCostoInsumo(),
-                const SizedBox(height: 12),
-                CurrencyTextField(
-                  label: 'Cantidad por unidad armada',
-                  controller: _cantidadCtrl,
-                  borderColor: AppColors.blue1,
-                  allowZero: false,
+                IconButton(
+                  icon: const Icon(Icons.swap_horiz, size: 18),
+                  tooltip: 'Cambiar',
+                  onPressed: () => setState(() {
+                    _selected = null;
+                    _selectedStockId = null;
+                    _selectedCosto = null;
+                    _selectedStockActual = null;
+                  }),
                 ),
-                Padding(
-                  padding: const EdgeInsets.only(top: 4, left: 4),
-                  child: Text(
-                    'En unidad del componente. Ej: 0.05 si compraste por KG y usás 50g.',
-                    style: TextStyle(
-                        fontSize: 9,
-                        color: Colors.grey.shade600,
-                        fontStyle: FontStyle.italic),
-                  ),
-                ),
-                const Spacer(),
-                Row(
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          // Info de costo del insumo en la sede actual. Permite detectar
+          // de un vistazo si el costo unitario está mal cargado (caso
+          // típico: total de compra en lugar de unitario) y corregirlo.
+          _buildInfoCostoInsumo(),
+          const SizedBox(height: 12),
+          CurrencyTextField(
+            label: _simboloAtomico != null
+                ? 'Cantidad por unidad fabricada ($_simboloAtomico)'
+                : 'Cantidad por unidad fabricada',
+            controller: _cantidadCtrl,
+            borderColor: AppColors.blue1,
+            allowZero: false,
+          ),
+          // Conversor: solo si el insumo tiene factor de compra (ej. se compra
+          // por metros y el stock vive en cm).
+          if (_factorCompra != null &&
+              _factorCompra! > 1 &&
+              _simboloCompra != null) ...[
+            const SizedBox(height: 4),
+            InkWell(
+              onTap: _abrirConversorUnidad,
+              borderRadius: BorderRadius.circular(4),
+              child: Padding(
+                padding: const EdgeInsets.all(2),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Expanded(
-                      child: CustomButton(
-                        text: 'Cancelar',
-                        isOutlined: true,
-                        textColor: AppColors.blue1,
-                        borderColor: AppColors.blue1.withValues(alpha: 0.4),
-                        enableShadows: false,
-                        height: 36,
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: CustomButton(
-                        text: 'Agregar',
-                        backgroundColor: AppColors.blue1,
-                        textColor: Colors.white,
-                        enableShadows: false,
-                        isLoading: _saving,
-                        height: 36,
-                        icon: const Icon(Icons.check,
-                            size: 14, color: Colors.white),
-                        onPressed: _guardar,
+                    Icon(Icons.swap_vert, size: 13, color: AppColors.blue1),
+                    const SizedBox(width: 2),
+                    Text(
+                      'Convertir desde $_simboloCompra',
+                      style: TextStyle(
+                        fontSize: 9,
+                        color: AppColors.blue1,
+                        decoration: TextDecoration.underline,
                       ),
                     ),
                   ],
                 ),
-              ],
-            ],
+              ),
+            ),
+          ],
+          Padding(
+            padding: const EdgeInsets.only(top: 4, left: 4),
+            child: Text(
+              'En unidad del componente. Ej: 0.05 si compraste por KG y usás 50g.',
+              style: TextStyle(
+                  fontSize: 9,
+                  color: Colors.grey.shade600,
+                  fontStyle: FontStyle.italic),
+            ),
           ),
-        ),
-      ),
+        ],
+      ],
     );
   }
 }
@@ -1173,6 +1521,8 @@ class _AgregarComponenteDialogState extends State<_AgregarComponenteDialog> {
 class _FabricarDialog extends StatefulWidget {
   final String productoId;
   final String productoNombre;
+  final String? varianteId;
+  final String? varianteNombre;
   final String sedeId;
   final String? sedeNombre;
 
@@ -1183,6 +1533,8 @@ class _FabricarDialog extends StatefulWidget {
   const _FabricarDialog({
     required this.productoId,
     required this.productoNombre,
+    required this.varianteId,
+    required this.varianteNombre,
     required this.sedeId,
     required this.sedeNombre,
     required this.componentes,
@@ -1196,18 +1548,37 @@ class _FabricarDialogState extends State<_FabricarDialog> {
   final DioClient _dio = locator<DioClient>();
   final _cantidadCtrl = TextEditingController(text: '1');
   final _observacionesCtrl = TextEditingController();
+  final _manoObraCtrl = TextEditingController();
   bool _fabricando = false;
+  // Modo "registrar producción previa": el stock terminado YA existe, solo
+  // se descuentan los insumos que esas unidades consumieron.
+  bool _soloConsumir = false;
   String? _error;
 
   @override
   void dispose() {
     _cantidadCtrl.dispose();
     _observacionesCtrl.dispose();
+    _manoObraCtrl.dispose();
     super.dispose();
   }
 
   int get _cantidad {
     return int.tryParse(_cantidadCtrl.text.trim()) ?? 0;
+  }
+
+  double get _manoObra =>
+      double.tryParse(_manoObraCtrl.text.replaceAll(',', '.')) ?? 0;
+
+  /// Costo estimado de insumos del lote = Σ(subtotal por unidad) × cantidad.
+  /// `subtotal` viene del GET /componentes (cantidad × precioCosto por unidad).
+  double get _costoInsumosLote {
+    double total = 0;
+    for (final item in widget.componentes) {
+      final sub = (item['subtotal'] as num?)?.toDouble();
+      if (sub != null) total += sub;
+    }
+    return total * _cantidad;
   }
 
   /// Para cada componente: cuánto consume × N + si la cantidad consumida
@@ -1221,9 +1592,16 @@ class _FabricarDialogState extends State<_FabricarDialog> {
       final esEntero = (consumido - redondeado).abs() < 1e-6;
       final stock = (item['stockDisponible'] as num?)?.toInt();
       final excede = stock != null && esEntero && redondeado > stock;
+      final comp = item['componente'] as Map?;
+      final fcRaw = comp?['factorCompra'];
+      final factorCompra = fcRaw is num
+          ? fcRaw.toDouble()
+          : (fcRaw is String ? double.tryParse(fcRaw) : null);
       return _PreviewLinea(
-        nombre: (item['componente']['nombre'] as String?) ?? '',
-        unidadMedida: (item['componente']['unidadMedida'] as String?) ?? '',
+        nombre: (comp?['nombre'] as String?) ?? '',
+        unidadMedida: (comp?['unidadMedida'] as String?) ?? '',
+        factorCompra: factorCompra,
+        simboloCompra: comp?['unidadCompraSimbolo'] as String?,
         cantidadPorUnidad: cantidadPorUnidad,
         cantidadConsumida: consumido,
         esEntero: esEntero,
@@ -1261,6 +1639,9 @@ class _FabricarDialogState extends State<_FabricarDialog> {
         data: {
           'sedeId': widget.sedeId,
           'cantidad': _cantidad,
+          if (widget.varianteId != null) 'varianteId': widget.varianteId,
+          if (_soloConsumir) 'soloConsumirInsumos': true,
+          if (!_soloConsumir && _manoObra > 0) 'costoManoObra': _manoObra,
           if (_observacionesCtrl.text.trim().isNotEmpty)
             'observaciones': _observacionesCtrl.text.trim(),
         },
@@ -1273,15 +1654,25 @@ class _FabricarDialogState extends State<_FabricarDialog> {
       final mostrarCosto = data?['costoActualizado'] == true &&
           costoNuevo != null &&
           costoNuevo != costoAnt;
-      final base =
-          'Fabricación OK · ${data?['cantidadProducida'] ?? _cantidad} '
-          'unidad(es) · stock nuevo: ${data?['stockFinalNuevo'] ?? '—'} '
-          '· lote ${data?['numeroDocumento'] ?? '—'}';
-      final extraCosto = mostrarCosto
-          ? '\nCosto: S/ ${costoAnt?.toStringAsFixed(2) ?? '—'} → S/ ${costoNuevo.toStringAsFixed(2)} (promedio ponderado)'
-          : (data?['razonCostoNoActualizado'] != null
-              ? '\n⚠️ Costo NO actualizado: ${data!['razonCostoNoActualizado']}'
-              : '');
+      final String base;
+      final String extraCosto;
+      if (_soloConsumir) {
+        // Solo se descontaron insumos; no hay stock nuevo ni cambio de costo.
+        base =
+            'Insumos descontados por $_cantidad unidad(es) ya fabricada(s) '
+            '· lote ${data?['numeroDocumento'] ?? '—'}';
+        extraCosto = '';
+      } else {
+        base =
+            'Fabricación OK · ${data?['cantidadProducida'] ?? _cantidad} '
+            'unidad(es) · stock nuevo: ${data?['stockFinalNuevo'] ?? '—'} '
+            '· lote ${data?['numeroDocumento'] ?? '—'}';
+        extraCosto = mostrarCosto
+            ? '\nCosto: S/ ${costoAnt?.toStringAsFixed(2) ?? '—'} → S/ ${costoNuevo.toStringAsFixed(2)} (promedio ponderado)'
+            : (data?['razonCostoNoActualizado'] != null
+                ? '\n⚠️ Costo NO actualizado: ${data!['razonCostoNoActualizado']}'
+                : '');
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('$base$extraCosto'),
@@ -1321,81 +1712,140 @@ class _FabricarDialogState extends State<_FabricarDialog> {
         !_hayFraccionarios &&
         !_hayInsuficiencia &&
         !_fabricando;
-    return Dialog(
-      shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 460, maxHeight: 620),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.precision_manufacturing_outlined,
-                      color: Colors.deepPurple.shade700, size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Fabricar',
-                          style: TextStyle(
-                              fontSize: 14, fontWeight: FontWeight.bold),
-                        ),
-                        Text(
-                          widget.productoNombre,
-                          style: TextStyle(
-                              fontSize: 11, color: Colors.grey.shade700),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close, size: 18),
-                    onPressed: _fabricando
-                        ? null
-                        : () => Navigator.pop(context),
-                  ),
-                ],
+    return StyledDialog(
+      accentColor: Colors.deepPurple,
+      icon: Icons.precision_manufacturing_outlined,
+      titulo: 'Fabricar',
+      barrierDismissible: !_fabricando,
+      actions: [
+        Expanded(
+          child: CustomButton(
+            text: 'Cancelar',
+            isOutlined: true,
+            textColor: Colors.deepPurple,
+            borderColor: Colors.deepPurple.withValues(alpha: 0.4),
+            enableShadows: false,
+            height: 36,
+            onPressed: _fabricando ? null : () => Navigator.pop(context),
+          ),
+        ),
+        Expanded(
+          flex: 2,
+          child: CustomButton(
+            text: _soloConsumir ? 'Registrar consumo' : 'Fabricar',
+            backgroundColor: Colors.deepPurple.shade600,
+            textColor: Colors.white,
+            enableShadows: false,
+            isLoading: _fabricando,
+            height: 36,
+            icon: Icon(
+                _soloConsumir
+                    ? Icons.remove_circle_outline
+                    : Icons.precision_manufacturing_outlined,
+                size: 14,
+                color: Colors.white),
+            onPressed: puedeConfirmar ? _confirmar : null,
+          ),
+        ),
+      ],
+      content: [
+        // Subtítulo: producto (+ variante) + sede de la que se descuentan
+        // los insumos.
+        Text(
+          widget.varianteNombre != null
+              ? '${widget.productoNombre} · ${widget.varianteNombre}'
+              : widget.productoNombre,
+          style: TextStyle(fontSize: 12, color: Colors.grey.shade800),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        if (widget.sedeNombre != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Row(
+              children: [
+                Icon(Icons.store, size: 11, color: Colors.grey.shade600),
+                const SizedBox(width: 4),
+                Text(
+                  widget.sedeNombre!,
+                  style:
+                      TextStyle(fontSize: 10, color: Colors.grey.shade700),
+                ),
+              ],
+            ),
+          ),
+        const SizedBox(height: 14),
+        CustomText(
+          controller: _cantidadCtrl,
+          label: _soloConsumir
+              ? 'Unidades ya fabricadas (a registrar)'
+              : 'Cantidad a fabricar (unidades)',
+          hintText: 'Ej. 10',
+          fieldType: FieldType.number,
+          borderColor: Colors.deepPurple,
+          onChanged: (_) => setState(() => _error = null),
+        ),
+        const SizedBox(height: 10),
+        // Toggle: registrar producción previa (solo descontar insumos).
+        InkWell(
+          onTap: () => setState(() {
+            _soloConsumir = !_soloConsumir;
+            _error = null;
+          }),
+          borderRadius: BorderRadius.circular(6),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            decoration: BoxDecoration(
+              color:
+                  _soloConsumir ? Colors.indigo.shade50 : Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(
+                color: _soloConsumir
+                    ? Colors.indigo.shade200
+                    : Colors.grey.shade300,
               ),
-              if (widget.sedeNombre != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 4, left: 28),
-                  child: Row(
+            ),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: Checkbox(
+                    value: _soloConsumir,
+                    onChanged: (v) => setState(() {
+                      _soloConsumir = v ?? false;
+                      _error = null;
+                    }),
+                    activeColor: Colors.indigo,
+                    visualDensity: VisualDensity.compact,
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.store,
-                          size: 11, color: Colors.grey.shade600),
-                      const SizedBox(width: 4),
-                      Text(
-                        widget.sedeNombre!,
+                      const Text(
+                        'Solo descontar insumos',
                         style: TextStyle(
-                            fontSize: 10, color: Colors.grey.shade700),
+                            fontSize: 11, fontWeight: FontWeight.w600),
+                      ),
+                      Text(
+                        'El producto ya tiene este stock (producción previa). '
+                        'No suma stock ni cambia el costo.',
+                        style: TextStyle(
+                            fontSize: 9, color: Colors.grey.shade600),
                       ),
                     ],
                   ),
                 ),
-              const SizedBox(height: 14),
-              TextField(
-                controller: _cantidadCtrl,
-                autofocus: true,
-                keyboardType: TextInputType.number,
-                onChanged: (_) => setState(() => _error = null),
-                decoration: InputDecoration(
-                  labelText: 'Cantidad a fabricar (unidades)',
-                  isDense: true,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              if (preview.isNotEmpty) ...[
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (preview.isNotEmpty) ...[
                 Row(
                   children: [
                     Expanded(
@@ -1435,7 +1885,8 @@ class _FabricarDialogState extends State<_FabricarDialog> {
                   ],
                 ),
                 const SizedBox(height: 6),
-                Flexible(
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 200),
                   child: Container(
                     decoration: BoxDecoration(
                       color: Colors.deepPurple.shade50,
@@ -1468,35 +1919,66 @@ class _FabricarDialogState extends State<_FabricarDialog> {
                             ),
                             Expanded(
                               flex: 4,
-                              child: Text(
-                                '${_fmt(p.cantidadConsumida)} ${p.unidadMedida}',
-                                textAlign: TextAlign.right,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: mostrarRojo
-                                      ? Colors.red.shade700
-                                      : Colors.deepPurple.shade900,
-                                ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    '${_fmt(p.cantidadConsumida)} ${p.unidadMedida}',
+                                    textAlign: TextAlign.right,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: mostrarRojo
+                                          ? Colors.red.shade700
+                                          : Colors.deepPurple.shade900,
+                                    ),
+                                  ),
+                                  if (p.tieneConversion)
+                                    Text(
+                                      '≈ ${p.conversion(p.cantidadConsumida)}',
+                                      textAlign: TextAlign.right,
+                                      style: TextStyle(
+                                        fontSize: 9,
+                                        color: Colors.grey.shade600,
+                                      ),
+                                    ),
+                                ],
                               ),
                             ),
                             const SizedBox(width: 8),
                             SizedBox(
-                              width: 70,
-                              child: Text(
-                                p.stockDisponible != null
-                                    ? '/ ${p.stockDisponible}'
-                                    : '/ —',
-                                textAlign: TextAlign.right,
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: p.excedeStock
-                                      ? Colors.red.shade700
-                                      : Colors.grey.shade600,
-                                  fontWeight: p.excedeStock
-                                      ? FontWeight.w600
-                                      : FontWeight.normal,
-                                ),
+                              width: 86,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    p.stockDisponible != null
+                                        ? '/ ${p.stockDisponible} ${p.unidadMedida}'
+                                        : '/ —',
+                                    textAlign: TextAlign.right,
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: p.excedeStock
+                                          ? Colors.red.shade700
+                                          : Colors.grey.shade600,
+                                      fontWeight: p.excedeStock
+                                          ? FontWeight.w600
+                                          : FontWeight.normal,
+                                    ),
+                                  ),
+                                  if (p.tieneConversion &&
+                                      p.stockDisponible != null)
+                                    Text(
+                                      '(${p.conversion(p.stockDisponible!.toDouble())})',
+                                      textAlign: TextAlign.right,
+                                      style: TextStyle(
+                                        fontSize: 9,
+                                        color: Colors.grey.shade500,
+                                      ),
+                                    ),
+                                ],
                               ),
                             ),
                           ],
@@ -1560,75 +2042,69 @@ class _FabricarDialogState extends State<_FabricarDialog> {
                   ),
                 ],
               ],
-              const SizedBox(height: 12),
-              TextField(
-                controller: _observacionesCtrl,
-                maxLines: 2,
-                decoration: InputDecoration(
-                  labelText: 'Observaciones (opcional)',
-                  hintText: 'Ej: lote del día, encargo cliente X…',
-                  isDense: true,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
-              if (_error != null) ...[
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.red.shade50,
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: Colors.red.shade200),
-                  ),
+        // Mano de obra del lote (no aplica en modo solo-consumir insumos).
+        if (!_soloConsumir) ...[
+          const SizedBox(height: 12),
+          CustomText(
+            controller: _manoObraCtrl,
+            label: 'Mano de obra (total del lote, opcional)',
+            hintText: 'Ej. 150',
+            fieldType: FieldType.number,
+            borderColor: Colors.deepPurple,
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 6),
+          // Costo estimado del lote: insumos + mano de obra.
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.deepPurple.shade50,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: Colors.deepPurple.shade100),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.payments_outlined,
+                    size: 14, color: Colors.deepPurple.shade400),
+                const SizedBox(width: 6),
+                Expanded(
                   child: Text(
-                    _error!,
+                    'Costo del lote ≈ insumos S/ ${_costoInsumosLote.toStringAsFixed(2)}'
+                    '${_manoObra > 0 ? ' + M.O. S/ ${_manoObra.toStringAsFixed(2)}' : ''}'
+                    ' = S/ ${(_costoInsumosLote + _manoObra).toStringAsFixed(2)}',
                     style: TextStyle(
-                        fontSize: 10, color: Colors.red.shade900),
+                        fontSize: 10, color: Colors.deepPurple.shade900),
                   ),
                 ),
               ],
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: CustomButton(
-                      text: 'Cancelar',
-                      isOutlined: true,
-                      textColor: Colors.deepPurple,
-                      borderColor:
-                          Colors.deepPurple.withValues(alpha: 0.4),
-                      enableShadows: false,
-                      height: 36,
-                      onPressed: _fabricando
-                          ? null
-                          : () => Navigator.pop(context),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    flex: 2,
-                    child: CustomButton(
-                      text: 'Fabricar',
-                      backgroundColor: Colors.deepPurple.shade600,
-                      textColor: Colors.white,
-                      enableShadows: false,
-                      isLoading: _fabricando,
-                      height: 36,
-                      icon: const Icon(
-                          Icons.precision_manufacturing_outlined,
-                          size: 14,
-                          color: Colors.white),
-                      onPressed: puedeConfirmar ? _confirmar : null,
-                    ),
-                  ),
-                ],
-              ),
-            ],
+            ),
           ),
+        ],
+        const SizedBox(height: 12),
+        CustomText(
+          controller: _observacionesCtrl,
+          label: 'Observaciones (opcional)',
+          hintText: 'Ej: lote del día, encargo cliente X…',
+          maxLines: 2,
+          borderColor: Colors.deepPurple,
         ),
-      ),
+        if (_error != null) ...[
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.red.shade50,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: Colors.red.shade200),
+            ),
+            child: Text(
+              _error!,
+              style: TextStyle(fontSize: 10, color: Colors.red.shade900),
+            ),
+          ),
+        ],
+      ],
     );
   }
 
@@ -1643,6 +2119,8 @@ class _FabricarDialogState extends State<_FabricarDialog> {
 class _PreviewLinea {
   final String nombre;
   final String unidadMedida;
+  final double? factorCompra; // unidades atómicas por 1 de compra
+  final String? simboloCompra; // unidad de compra (ej. "m")
   final double cantidadPorUnidad;
   final double cantidadConsumida;
   final bool esEntero;
@@ -1652,12 +2130,154 @@ class _PreviewLinea {
   _PreviewLinea({
     required this.nombre,
     required this.unidadMedida,
+    this.factorCompra,
+    this.simboloCompra,
     required this.cantidadPorUnidad,
     required this.cantidadConsumida,
     required this.esEntero,
     required this.stockDisponible,
     required this.excedeStock,
   });
+
+  bool get tieneConversion =>
+      factorCompra != null && factorCompra! > 1 && simboloCompra != null;
+
+  /// Convierte una cantidad atómica a la unidad de compra (ej. 200 cm → 2 m).
+  String conversion(double cantidadAtomica) {
+    final v = cantidadAtomica / factorCompra!;
+    final s = v % 1 == 0 ? v.toStringAsFixed(0) : v.toStringAsFixed(2);
+    return '$s $simboloCompra';
+  }
+}
+
+/// Conversor de unidad: el usuario ingresa la cantidad en la unidad de compra
+/// (ej. metros) y devuelve la cantidad equivalente en la unidad atómica del
+/// insumo (ej. cm) = valor × factor. Sirve para modelar materiales continuos
+/// (cuero, pegamento) cuyo stock se maneja en unidades enteras pequeñas.
+class _ConversorUnidadDialog extends StatefulWidget {
+  final double factor;
+  final String simboloCompra;
+  final String simboloAtomico;
+
+  const _ConversorUnidadDialog({
+    required this.factor,
+    required this.simboloCompra,
+    required this.simboloAtomico,
+  });
+
+  @override
+  State<_ConversorUnidadDialog> createState() => _ConversorUnidadDialogState();
+}
+
+class _ConversorUnidadDialogState extends State<_ConversorUnidadDialog> {
+  final _ctrl = TextEditingController();
+  double? _atomico;
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  void _recalcular() {
+    final v = double.tryParse(_ctrl.text.replaceAll(',', '.'));
+    setState(() {
+      _atomico = (v != null && v > 0) ? v * widget.factor : null;
+    });
+  }
+
+  String _fmt(double n) =>
+      n % 1 == 0 ? n.toStringAsFixed(0) : n.toStringAsFixed(4);
+
+  @override
+  Widget build(BuildContext context) {
+    return StyledDialog(
+      accentColor: AppColors.blue1,
+      icon: Icons.swap_vert,
+      titulo: 'Convertir a ${widget.simboloAtomico}',
+      actions: [
+        Expanded(
+          child: CustomButton(
+            text: 'Cancelar',
+            isOutlined: true,
+            textColor: AppColors.blue1,
+            borderColor: AppColors.blue1.withValues(alpha: 0.4),
+            enableShadows: false,
+            height: 36,
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        Expanded(
+          child: CustomButton(
+            text: 'Aplicar',
+            backgroundColor: AppColors.blue1,
+            textColor: Colors.white,
+            enableShadows: false,
+            height: 36,
+            onPressed: _atomico != null
+                ? () => Navigator.pop(context, _atomico)
+                : null,
+          ),
+        ),
+      ],
+      content: [
+        Text(
+          '1 ${widget.simboloCompra} = ${_fmt(widget.factor)} ${widget.simboloAtomico}. '
+          'Ingresá cuánto usa por unidad fabricada en ${widget.simboloCompra} y lo '
+          'convierto a ${widget.simboloAtomico} (la unidad del stock).',
+          style: const TextStyle(fontSize: 11),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _ctrl,
+          autofocus: true,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: InputDecoration(
+            labelText: 'Cantidad en ${widget.simboloCompra}',
+            hintText: 'Ej. 0.30',
+            isDense: true,
+            border: const OutlineInputBorder(),
+          ),
+          onChanged: (_) => _recalcular(),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: _atomico != null
+                ? Colors.green.shade50
+                : Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(
+              color: _atomico != null
+                  ? Colors.green.shade300
+                  : Colors.grey.shade300,
+            ),
+          ),
+          child: Column(
+            children: [
+              Text('Equivale a:',
+                  style:
+                      TextStyle(fontSize: 10, color: Colors.grey.shade700)),
+              Text(
+                _atomico != null
+                    ? '${_fmt(_atomico!)} ${widget.simboloAtomico}'
+                    : '—',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: _atomico != null
+                      ? Colors.green.shade800
+                      : Colors.grey,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 /// Mini-dialog interno (mismo patrón que la calculadora del Configurar
@@ -1696,92 +2316,103 @@ class _CalculadoraLoteDialogInlineState
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Recalcular costo unitario',
-          style: TextStyle(fontSize: 14)),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text(
-            'Si cargaste mal el costo del insumo (tipeaste el TOTAL en vez del unitario), corregilo acá. Ingresá la cantidad comprada y el total pagado.',
-            style: TextStyle(fontSize: 11),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _cantidadCtrl,
-            autofocus: true,
-            keyboardType:
-                const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(
-              labelText: 'Cantidad comprada',
-              hintText: 'Ej. 20',
-              isDense: true,
-              border: OutlineInputBorder(),
-            ),
-            onChanged: (_) => _recalcular(),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _totalCtrl,
-            keyboardType:
-                const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(
-              labelText: 'Total pagado (S/)',
-              hintText: 'Ej. 200',
-              isDense: true,
-              border: OutlineInputBorder(),
-            ),
-            onChanged: (_) => _recalcular(),
-          ),
-          const SizedBox(height: 12),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: _unitario != null
-                  ? Colors.green.shade50
-                  : Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(
-                color: _unitario != null
-                    ? Colors.green.shade300
-                    : Colors.grey.shade300,
-              ),
-            ),
-            child: Column(
-              children: [
-                Text(
-                  'Costo por unidad:',
-                  style: TextStyle(
-                      fontSize: 10, color: Colors.grey.shade700),
-                ),
-                Text(
-                  _unitario != null
-                      ? 'S/ ${_unitario!.toStringAsFixed(2)}'
-                      : '—',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: _unitario != null
-                        ? Colors.green.shade800
-                        : Colors.grey,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+    return StyledDialog(
+      accentColor: Colors.green.shade700,
+      icon: Icons.calculate_outlined,
+      titulo: 'Recalcular costo unitario',
       actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancelar'),
+        Expanded(
+          child: CustomButton(
+            text: 'Cancelar',
+            isOutlined: true,
+            textColor: Colors.green.shade700,
+            borderColor: Colors.green.withValues(alpha: 0.4),
+            enableShadows: false,
+            height: 36,
+            onPressed: () => Navigator.pop(context),
+          ),
         ),
-        ElevatedButton(
-          onPressed: _unitario != null
-              ? () => Navigator.pop(context, _unitario)
-              : null,
-          child: const Text('Aplicar'),
+        Expanded(
+          child: CustomButton(
+            text: 'Aplicar',
+            backgroundColor: Colors.green.shade600,
+            textColor: Colors.white,
+            enableShadows: false,
+            height: 36,
+            onPressed: _unitario != null
+                ? () => Navigator.pop(context, _unitario)
+                : null,
+          ),
+        ),
+      ],
+      content: [
+        const Text(
+          'Si cargaste mal el costo del insumo (tipeaste el TOTAL en vez del unitario), corregilo acá. Ingresá la cantidad comprada y el total pagado.',
+          style: TextStyle(fontSize: 11),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _cantidadCtrl,
+          autofocus: true,
+          keyboardType:
+              const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(
+            labelText: 'Cantidad comprada',
+            hintText: 'Ej. 20',
+            isDense: true,
+            border: OutlineInputBorder(),
+          ),
+          onChanged: (_) => _recalcular(),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _totalCtrl,
+          keyboardType:
+              const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(
+            labelText: 'Total pagado (S/)',
+            hintText: 'Ej. 200',
+            isDense: true,
+            border: OutlineInputBorder(),
+          ),
+          onChanged: (_) => _recalcular(),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: _unitario != null
+                ? Colors.green.shade50
+                : Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(
+              color: _unitario != null
+                  ? Colors.green.shade300
+                  : Colors.grey.shade300,
+            ),
+          ),
+          child: Column(
+            children: [
+              Text(
+                'Costo por unidad:',
+                style:
+                    TextStyle(fontSize: 10, color: Colors.grey.shade700),
+              ),
+              Text(
+                _unitario != null
+                    ? 'S/ ${_unitario!.toStringAsFixed(2)}'
+                    : '—',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: _unitario != null
+                      ? Colors.green.shade800
+                      : Colors.grey,
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -1796,12 +2427,16 @@ class _CalculadoraLoteDialogInlineState
 class _HistorialFabricacionesSheet extends StatefulWidget {
   final String productoId;
   final String productoNombre;
+  final String? varianteId;
+  final String? varianteNombre;
   final String? sedeId;
   final String? sedeNombre;
 
   const _HistorialFabricacionesSheet({
     required this.productoId,
     required this.productoNombre,
+    required this.varianteId,
+    required this.varianteNombre,
     required this.sedeId,
     required this.sedeNombre,
   });
@@ -1837,6 +2472,7 @@ class _HistorialFabricacionesSheetState
         '/productos/${widget.productoId}/componentes/fabricaciones',
         queryParameters: {
           if (widget.sedeId != null) 'sedeId': widget.sedeId,
+          if (widget.varianteId != null) 'varianteId': widget.varianteId,
           'limit': 50,
         },
       );
@@ -2010,6 +2646,8 @@ class _HistorialFabricacionesSheetState
     final numero = lote['numeroDocumento'] as String? ?? '';
     final cantidad = lote['cantidadProducida'] as num?;
     final stockNuevo = lote['stockNuevo'] as num?;
+    final costoLote = (lote['costoLote'] as num?)?.toDouble();
+    final costoUnitario = (lote['costoUnitario'] as num?)?.toDouble();
     final fecha = lote['creadoEn'] as String?;
     final usuarioNombre =
         (lote['usuario'] as Map?)?['nombre'] as String? ?? '—';
@@ -2087,6 +2725,32 @@ class _HistorialFabricacionesSheetState
                   ),
                 ],
               ),
+              if (costoLote != null) ...[
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Icon(Icons.payments_outlined,
+                        size: 12, color: Colors.deepPurple.shade400),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Costo lote: S/ ${costoLote.toStringAsFixed(2)}',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.deepPurple.shade900,
+                      ),
+                    ),
+                    if (costoUnitario != null) ...[
+                      const SizedBox(width: 6),
+                      Text(
+                        '· S/ ${costoUnitario.toStringAsFixed(2)} c/u',
+                        style: TextStyle(
+                            fontSize: 10, color: Colors.grey.shade600),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
               const SizedBox(height: 4),
               Row(
                 children: [
@@ -2192,9 +2856,9 @@ class _HistorialFabricacionesSheetState
                     ),
                     const SizedBox(width: 8),
                     SizedBox(
-                      width: 70,
+                      width: 92,
                       child: Text(
-                        '→ ${ins['stockNuevo']}',
+                        '→ ${ins['stockNuevo']} ${ins['unidadMedida'] ?? ''}',
                         textAlign: TextAlign.right,
                         style: TextStyle(
                             fontSize: 9, color: Colors.grey.shade600),
@@ -2203,6 +2867,50 @@ class _HistorialFabricacionesSheetState
                   ],
                 ),
               )),
+          // Desglose de costo del lote (insumos + mano de obra = total).
+          if (detalle['costoLoteTotal'] != null) ...[
+            const SizedBox(height: 6),
+            Divider(height: 1, color: Colors.deepPurple.shade200),
+            const SizedBox(height: 6),
+            _detalleCostoRow(
+                'Insumos', (detalle['costoInsumos'] as num?)?.toDouble()),
+            if ((detalle['costoManoObra'] as num?) != null &&
+                (detalle['costoManoObra'] as num) > 0)
+              _detalleCostoRow('Mano de obra',
+                  (detalle['costoManoObra'] as num?)?.toDouble()),
+            _detalleCostoRow('Total lote',
+                (detalle['costoLoteTotal'] as num?)?.toDouble(),
+                destacar: true),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _detalleCostoRow(String label, double? valor, {bool destacar = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 1),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: destacar ? 10.5 : 10,
+              fontWeight: destacar ? FontWeight.bold : FontWeight.normal,
+              color: destacar
+                  ? Colors.deepPurple.shade900
+                  : Colors.grey.shade700,
+            ),
+          ),
+          Text(
+            valor != null ? 'S/ ${valor.toStringAsFixed(2)}' : '—',
+            style: TextStyle(
+              fontSize: destacar ? 10.5 : 10,
+              fontWeight: destacar ? FontWeight.bold : FontWeight.w600,
+              color: destacar ? Colors.deepPurple.shade900 : Colors.black87,
+            ),
+          ),
         ],
       ),
     );

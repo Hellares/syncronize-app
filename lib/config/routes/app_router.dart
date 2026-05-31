@@ -653,6 +653,10 @@ class AppRouter {
                 extra?['nombre'] as String? ?? 'Producto',
             sedeIdInicial: extra?['sedeId'] as String?,
             esInsumo: extra?['esInsumo'] as bool? ?? false,
+            tieneVariantes: extra?['tieneVariantes'] as bool? ?? false,
+            variantes: (extra?['variantes'] as List?)
+                    ?.cast<Map<String, dynamic>>() ??
+                const [],
           );
         },
       ),
