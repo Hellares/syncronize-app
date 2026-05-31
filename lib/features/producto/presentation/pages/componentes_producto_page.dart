@@ -2942,18 +2942,33 @@ Widget insumoTrazableTile(
             ),
           ),
         if (compra != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 1, left: 2),
-            child: Text(
-              'Últ. compra: ${compra['proveedor'] ?? '—'}'
-              '  ·  S/ ${(compra['precioUnitario'] as num?)?.toStringAsFixed(4) ?? '—'}/$um'
-              '  ·  ${compra['fecha'] != null ? fechaFmt(compra['fecha'].toString()) : '—'}',
-              style: TextStyle(
-                  fontSize: 9,
-                  color: Colors.blue.shade700,
-                  fontStyle: FontStyle.italic),
-            ),
-          ),
+          Builder(builder: (_) {
+            final cant = (compra['cantidad'] as num?);
+            final cantStr = cant == null
+                ? '—'
+                : (cant % 1 == 0
+                    ? cant.toStringAsFixed(0)
+                    : cant.toStringAsFixed(2));
+            final pu =
+                (compra['precioUnitario'] as num?)?.toStringAsFixed(4) ?? '—';
+            final total =
+                (compra['total'] as num?)?.toStringAsFixed(2) ?? '—';
+            final fechaStr = compra['fecha'] != null
+                ? fechaFmt(compra['fecha'].toString())
+                : '—';
+            return Padding(
+              padding: const EdgeInsets.only(top: 1, left: 2),
+              child: Text(
+                'Últ. compra: ${compra['proveedor'] ?? '—'}'
+                '  ·  $cantStr $um × S/ $pu = S/ $total'
+                '  ·  $fechaStr',
+                style: TextStyle(
+                    fontSize: 9,
+                    color: Colors.blue.shade700,
+                    fontStyle: FontStyle.italic),
+              ),
+            );
+          }),
       ],
     ),
   );
