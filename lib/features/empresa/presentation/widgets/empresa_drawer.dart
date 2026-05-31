@@ -314,6 +314,15 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/inventario/kardex')),
           ),
           tile(
+            title: 'Producción (lotes fabricados)',
+            icon: Icons.precision_manufacturing_outlined,
+            iconColor: Colors.deepPurple,
+            routeMatch:
+                const _RouteMatch.exact('/empresa/inventario/produccion'),
+            onTap: (ctx) =>
+                _tap(ctx, () => ctx.push('/empresa/inventario/produccion')),
+          ),
+          tile(
             title: 'Inventario Físico',
             icon: Icons.fact_check,
             iconColor: Colors.indigo,

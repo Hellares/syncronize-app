@@ -2834,39 +2834,7 @@ class _HistorialFabricacionesSheetState
             ),
           ),
           const SizedBox(height: 6),
-          ...insumos.map((ins) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 2),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        ins['nombre']?.toString() ?? '—',
-                        style: const TextStyle(fontSize: 10),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    Text(
-                      '-${ins['cantidadConsumida']} ${ins['unidadMedida'] ?? ''}',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.red.shade700,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    SizedBox(
-                      width: 92,
-                      child: Text(
-                        '→ ${ins['stockNuevo']} ${ins['unidadMedida'] ?? ''}',
-                        textAlign: TextAlign.right,
-                        style: TextStyle(
-                            fontSize: 9, color: Colors.grey.shade600),
-                      ),
-                    ),
-                  ],
-                ),
-              )),
+          ...insumos.map((ins) => _buildInsumoTrazable(ins)),
           // Desglose de costo del lote (insumos + mano de obra = total).
           if (detalle['costoLoteTotal'] != null) ...[
             const SizedBox(height: 6),
@@ -2915,4 +2883,78 @@ class _HistorialFabricacionesSheetState
       ),
     );
   }
+
+  Widget _buildInsumoTrazable(Map<String, dynamic> ins) =>
+      insumoTrazableTile(ins, fechaFmt: _fechaCorta);
+}
+
+/// Fila de insumo consumido con trazabilidad: cantidad, stock resultante y
+/// costos (al momento de fabricar, actual y última compra con proveedor).
+Widget insumoTrazableTile(
+  Map<String, dynamic> ins, {
+  required String Function(String) fechaFmt,
+}) {
+  final um = ins['unidadMedida']?.toString() ?? '';
+  final costoMom = (ins['costoUnitarioMomento'] as num?)?.toDouble();
+  final costoAct = (ins['costoUnitarioActual'] as num?)?.toDouble();
+  final compra = ins['ultimaCompra'] as Map?;
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 3),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                ins['nombre']?.toString() ?? '—',
+                style:
+                    const TextStyle(fontSize: 10, fontWeight: FontWeight.w600),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            Text(
+              '-${ins['cantidadConsumida']} $um',
+              style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.red.shade700),
+            ),
+            const SizedBox(width: 8),
+            SizedBox(
+              width: 92,
+              child: Text(
+                '→ ${ins['stockNuevo']} $um',
+                textAlign: TextAlign.right,
+                style: TextStyle(fontSize: 9, color: Colors.grey.shade600),
+              ),
+            ),
+          ],
+        ),
+        if (costoMom != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 1, left: 2),
+            child: Text(
+              'Costo: S/ ${costoMom.toStringAsFixed(4)}/$um al fabricar'
+              '${costoAct != null ? '  ·  actual S/ ${costoAct.toStringAsFixed(4)}' : ''}',
+              style: TextStyle(fontSize: 9, color: Colors.grey.shade700),
+            ),
+          ),
+        if (compra != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 1, left: 2),
+            child: Text(
+              'Últ. compra: ${compra['proveedor'] ?? '—'}'
+              '  ·  S/ ${(compra['precioUnitario'] as num?)?.toStringAsFixed(4) ?? '—'}/$um'
+              '  ·  ${compra['fecha'] != null ? fechaFmt(compra['fecha'].toString()) : '—'}',
+              style: TextStyle(
+                  fontSize: 9,
+                  color: Colors.blue.shade700,
+                  fontStyle: FontStyle.italic),
+            ),
+          ),
+      ],
+    ),
+  );
 }

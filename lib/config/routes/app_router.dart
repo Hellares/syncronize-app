@@ -87,6 +87,7 @@ import '../../features/pos/presentation/pages/cola_pos_page.dart';
 import '../../features/pos/presentation/pages/cobrar_cotizacion_page.dart';
 import '../../features/producto/presentation/pages/productos_page.dart';
 import '../../features/producto/presentation/pages/productos_eliminados_page.dart';
+import '../../features/producto/presentation/pages/lotes_produccion_page.dart';
 import '../../features/producto/presentation/pages/producto_detail_page.dart';
 import '../../features/producto/presentation/pages/producto_form_page.dart';
 import '../../features/producto/presentation/pages/producto_variantes_page.dart';
@@ -581,6 +582,11 @@ class AppRouter {
         path: '/empresa/inventario/kardex',
         name: 'empresa-kardex-global',
         builder: (context, state) => const KardexGlobalPage(),
+      ),
+      GoRoute(
+        path: '/empresa/inventario/produccion',
+        name: 'empresa-lotes-produccion',
+        builder: (context, state) => const LotesProduccionPage(),
       ),
       GoRoute(
         path: '/empresa/inventario/kardex/:stockId',
