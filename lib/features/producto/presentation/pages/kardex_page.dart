@@ -7,6 +7,8 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/theme/gradient_container.dart';
 import '../../../../core/widgets/smart_appbar.dart';
+import '../../../../core/widgets/styled_dialog.dart';
+import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/utils/resource.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../domain/entities/movimiento_stock.dart';
@@ -584,20 +586,36 @@ class _KardexPageState extends State<KardexPage> {
   // TABLA ESTILO EXCEL (header sticky + scroll H sincronizado)
   // ============================================================
 
-  // Anchos fijos por columna (suma ≈ 826 → scroll horizontal en pantallas
-  // angostas). Header y filas usan EXACTAMENTE los mismos.
-  static const double _wFecha = 92;
-  static const double _wTipo = 110;
+  // Anchos fijos por columna (libro mayor de inventario). Header y filas usan
+  // EXACTAMENTE los mismos. Suma ≈ 648 → scroll horizontal si no entra.
+  static const double _wFecha = 88;
+  static const double _wTipo = 104;
   static const double _wDoc = 104;
-  static const double _wCant = 58;
-  static const double _wStock = 96;
-  static const double _wValor = 86;
-  static const double _wUsuario = 110;
-  static const double _wMotivo = 180;
+  static const double _wEntrada = 64;
+  static const double _wSalida = 64;
+  static const double _wSaldo = 66;
+  static const double _wCUnit = 74;
+  static const double _wValorMov = 84;
   static const double _rowH = 34;
 
+  // Franjas de color por columna (tipo Excel): entrada verde, salida roja,
+  // saldo azul. Tono 50 en filas, 100 en header.
+  static final Color _bgEntrada = Colors.green.shade50;
+  static final Color _bgSalida = Colors.red.shade50;
+  static final Color _bgSaldo = Colors.blue.shade50;
+  static final Color _bgEntradaH = Colors.green.shade100;
+  static final Color _bgSalidaH = Colors.red.shade100;
+  static final Color _bgSaldoH = Colors.blue.shade100;
+
   double get _totalWidthTabla =>
-      _wFecha + _wTipo + _wDoc + _wCant + _wStock + _wValor + _wUsuario + _wMotivo;
+      _wFecha +
+      _wTipo +
+      _wDoc +
+      _wEntrada +
+      _wSalida +
+      _wSaldo +
+      _wCUnit +
+      _wValorMov;
 
   Widget _buildMovimientosTable() {
     final movs = _kardexData?.movimientos ?? [];
@@ -680,11 +698,13 @@ class _KardexPageState extends State<KardexPage> {
           _hCellK('Fecha', _wFecha, s),
           _hCellK('Tipo', _wTipo, s),
           _hCellK('Documento', _wDoc, s),
-          _hCellK('Cant.', _wCant, s, alignRight: true),
-          _hCellK('Stock', _wStock, s, alignRight: true),
-          _hCellK('Valor', _wValor, s, alignRight: true),
-          _hCellK('Usuario', _wUsuario, s),
-          _hCellK('Motivo', _wMotivo, s),
+          _hCellK('Entrada', _wEntrada, s,
+              alignRight: true, bgColor: _bgEntradaH),
+          _hCellK('Salida', _wSalida, s,
+              alignRight: true, bgColor: _bgSalidaH),
+          _hCellK('Saldo', _wSaldo, s, alignRight: true, bgColor: _bgSaldoH),
+          _hCellK('C.Unit', _wCUnit, s, alignRight: true),
+          _hCellK('Valor', _wValorMov, s, alignRight: true),
         ],
       ),
     );
@@ -694,79 +714,105 @@ class _KardexPageState extends State<KardexPage> {
     final tipo = m.tipo;
     final color = tipo.color;
     final esEntrada = m.cantidad >= 0;
-    final bg = index.isEven ? Colors.white : Colors.grey.shade50;
+    final base = index.isEven ? Colors.white : Colors.grey.shade50;
     const ts = TextStyle(fontSize: 10);
-    return Container(
-      width: _totalWidthTabla,
-      height: _rowH,
-      decoration: BoxDecoration(
-        color: bg,
-        border: Border(
-          bottom: BorderSide(color: Colors.grey.shade200, width: 0.5),
-        ),
-      ),
-      child: Row(
-        children: [
-          _dCellK(
-            DateFormat('dd/MM/yy HH:mm').format(m.creadoEn.toLocal()),
-            _wFecha,
-            ts,
+    return InkWell(
+      // Tap → detalle completo del movimiento en un StyledDialog.
+      onTap: () => _mostrarDetalle(m),
+      child: Container(
+        width: _totalWidthTabla,
+        height: _rowH,
+        decoration: BoxDecoration(
+          color: base,
+          border: Border(
+            bottom: BorderSide(color: Colors.grey.shade200, width: 0.5),
           ),
-          // Tipo con ícono de color.
-          SizedBox(
-            width: _wTipo,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6),
-              child: Row(
-                children: [
-                  Icon(tipo.icon, size: 12, color: color),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(tipo.label,
-                        style: ts,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis),
-                  ),
-                ],
+        ),
+        child: Row(
+          children: [
+            _dCellK(
+              DateFormat('dd/MM/yy HH:mm').format(m.creadoEn.toLocal()),
+              _wFecha,
+              ts,
+            ),
+            // Tipo con ícono de color.
+            SizedBox(
+              width: _wTipo,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                child: Row(
+                  children: [
+                    Icon(tipo.icon, size: 12, color: color),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(tipo.label,
+                          style: ts,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-          _dCellK(m.documentoReferencia ?? '—', _wDoc, ts),
-          _dCellK(
-            '${esEntrada ? '+' : ''}${m.cantidad}',
-            _wCant,
-            TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              color: esEntrada ? Colors.green.shade700 : Colors.red.shade700,
+            _dCellK(m.documentoReferencia ?? '—', _wDoc, ts),
+            // Entrada (verde) / Salida (rojo): la cantidad va en su columna.
+            _dCellK(
+              esEntrada ? '${m.cantidad}' : '',
+              _wEntrada,
+              TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.green.shade700),
+              alignRight: true,
+              bgColor: _bgEntrada,
             ),
-            alignRight: true,
-          ),
-          _dCellK('${m.cantidadAnterior}→${m.cantidadNueva}', _wStock, ts,
-              alignRight: true),
-          _dCellK(
-            m.valorMovimiento != null
-                ? 'S/ ${m.valorMovimiento!.toStringAsFixed(2)}'
-                : '—',
-            _wValor,
-            ts,
-            alignRight: true,
-          ),
-          _dCellK(m.usuarioNombre ?? '—', _wUsuario, ts),
-          _dCellK(
-            (m.motivo != null && m.motivo!.isNotEmpty) ? m.motivo! : '—',
-            _wMotivo,
-            ts,
-          ),
-        ],
+            _dCellK(
+              !esEntrada ? '${m.cantidad.abs()}' : '',
+              _wSalida,
+              TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.red.shade700),
+              alignRight: true,
+              bgColor: _bgSalida,
+            ),
+            // Saldo corriente (cantidadNueva).
+            _dCellK(
+              '${m.cantidadNueva}',
+              _wSaldo,
+              const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+              alignRight: true,
+              bgColor: _bgSaldo,
+            ),
+            // Costo unitario (snapshot al momento del movimiento).
+            _dCellK(
+              m.precioCostoUnitario != null
+                  ? 'S/ ${m.precioCostoUnitario!.toStringAsFixed(4)}'
+                  : '—',
+              _wCUnit,
+              ts,
+              alignRight: true,
+            ),
+            // Valor del movimiento (|cantidad| × costo).
+            _dCellK(
+              m.valorMovimiento != null
+                  ? 'S/ ${m.valorMovimiento!.toStringAsFixed(2)}'
+                  : '—',
+              _wValorMov,
+              ts,
+              alignRight: true,
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _hCellK(String text, double width, TextStyle s,
-      {bool alignRight = false}) {
+      {bool alignRight = false, Color? bgColor}) {
     return Container(
       width: width,
+      color: bgColor,
       padding: const EdgeInsets.symmetric(horizontal: 6),
       alignment: alignRight ? Alignment.centerRight : Alignment.centerLeft,
       child: Text(text, style: s),
@@ -774,12 +820,84 @@ class _KardexPageState extends State<KardexPage> {
   }
 
   Widget _dCellK(String text, double width, TextStyle s,
-      {bool alignRight = false}) {
+      {bool alignRight = false, Color? bgColor}) {
     return Container(
       width: width,
+      color: bgColor,
       padding: const EdgeInsets.symmetric(horizontal: 6),
       alignment: alignRight ? Alignment.centerRight : Alignment.centerLeft,
       child: Text(text, style: s, maxLines: 1, overflow: TextOverflow.ellipsis),
+    );
+  }
+
+  // ============================================================
+  // DETALLE DE MOVIMIENTO (StyledDialog al tocar una fila)
+  // ============================================================
+
+  void _mostrarDetalle(MovimientoStock m) {
+    final tipo = m.tipo;
+    final esEntrada = m.cantidad >= 0;
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => StyledDialog(
+        accentColor: tipo.color,
+        icon: tipo.icon,
+        titulo: tipo.label,
+        content: [
+          _detRow('Fecha', DateFormatter.formatDateTime(m.creadoEn)),
+          if (m.documentoReferencia != null)
+            _detRow('Documento', m.documentoReferencia!),
+          _detRow(
+            'Movimiento',
+            '${esEntrada ? 'Entrada +' : 'Salida -'}${m.cantidad.abs()}',
+          ),
+          _detRow('Saldo', '${m.cantidadAnterior} → ${m.cantidadNueva}'),
+          if (m.precioCostoUnitario != null)
+            _detRow('Costo unitario',
+                'S/ ${m.precioCostoUnitario!.toStringAsFixed(4)}'),
+          if (m.valorMovimiento != null)
+            _detRow('Valor del movimiento',
+                'S/ ${m.valorMovimiento!.toStringAsFixed(2)}'),
+          if (m.usuarioNombre != null) _detRow('Usuario', m.usuarioNombre!),
+          if (m.motivo != null && m.motivo!.isNotEmpty)
+            _detRow('Motivo', m.motivo!),
+          if (m.observaciones != null && m.observaciones!.isNotEmpty)
+            _detRow('Observaciones', m.observaciones!),
+        ],
+        actions: [
+          Expanded(
+            child: CustomButton(
+              text: 'Cerrar',
+              backgroundColor: tipo.color,
+              textColor: Colors.white,
+              enableShadows: false,
+              height: 36,
+              onPressed: () => Navigator.pop(ctx),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _detRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(label,
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+          ),
+          Expanded(
+            child: Text(value,
+                style:
+                    const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
     );
   }
 
