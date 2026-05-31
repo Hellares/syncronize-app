@@ -159,33 +159,32 @@ class _ComponentesProductoPageState extends State<ComponentesProductoPage> {
   }
 
   Future<void> _editarCantidad(Map<String, dynamic> item) async {
-    final controller = TextEditingController(
-      text: (item['cantidad'] as num).toString(),
-    );
+    final controller =
+        TextEditingController(text: '${item['cantidad'] ?? ''}');
     final um = item['componente']['unidadMedida'] as String?;
-    final ok = await ConfirmDialog.show(
-      context: context,
-      type: ConfirmDialogType.info,
-      icon: Icons.edit_outlined,
-      title: item['componente']['nombre'] as String,
-      customContent: CustomText(
-        controller: controller,
-        label: 'Cantidad por unidad fabricada (${um ?? '—'})',
-        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        borderColor: AppColors.blue1,
-      ),
-      confirmText: 'Guardar',
-    );
-    if (ok != true) return;
-    final nueva = double.tryParse(controller.text.replaceAll(',', '.'));
-    if (nueva == null || nueva <= 0) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cantidad inválida')),
-      );
-      return;
-    }
     try {
+      final ok = await ConfirmDialog.show(
+        context: context,
+        type: ConfirmDialogType.info,
+        icon: Icons.edit_outlined,
+        title: item['componente']['nombre'] as String,
+        customContent: CustomText(
+          controller: controller,
+          label: 'Cantidad por unidad fabricada (${um ?? '—'})',
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          borderColor: AppColors.blue1,
+        ),
+        confirmText: 'Guardar',
+      );
+      if (ok != true) return;
+      final nueva = double.tryParse(controller.text.replaceAll(',', '.'));
+      if (nueva == null || nueva <= 0) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Cantidad inválida')),
+        );
+        return;
+      }
       await _dio.patch(
         '/productos/${widget.productoId}/componentes/${item['id']}',
         data: {'cantidad': nueva},
@@ -196,6 +195,8 @@ class _ComponentesProductoPageState extends State<ComponentesProductoPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
       );
+    } finally {
+      controller.dispose();
     }
   }
 
@@ -1450,6 +1451,9 @@ class _AgregarComponenteDialogState extends State<_AgregarComponenteDialog> {
                     _selectedStockId = null;
                     _selectedCosto = null;
                     _selectedStockActual = null;
+                    _factorCompra = null;
+                    _simboloCompra = null;
+                    _simboloAtomico = null;
                   }),
                 ),
               ],
@@ -2455,6 +2459,7 @@ class _HistorialFabricacionesSheetState
   final Set<String> _expandidos = {};
   final Map<String, Map<String, dynamic>> _detalles = {};
   final Set<String> _cargandoDetalle = {};
+  final Set<String> _detalleError = {};
 
   @override
   void initState() {
@@ -2499,7 +2504,14 @@ class _HistorialFabricacionesSheetState
     }
     setState(() => _expandidos.add(numeroDocumento));
     if (_detalles.containsKey(numeroDocumento)) return;
-    setState(() => _cargandoDetalle.add(numeroDocumento));
+    await _cargarDetalle(numeroDocumento);
+  }
+
+  Future<void> _cargarDetalle(String numeroDocumento) async {
+    setState(() {
+      _cargandoDetalle.add(numeroDocumento);
+      _detalleError.remove(numeroDocumento);
+    });
     try {
       final resp = await _dio.get(
         '/productos/${widget.productoId}/componentes/fabricaciones/$numeroDocumento',
@@ -2510,7 +2522,12 @@ class _HistorialFabricacionesSheetState
         _cargandoDetalle.remove(numeroDocumento);
       });
     } catch (_) {
-      if (mounted) setState(() => _cargandoDetalle.remove(numeroDocumento));
+      if (mounted) {
+        setState(() {
+          _cargandoDetalle.remove(numeroDocumento);
+          _detalleError.add(numeroDocumento);
+        });
+      }
     }
   }
 
@@ -2809,6 +2826,9 @@ class _HistorialFabricacionesSheetState
         ),
       );
     }
+    if (_detalleError.contains(numero)) {
+      return detalleErrorWidget(() => _cargarDetalle(numero));
+    }
     final detalle = _detalles[numero];
     if (detalle == null) return const SizedBox.shrink();
     final insumos =
@@ -2842,8 +2862,7 @@ class _HistorialFabricacionesSheetState
             const SizedBox(height: 6),
             _detalleCostoRow(
                 'Insumos', (detalle['costoInsumos'] as num?)?.toDouble()),
-            if ((detalle['costoManoObra'] as num?) != null &&
-                (detalle['costoManoObra'] as num) > 0)
+            if (((detalle['costoManoObra'] as num?) ?? 0) > 0)
               _detalleCostoRow('Mano de obra',
                   (detalle['costoManoObra'] as num?)?.toDouble()),
             _detalleCostoRow('Total lote',
@@ -2886,6 +2905,37 @@ class _HistorialFabricacionesSheetState
 
   Widget _buildInsumoTrazable(Map<String, dynamic> ins) =>
       insumoTrazableTile(ins, fechaFmt: _fechaCorta);
+}
+
+/// Widget de error para el detalle de un lote que no se pudo cargar, con
+/// reintento al tocar. Compartido entre el historial y la página de producción.
+Widget detalleErrorWidget(VoidCallback onRetry) {
+  return InkWell(
+    onTap: onRetry,
+    borderRadius: BorderRadius.circular(6),
+    child: Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.red.shade50,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: Colors.red.shade200),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.error_outline, size: 14, color: Colors.red.shade700),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              'No se pudo cargar el detalle. Tocá para reintentar.',
+              style: TextStyle(fontSize: 10, color: Colors.red.shade900),
+            ),
+          ),
+          Icon(Icons.refresh, size: 14, color: Colors.red.shade700),
+        ],
+      ),
+    ),
+  );
 }
 
 /// Fila de insumo consumido con trazabilidad: cantidad, stock resultante y

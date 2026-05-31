@@ -11,7 +11,8 @@ import '../../../../core/widgets/smart_appbar.dart';
 import '../../../empresa/domain/entities/sede.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
-import 'componentes_producto_page.dart' show insumoTrazableTile;
+import 'componentes_producto_page.dart'
+    show insumoTrazableTile, detalleErrorWidget;
 
 /// Página GLOBAL de producción: lista todos los lotes fabricados de la empresa
 /// (PRODUCCION_ENTRADA), con filtros por sede y búsqueda de producto, y costo
@@ -43,6 +44,7 @@ class _LotesProduccionPageState extends State<LotesProduccionPage> {
   final Set<String> _expandidos = {};
   final Map<String, Map<String, dynamic>> _detalles = {};
   final Set<String> _cargandoDetalle = {};
+  final Set<String> _detalleError = {};
 
   @override
   void initState() {
@@ -121,7 +123,14 @@ class _LotesProduccionPageState extends State<LotesProduccionPage> {
     if (_detalles.containsKey(numero)) return;
     final productoId = lote['productoId'] as String?;
     if (productoId == null) return;
-    setState(() => _cargandoDetalle.add(numero));
+    await _cargarDetalle(numero, productoId);
+  }
+
+  Future<void> _cargarDetalle(String numero, String productoId) async {
+    setState(() {
+      _cargandoDetalle.add(numero);
+      _detalleError.remove(numero);
+    });
     try {
       final resp = await _dio.get(
         '/productos/$productoId/componentes/fabricaciones/$numero',
@@ -132,7 +141,12 @@ class _LotesProduccionPageState extends State<LotesProduccionPage> {
         _cargandoDetalle.remove(numero);
       });
     } catch (_) {
-      if (mounted) setState(() => _cargandoDetalle.remove(numero));
+      if (mounted) {
+        setState(() {
+          _cargandoDetalle.remove(numero);
+          _detalleError.add(numero);
+        });
+      }
     }
   }
 
@@ -403,7 +417,8 @@ class _LotesProduccionPageState extends State<LotesProduccionPage> {
                       style: TextStyle(fontSize: 10, color: Colors.grey.shade700)),
                 ],
               ),
-              if (expandido) _buildDetalle(numero),
+              if (expandido)
+                _buildDetalle(numero, lote['productoId'] as String?),
             ],
           ),
         ),
@@ -411,7 +426,7 @@ class _LotesProduccionPageState extends State<LotesProduccionPage> {
     );
   }
 
-  Widget _buildDetalle(String numero) {
+  Widget _buildDetalle(String numero, String? productoId) {
     if (_cargandoDetalle.contains(numero)) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 8),
@@ -420,6 +435,11 @@ class _LotesProduccionPageState extends State<LotesProduccionPage> {
               width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
         ),
       );
+    }
+    if (_detalleError.contains(numero)) {
+      return detalleErrorWidget(() {
+        if (productoId != null) _cargarDetalle(numero, productoId);
+      });
     }
     final detalle = _detalles[numero];
     if (detalle == null) return const SizedBox.shrink();
@@ -449,8 +469,7 @@ class _LotesProduccionPageState extends State<LotesProduccionPage> {
             Divider(height: 1, color: Colors.deepPurple.shade200),
             const SizedBox(height: 6),
             _costoRow('Insumos', (detalle['costoInsumos'] as num?)?.toDouble()),
-            if ((detalle['costoManoObra'] as num?) != null &&
-                (detalle['costoManoObra'] as num) > 0)
+            if (((detalle['costoManoObra'] as num?) ?? 0) > 0)
               _costoRow('Mano de obra',
                   (detalle['costoManoObra'] as num?)?.toDouble()),
             _costoRow('Total lote',
