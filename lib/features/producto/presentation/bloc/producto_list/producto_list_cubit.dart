@@ -537,7 +537,21 @@ class ProductoListCubit extends Cubit<ProductoListState> {
     final searchVacio = f.search == null || f.search!.isEmpty;
     return searchVacio &&
         f.empresaCategoriaId == null &&
-        f.empresaMarcaId == null;
+        f.empresaMarcaId == null &&
+        // Filtros de TAB: insumos / solo-productos / solo-combos / liquidación
+        // NO son el catálogo base (el vendible general que se persiste en
+        // disco y se revalida con deltas). Sin esto, al entrar a esos tabs el
+        // cubit leía del disco/deltas (todo el catálogo) y retornaba antes de
+        // hacer el fetch filtrado → mostraba de más hasta hacer refresh.
+        f.esInsumo != true &&
+        f.soloProductos != true &&
+        f.soloCombos != true &&
+        f.enLiquidacion != true &&
+        // Filtros avanzados (si están activos, tampoco es el catálogo base).
+        f.visibleMarketplace == null &&
+        f.destacado == null &&
+        f.enOferta == null &&
+        f.stockBajo == null;
   }
 
   /// Fase 3: revalida con sync diferencial. Solo se invoca si hay
