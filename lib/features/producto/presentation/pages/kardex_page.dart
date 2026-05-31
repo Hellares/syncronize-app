@@ -58,16 +58,35 @@ class _KardexPageState extends State<KardexPage> {
   // sentirse responsive y largo para evitar requests en cascada.
   Timer? _documentoDebounce;
 
+  // Scroll horizontal sincronizado entre el header sticky de la tabla y el
+  // body de filas (mismo patrón que Verificación de Precios).
+  final ScrollController _headerHCtrl = ScrollController();
+  final ScrollController _bodyHCtrl = ScrollController();
+  bool _syncingScroll = false;
+
   @override
   void initState() {
     super.initState();
+    _headerHCtrl.addListener(() => _syncH(_headerHCtrl, _bodyHCtrl));
+    _bodyHCtrl.addListener(() => _syncH(_bodyHCtrl, _headerHCtrl));
     _loadData();
+  }
+
+  void _syncH(ScrollController src, ScrollController dst) {
+    if (_syncingScroll) return;
+    if (!dst.hasClients) return;
+    if (src.offset == dst.offset) return;
+    _syncingScroll = true;
+    dst.jumpTo(src.offset);
+    _syncingScroll = false;
   }
 
   @override
   void dispose() {
     _documentoDebounce?.cancel();
     _documentoCtrl.dispose();
+    _headerHCtrl.dispose();
+    _bodyHCtrl.dispose();
     super.dispose();
   }
 
@@ -240,45 +259,37 @@ class _KardexPageState extends State<KardexPage> {
             ),
           ],
         ),
-        body: RefreshIndicator(
-          onRefresh: _loadData,
-          child: CustomScrollView(
-            slivers: [
-              // Nombre del producto
-              if (widget.productoNombre != null)
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    child: Text(
-                      widget.productoNombre!,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
-                      ),
+        // Layout tipo Verificación de Precios: filtros + resumen arriba (fijos)
+        // y la TABLA Excel ocupando el resto (Expanded) con header sticky.
+        body: Column(
+          children: [
+            if (widget.productoNombre != null)
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    widget.productoNombre!,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
                     ),
                   ),
                 ),
-
-              // Seccion de filtros
-              SliverToBoxAdapter(child: _buildFiltersSection()),
-
-              // Contenido principal
-              if (_isLoading)
-                const SliverFillRemaining(
-                  child: Center(child: CircularProgressIndicator()),
-                )
-              else if (_errorMessage != null)
-                SliverFillRemaining(child: _buildErrorWidget())
-              else if (_kardexData != null) ...[
-                // Resumen
-                SliverToBoxAdapter(child: _buildResumenCard()),
-                // Lista de movimientos
-                _buildMovimientosList(),
-              ],
-            ],
-          ),
+              ),
+            _buildFiltersSection(),
+            if (_isLoading)
+              const Expanded(child: Center(child: CircularProgressIndicator()))
+            else if (_errorMessage != null)
+              Expanded(child: _buildErrorWidget())
+            else if (_kardexData != null) ...[
+              _buildResumenCard(),
+              Expanded(child: _buildMovimientosTable()),
+            ] else
+              const Expanded(child: SizedBox.shrink()),
+          ],
         ),
       ),
     );
@@ -569,65 +580,206 @@ class _KardexPageState extends State<KardexPage> {
   // LISTA DE MOVIMIENTOS
   // ============================================================
 
-  Widget _buildMovimientosList() {
-    final movimientos = _kardexData?.movimientos ?? [];
+  // ============================================================
+  // TABLA ESTILO EXCEL (header sticky + scroll H sincronizado)
+  // ============================================================
 
-    if (movimientos.isEmpty) {
-      return SliverFillRemaining(
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.history, size: 48, color: Colors.grey[400]),
-              const SizedBox(height: 16),
-              const Text(
-                'No hay movimientos registrados',
-                style: TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 14,
-                ),
-              ),
-            ],
-          ),
+  // Anchos fijos por columna (suma ≈ 826 → scroll horizontal en pantallas
+  // angostas). Header y filas usan EXACTAMENTE los mismos.
+  static const double _wFecha = 92;
+  static const double _wTipo = 110;
+  static const double _wDoc = 104;
+  static const double _wCant = 58;
+  static const double _wStock = 96;
+  static const double _wValor = 86;
+  static const double _wUsuario = 110;
+  static const double _wMotivo = 180;
+  static const double _rowH = 34;
+
+  double get _totalWidthTabla =>
+      _wFecha + _wTipo + _wDoc + _wCant + _wStock + _wValor + _wUsuario + _wMotivo;
+
+  Widget _buildMovimientosTable() {
+    final movs = _kardexData?.movimientos ?? [];
+    if (movs.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.history, size: 48, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            const Text(
+              'No hay movimientos registrados',
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+            ),
+          ],
         ),
       );
     }
-
-    // Si hay más páginas disponibles, agregamos una fila extra al final
-    // como botón "Cargar más" o spinner si está cargando.
     final hasMore = _kardexData?.hasMore ?? false;
-    final extraCount = hasMore ? 1 : 0;
-
-    return SliverPadding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      sliver: SliverList(
-        delegate: SliverChildBuilderDelegate(
-          (context, index) {
-            if (index >= movimientos.length) {
-              // Footer "Cargar más" / spinner.
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                child: Center(
-                  child: _loadingMore
-                      ? const CircularProgressIndicator(strokeWidth: 2)
-                      : OutlinedButton.icon(
-                          onPressed: _loadMore,
-                          icon: const Icon(Icons.expand_more, size: 16),
-                          label: const Text('Cargar más',
-                              style: TextStyle(fontSize: 12)),
+    final extra = hasMore ? 1 : 0;
+    return Container(
+      color: Colors.white,
+      child: Column(
+        children: [
+          // Header sticky (solo scrollea horizontal, sincronizado con el body).
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            controller: _headerHCtrl,
+            physics: const ClampingScrollPhysics(),
+            child: _buildTablaHeader(),
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              controller: _bodyHCtrl,
+              physics: const ClampingScrollPhysics(),
+              child: SizedBox(
+                width: _totalWidthTabla,
+                child: ListView.builder(
+                  itemCount: movs.length + extra,
+                  itemExtent: _rowH,
+                  itemBuilder: (_, i) {
+                    if (i >= movs.length) {
+                      return InkWell(
+                        onTap: _loadingMore ? null : _loadMore,
+                        child: Center(
+                          child: _loadingMore
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2),
+                                )
+                              : const Text('Cargar más',
+                                  style: TextStyle(
+                                      fontSize: 12, color: AppColors.blue1)),
                         ),
+                      );
+                    }
+                    return _buildTablaRow(movs[i], i);
+                  },
                 ),
-              );
-            }
-            final movimiento = movimientos[index];
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: _MovimientoCard(movimiento: movimiento),
-            );
-          },
-          childCount: movimientos.length + extraCount,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTablaHeader() {
+    const s = TextStyle(
+        fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.blue3);
+    return Container(
+      width: _totalWidthTabla,
+      height: _rowH,
+      color: AppColors.blue1.withValues(alpha: 0.08),
+      child: Row(
+        children: [
+          _hCellK('Fecha', _wFecha, s),
+          _hCellK('Tipo', _wTipo, s),
+          _hCellK('Documento', _wDoc, s),
+          _hCellK('Cant.', _wCant, s, alignRight: true),
+          _hCellK('Stock', _wStock, s, alignRight: true),
+          _hCellK('Valor', _wValor, s, alignRight: true),
+          _hCellK('Usuario', _wUsuario, s),
+          _hCellK('Motivo', _wMotivo, s),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTablaRow(MovimientoStock m, int index) {
+    final tipo = m.tipo;
+    final color = tipo.color;
+    final esEntrada = m.cantidad >= 0;
+    final bg = index.isEven ? Colors.white : Colors.grey.shade50;
+    const ts = TextStyle(fontSize: 10);
+    return Container(
+      width: _totalWidthTabla,
+      height: _rowH,
+      decoration: BoxDecoration(
+        color: bg,
+        border: Border(
+          bottom: BorderSide(color: Colors.grey.shade200, width: 0.5),
         ),
       ),
+      child: Row(
+        children: [
+          _dCellK(
+            DateFormat('dd/MM/yy HH:mm').format(m.creadoEn.toLocal()),
+            _wFecha,
+            ts,
+          ),
+          // Tipo con ícono de color.
+          SizedBox(
+            width: _wTipo,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: Row(
+                children: [
+                  Icon(tipo.icon, size: 12, color: color),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(tipo.label,
+                        style: ts,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          _dCellK(m.documentoReferencia ?? '—', _wDoc, ts),
+          _dCellK(
+            '${esEntrada ? '+' : ''}${m.cantidad}',
+            _wCant,
+            TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              color: esEntrada ? Colors.green.shade700 : Colors.red.shade700,
+            ),
+            alignRight: true,
+          ),
+          _dCellK('${m.cantidadAnterior}→${m.cantidadNueva}', _wStock, ts,
+              alignRight: true),
+          _dCellK(
+            m.valorMovimiento != null
+                ? 'S/ ${m.valorMovimiento!.toStringAsFixed(2)}'
+                : '—',
+            _wValor,
+            ts,
+            alignRight: true,
+          ),
+          _dCellK(m.usuarioNombre ?? '—', _wUsuario, ts),
+          _dCellK(
+            (m.motivo != null && m.motivo!.isNotEmpty) ? m.motivo! : '—',
+            _wMotivo,
+            ts,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _hCellK(String text, double width, TextStyle s,
+      {bool alignRight = false}) {
+    return Container(
+      width: width,
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      alignment: alignRight ? Alignment.centerRight : Alignment.centerLeft,
+      child: Text(text, style: s),
+    );
+  }
+
+  Widget _dCellK(String text, double width, TextStyle s,
+      {bool alignRight = false}) {
+    return Container(
+      width: width,
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      alignment: alignRight ? Alignment.centerRight : Alignment.centerLeft,
+      child: Text(text, style: s, maxLines: 1, overflow: TextOverflow.ellipsis),
     );
   }
 
@@ -843,165 +995,6 @@ class _ResumenPorTipo extends StatelessWidget {
             ),
           );
         }).toList(),
-      ),
-    );
-  }
-}
-
-class _MovimientoCard extends StatelessWidget {
-  final MovimientoStock movimiento;
-
-  const _MovimientoCard({required this.movimiento});
-
-  @override
-  Widget build(BuildContext context) {
-    final tipo = movimiento.tipo;
-    final color = tipo.color;
-
-    return GradientContainer(
-      padding: const EdgeInsets.all(6),
-      borderColor: color.withValues(alpha: 0.4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Icono a la izquierda
-          Container(
-            padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Icon(
-              tipo.icon,
-              color: Colors.white,
-              size: 16,
-            ),
-          ),
-          const SizedBox(width: 8),
-
-          // Contenido central
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Tipo label
-                Text(
-                  tipo.label,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                  ),
-                ),
-                // Motivo
-                if (movimiento.motivo != null &&
-                    movimiento.motivo!.isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    movimiento.motivo!,
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 10,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-                // Documento referencia
-                if (movimiento.documentoReferencia != null) ...[
-                  const SizedBox(height: 2),
-                  Row(
-                    children: [
-                      Icon(Icons.description, size: 12, color: Colors.blue[700]),
-                      const SizedBox(width: 4),
-                      Text(
-                        movimiento.documentoReferencia!,
-                        style: TextStyle(
-                          color: Colors.blue[700],
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-                const SizedBox(height: 4),
-                // Stock antes -> despues
-                Text(
-                  'Stock: ${movimiento.cantidadAnterior} -> ${movimiento.cantidadNueva}',
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 11,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                // Fecha + usuario
-                Row(
-                  children: [
-                    Icon(Icons.access_time, size: 11, color: Colors.grey[500]),
-                    const SizedBox(width: 3),
-                    Text(
-                      DateFormatter.formatDateTime(movimiento.creadoEn),
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 10,
-                      ),
-                    ),
-                    if (movimiento.usuarioNombre != null) ...[
-                      const SizedBox(width: 6),
-                      Icon(Icons.person, size: 11, color: Colors.grey[500]),
-                      const SizedBox(width: 3),
-                      Flexible(
-                        child: Text(
-                          movimiento.usuarioNombre!,
-                          style: const TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 10,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(width: 8),
-
-          // Cantidad + valor monetario a la derecha
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                '${movimiento.cantidad > 0 ? '+' : ''}${movimiento.cantidad}',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                  color: color,
-                ),
-              ),
-              if (movimiento.valorMovimiento != null)
-                Text(
-                  // Valor total del mov (cantidad × precioCosto snapshot).
-                  // Movs viejos (sin snapshot) no muestran nada.
-                  'S/ ${movimiento.valorMovimiento!.toStringAsFixed(2)}',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: color.withValues(alpha: 0.85),
-                  ),
-                ),
-              Text(
-                'unidades',
-                style: TextStyle(
-                  fontSize: 10,
-                  color: color,
-                ),
-              ),
-            ],
-          ),
-        ],
       ),
     );
   }
