@@ -278,7 +278,8 @@ class AppRouter {
       // Rutas públicas (no requieren autenticación)
       final publicRoutes = ['/login', '/register', '/verify-email', '/change-password', '/forgot-password', '/reset-password', '/marketplace', '/about'];
       final isPublicDynamic = state.matchedLocation.startsWith('/producto-detalle/') ||
-          state.matchedLocation.startsWith('/vendedor/');
+          state.matchedLocation.startsWith('/vendedor/') ||
+          state.matchedLocation.startsWith('/marketplace/');
       final isPublicRoute = publicRoutes.contains(state.matchedLocation);
 
       // Si no está autenticado y va a una ruta protegida, redirigir a marketplace
