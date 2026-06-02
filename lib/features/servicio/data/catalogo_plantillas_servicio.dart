@@ -22,7 +22,13 @@ class CatalogoPlantilla {
       campos.map((c) => c['categoria'] as String? ?? 'GENERAL').toSet().toList();
 }
 
-/// Catálogo de plantillas predefinidas disponibles para todas las empresas
+/// Catálogo de plantillas predefinidas disponibles para todas las empresas.
+///
+/// NOTA: estas plantillas NO repiten los campos que la orden de servicio ya
+/// captura de forma nativa (Equipo/tipo, Marca, Número de serie, Condición del
+/// equipo, Problema reportado) ni precios/costos ni fechas (recepción/entrega),
+/// porque esos viven en el formulario de la orden. Aquí solo van campos
+/// adicionales propios del tipo de equipo (IMEI, patrón, accesorios, falla, etc.).
 final List<CatalogoPlantilla> catalogoPlantillas = [
   _reparacionCelulares,
   _reparacionLaptops,
@@ -38,41 +44,18 @@ final List<CatalogoPlantilla> catalogoPlantillas = [
 final _reparacionCelulares = CatalogoPlantilla(
   nombre: 'Reparación de Celulares',
   descripcion:
-      'Plantilla completa para servicio técnico de celulares. Incluye datos del equipo, IMEI, patrón de desbloqueo, diagnóstico y costos.',
+      'Campos adicionales para servicio técnico de celulares: IMEI, patrón de desbloqueo, accesorios y tipo de falla.',
   icono: Icons.smartphone,
   color: Colors.blue,
   campos: [
     // --- EQUIPO_CLIENTE ---
-    {
-      'nombre': 'Marca del celular',
-      'tipoCampo': 'OPCION_SIMPLES',
-      'categoria': 'EQUIPO_CLIENTE',
-      'esRequerido': true,
-      'placeholder': 'Selecciona la marca',
-      'opciones': [
-        'Samsung',
-        'Apple',
-        'Xiaomi',
-        'Huawei',
-        'Motorola',
-        'Oppo',
-        'Realme',
-        'Vivo',
-        'OnePlus',
-        'Nokia',
-        'LG',
-        'Honor',
-      ],
-      'permiteOtro': true,
-      'orden': 1,
-    },
     {
       'nombre': 'Modelo',
       'tipoCampo': 'TEXTO',
       'categoria': 'EQUIPO_CLIENTE',
       'esRequerido': true,
       'placeholder': 'Ej: Galaxy S24, iPhone 15 Pro',
-      'orden': 2,
+      'orden': 1,
     },
     {
       'nombre': 'IMEI',
@@ -80,7 +63,7 @@ final _reparacionCelulares = CatalogoPlantilla(
       'categoria': 'EQUIPO_CLIENTE',
       'esRequerido': false,
       'placeholder': 'Número IMEI de 15 dígitos',
-      'orden': 3,
+      'orden': 2,
     },
     {
       'nombre': 'Color del equipo',
@@ -88,7 +71,7 @@ final _reparacionCelulares = CatalogoPlantilla(
       'categoria': 'EQUIPO_CLIENTE',
       'esRequerido': false,
       'placeholder': 'Ej: Negro, Blanco, Azul',
-      'orden': 4,
+      'orden': 3,
     },
     {
       'nombre': 'Patrón de desbloqueo',
@@ -96,7 +79,7 @@ final _reparacionCelulares = CatalogoPlantilla(
       'categoria': 'EQUIPO_CLIENTE',
       'esRequerido': false,
       'descripcion': 'Patrón o PIN proporcionado por el cliente',
-      'orden': 5,
+      'orden': 4,
     },
     {
       'nombre': 'Accesorios recibidos',
@@ -113,17 +96,9 @@ final _reparacionCelulares = CatalogoPlantilla(
         'Chip SIM',
         'Memoria SD',
       ],
-      'orden': 6,
+      'orden': 5,
     },
     // --- DIAGNOSTICO ---
-    {
-      'nombre': 'Problema reportado por el cliente',
-      'tipoCampo': 'TEXTO_AREA',
-      'categoria': 'DIAGNOSTICO',
-      'esRequerido': true,
-      'placeholder': 'Describe el problema que reporta el cliente',
-      'orden': 7,
-    },
     {
       'nombre': 'Tipo de falla',
       'tipoCampo': 'OPCION_SIMPLES',
@@ -143,15 +118,7 @@ final _reparacionCelulares = CatalogoPlantilla(
         'Conector de carga',
       ],
       'permiteOtro': true,
-      'orden': 8,
-    },
-    {
-      'nombre': 'Diagnóstico técnico',
-      'tipoCampo': 'TEXTO_AREA',
-      'categoria': 'DIAGNOSTICO',
-      'esRequerido': false,
-      'placeholder': 'Resultado del diagnóstico realizado por el técnico',
-      'orden': 9,
+      'orden': 6,
     },
     {
       'nombre': 'Evidencia fotográfica',
@@ -159,7 +126,7 @@ final _reparacionCelulares = CatalogoPlantilla(
       'categoria': 'DIAGNOSTICO',
       'esRequerido': false,
       'descripcion': 'Fotos del estado del equipo al momento de recepción',
-      'orden': 10,
+      'orden': 7,
     },
     // --- COMPONENTE ---
     {
@@ -168,39 +135,7 @@ final _reparacionCelulares = CatalogoPlantilla(
       'categoria': 'COMPONENTE',
       'esRequerido': false,
       'placeholder': 'Lista de repuestos necesarios',
-      'orden': 11,
-    },
-    // --- COSTOS ---
-    {
-      'nombre': 'Costo de repuestos',
-      'tipoCampo': 'NUMERO',
-      'categoria': 'COSTOS',
-      'esRequerido': false,
-      'placeholder': '0.00',
-      'orden': 12,
-    },
-    {
-      'nombre': 'Costo de mano de obra',
-      'tipoCampo': 'NUMERO',
-      'categoria': 'COSTOS',
-      'esRequerido': false,
-      'placeholder': '0.00',
-      'orden': 13,
-    },
-    // --- TIEMPOS ---
-    {
-      'nombre': 'Fecha de recepción',
-      'tipoCampo': 'FECHA',
-      'categoria': 'TIEMPOS',
-      'esRequerido': true,
-      'orden': 14,
-    },
-    {
-      'nombre': 'Fecha estimada de entrega',
-      'tipoCampo': 'FECHA',
-      'categoria': 'TIEMPOS',
-      'esRequerido': false,
-      'orden': 15,
+      'orden': 8,
     },
   ],
 );
@@ -211,47 +146,18 @@ final _reparacionCelulares = CatalogoPlantilla(
 final _reparacionLaptops = CatalogoPlantilla(
   nombre: 'Reparación de Laptops',
   descripcion:
-      'Plantilla para servicio técnico de laptops/notebooks. Incluye datos del equipo, estado de componentes y diagnóstico.',
+      'Campos adicionales para laptops/notebooks: contraseña, accesorios, estado de componentes y tipo de falla.',
   icono: Icons.laptop_mac,
   color: Colors.indigo,
   campos: [
     // --- EQUIPO_CLIENTE ---
-    {
-      'nombre': 'Marca',
-      'tipoCampo': 'OPCION_SIMPLES',
-      'categoria': 'EQUIPO_CLIENTE',
-      'esRequerido': true,
-      'placeholder': 'Selecciona la marca',
-      'opciones': [
-        'HP',
-        'Dell',
-        'Lenovo',
-        'Asus',
-        'Acer',
-        'Apple',
-        'MSI',
-        'Toshiba',
-        'Samsung',
-        'Huawei',
-      ],
-      'permiteOtro': true,
-      'orden': 1,
-    },
     {
       'nombre': 'Modelo',
       'tipoCampo': 'TEXTO',
       'categoria': 'EQUIPO_CLIENTE',
       'esRequerido': true,
       'placeholder': 'Ej: Pavilion 15, ThinkPad X1',
-      'orden': 2,
-    },
-    {
-      'nombre': 'Número de serie',
-      'tipoCampo': 'TEXTO',
-      'categoria': 'EQUIPO_CLIENTE',
-      'esRequerido': false,
-      'placeholder': 'S/N del equipo',
-      'orden': 3,
+      'orden': 1,
     },
     {
       'nombre': 'Contraseña del equipo',
@@ -259,14 +165,14 @@ final _reparacionLaptops = CatalogoPlantilla(
       'categoria': 'EQUIPO_CLIENTE',
       'esRequerido': false,
       'placeholder': 'Contraseña de inicio de sesión',
-      'orden': 4,
+      'orden': 2,
     },
     {
       'nombre': 'Incluye cargador',
       'tipoCampo': 'CHECKBOX',
       'categoria': 'EQUIPO_CLIENTE',
       'esRequerido': false,
-      'orden': 5,
+      'orden': 3,
     },
     {
       'nombre': 'Accesorios recibidos',
@@ -280,17 +186,9 @@ final _reparacionLaptops = CatalogoPlantilla(
         'Disco externo',
         'USB/Pendrive',
       ],
-      'orden': 6,
+      'orden': 4,
     },
     // --- DIAGNOSTICO ---
-    {
-      'nombre': 'Problema reportado',
-      'tipoCampo': 'TEXTO_AREA',
-      'categoria': 'DIAGNOSTICO',
-      'esRequerido': true,
-      'placeholder': 'Describe el problema que reporta el cliente',
-      'orden': 8,
-    },
     {
       'nombre': 'Tipo de falla',
       'tipoCampo': 'OPCION_SIMPLES',
@@ -312,7 +210,7 @@ final _reparacionLaptops = CatalogoPlantilla(
         'Sonido no funciona',
       ],
       'permiteOtro': true,
-      'orden': 9,
+      'orden': 5,
     },
     {
       'nombre': 'Estado de componentes',
@@ -327,15 +225,7 @@ final _reparacionLaptops = CatalogoPlantilla(
         {'nombre': 'Cargador', 'tipo': 'OPCION_SIMPLES', 'opciones': ['Bueno', 'Regular', 'Malo', 'No aplica']},
         {'nombre': 'Disco duro', 'tipo': 'OPCION_SIMPLES', 'opciones': ['Bueno', 'Regular', 'Malo', 'No aplica']},
       ],
-      'orden': 10,
-    },
-    {
-      'nombre': 'Diagnóstico técnico',
-      'tipoCampo': 'TEXTO_AREA',
-      'categoria': 'DIAGNOSTICO',
-      'esRequerido': false,
-      'placeholder': 'Resultado del diagnóstico',
-      'orden': 11,
+      'orden': 6,
     },
     {
       'nombre': 'Evidencia fotográfica',
@@ -343,39 +233,7 @@ final _reparacionLaptops = CatalogoPlantilla(
       'categoria': 'DIAGNOSTICO',
       'esRequerido': false,
       'descripcion': 'Fotos del estado del equipo',
-      'orden': 12,
-    },
-    // --- COSTOS ---
-    {
-      'nombre': 'Costo de repuestos',
-      'tipoCampo': 'NUMERO',
-      'categoria': 'COSTOS',
-      'esRequerido': false,
-      'placeholder': '0.00',
-      'orden': 13,
-    },
-    {
-      'nombre': 'Costo de mano de obra',
-      'tipoCampo': 'NUMERO',
-      'categoria': 'COSTOS',
-      'esRequerido': false,
-      'placeholder': '0.00',
-      'orden': 14,
-    },
-    // --- TIEMPOS ---
-    {
-      'nombre': 'Fecha de recepción',
-      'tipoCampo': 'FECHA',
-      'categoria': 'TIEMPOS',
-      'esRequerido': true,
-      'orden': 15,
-    },
-    {
-      'nombre': 'Fecha estimada de entrega',
-      'tipoCampo': 'FECHA',
-      'categoria': 'TIEMPOS',
-      'esRequerido': false,
-      'orden': 16,
+      'orden': 7,
     },
   ],
 );
@@ -386,51 +244,18 @@ final _reparacionLaptops = CatalogoPlantilla(
 final _reparacionPCs = CatalogoPlantilla(
   nombre: 'Reparación de PCs',
   descripcion:
-      'Plantilla para servicio técnico de computadoras de escritorio. Incluye tipo de equipo, componentes internos y diagnóstico.',
+      'Campos adicionales para computadoras de escritorio: contraseña, periféricos, especificaciones y tipo de falla.',
   icono: Icons.desktop_windows,
   color: Colors.teal,
   campos: [
     // --- EQUIPO_CLIENTE ---
-    {
-      'nombre': 'Tipo de equipo',
-      'tipoCampo': 'OPCION_SIMPLES',
-      'categoria': 'EQUIPO_CLIENTE',
-      'esRequerido': true,
-      'opciones': ['Desktop (Torre)', 'All-in-One', 'Mini PC', 'Workstation'],
-      'orden': 1,
-    },
-    {
-      'nombre': 'Marca',
-      'tipoCampo': 'OPCION_SIMPLES',
-      'categoria': 'EQUIPO_CLIENTE',
-      'esRequerido': false,
-      'opciones': [
-        'HP',
-        'Dell',
-        'Lenovo',
-        'Asus',
-        'Acer',
-        'Apple',
-        'Ensamblado/Custom',
-      ],
-      'permiteOtro': true,
-      'orden': 2,
-    },
     {
       'nombre': 'Modelo',
       'tipoCampo': 'TEXTO',
       'categoria': 'EQUIPO_CLIENTE',
       'esRequerido': false,
       'placeholder': 'Modelo del equipo',
-      'orden': 3,
-    },
-    {
-      'nombre': 'Número de serie',
-      'tipoCampo': 'TEXTO',
-      'categoria': 'EQUIPO_CLIENTE',
-      'esRequerido': false,
-      'placeholder': 'S/N del equipo',
-      'orden': 4,
+      'orden': 1,
     },
     {
       'nombre': 'Contraseña del equipo',
@@ -438,7 +263,7 @@ final _reparacionPCs = CatalogoPlantilla(
       'categoria': 'EQUIPO_CLIENTE',
       'esRequerido': false,
       'placeholder': 'Contraseña de inicio de sesión',
-      'orden': 5,
+      'orden': 2,
     },
     {
       'nombre': 'Periféricos recibidos',
@@ -454,17 +279,9 @@ final _reparacionPCs = CatalogoPlantilla(
         'Parlantes',
         'Webcam',
       ],
-      'orden': 6,
+      'orden': 3,
     },
     // --- DIAGNOSTICO ---
-    {
-      'nombre': 'Problema reportado',
-      'tipoCampo': 'TEXTO_AREA',
-      'categoria': 'DIAGNOSTICO',
-      'esRequerido': true,
-      'placeholder': 'Describe el problema que reporta el cliente',
-      'orden': 8,
-    },
     {
       'nombre': 'Tipo de falla',
       'tipoCampo': 'OPCION_SIMPLES',
@@ -485,7 +302,7 @@ final _reparacionPCs = CatalogoPlantilla(
         'No muestra imagen',
       ],
       'permiteOtro': true,
-      'orden': 9,
+      'orden': 4,
     },
     {
       'nombre': 'Especificaciones del equipo',
@@ -500,15 +317,7 @@ final _reparacionPCs = CatalogoPlantilla(
         {'nombre': 'Tarjeta gráfica', 'tipo': 'TEXTO'},
         {'nombre': 'Sistema operativo', 'tipo': 'TEXTO'},
       ],
-      'orden': 10,
-    },
-    {
-      'nombre': 'Diagnóstico técnico',
-      'tipoCampo': 'TEXTO_AREA',
-      'categoria': 'DIAGNOSTICO',
-      'esRequerido': false,
-      'placeholder': 'Resultado del diagnóstico',
-      'orden': 11,
+      'orden': 5,
     },
     {
       'nombre': 'Evidencia fotográfica',
@@ -516,39 +325,7 @@ final _reparacionPCs = CatalogoPlantilla(
       'categoria': 'DIAGNOSTICO',
       'esRequerido': false,
       'descripcion': 'Fotos del estado del equipo',
-      'orden': 12,
-    },
-    // --- COSTOS ---
-    {
-      'nombre': 'Costo de repuestos',
-      'tipoCampo': 'NUMERO',
-      'categoria': 'COSTOS',
-      'esRequerido': false,
-      'placeholder': '0.00',
-      'orden': 13,
-    },
-    {
-      'nombre': 'Costo de mano de obra',
-      'tipoCampo': 'NUMERO',
-      'categoria': 'COSTOS',
-      'esRequerido': false,
-      'placeholder': '0.00',
-      'orden': 14,
-    },
-    // --- TIEMPOS ---
-    {
-      'nombre': 'Fecha de recepción',
-      'tipoCampo': 'FECHA',
-      'categoria': 'TIEMPOS',
-      'esRequerido': true,
-      'orden': 15,
-    },
-    {
-      'nombre': 'Fecha estimada de entrega',
-      'tipoCampo': 'FECHA',
-      'categoria': 'TIEMPOS',
-      'esRequerido': false,
-      'orden': 16,
+      'orden': 6,
     },
   ],
 );
@@ -559,43 +336,18 @@ final _reparacionPCs = CatalogoPlantilla(
 final _reparacionTablets = CatalogoPlantilla(
   nombre: 'Reparación de Tablets',
   descripcion:
-      'Plantilla para servicio técnico de tablets/iPads. Incluye datos del equipo, patrón de desbloqueo y diagnóstico.',
+      'Campos adicionales para tablets/iPads: IMEI, patrón de desbloqueo, accesorios y tipo de falla.',
   icono: Icons.tablet_mac,
   color: Colors.deepPurple,
   campos: [
     // --- EQUIPO_CLIENTE ---
-    {
-      'nombre': 'Marca',
-      'tipoCampo': 'OPCION_SIMPLES',
-      'categoria': 'EQUIPO_CLIENTE',
-      'esRequerido': true,
-      'placeholder': 'Selecciona la marca',
-      'opciones': [
-        'Apple (iPad)',
-        'Samsung',
-        'Huawei',
-        'Lenovo',
-        'Xiaomi',
-        'Amazon (Fire)',
-      ],
-      'permiteOtro': true,
-      'orden': 1,
-    },
     {
       'nombre': 'Modelo',
       'tipoCampo': 'TEXTO',
       'categoria': 'EQUIPO_CLIENTE',
       'esRequerido': true,
       'placeholder': 'Ej: iPad Pro 12.9, Galaxy Tab S9',
-      'orden': 2,
-    },
-    {
-      'nombre': 'Número de serie',
-      'tipoCampo': 'TEXTO',
-      'categoria': 'EQUIPO_CLIENTE',
-      'esRequerido': false,
-      'placeholder': 'S/N del equipo',
-      'orden': 3,
+      'orden': 1,
     },
     {
       'nombre': 'IMEI',
@@ -603,7 +355,7 @@ final _reparacionTablets = CatalogoPlantilla(
       'categoria': 'EQUIPO_CLIENTE',
       'esRequerido': false,
       'placeholder': 'Solo si tiene conexión celular',
-      'orden': 4,
+      'orden': 2,
     },
     {
       'nombre': 'Patrón de desbloqueo',
@@ -611,7 +363,7 @@ final _reparacionTablets = CatalogoPlantilla(
       'categoria': 'EQUIPO_CLIENTE',
       'esRequerido': false,
       'descripcion': 'Patrón o PIN proporcionado por el cliente',
-      'orden': 5,
+      'orden': 3,
     },
     {
       'nombre': 'Accesorios recibidos',
@@ -625,17 +377,9 @@ final _reparacionTablets = CatalogoPlantilla(
         'Lápiz/Stylus',
         'Teclado externo',
       ],
-      'orden': 6,
+      'orden': 4,
     },
     // --- DIAGNOSTICO ---
-    {
-      'nombre': 'Problema reportado',
-      'tipoCampo': 'TEXTO_AREA',
-      'categoria': 'DIAGNOSTICO',
-      'esRequerido': true,
-      'placeholder': 'Describe el problema que reporta el cliente',
-      'orden': 7,
-    },
     {
       'nombre': 'Tipo de falla',
       'tipoCampo': 'OPCION_SIMPLES',
@@ -654,15 +398,7 @@ final _reparacionTablets = CatalogoPlantilla(
         'Altavoz/micrófono',
       ],
       'permiteOtro': true,
-      'orden': 8,
-    },
-    {
-      'nombre': 'Diagnóstico técnico',
-      'tipoCampo': 'TEXTO_AREA',
-      'categoria': 'DIAGNOSTICO',
-      'esRequerido': false,
-      'placeholder': 'Resultado del diagnóstico',
-      'orden': 9,
+      'orden': 5,
     },
     {
       'nombre': 'Evidencia fotográfica',
@@ -670,7 +406,7 @@ final _reparacionTablets = CatalogoPlantilla(
       'categoria': 'DIAGNOSTICO',
       'esRequerido': false,
       'descripcion': 'Fotos del estado del equipo',
-      'orden': 10,
+      'orden': 6,
     },
     // --- COMPONENTE ---
     {
@@ -679,39 +415,7 @@ final _reparacionTablets = CatalogoPlantilla(
       'categoria': 'COMPONENTE',
       'esRequerido': false,
       'placeholder': 'Lista de repuestos necesarios',
-      'orden': 11,
-    },
-    // --- COSTOS ---
-    {
-      'nombre': 'Costo de repuestos',
-      'tipoCampo': 'NUMERO',
-      'categoria': 'COSTOS',
-      'esRequerido': false,
-      'placeholder': '0.00',
-      'orden': 12,
-    },
-    {
-      'nombre': 'Costo de mano de obra',
-      'tipoCampo': 'NUMERO',
-      'categoria': 'COSTOS',
-      'esRequerido': false,
-      'placeholder': '0.00',
-      'orden': 13,
-    },
-    // --- TIEMPOS ---
-    {
-      'nombre': 'Fecha de recepción',
-      'tipoCampo': 'FECHA',
-      'categoria': 'TIEMPOS',
-      'esRequerido': true,
-      'orden': 14,
-    },
-    {
-      'nombre': 'Fecha estimada de entrega',
-      'tipoCampo': 'FECHA',
-      'categoria': 'TIEMPOS',
-      'esRequerido': false,
-      'orden': 15,
+      'orden': 7,
     },
   ],
 );
@@ -722,59 +426,18 @@ final _reparacionTablets = CatalogoPlantilla(
 final _reparacionImpresoras = CatalogoPlantilla(
   nombre: 'Reparación de Impresoras',
   descripcion:
-      'Plantilla para servicio técnico de impresoras. Incluye tipo de impresora, diagnóstico y costos.',
+      'Campos adicionales para impresoras: accesorios y tipo de falla específicos de impresión.',
   icono: Icons.print,
   color: Colors.orange,
   campos: [
     // --- EQUIPO_CLIENTE ---
-    {
-      'nombre': 'Tipo de impresora',
-      'tipoCampo': 'OPCION_SIMPLES',
-      'categoria': 'EQUIPO_CLIENTE',
-      'esRequerido': true,
-      'opciones': [
-        'Inyección de tinta',
-        'Láser',
-        'Matricial',
-        'Térmica',
-        'Multifuncional',
-        'Plotter',
-      ],
-      'orden': 1,
-    },
-    {
-      'nombre': 'Marca',
-      'tipoCampo': 'OPCION_SIMPLES',
-      'categoria': 'EQUIPO_CLIENTE',
-      'esRequerido': true,
-      'opciones': [
-        'HP',
-        'Epson',
-        'Canon',
-        'Brother',
-        'Samsung',
-        'Xerox',
-        'Ricoh',
-        'Lexmark',
-      ],
-      'permiteOtro': true,
-      'orden': 2,
-    },
     {
       'nombre': 'Modelo',
       'tipoCampo': 'TEXTO',
       'categoria': 'EQUIPO_CLIENTE',
       'esRequerido': true,
       'placeholder': 'Modelo de la impresora',
-      'orden': 3,
-    },
-    {
-      'nombre': 'Número de serie',
-      'tipoCampo': 'TEXTO',
-      'categoria': 'EQUIPO_CLIENTE',
-      'esRequerido': false,
-      'placeholder': 'S/N del equipo',
-      'orden': 4,
+      'orden': 1,
     },
     {
       'nombre': 'Accesorios recibidos',
@@ -787,17 +450,9 @@ final _reparacionImpresoras = CatalogoPlantilla(
         'Bandeja de papel',
         'Cartuchos/Tóner',
       ],
-      'orden': 5,
+      'orden': 2,
     },
     // --- DIAGNOSTICO ---
-    {
-      'nombre': 'Problema reportado',
-      'tipoCampo': 'TEXTO_AREA',
-      'categoria': 'DIAGNOSTICO',
-      'esRequerido': true,
-      'placeholder': 'Describe el problema que reporta el cliente',
-      'orden': 7,
-    },
     {
       'nombre': 'Tipo de falla',
       'tipoCampo': 'OPCION_SIMPLES',
@@ -816,15 +471,7 @@ final _reparacionImpresoras = CatalogoPlantilla(
         'Escáner no funciona',
       ],
       'permiteOtro': true,
-      'orden': 8,
-    },
-    {
-      'nombre': 'Diagnóstico técnico',
-      'tipoCampo': 'TEXTO_AREA',
-      'categoria': 'DIAGNOSTICO',
-      'esRequerido': false,
-      'placeholder': 'Resultado del diagnóstico',
-      'orden': 9,
+      'orden': 3,
     },
     {
       'nombre': 'Evidencia fotográfica',
@@ -832,39 +479,7 @@ final _reparacionImpresoras = CatalogoPlantilla(
       'categoria': 'DIAGNOSTICO',
       'esRequerido': false,
       'descripcion': 'Fotos del estado del equipo',
-      'orden': 10,
-    },
-    // --- COSTOS ---
-    {
-      'nombre': 'Costo de repuestos',
-      'tipoCampo': 'NUMERO',
-      'categoria': 'COSTOS',
-      'esRequerido': false,
-      'placeholder': '0.00',
-      'orden': 11,
-    },
-    {
-      'nombre': 'Costo de mano de obra',
-      'tipoCampo': 'NUMERO',
-      'categoria': 'COSTOS',
-      'esRequerido': false,
-      'placeholder': '0.00',
-      'orden': 12,
-    },
-    // --- TIEMPOS ---
-    {
-      'nombre': 'Fecha de recepción',
-      'tipoCampo': 'FECHA',
-      'categoria': 'TIEMPOS',
-      'esRequerido': true,
-      'orden': 13,
-    },
-    {
-      'nombre': 'Fecha estimada de entrega',
-      'tipoCampo': 'FECHA',
-      'categoria': 'TIEMPOS',
-      'esRequerido': false,
-      'orden': 14,
+      'orden': 4,
     },
   ],
 );
@@ -875,42 +490,18 @@ final _reparacionImpresoras = CatalogoPlantilla(
 final _servicioTecnicoGeneral = CatalogoPlantilla(
   nombre: 'Servicio Técnico General',
   descripcion:
-      'Plantilla genérica adaptable a cualquier tipo de equipo o dispositivo. Ideal como punto de partida para personalizar.',
+      'Plantilla genérica adaptable a cualquier equipo. Solo campos adicionales; ideal como punto de partida para personalizar.',
   icono: Icons.build_outlined,
   color: Colors.blueGrey,
   campos: [
     // --- EQUIPO_CLIENTE ---
-    {
-      'nombre': 'Tipo de equipo',
-      'tipoCampo': 'TEXTO',
-      'categoria': 'EQUIPO_CLIENTE',
-      'esRequerido': true,
-      'placeholder': 'Ej: Televisor, Consola, Microondas, etc.',
-      'orden': 1,
-    },
-    {
-      'nombre': 'Marca',
-      'tipoCampo': 'TEXTO',
-      'categoria': 'EQUIPO_CLIENTE',
-      'esRequerido': false,
-      'placeholder': 'Marca del equipo',
-      'orden': 2,
-    },
     {
       'nombre': 'Modelo',
       'tipoCampo': 'TEXTO',
       'categoria': 'EQUIPO_CLIENTE',
       'esRequerido': false,
       'placeholder': 'Modelo del equipo',
-      'orden': 3,
-    },
-    {
-      'nombre': 'Número de serie',
-      'tipoCampo': 'TEXTO',
-      'categoria': 'EQUIPO_CLIENTE',
-      'esRequerido': false,
-      'placeholder': 'S/N del equipo',
-      'orden': 4,
+      'orden': 1,
     },
     {
       'nombre': 'Accesorios recibidos',
@@ -918,32 +509,16 @@ final _servicioTecnicoGeneral = CatalogoPlantilla(
       'categoria': 'EQUIPO_CLIENTE',
       'esRequerido': false,
       'placeholder': 'Lista de accesorios que deja el cliente',
-      'orden': 5,
+      'orden': 2,
     },
     // --- DIAGNOSTICO ---
-    {
-      'nombre': 'Problema reportado',
-      'tipoCampo': 'TEXTO_AREA',
-      'categoria': 'DIAGNOSTICO',
-      'esRequerido': true,
-      'placeholder': 'Describe el problema que reporta el cliente',
-      'orden': 7,
-    },
-    {
-      'nombre': 'Diagnóstico técnico',
-      'tipoCampo': 'TEXTO_AREA',
-      'categoria': 'DIAGNOSTICO',
-      'esRequerido': false,
-      'placeholder': 'Resultado del diagnóstico',
-      'orden': 8,
-    },
     {
       'nombre': 'Evidencia fotográfica',
       'tipoCampo': 'ARCHIVO',
       'categoria': 'DIAGNOSTICO',
       'esRequerido': false,
       'descripcion': 'Fotos del estado del equipo',
-      'orden': 9,
+      'orden': 3,
     },
     // --- COMPONENTE ---
     {
@@ -952,39 +527,7 @@ final _servicioTecnicoGeneral = CatalogoPlantilla(
       'categoria': 'COMPONENTE',
       'esRequerido': false,
       'placeholder': 'Lista de repuestos necesarios',
-      'orden': 10,
-    },
-    // --- COSTOS ---
-    {
-      'nombre': 'Costo de repuestos',
-      'tipoCampo': 'NUMERO',
-      'categoria': 'COSTOS',
-      'esRequerido': false,
-      'placeholder': '0.00',
-      'orden': 11,
-    },
-    {
-      'nombre': 'Costo de mano de obra',
-      'tipoCampo': 'NUMERO',
-      'categoria': 'COSTOS',
-      'esRequerido': false,
-      'placeholder': '0.00',
-      'orden': 12,
-    },
-    // --- TIEMPOS ---
-    {
-      'nombre': 'Fecha de recepción',
-      'tipoCampo': 'FECHA',
-      'categoria': 'TIEMPOS',
-      'esRequerido': true,
-      'orden': 13,
-    },
-    {
-      'nombre': 'Fecha estimada de entrega',
-      'tipoCampo': 'FECHA',
-      'categoria': 'TIEMPOS',
-      'esRequerido': false,
-      'orden': 14,
+      'orden': 4,
     },
   ],
 );
