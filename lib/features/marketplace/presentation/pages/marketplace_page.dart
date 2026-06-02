@@ -56,6 +56,7 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
   List<dynamic> _vistos = [];
   List<dynamic> _ofertas = [];
   List<dynamic> _masVistos = [];
+  List<dynamic> _masVendidos = [];
   int _carritoCount = 0;
 
   @override
@@ -111,6 +112,7 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
       final data = response.data as Map<String, dynamic>;
       setState(() {
         _ofertas = (data['ofertas'] as List?) ?? [];
+        _masVendidos = (data['masVendidos'] as List?) ?? [];
         _masVistos = (data['masVistos'] as List?) ?? [];
       });
     } catch (_) {}
@@ -467,6 +469,9 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
                         if (_ofertas.isNotEmpty)
                           _buildSeccionCarrusel('Ofertas', _ofertas,
                               acento: Colors.red),
+                        if (_masVendidos.isNotEmpty)
+                          _buildSeccionCarrusel(
+                              'Lo más vendido', _masVendidos),
                         if (_masVistos.isNotEmpty)
                           _buildSeccionCarrusel('Lo más visto', _masVistos),
                       ],

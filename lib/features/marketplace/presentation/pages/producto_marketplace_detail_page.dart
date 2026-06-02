@@ -360,9 +360,120 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
             // Vendido por
             _buildEmpresaCard(empresa),
 
+            // Productos relacionados
+            _buildRelacionados(),
+
             const SizedBox(height: 80),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildRelacionados() {
+    final relacionados = (_producto?['relacionados'] as List?) ?? [];
+    if (relacionados.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      color: Colors.white,
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              'Productos relacionados',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            height: 165,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              itemCount: relacionados.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: (_, i) {
+                final r = relacionados[i] as Map<String, dynamic>;
+                final nombre = r['nombre'] as String? ?? '';
+                final imagen = r['imagen'] as String?;
+                final precio = r['precio'] as num?;
+                final precioOferta = r['precioOferta'] as num?;
+                final enOferta = r['enOferta'] as bool? ?? false;
+                final precioFinal =
+                    enOferta && precioOferta != null ? precioOferta : precio;
+
+                return GestureDetector(
+                  onTap: () => context.push('/producto-detalle/${r['id']}'),
+                  child: Container(
+                    width: 120,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          height: 95,
+                          width: double.infinity,
+                          color: Colors.grey.shade50,
+                          child: imagen != null
+                              ? CachedNetworkImage(
+                                  imageUrl: imagen,
+                                  fit: BoxFit.contain,
+                                  placeholder: (_, __) =>
+                                      const SizedBox.shrink(),
+                                  errorWidget: (_, __, ___) => const Icon(
+                                      Icons.inventory_2_outlined,
+                                      color: Colors.grey),
+                                )
+                              : const Icon(Icons.inventory_2_outlined,
+                                  color: Colors.grey),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (precioFinal != null)
+                                Text(
+                                  'S/ ${precioFinal.toStringAsFixed(2)}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: enOferta
+                                        ? Colors.green.shade600
+                                        : Colors.black87,
+                                  ),
+                                ),
+                              const SizedBox(height: 2),
+                              Text(
+                                nombre,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.grey.shade700,
+                                  height: 1.2,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
