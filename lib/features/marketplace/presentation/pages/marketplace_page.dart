@@ -105,6 +105,42 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
         );
   }
 
+  void _clearBusqueda() {
+    _searchController.clear();
+    setState(() => _selectedCategoriaId = null);
+    context.read<MarketplaceSearchCubit>().searchProductos(
+          search: null,
+          categoriaId: null,
+        );
+  }
+
+  /// Abre la página de búsqueda con autocomplete y aplica lo seleccionado.
+  Future<void> _openBuscar() async {
+    final result = await context.push<Object?>(
+      '/marketplace/buscar',
+      extra: _searchController.text,
+    );
+    if (result is! Map || !mounted) return;
+    if (result['search'] != null) {
+      final term = result['search'] as String;
+      _searchController.text = term;
+      setState(() => _selectedCategoriaId = null);
+      context.read<MarketplaceSearchCubit>().searchProductos(
+            search: term.isEmpty ? null : term,
+            categoriaId: null,
+          );
+    } else if (result['categoriaId'] != null) {
+      final id = result['categoriaId'] as String;
+      final nombre = result['categoriaNombre'] as String?;
+      _searchController.text = nombre ?? '';
+      setState(() => _selectedCategoriaId = id);
+      context.read<MarketplaceSearchCubit>().searchProductos(
+            search: null,
+            categoriaId: id,
+          );
+    }
+  }
+
   /// Carga las secciones del home (ofertas, más vistos). Público, sin auth.
   Future<void> _loadHome() async {
     try {
@@ -370,20 +406,29 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
             backgroundColor: AppColors.blue1,
             foregroundColor: Colors.white,
             toolbarHeight: 60,
-            title: CustomSearchField(
-              controller: _searchController,
-              hintText: 'Buscar productos, marcas y más...',
-              backgroundColor: Colors.white,
-              borderRadius: 24,
-              height: 35,
-              showClearButton: true,
-              onSubmitted: _onSearch,
-              onClear: () {
-                _searchController.clear();
-                _onSearch('');
-              },
+            title: GestureDetector(
+              onTap: _openBuscar,
+              behavior: HitTestBehavior.opaque,
+              child: AbsorbPointer(
+                child: CustomSearchField(
+                  controller: _searchController,
+                  hintText: 'Buscar productos, marcas y más...',
+                  backgroundColor: Colors.white,
+                  borderRadius: 24,
+                  height: 35,
+                  showClearButton: false,
+                  onSubmitted: _onSearch,
+                ),
+              ),
             ),
             actions: [
+              if (_searchController.text.isNotEmpty ||
+                  _selectedCategoriaId != null)
+                IconButton(
+                  icon: const Icon(Icons.close, size: 22),
+                  onPressed: _clearBusqueda,
+                  tooltip: 'Limpiar búsqueda',
+                ),
               BlocBuilder<MarketplaceSearchCubit, MarketplaceSearchState>(
                 builder: (context, state) {
                   final activos = context

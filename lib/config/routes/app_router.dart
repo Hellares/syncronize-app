@@ -29,6 +29,7 @@ import '../../features/empresa/presentation/pages/personalizacion_page.dart';
 import '../../features/empresa/presentation/pages/planes_page.dart';
 import '../../features/multimedia/presentation/pages/multimedia_page.dart';
 import '../../features/marketplace/presentation/pages/marketplace_page.dart';
+import '../../features/marketplace/presentation/pages/marketplace_buscar_page.dart';
 import '../../features/portal_unificado/presentation/pages/portal_unificado_page.dart';
 import '../../features/carrito/presentation/pages/carrito_page.dart';
 import '../../features/mis_pedidos/presentation/pages/mis_pedidos_page.dart';
@@ -1788,6 +1789,13 @@ class AppRouter {
         path: '/marketplace',
         name: 'marketplace',
         builder: (context, state) => const MarketplacePage(),
+      ),
+      GoRoute(
+        path: '/marketplace/buscar',
+        name: 'marketplace-buscar',
+        builder: (context, state) => MarketplaceBuscarPage(
+          queryInicial: state.extra as String?,
+        ),
       ),
       GoRoute(
         path: '/portal-unificado',
