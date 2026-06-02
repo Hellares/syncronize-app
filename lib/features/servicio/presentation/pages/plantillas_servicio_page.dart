@@ -1118,7 +1118,7 @@ class _PlantillaSpeedDialState extends State<_PlantillaSpeedDial>
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 200,
+      width: 240,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.end,
@@ -1200,23 +1200,27 @@ class _SpeedDialItem extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         // Label
-        Material(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(6),
-          elevation: 2,
-          shadowColor: Colors.black26,
-          child: InkWell(
+        Flexible(
+          child: Material(
+            color: Colors.white,
             borderRadius: BorderRadius.circular(6),
-            onTap: onTap,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.blue1,
-                  fontFamily: AppFonts.getFontFamily(AppFont.oxygenBold),
+            elevation: 2,
+            shadowColor: Colors.black26,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(6),
+              onTap: onTap,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.blue1,
+                    fontFamily: AppFonts.getFontFamily(AppFont.oxygenBold),
+                  ),
                 ),
               ),
             ),
