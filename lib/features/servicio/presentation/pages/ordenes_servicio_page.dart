@@ -304,7 +304,7 @@ class _OrdenesContentState extends State<_OrdenesContent> {
                   Icon(Icons.assignment_outlined,
                       size: 64, color: Colors.grey.shade400),
                   const SizedBox(height: 16),
-                  Text('No hay ordenes de servicio',
+                  Text('No hay órdenes de servicio',
                       style: TextStyle(
                           fontSize: 15, color: Colors.grey.shade500)),
                   const SizedBox(height: 8),
@@ -461,6 +461,9 @@ class _OrdenServicioCard extends StatelessWidget {
                   const SizedBox(height: 6),
                   _buildEquipoRow(),
                 ],
+                // ─── Técnico asignado + fecha de entrega ───
+                const SizedBox(height: 6),
+                _buildMetaRow(),
                 const SizedBox(height: 8),
                 // ─── Footer: Fecha, prioridad, costo ───
                 _buildFooter(prioridadColor),
@@ -499,13 +502,26 @@ class _OrdenServicioCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                orden.codigo,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
-                  fontWeight: FontWeight.bold,
-                ),
+              Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      orden.codigo,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontFamily:
+                            AppFonts.getFontFamily(AppFont.oxygenRegular),
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (orden.cantidadReingresos > 0) ...[
+                    const SizedBox(width: 6),
+                    _buildReingresoBadge(),
+                  ],
+                ],
               ),
               const SizedBox(height: 3),
               Row(
@@ -622,13 +638,113 @@ class _OrdenServicioCard extends StatelessWidget {
     );
   }
 
+  bool get _entregaVencida {
+    final fe = orden.fechaEntrega;
+    if (fe == null) return false;
+    const cerrados = {'ENTREGADO', 'FINALIZADO', 'CANCELADO'};
+    if (cerrados.contains(orden.estado)) return false;
+    return fe.isBefore(DateTime.now());
+  }
+
+  Widget _buildReingresoBadge() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.orange.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(
+          color: Colors.orange.withValues(alpha: 0.4),
+          width: 0.6,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.replay, size: 9, color: Colors.orange),
+          const SizedBox(width: 2),
+          Text(
+            'Reingreso ×${orden.cantidadReingresos}',
+            style: const TextStyle(
+              fontSize: 8,
+              color: Colors.orange,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMetaRow() {
+    final tecnicoNombre = orden.tecnico?.nombreCompleto ?? '';
+    final tieneTecnico = tecnicoNombre.isNotEmpty;
+    return Row(
+      children: [
+        Icon(
+          Icons.engineering_outlined,
+          size: 12,
+          color: tieneTecnico ? AppColors.blue1 : Colors.grey.shade400,
+        ),
+        const SizedBox(width: 4),
+        Flexible(
+          child: Text(
+            tieneTecnico ? tecnicoNombre : 'Sin asignar',
+            style: TextStyle(
+              fontSize: 10,
+              fontStyle: tieneTecnico ? FontStyle.normal : FontStyle.italic,
+              color: tieneTecnico ? Colors.grey.shade700 : Colors.grey.shade400,
+              fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        if (orden.fechaEntrega != null) ...[
+          const SizedBox(width: 8),
+          _buildEntregaChip(),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildEntregaChip() {
+    final vencida = _entregaVencida;
+    final color = vencida ? Colors.red : AppColors.blue1;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: vencida ? 0.1 : 0.06),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(
+          color: color.withValues(alpha: vencida ? 0.4 : 0.15),
+          width: 0.6,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(vencida ? Icons.event_busy : Icons.event_available,
+              size: 10, color: color),
+          const SizedBox(width: 3),
+          Text(
+            'Entrega ${DateFormatter.formatDate(orden.fechaEntrega!)}',
+            style: TextStyle(
+              fontSize: 9,
+              color: color,
+              fontWeight: vencida ? FontWeight.bold : FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildFooter(Color prioridadColor) {
     return Row(
       children: [
-        // Fecha + hora chip
+        // Fecha + hora de creación en un solo chip (deja espacio al saldo)
         Container(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
           decoration: BoxDecoration(
             color: AppColors.bluechip,
             borderRadius: BorderRadius.circular(4),
@@ -640,29 +756,7 @@ class _OrdenServicioCard extends StatelessWidget {
                   size: 10, color: AppColors.blue1),
               const SizedBox(width: 3),
               AppSubtitle(
-                DateFormatter.formatDate(orden.creadoEn),
-                fontSize: 9,
-                color: AppColors.blue1,
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 6),
-        Container(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-          decoration: BoxDecoration(
-            color: AppColors.bluechip,
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.access_time,
-                  size: 10, color: AppColors.blue1),
-              const SizedBox(width: 3),
-              AppSubtitle(
-                DateFormatter.formatTime(orden.creadoEn),
+                '${DateFormatter.formatDate(orden.creadoEn)} ${DateFormatter.formatTime(orden.creadoEn)}',
                 fontSize: 9,
                 color: AppColors.blue1,
               ),
@@ -674,8 +768,7 @@ class _OrdenServicioCard extends StatelessWidget {
 
         // Prioridad badge
         Container(
-          padding: const EdgeInsets.symmetric(
-              horizontal: 8, vertical: 3),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
           decoration: BoxDecoration(
             color: prioridadColor.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(4),
@@ -702,18 +795,48 @@ class _OrdenServicioCard extends StatelessWidget {
           ),
         ),
 
-        // Costo total
+        // Costo total / saldo pendiente
         if (orden.costoFinal != null) ...[
           const SizedBox(width: 8),
-          Text(
-            'S/ ${orden.costoFinal!.toStringAsFixed(2)}',
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-              color: AppColors.blue1,
-            ),
-          ),
+          _buildCosto(),
         ],
+      ],
+    );
+  }
+
+  Widget _buildCosto() {
+    final total = orden.costoFinal!;
+    final adelanto = orden.adelanto ?? 0;
+    // Sin adelanto: solo el total.
+    if (adelanto <= 0) {
+      return Text(
+        'S/ ${total.toStringAsFixed(2)}',
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.bold,
+          color: AppColors.blue1,
+        ),
+      );
+    }
+    // Con adelanto: total tachado pequeño + saldo pendiente destacado.
+    final saldo = orden.saldoPendiente ?? (total - adelanto);
+    final pagado = saldo <= 0.009;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          'Total S/ ${total.toStringAsFixed(2)}',
+          style: TextStyle(fontSize: 9, color: Colors.grey.shade500),
+        ),
+        Text(
+          pagado ? 'Pagado' : 'Saldo S/ ${saldo.toStringAsFixed(2)}',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: pagado ? Colors.green : AppColors.blue1,
+          ),
+        ),
       ],
     );
   }
