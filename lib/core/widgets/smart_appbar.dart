@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:lottie/lottie.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/fonts/app_fonts.dart';
+import 'package:syncronize/core/widgets/styled_dialog.dart';
+import 'package:syncronize/core/widgets/custom_button.dart';
 import 'package:syncronize/core/di/injection_container.dart';
 import 'package:syncronize/features/auth/domain/usecases/get_local_user_usecase.dart';
-import 'package:syncronize/features/auth/domain/usecases/logout_usecase.dart';
+import 'package:syncronize/features/auth/presentation/bloc/auth/auth_bloc.dart';
 import 'package:syncronize/features/auth/domain/entities/user.dart';
 import 'package:syncronize/core/usecases/usecase.dart';
 import 'package:syncronize/core/utils/resource.dart';
@@ -296,37 +301,6 @@ class _SmartAppBarState extends State<SmartAppBar> {
       ],
     );
   }
-
-// Widget? _buildTitle() {
-//   if (widget.title == null) return null;
-
-//   final effectiveForegroundColor = widget.foregroundColor ?? widget.iconColor ?? AppColors.blue3;
-
-//   final titleText = Text(
-//     widget.title!,
-//     style: widget.titleStyle ??
-//         AppFont.pirulentBold.style(
-//           fontSize: 10, // Más legible y equilibrado (antes 8→10→ahora 18)
-//           color: effectiveForegroundColor,
-//         ),
-//     overflow: TextOverflow.ellipsis, // Evita desborde si el título es largo
-//   );
-
-//   // Si está centrado → devolver normal
-//   if (widget.centerTitle) {
-//     return titleText;
-//   }
-
-//   // Si NO está centrado → alineado izquierda con padding mínimo
-//   return Padding(
-//     padding: const EdgeInsets.only(left: 1.0), // ← Ajusta este valor: 8 px queda muy pegado pero natural
-//     // Si quieres aún más pegado: left: 4 o left: 0
-//     child: Align(
-//       alignment: Alignment.centerLeft,
-//       child: titleText,
-//     ),
-//   );
-// }
 
   Widget? _buildLeading(BuildContext context) {
     // 1. Usuario manual tiene prioridad
@@ -691,7 +665,7 @@ class _SmartAppBarState extends State<SmartAppBar> {
                         title: const Text('Mi Perfil', style: TextStyle(fontSize: 12)),
                         onTap: () {
                           Navigator.pop(modalContext);
-                          // TODO: Navegar a perfil
+                          context.push('/profile');
                         },
                       ),
 
@@ -701,7 +675,7 @@ class _SmartAppBarState extends State<SmartAppBar> {
                         title: const Text('Configuración', style: TextStyle(fontSize: 12)),
                         onTap: () {
                           Navigator.pop(modalContext);
-                          // TODO: Navegar a configuración
+                          context.push('/account-security');
                         },
                       ),
                     ],
@@ -732,27 +706,53 @@ class _SmartAppBarState extends State<SmartAppBar> {
   }
 
   Future<void> _handleLogout(BuildContext context) async {
-    try {
-      final logoutUseCase = locator<LogoutUseCase>();
-      await logoutUseCase(NoParams());
-
-      if (context.mounted) {
-        // Navegar al login
-        // TODO: Ajusta la ruta según tu configuración de navegación
-        Navigator.of(context).pushNamedAndRemoveUntil(
-          '/login',
-          (route) => false,
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al cerrar sesión: $e'),
-            backgroundColor: AppColors.red,
+    final shouldLogout = await StyledDialog.show<bool>(
+      context,
+      accentColor: AppColors.red,
+      icon: Icons.logout,
+      titulo: 'Cerrar sesión',
+      content: [
+        const Text(
+          '¿Estás seguro de que deseas cerrar sesión?',
+          style: TextStyle(fontSize: 13),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Tendrás que volver a iniciar sesión para continuar.',
+          style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+        ),
+      ],
+      actions: [
+        Expanded(
+          child: TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(
+              'Cancelar',
+              style: TextStyle(color: Colors.grey.shade600),
+            ),
           ),
-        );
-      }
+        ),
+        Expanded(
+          child: CustomButton(
+            text: 'Cerrar sesión',
+            icon: const Icon(Icons.logout, size: 14, color: Colors.white),
+            backgroundColor: AppColors.red,
+            textColor: Colors.white,
+            onPressed: () => Navigator.pop(context, true),
+          ),
+        ),
+      ],
+    );
+
+    if (shouldLogout != true || !context.mounted) return;
+
+    // Limpia la sesión de Google (si la hubo) y delega el cierre al AuthBloc.
+    // El AuthBloc emite Unauthenticated y el redirect del GoRouter
+    // (refreshListenable sobre authBloc.stream) lleva a /marketplace. NO se
+    // navega a mano: Navigator.pushNamed no calza con GoRouter.
+    await GoogleSignIn().signOut();
+    if (context.mounted) {
+      context.read<AuthBloc>().add(const LogoutRequestedEvent());
     }
   }
 }

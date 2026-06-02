@@ -1,9 +1,19 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/widgets/smart_appbar.dart';
+import '../../../../core/widgets/custom_search_field.dart';
+import '../../../../core/storage/local_storage_service.dart';
+import '../../../../core/constants/storage_constants.dart';
+import '../../../../core/utils/resource.dart';
+import '../../../producto/domain/entities/producto.dart';
+import '../../../producto/domain/entities/producto_filtros.dart';
+import '../../../producto/domain/usecases/get_productos_usecase.dart';
+import '../../../catalogo/domain/entities/empresa_categoria.dart';
+import '../../../catalogo/domain/usecases/get_categorias_empresa_usecase.dart';
 import '../bloc/asignar_productos/asignar_productos_cubit.dart';
 import '../bloc/asignar_productos/asignar_productos_state.dart';
 
@@ -29,22 +39,173 @@ class _AsignarProductosCategoriasPageState
   final Set<String> _selectedProductos = {};
   final Set<String> _selectedCategorias = {};
 
-  // Mock data - TODO: Load from API
-  final List<Map<String, dynamic>> _allProductos = [];
-  final List<Map<String, dynamic>> _allCategorias = [];
+  // Cubit de asignación: lo sostenemos como field y lo proveemos con
+  // BlocProvider.value para que los métodos _asignar* puedan llamarlo
+  // directamente (el `context` del State es ANCESTRO del provider, así que
+  // un context.read desde aquí no lo encontraría).
+  late final AsignarProductosCubit _asignarCubit;
+
+  late final String _empresaId;
+
+  // ─── Productos (búsqueda + paginación) ───────────────────────────
+  final GetProductosUseCase _getProductos = locator<GetProductosUseCase>();
+  final List<Producto> _productos = [];
+  final TextEditingController _searchController = TextEditingController();
+  final ScrollController _productosScroll = ScrollController();
+  Timer? _debounce;
+  String _productoSearch = '';
+  int _productosPage = 1;
+  bool _productosHasMore = false;
+  bool _loadingProductos = false;
+  bool _loadingMoreProductos = false;
+  String? _errorProductos;
+
+  // ─── Categorías (lista completa, sin paginación) ─────────────────
+  final GetCategoriasEmpresaUseCase _getCategorias =
+      locator<GetCategoriasEmpresaUseCase>();
+  final List<EmpresaCategoria> _categorias = [];
+  bool _loadingCategorias = false;
+  String? _errorCategorias;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    // TODO: Load productos and categorias from empresa
+    _asignarCubit = locator<AsignarProductosCubit>();
+    _empresaId =
+        locator<LocalStorageService>().getString(StorageConstants.tenantId) ??
+            '';
+    _productosScroll.addListener(_onProductosScroll);
+    _cargarProductos(reset: true);
+    _cargarCategorias();
   }
 
   @override
   void dispose() {
+    _debounce?.cancel();
+    _searchController.dispose();
+    _productosScroll.dispose();
     _tabController.dispose();
+    _asignarCubit.close();
     super.dispose();
   }
+
+  // ─── Carga de datos ──────────────────────────────────────────────
+
+  void _onProductosScroll() {
+    if (_productosScroll.position.pixels >=
+            _productosScroll.position.maxScrollExtent - 200 &&
+        _productosHasMore &&
+        !_loadingMoreProductos &&
+        !_loadingProductos) {
+      _cargarProductos(reset: false);
+    }
+  }
+
+  void _onSearchChanged(String value) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 400), () {
+      final q = value.trim();
+      if (q == _productoSearch) return;
+      _productoSearch = q;
+      _cargarProductos(reset: true);
+    });
+  }
+
+  Future<void> _cargarProductos({required bool reset}) async {
+    if (_empresaId.isEmpty) {
+      setState(() => _errorProductos = 'ID de empresa no disponible');
+      return;
+    }
+    if (reset) {
+      setState(() {
+        _loadingProductos = true;
+        _errorProductos = null;
+      });
+    } else {
+      if (_loadingMoreProductos || !_productosHasMore) return;
+      setState(() => _loadingMoreProductos = true);
+    }
+
+    final page = reset ? 1 : _productosPage + 1;
+    final result = await _getProductos(
+      empresaId: _empresaId,
+      filtros: ProductoFiltros(
+        page: page,
+        limit: 30,
+        search: _productoSearch.isEmpty ? null : _productoSearch,
+        isActive: true,
+      ),
+    );
+
+    if (!mounted) return;
+
+    if (result is Success<ProductosPaginados>) {
+      final data = result.data;
+      final nuevos = data.data.whereType<Producto>().toList();
+      setState(() {
+        if (reset) {
+          _productos
+            ..clear()
+            ..addAll(nuevos);
+        } else {
+          _productos.addAll(nuevos);
+        }
+        _productosPage = data.page;
+        _productosHasMore = data.hasMore;
+        _loadingProductos = false;
+        _loadingMoreProductos = false;
+      });
+    } else if (result is Error<ProductosPaginados>) {
+      setState(() {
+        _errorProductos = result.message;
+        _loadingProductos = false;
+        _loadingMoreProductos = false;
+      });
+    }
+  }
+
+  Future<void> _cargarCategorias() async {
+    if (_empresaId.isEmpty) {
+      setState(() => _errorCategorias = 'ID de empresa no disponible');
+      return;
+    }
+    setState(() {
+      _loadingCategorias = true;
+      _errorCategorias = null;
+    });
+
+    final result = await _getCategorias(_empresaId);
+
+    if (!mounted) return;
+
+    if (result is Success<List<EmpresaCategoria>>) {
+      setState(() {
+        _categorias
+          ..clear()
+          ..addAll(result.data);
+        _loadingCategorias = false;
+      });
+    } else if (result is Error<List<EmpresaCategoria>>) {
+      setState(() {
+        _errorCategorias = result.message;
+        _loadingCategorias = false;
+      });
+    }
+  }
+
+  String _nombreCategoria(EmpresaCategoria c) =>
+      c.nombrePersonalizado ??
+      c.nombreLocal ??
+      c.categoriaMaestra?.nombre ??
+      'Sin nombre';
+
+  String _descCategoria(EmpresaCategoria c) =>
+      c.descripcionPersonalizada ??
+      c.categoriaMaestra?.descripcion ??
+      'Sin descripción';
+
+  // ─── Asignación ──────────────────────────────────────────────────
 
   void _asignarProductos() {
     if (_selectedProductos.isEmpty) {
@@ -57,14 +218,13 @@ class _AsignarProductosCategoriasPageState
       return;
     }
 
-    final productos = _selectedProductos
-        .map((id) => {'productoId': id})
-        .toList();
+    final productos =
+        _selectedProductos.map((id) => {'productoId': id}).toList();
 
-    context.read<AsignarProductosCubit>().asignarProductos(
-          politicaId: widget.politicaId,
-          productos: productos,
-        );
+    _asignarCubit.asignarProductos(
+      politicaId: widget.politicaId,
+      productos: productos,
+    );
 
     setState(() => _selectedProductos.clear());
   }
@@ -80,22 +240,21 @@ class _AsignarProductosCategoriasPageState
       return;
     }
 
-    final categorias = _selectedCategorias
-        .map((id) => {'categoriaId': id})
-        .toList();
+    final categorias =
+        _selectedCategorias.map((id) => {'categoriaId': id}).toList();
 
-    context.read<AsignarProductosCubit>().asignarCategorias(
-          politicaId: widget.politicaId,
-          categorias: categorias,
-        );
+    _asignarCubit.asignarCategorias(
+      politicaId: widget.politicaId,
+      categorias: categorias,
+    );
 
     setState(() => _selectedCategorias.clear());
   }
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => locator<AsignarProductosCubit>(),
+    return BlocProvider.value(
+      value: _asignarCubit,
       child: Scaffold(
         backgroundColor: Colors.transparent,
         extendBodyBehindAppBar: true,
@@ -157,11 +316,15 @@ class _AsignarProductosCategoriasPageState
     return Column(
       children: [
         _buildHeader('Selecciona los productos a asignar'),
-        Expanded(
-          child: _allProductos.isEmpty
-              ? _buildEmptyState('productos', Icons.inventory_2)
-              : _buildProductosList(),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          child: CustomSearchField(
+            controller: _searchController,
+            hintText: 'Buscar producto por nombre o código...',
+            onChanged: _onSearchChanged,
+          ),
         ),
+        Expanded(child: _buildProductosContent()),
         if (_selectedProductos.isNotEmpty)
           _buildAssignButton(
             'Asignar Productos (${_selectedProductos.length})',
@@ -171,15 +334,29 @@ class _AsignarProductosCategoriasPageState
     );
   }
 
+  Widget _buildProductosContent() {
+    if (_loadingProductos) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_errorProductos != null) {
+      return _buildErrorState(
+        _errorProductos!,
+        () => _cargarProductos(reset: true),
+      );
+    }
+    if (_productos.isEmpty) {
+      return _productoSearch.isEmpty
+          ? _buildEmptyState('productos', Icons.inventory_2)
+          : _buildSinResultados('productos');
+    }
+    return _buildProductosList();
+  }
+
   Widget _buildCategoriasTab() {
     return Column(
       children: [
         _buildHeader('Selecciona las categorías a asignar'),
-        Expanded(
-          child: _allCategorias.isEmpty
-              ? _buildEmptyState('categorías', Icons.category)
-              : _buildCategoriasList(),
-        ),
+        Expanded(child: _buildCategoriasContent()),
         if (_selectedCategorias.isNotEmpty)
           _buildAssignButton(
             'Asignar Categorías (${_selectedCategorias.length})',
@@ -187,6 +364,19 @@ class _AsignarProductosCategoriasPageState
           ),
       ],
     );
+  }
+
+  Widget _buildCategoriasContent() {
+    if (_loadingCategorias) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_errorCategorias != null) {
+      return _buildErrorState(_errorCategorias!, _cargarCategorias);
+    }
+    if (_categorias.isEmpty) {
+      return _buildEmptyState('categorías', Icons.category);
+    }
+    return _buildCategoriasList();
   }
 
   Widget _buildHeader(String subtitle) {
@@ -236,14 +426,62 @@ class _AsignarProductosCategoriasPageState
     );
   }
 
+  Widget _buildSinResultados(String tipo) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.search_off, size: 72, color: Colors.grey[400]),
+          const SizedBox(height: 12),
+          Text(
+            'Sin $tipo para "$_productoSearch"',
+            style: TextStyle(fontSize: 15, color: Colors.grey[600]),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState(String message, VoidCallback onRetry) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.error_outline, size: 64, color: Colors.red.shade300),
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Text(
+              message,
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextButton.icon(
+            onPressed: onRetry,
+            icon: const Icon(Icons.refresh, size: 18),
+            label: const Text('Reintentar'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildProductosList() {
     return ListView.builder(
+      controller: _productosScroll,
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      itemCount: _allProductos.length,
+      itemCount: _productos.length + (_loadingMoreProductos ? 1 : 0),
       itemBuilder: (context, index) {
-        final producto = _allProductos[index];
-        final productoId = producto['id'] as String;
-        final isSelected = _selectedProductos.contains(productoId);
+        if (index >= _productos.length) {
+          return const Padding(
+            padding: EdgeInsets.all(16),
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+        final producto = _productos[index];
+        final isSelected = _selectedProductos.contains(producto.id);
 
         return Card(
           margin: const EdgeInsets.only(bottom: 8),
@@ -252,25 +490,17 @@ class _AsignarProductosCategoriasPageState
             onChanged: (value) {
               setState(() {
                 if (value == true) {
-                  _selectedProductos.add(productoId);
+                  _selectedProductos.add(producto.id);
                 } else {
-                  _selectedProductos.remove(productoId);
+                  _selectedProductos.remove(producto.id);
                 }
               });
             },
             title: Text(
-              producto['nombre'] ?? 'Sin nombre',
+              producto.nombre,
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (producto['codigo'] != null)
-                  Text('Código: ${producto['codigo']}'),
-                if (producto['precio'] != null)
-                  Text('Precio: S/. ${producto['precio']}'),
-              ],
-            ),
+            subtitle: Text('Código: ${producto.codigoEmpresa}'),
             secondary: CircleAvatar(
               backgroundColor: AppColors.blue1.withValues(alpha: 0.1),
               child: const Icon(Icons.inventory_2, color: AppColors.blue1),
@@ -284,11 +514,10 @@ class _AsignarProductosCategoriasPageState
   Widget _buildCategoriasList() {
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      itemCount: _allCategorias.length,
+      itemCount: _categorias.length,
       itemBuilder: (context, index) {
-        final categoria = _allCategorias[index];
-        final categoriaId = categoria['id'] as String;
-        final isSelected = _selectedCategorias.contains(categoriaId);
+        final categoria = _categorias[index];
+        final isSelected = _selectedCategorias.contains(categoria.id);
 
         return Card(
           margin: const EdgeInsets.only(bottom: 8),
@@ -297,19 +526,17 @@ class _AsignarProductosCategoriasPageState
             onChanged: (value) {
               setState(() {
                 if (value == true) {
-                  _selectedCategorias.add(categoriaId);
+                  _selectedCategorias.add(categoria.id);
                 } else {
-                  _selectedCategorias.remove(categoriaId);
+                  _selectedCategorias.remove(categoria.id);
                 }
               });
             },
             title: Text(
-              categoria['nombre'] ?? 'Sin nombre',
+              _nombreCategoria(categoria),
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
-            subtitle: Text(
-              categoria['descripcion'] ?? 'Sin descripción',
-            ),
+            subtitle: Text(_descCategoria(categoria)),
             secondary: CircleAvatar(
               backgroundColor: AppColors.blue1.withValues(alpha: 0.1),
               child: const Icon(Icons.category, color: AppColors.blue1),

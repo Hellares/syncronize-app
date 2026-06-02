@@ -13,6 +13,12 @@ import 'package:syncronize/core/widgets/snack_bar_helper.dart';
 import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import 'package:syncronize/features/categoria_gasto/domain/entities/categoria_gasto.dart';
 import 'package:syncronize/features/categoria_gasto/domain/repositories/categoria_gasto_repository.dart';
+import 'package:syncronize/core/storage/local_storage_service.dart';
+import 'package:syncronize/core/constants/storage_constants.dart';
+import 'package:syncronize/core/widgets/custom_proveedor_selector.dart';
+import 'package:syncronize/features/empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
+import 'package:syncronize/features/empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
+import 'package:syncronize/features/empresa/domain/entities/sede.dart';
 import '../../domain/entities/gasto_recurrente.dart';
 import '../bloc/gasto_form_cubit.dart';
 import '../bloc/gasto_form_state.dart';
@@ -54,6 +60,12 @@ class _FormViewState extends State<_FormView> {
   String? _categoriaId;
   bool _activo = true;
 
+  // Sede y proveedor (opcionales). El backend, repo y cubit ya los aceptan.
+  String? _sedeId;
+  String? _proveedorId;
+  String? _proveedorNombre;
+  late final String _empresaId;
+
   List<CategoriaGasto> _categorias = [];
   bool _cargandoCategorias = true;
   String? _categoriaError;
@@ -62,6 +74,9 @@ class _FormViewState extends State<_FormView> {
   @override
   void initState() {
     super.initState();
+    _empresaId =
+        locator<LocalStorageService>().getString(StorageConstants.tenantId) ??
+            '';
     _cargarCategorias();
   }
 
@@ -88,6 +103,9 @@ class _FormViewState extends State<_FormView> {
     _frecuencia = g.frecuencia;
     _categoriaId = g.categoriaGastoId;
     _activo = g.activo;
+    _sedeId = g.sedeId;
+    _proveedorId = g.proveedorId;
+    _proveedorNombre = g.proveedorNombre;
   }
 
   @override
@@ -128,6 +146,8 @@ class _FormViewState extends State<_FormView> {
         diaVencimiento: dia,
         activo: _activo,
         notas: notas.isEmpty ? null : notas,
+        sedeId: _sedeId,
+        proveedorId: _proveedorId,
       );
     } else {
       cubit.crear(
@@ -137,6 +157,8 @@ class _FormViewState extends State<_FormView> {
         frecuencia: _frecuencia,
         diaVencimiento: dia,
         notas: notas.isEmpty ? null : notas,
+        sedeId: _sedeId,
+        proveedorId: _proveedorId,
       );
     }
   }
@@ -279,6 +301,27 @@ class _FormViewState extends State<_FormView> {
                       height: null,
                       enableVoiceInput: true,
                     ),
+                    const SizedBox(height: 12),
+                    _sedeField(),
+                    const SizedBox(height: 12),
+                    CustomProveedorSelector(
+                      empresaId: _empresaId,
+                      proveedorId: _proveedorId,
+                      proveedorNombre: _proveedorNombre,
+                      label: 'Proveedor (opcional)',
+                      onSelected: (result) {
+                        setState(() {
+                          _proveedorId = result.proveedorId;
+                          _proveedorNombre = result.nombre;
+                        });
+                      },
+                      onCleared: () {
+                        setState(() {
+                          _proveedorId = null;
+                          _proveedorNombre = null;
+                        });
+                      },
+                    ),
                     const SizedBox(height: 24),
                     CustomButton(
                       borderColor: AppColors.blue1,
@@ -288,8 +331,6 @@ class _FormViewState extends State<_FormView> {
                       isLoading: saving,
                     ),
                     const SizedBox(height: 8),
-                    // TODO Fase 6c+: agregar selector de Sede y Proveedor.
-                    // Ambos son opcionales en el backend, así que V1 funciona sin ellos.
                   ],
                 ),
               ),
@@ -297,6 +338,32 @@ class _FormViewState extends State<_FormView> {
           },
         ),
       ),
+    );
+  }
+
+  /// Dropdown de Sede (opcional). Las sedes salen del contexto de empresa
+  /// ya cargado; incluye la opción "Sin sede asignada" (value '' → null).
+  Widget _sedeField() {
+    final empresaState = context.read<EmpresaContextCubit>().state;
+    final sedes = empresaState is EmpresaContextLoaded
+        ? empresaState.context.sedes.where((s) => s.isActive).toList()
+        : <Sede>[];
+    if (sedes.isEmpty) return const SizedBox.shrink();
+
+    return CustomDropdown<String>(
+      borderColor: AppColors.blue1,
+      label: 'Sede (opcional)',
+      value: _sedeId ?? '',
+      items: [
+        const DropdownItem(value: '', label: 'Sin sede asignada'),
+        ...sedes.map((s) => DropdownItem(
+              value: s.id,
+              label: s.esPrincipal ? '${s.nombre} (Principal)' : s.nombre,
+            )),
+      ],
+      onChanged: (value) => setState(() {
+        _sedeId = (value == null || value.isEmpty) ? null : value;
+      }),
     );
   }
 

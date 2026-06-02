@@ -15,30 +15,30 @@ class MarketplaceSearchCubit extends Cubit<MarketplaceSearchState> {
   String? _currentSearch;
   String? _currentCategoriaId;
   String? _currentOrden;
+  String? _currentMarcaId;
+  double? _currentPrecioMin;
+  double? _currentPrecioMax;
+  String? _currentDepartamento;
   double? _currentLat;
   double? _currentLng;
   int _currentPage = 1;
   List<dynamic>? _categorias;
 
-  void setUbicacion(double? lat, double? lng) {
-    _currentLat = lat;
-    _currentLng = lng;
-    searchProductos(
-      search: _currentSearch,
-      categoriaId: _currentCategoriaId,
-      orden: _currentOrden,
-    );
-  }
+  // Getters para pre-cargar el sheet de filtros con lo aplicado.
+  String? get ordenActual => _currentOrden;
+  double? get precioMinActual => _currentPrecioMin;
+  double? get precioMaxActual => _currentPrecioMax;
+  String? get departamentoActual => _currentDepartamento;
+  bool get tieneFiltrosActivos =>
+      _currentOrden != null ||
+      _currentPrecioMin != null ||
+      _currentPrecioMax != null ||
+      _currentDepartamento != null ||
+      _currentMarcaId != null;
 
-  Future<void> searchProductos({
-    String? search,
-    String? categoriaId,
-    String? orden,
-    int page = 1,
-  }) async {
-    _currentSearch = search;
-    _currentCategoriaId = categoriaId;
-    _currentOrden = orden;
+  /// Núcleo de búsqueda: usa SIEMPRE el estado actual de filtros (`_current*`).
+  /// Así buscar/elegir categoría no pisa los filtros avanzados aplicados.
+  Future<void> _buscar({int page = 1}) async {
     _currentPage = page;
 
     if (page == 1) {
@@ -60,9 +60,13 @@ class MarketplaceSearchCubit extends Cubit<MarketplaceSearchState> {
       }
 
       final result = await _dataSource.searchProductos(
-        search: search,
-        categoriaId: categoriaId,
-        orden: orden,
+        search: _currentSearch,
+        categoriaId: _currentCategoriaId,
+        marcaId: _currentMarcaId,
+        precioMin: _currentPrecioMin,
+        precioMax: _currentPrecioMax,
+        departamento: _currentDepartamento,
+        orden: _currentOrden,
         lat: lat,
         lng: lng,
         page: page,
@@ -79,8 +83,8 @@ class MarketplaceSearchCubit extends Cubit<MarketplaceSearchState> {
           total: total,
           page: page,
           totalPages: totalPages,
-          search: search,
-          categoriaId: categoriaId,
+          search: _currentSearch,
+          categoriaId: _currentCategoriaId,
           categorias: _categorias,
         ));
       } else {
@@ -91,8 +95,8 @@ class MarketplaceSearchCubit extends Cubit<MarketplaceSearchState> {
             total: total,
             page: page,
             totalPages: totalPages,
-            search: search,
-            categoriaId: categoriaId,
+            search: _currentSearch,
+            categoriaId: _currentCategoriaId,
             categorias: _categorias,
           ));
         }
@@ -102,33 +106,66 @@ class MarketplaceSearchCubit extends Cubit<MarketplaceSearchState> {
     }
   }
 
+  void setUbicacion(double? lat, double? lng) {
+    _currentLat = lat;
+    _currentLng = lng;
+    _buscar();
+  }
+
+  /// Búsqueda por texto/categoría. Conserva los filtros avanzados aplicados
+  /// (precio, marca, departamento, orden) — esos solo cambian vía aplicarFiltros.
+  Future<void> searchProductos({
+    String? search,
+    String? categoriaId,
+    String? orden,
+    int page = 1,
+  }) async {
+    _currentSearch = search;
+    _currentCategoriaId = categoriaId;
+    if (orden != null) _currentOrden = orden;
+    await _buscar(page: page);
+  }
+
   Future<void> loadMore() async {
     final currentState = state;
     if (currentState is! MarketplaceSearchLoaded) return;
     if (currentState.page >= currentState.totalPages) return;
 
-    await searchProductos(
-      search: _currentSearch,
-      categoriaId: _currentCategoriaId,
-      orden: _currentOrden,
-      page: _currentPage + 1,
-    );
+    await _buscar(page: _currentPage + 1);
   }
 
   Future<void> filterByCategoria(String? categoriaId) async {
-    await searchProductos(
-      search: _currentSearch,
-      categoriaId: categoriaId,
-      orden: _currentOrden,
-    );
+    _currentCategoriaId = categoriaId;
+    await _buscar();
+  }
+
+  /// Aplica los filtros avanzados del sheet (precio, marca, departamento, orden).
+  Future<void> aplicarFiltros({
+    String? marcaId,
+    double? precioMin,
+    double? precioMax,
+    String? departamento,
+    String? orden,
+  }) async {
+    _currentMarcaId = marcaId;
+    _currentPrecioMin = precioMin;
+    _currentPrecioMax = precioMax;
+    _currentDepartamento = departamento;
+    _currentOrden = orden;
+    await _buscar();
+  }
+
+  Future<void> limpiarFiltros() async {
+    _currentMarcaId = null;
+    _currentPrecioMin = null;
+    _currentPrecioMax = null;
+    _currentDepartamento = null;
+    _currentOrden = null;
+    await _buscar();
   }
 
   Future<void> refresh() async {
-    await searchProductos(
-      search: _currentSearch,
-      categoriaId: _currentCategoriaId,
-      orden: _currentOrden,
-    );
+    await _buscar();
   }
 
   Future<void> loadCategorias() async {

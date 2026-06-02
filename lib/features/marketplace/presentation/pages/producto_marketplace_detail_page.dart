@@ -46,7 +46,7 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
     Future(() async {
       try {
         final storage = locator<LocalStorageService>();
-        final token = await storage.getString(StorageConstants.accessToken);
+        final token = storage.getString(StorageConstants.accessToken);
         if (token == null || token.isEmpty) return;
         locator<DioClient>().post(
           '${ApiConstants.marketplaceUsuario}/vistos/${widget.productoId}',

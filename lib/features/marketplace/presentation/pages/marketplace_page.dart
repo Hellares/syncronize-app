@@ -17,6 +17,14 @@ import '../widgets/producto_marketplace_card.dart';
 import '../widgets/favorito_button.dart';
 import '../widgets/ubicacion_selector.dart';
 
+/// Departamentos del Perú para el filtro de ubicación del marketplace.
+const List<String> _departamentosPeru = [
+  'Amazonas', 'Áncash', 'Apurímac', 'Arequipa', 'Ayacucho', 'Cajamarca',
+  'Callao', 'Cusco', 'Huancavelica', 'Huánuco', 'Ica', 'Junín', 'La Libertad',
+  'Lambayeque', 'Lima', 'Loreto', 'Madre de Dios', 'Moquegua', 'Pasco',
+  'Piura', 'Puno', 'San Martín', 'Tacna', 'Tumbes', 'Ucayali',
+];
+
 class MarketplacePage extends StatelessWidget {
   const MarketplacePage({super.key});
 
@@ -46,6 +54,8 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
   double? _ubicacionLng;
   String? _ubicacionLabel;
   List<dynamic> _vistos = [];
+  List<dynamic> _ofertas = [];
+  List<dynamic> _masVistos = [];
   int _carritoCount = 0;
 
   @override
@@ -54,6 +64,7 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
     _scrollController.addListener(_onScroll);
     _loadUserData();
     _loadCarritoCount();
+    _loadHome();
   }
 
   @override
@@ -92,9 +103,22 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
         );
   }
 
+  /// Carga las secciones del home (ofertas, más vistos). Público, sin auth.
+  Future<void> _loadHome() async {
+    try {
+      final response = await locator<DioClient>().get('/marketplace/home');
+      if (!mounted) return;
+      final data = response.data as Map<String, dynamic>;
+      setState(() {
+        _ofertas = (data['ofertas'] as List?) ?? [];
+        _masVistos = (data['masVistos'] as List?) ?? [];
+      });
+    } catch (_) {}
+  }
+
   Future<void> _loadUserData() async {
     final storage = locator<LocalStorageService>();
-    final token = await storage.getString(StorageConstants.accessToken);
+    final token = storage.getString(StorageConstants.accessToken);
     if (token == null || token.isEmpty) return;
 
     FavoritoButton.loadFavoritos();
@@ -114,6 +138,209 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
           search: _searchController.text.isEmpty ? null : _searchController.text,
           categoriaId: categoriaId,
         );
+  }
+
+  void _mostrarFiltros() {
+    final cubit = context.read<MarketplaceSearchCubit>();
+    String? orden = cubit.ordenActual;
+    String? departamento = cubit.departamentoActual;
+    final minCtrl = TextEditingController(
+      text: cubit.precioMinActual?.toStringAsFixed(0) ?? '',
+    );
+    final maxCtrl = TextEditingController(
+      text: cubit.precioMaxActual?.toStringAsFixed(0) ?? '',
+    );
+
+    const tituloStyle = TextStyle(
+      fontSize: 12,
+      fontWeight: FontWeight.w600,
+      color: Colors.black87,
+    );
+    InputDecoration deco(String hint) => InputDecoration(
+          hintText: hint,
+          isDense: true,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+        );
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, setSheetState) {
+          Widget chipOrden(String label, String? value) {
+            final sel = orden == value;
+            return ChoiceChip(
+              label: Text(label),
+              selected: sel,
+              showCheckmark: false,
+              backgroundColor: Colors.grey.shade100,
+              selectedColor: AppColors.blue1.withValues(alpha: 0.15),
+              side: BorderSide(
+                color: sel
+                    ? AppColors.blue1.withValues(alpha: 0.5)
+                    : Colors.grey.shade300,
+              ),
+              labelStyle: TextStyle(
+                fontSize: 12,
+                color: sel ? AppColors.blue1 : Colors.grey.shade700,
+                fontWeight: sel ? FontWeight.w600 : FontWeight.normal,
+              ),
+              onSelected: (_) => setSheetState(() => orden = value),
+            );
+          }
+
+          return Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+            ),
+            padding: EdgeInsets.fromLTRB(
+              16,
+              12,
+              16,
+              16 + MediaQuery.of(sheetContext).viewInsets.bottom,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      const Icon(Icons.tune, size: 20, color: AppColors.blue1),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Filtros',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.blue1,
+                        ),
+                      ),
+                      const Spacer(),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pop(sheetContext);
+                          cubit.limpiarFiltros();
+                        },
+                        child: Text(
+                          'Limpiar',
+                          style: TextStyle(
+                              fontSize: 12, color: Colors.grey.shade600),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  const Text('Ordenar por', style: tituloStyle),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      chipOrden('Relevancia', null),
+                      chipOrden('Menor precio', 'precio_asc'),
+                      chipOrden('Mayor precio', 'precio_desc'),
+                      chipOrden('Más recientes', 'recientes'),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('Precio (S/)', style: tituloStyle),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: minCtrl,
+                          keyboardType: TextInputType.number,
+                          decoration: deco('Mín'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: maxCtrl,
+                          keyboardType: TextInputType.number,
+                          decoration: deco('Máx'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('Departamento', style: tituloStyle),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String?>(
+                    initialValue: departamento,
+                    isExpanded: true,
+                    decoration: deco('Todos'),
+                    items: [
+                      const DropdownMenuItem<String?>(
+                        value: null,
+                        child: Text('Todos', style: TextStyle(fontSize: 13)),
+                      ),
+                      ..._departamentosPeru.map(
+                        (d) => DropdownMenuItem<String?>(
+                          value: d,
+                          child:
+                              Text(d, style: const TextStyle(fontSize: 13)),
+                        ),
+                      ),
+                    ],
+                    onChanged: (v) => setSheetState(() => departamento = v),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.blue1,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      onPressed: () {
+                        final min = double.tryParse(
+                            minCtrl.text.trim().replaceAll(',', '.'));
+                        final max = double.tryParse(
+                            maxCtrl.text.trim().replaceAll(',', '.'));
+                        Navigator.pop(sheetContext);
+                        cubit.aplicarFiltros(
+                          precioMin: min,
+                          precioMax: max,
+                          departamento: departamento,
+                          orden: orden,
+                        );
+                      },
+                      child: const Text(
+                        'Aplicar filtros',
+                        style:
+                            TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    ).whenComplete(() {
+      minCtrl.dispose();
+      maxCtrl.dispose();
+    });
   }
 
   @override
@@ -143,6 +370,22 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
               },
             ),
             actions: [
+              BlocBuilder<MarketplaceSearchCubit, MarketplaceSearchState>(
+                builder: (context, state) {
+                  final activos = context
+                      .read<MarketplaceSearchCubit>()
+                      .tieneFiltrosActivos;
+                  return IconButton(
+                    icon: Badge(
+                      isLabelVisible: activos,
+                      smallSize: 8,
+                      child: const Icon(Icons.tune, size: 22),
+                    ),
+                    onPressed: _mostrarFiltros,
+                    tooltip: 'Filtros',
+                  );
+                },
+              ),
               Stack(
                 children: [
                   IconButton(
@@ -177,134 +420,189 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
             ],
           ),
         ],
-        body: Column(
-          children: [
-            // Ubicación
-            UbicacionSelector(
-              lat: _ubicacionLat,
-              lng: _ubicacionLng,
-              label: _ubicacionLabel,
-              onChanged: (result) {
-                setState(() {
-                  _ubicacionLat = result.lat;
-                  _ubicacionLng = result.lng;
-                  _ubicacionLabel = result.label;
-                });
-                context.read<MarketplaceSearchCubit>().setUbicacion(
-                  result.lat,
-                  result.lng,
-                );
-              },
-            ),
-
-            // Banner carrusel
-            _buildBannerCarousel(),
-
-            // Categorías chips
-            _buildCategoriaChips(),
-
-            // Visto recientemente
-            if (_vistos.isNotEmpty) _buildVistosSection(),
-
-            // Grid de productos
-            Expanded(
-              child: BlocBuilder<MarketplaceSearchCubit, MarketplaceSearchState>(
+        body: RefreshIndicator(
+          color: AppColors.blue2,
+          onRefresh: () async {
+            await context.read<MarketplaceSearchCubit>().refresh();
+            await _loadHome();
+            await _loadUserData();
+          },
+          child: CustomScrollView(
+            controller: _scrollController,
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              SliverToBoxAdapter(
+                child: UbicacionSelector(
+                  lat: _ubicacionLat,
+                  lng: _ubicacionLng,
+                  label: _ubicacionLabel,
+                  onChanged: (result) {
+                    setState(() {
+                      _ubicacionLat = result.lat;
+                      _ubicacionLng = result.lng;
+                      _ubicacionLabel = result.label;
+                    });
+                    context.read<MarketplaceSearchCubit>().setUbicacion(
+                          result.lat,
+                          result.lng,
+                        );
+                  },
+                ),
+              ),
+              SliverToBoxAdapter(child: _buildBannerCarousel()),
+              SliverToBoxAdapter(child: _buildCategoriaChips()),
+              // Secciones del home: solo cuando no hay búsqueda/categoría/filtros.
+              SliverToBoxAdapter(
+                child: BlocBuilder<MarketplaceSearchCubit,
+                    MarketplaceSearchState>(
+                  builder: (context, state) {
+                    final esHome = _searchController.text.isEmpty &&
+                        _selectedCategoriaId == null &&
+                        !context
+                            .read<MarketplaceSearchCubit>()
+                            .tieneFiltrosActivos;
+                    if (!esHome) return const SizedBox.shrink();
+                    return Column(
+                      children: [
+                        if (_ofertas.isNotEmpty)
+                          _buildSeccionCarrusel('Ofertas', _ofertas,
+                              acento: Colors.red),
+                        if (_masVistos.isNotEmpty)
+                          _buildSeccionCarrusel('Lo más visto', _masVistos),
+                      ],
+                    );
+                  },
+                ),
+              ),
+              if (_vistos.isNotEmpty)
+                SliverToBoxAdapter(child: _buildVistosSection()),
+              // Grid de productos
+              BlocBuilder<MarketplaceSearchCubit, MarketplaceSearchState>(
                 builder: (context, state) {
                   if (state is MarketplaceSearchLoading) {
-                    return const Center(
-                      child: CircularProgressIndicator(color: AppColors.blue2),
+                    return const SliverToBoxAdapter(
+                      child: Padding(
+                        padding: EdgeInsets.all(40),
+                        child: Center(
+                          child:
+                              CircularProgressIndicator(color: AppColors.blue2),
+                        ),
+                      ),
                     );
                   }
 
                   if (state is MarketplaceSearchError) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.error_outline, size: 48, color: Colors.grey.shade300),
-                          const SizedBox(height: 16),
-                          Text('Error al cargar productos', style: TextStyle(color: Colors.grey.shade600)),
-                          const SizedBox(height: 8),
-                          TextButton(
-                            onPressed: () => context.read<MarketplaceSearchCubit>().refresh(),
-                            child: const Text('Reintentar'),
+                    return SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.all(40),
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.error_outline,
+                                  size: 48, color: Colors.grey.shade300),
+                              const SizedBox(height: 16),
+                              Text('Error al cargar productos',
+                                  style:
+                                      TextStyle(color: Colors.grey.shade600)),
+                              const SizedBox(height: 8),
+                              TextButton(
+                                onPressed: () => context
+                                    .read<MarketplaceSearchCubit>()
+                                    .refresh(),
+                                child: const Text('Reintentar'),
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
                     );
                   }
 
                   if (state is MarketplaceSearchLoaded) {
                     if (state.productos.isEmpty) {
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey.shade300),
-                            const SizedBox(height: 16),
-                            AppTitle(
-                              'No se encontraron productos',
-                              fontSize: 12,
-                              color: Colors.grey.shade500,
+                      return SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.all(48),
+                          child: Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.inventory_2_outlined,
+                                    size: 64, color: Colors.grey.shade300),
+                                const SizedBox(height: 16),
+                                AppTitle(
+                                  'No se encontraron productos',
+                                  fontSize: 12,
+                                  color: Colors.grey.shade500,
+                                ),
+                                if (state.search != null) ...[
+                                  const SizedBox(height: 4),
+                                  AppSubtitle(
+                                    'Intenta con otros términos de búsqueda',
+                                    fontSize: 10,
+                                    color: Colors.grey.shade400,
+                                  ),
+                                ],
+                              ],
                             ),
-                            if (state.search != null) ...[
-                              const SizedBox(height: 4),
-                              AppSubtitle(
-                                'Intenta con otros términos de búsqueda',
-                                fontSize: 10,
-                                color: Colors.grey.shade400,
-                              ),
-                            ],
-                          ],
+                          ),
                         ),
                       );
                     }
 
-                    return RefreshIndicator(
-                      onRefresh: () => context.read<MarketplaceSearchCubit>().refresh(),
-                      color: AppColors.blue2,
-                      child: GridView.builder(
-                        controller: _scrollController,
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.all(8),
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    return SliverPadding(
+                      padding: const EdgeInsets.all(8),
+                      sliver: SliverGrid(
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 2,
                           childAspectRatio: 0.58,
                           crossAxisSpacing: 6,
                           mainAxisSpacing: 6,
                         ),
-                        itemCount: state.productos.length + (state.hasMore ? 1 : 0),
-                        itemBuilder: (context, index) {
-                          if (index == state.productos.length) {
-                            return const Center(
-                              child: Padding(
-                                padding: EdgeInsets.all(16),
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              ),
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) {
+                            final producto =
+                                state.productos[index] as Map<String, dynamic>;
+                            return ProductoMarketplaceCard(
+                              producto: producto,
+                              onTap: () async {
+                                final id = producto['id'] as String?;
+                                if (id != null) {
+                                  await context.push('/producto-detalle/$id');
+                                  _loadCarritoCount();
+                                }
+                              },
                             );
-                          }
-
-                          final producto = state.productos[index] as Map<String, dynamic>;
-                          return ProductoMarketplaceCard(
-                            producto: producto,
-                            onTap: () async {
-                              final id = producto['id'] as String?;
-                              if (id != null) {
-                                await context.push('/producto-detalle/$id');
-                                _loadCarritoCount();
-                              }
-                            },
-                          );
-                        },
+                          },
+                          childCount: state.productos.length,
+                        ),
                       ),
                     );
                   }
 
-                  return const SizedBox.shrink();
+                  return const SliverToBoxAdapter(child: SizedBox.shrink());
                 },
               ),
-            ),
-          ],
+              // Footer de paginación (loadMore)
+              BlocBuilder<MarketplaceSearchCubit, MarketplaceSearchState>(
+                builder: (context, state) {
+                  if (state is MarketplaceSearchLoaded && state.hasMore) {
+                    return const SliverToBoxAdapter(
+                      child: Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Center(
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ),
+                    );
+                  }
+                  return const SliverToBoxAdapter(child: SizedBox.shrink());
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -387,6 +685,157 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
           ),
         );
       },
+    );
+  }
+
+  /// Carrusel horizontal de productos para una sección del home
+  /// (Ofertas, Lo más visto). Reusa el card del carrusel de "vistos".
+  Widget _buildSeccionCarrusel(
+    String titulo,
+    List<dynamic> items, {
+    Color? acento,
+  }) {
+    return Container(
+      color: Colors.white,
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(top: 12, bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                if (acento != null) ...[
+                  Icon(Icons.local_offer, size: 14, color: acento),
+                  const SizedBox(width: 6),
+                ],
+                Text(
+                  titulo,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: acento ?? Colors.grey[700],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 140,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              itemCount: items.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: (_, index) {
+                final v = items[index] as Map<String, dynamic>;
+                final nombre = v['nombre'] as String? ?? '';
+                final imagen = v['imagen'] as String?;
+                final precio = v['precio'] as num?;
+                final precioOferta = v['precioOferta'] as num?;
+                final enOferta = v['enOferta'] as bool? ?? false;
+                final precioFinal =
+                    enOferta && precioOferta != null ? precioOferta : precio;
+
+                return GestureDetector(
+                  onTap: () async {
+                    await context.push('/producto-detalle/${v['id']}');
+                    _loadHome();
+                    _loadCarritoCount();
+                  },
+                  child: Container(
+                    width: 105,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Stack(
+                          children: [
+                            Container(
+                              height: 80,
+                              width: double.infinity,
+                              color: Colors.grey.shade50,
+                              child: imagen != null
+                                  ? CachedNetworkImage(
+                                      imageUrl: imagen,
+                                      fit: BoxFit.contain,
+                                      placeholder: (_, __) =>
+                                          const SizedBox.shrink(),
+                                      errorWidget: (_, __, ___) => const Icon(
+                                          Icons.inventory_2_outlined,
+                                          color: Colors.grey),
+                                    )
+                                  : const Icon(Icons.inventory_2_outlined,
+                                      color: Colors.grey),
+                            ),
+                            if (enOferta)
+                              Positioned(
+                                top: 4,
+                                left: 4,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 5, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: const Text(
+                                    'OFERTA',
+                                    style: TextStyle(
+                                      fontSize: 7,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(6),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (precioFinal != null)
+                                Text(
+                                  'S/ ${precioFinal.toStringAsFixed(2)}',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: enOferta
+                                        ? Colors.green.shade600
+                                        : Colors.black87,
+                                  ),
+                                ),
+                              Text(
+                                nombre,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  color: Colors.grey.shade700,
+                                  height: 1.2,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
     );
   }
 

@@ -6,6 +6,8 @@ import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/utils/date_formatter.dart';
 import 'package:syncronize/core/widgets/custom_loading.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/styled_dialog.dart';
+import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/utils/resource.dart';
@@ -412,23 +414,42 @@ class _EmpresaDashboardPageState extends State<EmpresaDashboardPage> {
   }
 
   Future<void> _handleLogout() async {
-    final shouldLogout = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Cerrar sesión'),
-        content: const Text('¿Estás seguro de que deseas cerrar sesión?'),
-        actions: [
-          TextButton(
+    final shouldLogout = await StyledDialog.show<bool>(
+      context,
+      accentColor: AppColors.red,
+      icon: Icons.logout,
+      titulo: 'Cerrar sesión',
+      content: [
+        const Text(
+          '¿Estás seguro de que deseas cerrar sesión?',
+          style: TextStyle(fontSize: 13),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Tendrás que volver a iniciar sesión para continuar.',
+          style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+        ),
+      ],
+      actions: [
+        Expanded(
+          child: TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
+            child: Text(
+              'Cancelar',
+              style: TextStyle(color: Colors.grey.shade600),
+            ),
           ),
-          ElevatedButton(
+        ),
+        Expanded(
+          child: CustomButton(
+            text: 'Cerrar sesión',
+            icon: const Icon(Icons.logout, size: 14, color: Colors.white),
+            backgroundColor: AppColors.red,
+            textColor: Colors.white,
             onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Cerrar sesión'),
           ),
-        ],
-      ),
+        ),
+      ],
     );
 
     if (shouldLogout == true && mounted) {
