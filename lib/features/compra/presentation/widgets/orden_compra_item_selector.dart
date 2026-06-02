@@ -132,15 +132,17 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
     return raw;
   }
 
-  /// Cantidad en unidad atómica (después de conversión).
+  /// Cantidad en unidad atómica (después de conversión). Tolera decimales
+  /// (ej. 1.5 m) y redondea a unidad base entera (cm).
   int get _cantidadAtomica {
-    final raw = int.tryParse(_cantidadController.text) ?? 0;
+    final raw =
+        double.tryParse(_cantidadController.text.replaceAll(',', '.')) ?? 0;
     if (raw <= 0) return 0;
     if (_usaUnidadCompra && _productoSoportaUnidadCompra) {
       final factor = _productoSeleccionado!.factorCompra ?? 1;
       return (raw * factor).round();
     }
-    return raw;
+    return raw.round();
   }
 
   /// Costo proyectado tras la compra (promedio ponderado con stock previo).
@@ -197,6 +199,53 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
       _productoSeleccionado!.factorCompra! > 0 &&
       (_productoSeleccionado?.unidadCompraSimbolo?.isNotEmpty ?? false);
 
+  /// Símbolo de la unidad actualmente seleccionada en "Comprar por":
+  /// la de compra si el toggle está en compra, si no la base.
+  String? get _simboloUnidadSel {
+    final p = _productoSeleccionado;
+    if (p == null) return null;
+    final s = _usaUnidadCompra ? p.unidadCompraSimbolo : p.unidadMedidaSimbolo;
+    return (s != null && s.isNotEmpty) ? s : null;
+  }
+
+  /// Formatea un precio quitando ceros/punto sobrantes (5.0 → "5",
+  /// 0.0500 → "0.05").
+  String _fmtPrecio(double n) {
+    if ((n - n.truncateToDouble()).abs() < 1e-9) return n.toStringAsFixed(0);
+    var s = n.toStringAsFixed(4);
+    s = s.replaceFirst(RegExp(r'0+$'), '');
+    s = s.replaceFirst(RegExp(r'\.$'), '');
+    return s;
+  }
+
+  /// Opción A: al cambiar la unidad de "Comprar por", reconvierte el PRECIO y
+  /// la CANTIDAD que ya escribió el usuario para que la compra real (material
+  /// total y costo) se mantenga idéntica al toggear.
+  /// - Precio: cm→m ×factor, m→cm ÷factor.
+  /// - Cantidad: cm→m ÷factor, m→cm ×factor (inverso al precio).
+  /// Nota: cm→m puede dar cantidad fraccionaria (ej. 150 cm = 1.5 m); se
+  /// permite y `_agregarItem` la aplana a unidad base al enviar.
+  void _cambiarUnidadCompra(bool nuevo) {
+    if (nuevo == _usaUnidadCompra) return;
+    final factor = _productoSeleccionado?.factorCompra ?? 1;
+    final precio = double.tryParse(_precioController.text.replaceAll(',', '.'));
+    final cantidad =
+        double.tryParse(_cantidadController.text.replaceAll(',', '.'));
+    setState(() {
+      if (factor > 0) {
+        if (precio != null && precio > 0) {
+          _precioController.text =
+              _fmtPrecio(nuevo ? precio * factor : precio / factor);
+        }
+        if (cantidad != null && cantidad > 0) {
+          _cantidadController.text =
+              _fmtPrecio(nuevo ? cantidad / factor : cantidad * factor);
+        }
+      }
+      _usaUnidadCompra = nuevo;
+    });
+  }
+
   void _agregarItem() {
     final descripcion = _descripcionController.text.trim();
     if (descripcion.isEmpty) {
@@ -209,8 +258,9 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
       return;
     }
 
-    final cantidad = int.tryParse(_cantidadController.text) ?? 0;
-    if (cantidad <= 0) {
+    final cantidadSel =
+        double.tryParse(_cantidadController.text.replaceAll(',', '.')) ?? 0;
+    if (cantidadSel <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('La cantidad debe ser mayor a 0'),
@@ -220,8 +270,9 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
       return;
     }
 
-    final precio = double.tryParse(_precioController.text) ?? 0;
-    if (precio <= 0) {
+    final precioSel =
+        double.tryParse(_precioController.text.replaceAll(',', '.')) ?? 0;
+    if (precioSel <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('El precio debe ser mayor a 0'),
@@ -233,10 +284,49 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
 
     final descuento = double.tryParse(_descuentoController.text) ?? 0;
 
+    // El backend exige `cantidad` ENTERA (@IsInt). Resolución:
+    // - unidad de compra + cantidad entera → se envía en esa unidad (conserva
+    //   snapshot de unidad de compra).
+    // - unidad de compra + cantidad fraccionaria (ej. 1.5 m tras convertir
+    //   150 cm) → se "aplana" a unidad base atómica (cm enteros) con el costo
+    //   equivalente; el resultado es idéntico.
+    // - unidad base → entero directo.
+    final usaUC = _tipoItem == 'producto' &&
+        _productoSoportaUnidadCompra &&
+        _usaUnidadCompra;
+    final factor = _productoSeleccionado?.factorCompra ?? 1;
+    final esEntera = (cantidadSel - cantidadSel.roundToDouble()).abs() < 1e-9;
+
+    int cantidadEnviar;
+    double precioEnviar;
+    bool enviarUsaUC;
+    if (usaUC && esEntera) {
+      cantidadEnviar = cantidadSel.round();
+      precioEnviar = precioSel;
+      enviarUsaUC = true;
+    } else if (usaUC && !esEntera && factor > 0) {
+      cantidadEnviar = (cantidadSel * factor).round();
+      precioEnviar = double.parse((precioSel / factor).toStringAsFixed(4));
+      enviarUsaUC = false;
+    } else {
+      cantidadEnviar = cantidadSel.round();
+      precioEnviar = precioSel;
+      enviarUsaUC = false;
+    }
+    if (cantidadEnviar <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('La cantidad debe ser mayor a 0'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     final item = <String, dynamic>{
       'descripcion': descripcion,
-      'cantidad': cantidad,
-      'precioUnitario': precio,
+      'cantidad': cantidadEnviar,
+      'precioUnitario': precioEnviar,
       'descuento': descuento,
     };
 
@@ -247,7 +337,7 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
       }
       // Snapshot para mostrar dual-view en la lista de items
       // antes de enviar al backend.
-      if (_usaUnidadCompra && _productoSoportaUnidadCompra) {
+      if (enviarUsaUC) {
         item['usaUnidadCompra'] = true;
         item['factorCompra'] = _productoSeleccionado!.factorCompra;
         item['unidadCompraSimbolo'] =
@@ -314,8 +404,11 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
     final margenActual = _margenActualPct;
     final mantenerMargen = _precioMantenerMargen;
     final mas10 = _precioMas10;
-    final hayLote = (int.tryParse(_cantidadController.text) ?? 0) > 0 &&
-        (double.tryParse(_precioController.text.replaceAll(',', '.')) ?? 0) > 0;
+    final hayLote =
+        (double.tryParse(_cantidadController.text.replaceAll(',', '.')) ?? 0) >
+                0 &&
+            (double.tryParse(_precioController.text.replaceAll(',', '.')) ?? 0) >
+                0;
 
     return Padding(
       padding: const EdgeInsets.only(top: 10),
@@ -465,6 +558,8 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
                 _productoSoportaUnidadCompra &&
                 _usaUnidadCompra)
               _buildPreviewConversion(),
+            if (_tipoItem == 'producto' && _productoSeleccionado != null)
+              _buildAdvertenciaCosto(),
             if (_tipoItem == 'producto' &&
                 _productoSeleccionado != null &&
                 _varianteSeleccionada == null)
@@ -596,6 +691,8 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
   Widget _buildUnidadCompraToggle() {
     final simbolo = _productoSeleccionado!.unidadCompraSimbolo ?? '?';
     final factor = _productoSeleccionado!.factorCompra ?? 1;
+    // Unidad base real (ej. "cm"). Si el producto no la tiene, caemos a "UNID".
+    final base = _productoSeleccionado!.unidadMedidaSimbolo ?? 'UNID';
     return Padding(
       padding: const EdgeInsets.only(top: 8),
       child: Container(
@@ -627,22 +724,65 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
                     label: simbolo,
                     factor: '×${_formatFactor(factor)}',
                     selected: _usaUnidadCompra,
-                    onTap: () => setState(() => _usaUnidadCompra = true),
+                    onTap: () => _cambiarUnidadCompra(true),
                   ),
                 ),
                 const SizedBox(width: 6),
                 Expanded(
                   child: _UnidadOpcionChip(
-                    label: 'UNID',
+                    label: base,
                     factor: '×1',
                     selected: !_usaUnidadCompra,
-                    onTap: () => setState(() => _usaUnidadCompra = false),
+                    onTap: () => _cambiarUnidadCompra(false),
                   ),
                 ),
               ],
             ),
+            _buildCostoEquivalente(base, simbolo, factor),
           ],
         ),
+      ),
+    );
+  }
+
+  /// Línea informativa: costo actual en unidad base y su equivalente en la
+  /// unidad de compra (derivado = costoBase × factor). No se almacena.
+  Widget _buildCostoEquivalente(String base, String simboloCompra, double factor) {
+    final costoBase = _costoActualSede;
+    if (costoBase == null || costoBase <= 0 || factor <= 0) {
+      return const SizedBox.shrink();
+    }
+    final costoCompra = costoBase * factor;
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Row(
+        children: [
+          Icon(Icons.sell_outlined, size: 12, color: Colors.grey.shade600),
+          const SizedBox(width: 4),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: TextStyle(fontSize: 10, color: Colors.grey.shade700),
+                children: [
+                  const TextSpan(text: 'Costo actual: '),
+                  TextSpan(
+                    text: 'S/ ${costoBase.toStringAsFixed(2)} / $base',
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  const TextSpan(text: '  ≈  '),
+                  TextSpan(
+                    text:
+                        'S/ ${costoCompra.toStringAsFixed(2)} / $simboloCompra',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.blue1,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -689,6 +829,52 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
     );
   }
 
+  /// Opción B: advertencia cuando el costo atómico resultante diverge mucho
+  /// del costo actual (>4× o <1/4×) — típico al equivocar la unidad.
+  Widget _buildAdvertenciaCosto() {
+    final costoActual = _costoActualSede;
+    final atomico = _precioCompraAtomico;
+    if (costoActual == null || costoActual <= 0 || atomico <= 0) {
+      return const SizedBox.shrink();
+    }
+    final ratio = atomico / costoActual;
+    if (ratio <= 4 && ratio >= 0.25) return const SizedBox.shrink();
+    final base = _productoSeleccionado?.unidadMedidaSimbolo ?? 'u';
+    final detalle = ratio >= 1
+        ? '${_formatNum(ratio)}× más caro'
+        : '${_formatNum(1 / ratio)}× más barato';
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.orange.shade50,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: Colors.orange.shade300),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.warning_amber_rounded,
+                size: 15, color: Colors.orange.shade800),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                'Costo resultante S/${atomico.toStringAsFixed(2)}/$base — '
+                '$detalle que el actual (S/${costoActual.toStringAsFixed(2)}/$base). '
+                '¿La unidad es correcta?',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Colors.orange.shade900,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   String _formatFactor(double n) {
     if ((n - n.truncateToDouble()).abs() < 1e-6) {
       return n.toStringAsFixed(0);
@@ -710,11 +896,11 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
           child: CustomText(
             controller: _cantidadController,
             borderColor: AppColors.blue1,
-            label: _usaUnidadCompra
-                ? 'Cant. (${_productoSeleccionado?.unidadCompraSimbolo ?? '?'})'
+            label: _simboloUnidadSel != null
+                ? 'Cantidad en $_simboloUnidadSel'
                 : 'Cantidad',
             hintText: 'Cantidad',
-            keyboardType: TextInputType.number,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
             // Cualquier cambio refresca preview (unidadCompra +
             // card ajuste precio venta).
             onChanged: (_) {
@@ -727,8 +913,8 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
           child: CustomText(
             controller: _precioController,
             borderColor: AppColors.blue1,
-            label: _usaUnidadCompra
-                ? 'P. Unit (${_productoSeleccionado?.unidadCompraSimbolo ?? '?'})'
+            label: _simboloUnidadSel != null
+                ? 'P. Unit x $_simboloUnidadSel'
                 : 'Precio Unit.',
             hintText: 'Precio Compra',
             keyboardType:

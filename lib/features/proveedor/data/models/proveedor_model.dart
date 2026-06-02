@@ -20,6 +20,7 @@ class ProveedorModel extends Proveedor {
     super.direccion,
     super.ciudad,
     super.provincia,
+    super.departamento,
     super.pais,
     super.codigoPostal,
     super.terminosPago,
@@ -59,6 +60,7 @@ class ProveedorModel extends Proveedor {
       direccion: json['direccion'] as String?,
       ciudad: json['ciudad'] as String?,
       provincia: json['provincia'] as String?,
+      departamento: json['departamento'] as String?,
       pais: json['pais'] as String? ?? 'PE',
       codigoPostal: json['codigoPostal'] as String?,
       terminosPago: json['terminosPago'] != null
@@ -119,6 +121,7 @@ class ProveedorModel extends Proveedor {
       'direccion': direccion,
       'ciudad': ciudad,
       'provincia': provincia,
+      'departamento': departamento,
       'pais': pais,
       'codigoPostal': codigoPostal,
       'terminosPago': terminosPago != null ? _terminosPagoToString(terminosPago!) : null,

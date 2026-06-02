@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import 'package:syncronize/features/auth/presentation/widgets/custom_button.dart';
 import 'package:syncronize/core/widgets/custom_dropdown.dart';
+import 'package:syncronize/core/widgets/date/custom_date.dart' hide DateFormatter;
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
@@ -58,9 +58,11 @@ class _CompraFormViewState extends State<_CompraFormView> {
   final _formKey = GlobalKey<FormState>();
 
   late final TextEditingController _observacionesController;
-  late final TextEditingController _tipoDocProveedorController;
   late final TextEditingController _serieDocProveedorController;
   late final TextEditingController _numDocProveedorController;
+
+  // Tipo de documento del proveedor (FACTURA/BOLETA/GUIA/TICKET)
+  String? _tipoDocProveedor;
 
   // Proveedor seleccionado
   String? _proveedorId;
@@ -88,7 +90,6 @@ class _CompraFormViewState extends State<_CompraFormView> {
     final oc = widget.ordenCompra;
 
     _observacionesController = TextEditingController();
-    _tipoDocProveedorController = TextEditingController();
     _serieDocProveedorController = TextEditingController();
     _numDocProveedorController = TextEditingController();
 
@@ -129,7 +130,6 @@ class _CompraFormViewState extends State<_CompraFormView> {
   @override
   void dispose() {
     _observacionesController.dispose();
-    _tipoDocProveedorController.dispose();
     _serieDocProveedorController.dispose();
     _numDocProveedorController.dispose();
     super.dispose();
@@ -180,9 +180,8 @@ class _CompraFormViewState extends State<_CompraFormView> {
         'ordenCompraId': widget.ordenCompra!.id,
         if (_terminosPago != null) 'terminosPago': _terminosPago,
         if (_moneda != 'PEN') 'moneda': _moneda,
-        if (_tipoDocProveedorController.text.trim().isNotEmpty)
-          'tipoDocumentoProveedor':
-              _tipoDocProveedorController.text.trim(),
+        if (_tipoDocProveedor != null)
+          'tipoDocumentoProveedor': _tipoDocProveedor,
         if (_serieDocProveedorController.text.trim().isNotEmpty)
           'serieDocumentoProveedor':
               _serieDocProveedorController.text.trim(),
@@ -215,9 +214,8 @@ class _CompraFormViewState extends State<_CompraFormView> {
         'precioIncluyeIgv': _precioIncluyeIgv,
         'fechaRecepcion': DateFormatter.toUtcIso(_fechaRecepcion),
         if (_terminosPago != null) 'terminosPago': _terminosPago,
-        if (_tipoDocProveedorController.text.trim().isNotEmpty)
-          'tipoDocumentoProveedor':
-              _tipoDocProveedorController.text.trim(),
+        if (_tipoDocProveedor != null)
+          'tipoDocumentoProveedor': _tipoDocProveedor,
         if (_serieDocProveedorController.text.trim().isNotEmpty)
           'serieDocumentoProveedor':
               _serieDocProveedorController.text.trim(),
@@ -250,8 +248,6 @@ class _CompraFormViewState extends State<_CompraFormView> {
 
   @override
   Widget build(BuildContext context) {
-    final dateFormat = DateFormat('dd/MM/yyyy');
-
     // Obtener sedes del contexto de empresa
     final empresaState = context.watch<EmpresaContextCubit>().state;
     final sedes = empresaState is EmpresaContextLoaded
@@ -361,18 +357,13 @@ class _CompraFormViewState extends State<_CompraFormView> {
                       ),
                       const SizedBox(height: 12),
 
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text('Fecha de Recepción'),
-                        subtitle: Text(dateFormat.format(_fechaRecepcion)),
-                        trailing: const Icon(Icons.calendar_today),
-                        onTap: () async {
-                          final date = await showDatePicker(
-                            context: context,
-                            initialDate: _fechaRecepcion,
-                            firstDate: DateTime(2020),
-                            lastDate: DateTime(2030),
-                          );
+                      CustomDate(
+                        label: 'Fecha de Recepción',
+                        borderColor: AppColors.blue1,
+                        initialDate: _fechaRecepcion,
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime(2030),
+                        onDateSelected: (date) {
                           if (date != null) {
                             setState(() => _fechaRecepcion = date);
                           }
@@ -387,13 +378,22 @@ class _CompraFormViewState extends State<_CompraFormView> {
                       ),
                       const SizedBox(height: 8),
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Expanded(
-                            child: CustomText(
+                            child: CustomDropdown<String>(
                               borderColor: AppColors.blue1,
-                              controller: _tipoDocProveedorController,
                               label: 'Tipo',
-                              hintText: 'Ej: FACTURA',
+                              hintText: 'Seleccionar',
+                              value: _tipoDocProveedor,
+                              items: const [
+                                DropdownItem(value: 'FACTURA', label: 'Factura'),
+                                DropdownItem(value: 'BOLETA', label: 'Boleta'),
+                                DropdownItem(value: 'GUIA', label: 'Guía'),
+                                DropdownItem(value: 'TICKET', label: 'Ticket'),
+                              ],
+                              onChanged: (value) =>
+                                  setState(() => _tipoDocProveedor = value),
                             ),
                           ),
                           const SizedBox(width: 8),

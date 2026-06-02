@@ -88,6 +88,7 @@ import '../../features/pos/presentation/pages/cobrar_cotizacion_page.dart';
 import '../../features/producto/presentation/pages/productos_page.dart';
 import '../../features/producto/presentation/pages/productos_eliminados_page.dart';
 import '../../features/producto/presentation/pages/lotes_produccion_page.dart';
+import '../../features/producto/presentation/pages/trazabilidad_producto_page.dart';
 import '../../features/producto/presentation/pages/producto_detail_page.dart';
 import '../../features/producto/presentation/pages/producto_form_page.dart';
 import '../../features/producto/presentation/pages/producto_variantes_page.dart';
@@ -587,6 +588,21 @@ class AppRouter {
         path: '/empresa/inventario/produccion',
         name: 'empresa-lotes-produccion',
         builder: (context, state) => const LotesProduccionPage(),
+      ),
+      GoRoute(
+        path: '/empresa/inventario/trazabilidad',
+        name: 'empresa-trazabilidad',
+        builder: (context, state) {
+          // Opcional: productoId/nombre/varianteId vía query (desde el detalle).
+          final pid = state.uri.queryParameters['productoId'];
+          final nombre = state.uri.queryParameters['nombre'];
+          final varianteId = state.uri.queryParameters['varianteId'];
+          return TrazabilidadProductoPage(
+            productoId: pid,
+            productoNombre: nombre,
+            varianteId: varianteId,
+          );
+        },
       ),
       GoRoute(
         path: '/empresa/inventario/kardex/:stockId',

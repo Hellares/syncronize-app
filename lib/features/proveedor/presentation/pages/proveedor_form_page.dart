@@ -51,6 +51,7 @@ class _ProveedorFormViewState extends State<_ProveedorFormView> {
   late final TextEditingController _direccionController;
   late final TextEditingController _ciudadController;
   late final TextEditingController _provinciaController;
+  late final TextEditingController _departamentoController;
   late final TextEditingController _paisController;
   late final TextEditingController _codigoPostalController;
   late final TextEditingController _limiteCreditoController;
@@ -64,6 +65,9 @@ class _ProveedorFormViewState extends State<_ProveedorFormView> {
   int? _diasCredito;
 
   bool _isSearching = false;
+  // Id monotónico para poder abortar una búsqueda en vuelo: al cancelar (o
+  // lanzar otra) se incrementa y la respuesta vieja se descarta.
+  int _searchReqId = 0;
 
   bool get _isEditing => widget.proveedor != null;
 
@@ -82,6 +86,7 @@ class _ProveedorFormViewState extends State<_ProveedorFormView> {
     _direccionController = TextEditingController(text: p?.direccion);
     _ciudadController = TextEditingController(text: p?.ciudad);
     _provinciaController = TextEditingController(text: p?.provincia);
+    _departamentoController = TextEditingController(text: p?.departamento);
     _paisController = TextEditingController(text: p?.pais ?? 'PE');
     _codigoPostalController = TextEditingController(text: p?.codigoPostal);
     _limiteCreditoController = TextEditingController(text: p?.limiteCredito?.toString() ?? '');
@@ -109,6 +114,7 @@ class _ProveedorFormViewState extends State<_ProveedorFormView> {
     _direccionController.dispose();
     _ciudadController.dispose();
     _provinciaController.dispose();
+    _departamentoController.dispose();
     _paisController.dispose();
     _codigoPostalController.dispose();
     _limiteCreditoController.dispose();
@@ -119,24 +125,33 @@ class _ProveedorFormViewState extends State<_ProveedorFormView> {
     super.dispose();
   }
 
+  /// Aborta la búsqueda en curso: invalida la request en vuelo (su respuesta
+  /// se ignora) y oculta el indicador.
+  void _cancelSearch() {
+    _searchReqId++;
+    if (mounted) setState(() => _isSearching = false);
+  }
+
   Future<void> _searchDocument() async {
     final doc = _documentoController.text.trim();
     if (doc.isEmpty) return;
 
+    final myId = ++_searchReqId;
     setState(() => _isSearching = true);
 
     try {
       if (_tipoDocumento == 'RUC' && doc.length == 11) {
         final useCase = locator<ConsultarRucUseCase>();
         final result = await useCase(doc);
-        if (!mounted) return;
+        if (!mounted || myId != _searchReqId) return;
         if (result is Success) {
           final data = (result as Success).data;
           setState(() {
             _nombreController.text = data.razonSocial;
             _direccionController.text = data.direccion;
             _ciudadController.text = data.distrito;
-            _provinciaController.text = '${data.departamento} - ${data.provincia}';
+            _provinciaController.text = data.provincia;
+            _departamentoController.text = data.departamento;
           });
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Datos cargados desde SUNAT'), backgroundColor: Colors.green),
@@ -149,14 +164,15 @@ class _ProveedorFormViewState extends State<_ProveedorFormView> {
       } else if (_tipoDocumento == 'DNI' && doc.length == 8) {
         final useCase = locator<ConsultarDniUseCase>();
         final result = await useCase(doc);
-        if (!mounted) return;
+        if (!mounted || myId != _searchReqId) return;
         if (result is Success) {
           final data = (result as Success).data;
           setState(() {
             _nombreController.text = data.nombreCompleto;
             _direccionController.text = data.direccion;
             _ciudadController.text = data.distrito;
-            _provinciaController.text = '${data.departamento} - ${data.provincia}';
+            _provinciaController.text = data.provincia;
+            _departamentoController.text = data.departamento;
             if (data.telefono != null && data.telefono!.isNotEmpty) {
               _telefonoController.text = data.telefono!;
             }
@@ -181,13 +197,15 @@ class _ProveedorFormViewState extends State<_ProveedorFormView> {
         );
       }
     } catch (e) {
-      if (mounted) {
+      if (mounted && myId == _searchReqId) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Error al consultar documento'), backgroundColor: Colors.red),
         );
       }
     } finally {
-      if (mounted) setState(() => _isSearching = false);
+      // Solo apagamos el spinner si esta sigue siendo la búsqueda vigente
+      // (si se canceló o se lanzó otra, no pisamos su estado).
+      if (mounted && myId == _searchReqId) setState(() => _isSearching = false);
     }
   }
 
@@ -211,7 +229,9 @@ class _ProveedorFormViewState extends State<_ProveedorFormView> {
       if (_direccionController.text.trim().isNotEmpty) 'direccion': _direccionController.text.trim(),
       if (_ciudadController.text.trim().isNotEmpty) 'ciudad': _ciudadController.text.trim(),
       if (_provinciaController.text.trim().isNotEmpty) 'provincia': _provinciaController.text.trim(),
-      if (_paisController.text.trim().isNotEmpty) 'pais': _paisController.text.trim(),
+      if (_departamentoController.text.trim().isNotEmpty) 'departamento': _departamentoController.text.trim(),
+      // País oculto en el formulario: por ahora siempre Perú.
+      'pais': 'PE',
       if (_codigoPostalController.text.trim().isNotEmpty) 'codigoPostal': _codigoPostalController.text.trim(),
       if (_terminosPago != null) 'terminosPago': _terminosPago,
       if (_diasCredito != null) 'diasCredito': _diasCredito,
@@ -251,48 +271,68 @@ class _ProveedorFormViewState extends State<_ProveedorFormView> {
           final isLoading = state is ProveedorFormLoading;
           return Stack(
             children: [
-              SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      ProveedorFormFields(
-                        nombreController: _nombreController,
-                        nombreComercialController: _nombreComercialController,
-                        documentoController: _documentoController,
-                        emailController: _emailController,
-                        telefonoController: _telefonoController,
-                        telefonoAlternativoController: _telefonoAlternativoController,
-                        sitioWebController: _sitioWebController,
-                        direccionController: _direccionController,
-                        ciudadController: _ciudadController,
-                        provinciaController: _provinciaController,
-                        paisController: _paisController,
-                        limiteCreditoController: _limiteCreditoController,
-                        descuentoPreferencialController: _descuentoPreferencialController,
-                        contactoPrincipalController: _contactoPrincipalController,
-                        cargoContactoController: _cargoContactoController,
-                        notasController: _notasController,
-                        tipoDocumento: _tipoDocumento,
-                        terminosPago: _terminosPago,
-                        isLoading: isLoading,
-                        isEditing: _isEditing,
-                        onTipoDocumentoChanged: (value) => setState(() => _tipoDocumento = value),
-                        onTerminosPagoChanged: (value) => setState(() => _terminosPago = value),
-                        onSearchDocument: _searchDocument,
-                        isSearching: _isSearching,
+              Column(
+                children: [
+                  // Formulario scrolleable
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(16),
+                      child: Form(
+                        key: _formKey,
+                        child: ProveedorFormFields(
+                          nombreController: _nombreController,
+                          nombreComercialController: _nombreComercialController,
+                          documentoController: _documentoController,
+                          emailController: _emailController,
+                          telefonoController: _telefonoController,
+                          telefonoAlternativoController: _telefonoAlternativoController,
+                          sitioWebController: _sitioWebController,
+                          direccionController: _direccionController,
+                          ciudadController: _ciudadController,
+                          provinciaController: _provinciaController,
+                          departamentoController: _departamentoController,
+                          paisController: _paisController,
+                          limiteCreditoController: _limiteCreditoController,
+                          descuentoPreferencialController: _descuentoPreferencialController,
+                          contactoPrincipalController: _contactoPrincipalController,
+                          cargoContactoController: _cargoContactoController,
+                          notasController: _notasController,
+                          tipoDocumento: _tipoDocumento,
+                          terminosPago: _terminosPago,
+                          isLoading: isLoading,
+                          isEditing: _isEditing,
+                          onTipoDocumentoChanged: (value) => setState(() => _tipoDocumento = value),
+                          onTerminosPagoChanged: (value) => setState(() => _terminosPago = value),
+                          onSearchDocument: _searchDocument,
+                          onCancelSearch: _cancelSearch,
+                          isSearching: _isSearching,
+                        ),
                       ),
-                      const SizedBox(height: 24),
-                      CustomButton(
+                    ),
+                  ),
+                  // Botón fijo en la parte inferior (no scrollea).
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.06),
+                          blurRadius: 8,
+                          offset: const Offset(0, -2),
+                        ),
+                      ],
+                    ),
+                    child: SafeArea(
+                      top: false,
+                      child: CustomButton(
                         backgroundColor: AppColors.blue1,
                         text: _isEditing ? 'Actualizar Proveedor' : 'Crear Proveedor',
                         onPressed: isLoading ? null : _submit,
                       ),
-                    ],
+                    ),
                   ),
-                ),
+                ],
               ),
               if (isLoading)
                 Container(

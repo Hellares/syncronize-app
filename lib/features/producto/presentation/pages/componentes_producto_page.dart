@@ -167,7 +167,11 @@ class _ComponentesProductoPageState extends State<ComponentesProductoPage> {
         context: context,
         type: ConfirmDialogType.info,
         icon: Icons.edit_outlined,
-        title: item['componente']['nombre'] as String,
+        title: () {
+          final nombre = item['componente']['nombre'] as String;
+          final vNom = item['componente']['varianteNombre'] as String?;
+          return vNom != null ? '$nombre — $vNom' : nombre;
+        }(),
         customContent: CustomText(
           controller: controller,
           label: 'Cantidad por unidad fabricada (${um ?? '—'})',
@@ -795,6 +799,16 @@ class _ComponentesProductoPageState extends State<ComponentesProductoPage> {
     final costoUnit = (item['precioCostoUnitario'] as num?)?.toDouble();
     final subtotal = (item['subtotal'] as num?)?.toDouble();
     final um = item['componente']['unidadMedida'] as String?;
+    // Costo equivalente en la unidad de compra (derivado = costo × factor).
+    final factorCompra =
+        (item['componente']['factorCompra'] as num?)?.toDouble();
+    final simboloCompra =
+        item['componente']['unidadCompraSimbolo'] as String?;
+    final costoCompra = (costoUnit != null &&
+            factorCompra != null &&
+            factorCompra > 0)
+        ? costoUnit * factorCompra
+        : null;
     return InkWell(
       onTap: () => _editarCantidad(item),
       child: Padding(
@@ -807,7 +821,12 @@ class _ComponentesProductoPageState extends State<ComponentesProductoPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    item['componente']['nombre'] as String,
+                    () {
+                      final nombre = item['componente']['nombre'] as String;
+                      final vNom =
+                          item['componente']['varianteNombre'] as String?;
+                      return vNom != null ? '$nombre — $vNom' : nombre;
+                    }(),
                     style: const TextStyle(
                         fontSize: 11, fontWeight: FontWeight.w600),
                     maxLines: 1,
@@ -831,15 +850,30 @@ class _ComponentesProductoPageState extends State<ComponentesProductoPage> {
             ),
             Expanded(
               flex: 3,
-              child: Text(
-                costoUnit != null
-                    ? 'S/ ${costoUnit.toStringAsFixed(2)}'
-                    : '—',
-                textAlign: TextAlign.right,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: costoUnit == null ? Colors.orange.shade700 : null,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    costoUnit != null
+                        ? 'S/ ${costoUnit.toStringAsFixed(2)}'
+                        : '—',
+                    textAlign: TextAlign.right,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: costoUnit == null ? Colors.orange.shade700 : null,
+                    ),
+                  ),
+                  // Equivalente por unidad de compra (informativo).
+                  if (costoCompra != null && simboloCompra != null)
+                    Text(
+                      '≈ S/ ${costoCompra.toStringAsFixed(2)}/$simboloCompra',
+                      textAlign: TextAlign.right,
+                      style: TextStyle(
+                        fontSize: 8,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                ],
               ),
             ),
             Expanded(
@@ -1054,6 +1088,11 @@ class _AgregarComponenteDialogState extends State<_AgregarComponenteDialog> {
   String? _simboloCompra; // unidad de compra (ej. "m")
   String? _simboloAtomico; // unidad base/atómica (ej. "cm")
 
+  // Variantes del INSUMO (si las tiene). La receta apunta a una variante
+  // concreta (ej. "Planta T20 Niño") y su stock/costo vive en esa variante.
+  List<Map<String, dynamic>> _variantesInsumo = const [];
+  String? _componenteVarianteId;
+
   @override
   void dispose() {
     _searchCtrl.dispose();
@@ -1086,7 +1125,11 @@ class _AgregarComponenteDialogState extends State<_AgregarComponenteDialog> {
             .cast<Map<String, dynamic>>()
             .where((p) =>
                 p['id'] != widget.productoId &&
-                !widget.idsYaUsados.contains(p['id']))
+                // Un insumo con variantes se puede re-elegir para agregar otra
+                // de sus variantes (el backend rechaza la combinación exacta
+                // duplicada). Uno sin variantes ya usado se oculta.
+                !(widget.idsYaUsados.contains(p['id']) &&
+                    p['tieneVariantes'] != true))
             .toList();
         _searching = false;
       });
@@ -1100,7 +1143,7 @@ class _AgregarComponenteDialogState extends State<_AgregarComponenteDialog> {
   /// si está mal (caso típico: usuario tipeó total de compra en lugar de
   /// unitario). Si no hay sede o no hay stock, devuelve nulls.
   Future<void> _cargarInfoSeleccionado() async {
-    if (_selected == null || widget.sedeId == null) return;
+    if (_selected == null) return;
     setState(() {
       _loadingStockInfo = true;
       _selectedStockId = null;
@@ -1109,15 +1152,58 @@ class _AgregarComponenteDialogState extends State<_AgregarComponenteDialog> {
       _factorCompra = null;
       _simboloCompra = null;
       _simboloAtomico = null;
+      _variantesInsumo = const [];
+      _componenteVarianteId = null;
     });
     try {
-      final resp = await _dio.get(
-        '/producto-stock/producto/${_selected!['id']}/sede/${widget.sedeId}',
-      );
-      final data = resp.data as Map<String, dynamic>?;
-      // Detalle del insumo para el conversor de unidad (factor + símbolos).
+      // Detalle del insumo: factor/símbolos (no dependen de sede) + variantes.
       final detResp = await _dio.get('/productos/${_selected!['id']}');
       final det = detResp.data as Map<String, dynamic>?;
+      final tieneVariantes = det?['tieneVariantes'] == true;
+      final variantes =
+          (det?['variantes'] as List?)?.cast<Map<String, dynamic>>() ??
+              const [];
+      if (!mounted) return;
+      setState(() {
+        final fc = det?['factorCompra'];
+        _factorCompra = fc is num
+            ? fc.toDouble()
+            : (fc is String ? double.tryParse(fc) : null);
+        _simboloCompra = _simboloDeUnidad(det?['unidadCompra']);
+        _simboloAtomico = _simboloDeUnidad(det?['unidadMedida']);
+        _variantesInsumo = tieneVariantes ? variantes : const [];
+      });
+      // Si el insumo tiene variantes, su stock vive en la variante: esperamos
+      // a que el usuario elija una. Si no, cargamos el del producto base.
+      if (_variantesInsumo.isEmpty) {
+        await _fetchCostoStock(varianteId: null);
+      } else {
+        if (mounted) setState(() => _loadingStockInfo = false);
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loadingStockInfo = false);
+    }
+  }
+
+  /// Carga costo+stock del insumo en la sede actual, por variante si se pasa
+  /// (su stock vive en la variante) o por producto base si no.
+  Future<void> _fetchCostoStock({required String? varianteId}) async {
+    if (widget.sedeId == null) {
+      if (mounted) setState(() => _loadingStockInfo = false);
+      return;
+    }
+    setState(() {
+      _loadingStockInfo = true;
+      _selectedStockId = null;
+      _selectedCosto = null;
+      _selectedStockActual = null;
+    });
+    try {
+      final url = varianteId != null
+          ? '/producto-stock/variante/$varianteId/sede/${widget.sedeId}'
+          : '/producto-stock/producto/${_selected!['id']}/sede/${widget.sedeId}';
+      final resp = await _dio.get(url);
+      final data = resp.data as Map<String, dynamic>?;
       if (!mounted) return;
       setState(() {
         _selectedStockId = data?['id'] as String?;
@@ -1126,17 +1212,16 @@ class _AgregarComponenteDialogState extends State<_AgregarComponenteDialog> {
             ? costoRaw.toDouble()
             : (costoRaw is String ? double.tryParse(costoRaw) : null);
         _selectedStockActual = (data?['stockActual'] as num?)?.toInt();
-        final fc = det?['factorCompra'];
-        _factorCompra = fc is num
-            ? fc.toDouble()
-            : (fc is String ? double.tryParse(fc) : null);
-        _simboloCompra = _simboloDeUnidad(det?['unidadCompra']);
-        _simboloAtomico = _simboloDeUnidad(det?['unidadMedida']);
         _loadingStockInfo = false;
       });
     } catch (_) {
       if (mounted) setState(() => _loadingStockInfo = false);
     }
+  }
+
+  void _onVarianteComponenteChanged(String? varianteId) {
+    setState(() => _componenteVarianteId = varianteId);
+    if (varianteId != null) _fetchCostoStock(varianteId: varianteId);
   }
 
   /// Resuelve el símbolo de una unidad (local > personalizado > maestra).
@@ -1194,7 +1279,8 @@ class _AgregarComponenteDialogState extends State<_AgregarComponenteDialog> {
           backgroundColor: Colors.green,
         ),
       );
-      _cargarInfoSeleccionado(); // refresca el costo mostrado
+      // Refresca solo costo/stock (preservando la variante elegida).
+      _fetchCostoStock(varianteId: _componenteVarianteId);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1258,6 +1344,7 @@ class _AgregarComponenteDialogState extends State<_AgregarComponenteDialog> {
                 Text(
                   _selectedCosto != null
                       ? 'Costo unitario actual: S/ ${_selectedCosto!.toStringAsFixed(2)}'
+                          '${_simboloAtomico != null ? ' / $_simboloAtomico' : ''}'
                       : 'Sin costo unitario',
                   style: TextStyle(
                     fontSize: 10,
@@ -1265,6 +1352,19 @@ class _AgregarComponenteDialogState extends State<_AgregarComponenteDialog> {
                     color: Colors.blue.shade900,
                   ),
                 ),
+                // Costo equivalente en la unidad de compra (derivado:
+                // costoBase × factorCompra). Solo informativo.
+                if (_selectedCosto != null &&
+                    _factorCompra != null &&
+                    _factorCompra! > 0 &&
+                    _simboloCompra != null)
+                  Text(
+                    '≈ S/ ${(_selectedCosto! * _factorCompra!).toStringAsFixed(2)} / $_simboloCompra',
+                    style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.blue.shade700),
+                  ),
                 if (_selectedStockActual != null)
                   Text(
                     'Stock: $_selectedStockActual unidades',
@@ -1303,6 +1403,12 @@ class _AgregarComponenteDialogState extends State<_AgregarComponenteDialog> {
 
   Future<void> _guardar() async {
     if (_selected == null) return;
+    if (_variantesInsumo.isNotEmpty && _componenteVarianteId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Elegí la variante del insumo')),
+      );
+      return;
+    }
     final cantidad =
         double.tryParse(_cantidadCtrl.text.replaceAll(',', '.')) ?? 0;
     if (cantidad <= 0) {
@@ -1319,6 +1425,8 @@ class _AgregarComponenteDialogState extends State<_AgregarComponenteDialog> {
           'componenteId': _selected!['id'],
           'cantidad': cantidad,
           if (widget.varianteId != null) 'varianteId': widget.varianteId,
+          if (_componenteVarianteId != null)
+            'componenteVarianteId': _componenteVarianteId,
         },
       );
       if (!mounted) return;
@@ -1454,12 +1562,32 @@ class _AgregarComponenteDialogState extends State<_AgregarComponenteDialog> {
                     _factorCompra = null;
                     _simboloCompra = null;
                     _simboloAtomico = null;
+                    _variantesInsumo = const [];
+                    _componenteVarianteId = null;
                   }),
                 ),
               ],
             ),
           ),
           const SizedBox(height: 8),
+          // Si el insumo tiene variantes, hay que elegir CUÁL se usa en la
+          // receta (su stock/costo vive en la variante).
+          if (_variantesInsumo.isNotEmpty) ...[
+            CustomDropdown<String>(
+              label: 'Variante del insumo *',
+              hintText: 'Elegí la variante',
+              borderColor: Colors.indigo,
+              value: _componenteVarianteId,
+              items: _variantesInsumo
+                  .map((v) => DropdownItem<String>(
+                        value: v['id'] as String,
+                        label: (v['nombre'] ?? v['sku'] ?? v['id']).toString(),
+                      ))
+                  .toList(),
+              onChanged: _onVarianteComponenteChanged,
+            ),
+            const SizedBox(height: 8),
+          ],
           // Info de costo del insumo en la sede actual. Permite detectar
           // de un vistazo si el costo unitario está mal cargado (caso
           // típico: total de compra en lugar de unitario) y corregirlo.

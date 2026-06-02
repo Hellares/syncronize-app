@@ -323,6 +323,15 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
                 _tap(ctx, () => ctx.push('/empresa/inventario/produccion')),
           ),
           tile(
+            title: 'Trazabilidad de producto',
+            icon: Icons.account_tree_outlined,
+            iconColor: Colors.teal,
+            routeMatch:
+                const _RouteMatch.exact('/empresa/inventario/trazabilidad'),
+            onTap: (ctx) =>
+                _tap(ctx, () => ctx.push('/empresa/inventario/trazabilidad')),
+          ),
+          tile(
             title: 'Inventario Físico',
             icon: Icons.fact_check,
             iconColor: Colors.indigo,

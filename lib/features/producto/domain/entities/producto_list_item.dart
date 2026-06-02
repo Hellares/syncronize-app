@@ -31,6 +31,10 @@ class ProductoListItem extends Equatable with StockPorSedeMixin {
   final double? factorCompra;
   final String? unidadCompraSimbolo;
 
+  /// Símbolo de la unidad base (venta/stock), ej. "cm". Se usa para mostrar
+  /// la unidad real en el toggle "Comprar por" y el costo equivalente.
+  final String? unidadMedidaSimbolo;
+
   ProductoListItem({
     required this.id,
     required this.nombre,
@@ -52,6 +56,7 @@ class ProductoListItem extends Equatable with StockPorSedeMixin {
     this.aplicaIcbper = false,
     this.factorCompra,
     this.unidadCompraSimbolo,
+    this.unidadMedidaSimbolo,
   });
 
   /// Stock consolidado: para productos con variantes suma el stock de todas las variantes,
@@ -116,5 +121,6 @@ class ProductoListItem extends Equatable with StockPorSedeMixin {
         aplicaIcbper,
         factorCompra,
         unidadCompraSimbolo,
+        unidadMedidaSimbolo,
       ];
 }

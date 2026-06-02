@@ -137,6 +137,13 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
           foregroundColor: AppColors.white,
           title: 'Detalle del Producto',
           actions: [
+          IconButton(
+            icon: const Icon(Icons.account_tree_outlined, size: 18),
+            tooltip: 'Trazabilidad / Ficha 360',
+            onPressed: () => context.push(
+              '/empresa/inventario/trazabilidad?productoId=${widget.productoId}',
+            ),
+          ),
           BlocBuilder<EmpresaContextCubit, EmpresaContextState>(
             builder: (context, empresaState) {
               if (empresaState is EmpresaContextLoaded &&
@@ -871,11 +878,26 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
 
             // Precios y costos (desde stocksPorSede)
             if (widget.sedeId != null && producto.stockSedeInfo(widget.sedeId!) != null &&
-                producto.stockSedeInfo(widget.sedeId!)!.precioCosto != null)
+                producto.stockSedeInfo(widget.sedeId!)!.precioCosto != null) ...[
               _buildInfoRow(
                 'Precio de costo',
-                'S/${producto.stockSedeInfo(widget.sedeId!)!.precioCosto!.toStringAsFixed(2)}',
+                () {
+                  final costo = producto
+                      .stockSedeInfo(widget.sedeId!)!.precioCosto!;
+                  final base = producto.unidadMedida?.simboloEfectivo;
+                  return 'S/${costo.toStringAsFixed(2)}${base != null ? ' / $base' : ''}';
+                }(),
               ),
+              // Costo equivalente en la unidad de compra (derivado:
+              // costoBase × factorCompra). Solo informativo.
+              if (producto.factorCompra != null &&
+                  producto.factorCompra! > 0 &&
+                  producto.unidadCompra?.simboloEfectivo != null)
+                _buildInfoRow(
+                  'Equivale a',
+                  'S/${(producto.stockSedeInfo(widget.sedeId!)!.precioCosto! * producto.factorCompra!).toStringAsFixed(2)} / ${producto.unidadCompra!.simboloEfectivo}',
+                ),
+            ],
             if (producto.impuestoPorcentaje != null)
               _buildInfoRow('Impuesto', '${producto.impuestoPorcentaje}%'),
             if (producto.descuentoMaximo != null)

@@ -9,6 +9,9 @@ import '../../../../core/theme/gradient_container.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../../../core/widgets/styled_dialog.dart';
 import '../../../../core/widgets/custom_button.dart';
+import '../../../../core/widgets/custom_dropdown.dart';
+import '../../../../core/widgets/date/custom_date.dart' hide DateFormatter;
+import '../../../auth/presentation/widgets/custom_text.dart';
 import '../../../../core/utils/resource.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../domain/entities/movimiento_stock.dart';
@@ -187,30 +190,6 @@ class _KardexPageState extends State<KardexPage> {
     _loadData();
   }
 
-  Future<void> _pickDate(BuildContext context, bool isDesde) async {
-    final now = DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: isDesde
-          ? (_fechaDesde ?? now.subtract(const Duration(days: 30)))
-          : (_fechaHasta ?? now),
-      firstDate: DateTime(2020),
-      lastDate: now.add(const Duration(days: 1)),
-      locale: const Locale('es', 'PE'),
-    );
-    if (picked != null && mounted) {
-      setState(() {
-        if (isDesde) {
-          _fechaDesde = picked;
-        } else {
-          _fechaHasta = picked;
-        }
-      });
-      // Auto-apply: el user ya tomó la decisión al elegir la fecha.
-      _loadData();
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return GradientBackground(
@@ -302,6 +281,10 @@ class _KardexPageState extends State<KardexPage> {
   // ============================================================
 
   Widget _buildFiltersSection() {
+    final hayFiltros = _fechaDesde != null ||
+        _fechaHasta != null ||
+        _tipoFiltro != null ||
+        _documentoCtrl.text.trim().isNotEmpty;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       child: GradientContainer(
@@ -322,11 +305,45 @@ class _KardexPageState extends State<KardexPage> {
                       color: AppColors.blue3,
                     ),
                   ),
+                  // Botón compacto para limpiar, al lado del título. Solo
+                  // visible con filtros activos. Su propio InkWell consume el
+                  // tap, así que no expande/colapsa la sección.
+                  if (hayFiltros) ...[
+                    const SizedBox(width: 8),
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: _clearFilters,
+                        borderRadius: BorderRadius.circular(10),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: AppColors.red.withValues(alpha: 0.10),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: AppColors.red.withValues(alpha: 0.4),
+                              width: 0.6,
+                            ),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.clear, size: 12, color: AppColors.red),
+                              SizedBox(width: 3),
+                              Text(
+                                'Limpiar',
+                                style: TextStyle(
+                                    fontSize: 10, color: AppColors.red),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                   const Spacer(),
-                  if (_fechaDesde != null ||
-                      _fechaHasta != null ||
-                      _tipoFiltro != null ||
-                      _documentoCtrl.text.trim().isNotEmpty)
+                  if (hayFiltros)
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 6, vertical: 2),
@@ -352,112 +369,111 @@ class _KardexPageState extends State<KardexPage> {
             ),
             if (_filtersExpanded) ...[
               const SizedBox(height: 12),
-              // Fecha desde y hasta
+              // Fecha desde y hasta + botón Buscar. Las fechas NO disparan la
+              // búsqueda al cambiar (evita requests al ajustar el rango); el
+              // user confirma con el botón Buscar al final de la fila.
               Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Expanded(
-                    child: _DateButton(
+                    child: CustomDate(
                       label: 'Desde',
-                      date: _fechaDesde,
-                      onTap: () => _pickDate(context, true),
+                      hintText: 'dd/mm/aaaa',
+                      borderColor: AppColors.blue,
+                      initialDate: _fechaDesde,
+                      lastDate: DateTime.now().add(const Duration(days: 1)),
+                      onDateSelected: (d) => setState(() => _fechaDesde = d),
                     ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: _DateButton(
+                    child: CustomDate(
                       label: 'Hasta',
-                      date: _fechaHasta,
-                      onTap: () => _pickDate(context, false),
+                      hintText: 'dd/mm/aaaa',
+                      borderColor: AppColors.blue,
+                      initialDate: _fechaHasta,
+                      lastDate: DateTime.now().add(const Duration(days: 1)),
+                      onDateSelected: (d) => setState(() => _fechaHasta = d),
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              // Tipo de movimiento
-              DropdownButtonFormField<TipoMovimientoStock?>(
-                initialValue: _tipoFiltro,
-                decoration: InputDecoration(
-                  labelText: 'Tipo de movimiento',
-                  labelStyle: const TextStyle(fontSize: 13),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  isDense: true,
-                ),
-                isExpanded: true,
-                style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
-                items: [
-                  const DropdownMenuItem<TipoMovimientoStock?>(
-                    value: null,
-                    child: Text('Todos', style: TextStyle(fontSize: 13)),
-                  ),
-                  ...TipoMovimientoStock.values.map(
-                    (t) => DropdownMenuItem<TipoMovimientoStock?>(
-                      value: t,
-                      child: Text(t.label, style: const TextStyle(fontSize: 13)),
-                    ),
+                  const SizedBox(width: 8),
+                  CustomButton(
+                    text: 'Buscar',
+                    borderRadius: 6,
+                    onPressed: _loadData,
+                    backgroundColor: AppColors.blue1,
+                    textColor: AppColors.white,
+                    icon: const Icon(Icons.search,
+                        size: 16, color: AppColors.white),
+                    height: 33,
+                    fontSize: 11,
                   ),
                 ],
-                onChanged: (val) {
-                  // Auto-apply al cambiar tipo de movimiento — sin botón Aplicar.
-                  setState(() => _tipoFiltro = val);
-                  _loadData();
-                },
-              ),
-              const SizedBox(height: 8),
-              // Filtro por código de documento (VEN-001234, COM-XYZ, etc.)
-              // con debounce 400ms para no spamear requests por cada tecla.
-              TextField(
-                controller: _documentoCtrl,
-                decoration: InputDecoration(
-                  labelText: 'Documento',
-                  hintText: 'Ej: VEN-001234',
-                  prefixIcon: const Icon(Icons.description, size: 18),
-                  suffixIcon: _documentoCtrl.text.isEmpty
-                      ? null
-                      : IconButton(
-                          icon: const Icon(Icons.close, size: 16),
-                          onPressed: () {
-                            _documentoCtrl.clear();
-                            _documentoDebounce?.cancel();
-                            setState(() {});
-                            _loadData();
-                          },
-                        ),
-                  labelStyle: const TextStyle(fontSize: 13),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  isDense: true,
-                ),
-                style: const TextStyle(fontSize: 13),
-                onChanged: (val) {
-                  // Re-render para mostrar/ocultar el botón close.
-                  setState(() {});
-                  _documentoDebounce?.cancel();
-                  _documentoDebounce = Timer(
-                    const Duration(milliseconds: 400),
-                    _loadData,
-                  );
-                },
               ),
               const SizedBox(height: 10),
-              // Solo dejamos Limpiar; los demás filtros se aplican solos.
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: _clearFilters,
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
+              // Tipo de movimiento + Documento en una sola fila.
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Tipo de movimiento — CustomDropdown (null = "Todos")
+                  Expanded(
+                    child: CustomDropdown<TipoMovimientoStock?>(
+                      label: 'Tipo de movimiento',
+                      hintText: 'Todos',
+                      borderColor: AppColors.blue,
+                      value: _tipoFiltro,
+                      items: [
+                        const DropdownItem<TipoMovimientoStock?>(
+                          value: null,
+                          label: 'Todos',
+                        ),
+                        ...TipoMovimientoStock.values.map(
+                          (t) => DropdownItem<TipoMovimientoStock?>(
+                            value: t,
+                            label: t.label,
+                          ),
+                        ),
+                      ],
+                      onChanged: (val) {
+                        // Auto-apply al cambiar tipo de movimiento.
+                        setState(() => _tipoFiltro = val);
+                        _loadData();
+                      },
+                    ),
                   ),
-                  icon: const Icon(Icons.clear, size: 14),
-                  label: const Text('Limpiar filtros',
-                      style: TextStyle(fontSize: 12)),
-                ),
+                  const SizedBox(width: 8),
+                  // Filtro por código de documento (VEN-00001234, COM-XYZ, etc.)
+                  // con debounce 400ms para no spamear requests por cada tecla.
+                  Expanded(
+                    child: CustomText(
+                      label: 'Documento',
+                      hintText: 'Ej: VEN-00001234',
+                      controller: _documentoCtrl,
+                      borderColor: AppColors.blue,
+                      prefixIcon: const Icon(Icons.description, size: 16),
+                      suffixIcon: _documentoCtrl.text.isEmpty
+                          ? null
+                          : GestureDetector(
+                              onTap: () {
+                                _documentoCtrl.clear();
+                                _documentoDebounce?.cancel();
+                                setState(() {});
+                                _loadData();
+                              },
+                              child: const Icon(Icons.close, size: 16),
+                            ),
+                      onChanged: (val) {
+                        // Re-render para mostrar/ocultar el botón close.
+                        setState(() {});
+                        _documentoDebounce?.cancel();
+                        _documentoDebounce = Timer(
+                          const Duration(milliseconds: 400),
+                          _loadData,
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ),
             ],
           ],
@@ -787,7 +803,7 @@ class _KardexPageState extends State<KardexPage> {
             // Costo unitario (snapshot al momento del movimiento).
             _dCellK(
               m.precioCostoUnitario != null
-                  ? 'S/ ${m.precioCostoUnitario!.toStringAsFixed(4)}'
+                  ? 'S/ ${m.precioCostoUnitario!.toStringAsFixed(2)}'
                   : '—',
               _wCUnit,
               ts,
@@ -854,7 +870,7 @@ class _KardexPageState extends State<KardexPage> {
           _detRow('Saldo', '${m.cantidadAnterior} → ${m.cantidadNueva}'),
           if (m.precioCostoUnitario != null)
             _detRow('Costo unitario',
-                'S/ ${m.precioCostoUnitario!.toStringAsFixed(4)}'),
+                'S/ ${m.precioCostoUnitario!.toStringAsFixed(2)}'),
           if (m.valorMovimiento != null)
             _detRow('Valor del movimiento',
                 'S/ ${m.valorMovimiento!.toStringAsFixed(2)}'),
@@ -935,50 +951,6 @@ class _KardexPageState extends State<KardexPage> {
 // ================================================================
 // WIDGETS INTERNOS
 // ================================================================
-
-class _DateButton extends StatelessWidget {
-  final String label;
-  final DateTime? date;
-  final VoidCallback onTap;
-
-  const _DateButton({
-    required this.label,
-    required this.date,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey.shade400),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.calendar_today, size: 14, color: Colors.grey[600]),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Text(
-                date != null
-                    ? DateFormat('dd/MM/yyyy').format(date!)
-                    : label,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: date != null ? AppColors.textPrimary : Colors.grey,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 class _ResumenStat extends StatelessWidget {
   final String label;

@@ -234,7 +234,7 @@ class _CerrarCajaPageState extends State<CerrarCajaPage> {
         cajaState is CajaActivaAbierta ? cajaState.caja.montoApertura : null;
 
     // Total ingresos categoría VENTA (no anulados). Diferencia con
-    // `resumen.totalIngresos` que incluye TODO ingreso (manuales,
+    // `resumen.totalIngresos` que incluye ingreso (manuales,
     // adelantos, reversiones, etc.). Sirve al cajero para ver cuánto
     // se facturó realmente durante el turno.
     final totalIngresosVentas = movimientos

@@ -46,6 +46,7 @@ class Proveedor extends Equatable {
   final String? direccion;
   final String? ciudad;
   final String? provincia;
+  final String? departamento;
   final String pais;
   final String? codigoPostal;
 
@@ -94,6 +95,7 @@ class Proveedor extends Equatable {
     this.direccion,
     this.ciudad,
     this.provincia,
+    this.departamento,
     this.pais = 'PE',
     this.codigoPostal,
     this.terminosPago,
@@ -184,6 +186,7 @@ class Proveedor extends Equatable {
         direccion,
         ciudad,
         provincia,
+        departamento,
         pais,
         codigoPostal,
         terminosPago,

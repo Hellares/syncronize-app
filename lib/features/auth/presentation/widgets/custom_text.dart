@@ -372,6 +372,10 @@ class CustomText extends StatefulWidget {
   final bool showHelperOnlyOnFocus;
   final TextStyle? helperStyle;
 
+  /// Estilo del mensaje de error (validator/externalError). Si es null usa el
+  /// default (rojo, fontSize 12).
+  final TextStyle? errorStyle;
+
   // Voice input
   final bool enableVoiceInput;
   final String voiceLocale;
@@ -428,6 +432,7 @@ class CustomText extends StatefulWidget {
     this.helperBuilder,
     this.showHelperOnlyOnFocus = true,
     this.helperStyle,
+    this.errorStyle,
 
     // voice input defaults
     this.enableVoiceInput = false,
@@ -1310,11 +1315,14 @@ class _CustomTextFieldState extends State<CustomText>
                     padding: const EdgeInsets.only(top: 3),
                     child: Text(
                       msg,
-                      style: const TextStyle(
-                        color: Colors.red,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w400,
-                      ),
+                      style: widget.errorStyle ??
+                          TextStyle(
+                            color: Colors.red,
+                            fontSize: 7,
+                            fontWeight: FontWeight.w400,
+                            fontFamily: AppFonts.getFontFamily(
+                                AppFont.amazonEmberItalic),
+                          ),
                     ),
                   )
                 : const SizedBox.shrink(),

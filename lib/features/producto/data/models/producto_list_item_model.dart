@@ -24,6 +24,7 @@ class ProductoListItemModel extends ProductoListItem {
     super.aplicaIcbper,
     super.factorCompra,
     super.unidadCompraSimbolo,
+    super.unidadMedidaSimbolo,
   });
 
   factory ProductoListItemModel.fromJson(Map<String, dynamic> json) {
@@ -68,17 +69,23 @@ class ProductoListItemModel extends ProductoListItem {
           ? double.tryParse(json['factorCompra'].toString())
           : null,
       unidadCompraSimbolo: _extractUnidadCompraSimbolo(json),
+      unidadMedidaSimbolo: _extractSimbolo(json['unidadMedida']),
     );
   }
 
   /// Resuelve el símbolo de la unidadCompra siguiendo la jerarquía
   /// local override > personalizado > maestra (igual que el backend).
   static String? _extractUnidadCompraSimbolo(Map<String, dynamic> json) {
-    final uc = json['unidadCompra'];
-    if (uc is! Map<String, dynamic>) return null;
-    return (uc['simboloLocal'] as String?) ??
-        (uc['simboloPersonalizado'] as String?) ??
-        ((uc['unidadMaestra'] as Map<String, dynamic>?)?['simbolo'] as String?);
+    return _extractSimbolo(json['unidadCompra']);
+  }
+
+  /// Resuelve el símbolo de una unidad (compra o medida) con la jerarquía
+  /// local override > personalizado > maestra (igual que el backend).
+  static String? _extractSimbolo(dynamic u) {
+    if (u is! Map<String, dynamic>) return null;
+    return (u['simboloLocal'] as String?) ??
+        (u['simboloPersonalizado'] as String?) ??
+        ((u['unidadMaestra'] as Map<String, dynamic>?)?['simbolo'] as String?);
   }
 
   Map<String, dynamic> toJson() {
@@ -111,6 +118,8 @@ class ProductoListItemModel extends ProductoListItem {
       if (factorCompra != null) 'factorCompra': factorCompra,
       if (unidadCompraSimbolo != null)
         'unidadCompra': {'simboloLocal': unidadCompraSimbolo},
+      if (unidadMedidaSimbolo != null)
+        'unidadMedida': {'simboloLocal': unidadMedidaSimbolo},
     };
   }
 
@@ -167,6 +176,7 @@ class ProductoListItemModel extends ProductoListItem {
       aplicaIcbper: entity.aplicaIcbper,
       factorCompra: entity.factorCompra,
       unidadCompraSimbolo: entity.unidadCompraSimbolo,
+      unidadMedidaSimbolo: entity.unidadMedidaSimbolo,
     );
   }
 }

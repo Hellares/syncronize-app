@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/fonts/app_text_widgets.dart';
 import '../../../../core/network/dio_client.dart';
@@ -29,6 +31,7 @@ class _FlujoDocumentosPageState extends State<FlujoDocumentosPage> {
   List<dynamic> _nodos = [];
   int _totalDocs = 0;
   String _ventaCodigo = '';
+  Map<String, dynamic>? _totales;
 
   // Autocomplete
   List<Map<String, dynamic>> _sugerencias = [];
@@ -69,6 +72,40 @@ class _FlujoDocumentosPageState extends State<FlujoDocumentosPage> {
     } catch (_) {}
   }
 
+  /// Comparte un resumen de texto del flujo (documentos + totales).
+  void _compartir() {
+    final buf = StringBuffer();
+    buf.writeln('Flujo de documentos — $_ventaCodigo');
+    buf.writeln('($_totalDocs documentos)');
+    final t = _totales;
+    if (t != null) {
+      final m = (t['moneda'] == 'USD') ? '\$' : 'S/';
+      buf.writeln('');
+      buf.writeln('Total:    $m ${_formatMonto(t['total'])}');
+      buf.writeln('Cobrado:  $m ${_formatMonto(t['cobrado'])}');
+      buf.writeln('Saldo:    $m ${_formatMonto(t['saldo'])}');
+      if ((t['devuelto'] as num? ?? 0) > 0) {
+        buf.writeln('Devuelto (NC): $m ${_formatMonto(t['devuelto'])}');
+      }
+    }
+    buf.writeln('');
+    buf.writeln('Documentos:');
+    void walk(Map<String, dynamic> n, int depth) {
+      final tipo = _tipoConfig(n['tipo'] as String? ?? '').label;
+      final codigo = n['codigo'] as String? ?? '';
+      final estado = n['estado'] as String? ?? '';
+      buf.writeln('${'  ' * depth}• $tipo $codigo${estado.isNotEmpty ? ' ($estado)' : ''}');
+      for (final h in (n['hijos'] as List<dynamic>? ?? [])) {
+        walk(h as Map<String, dynamic>, depth + 1);
+      }
+    }
+
+    for (final n in _nodos) {
+      walk(n as Map<String, dynamic>, 0);
+    }
+    Share.share(buf.toString(), subject: 'Flujo $_ventaCodigo');
+  }
+
   void _seleccionarSugerencia(String codigo) {
     _codigoController.text = codigo;
     setState(() => _mostrarSugerencias = false);
@@ -98,6 +135,7 @@ class _FlujoDocumentosPageState extends State<FlujoDocumentosPage> {
           _nodos = data['nodos'] as List<dynamic>? ?? [];
           _totalDocs = data['totalDocumentos'] as int? ?? 0;
           _ventaCodigo = data['ventaCodigo'] as String? ?? '';
+          _totales = data['totales'] as Map<String, dynamic>?;
           _buscando = false;
           _buscado = true;
         });
@@ -124,7 +162,17 @@ class _FlujoDocumentosPageState extends State<FlujoDocumentosPage> {
       child: GradientBackground(
         child: Scaffold(
           backgroundColor: Colors.transparent,
-          appBar: const SmartAppBar(title: 'Flujo de Documentos'),
+          appBar: SmartAppBar(
+            title: 'Flujo de Documentos',
+            actions: [
+              if (_buscado && _nodos.isNotEmpty)
+                IconButton(
+                  icon: const Icon(Icons.share, size: 20),
+                  tooltip: 'Compartir flujo',
+                  onPressed: _compartir,
+                ),
+            ],
+          ),
           body: Column(
             children: [
               // Barra de búsqueda
@@ -309,10 +357,63 @@ class _FlujoDocumentosPageState extends State<FlujoDocumentosPage> {
               ),
             ],
           ),
+          if (_totales != null) ...[
+            const SizedBox(height: 10),
+            _buildTotalesCard(_totales!),
+          ],
           const SizedBox(height: 12),
           // Árbol
           ..._nodos.map((nodo) => _buildNodo(context, nodo as Map<String, dynamic>, 0)),
         ],
+      ),
+    );
+  }
+
+  Widget _buildTotalesCard(Map<String, dynamic> t) {
+    final m = (t['moneda'] == 'USD') ? '\$' : 'S/';
+    final saldo = (t['saldo'] as num?)?.toDouble() ?? 0;
+    final devuelto = (t['devuelto'] as num?)?.toDouble() ?? 0;
+    Widget kpi(String label, dynamic valor, Color color) {
+      return Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AppText(label, size: 8, color: Colors.grey),
+            const SizedBox(height: 1),
+            Text('$m ${_formatMonto(valor)}',
+                style: TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.w700, color: color)),
+          ],
+        ),
+      );
+    }
+
+    return GradientContainer(
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          children: [
+            Row(children: [
+              kpi('Total', t['total'], AppColors.blue1),
+              kpi('Cobrado', t['cobrado'], Colors.green.shade700),
+              kpi('Saldo', t['saldo'],
+                  saldo > 0 ? Colors.orange.shade800 : Colors.green.shade700),
+            ]),
+            if (devuelto > 0) ...[
+              const Divider(height: 14),
+              Row(children: [
+                Icon(Icons.assignment_return,
+                    size: 12, color: Colors.red.shade700),
+                const SizedBox(width: 4),
+                AppText(
+                    'Devuelto (NC): $m ${_formatMonto(devuelto)}'
+                    '${(t['numDevoluciones'] as int? ?? 0) > 0 ? ' · ${t['numDevoluciones']} devolución(es)' : ''}',
+                    size: 9,
+                    color: Colors.red.shade700),
+              ]),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -342,6 +443,18 @@ class _FlujoDocumentosPageState extends State<FlujoDocumentosPage> {
       children: [
         InkWell(
           onTap: ruta != null ? () => context.push(ruta) : null,
+          onLongPress: codigo.isEmpty
+              ? null
+              : () {
+                  Clipboard.setData(ClipboardData(text: codigo));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Copiado: $codigo'),
+                      duration: const Duration(seconds: 1),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                },
           borderRadius: BorderRadius.circular(8),
           child: IntrinsicHeight(
             child: Row(

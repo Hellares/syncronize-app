@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
+import 'package:syncronize/core/widgets/custom_button.dart';
 import 'package:syncronize/core/widgets/custom_search_field.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import '../../../../core/di/injection_container.dart';
@@ -153,7 +154,12 @@ class ProveedoresPage extends StatelessWidget {
               ],
             ),
           ),
-          floatingActionButton: FloatingActionButton.extended(
+          floatingActionButton: CustomButton(
+            text: 'Nuevo',
+            icon: const Icon(Icons.add, size: 16, color: Colors.white),
+            backgroundColor: AppColors.blue1,
+            width: 110,
+            height: 42,
             onPressed: () async {
               final cubit = context.read<ProveedorListCubit>();
               final result = await context.push(
@@ -163,8 +169,6 @@ class ProveedoresPage extends StatelessWidget {
                 cubit.reload();
               }
             },
-            icon: const Icon(Icons.add),
-            label: const Text('Nuevo Proveedor'),
           ),
         ),
       ),

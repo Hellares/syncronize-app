@@ -3,6 +3,7 @@ import '../di/injection_container.dart';
 import '../theme/app_colors.dart';
 import '../fonts/app_text_widgets.dart';
 import '../widgets/custom_search_field.dart';
+import '../../features/auth/presentation/widgets/custom_text.dart';
 import '../utils/resource.dart';
 import '../../features/proveedor/domain/entities/proveedor.dart';
 import '../../features/proveedor/domain/usecases/get_proveedores_usecase.dart';
@@ -49,7 +50,7 @@ class ProveedorSelectionResult {
 ///   },
 /// )
 /// ```
-class CustomProveedorSelector extends StatelessWidget {
+class CustomProveedorSelector extends StatefulWidget {
   final String empresaId;
   final String? proveedorId;
   final String? proveedorNombre;
@@ -69,98 +70,94 @@ class CustomProveedorSelector extends StatelessWidget {
     this.label = 'Proveedor',
   });
 
-  Future<void> _openSelector(BuildContext context) async {
+  @override
+  State<CustomProveedorSelector> createState() =>
+      _CustomProveedorSelectorState();
+}
+
+class _CustomProveedorSelectorState extends State<CustomProveedorSelector> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.proveedorNombre ?? '');
+  }
+
+  @override
+  void didUpdateWidget(CustomProveedorSelector oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.proveedorNombre != widget.proveedorNombre) {
+      // didUpdateWidget corre durante el build del padre. Mutar el controller
+      // aquí notifica al TextFormField interno, que llama setState en el Form
+      // ancestro durante el build → "setState during build". Lo diferimos al
+      // siguiente frame.
+      final text = widget.proveedorNombre ?? '';
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _controller.text != text) {
+          _controller.text = text;
+        }
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _openSelector() async {
     final result = await _ProveedorSearchBottomSheet.show(
       context: context,
-      empresaId: empresaId,
+      empresaId: widget.empresaId,
     );
-
     if (result != null) {
-      onSelected(result);
+      widget.onSelected(result);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final hasValue = proveedorId != null;
+    final hasValue = widget.proveedorId != null;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Stack(
+      alignment: Alignment.centerRight,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-            color: Colors.grey[700],
-          ),
-        ),
-        const SizedBox(height: 6),
-        InkWell(
-          onTap: enabled ? () => _openSelector(context) : null,
-          borderRadius: BorderRadius.circular(8),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-            decoration: BoxDecoration(
-              border: Border.all(
-                color: !enabled
-                    ? Colors.grey.shade300
-                    : hasValue
-                        ? AppColors.blue1
-                        : Colors.grey.shade400,
-              ),
-              borderRadius: BorderRadius.circular(8),
-              color: !enabled ? Colors.grey.shade100 : null,
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.local_shipping_outlined,
-                  size: 20,
-                  color: hasValue
-                      ? (!enabled ? Colors.grey[500] : AppColors.blue1)
-                      : Colors.grey[600],
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: hasValue
-                      ? Text(
-                          proveedorNombre ?? proveedorId!,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: !enabled ? Colors.grey[600] : null,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        )
-                      : Text(
-                          'Seleccionar proveedor',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[500],
-                          ),
-                        ),
-                ),
-                if (enabled)
-                  hasValue && onCleared != null
-                      ? GestureDetector(
-                          onTap: onCleared,
-                          child: Icon(
-                            Icons.close,
-                            size: 18,
-                            color: Colors.grey[500],
-                          ),
-                        )
-                      : Icon(
-                          Icons.search,
-                          size: 18,
-                          color: Colors.grey[500],
-                        ),
-              ],
+        // El campo se ve y se siente como un CustomText. AbsorbPointer evita
+        // que tome foco/teclado; el tap lo captura el GestureDetector y abre
+        // el bottom sheet.
+        GestureDetector(
+          onTap: widget.enabled ? _openSelector : null,
+          child: AbsorbPointer(
+            child: CustomText(
+              controller: _controller,
+              label: widget.label,
+              hintText: 'Seleccionar proveedor',
+              readOnly: true,
+              enabled: widget.enabled,
+              borderColor: AppColors.blue1,
+              prefixIcon:
+                  const Icon(Icons.local_shipping_outlined, size: 16),
+              // Reserva espacio a la derecha: lupa si no hay valor, o hueco
+              // para la X de limpiar (que va superpuesta y sí es tappable).
+              suffixIcon: hasValue
+                  ? const SizedBox(width: 18)
+                  : const Icon(Icons.search, size: 18),
             ),
           ),
         ),
+        if (hasValue && widget.enabled && widget.onCleared != null)
+          Padding(
+            // Alinea con el label de arriba (el CustomText añade ~11px de
+            // label + gap, así que bajamos un poco la X para centrarla en
+            // el campo).
+            padding: const EdgeInsets.only(right: 8, top: 11),
+            child: GestureDetector(
+              onTap: widget.onCleared,
+              child: Icon(Icons.close, size: 18, color: Colors.grey[500]),
+            ),
+          ),
       ],
     );
   }
@@ -268,15 +265,13 @@ class _ProveedorSearchBottomSheetState
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.85,
-      ),
+      // Altura fija al 70% de la pantalla.
+      height: MediaQuery.of(context).size.height * 0.70,
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
         children: [
           // Handle bar
           Container(
@@ -301,7 +296,7 @@ class _ProveedorSearchBottomSheetState
             ),
           ),
           // Body
-          Flexible(child: _buildBody()),
+          Expanded(child: _buildBody()),
         ],
       ),
     );
@@ -397,10 +392,10 @@ class _ProveedorSearchBottomSheetState
       );
     }
 
-    return ListView.builder(
-      shrinkWrap: true,
+    return ListView.separated(
       padding: const EdgeInsets.symmetric(horizontal: 16).copyWith(bottom: 16),
       itemCount: _filtered.length,
+      separatorBuilder: (_, __) => Divider(height: 1, color: Colors.grey.shade200),
       itemBuilder: (context, index) {
         final proveedor = _filtered[index];
         return _buildProveedorTile(proveedor);
@@ -411,23 +406,17 @@ class _ProveedorSearchBottomSheetState
   Widget _buildProveedorTile(Proveedor proveedor) {
     return InkWell(
       onTap: () => Navigator.pop(context, _resultFrom(proveedor)),
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          border: Border.all(color: AppColors.blueborder),
-          borderRadius: BorderRadius.circular(8),
-        ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
         child: Row(
           children: [
             // Iniciales
             Container(
-              width: 40,
-              height: 40,
+              width: 34,
+              height: 34,
               decoration: BoxDecoration(
                 color: AppColors.bluechip,
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(17),
               ),
               child: Center(
                 child: Text(
@@ -435,7 +424,7 @@ class _ProveedorSearchBottomSheetState
                   style: const TextStyle(
                     color: AppColors.blue1,
                     fontWeight: FontWeight.bold,
-                    fontSize: 14,
+                    fontSize: 13,
                   ),
                 ),
               ),
@@ -449,7 +438,7 @@ class _ProveedorSearchBottomSheetState
                   Text(
                     proveedor.nombre,
                     style: const TextStyle(
-                      fontSize: 13,
+                      fontSize: 11,
                       fontWeight: FontWeight.w600,
                     ),
                     maxLines: 1,
@@ -459,7 +448,7 @@ class _ProveedorSearchBottomSheetState
                   Text(
                     '${proveedor.tipoDocumento.name}: ${proveedor.numeroDocumento}  •  ${proveedor.codigo}',
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 9,
                       color: Colors.grey[600],
                     ),
                   ),

@@ -199,13 +199,42 @@ class ProductoCategorizacionSection extends StatelessWidget {
     return BlocBuilder<EmpresaContextCubit, EmpresaContextState>(
       builder: (context, state) {
         if (state is EmpresaContextLoaded) {
-          return UnidadMedidaDropdown(
-            empresaId: state.context.empresa.id,
-            selectedUnidadId: selectedUnidadMedidaId,
-            onChanged: onUnidadMedidaChanged,
-            labelText: 'Unidad de medida',
-            hintText: 'Selecciona la unidad',
-            autoSelectDefault: !isEditing,
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              UnidadMedidaDropdown(
+                empresaId: state.context.empresa.id,
+                selectedUnidadId: selectedUnidadMedidaId,
+                onChanged: onUnidadMedidaChanged,
+                labelText: 'Unidad de medida',
+                hintText: 'Selecciona la unidad',
+                autoSelectDefault: !isEditing,
+              ),
+              const SizedBox(height: 4),
+              // El stock se maneja en ENTEROS en esta unidad. Si vas a usar
+              // medidas fraccionadas, elegí la unidad más pequeña/granular.
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.info_outline,
+                      size: 12, color: AppColors.red),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      'Si vas a usar medidas fraccionadas (ej. 1.5 kg, 30 cm), '
+                      'elegí la unidad más pequeña (g, cm, ml). El stock se '
+                      'maneja en enteros; para comprar en la unidad grande usá '
+                      '"Unidad de compra" + factor.',
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontStyle: FontStyle.italic,
+                        color: AppColors.red,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           );
         }
         return const SizedBox.shrink();

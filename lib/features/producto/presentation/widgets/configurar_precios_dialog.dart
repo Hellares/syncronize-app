@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:syncronize/core/di/injection_container.dart';
+import 'package:syncronize/core/network/dio_client.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/app_gradients.dart';
@@ -69,6 +70,16 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
   /// botón papelera mientras la request está en vuelo).
   final Set<String> _eliminandoNiveles = {};
 
+  // Info de unidad de compra del insumo (para mostrar el costo por kg/m/caja).
+  // Se carga con un GET /productos/{id} solo si el producto es insumo.
+  double? _factorCompra;
+  String? _simboloCompra;
+  String? _simboloBase;
+
+  /// Insumo: no se vende directamente (bloqueado en POS/marketplace/carrito/
+  /// combo), así que oferta, liquidación y precios por volumen no aplican.
+  bool get _esInsumo => widget.stock.producto?.esInsumo == true;
+
   @override
   void initState() {
     super.initState();
@@ -106,6 +117,98 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
     _precioNivelRepo = locator<PrecioNivelRepository>();
     _nivelCacheService = locator<PrecioNivelCacheService>();
     _cargarNivelesExistentes();
+
+    // Para insumos con unidad de compra: refrescar el costo equivalente al
+    // editar el costo, y traer factor + símbolos del producto.
+    _precioCostoController.addListener(_onCostoChanged);
+    if (widget.stock.producto?.esInsumo == true &&
+        widget.stock.productoId != null) {
+      _cargarInfoCompra();
+    }
+  }
+
+  void _onCostoChanged() {
+    if (mounted) setState(() {});
+  }
+
+  /// GET /productos/{id} para obtener factorCompra + símbolos de unidad de
+  /// compra y base (informativo; si falla, no se muestra el label).
+  Future<void> _cargarInfoCompra() async {
+    try {
+      final resp =
+          await locator<DioClient>().get('/productos/${widget.stock.productoId}');
+      final det = resp.data as Map<String, dynamic>?;
+      if (!mounted || det == null) return;
+      final fc = det['factorCompra'];
+      setState(() {
+        _factorCompra = fc is num
+            ? fc.toDouble()
+            : (fc is String ? double.tryParse(fc) : null);
+        _simboloCompra = _simboloDeUnidad(det['unidadCompra']);
+        _simboloBase = _simboloDeUnidad(det['unidadMedida']);
+      });
+    } catch (_) {
+      // Silencioso: el costo por unidad de compra es solo informativo.
+    }
+  }
+
+  String? _simboloDeUnidad(dynamic um) {
+    if (um is! Map) return null;
+    final maestra = um['unidadMaestra'];
+    return (um['simboloLocal'] ??
+        um['simboloPersonalizado'] ??
+        (maestra is Map ? maestra['simbolo'] : null)) as String?;
+  }
+
+  /// Label informativo: costo por unidad de COMPRA (kg, m, caja…) = costo
+  /// por unidad base × factorCompra. Solo para insumos con unidad de compra
+  /// configurada. Se actualiza en vivo al editar el precio de costo.
+  Widget _buildCostoUnidadCompra() {
+    final factor = _factorCompra;
+    final simbolo = _simboloCompra;
+    if (factor == null ||
+        factor <= 1 ||
+        simbolo == null ||
+        simbolo.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    final cv = _precioCostoController.currencyValue;
+    final costoBase = cv > 0 ? cv : (widget.stock.precioCosto ?? 0);
+    if (costoBase <= 0) return const SizedBox.shrink();
+    final costoCompra = costoBase * factor;
+    final base = _simboloBase ?? 'u';
+    final factorTxt = factor == factor.truncateToDouble()
+        ? factor.toStringAsFixed(0)
+        : factor.toStringAsFixed(2);
+    return Padding(
+      padding: const EdgeInsets.only(top: 4, bottom: 2),
+      child: Row(
+        children: [
+          Icon(Icons.sell_outlined, size: 12, color: AppColors.blue1),
+          const SizedBox(width: 4),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: TextStyle(
+                    fontSize: 10, color: AppColors.textSecondary),
+                children: [
+                  TextSpan(text: 'Costo por $simbolo: '),
+                  TextSpan(
+                    text: '$_simboloMoneda ${costoCompra.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700, color: AppColors.blue1),
+                  ),
+                  TextSpan(
+                    text:
+                        '  ($_simboloMoneda ${costoBase.toStringAsFixed(2)}/$base × $factorTxt)',
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _cargarNivelesExistentes() async {
@@ -136,6 +239,7 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
 
   @override
   void dispose() {
+    _precioCostoController.removeListener(_onCostoChanged);
     _precioController.dispose();
     _precioCostoController.dispose();
     _precioOfertaController.dispose();
@@ -459,6 +563,7 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
                               },
                             ),
                           ),
+                          if (!_esInsumo) ...[
                           const SizedBox(width: 8),
                           Expanded(
                             flex: 1,
@@ -503,8 +608,10 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
                               ),
                             ),
                           ),
+                          ],
                         ],
                       ),
+                      _buildCostoUnidadCompra(),
                       InkWell(
                         onTap: _abrirCalculadoraLote,
                         borderRadius: BorderRadius.circular(4),
@@ -530,7 +637,7 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
                         ),
                       ),
 
-                      if (_enOferta) ...[
+                      if (!_esInsumo && _enOferta) ...[
                         const SizedBox(height: 8),
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.end,
@@ -592,15 +699,19 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
                         ),
                       ],
 
-                      // ── Sección Liquidación (remate bajo costo) ──
-                      const SizedBox(height: 8),
-                      const Divider(),
-                      _buildSeccionLiquidacion(),
+                      // Liquidación y Precios por Volumen no aplican a insumos
+                      // (no se venden directamente).
+                      if (!_esInsumo) ...[
+                        // ── Sección Liquidación (remate bajo costo) ──
+                        const SizedBox(height: 8),
+                        const Divider(),
+                        _buildSeccionLiquidacion(),
 
-                      // ── Sección Precios por Volumen (gestión de niveles) ──
-                      const SizedBox(height: 8),
-                      const Divider(),
-                      _buildSeccionNiveles(),
+                        // ── Sección Precios por Volumen (gestión de niveles) ──
+                        const SizedBox(height: 8),
+                        const Divider(),
+                        _buildSeccionNiveles(),
+                      ],
                     ],
                   ),
                 ),
