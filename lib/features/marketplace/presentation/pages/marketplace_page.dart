@@ -54,6 +54,7 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
   double? _ubicacionLng;
   String? _ubicacionLabel;
   List<dynamic> _vistos = [];
+  List<dynamic> _recomendados = [];
   List<dynamic> _ofertas = [];
   List<dynamic> _masVistos = [];
   List<dynamic> _masVendidos = [];
@@ -124,13 +125,24 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
     if (token == null || token.isEmpty) return;
 
     FavoritoButton.loadFavoritos();
+    final dio = locator<DioClient>();
     try {
-      final dio = locator<DioClient>();
       final response = await dio.get(
         '${ApiConstants.marketplaceUsuario}/vistos',
         queryParameters: {'limit': '10'},
       );
       if (mounted) setState(() => _vistos = response.data as List);
+    } catch (_) {}
+    // Recomendados por historial de navegación (sección "Recomendados para ti").
+    try {
+      final response = await dio.get(
+        '${ApiConstants.marketplaceUsuario}/recomendados',
+        queryParameters: {'limit': '12'},
+      );
+      final data = response.data as Map<String, dynamic>;
+      if (mounted) {
+        setState(() => _recomendados = (data['recomendados'] as List?) ?? []);
+      }
     } catch (_) {}
   }
 
@@ -466,6 +478,9 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
                     if (!esHome) return const SizedBox.shrink();
                     return Column(
                       children: [
+                        if (_recomendados.isNotEmpty)
+                          _buildSeccionCarrusel(
+                              'Recomendados para ti', _recomendados),
                         if (_ofertas.isNotEmpty)
                           _buildSeccionCarrusel('Ofertas', _ofertas,
                               acento: Colors.red),

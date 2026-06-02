@@ -162,6 +162,11 @@ class _EmpresaPublicProfilePageState extends State<EmpresaPublicProfilePage> {
     final totalProductos = e['totalProductos'] as int? ?? counts['productos'] as int? ?? 0;
     final totalServicios = e['totalServicios'] as int? ?? counts['servicios'] as int? ?? 0;
 
+    // Reputación del vendedor (promedio de opiniones de sus productos)
+    final reputacion = e['reputacion'] as Map<String, dynamic>? ?? const {};
+    final repPromedio = (reputacion['promedio'] as num?)?.toDouble() ?? 0;
+    final repTotal = reputacion['totalOpiniones'] as int? ?? 0;
+
     // Personalización
     final personalizaciones = e['personalizaciones'] as List<dynamic>? ?? [];
     final personalizacion = personalizaciones.isNotEmpty ? personalizaciones[0] as Map<String, dynamic> : null;
@@ -277,16 +282,23 @@ class _EmpresaPublicProfilePageState extends State<EmpresaPublicProfilePage> {
                           ),
                           const SizedBox(height: 14),
                           // Stats
-                          Row(
-                            children: [
-                              _statChip(Icons.inventory_2, '$totalProductos productos'),
-                              const SizedBox(width: 8),
-                              _statChip(Icons.build_circle, '$totalServicios servicios'),
-                              if (miembroDesde != null) ...[
+                          SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: [
+                                if (repTotal > 0) ...[
+                                  _reputacionChip(repPromedio, repTotal),
+                                  const SizedBox(width: 8),
+                                ],
+                                _statChip(Icons.inventory_2, '$totalProductos productos'),
                                 const SizedBox(width: 8),
-                                _statChip(Icons.verified, 'Desde ${_formatDate(miembroDesde)}'),
+                                _statChip(Icons.build_circle, '$totalServicios servicios'),
+                                if (miembroDesde != null) ...[
+                                  const SizedBox(width: 8),
+                                  _statChip(Icons.verified, 'Desde ${_formatDate(miembroDesde)}'),
+                                ],
                               ],
-                            ],
+                            ),
                           ),
                         ],
                       ),
@@ -627,6 +639,31 @@ class _EmpresaPublicProfilePageState extends State<EmpresaPublicProfilePage> {
         fontWeight: FontWeight.bold,
         fontFamily: AppFonts.getFontFamily(AppFont.pirulentBold),
         color: AppColors.blue2,
+      ),
+    );
+  }
+
+  Widget _reputacionChip(double promedio, int total) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.amber.withValues(alpha: 0.22),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.star, size: 12, color: Colors.amber),
+          const SizedBox(width: 4),
+          Text(
+            '${promedio.toStringAsFixed(1)} ($total)',
+            style: const TextStyle(
+              fontSize: 10,
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }
