@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:syncronize/core/widgets/info_chip.dart';
 import 'package:syncronize/core/widgets/animated_container.dart';
+import 'package:syncronize/core/widgets/animated_confirm_dialog.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/services/storage_service.dart';
@@ -1163,24 +1164,13 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
   }
 
   Future<void> _confirmDeleteArchivo(ArchivoResponse archivo) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await AnimatedConfirmDialog.show(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Eliminar imagen', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-        content: const Text('Se eliminara esta imagen del servicio.', style: TextStyle(fontSize: 13)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
-            child: const Text('Eliminar'),
-          ),
-        ],
-      ),
+      title: 'Eliminar imagen',
+      message: 'Se eliminara esta imagen del servicio.',
+      cancelText: 'Cancelar',
+      confirmText: 'Eliminar',
+      confirmButtonColor: AppColors.red,
     );
 
     if (confirmed != true || !mounted) return;
@@ -3127,53 +3117,86 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: const Color(0xFF25D366).withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(Icons.chat, color: Color(0xFF25D366), size: 20),
+      barrierColor: const Color(0x1A000000),
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: AnimatedNeonBorder(
+          borderRadius: 16,
+          borderWidth: 1.5,
+          padding: const EdgeInsets.all(1.5),
+          enableHighlight: true,
+          highlightWidth: 0.12,
+          highlightOpacity: 0.85,
+          duration: const Duration(seconds: 5),
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 420),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
             ),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Text('Notificar al cliente',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF25D366).withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.chat,
+                          color: Color(0xFF25D366), size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text('Notificar al cliente',
+                          style: TextStyle(
+                              fontSize: 15, fontWeight: FontWeight.w700)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                const Text(
+                  'Enviar notificacion por WhatsApp al cliente sobre el cambio de estado?',
+                  style: TextStyle(fontSize: 13),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: Text('No',
+                          style: TextStyle(color: Colors.grey.shade600)),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        WhatsAppNotificationService.notificarCambioEstado(
+                          orden: _orden!,
+                          nuevoEstado: nuevoEstado,
+                          empresaNombre: (empresaState).context.empresa.nombre,
+                        );
+                      },
+                      icon: const Icon(Icons.chat, size: 16),
+                      label: const Text('Enviar'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF25D366),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8)),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ],
-        ),
-        content: const Text(
-          'Enviar notificacion por WhatsApp al cliente sobre el cambio de estado?',
-          style: TextStyle(fontSize: 13),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('No', style: TextStyle(color: Colors.grey.shade600)),
           ),
-          ElevatedButton.icon(
-            onPressed: () {
-              Navigator.pop(ctx);
-              WhatsAppNotificationService.notificarCambioEstado(
-                orden: _orden!,
-                nuevoEstado: nuevoEstado,
-                empresaNombre: (empresaState).context.empresa.nombre,
-              );
-            },
-            icon: const Icon(Icons.chat, size: 16),
-            label: const Text('Enviar'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF25D366),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8)),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -3195,31 +3218,13 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
   }
 
   void _removeComponente(OrdenComponente comp) async {
-    final confirm = await showDialog<bool>(
+    final confirm = await AnimatedConfirmDialog.show(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Eliminar componente',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-        content: const Text(
-          'Se eliminara este componente de la orden.',
-          style: TextStyle(fontSize: 13),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Eliminar'),
-          ),
-        ],
-      ),
+      title: 'Eliminar componente',
+      message: 'Se eliminara este componente de la orden.',
+      cancelText: 'Cancelar',
+      confirmText: 'Eliminar',
+      confirmButtonColor: AppColors.red,
     );
 
     if (confirm != true || !mounted) return;
@@ -3575,15 +3580,38 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
 
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Tercerizar servicio', style: TextStyle(fontSize: 15)),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: SingleChildScrollView(
+      barrierColor: const Color(0x1A000000),
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: AnimatedNeonBorder(
+          borderRadius: 16,
+          borderWidth: 1.5,
+          padding: const EdgeInsets.all(1.5),
+          enableHighlight: true,
+          highlightWidth: 0.12,
+          highlightOpacity: 0.85,
+          duration: const Duration(seconds: 5),
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 460),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            padding: const EdgeInsets.all(20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                const Text('Tercerizar servicio',
+                    style:
+                        TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 14),
+                Flexible(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                 Text(
                   'Se enviará la solicitud a:',
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
@@ -3647,22 +3675,32 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                   maxLines: 2,
                   style: const TextStyle(fontSize: 13),
                 ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      child: const Text('Cancelar'),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.blue1),
+                      child: const Text('Enviar solicitud',
+                          style: TextStyle(color: Colors.white)),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.blue1),
-            child: const Text('Enviar solicitud',
-                style: TextStyle(color: Colors.white)),
-          ),
-        ],
       ),
     );
 
