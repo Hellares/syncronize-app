@@ -160,7 +160,6 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
         ),
         body: _buildBody(),
         bottomNavigationBar: _buildBottomActions(),
-        floatingActionButton: _buildAccionesFab(),
       ),
     );
   }
@@ -206,7 +205,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
       onRefresh: _loadAll,
       color: AppColors.blue1,
       child: ListView(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(10),
         children: [
           // ─── Card principal: Info general ───
           _buildInfoCard(),
@@ -2561,39 +2560,40 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
 
   // ─── Bottom Actions ───
 
-  /// FAB desplegable solo para acciones secundarias: Cancelar y Tercerizar (B2B).
-  Widget? _buildAccionesFab() {
-    if (_orden == null) return null;
-    final validTransitions = _getValidTransitions(_orden!.estado);
-
-    final acciones = <_AccionDial>[];
-    if (validTransitions.contains('CANCELADO')) {
-      acciones.add(_AccionDial(
-        label: 'Cancelar orden',
-        icon: Icons.close,
-        color: Colors.red,
-        onTap: () => _showTransitionDialog('CANCELADO'),
-      ));
-    }
-    if (validTransitions.contains('TERCERIZADO') && _orden!.isClienteFinal) {
-      acciones.add(_AccionDial(
-        label: 'Tercerizar (B2B)',
-        icon: Icons.swap_horiz,
-        color: Colors.deepPurple,
-        onTap: () => _iniciarTercerizacion(),
-      ));
-    }
-    if (acciones.isEmpty) return null;
-
-    // Si hay barra inferior fija, elevar el FAB para que flote por encima de ella.
-    final hayBarra = validTransitions.any(
-            (e) => e != 'CANCELADO' && e != 'TERCERIZADO' && e != 'ENTREGADO') ||
-        _orden!.estado == 'REPARADO' ||
-        _orden!.estado == 'LISTO_ENTREGA';
-
-    return _OrdenAccionesSpeedDial(
-      acciones: acciones,
-      bottomInset: hayBarra ? 60 : 0,
+  /// Botón ⋮ con menú de acciones secundarias (Cancelar orden, Tercerizar B2B).
+  Widget _buildMasAccionesMenu(List<_AccionDial> acciones) {
+    return PopupMenuButton<_AccionDial>(
+      tooltip: 'Más acciones',
+      position: PopupMenuPosition.over,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      onSelected: (a) => a.onTap(),
+      itemBuilder: (_) => acciones
+          .map((a) => PopupMenuItem<_AccionDial>(
+                value: a,
+                height: 44,
+                child: Row(
+                  children: [
+                    Icon(a.icon, size: 18, color: a.color),
+                    const SizedBox(width: 10),
+                    Text(a.label,
+                        style: TextStyle(
+                            color: a.color,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13)),
+                  ],
+                ),
+              ))
+          .toList(),
+      child: Container(
+        height: 35,
+        width: 42,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade300, width: 0.8),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(Icons.more_vert, size: 20, color: Colors.grey.shade700),
+      ),
     );
   }
 
@@ -2609,7 +2609,27 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
         .toList();
     final showCobrar =
         _orden!.estado == 'REPARADO' || _orden!.estado == 'LISTO_ENTREGA';
-    if (mains.isEmpty && !showCobrar) return null;
+
+    // Acciones secundarias para el menú ⋮.
+    final secundarias = <_AccionDial>[];
+    if (validTransitions.contains('CANCELADO')) {
+      secundarias.add(_AccionDial(
+        label: 'Cancelar orden',
+        icon: Icons.close,
+        color: Colors.red,
+        onTap: () => _showTransitionDialog('CANCELADO'),
+      ));
+    }
+    if (validTransitions.contains('TERCERIZADO') && _orden!.isClienteFinal) {
+      secundarias.add(_AccionDial(
+        label: 'Tercerizar (B2B)',
+        icon: Icons.swap_horiz,
+        color: Colors.deepPurple,
+        onTap: () => _iniciarTercerizacion(),
+      ));
+    }
+
+    if (mains.isEmpty && !showCobrar && secundarias.isEmpty) return null;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -2673,6 +2693,11 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
               ),
             );
           }),
+          // Menú ⋮ con acciones secundarias (Cancelar, B2B)
+          if (secundarias.isNotEmpty) ...[
+            if (mains.isNotEmpty || showCobrar) const SizedBox(width: 6),
+            _buildMasAccionesMenu(secundarias),
+          ],
         ],
       ),
     );
@@ -3961,161 +3986,4 @@ class _AccionDial {
     required this.color,
     required this.onTap,
   });
-}
-
-/// SpeedDial (FAB desplegable) con las acciones de estado de la orden.
-class _OrdenAccionesSpeedDial extends StatefulWidget {
-  final List<_AccionDial> acciones;
-  // Espacio inferior para elevar el FAB por encima de la barra fija.
-  final double bottomInset;
-  const _OrdenAccionesSpeedDial({
-    required this.acciones,
-    this.bottomInset = 0,
-  });
-
-  @override
-  State<_OrdenAccionesSpeedDial> createState() =>
-      _OrdenAccionesSpeedDialState();
-}
-
-class _OrdenAccionesSpeedDialState extends State<_OrdenAccionesSpeedDial>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-  late final Animation<double> _expand;
-  bool _isOpen = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 250),
-    );
-    _expand = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _toggle() {
-    setState(() {
-      _isOpen = !_isOpen;
-      _isOpen ? _controller.forward() : _controller.reverse();
-    });
-  }
-
-  void _close() {
-    if (_isOpen) {
-      setState(() => _isOpen = false);
-      _controller.reverse();
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: widget.bottomInset),
-      child: SizedBox(
-      width: 260,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          SizeTransition(
-            sizeFactor: _expand,
-            axisAlignment: -1,
-            child: FadeTransition(
-              opacity: _expand,
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    for (int i = 0; i < widget.acciones.length; i++) ...[
-                      if (i > 0) const SizedBox(height: 8),
-                      _SpeedDialItemOrden(
-                        accion: widget.acciones[i],
-                        onTap: () {
-                          _close();
-                          widget.acciones[i].onTap();
-                        },
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-          ),
-          FloatingActionButton.small(
-            heroTag: 'orden_acciones_dial',
-            onPressed: _toggle,
-            backgroundColor: _isOpen ? Colors.grey.shade700 : AppColors.blue1,
-            child: AnimatedRotation(
-              turns: _isOpen ? 0.125 : 0,
-              duration: const Duration(milliseconds: 250),
-              child: Icon(
-                _isOpen ? Icons.close : Icons.bolt,
-                color: Colors.white,
-                size: 20,
-              ),
-            ),
-          ),
-        ],
-      ),
-      ),
-    );
-  }
-}
-
-class _SpeedDialItemOrden extends StatelessWidget {
-  final _AccionDial accion;
-  final VoidCallback onTap;
-  const _SpeedDialItemOrden({required this.accion, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Flexible(
-          child: Material(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(6),
-            elevation: 2,
-            shadowColor: Colors.black26,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(6),
-              onTap: onTap,
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                child: Text(
-                  accion.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: accion.color,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        FloatingActionButton.small(
-          heroTag: 'dial_${accion.label}',
-          onPressed: onTap,
-          backgroundColor: accion.color,
-          elevation: 2,
-          child: Icon(accion.icon, color: Colors.white, size: 18),
-        ),
-      ],
-    );
-  }
 }
