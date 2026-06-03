@@ -240,15 +240,18 @@ class _OrdenesContentState extends State<_OrdenesContent> {
             ),
           ),
         ),
-        floatingActionButton: FloatingButtonIcon(
-          onPressed: () async {
-            final cubit = context.read<OrdenServicioListCubit>();
-            await context.push('/empresa/ordenes/crear');
-            if (!mounted) return;
-            cubit.refresh();
-          },
-          icon: Icons.add,
-        ),
+        // Crear orden solo para staff/empresa, no para el cliente.
+        floatingActionButton: widget.asCliente
+            ? null
+            : FloatingButtonIcon(
+                onPressed: () async {
+                  final cubit = context.read<OrdenServicioListCubit>();
+                  await context.push('/empresa/ordenes/crear');
+                  if (!mounted) return;
+                  cubit.refresh();
+                },
+                icon: Icons.add,
+              ),
       ),
     );
   }
@@ -309,42 +312,45 @@ class _OrdenesContentState extends State<_OrdenesContent> {
                   Text('No hay órdenes de servicio',
                       style: TextStyle(
                           fontSize: 15, color: Colors.grey.shade500)),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Para crear una orden necesitas tener al menos un servicio registrado',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                        fontSize: 12, color: Colors.grey.shade400),
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      OutlinedButton.icon(
-                        onPressed: () => context.push('/empresa/servicios'),
-                        icon: const Icon(Icons.room_service, size: 16),
-                        label: const Text('Ir a Servicios'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.blue1,
-                          side: const BorderSide(color: AppColors.blue1, width: 0.8),
+                  // El cliente no crea órdenes: ocultar guía + botones de gestión.
+                  if (!widget.asCliente) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      'Para crear una orden necesitas tener al menos un servicio registrado',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          fontSize: 12, color: Colors.grey.shade400),
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: () => context.push('/empresa/servicios'),
+                          icon: const Icon(Icons.room_service, size: 16),
+                          label: const Text('Ir a Servicios'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.blue1,
+                            side: const BorderSide(color: AppColors.blue1, width: 0.8),
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 10),
-                      FilledButton.icon(
-                        onPressed: () async {
-                          final cubit = context.read<OrdenServicioListCubit>();
-                          await context.push('/empresa/ordenes/crear');
-                          if (!context.mounted) return;
-                          cubit.refresh();
-                        },
-                        icon: const Icon(Icons.add, size: 16),
-                        label: const Text('Nueva Orden'),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: AppColors.blue1,
+                        const SizedBox(width: 10),
+                        FilledButton.icon(
+                          onPressed: () async {
+                            final cubit = context.read<OrdenServicioListCubit>();
+                            await context.push('/empresa/ordenes/crear');
+                            if (!context.mounted) return;
+                            cubit.refresh();
+                          },
+                          icon: const Icon(Icons.add, size: 16),
+                          label: const Text('Nueva Orden'),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppColors.blue1,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -447,32 +453,32 @@ class _OrdenServicioCard extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(8),
           child: Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // ─── Header: Icono prioridad + Código + Estado ───
                 _buildHeader(prioridadColor),
-                const SizedBox(height: 6),
+                const SizedBox(height: 3),
                 Container(height: 1, color: Colors.grey.shade200),
-                const SizedBox(height: 6),
+                const SizedBox(height: 3),
                 // ─── Cliente ───
                 _buildClienteRow(clienteNombre),
                 // ─── Equipo ───
                 if (_hasEquipoInfo) ...[
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 3),
                   _buildEquipoRow(),
                 ],
                 // ─── Técnico asignado + fecha de entrega ───
-                const SizedBox(height: 6),
+                const SizedBox(height: 3),
                 _buildMetaRow(),
-                const SizedBox(height: 8),
+                const SizedBox(height: 4),
                 // ─── Footer: Fecha, prioridad, costo ───
                 _buildFooter(prioridadColor),
                 // ─── Descripción del problema ───
                 if (orden.descripcionProblema != null &&
                     orden.descripcionProblema!.isNotEmpty) ...[
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 4),
                   _buildDescripcion(),
                 ],
               ],
@@ -616,7 +622,7 @@ class _OrdenServicioCard extends StatelessWidget {
           child: Text(
             _equipoLabel,
             style: TextStyle(
-              fontSize: 10,
+              fontSize: 9,
               color: Colors.grey.shade700,
               fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
             ),
@@ -682,22 +688,19 @@ class _OrdenServicioCard extends StatelessWidget {
     final tieneTecnico = tecnicoNombre.isNotEmpty;
     return Row(
       children: [
+        SizedBox(width: 6),
         Icon(
           Icons.engineering_outlined,
           size: 12,
           color: tieneTecnico ? AppColors.blue1 : Colors.grey.shade400,
         ),
-        const SizedBox(width: 4),
+        const SizedBox(width: 8),
         Flexible(
-          child: Text(
+          child: AppSubtitle(
             tieneTecnico ? tecnicoNombre : 'Sin asignar',
-            style: TextStyle(
-              fontSize: 10,
-              fontStyle: tieneTecnico ? FontStyle.normal : FontStyle.italic,
-              color: tieneTecnico ? Colors.grey.shade700 : Colors.grey.shade400,
-              fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
-            ),
-            maxLines: 1,
+            fontSize: 9,
+            font: AppFont.amazonEmberRegular,
+            color: tieneTecnico ? Colors.grey : Colors.grey.shade400,
             overflow: TextOverflow.ellipsis,
           ),
         ),
