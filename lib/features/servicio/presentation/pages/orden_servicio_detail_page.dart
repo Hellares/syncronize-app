@@ -150,16 +150,41 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
           backgroundColor: AppColors.blue1,
           foregroundColor: Colors.white,
           actions: [
-            if (_orden != null)
+            if (_orden != null) ...[
+              IconButton(
+                icon: const Icon(Icons.forum_outlined,
+                    color: Colors.white, size: 20),
+                onPressed: _showMensajesDialog,
+                tooltip: 'Mensajes',
+              ),
               IconButton(
                 icon: const Icon(Icons.receipt_long, color: Colors.white, size: 19,),
                 onPressed: _generarTicket,
                 tooltip: 'Generar ticket',
               ),
+            ],
           ],
         ),
         body: _buildBody(),
         bottomNavigationBar: _buildBottomActions(),
+      ),
+    );
+  }
+
+  /// Abre los mensajes de la orden en un dialog (desacoplado del formulario).
+  void _showMensajesDialog() {
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 40),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: MensajesOrdenWidget(
+            ordenId: widget.ordenId,
+            esCliente: false,
+          ),
+        ),
       ),
     );
   }
@@ -233,12 +258,6 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
           const SizedBox(height: 10),
           // ─── Card: Historial ───
           _buildHistorialSection(),
-          const SizedBox(height: 10),
-          // ─── Card: Mensajes ───
-          MensajesOrdenWidget(
-            ordenId: widget.ordenId,
-            esCliente: false,
-          ),
           const SizedBox(height: 10),
           // ─── Card interactiva: Firma ───
           _buildFirmaSection(),
@@ -1204,7 +1223,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     return GradientContainer(
       borderColor: AppColors.blueborder,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1219,13 +1238,13 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                 ),
                 InkWell(
                   onTap: _showAddComponenteSheet,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(6),
                   child: Container(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
                       color: AppColors.bluechip,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(4),
                     ),
                     child: const Row(
                       mainAxisSize: MainAxisSize.min,
@@ -1234,7 +1253,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                         SizedBox(width: 4),
                         Text('Agregar',
                             style: TextStyle(
-                                fontSize: 11,
+                                fontSize: 10,
                                 color: AppColors.blue1,
                                 fontWeight: FontWeight.w600)),
                       ],
@@ -1243,7 +1262,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             if (componentes.isEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
@@ -1254,7 +1273,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                     const SizedBox(width: 8),
                     Text('Sin componentes asociados',
                         style: TextStyle(
-                            fontSize: 12, color: Colors.grey.shade500)),
+                            fontSize: 11, color: Colors.grey.shade500)),
                   ],
                 ),
               )
@@ -1318,7 +1337,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     return GradientContainer(
       borderColor: AppColors.blueborder,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1327,7 +1346,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                 Icon(Icons.receipt_long_outlined,
                     size: 16, color: AppColors.blue1),
                 const SizedBox(width: 8),
-                AppSubtitle('RESUMEN DE COSTOS', fontSize: 12),
+                AppSubtitle('RESUMEN DE COSTOS', fontSize: 11),
                 const Spacer(),
                 if (!isTerminal)
                   InkWell(
@@ -1337,7 +1356,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: AppColors.bluechip,
-                        borderRadius: BorderRadius.circular(6),
+                        borderRadius: BorderRadius.circular(4),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -1346,7 +1365,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                           const SizedBox(width: 4),
                           Text(
                             hasCosts ? 'Editar' : 'Agregar',
-                            style: const TextStyle(fontSize: 11, color: AppColors.blue1, fontWeight: FontWeight.w600),
+                            style: const TextStyle(fontSize: 10, color: AppColors.blue1, fontWeight: FontWeight.w600),
                           ),
                         ],
                       ),
@@ -1459,7 +1478,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: _buildCostoRow('TOTAL COMPONENTES', subtotalComponentes, bold: true,
-                    color: AppColors.blue1, fontSize: 13),
+                    color: AppColors.blue1, fontSize: 11),
               ),
             ],
 
@@ -1469,7 +1488,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
               Center(
                 child: Text(
                   'Sin costos registrados',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                  style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
                 ),
               ),
             ],
@@ -2165,12 +2184,12 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     return GradientContainer(
       borderColor: AppColors.blueborder,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildSectionHeader(Icons.notifications_outlined, 'AVISO DE MANTENIMIENTO'),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             Row(
               children: [
                 Icon(
@@ -2182,7 +2201,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                 Text(
                   incluidoEnAvisos ? 'Incluido en avisos' : 'No incluido en avisos',
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 11,
                     fontWeight: FontWeight.w600,
                     color: incluidoEnAvisos ? Colors.green.shade700 : Colors.grey.shade600,
                   ),
@@ -2204,7 +2223,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                       fechaPersonalizada != null
                           ? 'Fecha personalizada: ${DateFormatter.formatDate(fechaPersonalizada)}'
                           : 'Fecha calculada automáticamente según intervalos',
-                      style: const TextStyle(fontSize: 12),
+                      style: const TextStyle(fontSize: 10),
                     ),
                   ),
                 ],
@@ -2230,7 +2249,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     return GradientContainer(
       borderColor: AppColors.blueborder,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -2368,7 +2387,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     return GradientContainer(
       borderColor: AppColors.blueborder,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(10),
         child: CronometroServicioWidget(
           orden: _orden!,
           historial: _historial,
@@ -3333,7 +3352,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
       children: [
         Icon(icon, size: 16, color: AppColors.blue1),
         const SizedBox(width: 8),
-        AppSubtitle(title, fontSize: 12),
+        AppSubtitle(title, fontSize: 11),
       ],
     );
   }

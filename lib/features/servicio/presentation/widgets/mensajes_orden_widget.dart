@@ -125,6 +125,7 @@ class _MensajesOrdenWidgetState extends State<MensajesOrdenWidget> {
       borderRadius: BorderRadius.circular(12),
       padding: const EdgeInsets.all(16),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header
