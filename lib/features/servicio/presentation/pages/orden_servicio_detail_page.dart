@@ -2580,20 +2580,26 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
       ),
       child: Row(
         children: [
-          // Cancelar
+          // Cancelar (compacto, solo ícono)
           if (validTransitions.contains('CANCELADO')) ...[
-            CustomButton(
-              text: 'Cancelar',
-              icon: const Icon(Icons.close, size: 14, color: Colors.red),
-              isOutlined: true,
-              borderColor: Colors.red,
-              textColor: Colors.red,
-              enableShadows: false,
-              height: 35,
-              borderRadius: 8,
-              onPressed: () => _showTransitionDialog('CANCELADO'),
+            Tooltip(
+              message: 'Cancelar orden',
+              child: CustomButton(
+                text: '',
+                icon: const Icon(Icons.close, size: 16, color: Colors.red),
+                isOutlined: true,
+                borderColor: Colors.red,
+                textColor: Colors.red,
+                enableShadows: false,
+                height: 35,
+                width: 44,
+                borderRadius: 8,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                onPressed: () => _showTransitionDialog('CANCELADO'),
+              ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 8),
           ],
           // Botón de cobrar (para estados REPARADO y LISTO_ENTREGA)
           if (_orden!.estado == 'REPARADO' || _orden!.estado == 'LISTO_ENTREGA') ...[
@@ -2610,42 +2616,65 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                 },
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 8),
           ],
-          // Transiciones principales
-          ...validTransitions
-              .where((e) => e != 'CANCELADO' && e != 'TERCERIZADO' && e != 'ENTREGADO')
-              .map((estado) {
-            final isReingresoBtn = estado == 'EN_DIAGNOSTICO' &&
-                (_orden!.estado == 'ENTREGADO' || _orden!.estado == 'FINALIZADO');
-            return Expanded(
-              child: CustomButton(
-                text: isReingresoBtn ? 'Reingreso' : _estadoTimelineLabel(estado),
-                icon: Icon(
-                  isReingresoBtn ? Icons.replay : _transitionIcon(estado),
-                  size: 14,
-                  color: Colors.white,
+          // Transiciones principales (Expanded con separación entre ellas)
+          ...(() {
+            final mains = validTransitions
+                .where((e) =>
+                    e != 'CANCELADO' && e != 'TERCERIZADO' && e != 'ENTREGADO')
+                .toList();
+            return mains.asMap().entries.map((entry) {
+              final i = entry.key;
+              final estado = entry.value;
+              final isReingresoBtn = estado == 'EN_DIAGNOSTICO' &&
+                  (_orden!.estado == 'ENTREGADO' ||
+                      _orden!.estado == 'FINALIZADO');
+              return Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    left: i == 0 ? 0 : 4,
+                    right: i == mains.length - 1 ? 0 : 4,
+                  ),
+                  child: CustomButton(
+                    text: isReingresoBtn
+                        ? 'Reingreso'
+                        : _estadoTimelineLabel(estado),
+                    icon: Icon(
+                      isReingresoBtn ? Icons.replay : _transitionIcon(estado),
+                      size: 14,
+                      color: Colors.white,
+                    ),
+                    backgroundColor:
+                        isReingresoBtn ? Colors.orange : AppColors.blue1,
+                    height: 35,
+                    borderRadius: 8,
+                    onPressed: () => _showTransitionDialog(estado),
+                  ),
                 ),
-                backgroundColor: isReingresoBtn ? Colors.orange : AppColors.blue1,
-                height: 35,
-                borderRadius: 8,
-                onPressed: () => _showTransitionDialog(estado),
-              ),
-            );
-          }),
-          // Tercerizar B2B
+              );
+            });
+          })(),
+          // Tercerizar B2B (compacto, solo ícono)
           if (validTransitions.contains('TERCERIZADO') && _orden!.isClienteFinal) ...[
-            const SizedBox(width: 10),
-            CustomButton(
-              text: 'B2B',
-              icon: const Icon(Icons.swap_horiz, size: 14, color: Colors.deepPurple),
-              isOutlined: true,
-              borderColor: Colors.deepPurple,
-              textColor: Colors.deepPurple,
-              enableShadows: false,
-              height: 35,
-              borderRadius: 8,
-              onPressed: () => _iniciarTercerizacion(),
+            const SizedBox(width: 8),
+            Tooltip(
+              message: 'Tercerizar (B2B)',
+              child: CustomButton(
+                text: '',
+                icon: const Icon(Icons.swap_horiz,
+                    size: 16, color: Colors.deepPurple),
+                isOutlined: true,
+                borderColor: Colors.deepPurple,
+                textColor: Colors.deepPurple,
+                enableShadows: false,
+                height: 35,
+                width: 44,
+                borderRadius: 8,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                onPressed: () => _iniciarTercerizacion(),
+              ),
             ),
           ],
         ],
@@ -2911,6 +2940,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                   ],
                   const SizedBox(height: 12),
                   Container(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
                     decoration: BoxDecoration(
                       color: AppColors.bluechip.withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(8),
