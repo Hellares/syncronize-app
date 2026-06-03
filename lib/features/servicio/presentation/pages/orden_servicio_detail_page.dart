@@ -2943,13 +2943,22 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-              TextButton(
+              CustomButton(
+                text: 'Cancelar',
                 onPressed: () => Navigator.pop(ctx),
-                child: Text('Cancelar',
-                    style: TextStyle(color: Colors.grey.shade600)),
+                backgroundColor: Colors.transparent,
+                borderColor: AppColors.blue3,
+                borderWidth: 0.6,
+                textColor: AppColors.blue3,
+                enableShadows: false,
               ),
               const SizedBox(width: 8),
-              ElevatedButton(
+              CustomButton(
+                text: isReingreso
+                    ? 'Confirmar reingreso'
+                    : isCancelado
+                        ? 'Confirmar cancelacion'
+                        : 'Confirmar',
                 onPressed: () {
                   if (isCancelado && notasController.text.trim().isEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -2989,22 +2998,19 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                     metodoPagoAdelanto: metodoPagoAdelanto,
                   );
                 },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: isReingreso
-                      ? Colors.orange
-                      : isCancelado
-                          ? Colors.red
-                          : AppColors.blue1,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8)),
-                ),
-                child: Text(
-                    isReingreso
-                        ? 'Confirmar reingreso'
-                        : isCancelado
-                            ? 'Confirmar cancelacion'
-                            : 'Confirmar'),
+                backgroundColor: isReingreso
+                    ? Colors.orange
+                    : isCancelado
+                        ? Colors.red
+                        : AppColors.blue1,
+                borderColor: isReingreso
+                    ? Colors.orange
+                    : isCancelado
+                        ? Colors.red
+                        : AppColors.blue1,
+                borderWidth: 0.6,
+                textColor: Colors.white,
+                enableShadows: false,
               ),
                   ],
                 ),
@@ -3129,13 +3135,20 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    TextButton(
+                    CustomButton(
+                      text: 'No',
                       onPressed: () => Navigator.pop(ctx),
-                      child: Text('No',
-                          style: TextStyle(color: Colors.grey.shade600)),
+                      backgroundColor: Colors.transparent,
+                      borderColor: AppColors.blue3,
+                      borderWidth: 0.6,
+                      textColor: AppColors.blue3,
+                      enableShadows: false,
                     ),
                     const SizedBox(width: 8),
-                    ElevatedButton.icon(
+                    CustomButton(
+                      text: 'Enviar',
+                      icon: const Icon(Icons.chat, size: 16, color: Colors.white),
+                      iconColor: Colors.white,
                       onPressed: () {
                         Navigator.pop(ctx);
                         WhatsAppNotificationService.notificarCambioEstado(
@@ -3144,14 +3157,11 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                           empresaNombre: (empresaState).context.empresa.nombre,
                         );
                       },
-                      icon: const Icon(Icons.chat, size: 16),
-                      label: const Text('Enviar'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF25D366),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8)),
-                      ),
+                      backgroundColor: const Color(0xFF25D366),
+                      borderColor: const Color(0xFF25D366),
+                      borderWidth: 0.6,
+                      textColor: Colors.white,
+                      enableShadows: false,
                     ),
                   ],
                 ),
@@ -3632,17 +3642,24 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    TextButton(
+                    CustomButton(
+                      text: 'Cancelar',
                       onPressed: () => Navigator.pop(ctx, false),
-                      child: const Text('Cancelar'),
+                      backgroundColor: Colors.transparent,
+                      borderColor: AppColors.blue3,
+                      borderWidth: 0.6,
+                      textColor: AppColors.blue3,
+                      enableShadows: false,
                     ),
                     const SizedBox(width: 8),
-                    ElevatedButton(
+                    CustomButton(
+                      text: 'Enviar solicitud',
                       onPressed: () => Navigator.pop(ctx, true),
-                      style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.blue1),
-                      child: const Text('Enviar solicitud',
-                          style: TextStyle(color: Colors.white)),
+                      backgroundColor: AppColors.blue1,
+                      borderColor: AppColors.blue1,
+                      borderWidth: 0.6,
+                      textColor: Colors.white,
+                      enableShadows: false,
                     ),
                   ],
                 ),

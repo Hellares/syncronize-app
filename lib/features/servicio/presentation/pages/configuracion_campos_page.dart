@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_switch_tile.dart';
 import '../../../auth/presentation/widgets/custom_text.dart';
 import '../bloc/configuracion_campos/configuracion_campos_cubit.dart';
@@ -357,11 +358,22 @@ class ConfiguracionCamposPage extends StatelessWidget {
             ),
           ),
           actions: [
-            TextButton(
+            CustomButton(
+              text: 'Cancelar',
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancelar'),
+              backgroundColor: Colors.transparent,
+              borderColor: AppColors.blue3,
+              borderWidth: 0.6,
+              textColor: AppColors.blue3,
+              enableShadows: false,
             ),
-            ElevatedButton(
+            CustomButton(
+              text: 'Crear',
+              backgroundColor: AppColors.blue1,
+              borderColor: AppColors.blue1,
+              borderWidth: 0.6,
+              textColor: Colors.white,
+              enableShadows: false,
               onPressed: () {
                 if (nameController.text.trim().isEmpty) return;
                 if (selectedTipoCampo == 'OBJETO' && subCampos.isEmpty) return;
@@ -393,7 +405,6 @@ class ConfiguracionCamposPage extends StatelessWidget {
                   opciones: opciones,
                 );
               },
-              child: const Text('Crear'),
             ),
           ],
         ),
@@ -422,19 +433,34 @@ class ConfiguracionCamposPage extends StatelessWidget {
           ),
         ),
         actions: [
-          TextButton(
+          CustomButton(
+            text: 'Eliminar',
             onPressed: () {
               Navigator.pop(dialogContext);
               cubit.delete(campo.id);
             },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Eliminar'),
+            backgroundColor: Colors.transparent,
+            borderColor: Colors.red,
+            borderWidth: 0.6,
+            textColor: Colors.red,
+            enableShadows: false,
           ),
-          TextButton(
+          CustomButton(
+            text: 'Cancelar',
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancelar'),
+            backgroundColor: Colors.transparent,
+            borderColor: AppColors.blue3,
+            borderWidth: 0.6,
+            textColor: AppColors.blue3,
+            enableShadows: false,
           ),
-          ElevatedButton(
+          CustomButton(
+            text: 'Guardar',
+            backgroundColor: AppColors.blue1,
+            borderColor: AppColors.blue1,
+            borderWidth: 0.6,
+            textColor: Colors.white,
+            enableShadows: false,
             onPressed: () {
               if (nameController.text.trim().isEmpty) return;
               Navigator.pop(dialogContext);
@@ -443,7 +469,6 @@ class ConfiguracionCamposPage extends StatelessWidget {
                 nombre: nameController.text.trim(),
               );
             },
-            child: const Text('Guardar'),
           ),
         ],
       ),
