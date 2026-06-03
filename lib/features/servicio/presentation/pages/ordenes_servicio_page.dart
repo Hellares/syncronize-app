@@ -551,8 +551,35 @@ class _OrdenServicioCard extends StatelessWidget {
             ],
           ),
         ),
+        if (orden.mensajesNoLeidos > 0) ...[
+          _buildMensajesBell(),
+          const SizedBox(width: 6),
+        ],
         EstadoBadgeWidget(estado: orden.estado),
       ],
+    );
+  }
+
+  Widget _buildMensajesBell() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      decoration: BoxDecoration(
+        color: Colors.red.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.red.withValues(alpha: 0.4), width: 0.6),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.notifications_active, size: 11, color: Colors.red),
+          const SizedBox(width: 3),
+          Text(
+            orden.mensajesNoLeidos > 9 ? '9+' : '${orden.mensajesNoLeidos}',
+            style: const TextStyle(
+                fontSize: 9, fontWeight: FontWeight.bold, color: Colors.red),
+          ),
+        ],
+      ),
     );
   }
 

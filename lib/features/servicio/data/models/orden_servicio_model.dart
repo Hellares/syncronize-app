@@ -41,6 +41,7 @@ class OrdenServicioModel extends OrdenServicio {
     super.motivoReingreso,
     required super.creadoEn,
     required super.actualizadoEn,
+    super.mensajesNoLeidos,
     super.cliente,
     super.clienteEmpresa,
     super.contactoClienteEmpresa,
@@ -94,6 +95,7 @@ class OrdenServicioModel extends OrdenServicio {
       motivoReingreso: json['motivoReingreso'] as String?,
       creadoEn: DateTime.parse(json['creadoEn'] as String),
       actualizadoEn: DateTime.parse(json['actualizadoEn'] as String),
+      mensajesNoLeidos: json['mensajesNoLeidos'] as int? ?? 0,
       cliente: json['cliente'] != null
           ? OrdenClienteModel.fromJson(json['cliente'] as Map<String, dynamic>)
           : null,

@@ -39,6 +39,7 @@ class OrdenServicio extends Equatable {
   final String? motivoReingreso;
   final DateTime creadoEn;
   final DateTime actualizadoEn;
+  final int mensajesNoLeidos;
 
   // Related
   final OrdenCliente? cliente;
@@ -90,6 +91,7 @@ class OrdenServicio extends Equatable {
     this.motivoReingreso,
     required this.creadoEn,
     required this.actualizadoEn,
+    this.mensajesNoLeidos = 0,
     this.cliente,
     this.clienteEmpresa,
     this.contactoClienteEmpresa,
@@ -153,7 +155,8 @@ class OrdenServicio extends Equatable {
   }
 
   @override
-  List<Object?> get props => [id, codigo, estado, tipoServicio];
+  List<Object?> get props =>
+      [id, codigo, estado, tipoServicio, mensajesNoLeidos];
 }
 
 class OrdenCliente extends Equatable {
