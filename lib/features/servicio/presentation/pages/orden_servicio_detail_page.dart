@@ -5,6 +5,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:syncronize/core/widgets/info_chip.dart';
+import 'package:syncronize/core/widgets/animated_container.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/services/storage_service.dart';
@@ -2684,10 +2685,28 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
       context: context,
       builder: (ctx) {
         return StatefulBuilder(builder: (ctx, setDialogState) {
-          return AlertDialog(
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            title: Row(
+          return Dialog(
+            backgroundColor: Colors.transparent,
+            child: AnimatedNeonBorder(
+              borderRadius: 16,
+              borderWidth: 1.5,
+              padding: const EdgeInsets.all(1.5),
+              enableHighlight: true,
+              highlightWidth: 0.12,
+              highlightOpacity: 0.85,
+              duration: const Duration(seconds: 5),
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 460),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
               children: [
                 Container(
                   padding: const EdgeInsets.all(6),
@@ -2725,7 +2744,9 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                 ),
               ],
             ),
-            content: SingleChildScrollView(
+            const SizedBox(height: 16),
+            Flexible(
+              child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -2964,13 +2985,18 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                   ),
                 ],
               ),
+              ),
             ),
-            actions: [
+            const SizedBox(height: 18),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
                 child: Text('Cancelar',
                     style: TextStyle(color: Colors.grey.shade600)),
               ),
+              const SizedBox(width: 8),
               ElevatedButton(
                 onPressed: () {
                   if (isCancelado && notasController.text.trim().isEmpty) {
@@ -3028,7 +3054,12 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                             ? 'Confirmar cancelacion'
                             : 'Confirmar'),
               ),
-            ],
+                  ],
+                ),
+                  ],
+                ),
+              ),
+            ),
           );
         });
       },
