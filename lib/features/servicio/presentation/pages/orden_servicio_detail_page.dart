@@ -1267,27 +1267,38 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                 ),
               )
             else
-              ...componentes.asMap().entries.map((entry) {
-                final i = entry.key;
-                final comp = entry.value;
-                return Column(
-                  children: [
-                    if (i > 0)
-                      Divider(
-                          height: 16,
-                          color: AppColors.blueborder.withValues(alpha: 0.4)),
-                    InkWell(
-                      onTap: () => _showComponenteDetail(comp),
-                      borderRadius: BorderRadius.circular(8),
-                      child: _buildComponenteTile(comp, i + 1),
-                    ),
-                  ],
-                );
-              }),
+              _buildComponentesGrid(componentes),
           ],
         ),
       ),
     );
+  }
+
+  /// Componentes en grilla de 2 por fila (cards compactas).
+  Widget _buildComponentesGrid(List<OrdenComponente> componentes) {
+    final rows = <Widget>[];
+    for (var i = 0; i < componentes.length; i += 2) {
+      final left = componentes[i];
+      final right = i + 1 < componentes.length ? componentes[i + 1] : null;
+      rows.add(Padding(
+        padding: EdgeInsets.only(top: i == 0 ? 0 : 8),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(child: _buildComponenteTile(left, i + 1)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: right != null
+                    ? _buildComponenteTile(right, i + 2)
+                    : const SizedBox.shrink(),
+              ),
+            ],
+          ),
+        ),
+      ));
+    }
+    return Column(children: rows);
   }
 
   // ─── Resumen de Costos ───
@@ -1818,69 +1829,97 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
         comp.costoRepuestos != null ||
         comp.tiempoAccion != null ||
         comp.garantiaMeses != null;
+    final accionColor = _accionColor(comp.tipoAccion);
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 24,
-          height: 24,
-          decoration: BoxDecoration(
-            color: AppColors.bluechip,
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: Center(
-            child: Icon(_categoriaIcon(categoria),
-                size: 14, color: AppColors.blue1),
+    return InkWell(
+      onTap: () => _showComponenteDetail(comp),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.45),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: AppColors.blueborder.withValues(alpha: 0.5),
+            width: 0.6,
           ),
         ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(nombre,
-                  style: const TextStyle(
-                      fontSize: 12, fontWeight: FontWeight.w600)),
-              if (comp.descripcionAccion != null &&
-                  comp.descripcionAccion!.isNotEmpty)
-                Text(comp.descripcionAccion!,
-                    style: TextStyle(
-                        fontSize: 11, color: Colors.grey.shade600)),
-              if (hasDetails)
-                Padding(
-                  padding: const EdgeInsets.only(top: 2),
-                  child: Text('Toca para ver detalle',
-                      style: TextStyle(fontSize: 10, color: AppColors.blue1)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Icono categoría + botón quitar
+            Row(
+              children: [
+                Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: AppColors.bluechip,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Center(
+                    child: Icon(_categoriaIcon(categoria),
+                        size: 14, color: AppColors.blue1),
+                  ),
                 ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-          decoration: BoxDecoration(
-            color: _accionColor(comp.tipoAccion).withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
-            comp.tipoAccion,
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              color: _accionColor(comp.tipoAccion),
+                const Spacer(),
+                InkWell(
+                  onTap: () => _removeComponente(comp),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Padding(
+                    padding: const EdgeInsets.all(2),
+                    child: Icon(Icons.close,
+                        size: 15, color: Colors.grey.shade400),
+                  ),
+                ),
+              ],
             ),
-          ),
+            const SizedBox(height: 6),
+            // Nombre
+            Text(
+              nombre,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+            if (comp.descripcionAccion != null &&
+                comp.descripcionAccion!.isNotEmpty) ...[
+              const SizedBox(height: 2),
+              Text(
+                comp.descripcionAccion!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+              ),
+            ],
+            const SizedBox(height: 6),
+            // Badge de acción
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: accionColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  comp.tipoAccion,
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                    color: accionColor,
+                  ),
+                ),
+              ),
+            ),
+            if (hasDetails) ...[
+              const SizedBox(height: 4),
+              Text('Toca para ver detalle',
+                  style: TextStyle(fontSize: 9, color: AppColors.blue1)),
+            ],
+          ],
         ),
-        InkWell(
-          onTap: () => _removeComponente(comp),
-          borderRadius: BorderRadius.circular(12),
-          child: Padding(
-            padding: const EdgeInsets.all(4),
-            child: Icon(Icons.close, size: 16, color: Colors.grey.shade400),
-          ),
-        ),
-      ],
+      ),
     );
   }
 
