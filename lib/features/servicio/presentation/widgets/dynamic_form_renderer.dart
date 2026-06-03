@@ -126,6 +126,10 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
           padding: const EdgeInsets.only(bottom: 12),
           child: CustomText(
             controller: _controllers[campo.nombre],
+            // Mayúsculas salvo EMAIL/URL (donde rompería el valor).
+            textCase: (campo.tipoCampo == 'EMAIL' || campo.tipoCampo == 'URL')
+                ? TextCase.normal
+                : TextCase.upper,
             label: '${campo.nombre}${campo.esRequerido ? " *" : ""}',
             hintText: campo.placeholder,
             borderColor: AppColors.blue1,
@@ -157,6 +161,7 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
           padding: const EdgeInsets.only(bottom: 12),
           child: CustomText(
             controller: _controllers[campo.nombre],
+            textCase: TextCase.upper,
             label: '${campo.nombre}${campo.esRequerido ? " *" : ""}',
             hintText: campo.placeholder,
             borderColor: AppColors.blue1,
@@ -231,6 +236,7 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
                 CustomText(
                   controller: _otroControllers[campo.nombre],
                   label: 'Especificar ${campo.nombre.toLowerCase()}',
+                  textCase: TextCase.upper,
                   hintText: 'Escribe el detalle...',
                   borderColor: AppColors.blue1,
                   prefixIcon: const Icon(Icons.edit_outlined, size: 18),
@@ -326,6 +332,7 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
                 TextEditingController(
                     text: widget.values[campo.nombre]?.toString() ?? ''),
             label: campo.nombre,
+            textCase: TextCase.upper,
             borderColor: AppColors.blue1,
             onChanged: (v) => _updateValue(campo.nombre, v),
           ),
@@ -647,6 +654,8 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
                 padding: const EdgeInsets.only(bottom: 8),
                 child: CustomText(
                   controller: _controllers[subKey],
+                  textCase:
+                      subTipo == 'NUMERO' ? TextCase.normal : TextCase.upper,
                   label: subNombre,
                   borderColor: AppColors.blue1,
                   keyboardType: subTipo == 'NUMERO'
