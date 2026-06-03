@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/widgets/custom_switch_tile.dart';
 import '../bloc/configuracion_campos/configuracion_campos_cubit.dart';
 import '../bloc/configuracion_campos/configuracion_campos_state.dart';
 import '../../../empresa/presentation/widgets/empresa_drawer.dart';
@@ -226,8 +227,8 @@ class ConfiguracionCamposPage extends StatelessWidget {
                     onChanged: (v) => setState(() => selectedCategoria = v),
                   ),
                   const SizedBox(height: 16),
-                  SwitchListTile(
-                    title: const Text('Campo requerido'),
+                  CustomSwitchTile(
+                    title: 'Campo requerido',
                     value: esRequerido,
                     onChanged: (v) => setState(() => esRequerido = v),
                   ),

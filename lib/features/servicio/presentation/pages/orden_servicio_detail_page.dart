@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:syncronize/core/widgets/info_chip.dart';
 import 'package:syncronize/core/widgets/animated_container.dart';
 import 'package:syncronize/core/widgets/animated_confirm_dialog.dart';
+import 'package:syncronize/core/widgets/custom_switch_tile.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/services/storage_service.dart';
@@ -2958,19 +2959,14 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                       color: AppColors.bluechip.withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: SwitchListTile(
-                      title: const Text('Comunicar al cliente',
-                          style: TextStyle(fontSize: 13)),
-                      subtitle: const Text(
-                          'Registrar que este cambio fue notificado',
-                          style: TextStyle(fontSize: 11)),
+                    child: CustomSwitchTile(
+                      title: 'Comunicar al cliente',
+                      subtitle: 'Registrar que este cambio fue notificado',
                       value: comunicarCliente,
-                      activeThumbColor: AppColors.blue1,
+                      activeTrackColor: AppColors.blue1,
                       onChanged: (v) =>
                           setDialogState(() => comunicarCliente = v),
-                      contentPadding:
-                          const EdgeInsets.symmetric(horizontal: 12),
-                      dense: true,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
                     ),
                   ),
                 ],
