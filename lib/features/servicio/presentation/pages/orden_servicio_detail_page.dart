@@ -2679,7 +2679,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
           return Dialog(
             backgroundColor: Colors.transparent,
             child: AnimatedNeonBorder(
-              borderRadius: 16,
+              borderRadius: 11,
               borderWidth: 1.5,
               padding: const EdgeInsets.all(1.5),
               enableHighlight: true,
@@ -2690,7 +2690,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                 constraints: const BoxConstraints(maxWidth: 460),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(11),
                 ),
                 padding: const EdgeInsets.all(20),
                 child: Column(
@@ -2888,29 +2888,19 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                         const SizedBox(width: 8),
                         Expanded(
                           flex: 2,
-                          // F1 FIX: DropdownButtonFormField usa 'value' no 'initialValue'
-                          child: DropdownButtonFormField<String>(
-                            initialValue: metodoPagoAdelanto,
-                            decoration: InputDecoration(
-                              labelText: 'Medio',
-                              border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8)),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide:
-                                    const BorderSide(color: AppColors.blue1),
-                              ),
-                              contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 14),
-                            ),
-                            isExpanded: true,
+                          child: CustomDropdown<String>(
+                            label: 'Medio',
+                            hintText: 'Medio',
+                            value: metodoPagoAdelanto,
+                            borderColor: AppColors.blue1,
                             items: const [
-                              DropdownMenuItem(value: 'EFECTIVO', child: Text('Efectivo', style: TextStyle(fontSize: 12))),
-                              DropdownMenuItem(value: 'YAPE', child: Text('Yape', style: TextStyle(fontSize: 12))),
-                              DropdownMenuItem(value: 'PLIN', child: Text('Plin', style: TextStyle(fontSize: 12))),
-                              DropdownMenuItem(value: 'TARJETA', child: Text('Tarjeta', style: TextStyle(fontSize: 12))),
-                              DropdownMenuItem(value: 'TRANSFERENCIA', child: Text('Transf.', style: TextStyle(fontSize: 12))),
-                              DropdownMenuItem(value: 'MIXTO', child: Text('Mixto', style: TextStyle(fontSize: 12))),
+                              DropdownItem(value: 'EFECTIVO', label: 'Efectivo'),
+                              DropdownItem(value: 'YAPE', label: 'Yape'),
+                              DropdownItem(value: 'PLIN', label: 'Plin'),
+                              DropdownItem(value: 'TARJETA', label: 'Tarjeta'),
+                              DropdownItem(
+                                  value: 'TRANSFERENCIA', label: 'Transf.'),
+                              DropdownItem(value: 'MIXTO', label: 'Mixto'),
                             ],
                             onChanged: (v) =>
                                 setDialogState(() => metodoPagoAdelanto = v),
