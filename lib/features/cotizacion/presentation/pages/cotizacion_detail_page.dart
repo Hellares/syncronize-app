@@ -390,9 +390,9 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
                   DateFormatter.formatDateTime(cot.fechaVencimiento!)),
             if (cot.sedeNombre != null)
               _buildDetailRow(Icons.store_outlined, 'Sede', cot.sedeNombre!),
-            if (cot.vendedorNombre != null)
+            if (cot.vendedorParaTicket != null)
               _buildDetailRow(
-                  Icons.person_outline, 'Vendedor', cot.vendedorNombre!),
+                  Icons.person_outline, 'Vendedor', cot.vendedorParaTicket!),
           ],
         ),
       ),

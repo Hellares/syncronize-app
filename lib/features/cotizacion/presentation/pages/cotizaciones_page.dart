@@ -323,9 +323,9 @@ class _CotizacionListTile extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  if (cotizacion.vendedorNombre != null)
+                  if (cotizacion.vendedorParaTicket != null)
                     Text(
-                      'Vendedor:   ${cotizacion.vendedorNombre}',
+                      'Vendedor:   ${cotizacion.vendedorParaTicket}',
                       style:
                           TextStyle(fontSize: 9, color: Colors.grey.shade600),
                     ),

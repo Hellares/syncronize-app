@@ -167,6 +167,13 @@ class Cotizacion extends Equatable {
   /// True si la cotización tiene un adelanto > 0 registrado.
   bool get tieneAdelanto => (adelantoMonto ?? 0) > 0;
 
+  /// Nombre a mostrar del vendedor: alias para ticket si existe, si no el
+  /// nombre completo. Consistente con el ticket de venta rápida.
+  String? get vendedorParaTicket =>
+      (vendedorAlias != null && vendedorAlias!.trim().isNotEmpty)
+          ? vendedorAlias
+          : vendedorNombre;
+
   /// Si la cotizacion es editable (solo BORRADOR)
   bool get esEditable => estado == EstadoCotizacion.borrador;
 
