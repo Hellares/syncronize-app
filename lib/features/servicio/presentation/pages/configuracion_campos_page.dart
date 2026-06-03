@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/custom_switch_tile.dart';
+import '../../../auth/presentation/widgets/custom_text.dart';
 import '../bloc/configuracion_campos/configuracion_campos_cubit.dart';
 import '../bloc/configuracion_campos/configuracion_campos_state.dart';
 import '../../../empresa/presentation/widgets/empresa_drawer.dart';
@@ -199,9 +201,10 @@ class ConfiguracionCamposPage extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  TextField(
+                  CustomText(
                     controller: nameController,
-                    decoration: const InputDecoration(labelText: 'Nombre del campo'),
+                    label: 'Nombre del campo',
+                    borderColor: AppColors.blue1,
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
@@ -410,9 +413,10 @@ class ConfiguracionCamposPage extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
+              CustomText(
                 controller: nameController,
-                decoration: const InputDecoration(labelText: 'Nombre del campo'),
+                label: 'Nombre del campo',
+                borderColor: AppColors.blue1,
               ),
             ],
           ),

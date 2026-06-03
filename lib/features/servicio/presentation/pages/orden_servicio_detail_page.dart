@@ -2764,40 +2764,30 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    TextFormField(
+                    CustomText(
                       controller: motivoReingresoController,
-                      decoration: InputDecoration(
-                        labelText: 'Motivo del reingreso *',
-                        hintText: 'Ej: El equipo volvio a fallar despues de 2 horas...',
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8)),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(color: Colors.orange),
-                        ),
-                      ),
+                      label: 'Motivo del reingreso',
+                      required: true,
+                      hintText:
+                          'Ej: El equipo volvio a fallar despues de 2 horas...',
+                      borderColor: Colors.orange,
+                      colorIcon: Colors.orange,
                       maxLines: 3,
                     ),
                     const SizedBox(height: 12),
                   ],
-                  TextFormField(
+                  CustomText(
                     controller: notasController,
-                    decoration: InputDecoration(
-                      labelText: isCancelado
-                          ? 'Motivo de cancelacion *'
-                          : isReingreso
-                              ? 'Notas adicionales'
-                              : 'Notas / Observaciones',
-                      hintText: isCancelado
-                          ? 'Indica el motivo...'
-                          : 'Agrega notas sobre este cambio...',
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8)),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: AppColors.blue1),
-                      ),
-                    ),
+                    label: isCancelado
+                        ? 'Motivo de cancelacion'
+                        : isReingreso
+                            ? 'Notas adicionales'
+                            : 'Notas / Observaciones',
+                    required: isCancelado,
+                    hintText: isCancelado
+                        ? 'Indica el motivo...'
+                        : 'Agrega notas sobre este cambio...',
+                    borderColor: AppColors.blue1,
                     maxLines: 3,
                   ),
                   if (showCostos) ...[
@@ -2859,39 +2849,23 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                       }),
                     ],
                     // Costo total
-                    TextFormField(
+                    CustomText(
                       controller: costoTotalController,
-                      decoration: InputDecoration(
-                        labelText: 'Costo total del servicio (S/)',
-                        hintText: 'Precio final acordado',
-                        prefixText: 'S/ ',
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8)),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide:
-                              const BorderSide(color: AppColors.blue1),
-                        ),
-                      ),
+                      label: 'Costo total del servicio (S/)',
+                      hintText: 'Precio final acordado',
+                      prefixText: 'S/ ',
+                      borderColor: AppColors.blue1,
                       keyboardType: const TextInputType.numberWithOptions(
                           decimal: true),
                     ),
                     const SizedBox(height: 10),
                     // Descuento
-                    TextFormField(
+                    CustomText(
                       controller: descuentoController,
-                      decoration: InputDecoration(
-                        labelText: 'Descuento (S/)',
-                        hintText: 'Opcional',
-                        prefixText: 'S/ ',
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8)),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide:
-                              const BorderSide(color: AppColors.blue1),
-                        ),
-                      ),
+                      label: 'Descuento (S/)',
+                      hintText: 'Opcional',
+                      prefixText: 'S/ ',
+                      borderColor: AppColors.blue1,
                       keyboardType: const TextInputType.numberWithOptions(
                           decimal: true),
                     ),
@@ -2901,20 +2875,12 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                       children: [
                         Expanded(
                           flex: 3,
-                          child: TextFormField(
+                          child: CustomText(
                             controller: adelantoController,
-                            decoration: InputDecoration(
-                              labelText: 'Adelanto (S/)',
-                              hintText: 'Monto',
-                              prefixText: 'S/ ',
-                              border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8)),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide:
-                                    const BorderSide(color: AppColors.blue1),
-                              ),
-                            ),
+                            label: 'Adelanto (S/)',
+                            hintText: 'Monto',
+                            prefixText: 'S/ ',
+                            borderColor: AppColors.blue1,
                             keyboardType: const TextInputType.numberWithOptions(
                                 decimal: true),
                           ),
@@ -3624,16 +3590,12 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                   style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey.shade700),
                 ),
                 const SizedBox(height: 4),
-                TextField(
+                CustomText(
                   controller: descripcionController,
-                  decoration: InputDecoration(
-                    hintText: 'Ej: Equipo no enciende. Descartado cargador y batería...',
-                    hintStyle: TextStyle(fontSize: 11, color: Colors.grey.shade400),
-                    border: const OutlineInputBorder(),
-                    contentPadding: const EdgeInsets.all(10),
-                  ),
+                  hintText:
+                      'Ej: Equipo no enciende. Descartado cargador y batería...',
+                  borderColor: AppColors.blue1,
                   maxLines: 4,
-                  style: const TextStyle(fontSize: 13),
                 ),
                 const SizedBox(height: 12),
                 // Síntomas
@@ -3642,16 +3604,12 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                   style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey.shade700),
                 ),
                 const SizedBox(height: 4),
-                TextField(
+                CustomText(
                   controller: sintomasController,
-                  decoration: InputDecoration(
-                    hintText: 'Separados por coma: No enciende, Pantalla negra...',
-                    hintStyle: TextStyle(fontSize: 11, color: Colors.grey.shade400),
-                    border: const OutlineInputBorder(),
-                    contentPadding: const EdgeInsets.all(10),
-                  ),
+                  hintText:
+                      'Separados por coma: No enciende, Pantalla negra...',
+                  borderColor: AppColors.blue1,
                   maxLines: 2,
-                  style: const TextStyle(fontSize: 13),
                 ),
                 const SizedBox(height: 12),
                 // Notas
@@ -3660,16 +3618,11 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                   style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey.shade700),
                 ),
                 const SizedBox(height: 4),
-                TextField(
+                CustomText(
                   controller: notasController,
-                  decoration: InputDecoration(
-                    hintText: 'Instrucciones o contexto para la empresa destino',
-                    hintStyle: TextStyle(fontSize: 11, color: Colors.grey.shade400),
-                    border: const OutlineInputBorder(),
-                    contentPadding: const EdgeInsets.all(10),
-                  ),
+                  hintText: 'Instrucciones o contexto para la empresa destino',
+                  borderColor: AppColors.blue1,
                   maxLines: 2,
-                  style: const TextStyle(fontSize: 13),
                 ),
                       ],
                     ),
