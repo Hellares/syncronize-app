@@ -1215,7 +1215,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                 Expanded(
                   child: AppSubtitle(
                       'COMPONENTES (${componentes.length})',
-                      fontSize: 12),
+                      fontSize: 11),
                 ),
                 InkWell(
                   onTap: _showAddComponenteSheet,
@@ -2565,7 +2565,12 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     return PopupMenuButton<_AccionDial>(
       tooltip: 'Más acciones',
       position: PopupMenuPosition.over,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      color: Colors.white,
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(6),
+        side: const BorderSide(color: AppColors.blue1, width: 0.8),
+      ),
       onSelected: (a) => a.onTap(),
       itemBuilder: (_) => acciones
           .map((a) => PopupMenuItem<_AccionDial>(
@@ -2589,10 +2594,11 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
         width: 42,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey.shade300, width: 0.8),
-          borderRadius: BorderRadius.circular(8),
+          color: Colors.white,
+          border: Border.all(color: AppColors.blue1, width: 0.8),
+          borderRadius: BorderRadius.circular(6),
         ),
-        child: Icon(Icons.more_vert, size: 20, color: Colors.grey.shade700),
+        child: const Icon(Icons.more_vert, size: 20, color: AppColors.blue1),
       ),
     );
   }
