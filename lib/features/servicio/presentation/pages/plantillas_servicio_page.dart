@@ -257,6 +257,7 @@ class _PlantillasServicioPageState extends State<PlantillasServicioPage> {
                     // Campo nombre
                     CustomText(
                       controller: nombreCtrl,
+                      textCase: TextCase.upper,
                       label: 'Nombre',
                       hintText: 'Ej: Reparacion de PC',
                       required: true,
@@ -270,6 +271,7 @@ class _PlantillasServicioPageState extends State<PlantillasServicioPage> {
                     // Campo descripcion
                     CustomText(
                       controller: descripcionCtrl,
+                      textCase: TextCase.upper,
                       label: 'Descripcion (opcional)',
                       hintText: 'Describe el proposito de esta plantilla',
                       maxLines: 3,
