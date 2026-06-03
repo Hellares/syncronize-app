@@ -142,11 +142,13 @@ class _OrdenesContentState extends State<_OrdenesContent> {
                 );
               },
             ),
-            IconButton(
-              icon: const Icon(Icons.bar_chart, size: 18),
-              onPressed: () => context.push('/empresa/ordenes/dashboard'),
-              tooltip: 'Dashboard',
-            ),
+            // Dashboard solo para staff/empresa, no para el cliente.
+            if (!widget.asCliente)
+              IconButton(
+                icon: const Icon(Icons.bar_chart, size: 18),
+                onPressed: () => context.push('/empresa/ordenes/dashboard'),
+                tooltip: 'Dashboard',
+              ),
             IconButton(
               icon: const Icon(Icons.refresh, size: 18),
               onPressed: () =>

@@ -7,6 +7,8 @@ import 'bloc_provider.dart';
 import 'config/routes/app_router.dart';
 import 'config/theme/app_theme.dart';
 import 'core/di/injection_container.dart';
+import 'core/storage/local_storage_service.dart';
+import 'core/constants/storage_constants.dart';
 import 'core/network/dio_client.dart';
 import 'core/presentation/widgets/app_initializer.dart';
 import 'core/services/push_notification_service.dart';
@@ -155,14 +157,24 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       final ordenId = data['ordenId'] as String?;
       final tipo = data['tipo'] as String?;
 
+      // ¿Está en modo gestión (staff) o como cliente? El cliente no tiene
+      // permiso sobre las rutas de empresa → llevarlo a sus rutas "mis-*".
+      final loginMode =
+          locator<LocalStorageService>().getString(StorageConstants.loginMode);
+      final esStaff = loginMode == 'management';
+
       if (citaId != null) {
-        router.push('/empresa/citas/$citaId');
+        router.push(esStaff
+            ? '/empresa/citas/$citaId'
+            : '/empresa/mis-citas/$citaId');
       } else if (ordenId != null) {
-        router.push('/empresa/ordenes/$ordenId');
+        router.push(esStaff
+            ? '/empresa/ordenes/$ordenId'
+            : '/empresa/mis-ordenes/$ordenId');
       } else if (tipo == 'CITA') {
-        router.push('/empresa/citas');
+        router.push(esStaff ? '/empresa/citas' : '/empresa/mis-citas');
       } else if (tipo == 'ORDEN_SERVICIO') {
-        router.push('/empresa/ordenes');
+        router.push(esStaff ? '/empresa/ordenes' : '/empresa/mis-ordenes');
       } else {
         router.push('/empresa/notificaciones');
       }
