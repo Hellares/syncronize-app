@@ -31,6 +31,9 @@ class DynamicFormRenderer extends StatefulWidget {
 class _DynamicFormRendererState extends State<DynamicFormRenderer> {
   final Map<String, TextEditingController> _controllers = {};
   final Map<String, TextEditingController> _dateControllers = {};
+  // OPCION_SIMPLES con permiteOtro: texto libre + qué campos están en modo "Otro".
+  final Map<String, TextEditingController> _otroControllers = {};
+  final Set<String> _otroActivo = {};
 
   @override
   void initState() {
@@ -62,6 +65,16 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
         );
       } else if (tipo == 'FECHA') {
         _dateControllers[campo.nombre] = TextEditingController();
+      } else if (tipo == 'OPCION_SIMPLES' && campo.permiteOtro) {
+        // Si el valor guardado no está entre las opciones, es un "Otro" escrito.
+        final opciones = campo.opciones is List
+            ? (campo.opciones as List).map((e) => e.toString()).toList()
+            : <String>[];
+        final value = widget.values[campo.nombre];
+        final esOtro = value is String && value.isNotEmpty && !opciones.contains(value);
+        _otroControllers[campo.nombre] =
+            TextEditingController(text: esOtro ? value : '');
+        if (esOtro) _otroActivo.add(campo.nombre);
       }
     }
   }
@@ -75,6 +88,11 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
       c.dispose();
     }
     _dateControllers.clear();
+    for (final c in _otroControllers.values) {
+      c.dispose();
+    }
+    _otroControllers.clear();
+    _otroActivo.clear();
   }
 
   @override
@@ -166,16 +184,64 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
             ? (campo.opciones as List).map((e) => e.toString()).toList()
             : <String>[];
         final value = widget.values[campo.nombre];
+        const otroSentinel = '__OTRO__';
+        final permiteOtro = campo.permiteOtro;
+        final esOtro = permiteOtro && _otroActivo.contains(campo.nombre);
+        // El dropdown muestra "Otro" si está en ese modo; si no, la opción guardada.
+        final dropdownValue = esOtro
+            ? otroSentinel
+            : (value is String && opciones.contains(value) ? value : null);
+        // Asegurar controller del texto libre (por si el campo se volvió permiteOtro).
+        if (permiteOtro) {
+          _otroControllers.putIfAbsent(
+              campo.nombre, () => TextEditingController());
+        }
         return Padding(
           padding: const EdgeInsets.only(bottom: 12),
-          child: CustomDropdown<String>(
-            label: '${campo.nombre}${campo.esRequerido ? " *" : ""}',
-            value: value is String ? value : null,
-            borderColor: AppColors.blue1,
-            items: opciones
-                .map((o) => DropdownItem(value: o, label: o))
-                .toList(),
-            onChanged: (v) => _updateValue(campo.nombre, v),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CustomDropdown<String>(
+                label: '${campo.nombre}${campo.esRequerido ? " *" : ""}',
+                value: dropdownValue,
+                borderColor: AppColors.blue1,
+                items: [
+                  ...opciones.map((o) => DropdownItem(value: o, label: o)),
+                  if (permiteOtro)
+                    const DropdownItem(
+                      value: otroSentinel,
+                      label: 'Otro (especificar)',
+                      leading: Icon(Icons.edit_note, size: 16, color: AppColors.blue1),
+                    ),
+                ],
+                onChanged: (v) {
+                  if (v == otroSentinel) {
+                    setState(() => _otroActivo.add(campo.nombre));
+                    // Persistir el texto actual (puede estar vacío hasta que escriba).
+                    _updateValue(
+                        campo.nombre, _otroControllers[campo.nombre]?.text ?? '');
+                  } else {
+                    setState(() => _otroActivo.remove(campo.nombre));
+                    _updateValue(campo.nombre, v);
+                  }
+                },
+              ),
+              if (esOtro) ...[
+                const SizedBox(height: 8),
+                CustomText(
+                  controller: _otroControllers[campo.nombre],
+                  label: 'Especificar ${campo.nombre.toLowerCase()}',
+                  hintText: 'Escribe el detalle...',
+                  borderColor: AppColors.blue1,
+                  prefixIcon: const Icon(Icons.edit_outlined, size: 18),
+                  validator: campo.esRequerido
+                      ? (v) =>
+                          v == null || v.trim().isEmpty ? 'Campo requerido' : null
+                      : null,
+                  onChanged: (v) => _updateValue(campo.nombre, v),
+                ),
+              ],
+            ],
           ),
         );
 
