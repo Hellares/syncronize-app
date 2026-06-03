@@ -156,12 +156,22 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       final citaId = data['citaId'] as String?;
       final ordenId = data['ordenId'] as String?;
       final tipo = data['tipo'] as String?;
+      final target = data['target'] as String?;
 
-      // ¿Está en modo gestión (staff) o como cliente? El cliente no tiene
-      // permiso sobre las rutas de empresa → llevarlo a sus rutas "mis-*".
-      final loginMode =
-          locator<LocalStorageService>().getString(StorageConstants.loginMode);
-      final esStaff = loginMode == 'management';
+      // A quién va dirigida la notificación define la ruta. Prioridad:
+      // 1) target explícito del backend ('cliente' / 'staff') — confiable
+      //    aunque la cuenta tenga loginMode 'management' por otros roles.
+      // 2) fallback a loginMode para notifs viejas sin target.
+      final bool esStaff;
+      if (target == 'cliente') {
+        esStaff = false;
+      } else if (target == 'staff') {
+        esStaff = true;
+      } else {
+        final loginMode = locator<LocalStorageService>()
+            .getString(StorageConstants.loginMode);
+        esStaff = loginMode == 'management';
+      }
 
       if (citaId != null) {
         router.push(esStaff
