@@ -2584,7 +2584,17 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
       ));
     }
     if (acciones.isEmpty) return null;
-    return _OrdenAccionesSpeedDial(acciones: acciones);
+
+    // Si hay barra inferior fija, elevar el FAB para que flote por encima de ella.
+    final hayBarra = validTransitions.any(
+            (e) => e != 'CANCELADO' && e != 'TERCERIZADO' && e != 'ENTREGADO') ||
+        _orden!.estado == 'REPARADO' ||
+        _orden!.estado == 'LISTO_ENTREGA';
+
+    return _OrdenAccionesSpeedDial(
+      acciones: acciones,
+      bottomInset: hayBarra ? 60 : 0,
+    );
   }
 
   /// Barra inferior fija con las acciones principales y visibles:
@@ -2600,10 +2610,6 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     final showCobrar =
         _orden!.estado == 'REPARADO' || _orden!.estado == 'LISTO_ENTREGA';
     if (mains.isEmpty && !showCobrar) return null;
-
-    // Reservar espacio a la derecha si el FAB (Cancelar/B2B) está presente.
-    final hasFab = validTransitions.contains('CANCELADO') ||
-        (validTransitions.contains('TERCERIZADO') && _orden!.isClienteFinal);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -2667,8 +2673,6 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
               ),
             );
           }),
-          // Espacio para que el FAB (Cancelar/B2B) no tape el último botón.
-          if (hasFab) const SizedBox(width: 52),
         ],
       ),
     );
@@ -3962,7 +3966,12 @@ class _AccionDial {
 /// SpeedDial (FAB desplegable) con las acciones de estado de la orden.
 class _OrdenAccionesSpeedDial extends StatefulWidget {
   final List<_AccionDial> acciones;
-  const _OrdenAccionesSpeedDial({required this.acciones});
+  // Espacio inferior para elevar el FAB por encima de la barra fija.
+  final double bottomInset;
+  const _OrdenAccionesSpeedDial({
+    required this.acciones,
+    this.bottomInset = 0,
+  });
 
   @override
   State<_OrdenAccionesSpeedDial> createState() =>
@@ -4007,7 +4016,9 @@ class _OrdenAccionesSpeedDialState extends State<_OrdenAccionesSpeedDial>
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
+    return Padding(
+      padding: EdgeInsets.only(bottom: widget.bottomInset),
+      child: SizedBox(
       width: 260,
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -4054,6 +4065,7 @@ class _OrdenAccionesSpeedDialState extends State<_OrdenAccionesSpeedDial>
             ),
           ),
         ],
+      ),
       ),
     );
   }
