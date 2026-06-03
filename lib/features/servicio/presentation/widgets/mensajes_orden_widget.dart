@@ -6,6 +6,7 @@ import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_gradients.dart';
 import '../../../../core/theme/gradient_container.dart';
+import '../../../auth/presentation/widgets/custom_text.dart';
 
 class MensajesOrdenWidget extends StatefulWidget {
   final String? ordenId;
@@ -199,31 +200,12 @@ class _MensajesOrdenWidgetState extends State<MensajesOrdenWidget> {
           Row(
             children: [
               Expanded(
-                child: TextField(
+                child: CustomText(
                   controller: _controller,
-                  decoration: InputDecoration(
-                    hintText: 'Escribe un mensaje...',
-                    hintStyle: TextStyle(fontSize: 12, color: Colors.grey[400]),
-                    filled: true,
-                    fillColor: Colors.white,
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(20),
-                      borderSide: BorderSide(color: Colors.grey[300]!),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(20),
-                      borderSide: BorderSide(color: Colors.grey[300]!),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(20),
-                      borderSide: BorderSide(color: AppColors.blue1),
-                    ),
-                  ),
+                  hintText: 'Escribe un mensaje...',
+                  borderColor: AppColors.blue1,
                   maxLines: 3,
                   minLines: 1,
-                  textInputAction: TextInputAction.send,
                   onSubmitted: (_) => _enviarMensaje(),
                 ),
               ),

@@ -10,6 +10,8 @@ import 'package:syncronize/core/widgets/animated_confirm_dialog.dart';
 import 'package:syncronize/core/widgets/custom_switch_tile.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/network/dio_client.dart';
+import '../../../../core/constants/api_constants.dart';
 import '../../../../core/services/storage_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_gradients.dart';
@@ -63,6 +65,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
   bool _isUploadingImage = false;
   double _uploadProgress = 0.0;
   String? _error;
+  int _mensajesNoLeidos = 0;
 
   String get _empresaId {
     final state = context.read<EmpresaContextCubit>().state;
@@ -80,6 +83,18 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     await Future.wait([_loadOrden(), _loadHistorial(), _loadArchivos()]);
     _filterFirmaFromArchivos();
     if (mounted) setState(() => _isLoading = false);
+    _loadMensajesNoLeidos();
+  }
+
+  /// Conteo de mensajes no leídos del cliente para el badge del ícono.
+  Future<void> _loadMensajesNoLeidos() async {
+    try {
+      final response = await locator<DioClient>().get(
+        '${ApiConstants.ordenesServicio}/${widget.ordenId}/mensajes/no-leidos',
+      );
+      final count = (response.data as Map<String, dynamic>)['count'] as int? ?? 0;
+      if (mounted) setState(() => _mensajesNoLeidos = count);
+    } catch (_) {}
   }
 
   Future<void> _loadOrden() async {
@@ -152,8 +167,16 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
           actions: [
             if (_orden != null) ...[
               IconButton(
-                icon: const Icon(Icons.forum_outlined,
-                    color: Colors.white, size: 20),
+                icon: Badge(
+                  isLabelVisible: _mensajesNoLeidos > 0,
+                  backgroundColor: Colors.red,
+                  label: Text(
+                    _mensajesNoLeidos > 99 ? '99+' : '$_mensajesNoLeidos',
+                    style: const TextStyle(fontSize: 9, color: Colors.white),
+                  ),
+                  child: const Icon(Icons.forum_outlined,
+                      color: Colors.white, size: 20),
+                ),
                 onPressed: _showMensajesDialog,
                 tooltip: 'Mensajes',
               ),
@@ -172,8 +195,8 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
   }
 
   /// Abre los mensajes de la orden en un dialog (desacoplado del formulario).
-  void _showMensajesDialog() {
-    showDialog(
+  Future<void> _showMensajesDialog() async {
+    await showDialog(
       context: context,
       builder: (_) => Dialog(
         backgroundColor: Colors.transparent,
@@ -187,6 +210,8 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
         ),
       ),
     );
+    // Al abrir el dialog se marcan como leídos → refrescar el badge.
+    if (mounted) _loadMensajesNoLeidos();
   }
 
   Widget _buildBody() {
