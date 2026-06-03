@@ -126,10 +126,7 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
           padding: const EdgeInsets.only(bottom: 12),
           child: CustomText(
             controller: _controllers[campo.nombre],
-            // Mayúsculas salvo EMAIL/URL (donde rompería el valor).
-            textCase: (campo.tipoCampo == 'EMAIL' || campo.tipoCampo == 'URL')
-                ? TextCase.normal
-                : TextCase.upper,
+            textCase: _textCase(campo.tipoCampo, campo.nombre),
             label: '${campo.nombre}${campo.esRequerido ? " *" : ""}',
             hintText: campo.placeholder,
             borderColor: AppColors.blue1,
@@ -161,7 +158,7 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
           padding: const EdgeInsets.only(bottom: 12),
           child: CustomText(
             controller: _controllers[campo.nombre],
-            textCase: TextCase.upper,
+            textCase: _textCase(campo.tipoCampo, campo.nombre),
             label: '${campo.nombre}${campo.esRequerido ? " *" : ""}',
             hintText: campo.placeholder,
             borderColor: AppColors.blue1,
@@ -332,7 +329,7 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
                 TextEditingController(
                     text: widget.values[campo.nombre]?.toString() ?? ''),
             label: campo.nombre,
-            textCase: TextCase.upper,
+            textCase: _textCase(campo.tipoCampo, campo.nombre),
             borderColor: AppColors.blue1,
             onChanged: (v) => _updateValue(campo.nombre, v),
           ),
@@ -654,8 +651,7 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
                 padding: const EdgeInsets.only(bottom: 8),
                 child: CustomText(
                   controller: _controllers[subKey],
-                  textCase:
-                      subTipo == 'NUMERO' ? TextCase.normal : TextCase.upper,
+                  textCase: _textCase(subTipo, subNombre),
                   label: subNombre,
                   borderColor: AppColors.blue1,
                   keyboardType: subTipo == 'NUMERO'
@@ -679,6 +675,18 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
         ),
       ),
     );
+  }
+
+  /// MAYÚSCULAS por defecto, salvo correos/URLs/números y campos sensibles
+  /// (contraseñas/clave/PIN) donde alterar mayúsculas rompería el valor.
+  TextCase _textCase(String tipoCampo, String nombre) {
+    if (tipoCampo == 'EMAIL' || tipoCampo == 'URL' || tipoCampo == 'NUMERO') {
+      return TextCase.normal;
+    }
+    final n = nombre.toLowerCase();
+    const sensibles = ['contraseña', 'contrasena', 'clave', 'password', 'pin'];
+    if (sensibles.any(n.contains)) return TextCase.normal;
+    return TextCase.upper;
   }
 
   TextInputType _keyboardType(String tipoCampo) {
