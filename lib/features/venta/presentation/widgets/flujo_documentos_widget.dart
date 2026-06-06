@@ -286,6 +286,11 @@ class _FlujoDocumentosWidgetState extends State<FlujoDocumentosWidget> {
         return _TipoConfig('Cuota', Icons.event, Colors.amber.shade800);
       case 'DEVOLUCION':
         return _TipoConfig('Devolución', Icons.assignment_return, Colors.red);
+      case 'ORDEN_SERVICIO':
+        return _TipoConfig(
+            'Orden Servicio', Icons.home_repair_service_outlined, Colors.cyan.shade800);
+      case 'ADELANTO':
+        return _TipoConfig('Adelanto', Icons.savings_outlined, Colors.green.shade700);
       default:
         return _TipoConfig(tipo, Icons.insert_drive_file, Colors.grey);
     }

@@ -644,6 +644,8 @@ class _FlujoDocumentosPageState extends State<FlujoDocumentosPage> {
       case 'PAGO': return _TC('Pago', Icons.payments, Colors.green);
       case 'CUOTA': return _TC('Cuota', Icons.event, Colors.amber.shade800);
       case 'DEVOLUCION': return _TC('Devolución', Icons.assignment_return, Colors.red);
+      case 'ORDEN_SERVICIO': return _TC('Orden Servicio', Icons.home_repair_service_outlined, Colors.cyan.shade800);
+      case 'ADELANTO': return _TC('Adelanto', Icons.savings_outlined, Colors.green.shade700);
       default: return _TC(t, Icons.insert_drive_file, Colors.grey);
     }
   }
