@@ -69,7 +69,11 @@ class VentaDetalleModel extends VentaDetalle {
       origenComboId: json['origenComboId'] as String?,
       origenComboNombre: json['origenComboNombre'] as String?,
       nivelAplicadoSnapshot: json['nivelAplicadoSnapshot'] as String?,
-      ordenServicioId: json['ordenServicioId'] as String?,
+      // Fallback al id del objeto anidado: si el backend solo mandara la
+      // relación `ordenServicio`, `esOrdenServicio` no debe apagarse (de él
+      // depende TODO el desglose en ticket/PDF/detalle).
+      ordenServicioId: json['ordenServicioId'] as String? ??
+          ordenServicio?['id'] as String?,
       ordenCodigo: ordenServicio?['codigo'] as String?,
       ordenCostoTotal: ordenServicio?['costoTotal'] != null
           ? _toDouble(ordenServicio!['costoTotal'])

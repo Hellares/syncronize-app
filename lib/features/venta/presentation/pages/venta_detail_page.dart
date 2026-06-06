@@ -756,7 +756,14 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
   }
 
   Widget _buildPagoSection(Venta v) {
-    final tieneHistorial = v.pagos != null && v.pagos!.isNotEmpty;
+    // Pagos de ESTA venta (hoy). Los pagos "Adelanto OS-X" se excluyen del
+    // historial: ya se muestran en PAGOS PREVIOS con su contexto, y la
+    // lógica de vuelto (montoCambio es de HOY) no les aplica — un adelanto
+    // EFECTIVO mostraría el vuelto restado de un dinero que no lo generó.
+    final pagosHoy = (v.pagos ?? [])
+        .where((p) => !(p.referencia?.startsWith('Adelanto ') ?? false))
+        .toList();
+    final tieneHistorial = pagosHoy.isNotEmpty;
     // Adelantos previos de órdenes de servicio cobradas en esta venta.
     // NO son PagoVenta (entraron a caja con su propio movimiento
     // ADELANTO_SERVICIO cuando se recibieron), pero sin mostrarlos aquí
@@ -901,7 +908,7 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    '(${v.pagos!.length})',
+                    '(${pagosHoy.length})',
                     style: TextStyle(
                       fontSize: 10,
                       color: Colors.grey.shade600,
@@ -911,7 +918,7 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                 ],
               ),
               const SizedBox(height: 6),
-              ...v.pagos!.map((pago) {
+              ...pagosHoy.map((pago) {
                 final tieneVuelto = pago.metodoPago == MetodoPago.efectivo &&
                     v.montoCambio != null &&
                     v.montoCambio! > 0;

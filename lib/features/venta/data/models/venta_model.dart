@@ -132,7 +132,9 @@ class VentaModel extends Venta {
     // Códigos de órdenes de servicio cobradas: la lista los manda
     // aplanados (`ordenesServicio`); en el detalle se derivan de los
     // detalles parseados (cada línea de orden trae su ordenCodigo).
-    final ordenesServicioCodigos = <String>[
+    // toSet(): si una respuesta trajera ambas fuentes (aplanado Y detalles),
+    // el mismo código no debe duplicar el badge en la card.
+    final ordenesServicioCodigos = <String>{
       ...((json['ordenesServicio'] as List?) ?? [])
           .whereType<Map>()
           .map((o) => o['codigo'] as String?)
@@ -140,7 +142,7 @@ class VentaModel extends Venta {
       ...?detalles
           ?.where((d) => d.esOrdenServicio && d.ordenCodigo != null)
           .map((d) => d.ordenCodigo!),
-    ];
+    }.toList();
 
     List<PagoVenta>? pagos;
     if (json['pagos'] != null) {
