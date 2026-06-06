@@ -260,13 +260,25 @@ class _OrdenCobrableCard extends StatelessWidget {
               children: [
                 Text(
                   'S/ ${orden.saldoPendiente.toStringAsFixed(2)}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w800,
-                    color: AppColors.blue1,
+                    color: orden.saldoPendiente <= 0
+                        ? Colors.green.shade700
+                        : AppColors.blue1,
                   ),
                 ),
-                if (orden.adelanto > 0)
+                if (orden.saldoPendiente <= 0 && orden.adelanto > 0)
+                  // 100% adelantada: nada que pagar hoy, pero falta emitir
+                  // la boleta por el total (por eso sigue en la lista).
+                  Text(
+                    'Pagado · falta facturar',
+                    style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.green.shade700),
+                  )
+                else if (orden.adelanto > 0)
                   Text(
                     'Adelanto S/ ${orden.adelanto.toStringAsFixed(2)}',
                     style: TextStyle(fontSize: 9, color: Colors.green.shade700),

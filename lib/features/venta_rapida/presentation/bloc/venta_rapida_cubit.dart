@@ -97,10 +97,19 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       ));
       return false;
     }
-    if (orden.saldoPendiente <= 0) {
+    // saldo == 0 (100% adelantada) SÍ se puede cobrar: no se paga nada hoy
+    // pero la boleta se emite por el total. Solo se bloquea el saldo
+    // negativo (adelanto+descuento > costo = datos inconsistentes).
+    if (orden.saldoPendiente < 0) {
       emit(state.copyWith(
         error:
-            'La orden ${orden.codigo} no tiene saldo pendiente. Entregala con el cambio de estado normal',
+            'La orden ${orden.codigo} tiene montos inconsistentes (adelanto + descuento superan el costo). Corrígela antes de cobrar',
+      ));
+      return false;
+    }
+    if (orden.costoTotal - orden.descuento <= 0) {
+      emit(state.copyWith(
+        error: 'La orden ${orden.codigo} no tiene costo definido',
       ));
       return false;
     }
@@ -1086,7 +1095,11 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       emit(state.copyWith(error: 'Agrega al menos un producto'));
       return;
     }
-    if (!state.esCredito && state.pagos.isEmpty) {
+    // Sin pagos solo es válido cuando no hay nada que cobrar HOY (orden
+    // 100% cubierta por adelantos: la boleta sale por el total igual).
+    if (!state.esCredito &&
+        state.pagos.isEmpty &&
+        state.totalACobrar > _kPenPaymentTolerance) {
       emit(state.copyWith(error: 'Agrega al menos un pago'));
       return;
     }
