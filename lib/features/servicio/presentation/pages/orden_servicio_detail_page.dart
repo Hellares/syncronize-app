@@ -1723,6 +1723,23 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                     text: 'Guardar costos',
                     icon: const Icon(Icons.save_outlined, size: 16),
                     onPressed: () {
+                      // El adelanto se registra en caja con su medio de pago
+                      // (backend ADELANTO_SERVICIO) → método obligatorio.
+                      final adelGuardar = adelantoCtrl.text.isNotEmpty
+                          ? (double.tryParse(adelantoCtrl.text) ?? 0)
+                          : 0.0;
+                      if (adelGuardar > 0 &&
+                          (metodoPago == null || metodoPago!.isEmpty)) {
+                        ScaffoldMessenger.of(ctx).showSnackBar(
+                          SnackBar(
+                            content: const Text(
+                                'Selecciona el medio de pago del adelanto'),
+                            backgroundColor: Colors.orange.shade700,
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                        return;
+                      }
                       Navigator.pop(ctx);
                       _guardarCostos(
                         costoTotal: costoTotalCtrl.text.isNotEmpty
@@ -3184,6 +3201,21 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                       const SnackBar(
                           content:
                               Text('Debes indicar el motivo del reingreso')),
+                    );
+                    return;
+                  }
+                  // El adelanto se registra en caja con su medio de pago
+                  // (backend ADELANTO_SERVICIO) → método obligatorio.
+                  final adelTransicion = adelantoController.text.isNotEmpty
+                      ? (double.tryParse(adelantoController.text) ?? 0)
+                      : 0.0;
+                  if (adelTransicion > 0 &&
+                      (metodoPagoAdelanto == null ||
+                          metodoPagoAdelanto!.isEmpty)) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content: Text(
+                              'Selecciona el medio de pago del adelanto')),
                     );
                     return;
                   }
