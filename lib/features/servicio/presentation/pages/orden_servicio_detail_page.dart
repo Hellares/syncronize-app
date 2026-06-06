@@ -2784,7 +2784,8 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     // Guard: caja abierta (mismo patrón que VR productos).
     final cajaResult = await locator<GetCajaActivaUseCase>()();
     if (!mounted) return;
-    if (cajaResult is! Success<Caja?> || cajaResult.data == null) {
+    final caja = cajaResult is Success<Caja?> ? cajaResult.data : null;
+    if (caja == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Debes abrir tu caja antes de cobrar'),
@@ -2805,15 +2806,21 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     final empresaState = context.read<EmpresaContextCubit>().state;
     final authState = context.read<AuthBloc>().state;
     String? empresaId;
-    String? sedeId;
-    String? vendedorId;
     if (empresaState is EmpresaContextLoaded) {
       empresaId = empresaState.context.empresa.id;
-      sedeId = empresaState.context.sedePrincipal?.id ??
-          (empresaState.context.sedes.isNotEmpty
-              ? empresaState.context.sedes.first.id
-              : null);
     }
+    // Sede del cobro = la de la CAJA ABIERTA del cajero (el cobro ocurre
+    // donde está el cajero): garantiza que el movimiento de caja matchee
+    // (el backend exige caja abierta EN la sede de la venta) y que la
+    // serie/correlativo salga del punto de emisión real. Fallbacks: sede
+    // de la orden → sede principal (empresas mono-sede: las tres coinciden).
+    final sedeId = caja.sedeId.isNotEmpty
+        ? caja.sedeId
+        : (orden.sedeId ??
+            (empresaState is EmpresaContextLoaded
+                ? empresaState.context.sedePrincipal?.id
+                : null));
+    String? vendedorId;
     if (authState is Authenticated) {
       vendedorId = authState.user.id;
     }
