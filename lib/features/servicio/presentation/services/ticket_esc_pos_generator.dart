@@ -45,10 +45,14 @@ class TicketEscPosGenerator {
           if (logo.width > maxWidth) {
             logo = img.copyResize(logo, width: maxWidth);
           }
-          // imageRaster (GS v 0): avance exacto del alto de la imagen.
-          // image() (ESC *) imprime por bandas y en varias térmicas
-          // (Bienex y similares) deja ~1.5cm de avance extra tras el logo.
-          bytes += generator.imageRaster(logo, align: PosAlign.center);
+          // image() (ESC *) imprime por bandas de 24 dots: si la impresora
+          // mantiene su interlineado por defecto (~30 dots) mete aire entre
+          // bandas y tras el logo (~1.5cm). ESC 3 0 fija interlineado 0
+          // mientras dura el raster; ESC 2 lo restaura para el texto.
+          // (GS v 0 / imageRaster NO está soportado por estas térmicas.)
+          bytes += [0x1B, 0x33, 0x00]; // ESC 3 0 → line spacing 0
+          bytes += generator.image(logo, align: PosAlign.center);
+          bytes += [0x1B, 0x32]; // ESC 2 → line spacing default
           bytes += generator.feed(1);
         }
       } catch (_) {}
