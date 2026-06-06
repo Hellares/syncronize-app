@@ -63,24 +63,24 @@ class _CronometroServicioWidgetState extends State<CronometroServicioWidget> {
           children: [
             const Icon(Icons.timer_outlined, size: 16, color: AppColors.blue1),
             const SizedBox(width: 8),
-            const AppSubtitle('CRONOMETRO', fontSize: 12),
+            const AppSubtitle('CRONOMETRO', fontSize: 11),
             const Spacer(),
             Container(
               padding:
                   const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
                 color: _tiempoColor(tiempoTotal).withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(4),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (_isActive)
                     Padding(
-                      padding: const EdgeInsets.only(right: 4),
+                      padding: const EdgeInsets.only(right: 6),
                       child: SizedBox(
-                        width: 8,
-                        height: 8,
+                        width: 10,
+                        height: 10,
                         child: CircularProgressIndicator(
                           strokeWidth: 1.5,
                           color: _tiempoColor(tiempoTotal),
@@ -90,8 +90,8 @@ class _CronometroServicioWidgetState extends State<CronometroServicioWidget> {
                   Text(
                     CronometroServicioCalculator.formatDuration(tiempoTotal),
                     style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
                       color: _tiempoColor(tiempoTotal),
                     ),
                   ),

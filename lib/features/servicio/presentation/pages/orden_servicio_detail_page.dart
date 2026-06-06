@@ -922,7 +922,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     return GradientContainer(
       borderColor: AppColors.blueborder,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -931,7 +931,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                 const Icon(Icons.photo_camera_outlined, size: 16, color: AppColors.blue1),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: AppSubtitle('IMAGENES (${_archivos.length})', fontSize: 12),
+                  child: AppSubtitle('IMAGENES (${_archivos.length})', fontSize: 11),
                 ),
                 InkWell(
                   onTap: _isUploadingImage ? null : () => _pickAndUploadImage(ImageSource.camera),
@@ -940,7 +940,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: AppColors.bluechip,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(4),
                     ),
                     child: const Row(
                       mainAxisSize: MainAxisSize.min,
@@ -949,7 +949,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                         SizedBox(width: 4),
                         Text('Camara',
                             style: TextStyle(
-                                fontSize: 11,
+                                fontSize: 10,
                                 color: AppColors.blue1,
                                 fontWeight: FontWeight.w600)),
                       ],
@@ -964,7 +964,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: AppColors.bluechip,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(4),
                     ),
                     child: const Row(
                       mainAxisSize: MainAxisSize.min,
@@ -973,7 +973,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                         SizedBox(width: 4),
                         Text('Galeria',
                             style: TextStyle(
-                                fontSize: 11,
+                                fontSize: 10,
                                 color: AppColors.blue1,
                                 fontWeight: FontWeight.w600)),
                       ],
@@ -2429,7 +2429,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     return GradientContainer(
       borderColor: AppColors.blueborder,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -2438,7 +2438,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                 const Icon(Icons.draw_outlined, size: 16, color: AppColors.blue1),
                 const SizedBox(width: 8),
                 const Expanded(
-                  child: AppSubtitle('FIRMA DEL CLIENTE', fontSize: 12),
+                  child: AppSubtitle('FIRMA DEL CLIENTE', fontSize: 11),
                 ),
                 if (!hasFirma)
                   InkWell(
@@ -2449,7 +2449,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                           const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
                         color: AppColors.bluechip,
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(4),
                       ),
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
@@ -2458,7 +2458,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                           SizedBox(width: 4),
                           Text('Capturar',
                               style: TextStyle(
-                                  fontSize: 11,
+                                  fontSize: 10,
                                   color: AppColors.blue1,
                                   fontWeight: FontWeight.w600)),
                         ],
@@ -2499,7 +2499,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                     const SizedBox(width: 8),
                     Text('Sin firma capturada',
                         style: TextStyle(
-                            fontSize: 12, color: Colors.grey.shade500)),
+                            fontSize: 10, color: Colors.grey.shade500)),
                   ],
                 ),
               ),

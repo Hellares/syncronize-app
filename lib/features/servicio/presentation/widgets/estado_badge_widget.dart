@@ -18,7 +18,7 @@ class EstadoBadgeWidget extends StatelessWidget {
       child: Text(
         _label,
         style: TextStyle(
-          fontSize: 10,
+          fontSize: 9,
           fontFamily: AppFonts.getFontFamily(AppFont.oxygenBold),
           color: _color,
         ),

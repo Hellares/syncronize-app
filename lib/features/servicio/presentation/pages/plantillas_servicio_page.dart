@@ -199,7 +199,7 @@ class _PlantillasServicioPageState extends State<PlantillasServicioPage> {
         return Dialog(
           backgroundColor: Colors.transparent,
           child: AnimatedNeonBorder(
-            borderRadius: 14,
+            borderRadius: 10,
             borderWidth: 1.5,
             padding: const EdgeInsets.all(1.5),
             enableHighlight: true,
@@ -210,7 +210,7 @@ class _PlantillasServicioPageState extends State<PlantillasServicioPage> {
               constraints: const BoxConstraints(maxWidth: 420),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(10),
               ),
               padding: const EdgeInsets.all(20),
               child: SingleChildScrollView(
