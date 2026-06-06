@@ -21,6 +21,12 @@ class VentaDetalleInput {
   /// Solo client-side, no se envía al backend.
   final String? ordenCodigo;
 
+  /// Adelanto ya pagado de la orden (S/). El precio de la línea es el
+  /// COSTO NETO del servicio (el comprobante sale por el total); este
+  /// adelanto se descuenta de lo que el cliente paga HOY. Solo
+  /// client-side — el backend lo lee de la orden.
+  final double ordenAdelanto;
+
   final String descripcion;
   final double cantidad;
   final double precioUnitario;
@@ -94,6 +100,7 @@ class VentaDetalleInput {
     this.comboId,
     this.ordenServicioId,
     this.ordenCodigo,
+    this.ordenAdelanto = 0,
     required this.descripcion,
     required this.cantidad,
     required this.precioUnitario,
@@ -188,6 +195,7 @@ class VentaDetalleInput {
     String? comboId,
     String? ordenServicioId,
     String? ordenCodigo,
+    double? ordenAdelanto,
     String? descripcion,
     double? cantidad,
     double? precioUnitario,
@@ -220,6 +228,7 @@ class VentaDetalleInput {
       comboId: comboId ?? this.comboId,
       ordenServicioId: ordenServicioId ?? this.ordenServicioId,
       ordenCodigo: ordenCodigo ?? this.ordenCodigo,
+      ordenAdelanto: ordenAdelanto ?? this.ordenAdelanto,
       descripcion: descripcion ?? this.descripcion,
       cantidad: cantidad ?? this.cantidad,
       precioUnitario: precioUnitario ?? this.precioUnitario,

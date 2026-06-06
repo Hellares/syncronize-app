@@ -123,15 +123,20 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
 
     final equipo = orden.equipoDescripcion;
     final detalle = orden.servicioNombre ?? orden.tipoServicio;
+    // Precio de línea = COSTO NETO del servicio (costo − descuento, SIN
+    // restar adelanto): el comprobante sale por el TOTAL del servicio y
+    // el adelanto se aplica como pago (HOY solo se cobra el saldo).
+    final costoNeto =
+        ((orden.costoTotal - orden.descuento) * 100).roundToDouble() / 100;
     final item = VentaDetalleInput(
       ordenServicioId: orden.id,
       ordenCodigo: orden.codigo,
+      ordenAdelanto: orden.adelanto,
       descripcion: '${orden.codigo} — ${equipo.isNotEmpty ? equipo : detalle}',
       cantidad: 1,
-      // El costo de la orden es precio final al cliente → IGV incluido
-      // (mismo criterio que el cobro legacy, que desagregaba el IGV del
-      // saldo). El backend exige que coincida con el saldo vigente.
-      precioUnitario: orden.saldoPendiente,
+      // El costo de la orden es precio final al cliente → IGV incluido.
+      // El backend exige que coincida con el costo neto vigente.
+      precioUnitario: costoNeto,
       precioIncluyeIgv: true,
       porcentajeIGV: state.impuestoPorcentaje,
       tipoAfectacion: '10',
@@ -1083,7 +1088,11 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       emit(state.copyWith(error: 'Agrega al menos un pago'));
       return;
     }
-    if (!state.esCredito && state.totalPagado + _kPenPaymentTolerance < state.total) {
+    // Validar contra lo que se cobra HOY (total − adelantos aplicados de
+    // órdenes de servicio): el comprobante sale por el total, pero el
+    // adelanto ya se pagó antes.
+    if (!state.esCredito &&
+        state.totalPagado + _kPenPaymentTolerance < state.totalACobrar) {
       emit(state.copyWith(error: 'Monto recibido insuficiente'));
       return;
     }

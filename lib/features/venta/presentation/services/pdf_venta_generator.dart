@@ -600,30 +600,20 @@ class PdfVentaGenerator {
                       style: pw.TextStyle(
                           fontSize: 5, color: PdfColors.green700),
                     ),
-                  // Línea que cobra una orden de servicio: desglose con el
-                  // costo total, adelantos previos (con su método) y el
-                  // saldo cobrado en esta venta.
-                  if (d.esOrdenServicio == true) ...[
-                    if ((d.ordenCostoTotal ?? 0) > 0)
-                      pw.Text(
-                        'Costo servicio $simboloMoneda${d.ordenCostoTotal!.toStringAsFixed(2)}',
-                        style: pw.TextStyle(fontSize: 5, color: colorCuerpo),
-                      ),
-                    if ((d.ordenDescuento ?? 0) > 0)
-                      pw.Text(
-                        'Descuento serv -$simboloMoneda${d.ordenDescuento!.toStringAsFixed(2)}',
-                        style: pw.TextStyle(
-                            fontSize: 5, color: PdfColors.green700),
-                      ),
-                    if ((d.ordenAdelanto ?? 0) > 0)
-                      pw.Text(
-                        'Adelanto${d.ordenMetodoPagoAdelanto != null ? " (${d.ordenMetodoPagoAdelanto})" : ""} '
-                        '-$simboloMoneda${d.ordenAdelanto!.toStringAsFixed(2)}',
-                        style: pw.TextStyle(
-                            fontSize: 5, color: PdfColors.green700),
-                      ),
+                  // Línea que cobra una orden de servicio: la línea va por
+                  // el COSTO NETO (el comprobante sale por el total); aquí
+                  // se desglosa el adelanto previo (con su método) y lo
+                  // efectivamente cobrado HOY (total − adelanto).
+                  if (d.esOrdenServicio == true &&
+                      (d.ordenAdelanto ?? 0) > 0) ...[
                     pw.Text(
-                      'Saldo cobrado $simboloMoneda${(d.total as double).toStringAsFixed(2)}',
+                      'Adelanto${d.ordenMetodoPagoAdelanto != null ? " (${d.ordenMetodoPagoAdelanto})" : ""} '
+                      '-$simboloMoneda${d.ordenAdelanto!.toStringAsFixed(2)}',
+                      style: pw.TextStyle(
+                          fontSize: 5, color: PdfColors.green700),
+                    ),
+                    pw.Text(
+                      'Saldo cobrado hoy $simboloMoneda${((d.total as double) - (d.ordenAdelanto as double)).toStringAsFixed(2)}',
                       style: pw.TextStyle(
                           fontSize: 5,
                           fontWeight: pw.FontWeight.bold,

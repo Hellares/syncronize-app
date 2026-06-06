@@ -53,6 +53,16 @@ class _CarritoView extends StatelessWidget {
                   'S/ ${state.total.toStringAsFixed(2)}',
                   style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
                 ),
+                // Con adelantos de órdenes aplicados, lo que se cobra HOY
+                // es menos que el total del comprobante.
+                if (state.adelantoAplicado > 0) ...[
+                  const SizedBox(width: 10),
+                  Text(
+                    'A cobrar S/ ${state.totalACobrar.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                        fontSize: 11, color: Colors.white70),
+                  ),
+                ],
               ],
             );
           },

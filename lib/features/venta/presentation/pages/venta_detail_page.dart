@@ -865,7 +865,7 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                           child: Text(
                             'Costo servicio S/ ${costo.toStringAsFixed(2)} = '
                             'adelanto S/ ${adelanto.toStringAsFixed(2)} + '
-                            'cobrado en esta venta S/ ${d.total.toStringAsFixed(2)}',
+                            'cobrado hoy S/ ${(d.total - adelanto).toStringAsFixed(2)}',
                             style: TextStyle(
                               fontSize: 10,
                               color: AppColors.blue1,

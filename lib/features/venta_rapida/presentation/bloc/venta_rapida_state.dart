@@ -99,9 +99,22 @@ class VentaRapidaState extends Equatable {
   int get cantidadUnidades =>
       items.fold(0, (sum, i) => sum + i.cantidad.toInt());
   bool get esCredito => condicionPago == 'CREDITO';
+
+  /// Adelantos ya pagados de las órdenes de servicio en el carrito. El
+  /// `total` es por el TOTAL de los servicios (el comprobante se emite
+  /// completo); HOY el cliente paga `totalACobrar` = total − adelantos.
+  double get adelantoAplicado =>
+      items.fold(0.0, (sum, i) => sum + i.ordenAdelanto);
+
+  /// Lo que el cliente debe pagar HOY (total − adelantos aplicados).
+  double get totalACobrar {
+    final t = total - adelantoAplicado;
+    return t > 0 ? t : 0;
+  }
+
   double get totalPagado => pagos.fold(0.0, (sum, p) => sum + ((p['monto'] as num).toDouble()));
   double get vuelto {
-    final v = totalPagado - total;
+    final v = totalPagado - totalACobrar;
     return v > 0 ? v : 0;
   }
 

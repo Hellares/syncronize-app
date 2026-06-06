@@ -230,30 +230,20 @@ class TicketVentaEscPosGenerator {
           );
         }
 
-        // Línea que cobra una orden de servicio: desglose del costo total,
-        // adelantos previos (historial de pagos con su método) y el saldo
-        // cobrado en ESTA venta (el precio de la línea).
-        if (d.esOrdenServicio) {
-          if (d.ordenCostoTotal != null && d.ordenCostoTotal! > 0) {
-            bytes += generator.text(
-              '  Costo servicio: S/${d.ordenCostoTotal!.toStringAsFixed(2)}',
-            );
-          }
-          if (d.ordenDescuento != null && d.ordenDescuento! > 0) {
-            bytes += generator.text(
-              '  Descuento serv: -S/${d.ordenDescuento!.toStringAsFixed(2)}',
-            );
-          }
-          if (d.ordenAdelanto != null && d.ordenAdelanto! > 0) {
-            final metodo = d.ordenMetodoPagoAdelanto != null
-                ? ' (${d.ordenMetodoPagoAdelanto})'
-                : '';
-            bytes += generator.text(
-              '  Adelanto$metodo: -S/${d.ordenAdelanto!.toStringAsFixed(2)}',
-            );
-          }
+        // Línea que cobra una orden de servicio: la línea va por el COSTO
+        // NETO del servicio (el comprobante sale por el total); aquí se
+        // desglosa el historial: adelantos previos (con su método) y lo
+        // efectivamente cobrado HOY (total − adelanto).
+        if (d.esOrdenServicio && (d.ordenAdelanto ?? 0) > 0) {
+          final metodo = d.ordenMetodoPagoAdelanto != null
+              ? ' (${d.ordenMetodoPagoAdelanto})'
+              : '';
           bytes += generator.text(
-            '  Saldo cobrado: S/${d.total.toStringAsFixed(2)}',
+            '  Adelanto$metodo: -S/${d.ordenAdelanto!.toStringAsFixed(2)}',
+          );
+          final cobradoHoy = d.total - d.ordenAdelanto!;
+          bytes += generator.text(
+            '  Saldo cobrado hoy: S/${cobradoHoy.toStringAsFixed(2)}',
           );
         }
       }

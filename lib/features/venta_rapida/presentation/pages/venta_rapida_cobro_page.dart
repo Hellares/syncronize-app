@@ -346,11 +346,11 @@ class _CobroViewState extends State<_CobroView> {
 
     bool aceptaRiesgo = false;
     if (!state.esCredito &&
-        aplicaBancarizacion(totalVentaPen: state.total) &&
+        aplicaBancarizacion(totalVentaPen: state.totalACobrar) &&
         totalEfectivo > 0 &&
         totalBancarizado < umbralBancarizacionPen) {
       final ok = await _confirmarRiesgoBancarizacion(
-        totalVenta: state.total,
+        totalVenta: state.totalACobrar,
         efectivo: totalEfectivo,
         bancarizado: totalBancarizado,
       );
@@ -544,7 +544,7 @@ class _CobroViewState extends State<_CobroView> {
     // Banco obligatorio cuando: aplica bancarización (≥ S/2,000) Y hay
     // un pago no-EFECTIVO con método que requiere entidad financiera
     // (TARJETA / TRANSFERENCIA) sin banco seleccionado.
-    final bancarizable = aplicaBancarizacion(totalVentaPen: state.total);
+    final bancarizable = aplicaBancarizacion(totalVentaPen: state.totalACobrar);
     final faltaBanco = bancarizable &&
         _otrosPagos.any((p) {
           final monto = CurrencyUtilsImproved.parseToDouble(p.montoCtrl.text);
@@ -767,7 +767,9 @@ class _CobroViewState extends State<_CobroView> {
                 ? 'Boleta de Venta'
                 : 'Factura';
 
-        final totalCobrar = state.total;
+        // Lo que el cliente paga HOY: total − adelantos aplicados de
+        // órdenes de servicio (el comprobante sale por el total).
+        final totalCobrar = state.totalACobrar;
         final totalRecibido = _calcularTotalRecibido();
         final diferencia = totalRecibido - totalCobrar;
         final faltante = state.esCredito
@@ -809,8 +811,12 @@ class _CobroViewState extends State<_CobroView> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Text('Total a cobrar  ',
-                            style: TextStyle(fontSize: 14, color: Colors.black87)),
+                        Text(
+                            state.adelantoAplicado > 0
+                                ? 'Total S/ ${state.total.toStringAsFixed(2)} · Adelanto -S/ ${state.adelantoAplicado.toStringAsFixed(2)} · A cobrar  '
+                                : 'Total a cobrar  ',
+                            style: const TextStyle(
+                                fontSize: 14, color: Colors.black87)),
                         Text(
                           'S/ ${totalCobrar.toStringAsFixed(2)}',
                           style: const TextStyle(
@@ -1559,7 +1565,9 @@ class _CobroViewState extends State<_CobroView> {
   }
 
   Widget _buildCreditoSection(BuildContext context, VentaRapidaState state) {
-    final montoCredito = state.total;
+    // El crédito es sobre lo que falta pagar HOY (los adelantos de
+    // órdenes ya están pagados).
+    final montoCredito = state.totalACobrar;
     final cuotas = CuotaCalculator.calcular(
       montoCredito: montoCredito,
       numeroCuotas: state.numeroCuotas,
