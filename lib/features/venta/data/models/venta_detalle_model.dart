@@ -28,12 +28,19 @@ class VentaDetalleModel extends VentaDetalle {
     super.origenComboId,
     super.origenComboNombre,
     super.nivelAplicadoSnapshot,
+    super.ordenServicioId,
+    super.ordenCodigo,
+    super.ordenCostoTotal,
+    super.ordenAdelanto,
+    super.ordenDescuento,
+    super.ordenMetodoPagoAdelanto,
   });
 
   factory VentaDetalleModel.fromJson(Map<String, dynamic> json) {
     final producto = json['producto'] as Map<String, dynamic>?;
     final variante = json['variante'] as Map<String, dynamic>?;
     final servicio = json['servicio'] as Map<String, dynamic>?;
+    final ordenServicio = json['ordenServicio'] as Map<String, dynamic>?;
 
     return VentaDetalleModel(
       id: json['id'] as String,
@@ -62,6 +69,18 @@ class VentaDetalleModel extends VentaDetalle {
       origenComboId: json['origenComboId'] as String?,
       origenComboNombre: json['origenComboNombre'] as String?,
       nivelAplicadoSnapshot: json['nivelAplicadoSnapshot'] as String?,
+      ordenServicioId: json['ordenServicioId'] as String?,
+      ordenCodigo: ordenServicio?['codigo'] as String?,
+      ordenCostoTotal: ordenServicio?['costoTotal'] != null
+          ? _toDouble(ordenServicio!['costoTotal'])
+          : null,
+      ordenAdelanto: ordenServicio?['adelanto'] != null
+          ? _toDouble(ordenServicio!['adelanto'])
+          : null,
+      ordenDescuento: ordenServicio?['descuento'] != null
+          ? _toDouble(ordenServicio!['descuento'])
+          : null,
+      ordenMetodoPagoAdelanto: ordenServicio?['metodoPagoAdelanto'] as String?,
     );
   }
 

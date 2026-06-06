@@ -38,6 +38,17 @@ class VentaDetalle extends Equatable {
   /// ("Por Mayor"), "Oferta" o "Liquidación". Null si fue precio base.
   final String? nivelAplicadoSnapshot;
 
+  // Cobro de orden de servicio: esta línea representa el SALDO de una
+  // orden (REPARADO/LISTO_ENTREGA). El desglose permite que el ticket
+  // muestre el costo total del servicio, los adelantos previos (con su
+  // método) y el saldo cobrado en esta venta.
+  final String? ordenServicioId;
+  final String? ordenCodigo;
+  final double? ordenCostoTotal;
+  final double? ordenAdelanto;
+  final double? ordenDescuento;
+  final String? ordenMetodoPagoAdelanto;
+
   const VentaDetalle({
     required this.id,
     required this.ventaId,
@@ -65,9 +76,19 @@ class VentaDetalle extends Equatable {
     this.origenComboId,
     this.origenComboNombre,
     this.nivelAplicadoSnapshot,
+    this.ordenServicioId,
+    this.ordenCodigo,
+    this.ordenCostoTotal,
+    this.ordenAdelanto,
+    this.ordenDescuento,
+    this.ordenMetodoPagoAdelanto,
   });
 
+  /// True si esta línea cobra el saldo de una orden de servicio.
+  bool get esOrdenServicio => ordenServicioId != null;
+
   String get tipoItem {
+    if (ordenServicioId != null) return 'orden_servicio';
     if (servicioId != null) return 'servicio';
     if (comboId != null) return 'combo';
     if (varianteId != null) return 'variante';
@@ -97,5 +118,11 @@ class VentaDetalle extends Equatable {
         origenComboId,
         origenComboNombre,
         nivelAplicadoSnapshot,
+        ordenServicioId,
+        ordenCodigo,
+        ordenCostoTotal,
+        ordenAdelanto,
+        ordenDescuento,
+        ordenMetodoPagoAdelanto,
       ];
 }
