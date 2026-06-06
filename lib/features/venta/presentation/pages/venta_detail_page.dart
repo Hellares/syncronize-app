@@ -578,6 +578,21 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                                     ),
                                   ),
                                 ],
+                                // Línea que cobra una orden de servicio: el
+                                // precio es el SALDO. Mostrar el contexto
+                                // (costo total y adelanto previo) para que
+                                // el monto no parezca el costo del servicio.
+                                if (detalles[i].esOrdenServicio) ...[
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Servicio S/ ${(detalles[i].ordenCostoTotal ?? 0).toStringAsFixed(2)}'
+                                    '${(detalles[i].ordenAdelanto ?? 0) > 0 ? ' · Adelanto${detalles[i].ordenMetodoPagoAdelanto != null ? " ${detalles[i].ordenMetodoPagoAdelanto}" : ""} -S/ ${detalles[i].ordenAdelanto!.toStringAsFixed(2)}' : ''}',
+                                    style: TextStyle(
+                                      fontSize: 8,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                ],
                               ],
                             ),
                           ),
@@ -742,6 +757,14 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
 
   Widget _buildPagoSection(Venta v) {
     final tieneHistorial = v.pagos != null && v.pagos!.isNotEmpty;
+    // Adelantos previos de órdenes de servicio cobradas en esta venta.
+    // NO son PagoVenta (entraron a caja con su propio movimiento
+    // ADELANTO_SERVICIO cuando se recibieron), pero sin mostrarlos aquí
+    // se pierde la traza de cómo se completó el costo del servicio:
+    // costo total = adelantos previos + total de esta venta.
+    final adelantosServicio = (v.detalles ?? [])
+        .where((d) => d.esOrdenServicio && (d.ordenAdelanto ?? 0) > 0)
+        .toList();
     return GradientContainer(
       borderColor: AppColors.blueborder,
       child: Padding(
@@ -772,6 +795,88 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
             if (v.saldoPendiente > 0)
               _buildDetailRow(Icons.warning_amber, 'Pendiente',
                   '${v.moneda} ${v.saldoPendiente.toStringAsFixed(2)}'),
+            // Pagos previos de órdenes de servicio: el adelanto entró a
+            // caja antes de esta venta; aquí se muestra para cerrar la
+            // trazabilidad (adelanto + total venta = costo del servicio).
+            if (adelantosServicio.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Divider(
+                  height: 1,
+                  color: AppColors.blueborder.withValues(alpha: 0.5)),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Icon(Icons.home_repair_service_outlined,
+                      size: 14, color: AppColors.blue1),
+                  const SizedBox(width: 6),
+                  Text(
+                    'PAGOS PREVIOS (SERVICIO)',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.blue1,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              ...adelantosServicio.map((d) {
+                final costo = d.ordenCostoTotal ?? 0;
+                final adelanto = d.ordenAdelanto ?? 0;
+                final metodo = d.ordenMetodoPagoAdelanto;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Adelanto ${d.ordenCodigo ?? 'orden de servicio'}'
+                                  '${metodo != null ? ' · $metodo' : ''}',
+                                  style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600),
+                                ),
+                                Text(
+                                  'Pagado antes del cobro (registrado en caja al recibirse)',
+                                  style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.grey.shade600),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Text(
+                            '${v.moneda} ${adelanto.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w600, fontSize: 13),
+                          ),
+                        ],
+                      ),
+                      if (costo > 0)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2, left: 8),
+                          child: Text(
+                            'Costo servicio S/ ${costo.toStringAsFixed(2)} = '
+                            'adelanto S/ ${adelanto.toStringAsFixed(2)} + '
+                            'cobrado en esta venta S/ ${d.total.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: AppColors.blue1,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+              }),
+            ],
             // Historial inline (solo si hay pagos registrados). Va dentro
             // del MISMO card que el resumen — separado por un divisor +
             // subtítulo, no por otra tarjeta aparte.
