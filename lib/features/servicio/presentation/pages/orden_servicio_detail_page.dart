@@ -49,6 +49,8 @@ import '../../../tercerizacion/domain/entities/tercerizacion.dart';
 import '../../../auth/presentation/bloc/auth/auth_bloc.dart';
 import '../../../caja/domain/entities/caja.dart';
 import '../../../caja/domain/usecases/get_caja_activa_usecase.dart';
+import '../../../configuracion_documentos/domain/entities/configuracion_documento_completa.dart';
+import '../../../configuracion_documentos/domain/usecases/get_configuracion_completa_usecase.dart';
 import '../../../venta/data/datasources/venta_remote_datasource.dart';
 import '../../../venta_rapida/domain/entities/orden_cobrable.dart';
 import '../../../venta_rapida/presentation/bloc/venta_rapida_cubit.dart';
@@ -3522,9 +3524,22 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
       // Sin config de facturación → fallback a los datos de la empresa.
     }
 
-    // Try to load logo
+    // Logo: misma resolución que el ticket de venta — configuración de
+    // documentos (logoUrl del TICKET_VENTA, donde normalmente se configura)
+    // con fallback al logo de la empresa.
+    String? logoUrl = empresa.logo;
+    try {
+      final configResult = await locator<GetConfiguracionCompletaUseCase>()(
+        tipo: 'TICKET_VENTA',
+        formato: 'TICKET_80MM',
+        sedeId: _orden!.sedeId,
+      );
+      if (configResult is Success<ConfiguracionDocumentoCompleta>) {
+        logoUrl = configResult.data.configuracion.logoUrl ?? logoUrl;
+      }
+    } catch (_) {}
+
     Uint8List? logoBytes;
-    final logoUrl = empresa.logo;
     if (logoUrl != null && logoUrl.isNotEmpty) {
       try {
         final response = await http.get(Uri.parse(logoUrl));

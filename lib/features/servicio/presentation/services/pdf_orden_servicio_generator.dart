@@ -60,15 +60,20 @@ class PdfOrdenServicioGenerator {
           mainAxisSize: pw.MainAxisSize.min,
           children: [
             // ── Header: Empresa ──
-            _buildEmpresaHeader(
-              empresaNombre: empresaNombre,
-              empresaRazonSocial: empresaRazonSocial,
-              empresaRuc: empresaRuc,
-              empresaDireccion: empresaDireccion,
-              empresaTelefono: empresaTelefono,
-              sedeNombre: sedeNombre,
-              logo: logoEmpresa,
-              primaryColor: primaryColor,
+            // pw.Center: la columna raíz es crossAxisAlignment.start, así
+            // que el bloque del header (Column anidado) se encogía a su
+            // contenido y quedaba pegado a la izquierda en el PDF.
+            pw.Center(
+              child: _buildEmpresaHeader(
+                empresaNombre: empresaNombre,
+                empresaRazonSocial: empresaRazonSocial,
+                empresaRuc: empresaRuc,
+                empresaDireccion: empresaDireccion,
+                empresaTelefono: empresaTelefono,
+                sedeNombre: sedeNombre,
+                logo: logoEmpresa,
+                primaryColor: primaryColor,
+              ),
             ),
             pw.SizedBox(height: 8),
             _divider(),
