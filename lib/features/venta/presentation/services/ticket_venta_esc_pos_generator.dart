@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
 import 'package:image/image.dart' as img;
 import '../../../../core/utils/date_formatter.dart';
+import '../../../../core/utils/logo_termico.dart';
 import '../../../../core/utils/number_to_words.dart';
 import '../../domain/entities/venta.dart';
 
@@ -51,7 +52,7 @@ class TicketVentaEscPosGenerator {
       try {
         final decoded = img.decodeImage(logoEmpresa);
         if (decoded != null) {
-          var logo = _prepararLogo(decoded);
+          var logo = prepararLogoTermico(decoded);
           final maxWidth = paperWidth == 58 ? 280 : 380;
           if (logo.width > maxWidth) {
             logo = img.copyResize(logo, width: maxWidth);
@@ -406,25 +407,6 @@ class TicketVentaEscPosGenerator {
     bytes += generator.cut();
 
     return bytes;
-  }
-
-  /// Prepara el logo para impresión térmica: aplana transparencia sobre
-  /// blanco y recorta los márgenes blancos del canvas (el "aire" del PNG
-  /// se convertía en centímetros en blanco entre el logo y el nombre).
-  static img.Image _prepararLogo(img.Image decoded) {
-    var logo = decoded;
-    try {
-      if (logo.hasAlpha) {
-        final canvas = img.Image(width: logo.width, height: logo.height);
-        img.fill(canvas, color: img.ColorRgb8(255, 255, 255));
-        img.compositeImage(canvas, logo);
-        logo = canvas;
-      }
-      logo = img.trim(logo, mode: img.TrimMode.topLeftColor);
-    } catch (_) {
-      // Si el trim falla (formato raro), se imprime tal cual.
-    }
-    return logo;
   }
 
   /// Formatea monto como "S/12.34". Helper para evitar repetir el string.

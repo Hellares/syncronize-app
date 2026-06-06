@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
 import 'package:image/image.dart' as img;
 import '../../../../core/utils/date_formatter.dart';
+import '../../../../core/utils/logo_termico.dart';
 import '../../domain/entities/orden_servicio.dart';
 
 class TicketEscPosGenerator {
@@ -39,7 +40,7 @@ class TicketEscPosGenerator {
       try {
         final decoded = img.decodeImage(logoEmpresa);
         if (decoded != null) {
-          var logo = _prepararLogo(decoded);
+          var logo = prepararLogoTermico(decoded);
           final maxWidth = paperWidth == 58 ? 280 : 380;
           if (logo.width > maxWidth) {
             logo = img.copyResize(logo, width: maxWidth);
@@ -328,27 +329,6 @@ class TicketEscPosGenerator {
 
   // ── Helpers (mismas convenciones que ticket_venta_esc_pos_generator) ──
 
-  /// Prepara el logo para impresión térmica:
-  ///  1. Aplana la transparencia sobre BLANCO (las térmicas rasterizan el
-  ///     alpha como negro o basura).
-  ///  2. Recorta los márgenes blancos del canvas — los PNG suelen traer
-  ///     "aire" alrededor del arte que en el papel se convierte en
-  ///     centímetros en blanco entre el logo y el nombre de la empresa.
-  static img.Image _prepararLogo(img.Image decoded) {
-    var logo = decoded;
-    try {
-      if (logo.hasAlpha) {
-        final canvas = img.Image(width: logo.width, height: logo.height);
-        img.fill(canvas, color: img.ColorRgb8(255, 255, 255));
-        img.compositeImage(canvas, logo);
-        logo = canvas;
-      }
-      logo = img.trim(logo, mode: img.TrimMode.topLeftColor);
-    } catch (_) {
-      // Si el trim falla (formato raro), se imprime tal cual.
-    }
-    return logo;
-  }
 
   /// Línea label-valor con padding manual: label left, valor right.
   /// Las térmicas baratas ignoran el posicionamiento absoluto de
