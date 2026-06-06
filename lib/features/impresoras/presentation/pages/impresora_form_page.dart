@@ -7,6 +7,7 @@ import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/widgets/custom_button.dart';
 import 'package:syncronize/core/widgets/custom_dropdown.dart';
+import 'package:syncronize/core/widgets/custom_switch_tile.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import 'package:syncronize/core/widgets/snack_bar_helper.dart';
 import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
@@ -255,58 +256,33 @@ class _FormViewState extends State<_FormView> {
                       },
                     ),
                     const SizedBox(height: 20),
-                    SwitchListTile(
-                      value: _autoImprimirVentaRapida,
+                    CustomSwitchTile(
+                      title: 'Auto imprimir tickets de Venta Rápida', 
+                      value: _autoImprimirVentaRapida, 
                       onChanged: (v) => setState(() => _autoImprimirVentaRapida = v),
-                      title: const Text(
-                        'Auto imprimir tickets de Venta Rápida',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                      ),
-                      subtitle: const Text(
-                        'Al terminar un cobro, el ticket se imprime automáticamente',
-                        style: TextStyle(fontSize: 11),
-                      ),
-                      contentPadding: EdgeInsets.zero,
-                      dense: true,
-                      activeThumbColor: AppColors.blue1,
+                       subtitle: 'Al terminar un cobro, el ticket se imprime automáticamente'
                     ),
-                    SwitchListTile(
-                      value: _esPrincipal,
+                    CustomSwitchTile(
+                      title: 'Marcar como principal', 
+                      value: _esPrincipal, 
                       onChanged: (v) => setState(() => _esPrincipal = v),
-                      title: const Text(
-                        'Marcar como principal',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                      ),
-                      subtitle: const Text(
-                        'La impresora a la que se envían las impresiones automáticas',
-                        style: TextStyle(fontSize: 11),
-                      ),
-                      contentPadding: EdgeInsets.zero,
-                      dense: true,
-                      activeThumbColor: AppColors.blue1,
+                       subtitle: 'La impresora a la que se envían las impresiones automáticas'
                     ),
                     const SizedBox(height: 20),
-                    OutlinedButton.icon(
+                    CustomButton(
+                      text: printing ? 'Imprimiendo prueba...' : 'IMPRIMIR PRUEBA',
                       onPressed: printing ? null : _imprimirPrueba,
-                      icon: printing
-                          ? const SizedBox(
-                              width: 14,
-                              height: 14,
-                              child: CircularProgressIndicator(strokeWidth: 1.5),
-                            )
-                          : const Icon(Icons.print_outlined, size: 18),
-                      label: Text(printing ? 'Imprimiendo...' : 'IMPRIMIR PRUEBA'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.blue1,
-                        side: const BorderSide(color: AppColors.blue1),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
+                      isLoading: printing,
+                      borderColor: AppColors.green,
+                      textColor: AppColors.green
                     ),
                     const SizedBox(height: 12),
                     CustomButton(
                       text: widget.isEdit ? 'Guardar cambios' : 'Agregar impresora',
                       onPressed: saving ? null : _guardar,
                       isLoading: saving,
+                      borderColor: AppColors.blue1,
+                      textColor: AppColors.blue1
                     ),
                   ],
                 ),
