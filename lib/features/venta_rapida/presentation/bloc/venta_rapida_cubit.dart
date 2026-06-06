@@ -126,8 +126,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     final item = VentaDetalleInput(
       ordenServicioId: orden.id,
       ordenCodigo: orden.codigo,
-      descripcion:
-          'SERVICIO ${orden.codigo} — ${equipo.isNotEmpty ? equipo : detalle}',
+      descripcion: '${orden.codigo} — ${equipo.isNotEmpty ? equipo : detalle}',
       cantidad: 1,
       // El costo de la orden es precio final al cliente → IGV incluido
       // (mismo criterio que el cobro legacy, que desagregaba el IGV del
