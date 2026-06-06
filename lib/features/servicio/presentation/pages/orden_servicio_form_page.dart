@@ -37,6 +37,7 @@ class OrdenServicioFormPage extends StatefulWidget {
 class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
   final _formKey = GlobalKey<FormState>();
   late final String _empresaId;
+  late final String? _sedeId;
 
   /// Setter del bottom sheet abierto (si hay uno). Lo guardamos cuando se
   /// abre la sheet para poder rebuild el contenido tras un setState del
@@ -102,6 +103,14 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
     _empresaId = empresaState is EmpresaContextLoaded
         ? empresaState.context.empresa.id
         : '';
+    // Sede de la orden: necesaria para que los adelantos se registren en la
+    // caja correcta y para series/correlativos al cobrar.
+    _sedeId = empresaState is EmpresaContextLoaded
+        ? (empresaState.context.sedePrincipal?.id ??
+            (empresaState.context.sedes.isNotEmpty
+                ? empresaState.context.sedes.first.id
+                : null))
+        : null;
     _loadServicios();
   }
 
@@ -1186,6 +1195,7 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
 
     final result = await repo.crear(
       empresaId: _empresaId,
+      sedeId: _sedeId,
       clienteId: _clienteId,
       clienteEmpresaId: _clienteEmpresaId,
       contactoClienteEmpresaId: contactoId,
