@@ -17,6 +17,7 @@ class PdfOrdenServicioGenerator {
   static Future<Uint8List> generarTicket({
     required OrdenServicio orden,
     required String empresaNombre,
+    String? empresaRazonSocial,
     String? empresaRuc,
     String? empresaDireccion,
     String? empresaTelefono,
@@ -61,6 +62,7 @@ class PdfOrdenServicioGenerator {
             // ── Header: Empresa ──
             _buildEmpresaHeader(
               empresaNombre: empresaNombre,
+              empresaRazonSocial: empresaRazonSocial,
               empresaRuc: empresaRuc,
               empresaDireccion: empresaDireccion,
               empresaTelefono: empresaTelefono,
@@ -480,6 +482,7 @@ class PdfOrdenServicioGenerator {
 
   static pw.Widget _buildEmpresaHeader({
     required String empresaNombre,
+    String? empresaRazonSocial,
     String? empresaRuc,
     String? empresaDireccion,
     String? empresaTelefono,
@@ -503,6 +506,13 @@ class PdfOrdenServicioGenerator {
           style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold),
           textAlign: pw.TextAlign.center,
         ),
+        // Razón social (identidad fiscal) bajo el nombre comercial.
+        if (empresaRazonSocial != null && empresaRazonSocial != empresaNombre) ...[
+          pw.SizedBox(height: 1),
+          pw.Text(empresaRazonSocial,
+              style: const pw.TextStyle(fontSize: 8),
+              textAlign: pw.TextAlign.center),
+        ],
         if (sedeNombre != null) ...[
           pw.SizedBox(height: 2),
           pw.Text(sedeNombre,

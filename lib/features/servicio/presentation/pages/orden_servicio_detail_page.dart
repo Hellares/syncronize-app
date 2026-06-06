@@ -49,6 +49,7 @@ import '../../../tercerizacion/domain/entities/tercerizacion.dart';
 import '../../../auth/presentation/bloc/auth/auth_bloc.dart';
 import '../../../caja/domain/entities/caja.dart';
 import '../../../caja/domain/usecases/get_caja_activa_usecase.dart';
+import '../../../venta/data/datasources/venta_remote_datasource.dart';
 import '../../../venta_rapida/domain/entities/orden_cobrable.dart';
 import '../../../venta_rapida/presentation/bloc/venta_rapida_cubit.dart';
 
@@ -3500,6 +3501,27 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
         ? sedeDireccion
         : empresa.direccionFiscal;
 
+    // Identidad EFECTIVA de facturación (sede > empresa): RUC, razón
+    // social, nombre comercial, dirección fiscal y teléfono — la misma
+    // fuente que usa el ticket de venta. Sin esto el header salía con los
+    // datos crudos de la empresa (desalineado del resto de documentos).
+    String? rucEfectivo;
+    String? razonSocialEfectiva;
+    String? nombreComercialEfectivo;
+    String? direccionFiscalEfectiva;
+    String? telefonoEfectivo;
+    try {
+      final config = await locator<VentaRemoteDataSource>()
+          .getConfiguracionSunat(sedeId: _orden!.sedeId);
+      rucEfectivo = config['ruc'] as String?;
+      razonSocialEfectiva = config['razonSocial'] as String?;
+      nombreComercialEfectivo = config['nombreComercial'] as String?;
+      direccionFiscalEfectiva = config['direccionFiscal'] as String?;
+      telefonoEfectivo = config['telefono'] as String?;
+    } catch (_) {
+      // Sin config de facturación → fallback a los datos de la empresa.
+    }
+
     // Try to load logo
     Uint8List? logoBytes;
     final logoUrl = empresa.logo;
@@ -3518,10 +3540,11 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
       MaterialPageRoute(
         builder: (_) => DocumentoOrdenServicioPreviewPage(
           orden: _orden!,
-          empresaNombre: empresa.nombre,
-          empresaRuc: empresa.ruc,
-          empresaDireccion: direccionFinal,
-          empresaTelefono: empresa.telefono,
+          empresaNombre: nombreComercialEfectivo ?? empresa.nombre,
+          empresaRazonSocial: razonSocialEfectiva,
+          empresaRuc: rucEfectivo ?? empresa.ruc,
+          empresaDireccion: direccionFiscalEfectiva ?? direccionFinal,
+          empresaTelefono: telefonoEfectivo ?? empresa.telefono,
           sedeNombre: sedeNombre,
           logoEmpresa: logoBytes,
         ),

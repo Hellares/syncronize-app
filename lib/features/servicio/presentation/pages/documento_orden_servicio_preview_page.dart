@@ -9,6 +9,7 @@ import '../../../../core/services/storage_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/smart_appbar.dart';
+import '../../../impresoras/domain/services/impresoras_manager.dart';
 import '../../domain/entities/orden_servicio.dart';
 import '../services/pdf_orden_servicio_generator.dart';
 import '../services/ticket_esc_pos_generator.dart';
@@ -17,6 +18,7 @@ import '../widgets/bluetooth_printer_sheet.dart';
 class DocumentoOrdenServicioPreviewPage extends StatefulWidget {
   final OrdenServicio orden;
   final String empresaNombre;
+  final String? empresaRazonSocial;
   final String? empresaRuc;
   final String? empresaDireccion;
   final String? empresaTelefono;
@@ -28,6 +30,7 @@ class DocumentoOrdenServicioPreviewPage extends StatefulWidget {
     super.key,
     required this.orden,
     required this.empresaNombre,
+    this.empresaRazonSocial,
     this.empresaRuc,
     this.empresaDireccion,
     this.empresaTelefono,
@@ -81,6 +84,7 @@ class _DocumentoOrdenServicioPreviewPageState
       final pdfBytes = await PdfOrdenServicioGenerator.generarTicket(
         orden: widget.orden,
         empresaNombre: widget.empresaNombre,
+        empresaRazonSocial: widget.empresaRazonSocial,
         empresaRuc: widget.empresaRuc,
         empresaDireccion: widget.empresaDireccion,
         empresaTelefono: widget.empresaTelefono,
@@ -327,11 +331,19 @@ class _DocumentoOrdenServicioPreviewPageState
 
   Future<void> _printBluetooth() async {
     try {
-      final paperSize = await BluetoothPrinterService.getPaperSize();
+      // Impresora principal configurada (módulo Impresoras): imprime
+      // DIRECTO sin pedir re-seleccionar el dispositivo, respetando su
+      // ancho de papel. El sheet de escaneo queda solo como fallback
+      // (sin impresora configurada o fallo de conexión).
+      final manager = locator<ImpresorasManager>();
+      final principal = await manager.getPrincipal();
+      final paperSize = principal?.anchoPapel.mm ??
+          await BluetoothPrinterService.getPaperSize();
 
       final ticketBytes = await TicketEscPosGenerator.generarTicket(
         orden: widget.orden,
         empresaNombre: widget.empresaNombre,
+        empresaRazonSocial: widget.empresaRazonSocial,
         empresaRuc: widget.empresaRuc,
         empresaDireccion: widget.empresaDireccion,
         empresaTelefono: widget.empresaTelefono,
@@ -341,6 +353,22 @@ class _DocumentoOrdenServicioPreviewPageState
       );
 
       if (!mounted) return;
+
+      if (principal != null) {
+        final ok = await manager.imprimirEnPrincipal(ticketBytes);
+        if (!mounted) return;
+        if (ok) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Impreso en ${principal.nombre}'),
+              backgroundColor: Colors.green.shade600,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          return;
+        }
+        // Falló la conexión con la principal → cae al selector manual.
+      }
 
       showModalBottomSheet(
         context: context,

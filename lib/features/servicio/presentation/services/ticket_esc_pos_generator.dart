@@ -8,6 +8,7 @@ class TicketEscPosGenerator {
   static Future<List<int>> generarTicket({
     required OrdenServicio orden,
     required String empresaNombre,
+    String? empresaRazonSocial,
     String? empresaRuc,
     String? empresaDireccion,
     String? empresaTelefono,
@@ -37,6 +38,12 @@ class TicketEscPosGenerator {
       empresaNombre,
       styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2, width: PosTextSize.size1),
     );
+    // Razón social (identidad fiscal) bajo el nombre comercial — mismo
+    // formato que el ticket de venta.
+    if (empresaRazonSocial != null && empresaRazonSocial != empresaNombre) {
+      bytes += generator.text(empresaRazonSocial,
+          styles: const PosStyles(align: PosAlign.center));
+    }
     if (sedeNombre != null) {
       bytes += generator.text(sedeNombre, styles: const PosStyles(align: PosAlign.center));
     }
