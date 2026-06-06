@@ -15,6 +15,7 @@ import '../../../auth/presentation/widgets/custom_text.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../bloc/venta_rapida_cubit.dart';
+import '../widgets/ordenes_cobrables_sheet.dart';
 import '../widgets/tipo_comprobante_dialog.dart';
 
 class VentaRapidaCarritoPage extends StatelessWidget {
@@ -56,6 +57,14 @@ class _CarritoView extends StatelessWidget {
             );
           },
         ),
+        actions: [
+          // Cobrar una orden de servicio terminada como línea de la venta.
+          IconButton(
+            tooltip: 'Cobrar servicio',
+            icon: const Icon(Icons.home_repair_service_outlined),
+            onPressed: () => _cobrarServicio(context),
+          ),
+        ],
       ),
       body: BlocBuilder<VentaRapidaCubit, VentaRapidaState>(
         builder: (context, state) {
@@ -173,7 +182,8 @@ class _CarritoView extends StatelessWidget {
                           );
                         }
                         return Dismissible(
-                          key: ValueKey('${item.productoId}_${item.varianteId ?? ''}_${row.index}'),
+                          key: ValueKey(
+                              '${item.ordenServicioId ?? item.productoId}_${item.varianteId ?? ''}_${row.index}'),
                           direction: DismissDirection.endToStart,
                           background: Container(
                             color: Colors.red.shade400,
@@ -197,13 +207,26 @@ class _CarritoView extends StatelessWidget {
                                 .eliminarItem(row.index!);
                           },
                           child: GestureDetector(
-                            onLongPress: () => _mostrarDescuentoItem(
-                              context, row.index!, item,
-                            ),
-                            child: _ItemRow(
-                              index: row.index!,
-                              item: item,
-                            ),
+                            // Líneas de orden: sin descuento de línea (vive
+                            // en la orden de servicio, no en la venta).
+                            onLongPress: item.esOrdenServicio
+                                ? null
+                                : () => _mostrarDescuentoItem(
+                                      context, row.index!, item,
+                                    ),
+                            child: item.esOrdenServicio
+                                ? Container(
+                                    color: Colors.blue.shade50,
+                                    child: _ItemRow(
+                                      index: row.index!,
+                                      item: item,
+                                      readonly: true,
+                                    ),
+                                  )
+                                : _ItemRow(
+                                    index: row.index!,
+                                    item: item,
+                                  ),
                           ),
                         );
                       },
@@ -333,6 +356,26 @@ class _CarritoView extends StatelessWidget {
             ],
           );
         },
+      ),
+    );
+  }
+
+  /// Abre el selector de órdenes cobrables y agrega la elegida al carrito.
+  /// El cubit pre-carga el cliente de la orden en la venta.
+  Future<void> _cobrarServicio(BuildContext context) async {
+    final cubit = context.read<VentaRapidaCubit>();
+    final orden = await showOrdenesCobrablesSheet(context);
+    if (orden == null || !context.mounted) return;
+    final ok = cubit.agregarOrdenServicio(orden);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? 'Orden ${orden.codigo} agregada — cliente: ${orden.clienteNombre}'
+              : (cubit.state.error ?? 'No se pudo agregar la orden'),
+        ),
+        backgroundColor: ok ? Colors.green.shade600 : Colors.orange.shade700,
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }
@@ -828,8 +871,10 @@ class _ItemRowState extends State<_ItemRow> {
   @override
   Widget build(BuildContext context) {
     final item = widget.item;
+    // Líneas de orden de servicio no manejan stock.
+    final esOrden = item.ordenServicioId != null;
     final stock = item.stockDisponible ?? 0;
-    final excedeStock = item.cantidad > stock;
+    final excedeStock = !esOrden && item.cantidad > stock;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
@@ -952,11 +997,12 @@ class _ItemRowState extends State<_ItemRow> {
             ),
           ),
           // Stock — ancho fijo alineado con el header (hasta 3 dígitos).
+          // Líneas de orden de servicio: sin stock ("—").
           SizedBox(
             width: 50,
             child: Center(
               child: Text(
-                '$stock',
+                esOrden ? '—' : '$stock',
                 style: TextStyle(
                   fontSize: 12,
                   color: excedeStock ? Colors.red : Colors.black87,

@@ -18,6 +18,7 @@ import '../../../producto/domain/repositories/producto_stock_repository.dart';
 import '../../../producto/domain/services/precio_nivel_cache_service.dart';
 import '../../../venta/domain/entities/venta.dart';
 import '../../../venta/domain/entities/venta_detalle_input.dart';
+import '../../domain/entities/orden_cobrable.dart';
 import '../../domain/repositories/venta_rapida_repository.dart';
 import '../../domain/usecases/buscar_cliente_por_dni_usecase.dart';
 import '../../domain/usecases/buscar_cliente_por_ruc_usecase.dart';
@@ -79,6 +80,92 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
   }
 
   // ── Carrito ──
+
+  /// Agrega una orden de servicio al carrito para cobrarla como línea de
+  /// venta: cantidad fija 1, precio = saldo pendiente (el backend valida el
+  /// saldo vigente al cobrar y marca la orden ENTREGADO).
+  ///
+  /// Además pre-carga el cliente de la orden en la venta (persona → DNI,
+  /// empresa → RUC). Restricción: todas las órdenes del carrito deben ser
+  /// del mismo cliente.
+  ///
+  /// Devuelve true si se agregó (false → ver `state.error`).
+  bool agregarOrdenServicio(OrdenCobrable orden) {
+    if (state.items.any((i) => i.ordenServicioId == orden.id)) {
+      emit(state.copyWith(
+        error: 'La orden ${orden.codigo} ya está en el carrito',
+      ));
+      return false;
+    }
+    if (orden.saldoPendiente <= 0) {
+      emit(state.copyWith(
+        error:
+            'La orden ${orden.codigo} no tiene saldo pendiente. Entregala con el cambio de estado normal',
+      ));
+      return false;
+    }
+
+    // Todas las órdenes del carrito deben ser del mismo cliente (la venta
+    // tiene UN cliente y el comprobante sale a su nombre).
+    final otraOrden =
+        state.items.where((i) => i.esOrdenServicio).isNotEmpty;
+    if (otraOrden) {
+      final mismoCliente = orden.cliente?.clienteId == state.clienteId &&
+          orden.clienteEmpresa?.clienteEmpresaId == state.clienteEmpresaId;
+      if (!mismoCliente) {
+        emit(state.copyWith(
+          error:
+              'La orden ${orden.codigo} es de otro cliente. Cobrala en una venta aparte',
+        ));
+        return false;
+      }
+    }
+
+    final equipo = orden.equipoDescripcion;
+    final detalle = orden.servicioNombre ?? orden.tipoServicio;
+    final item = VentaDetalleInput(
+      ordenServicioId: orden.id,
+      ordenCodigo: orden.codigo,
+      descripcion:
+          'SERVICIO ${orden.codigo} — ${equipo.isNotEmpty ? equipo : detalle}',
+      cantidad: 1,
+      // El costo de la orden es precio final al cliente → IGV incluido
+      // (mismo criterio que el cobro legacy, que desagregaba el IGV del
+      // saldo). El backend exige que coincida con el saldo vigente.
+      precioUnitario: orden.saldoPendiente,
+      precioIncluyeIgv: true,
+      porcentajeIGV: state.impuestoPorcentaje,
+      tipoAfectacion: '10',
+    );
+
+    // Pre-carga del cliente de la orden. La orden manda: el comprobante
+    // debe salir a nombre de quien dejó el equipo.
+    var nuevo = state.copyWith(
+      items: [...state.items, item],
+      clearError: true,
+    );
+    if (orden.clienteEmpresa != null) {
+      nuevo = nuevo.copyWith(
+        clienteGenerico: false,
+        clienteId: null,
+        clienteEmpresaId: orden.clienteEmpresa!.clienteEmpresaId,
+        tipoDocCliente: 'RUC',
+        numeroDocCliente: orden.clienteEmpresa!.ruc ?? '',
+        nombreClienteResuelto: orden.clienteEmpresa!.razonSocial,
+      );
+    } else if (orden.cliente != null) {
+      nuevo = nuevo.copyWith(
+        clienteGenerico: false,
+        clienteId: orden.cliente!.clienteId,
+        clienteEmpresaId: null,
+        tipoDocCliente: 'DNI',
+        numeroDocCliente: orden.cliente!.numeroDocumento ?? '',
+        nombreClienteResuelto: orden.cliente!.nombre,
+      );
+    }
+    emit(nuevo);
+    return true;
+  }
 
   void agregarProducto(ProductoListItem producto) {
     // Combos se manejan por separado: se expande la lista de componentes
@@ -610,6 +697,9 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     // el item — solo ignoramos hasta que escriba un número válido.
     if (cantidad <= 0) return;
     final actual = state.items[index];
+    // Líneas de orden de servicio: cantidad fija 1 (cobran el saldo de UNA
+    // orden — no tiene sentido "2 saldos").
+    if (actual.esOrdenServicio) return;
     // Cap al stock disponible para no permitir vender más de lo que hay
     // (el backend lo rechazaría al cobrar; mejor frenar acá).
     final double stockMax = actual.stockDisponible?.toDouble() ?? double.infinity;
@@ -668,6 +758,14 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
   void actualizarDescuento(int index, double porcentaje) {
     if (index < 0 || index >= state.items.length) return;
     final actual = state.items[index];
+    // Líneas de orden: el descuento comercial vive en la orden de servicio
+    // (el backend rechaza descuento de línea sobre ordenServicioId).
+    if (actual.esOrdenServicio) {
+      emit(state.copyWith(
+        error: 'El descuento de una orden de servicio se aplica en la orden, no en la venta',
+      ));
+      return;
+    }
     final monto = (actual.cantidad * actual.precioUnitario) * (porcentaje / 100);
     final lista = [...state.items];
     lista[index] = _conDescuentoManual(actual, monto);
@@ -676,6 +774,12 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
 
   void actualizarDescuentoMonto(int index, double monto) {
     if (index < 0 || index >= state.items.length) return;
+    if (state.items[index].esOrdenServicio) {
+      emit(state.copyWith(
+        error: 'El descuento de una orden de servicio se aplica en la orden, no en la venta',
+      ));
+      return;
+    }
     final lista = [...state.items];
     lista[index] = _conDescuentoManual(state.items[index], monto);
     emit(state.copyWith(items: lista, clearError: true));
@@ -686,6 +790,9 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
   void aplicarDescuentoGlobal(double porcentaje) {
     if (porcentaje <= 0 || porcentaje > 100) return;
     final lista = state.items.map((item) {
+      // Las líneas de orden de servicio se eximen del descuento global
+      // (su precio ES el saldo de la orden — el backend lo valida exacto).
+      if (item.esOrdenServicio) return item;
       final manual = (item.cantidad * item.precioUnitario) * (porcentaje / 100);
       return _conDescuentoManual(item, manual);
     }).toList();

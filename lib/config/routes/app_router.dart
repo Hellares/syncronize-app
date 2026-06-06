@@ -189,7 +189,6 @@ import '../../features/servicio/presentation/pages/ordenes_servicio_page.dart';
 import '../../features/servicio/presentation/pages/orden_servicio_form_page.dart';
 import '../../features/servicio/presentation/pages/orden_servicio_detail_page.dart';
 import '../../features/servicio/presentation/pages/orden_cliente_detail_page.dart';
-import '../../features/servicio/presentation/pages/cobrar_orden_page.dart';
 import '../../features/servicio/presentation/pages/servicio_dashboard_page.dart';
 import '../../features/servicio/presentation/pages/catalogo_plantillas_page.dart';
 import '../../features/servicio/presentation/pages/plantillas_servicio_page.dart';
@@ -1634,14 +1633,9 @@ class AppRouter {
           return OrdenServicioDetailPage(ordenId: ordenId);
         },
       ),
-      GoRoute(
-        path: '/empresa/ordenes/:id/cobrar',
-        name: 'empresa-ordenes-servicio-cobrar',
-        builder: (context, state) {
-          final ordenId = state.pathParameters['id']!;
-          return CobrarOrdenPage(ordenId: ordenId);
-        },
-      ),
+      // NOTA: '/empresa/ordenes/:id/cobrar' se retiró — el cobro de órdenes
+      // ahora va por Venta Rápida (el botón Cobrar del detalle agrega la
+      // orden al carrito VR con el cliente pre-cargado).
       // Rutas de tercerización B2B
       GoRoute(
         path: '/empresa/tercerizacion',

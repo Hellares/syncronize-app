@@ -6,6 +6,7 @@ import '../../../../core/network/network_info.dart';
 import '../../../../core/services/error_handler_service.dart';
 import '../../../../core/utils/resource.dart';
 import '../../../venta/domain/entities/venta.dart';
+import '../../domain/entities/orden_cobrable.dart';
 import '../../domain/repositories/venta_rapida_repository.dart';
 import '../datasources/venta_rapida_remote_datasource.dart';
 
@@ -70,7 +71,16 @@ class VentaRapidaRepositoryImpl implements VentaRapidaRepository {
 
     if (body == null) return null;
     final code = body['code'];
-    if (code != 'PRECIO_DESACTUALIZADO' && code != 'STOCK_INSUFICIENTE') {
+    const codigosEstructurados = {
+      'PRECIO_DESACTUALIZADO',
+      'STOCK_INSUFICIENTE',
+      // Cobro de órdenes de servicio: el saldo cambió mientras estaba en el
+      // carrito, o otra venta ya la cobró. El mensaje del backend es
+      // autoexplicativo — se muestra tal cual.
+      'SALDO_ORDEN_DESACTUALIZADO',
+      'ORDEN_YA_COBRADA',
+    };
+    if (!codigosEstructurados.contains(code)) {
       return null;
     }
 
@@ -122,6 +132,19 @@ class VentaRapidaRepositoryImpl implements VentaRapidaRepository {
         estadoContribuyente: body['estadoContribuyente'] as String?,
         condicionContribuyente: body['condicionContribuyente'] as String?,
       ));
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'VentaRapida');
+    }
+  }
+
+  @override
+  Future<Resource<List<OrdenCobrable>>> getOrdenesCobrables({String? search}) async {
+    if (!await _network.isConnected) {
+      return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final list = await _remote.getOrdenesCobrables(search: search);
+      return Success(list.map(OrdenCobrable.fromJson).toList());
     } catch (e) {
       return _errorHandler.handleException(e, context: 'VentaRapida');
     }

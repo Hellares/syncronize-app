@@ -46,6 +46,11 @@ import 'package:go_router/go_router.dart';
 import '../../../tercerizacion/domain/entities/directorio_empresa.dart';
 import '../../../tercerizacion/domain/usecases/crear_tercerizacion_usecase.dart';
 import '../../../tercerizacion/domain/entities/tercerizacion.dart';
+import '../../../auth/presentation/bloc/auth/auth_bloc.dart';
+import '../../../caja/domain/entities/caja.dart';
+import '../../../caja/domain/usecases/get_caja_activa_usecase.dart';
+import '../../../venta_rapida/domain/entities/orden_cobrable.dart';
+import '../../../venta_rapida/presentation/bloc/venta_rapida_cubit.dart';
 
 class OrdenServicioDetailPage extends StatefulWidget {
   final String ordenId;
@@ -2704,11 +2709,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                 backgroundColor: Colors.green[600]!,
                 height: 35,
                 borderRadius: 8,
-                onPressed: () async {
-                  final result = await context
-                      .push<bool>('/empresa/ordenes/${_orden!.id}/cobrar');
-                  if (result == true) _loadAll();
-                },
+                onPressed: _cobrarEnVentaRapida,
               ),
             ),
             if (mains.isNotEmpty) const SizedBox(width: 8),
@@ -2751,6 +2752,125 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
         ],
       ),
     );
+  }
+
+  /// Cobra la orden vía Venta Rápida: el pipeline de venta registra caja,
+  /// emite el comprobante a SUNAT, soporta MIXTO/crédito y al confirmar
+  /// marca la orden ENTREGADO (el flujo de cobro dedicado quedó deprecado).
+  ///
+  /// Pasos: guard de caja abierta → setContexto del cubit VR → agregar la
+  /// orden al carrito (pre-carga el cliente) → navegar al carrito.
+  Future<void> _cobrarEnVentaRapida() async {
+    final orden = _orden;
+    if (orden == null) return;
+
+    // Guard: caja abierta (mismo patrón que VR productos).
+    final cajaResult = await locator<GetCajaActivaUseCase>()();
+    if (!mounted) return;
+    if (cajaResult is! Success<Caja?> || cajaResult.data == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Debes abrir tu caja antes de cobrar'),
+          backgroundColor: Colors.orange.shade700,
+          behavior: SnackBarBehavior.floating,
+          action: SnackBarAction(
+            label: 'Abrir Caja',
+            textColor: Colors.white,
+            onPressed: () => context.push('/empresa/caja'),
+          ),
+        ),
+      );
+      return;
+    }
+
+    // Contexto VR (empresa/sede/vendedor) — el carrito navega directo sin
+    // pasar por la página de productos que normalmente lo setea.
+    final empresaState = context.read<EmpresaContextCubit>().state;
+    final authState = context.read<AuthBloc>().state;
+    String? empresaId;
+    String? sedeId;
+    String? vendedorId;
+    if (empresaState is EmpresaContextLoaded) {
+      empresaId = empresaState.context.empresa.id;
+      sedeId = empresaState.context.sedePrincipal?.id ??
+          (empresaState.context.sedes.isNotEmpty
+              ? empresaState.context.sedes.first.id
+              : null);
+    }
+    if (authState is Authenticated) {
+      vendedorId = authState.user.id;
+    }
+    if (empresaId == null || sedeId == null || vendedorId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Falta contexto de empresa/sede')),
+      );
+      return;
+    }
+
+    final cubit = locator<VentaRapidaCubit>();
+    cubit.setContexto(
+      empresaId: empresaId,
+      sedeId: sedeId,
+      vendedorId: vendedorId,
+    );
+
+    // Saldo con la fórmula del BACKEND (costoTotal − adelanto − descuento).
+    // OJO: no usar el getter `saldoPendiente` de la entidad (suma
+    // componentes) — divergiría con la validación 409 del cobro.
+    final costoTotal = orden.costoTotal ?? 0;
+    final adelanto = orden.adelanto ?? 0;
+    final descuento = orden.descuento ?? 0;
+    final saldo =
+        ((costoTotal - adelanto - descuento) * 100).roundToDouble() / 100;
+
+    final cobrable = OrdenCobrable(
+      id: orden.id,
+      codigo: orden.codigo,
+      estado: orden.estado,
+      tipoServicio: orden.tipoServicio,
+      servicioNombre: null,
+      tipoEquipo: orden.tipoEquipo,
+      marcaEquipo: orden.marcaEquipo,
+      numeroSerie: orden.numeroSerie,
+      costoTotal: costoTotal,
+      adelanto: adelanto,
+      descuento: descuento,
+      saldoPendiente: saldo,
+      cliente: orden.cliente != null
+          ? OrdenCobrableCliente(
+              clienteId: orden.cliente!.id,
+              nombre: orden.cliente!.nombreCompleto,
+              numeroDocumento: orden.cliente!.documentoNumero,
+              telefono: orden.cliente!.telefono,
+              email: orden.cliente!.email,
+            )
+          : null,
+      clienteEmpresa: orden.clienteEmpresa != null
+          ? OrdenCobrableClienteEmpresa(
+              clienteEmpresaId: orden.clienteEmpresa!.id,
+              razonSocial: orden.clienteEmpresa!.razonSocial,
+              ruc: orden.clienteEmpresa!.numeroDocumento,
+              email: orden.clienteEmpresa!.email,
+              direccion: orden.clienteEmpresa!.direccion,
+            )
+          : null,
+    );
+
+    final ok = cubit.agregarOrdenServicio(cobrable);
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(cubit.state.error ?? 'No se pudo agregar la orden'),
+          backgroundColor: Colors.orange.shade700,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    await context.push('/empresa/venta-rapida/carrito');
+    // Al volver, refrescar: si se cobró, la orden ya está ENTREGADO.
+    if (mounted) _loadAll();
   }
 
   // ─── Transition Dialog ───

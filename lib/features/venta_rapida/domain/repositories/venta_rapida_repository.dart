@@ -1,5 +1,6 @@
 import '../../../../core/utils/resource.dart';
 import '../../../venta/domain/entities/venta.dart';
+import '../entities/orden_cobrable.dart';
 
 /// Repository interface para el flujo de Venta Rápida (POS simplificado).
 ///
@@ -26,6 +27,10 @@ abstract class VentaRapidaRepository {
   /// Busca (o crea) un cliente empresa por RUC vía SUNAT. Idempotente.
   /// Devuelve datos listos para vincular como `clienteEmpresaId` en la venta.
   Future<Resource<ClienteResueltoRuc>> buscarClientePorRuc(String ruc);
+
+  /// Órdenes de servicio cobrables (REPARADO/LISTO_ENTREGA con saldo > 0 y
+  /// sin venta vinculada) para el selector "Cobrar servicio" de VR.
+  Future<Resource<List<OrdenCobrable>>> getOrdenesCobrables({String? search});
 }
 
 /// Resultado de resolver un cliente por DNI.

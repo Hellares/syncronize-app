@@ -59,4 +59,24 @@ class VentaRapidaRemoteDataSource {
     }
     throw StateError('Respuesta inválida de /clientes/por-ruc');
   }
+
+  /// Órdenes de servicio cobrables desde VR (REPARADO/LISTO_ENTREGA con
+  /// saldo pendiente > 0 y sin venta vinculada).
+  Future<List<Map<String, dynamic>>> getOrdenesCobrables({String? search}) async {
+    final response = await _dioClient.get(
+      '/ordenes-servicio/cobrables',
+      queryParameters: {
+        if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
+      },
+    );
+    final data = response.data;
+    final list = data is List ? data : (data is Map ? data['data'] : null);
+    if (list is List) {
+      return list
+          .whereType<Map>()
+          .map((m) => Map<String, dynamic>.from(m))
+          .toList();
+    }
+    throw StateError('Respuesta inválida de /ordenes-servicio/cobrables');
+  }
 }

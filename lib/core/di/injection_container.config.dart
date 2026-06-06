@@ -1490,6 +1490,8 @@ import '../../features/venta_rapida/domain/usecases/buscar_cliente_por_ruc_useca
     as _i33;
 import '../../features/venta_rapida/domain/usecases/cobrar_venta_rapida_usecase.dart'
     as _i40;
+import '../../features/venta_rapida/domain/usecases/get_ordenes_cobrables_usecase.dart'
+    as _i979;
 import '../../features/venta_rapida/domain/usecases/obtener_cliente_generico_usecase.dart'
     as _i696;
 import '../../features/venta_rapida/presentation/bloc/venta_rapida_cubit.dart'
@@ -3196,6 +3198,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i40.CobrarVentaRapidaUseCase>(
       () => _i40.CobrarVentaRapidaUseCase(gh<_i569.VentaRapidaRepository>()),
+    );
+    gh.lazySingleton<_i979.GetOrdenesCobrablesUseCase>(
+      () => _i979.GetOrdenesCobrablesUseCase(gh<_i569.VentaRapidaRepository>()),
     );
     gh.lazySingleton<_i696.ObtenerClienteGenericoUseCase>(
       () => _i696.ObtenerClienteGenericoUseCase(

@@ -8,6 +8,19 @@ class VentaDetalleInput {
   final String? varianteId;
   final String? servicioId;
   final String? comboId;
+
+  /// Cobro de una orden de servicio (REPARADO/LISTO_ENTREGA) vía POS:
+  /// la línea representa el saldo pendiente de la orden. Cantidad fija 1,
+  /// sin descuentos de línea (el descuento comercial vive en la orden).
+  /// El backend valida saldo vigente (409 SALDO_ORDEN_DESACTUALIZADO) y
+  /// doble cobro (409 ORDEN_YA_COBRADA), y al cobrar marca la orden
+  /// ENTREGADO.
+  final String? ordenServicioId;
+
+  /// Código de la orden para display en carrito/cobro (ej. "ORD-00012").
+  /// Solo client-side, no se envía al backend.
+  final String? ordenCodigo;
+
   final String descripcion;
   final double cantidad;
   final double precioUnitario;
@@ -79,6 +92,8 @@ class VentaDetalleInput {
     this.varianteId,
     this.servicioId,
     this.comboId,
+    this.ordenServicioId,
+    this.ordenCodigo,
     required this.descripcion,
     required this.cantidad,
     required this.precioUnitario,
@@ -102,6 +117,10 @@ class VentaDetalleInput {
     this.precioCostoSnapshot,
     this.enLiquidacion = false,
   });
+
+  /// True si esta línea cobra una orden de servicio (cantidad fija 1,
+  /// sin descuentos de línea, sin stock).
+  bool get esOrdenServicio => ordenServicioId != null;
 
   /// Margen unitario neto (precio efectivo por unidad - costo). Negativo
   /// significa que se está vendiendo bajo costo.
@@ -149,6 +168,7 @@ class VentaDetalleInput {
         if (varianteId != null) 'varianteId': varianteId,
         if (servicioId != null) 'servicioId': servicioId,
         if (comboId != null) 'comboId': comboId,
+        if (ordenServicioId != null) 'ordenServicioId': ordenServicioId,
         'descripcion': descripcion,
         'cantidad': cantidad,
         'precioUnitario': precioUnitario,
@@ -166,6 +186,8 @@ class VentaDetalleInput {
     String? varianteId,
     String? servicioId,
     String? comboId,
+    String? ordenServicioId,
+    String? ordenCodigo,
     String? descripcion,
     double? cantidad,
     double? precioUnitario,
@@ -196,6 +218,8 @@ class VentaDetalleInput {
       varianteId: varianteId ?? this.varianteId,
       servicioId: servicioId ?? this.servicioId,
       comboId: comboId ?? this.comboId,
+      ordenServicioId: ordenServicioId ?? this.ordenServicioId,
+      ordenCodigo: ordenCodigo ?? this.ordenCodigo,
       descripcion: descripcion ?? this.descripcion,
       cantidad: cantidad ?? this.cantidad,
       precioUnitario: precioUnitario ?? this.precioUnitario,
