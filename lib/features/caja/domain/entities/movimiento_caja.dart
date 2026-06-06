@@ -368,6 +368,10 @@ class MovimientoCaja extends Equatable {
   /// Valores backend: BORRADOR | PENDIENTE | APROBADA | RECHAZADA |
   /// VENCIDA | CONVERTIDA.
   final String? cotizacionEstado;
+  /// Orden de servicio vinculada: adelantos (ADELANTO_SERVICIO) y ventas
+  /// que cobraron el saldo de una orden. Permite el badge "OS-XXXXX".
+  final String? ordenServicioId;
+  final String? ordenServicioCodigo;
   /// Nombre del usuario que registró el movimiento (cajero o admin).
   /// Útil en tesorería para identificar quién hizo el barrido/ajuste.
   final String? registradoPorNombre;
@@ -401,6 +405,8 @@ class MovimientoCaja extends Equatable {
     this.cotizacionId,
     this.cotizacionCodigo,
     this.cotizacionEstado,
+    this.ordenServicioId,
+    this.ordenServicioCodigo,
     this.registradoPorNombre,
     this.anulado = false,
     this.motivoAnulacion,
@@ -434,6 +440,8 @@ class MovimientoCaja extends Equatable {
         cotizacionId,
         cotizacionCodigo,
         cotizacionEstado,
+        ordenServicioId,
+        ordenServicioCodigo,
         registradoPorNombre,
         anulado,
         motivoAnulacion,

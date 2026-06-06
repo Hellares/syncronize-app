@@ -104,6 +104,42 @@ class MovimientoGroupCard extends StatelessWidget {
                             ),
                           ),
                         ],
+                        // Badge OS-XXXXX: el movimiento está vinculado a una
+                        // orden de servicio (adelanto ADELANTO_SERVICIO o
+                        // venta que cobró el saldo de la orden).
+                        if (group.first.ordenServicioCodigo != null) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 5, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: AppColors.blue1.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(3),
+                              border: Border.all(
+                                  color: AppColors.blue1.withValues(alpha: 0.40),
+                                  width: 0.6),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.home_repair_service_outlined,
+                                  size: compact ? 9 : 10,
+                                  color: AppColors.blue1,
+                                ),
+                                const SizedBox(width: 3),
+                                Text(
+                                  group.first.ordenServicioCodigo!,
+                                  style: TextStyle(
+                                    fontSize: compact ? 8 : 9,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.blue1,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                     const SizedBox(height: 2),
