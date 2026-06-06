@@ -45,7 +45,10 @@ class TicketEscPosGenerator {
           if (logo.width > maxWidth) {
             logo = img.copyResize(logo, width: maxWidth);
           }
-          bytes += generator.image(logo, align: PosAlign.center);
+          // imageRaster (GS v 0): avance exacto del alto de la imagen.
+          // image() (ESC *) imprime por bandas y en varias térmicas
+          // (Bienex y similares) deja ~1.5cm de avance extra tras el logo.
+          bytes += generator.imageRaster(logo, align: PosAlign.center);
           bytes += generator.feed(1);
         }
       } catch (_) {}
