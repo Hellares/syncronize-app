@@ -22,6 +22,7 @@ import '../../../../core/widgets/cliente_unificado_selector.dart';
 import '../../domain/entities/configuracion_campo.dart';
 import '../../domain/entities/servicio.dart';
 import '../../domain/entities/servicio_filtros.dart';
+import '../../domain/entities/orden_servicio.dart';
 import '../../domain/repositories/orden_servicio_repository.dart';
 import '../../domain/repositories/plantilla_servicio_repository.dart';
 import '../../domain/repositories/servicio_repository.dart';
@@ -1244,11 +1245,14 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
     if (!mounted) return;
     setState(() => _isLoading = false);
 
-    if (result is Success) {
+    if (result is Success<OrdenServicio>) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Orden de servicio creada')),
+        SnackBar(content: Text('Orden ${result.data.codigo} creada')),
       );
-      context.pop();
+      // Directo al detalle de la orden recién creada (un click menos).
+      // pushReplacement: el back desde el detalle vuelve a la LISTA de
+      // órdenes, no al formulario ya consumido.
+      context.pushReplacement('/empresa/ordenes/${result.data.id}');
     } else if (result is Error) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text((result as Error).message)),
