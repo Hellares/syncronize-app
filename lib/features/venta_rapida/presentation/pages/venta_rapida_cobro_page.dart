@@ -807,25 +807,35 @@ class _CobroViewState extends State<_CobroView> {
                 Container(
                   color: Colors.grey.shade100,
                   padding: const EdgeInsets.only(top: 10, bottom: 10),
-                  child: Center(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Con adelanto aplicado el contexto va en su propia
+                      // línea (en una sola fila desbordaba en 400px).
+                      if (state.adelantoAplicado > 0) ...[
                         Text(
-                            state.adelantoAplicado > 0
-                                ? 'Total S/ ${state.total.toStringAsFixed(2)} · Adelanto -S/ ${state.adelantoAplicado.toStringAsFixed(2)} · A cobrar  '
-                                : 'Total a cobrar  ',
-                            style: const TextStyle(
-                                fontSize: 14, color: Colors.black87)),
-                        Text(
-                          'S/ ${totalCobrar.toStringAsFixed(2)}',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            color: Colors.black54,
-                          ),
+                          'Total S/ ${state.total.toStringAsFixed(2)} · Adelanto -S/ ${state.adelantoAplicado.toStringAsFixed(2)}',
+                          style: TextStyle(
+                              fontSize: 12, color: Colors.grey.shade700),
                         ),
+                        const SizedBox(height: 2),
                       ],
-                    ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Text('Total a cobrar  ',
+                              style: TextStyle(
+                                  fontSize: 14, color: Colors.black87)),
+                          Text(
+                            'S/ ${totalCobrar.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Colors.black54,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
                 if (totalCobrar >= 2000)
