@@ -91,6 +91,15 @@ class VentaRapidaRepositoryImpl implements VentaRapidaRepository {
                 .map((m) => Map<String, dynamic>.from(m)),
           )
         : <Map<String, dynamic>>[];
+    // ORDEN_YA_COBRADA: ids de las órdenes afectadas para que el cubit
+    // quite exactamente esas líneas del carrito.
+    final ordenes = body['ordenes'] is List
+        ? List<Map<String, dynamic>>.from(
+            (body['ordenes'] as List)
+                .whereType<Map>()
+                .map((m) => Map<String, dynamic>.from(m)),
+          )
+        : <Map<String, dynamic>>[];
     return Error(
       (body['message'] as String?) ??
           message ??
@@ -99,7 +108,7 @@ class VentaRapidaRepositoryImpl implements VentaRapidaRepository {
               : 'Los precios cambiaron. Refrescá el carrito.'),
       statusCode: 409,
       errorCode: code as String,
-      details: {'divergencias': divergencias},
+      details: {'divergencias': divergencias, 'ordenes': ordenes},
     );
   }
 

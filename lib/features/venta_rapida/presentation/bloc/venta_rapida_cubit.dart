@@ -1229,6 +1229,41 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
         ));
         return;
       }
+      // 409 de órdenes de servicio: quitar las líneas afectadas del carrito
+      // (sin esto el cajero reintentaría en bucle contra el mismo error).
+      //  - ORDEN_YA_COBRADA: otra venta ganó la carrera — la orden ya no es
+      //    cobrable, fuera del carrito.
+      //  - SALDO_ORDEN_DESACTUALIZADO: costo/adelanto cambiaron — se quita
+      //    para que al re-agregarla cargue los montos vigentes (parchear
+      //    solo el precio dejaría un adelanto stale en la línea).
+      if (result.errorCode == 'ORDEN_YA_COBRADA' ||
+          result.errorCode == 'SALDO_ORDEN_DESACTUALIZADO') {
+        final idsAfectados = <String>{
+          ...((result.details?['ordenes'] as List?) ?? [])
+              .whereType<Map>()
+              .map((m) => m['ordenServicioId'] as String?)
+              .whereType<String>(),
+          ...((result.details?['divergencias'] as List?) ?? [])
+              .whereType<Map>()
+              .map((m) => m['ordenServicioId'] as String?)
+              .whereType<String>(),
+        };
+        // Fallback sin ids estructurados: quitar todas las líneas de orden.
+        final lista = state.items
+            .where((i) => !(i.esOrdenServicio &&
+                (idsAfectados.isEmpty ||
+                    idsAfectados.contains(i.ordenServicioId))))
+            .toList();
+        final esYaCobrada = result.errorCode == 'ORDEN_YA_COBRADA';
+        emit(state.copyWith(
+          procesando: false,
+          items: lista,
+          error: esYaCobrada
+              ? '${result.message} La línea se quitó del carrito.'
+              : 'Los montos de la orden cambiaron y la línea se quitó del carrito. Vuelve a agregarla para cobrar con los valores vigentes.',
+        ));
+        return;
+      }
       emit(state.copyWith(
         procesando: false,
         error: result.message,
