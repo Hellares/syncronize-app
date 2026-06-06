@@ -327,7 +327,15 @@ class CierreCajaEscPosGenerator {
           final monto = _money(m.monto);
           bytes +=
               generator.text(_row('$hora $cat $metodo', monto, charsPerLine));
-          final desc = (m.descripcion ?? '').trim();
+          // Sanitizar a ASCII: descripciones persistidas pueden traer "—",
+          // "→", etc. — fuera del code page térmico imprimen basura o
+          // abortan el trabajo de impresión.
+          final desc = (m.descripcion ?? '')
+              .trim()
+              .replaceAll('—', '-')
+              .replaceAll('–', '-')
+              .replaceAll('→', '->')
+              .replaceAll('·', '.');
           if (desc.isNotEmpty) {
             bytes += generator.text('  $desc');
           }

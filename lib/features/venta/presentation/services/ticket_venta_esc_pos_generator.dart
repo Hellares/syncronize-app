@@ -206,9 +206,12 @@ class TicketVentaEscPosGenerator {
             ? d.cantidad.toInt().toString()
             : d.cantidad.toStringAsFixed(2);
         // Sangría visual en la descripción para items que vienen de un combo.
-        final descripcion = d.origenComboId != null
+        // _ascii(): las térmicas usan code pages (CP437/CP850) sin "—", "·",
+        // comillas tipográficas, etc. — un carácter fuera del code page
+        // imprime basura o aborta el trabajo de impresión.
+        final descripcion = _ascii(d.origenComboId != null
             ? '  ${d.descripcion}'
-            : d.descripcion;
+            : d.descripcion);
         final pu = d.precioUnitario.toStringAsFixed(2);
         final total = d.total.toStringAsFixed(2);
 
@@ -406,6 +409,20 @@ class TicketVentaEscPosGenerator {
 
   /// Formatea monto como "S/12.34". Helper para evitar repetir el string.
   static String _money(double v) => 'S/${v.toStringAsFixed(2)}';
+
+  /// Reemplaza caracteres tipográficos fuera de los code pages térmicos
+  /// (CP437/CP850) por equivalentes ASCII. Sin esto, un "—" en la
+  /// descripción (p.ej. líneas de orden de servicio ya persistidas)
+  /// imprime basura o aborta el trabajo de impresión.
+  static String _ascii(String s) => s
+      .replaceAll('—', '-')
+      .replaceAll('–', '-')
+      .replaceAll('·', '.')
+      .replaceAll('“', '"')
+      .replaceAll('”', '"')
+      .replaceAll('’', "'")
+      .replaceAll('‘', "'")
+      .replaceAll('…', '...');
 
   /// Línea label-valor con padding manual: label left, valor right,
   /// espacios en el medio. Total ocupa exactamente `charsPerLine` chars.
