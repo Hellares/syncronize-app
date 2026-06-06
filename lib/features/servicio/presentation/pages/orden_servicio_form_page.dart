@@ -289,24 +289,34 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
         backgroundColor: AppColors.blue1,
         foregroundColor: Colors.white,
       ),
+      // Tap en cualquier zona libre del formulario → soltar el foco del
+      // input activo (cierra el teclado). translucent: no roba los taps
+      // de los hijos (inputs, cards, dropdowns siguen funcionando).
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : Form(
-              key: _formKey,
-              child: GradientContainer(
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-                  children: [
-                    _buildClienteCard(),
-                    const SizedBox(height: 8),
-                    _buildEquipoInlineSection(),
-                    const SizedBox(height: 8),
-                    _buildServicioInlineSection(),
-                    const SizedBox(height: 8),
-                    _buildDatosCard(),
-                    const SizedBox(height: 8),
-                    _buildNotasCard(),
-                  ],
+          : GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+              child: Form(
+                key: _formKey,
+                child: GradientContainer(
+                  child: ListView(
+                    // El teclado también se cierra al arrastrar la lista.
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+                    children: [
+                      _buildClienteCard(),
+                      const SizedBox(height: 8),
+                      _buildEquipoInlineSection(),
+                      const SizedBox(height: 8),
+                      _buildServicioInlineSection(),
+                      const SizedBox(height: 8),
+                      _buildDatosCard(),
+                      const SizedBox(height: 8),
+                      _buildNotasCard(),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -726,7 +736,12 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
           builder: (ctx, setSheetState) {
             _sheetSetState = setSheetState;
             final keyboardInset = MediaQuery.viewInsetsOf(ctx).bottom;
-            return Container(
+            return GestureDetector(
+              // Tap en zona libre de la sheet → cerrar el teclado (los
+              // inputs del formulario viven aquí dentro).
+              behavior: HitTestBehavior.translucent,
+              onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+              child: Container(
               height: MediaQuery.of(ctx).size.height * 0.85,
               decoration: const BoxDecoration(
                 color: Colors.white,
@@ -773,6 +788,7 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
                     ),
                   ),
                 ],
+              ),
               ),
             );
           },
