@@ -604,6 +604,42 @@ class _VentaListTile extends StatelessWidget {
                   AppSubtitle(venta.codigo),
                   const SizedBox(width: 8),
                   VentaEstadoChip(estado: venta.estado),
+                  // Badge OS-XXXXX: la venta cobró una orden de servicio.
+                  ...venta.ordenesServicioCodigos.map(
+                    (cod) => Padding(
+                      padding: const EdgeInsets.only(left: 6),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 5, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: AppColors.blue1.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(3),
+                          border: Border.all(
+                              color: AppColors.blue1.withValues(alpha: 0.40),
+                              width: 0.6),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.home_repair_service_outlined,
+                              size: 9,
+                              color: AppColors.blue1,
+                            ),
+                            const SizedBox(width: 3),
+                            Text(
+                              cod,
+                              style: const TextStyle(
+                                fontSize: 8,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.blue1,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                   const Spacer(),
                   Text(
                     DateFormatter.formatDateTime(venta.fechaVenta),

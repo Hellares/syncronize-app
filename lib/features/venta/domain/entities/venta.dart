@@ -279,6 +279,11 @@ class Venta extends Equatable {
   final String? cajeroAlias;
   final String? clienteNombreCompleto;
   final String? cotizacionCodigo;
+  /// Códigos de órdenes de servicio cobradas por esta venta (badge
+  /// "OS-XXXXX" en la card del listado). Viene aplanado del backend
+  /// (`ordenesServicio`) en la lista; en el detalle puede derivarse de
+  /// `detalles[].ordenCodigo`.
+  final List<String> ordenesServicioCodigos;
   final List<VentaDetalle>? detalles;
   final List<PagoVenta>? pagos;
   final int? cantidadDetalles;
@@ -355,6 +360,7 @@ class Venta extends Equatable {
     this.cajeroAlias,
     this.clienteNombreCompleto,
     this.cotizacionCodigo,
+    this.ordenesServicioCodigos = const [],
     this.detalles,
     this.pagos,
     this.cantidadDetalles,
@@ -438,6 +444,7 @@ class Venta extends Equatable {
         fechaVenta,
         creadoEn,
         actualizadoEn,
+        ordenesServicioCodigos,
         detalles,
         pagos,
         numeroCuotas,

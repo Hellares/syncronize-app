@@ -46,6 +46,7 @@ class VentaModel extends Venta {
     super.cajeroAlias,
     super.clienteNombreCompleto,
     super.cotizacionCodigo,
+    super.ordenesServicioCodigos,
     super.detalles,
     super.pagos,
     super.cantidadDetalles,
@@ -128,6 +129,19 @@ class VentaModel extends Venta {
           .toList();
     }
 
+    // Códigos de órdenes de servicio cobradas: la lista los manda
+    // aplanados (`ordenesServicio`); en el detalle se derivan de los
+    // detalles parseados (cada línea de orden trae su ordenCodigo).
+    final ordenesServicioCodigos = <String>[
+      ...((json['ordenesServicio'] as List?) ?? [])
+          .whereType<Map>()
+          .map((o) => o['codigo'] as String?)
+          .whereType<String>(),
+      ...?detalles
+          ?.where((d) => d.esOrdenServicio && d.ordenCodigo != null)
+          .map((d) => d.ordenCodigo!),
+    ];
+
     List<PagoVenta>? pagos;
     if (json['pagos'] != null) {
       pagos = (json['pagos'] as List)
@@ -185,6 +199,7 @@ class VentaModel extends Venta {
       cajeroAlias: cajeroAlias,
       clienteNombreCompleto: clienteNombreCompleto,
       cotizacionCodigo: cotizacion?['codigo'] as String?,
+      ordenesServicioCodigos: ordenesServicioCodigos,
       detalles: detalles,
       pagos: pagos,
       cantidadDetalles: count?['detalles'] as int?,
