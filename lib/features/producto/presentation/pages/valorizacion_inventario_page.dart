@@ -76,7 +76,6 @@ class _ValorizacionInventarioPageState
         setState(() {
           _valorTotal = (data['valorGlobal'] ?? data['valorTotal'] ?? 0).toDouble();
           _stockTotal = (data['stockGlobal'] ?? data['stockTotal'] ?? 0) as int;
-          _totalProductos = (data['totalSedes'] ?? data['totalProductos'] ?? 0) as int;
 
           final sedesData = data['porSede'];
           if (sedesData is List) {
@@ -84,6 +83,13 @@ class _ValorizacionInventarioPageState
           } else {
             _porSede = [];
           }
+
+          // El backend devuelve totalSedes a nivel raíz (antes se mostraba "1" como
+          // productos). El conteo real de productos viene en porSede[].totalProductos.
+          _totalProductos = _porSede.fold<int>(
+            0,
+            (acc, s) => acc + ((s['totalProductos'] ?? 0) as num).toInt(),
+          );
 
           final topData = data['topProductos'];
           if (topData is List) {
@@ -220,8 +226,8 @@ class _ValorizacionInventarioPageState
             children: [
               _buildStatChip(
                 icon: Icons.inventory,
-                label: 'Stock Total',
-                value: '$_stockTotal',
+                label: 'Unidades base',
+                value: NumberFormat('#,##0', 'es_PE').format(_stockTotal),
                 color: AppColors.blue2,
               ),
               _buildStatChip(
@@ -231,6 +237,16 @@ class _ValorizacionInventarioPageState
                 color: Colors.teal,
               ),
             ],
+          ),
+          const SizedBox(height: 6),
+          // Los insumos cuentan en su unidad mínima (g, cm, und) — la suma mezcla unidades
+          const Text(
+            'Unidades base: mezcla g / cm / und de insumos y productos',
+            style: TextStyle(
+              fontSize: 9,
+              fontStyle: FontStyle.italic,
+              color: AppColors.blue3,
+            ),
           ),
         ],
       ),
