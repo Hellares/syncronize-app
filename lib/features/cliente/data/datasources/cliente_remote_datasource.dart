@@ -46,6 +46,20 @@ class ClienteRemoteDataSource {
     return response.data as Map<String, dynamic>;
   }
 
+  /// Delta-sync del catálogo de clientes (mismo patrón que /productos/sync).
+  ///
+  /// GET /api/clientes/sync?lastSync=ISO
+  /// Respuesta: { updated: [...], deleted: [ids], fullSync: bool, serverTime: ISO }
+  Future<Map<String, dynamic>> syncClientes({String? lastSync}) async {
+    final response = await _dioClient.get(
+      '${ApiConstants.clientes}/sync',
+      queryParameters: {
+        if (lastSync != null && lastSync.isNotEmpty) 'lastSync': lastSync,
+      },
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
   /// Obtiene un cliente por ID
   ///
   /// GET /api/clientes/:id

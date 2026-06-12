@@ -80,6 +80,21 @@ class RealtimeProductoActualizado extends RealtimeEvent {
   });
 }
 
+/// Un cliente de la empresa cambió: creado, asociado, datos de la Persona
+/// compartida actualizados (posiblemente por OTRA empresa o por el propio
+/// cliente desde su portal), desactivado o eliminado. El listener debe
+/// disparar un delta-sync del catálogo local de clientes.
+class RealtimeClienteCambiado extends RealtimeEvent {
+  final String empresaId;
+  final String? clienteEmpresaId;
+  final String? personaId;
+  const RealtimeClienteCambiado({
+    required this.empresaId,
+    this.clienteEmpresaId,
+    this.personaId,
+  });
+}
+
 /// Señal sintética emitida desde el propio cliente — NO viene de FCM
 /// externo. Disparada por:
 /// - Timer.periodic cada 5 min mientras la app está en foreground.
@@ -360,6 +375,14 @@ class RealtimeSyncService {
           empresaId: empresaId,
           productoId: productoId,
           varianteId: varianteId,
+        ));
+        break;
+
+      case 'CLIENTE_CAMBIADO':
+        _eventsController.add(RealtimeClienteCambiado(
+          empresaId: empresaId,
+          clienteEmpresaId: _stringOrNull(data['clienteEmpresaId']),
+          personaId: _stringOrNull(data['personaId']),
         ));
         break;
 

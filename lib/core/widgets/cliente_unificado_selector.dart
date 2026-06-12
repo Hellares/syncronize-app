@@ -11,12 +11,14 @@ import 'floating_button_icon.dart';
 import '../../features/auth/presentation/widgets/custom_button.dart';
 import '../../features/auth/presentation/widgets/custom_text.dart'
     show CustomText, FieldType;
+import '../../features/cliente/data/cache/cliente_catalogo_service.dart';
 import '../../features/cliente/domain/entities/cliente.dart';
 import '../../features/cliente/domain/entities/cliente_filtros.dart';
-import '../../features/cliente/presentation/bloc/cliente_list/cliente_list_cubit.dart';
-import '../../features/cliente/presentation/bloc/cliente_list/cliente_list_state.dart';
+import '../../features/cliente/domain/entities/registro_cliente_response.dart';
+import '../../features/cliente/domain/usecases/get_clientes_usecase.dart';
 import '../../features/cliente/presentation/bloc/cliente_form/cliente_form_cubit.dart';
 import '../../features/cliente/presentation/bloc/cliente_form/cliente_form_state.dart';
+import '../services/realtime_sync_service.dart';
 import '../../features/consultas_externas/domain/entities/consulta_dni.dart';
 import '../../features/consultas_externas/domain/entities/consulta_ruc.dart';
 import '../../features/consultas_externas/domain/usecases/consultar_dni_usecase.dart';
@@ -286,11 +288,20 @@ class _PersonaTabState extends State<_PersonaTab>
     with AutomaticKeepAliveClientMixin {
   _PersonaMode _mode = _PersonaMode.search;
 
-  // Search
+  // Search — local-first sobre el catálogo cacheado (delta-sync + push
+  // CLIENTE_CAMBIADO). El server solo entra como fallback cuando la
+  // búsqueda local no encuentra nada (catálogo posiblemente incompleto).
   final _searchController = TextEditingController();
   final _scrollController = ScrollController();
   Timer? _debounceTimer;
-  late final ClienteListCubit _listCubit;
+  final _catalogo = ClienteCatalogoService.instance;
+  List<Cliente> _filtrados = const [];
+  List<Cliente> _resultadosServer = const [];
+  bool _cargando = true;
+  bool _buscandoServer = false;
+  String? _errorCarga;
+  StreamSubscription? _realtimeSub;
+  StreamSubscription? _catalogoSub;
 
   // Register
   late final ClienteFormCubit _formCubit;
@@ -315,26 +326,94 @@ class _PersonaTabState extends State<_PersonaTab>
   @override
   void initState() {
     super.initState();
-    _listCubit = locator<ClienteListCubit>();
     _formCubit = locator<ClienteFormCubit>();
-    _scrollController.addListener(_onScroll);
-    _listCubit.loadClientes(
-      empresaId: widget.empresaId,
-      filtros: const ClienteFiltros(limit: 50),
-    );
+    _initCatalogo();
+    // Cambios del catálogo (sync por push/heartbeat, upsert local) →
+    // re-aplicar el filtro vigente.
+    _catalogoSub = _catalogo.changes.listen((empresaId) {
+      if (!mounted || empresaId != widget.empresaId) return;
+      setState(() => _filtrados =
+          _catalogo.buscar(widget.empresaId, _searchController.text));
+    });
+    // Push CLIENTE_CAMBIADO / heartbeat → delta-sync silencioso.
+    _realtimeSub = locator<RealtimeSyncService>().events.listen((e) {
+      final esCliente =
+          e is RealtimeClienteCambiado && e.empresaId == widget.empresaId;
+      final esHeartbeat =
+          e is RealtimeHeartbeat && e.empresaId == widget.empresaId;
+      if (esCliente || esHeartbeat) {
+        _catalogo.syncNow(widget.empresaId).catchError((_) => const <Cliente>[]);
+      }
+    });
   }
 
-  void _onScroll() {
-    if (_scrollController.position.pixels >=
-            _scrollController.position.maxScrollExtent - 100 &&
-        _listCubit.state is ClienteListLoaded) {
-      _listCubit.loadMore();
+  Future<void> _initCatalogo() async {
+    // 1) Hidratar de memoria/disco: lista visible al instante.
+    final cache = await _catalogo.hydrate(widget.empresaId);
+    if (!mounted) return;
+    if (cache.isNotEmpty) {
+      setState(() {
+        _filtrados = cache;
+        _cargando = false;
+      });
+    }
+    // 2) Delta-sync en background (full la primera vez).
+    try {
+      await _catalogo.syncNow(widget.empresaId);
+      if (!mounted) return;
+      setState(() {
+        _filtrados =
+            _catalogo.buscar(widget.empresaId, _searchController.text);
+        _cargando = false;
+        _errorCarga = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _cargando = false;
+        // Solo es error visible si no hay NADA que mostrar (sin cache).
+        if (_filtrados.isEmpty) {
+          _errorCarga = 'No se pudo cargar los clientes. Revisa tu conexión.';
+        }
+      });
+    }
+  }
+
+  void _onSearchChanged(String query) {
+    // Filtro local instantáneo.
+    setState(() {
+      _filtrados = _catalogo.buscar(widget.empresaId, query);
+      _resultadosServer = const [];
+    });
+    // Fallback a server si lo local no encontró nada (catálogo grande
+    // truncado o cliente de otra sede aún no sincronizado).
+    _debounceTimer?.cancel();
+    final q = query.trim();
+    if (_filtrados.isEmpty && q.length >= 2) {
+      _debounceTimer = Timer(const Duration(milliseconds: 400), () async {
+        if (!mounted) return;
+        setState(() => _buscandoServer = true);
+        final result = await locator<GetClientesUseCase>()(
+          empresaId: widget.empresaId,
+          filtros: ClienteFiltros(search: q, limit: 30),
+        );
+        if (!mounted) return;
+        setState(() {
+          _buscandoServer = false;
+          if (result is Success<ClientesPaginados> &&
+              _searchController.text.trim() == q) {
+            _resultadosServer = result.data.data;
+          }
+        });
+      });
     }
   }
 
   @override
   void dispose() {
     _debounceTimer?.cancel();
+    _realtimeSub?.cancel();
+    _catalogoSub?.cancel();
     _scrollController.dispose();
     _searchController.dispose();
     _dniController.dispose();
@@ -343,7 +422,6 @@ class _PersonaTabState extends State<_PersonaTab>
     _telefonoController.dispose();
     _emailController.dispose();
     _direccionController.dispose();
-    _listCubit.close();
     _formCubit.close();
     super.dispose();
   }
@@ -479,15 +557,15 @@ class _PersonaTabState extends State<_PersonaTab>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    return MultiBlocProvider(
-      providers: [
-        BlocProvider.value(value: _listCubit),
-        BlocProvider.value(value: _formCubit),
-      ],
+    return BlocProvider.value(
+      value: _formCubit,
       child: BlocListener<ClienteFormCubit, ClienteFormState>(
         listener: (context, state) {
           if (state is ClienteFormSuccess) {
             final cliente = state.response.cliente;
+            // Optimista: al catálogo local de inmediato (los demás
+            // devices lo reciben vía push CLIENTE_CAMBIADO).
+            _catalogo.upsertLocal(widget.empresaId, cliente);
             Navigator.pop(context, _resultFromCliente(cliente));
           } else if (state is ClienteFormError) {
             if (!mounted) return;
@@ -515,21 +593,7 @@ class _PersonaTabState extends State<_PersonaTab>
                   controller: _searchController,
                   borderColor: AppColors.blue1,
                   hintText: 'Buscar por nombre, DNI o teléfono...',
-                  onChanged: (query) {
-                    _debounceTimer?.cancel();
-                    _debounceTimer =
-                        Timer(const Duration(milliseconds: 400), () {
-                      if (!mounted) return;
-                      if (query.isEmpty) {
-                        _listCubit.loadClientes(
-                          empresaId: widget.empresaId,
-                          filtros: const ClienteFiltros(limit: 50),
-                        );
-                      } else {
-                        _listCubit.search(query);
-                      }
-                    });
-                  },
+                  onChanged: _onSearchChanged,
                 ),
               ),
               const SizedBox(width: 10),
@@ -551,9 +615,9 @@ class _PersonaTabState extends State<_PersonaTab>
           ),
         ),
         Flexible(
-          child: BlocBuilder<ClienteListCubit, ClienteListState>(
-            builder: (context, state) {
-              if (state is ClienteListLoading) {
+          child: Builder(
+            builder: (context) {
+              if (_cargando) {
                 return const Center(
                   child: Padding(
                     padding: EdgeInsets.all(32),
@@ -561,12 +625,12 @@ class _PersonaTabState extends State<_PersonaTab>
                   ),
                 );
               }
-              if (state is ClienteListError) {
+              if (_errorCarga != null) {
                 return Center(
                   child: Padding(
                     padding: const EdgeInsets.all(32),
                     child: Text(
-                      state.message,
+                      _errorCarga!,
                       style: TextStyle(color: Colors.grey[600], fontSize: 13),
                       textAlign: TextAlign.center,
                     ),
@@ -574,22 +638,10 @@ class _PersonaTabState extends State<_PersonaTab>
                 );
               }
 
-              // Extraer lista y flags de paginación
-              final List<Cliente> clientes;
-              final bool hasMore;
-              final bool isLoadingMore;
-
-              if (state is ClienteListLoaded) {
-                clientes = state.clientes;
-                hasMore = state.hasMore;
-                isLoadingMore = false;
-              } else if (state is ClienteListLoadingMore) {
-                clientes = state.currentClientes;
-                hasMore = true;
-                isLoadingMore = true;
-              } else {
-                return const SizedBox.shrink();
-              }
+              // Local primero; si lo local no encontró nada, lo que haya
+              // devuelto el fallback de server.
+              final clientes =
+                  _filtrados.isNotEmpty ? _filtrados : _resultadosServer;
 
               if (clientes.isEmpty) {
                 return Center(
@@ -598,20 +650,34 @@ class _PersonaTabState extends State<_PersonaTab>
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.person_off_outlined,
-                            size: 48, color: Colors.grey[400]),
-                        const SizedBox(height: 12),
-                        Text(
-                          'No se encontraron clientes',
-                          style: TextStyle(
-                              color: Colors.grey[600], fontSize: 13),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Puedes registrar uno nuevo',
-                          style: TextStyle(
-                              color: Colors.grey[500], fontSize: 11),
-                        ),
+                        if (_buscandoServer) ...[
+                          const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Buscando en el servidor...',
+                            style: TextStyle(
+                                color: Colors.grey[600], fontSize: 12),
+                          ),
+                        ] else ...[
+                          Icon(Icons.person_off_outlined,
+                              size: 48, color: Colors.grey[400]),
+                          const SizedBox(height: 12),
+                          Text(
+                            'No se encontraron clientes',
+                            style: TextStyle(
+                                color: Colors.grey[600], fontSize: 13),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Puedes registrar uno nuevo',
+                            style: TextStyle(
+                                color: Colors.grey[500], fontSize: 11),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -621,22 +687,9 @@ class _PersonaTabState extends State<_PersonaTab>
               return ListView.builder(
                 controller: _scrollController,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: clientes.length + (hasMore || isLoadingMore ? 1 : 0),
-                itemBuilder: (context, index) {
-                  if (index >= clientes.length) {
-                    return const Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Center(
-                        child: SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      ),
-                    );
-                  }
-                  return _buildClienteTile(clientes[index]);
-                },
+                itemCount: clientes.length,
+                itemBuilder: (context, index) =>
+                    _buildClienteTile(clientes[index]),
               );
             },
           ),
