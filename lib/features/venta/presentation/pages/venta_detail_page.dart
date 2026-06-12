@@ -2479,6 +2479,24 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                             onPressed: () {
                               final monto = double.tryParse(montoCtrl.text);
                               if (monto == null || monto <= 0) return;
+                              // Ley 28194 (paridad backend): en ventas sobre
+                              // el umbral, los pagos digitales exigen N° de
+                              // operación — validar acá evita un 400 seguro.
+                              final umbralLey =
+                                  _venta!.moneda == 'USD' ? 500 : 2000;
+                              if (metodoActual != 'EFECTIVO' &&
+                                  _venta!.total >= umbralLey &&
+                                  refCtrl.text.trim().isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                        'Esta venta supera el umbral de bancarización: ingresa el N° de operación'),
+                                    backgroundColor: Colors.red,
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                                return;
+                              }
                               Navigator.pop(ctx);
                               final data = <String, dynamic>{
                                 'metodoPago': metodoActual,

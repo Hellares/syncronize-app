@@ -3229,6 +3229,28 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                     );
                     return;
                   }
+                  // Paridad backend B8: adelanto + descuento <= costo. El
+                  // dialog se cierra al confirmar, así que validar acá
+                  // evita perder lo tecleado en un 400 seguro.
+                  final costoEf = costoTotalController.text.isNotEmpty
+                      ? double.tryParse(costoTotalController.text)
+                      : _orden?.costoTotal;
+                  if (costoEf != null) {
+                    final adelEf = adelantoController.text.isNotEmpty
+                        ? adelTransicion
+                        : (_orden?.adelanto ?? 0);
+                    final descEf = descuentoController.text.isNotEmpty
+                        ? (double.tryParse(descuentoController.text) ?? 0)
+                        : (_orden?.descuento ?? 0);
+                    if (adelEf + descEf > costoEf + 0.005) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content: Text(
+                                'La suma de adelanto y descuento no puede superar el costo total')),
+                      );
+                      return;
+                    }
+                  }
                   Navigator.pop(ctx);
                   _executeTransition(
                     nuevoEstado,
