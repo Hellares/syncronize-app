@@ -257,7 +257,20 @@ class _OrdenesContentState extends State<_OrdenesContent> {
   }
 
   Widget _buildOrdenList() {
-    return BlocBuilder<OrdenServicioListCubit, OrdenServicioListState>(
+    return BlocConsumer<OrdenServicioListCubit, OrdenServicioListState>(
+      listenWhen: (prev, curr) =>
+          curr is OrdenServicioListLoaded && curr.loadMoreError != null,
+      listener: (context, state) {
+        final mensaje = (state as OrdenServicioListLoaded).loadMoreError!;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('No se pudieron cargar más órdenes: $mensaje',
+                style: const TextStyle(fontSize: 12)),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      },
       builder: (context, state) {
         if (state is OrdenServicioListLoading) {
           return CustomLoading.small(message: 'Cargando órdenes...');

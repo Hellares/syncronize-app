@@ -38,6 +38,7 @@ class EstadoBadgeWidget extends StatelessWidget {
       'ENTREGADO': 'Entregado',
       'FINALIZADO': 'Finalizado',
       'CANCELADO': 'Cancelado',
+      'TERCERIZADO': 'Tercerizado B2B',
     };
     return labels[estado] ?? estado;
   }
@@ -64,6 +65,8 @@ class EstadoBadgeWidget extends StatelessWidget {
         return Colors.grey;
       case 'CANCELADO':
         return Colors.red;
+      case 'TERCERIZADO':
+        return Colors.deepPurple;
       default:
         return Colors.grey;
     }

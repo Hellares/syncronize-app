@@ -90,12 +90,14 @@ class OrdenServicioListCubit extends Cubit<OrdenServicioListState> {
         filtros: _currentFiltros,
       ));
     } else if (result is Error<OrdenesServicioPaginadas>) {
+      // Conserva la lista y el cursor (reintentable), pero avisa del fallo.
       emit(OrdenServicioListLoaded(
         ordenes: _allOrdenes,
         total: currentState.total,
         hasMore: currentState.hasMore,
         nextCursor: currentState.nextCursor,
         filtros: _currentFiltros,
+        loadMoreError: result.message,
       ));
     }
   }

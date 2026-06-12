@@ -30,16 +30,22 @@ class OrdenServicioListLoaded extends OrdenServicioListState {
   final String? nextCursor;
   final OrdenServicioFiltros filtros;
 
+  /// Mensaje de error de un loadMore fallido: la lista actual se conserva
+  /// pero la página puede avisar (snackbar) que la paginación falló.
+  final String? loadMoreError;
+
   const OrdenServicioListLoaded({
     required this.ordenes,
     required this.total,
     required this.hasMore,
     this.nextCursor,
     required this.filtros,
+    this.loadMoreError,
   });
 
   @override
-  List<Object?> get props => [ordenes, total, hasMore, nextCursor, filtros];
+  List<Object?> get props =>
+      [ordenes, total, hasMore, nextCursor, filtros, loadMoreError];
 }
 
 class OrdenServicioListError extends OrdenServicioListState {

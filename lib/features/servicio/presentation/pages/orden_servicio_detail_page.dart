@@ -4014,7 +4014,9 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
       'EN_REPARACION': ['PENDIENTE_PIEZAS', 'REPARADO', 'CANCELADO'],
       'PENDIENTE_PIEZAS': ['EN_REPARACION', 'CANCELADO'],
       'REPARADO': ['LISTO_ENTREGA'],
-      'LISTO_ENTREGA': ['ENTREGADO'],
+      // B13 (paridad backend): permite revertir a reparación o cancelar
+      // si se detecta un problema antes de entregar.
+      'LISTO_ENTREGA': ['ENTREGADO', 'EN_REPARACION', 'CANCELADO'],
       'ENTREGADO': ['FINALIZADO', 'EN_DIAGNOSTICO'],
       'FINALIZADO': ['EN_DIAGNOSTICO'],
     };
