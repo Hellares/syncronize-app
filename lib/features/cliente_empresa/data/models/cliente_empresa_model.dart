@@ -37,6 +37,42 @@ class ClienteEmpresaModel extends ClienteEmpresa {
           : null,
     );
   }
+
+  /// Para persistir el catálogo local (delta-sync).
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'empresaId': empresaId,
+        'codigo': codigo,
+        'razonSocial': razonSocial,
+        'nombreComercial': nombreComercial,
+        'tipoDocumento': tipoDocumento,
+        'numeroDocumento': numeroDocumento,
+        'email': email,
+        'telefono': telefono,
+        'direccion': direccion,
+        'isActive': isActive,
+        'contactos': contactos
+            ?.map((c) => ClienteEmpresaContactoModel.fromEntity(c).toJson())
+            .toList(),
+      };
+
+  factory ClienteEmpresaModel.fromEntity(ClienteEmpresa e) {
+    if (e is ClienteEmpresaModel) return e;
+    return ClienteEmpresaModel(
+      id: e.id,
+      empresaId: e.empresaId,
+      codigo: e.codigo,
+      razonSocial: e.razonSocial,
+      nombreComercial: e.nombreComercial,
+      tipoDocumento: e.tipoDocumento,
+      numeroDocumento: e.numeroDocumento,
+      email: e.email,
+      telefono: e.telefono,
+      direccion: e.direccion,
+      isActive: e.isActive,
+      contactos: e.contactos,
+    );
+  }
 }
 
 class ClienteEmpresaContactoModel extends ClienteEmpresaContacto {
@@ -61,6 +97,31 @@ class ClienteEmpresaContactoModel extends ClienteEmpresaContacto {
       telefono: json['telefono'] as String?,
       telefonoMovil: json['telefonoMovil'] as String?,
       esPrincipal: json['esPrincipal'] as bool? ?? false,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'nombre': nombre,
+        'cargo': cargo,
+        'dni': dni,
+        'email': email,
+        'telefono': telefono,
+        'telefonoMovil': telefonoMovil,
+        'esPrincipal': esPrincipal,
+      };
+
+  factory ClienteEmpresaContactoModel.fromEntity(ClienteEmpresaContacto e) {
+    if (e is ClienteEmpresaContactoModel) return e;
+    return ClienteEmpresaContactoModel(
+      id: e.id,
+      nombre: e.nombre,
+      cargo: e.cargo,
+      dni: e.dni,
+      email: e.email,
+      telefono: e.telefono,
+      telefonoMovil: e.telefonoMovil,
+      esPrincipal: e.esPrincipal,
     );
   }
 }

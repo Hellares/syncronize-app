@@ -26,6 +26,22 @@ class ClienteEmpresaRemoteDataSource {
     return response.data as Map<String, dynamic>;
   }
 
+  /// Delta-sync del catálogo B2B (mismo patrón que /clientes/sync).
+  ///
+  /// GET /api/empresas/:empresaId/clientes-empresa/sync?lastSync=ISO
+  Future<Map<String, dynamic>> syncClientesEmpresa({
+    required String empresaId,
+    String? lastSync,
+  }) async {
+    final response = await _dioClient.get(
+      '${ApiConstants.empresas}/$empresaId${ApiConstants.clientesEmpresa}/sync',
+      queryParameters: {
+        if (lastSync != null && lastSync.isNotEmpty) 'lastSync': lastSync,
+      },
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
   Future<ClienteEmpresaModel> getClienteEmpresa(
     String empresaId,
     String id,

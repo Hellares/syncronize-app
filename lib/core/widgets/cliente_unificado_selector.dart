@@ -23,6 +23,7 @@ import '../../features/consultas_externas/domain/entities/consulta_dni.dart';
 import '../../features/consultas_externas/domain/entities/consulta_ruc.dart';
 import '../../features/consultas_externas/domain/usecases/consultar_dni_usecase.dart';
 import '../../features/consultas_externas/domain/usecases/consultar_ruc_usecase.dart';
+import '../../features/cliente_empresa/data/cache/cliente_empresa_catalogo_service.dart';
 import '../../features/cliente_empresa/domain/entities/cliente_empresa.dart';
 import '../../features/cliente_empresa/domain/repositories/cliente_empresa_repository.dart';
 import '../../features/vinculacion/presentation/bloc/vinculacion_action/vinculacion_action_cubit.dart';
@@ -967,16 +968,19 @@ class _EmpresaTabState extends State<_EmpresaTab>
     with AutomaticKeepAliveClientMixin {
   _EmpresaMode _mode = _EmpresaMode.search;
 
-  // Search
+  // Search — local-first sobre el catálogo B2B cacheado (delta-sync +
+  // push CLIENTE_EMPRESA_CAMBIADO). Server solo como fallback.
   final _searchController = TextEditingController();
   final _scrollController = ScrollController();
   Timer? _debounceTimer;
-  List<ClienteEmpresa> _empresas = [];
-  bool _isSearching = false;
-  bool _hasSearched = false;
-  int _currentPage = 1;
-  int _totalPages = 1;
-  bool _isLoadingMore = false;
+  final _catalogoB2B = ClienteEmpresaCatalogoService.instance;
+  List<ClienteEmpresa> _filtradas = const [];
+  List<ClienteEmpresa> _resultadosServer = const [];
+  bool _cargando = true;
+  bool _buscandoServer = false;
+  String? _errorCarga;
+  StreamSubscription? _realtimeSub;
+  StreamSubscription? _catalogoSub;
 
   // Register
   final _rucController = TextEditingController();
@@ -1014,22 +1018,87 @@ class _EmpresaTabState extends State<_EmpresaTab>
   void initState() {
     super.initState();
     _repo = locator<ClienteEmpresaRepository>();
-    _scrollController.addListener(_onScroll);
-    _loadEmpresas();
+    _initCatalogo();
+    _catalogoSub = _catalogoB2B.changes.listen((empresaId) {
+      if (!mounted || empresaId != widget.empresaId) return;
+      setState(() => _filtradas =
+          _catalogoB2B.buscar(widget.empresaId, _searchController.text));
+    });
+    _realtimeSub = locator<RealtimeSyncService>().events.listen((e) {
+      final esB2B = e is RealtimeClienteEmpresaCambiado &&
+          e.empresaId == widget.empresaId;
+      final esHeartbeat =
+          e is RealtimeHeartbeat && e.empresaId == widget.empresaId;
+      if (esB2B || esHeartbeat) {
+        _catalogoB2B
+            .syncNow(widget.empresaId)
+            .catchError((_) => const <ClienteEmpresa>[]);
+      }
+    });
   }
 
-  void _onScroll() {
-    if (_scrollController.position.pixels >=
-            _scrollController.position.maxScrollExtent - 100 &&
-        !_isLoadingMore &&
-        _currentPage < _totalPages) {
-      _loadMoreEmpresas();
+  Future<void> _initCatalogo() async {
+    final cache = await _catalogoB2B.hydrate(widget.empresaId);
+    if (!mounted) return;
+    if (cache.isNotEmpty) {
+      setState(() {
+        _filtradas = cache;
+        _cargando = false;
+      });
+    }
+    try {
+      await _catalogoB2B.syncNow(widget.empresaId);
+      if (!mounted) return;
+      setState(() {
+        _filtradas =
+            _catalogoB2B.buscar(widget.empresaId, _searchController.text);
+        _cargando = false;
+        _errorCarga = null;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _cargando = false;
+        if (_filtradas.isEmpty) {
+          _errorCarga = 'No se pudo cargar las empresas. Revisa tu conexión.';
+        }
+      });
+    }
+  }
+
+  void _onSearchChanged(String query) {
+    setState(() {
+      _filtradas = _catalogoB2B.buscar(widget.empresaId, query);
+      _resultadosServer = const [];
+    });
+    _debounceTimer?.cancel();
+    final q = query.trim();
+    if (_filtradas.isEmpty && q.length >= 2) {
+      _debounceTimer = Timer(const Duration(milliseconds: 400), () async {
+        if (!mounted) return;
+        setState(() => _buscandoServer = true);
+        final result = await _repo.getClientesEmpresa(
+          empresaId: widget.empresaId,
+          search: q,
+          limit: 30,
+        );
+        if (!mounted) return;
+        setState(() {
+          _buscandoServer = false;
+          if (result is Success<ClientesEmpresaPaginados> &&
+              _searchController.text.trim() == q) {
+            _resultadosServer = result.data.data;
+          }
+        });
+      });
     }
   }
 
   @override
   void dispose() {
     _debounceTimer?.cancel();
+    _realtimeSub?.cancel();
+    _catalogoSub?.cancel();
     _scrollController.dispose();
     _searchController.dispose();
     _rucController.dispose();
@@ -1043,48 +1112,6 @@ class _EmpresaTabState extends State<_EmpresaTab>
     _contactoDniController.dispose();
     _contactoTelefonoController.dispose();
     super.dispose();
-  }
-
-  Future<void> _loadEmpresas({String? search}) async {
-    setState(() {
-      _isSearching = true;
-      _currentPage = 1;
-    });
-    final result = await _repo.getClientesEmpresa(
-      empresaId: widget.empresaId,
-      search: search,
-      page: 1,
-    );
-    if (!mounted) return;
-    setState(() {
-      _isSearching = false;
-      _hasSearched = true;
-      if (result is Success<ClientesEmpresaPaginados>) {
-        _empresas = result.data.data;
-        _totalPages = (result.data.total / 20).ceil().clamp(1, 9999);
-      }
-    });
-  }
-
-  Future<void> _loadMoreEmpresas() async {
-    if (_isLoadingMore) return;
-    setState(() => _isLoadingMore = true);
-    final nextPage = _currentPage + 1;
-    final result = await _repo.getClientesEmpresa(
-      empresaId: widget.empresaId,
-      search: _searchController.text.trim().isEmpty
-          ? null
-          : _searchController.text.trim(),
-      page: nextPage,
-    );
-    if (!mounted) return;
-    setState(() {
-      _isLoadingMore = false;
-      if (result is Success<ClientesEmpresaPaginados>) {
-        _empresas.addAll(result.data.data);
-        _currentPage = nextPage;
-      }
-    });
   }
 
   // ─── RUC Lookup ───
@@ -1392,6 +1419,10 @@ class _EmpresaTabState extends State<_EmpresaTab>
       final empresa = creado.clienteEmpresa;
       final contacto = empresa.contactoPrincipal;
 
+      // Optimista: al catálogo local de inmediato (los demás devices lo
+      // reciben vía push CLIENTE_EMPRESA_CAMBIADO).
+      _catalogoB2B.upsertLocal(widget.empresaId, empresa);
+
       // Si hay empresa vinculable, mostrar dialog de vinculación
       if (creado.empresaVinculable != null && mounted) {
         final vinculable = creado.empresaVinculable!;
@@ -1479,18 +1510,7 @@ class _EmpresaTabState extends State<_EmpresaTab>
                   controller: _searchController,
                   borderColor: AppColors.blue1,
                   hintText: 'Buscar por razón social, RUC...',
-                  onChanged: (query) {
-                    _debounceTimer?.cancel();
-                    _debounceTimer =
-                        Timer(const Duration(milliseconds: 400), () {
-                      if (!mounted) return;
-                      if (query.isEmpty) {
-                        _loadEmpresas();
-                      } else {
-                        _loadEmpresas(search: query);
-                      }
-                    });
-                  },
+                  onChanged: _onSearchChanged,
                 ),
               ),
               const SizedBox(width: 10),
@@ -1512,61 +1532,83 @@ class _EmpresaTabState extends State<_EmpresaTab>
           ),
         ),
         Flexible(
-          child: _isSearching
-              ? const Center(
+          child: Builder(
+            builder: (context) {
+              if (_cargando) {
+                return const Center(
                   child: Padding(
                     padding: EdgeInsets.all(32),
                     child: CircularProgressIndicator(),
                   ),
-                )
-              : _empresas.isEmpty && _hasSearched
-                  ? Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(32),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.business_outlined,
-                                size: 48, color: Colors.grey[400]),
-                            const SizedBox(height: 12),
-                            Text(
-                              'No se encontraron empresas',
-                              style: TextStyle(
-                                  color: Colors.grey[600], fontSize: 13),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Puedes registrar una nueva',
-                              style: TextStyle(
-                                  color: Colors.grey[500], fontSize: 11),
-                            ),
-                          ],
-                        ),
-                      ),
-                    )
-                  : ListView.builder(
-                      controller: _scrollController,
-                      shrinkWrap: true,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: _empresas.length + (_isLoadingMore ? 1 : 0),
-                      itemBuilder: (context, index) {
-                        if (index == _empresas.length) {
-                          return const Padding(
-                            padding: EdgeInsets.all(16),
-                            child: Center(
-                              child: SizedBox(
-                                width: 20,
-                                height: 20,
-                                child:
-                                    CircularProgressIndicator(strokeWidth: 2),
-                              ),
-                            ),
-                          );
-                        }
-                        final empresa = _empresas[index];
-                        return _buildEmpresaTile(empresa);
-                      },
+                );
+              }
+              if (_errorCarga != null) {
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Text(
+                      _errorCarga!,
+                      style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                      textAlign: TextAlign.center,
                     ),
+                  ),
+                );
+              }
+
+              final empresas =
+                  _filtradas.isNotEmpty ? _filtradas : _resultadosServer;
+
+              if (empresas.isEmpty) {
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (_buscandoServer) ...[
+                          const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Buscando en el servidor...',
+                            style: TextStyle(
+                                color: Colors.grey[600], fontSize: 12),
+                          ),
+                        ] else ...[
+                          Icon(Icons.business_outlined,
+                              size: 48, color: Colors.grey[400]),
+                          const SizedBox(height: 12),
+                          Text(
+                            'No se encontraron empresas',
+                            style: TextStyle(
+                                color: Colors.grey[600], fontSize: 13),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Puedes registrar una nueva',
+                            style: TextStyle(
+                                color: Colors.grey[500], fontSize: 11),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              return ListView.builder(
+                controller: _scrollController,
+                shrinkWrap: true,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: empresas.length,
+                itemBuilder: (context, index) =>
+                    _buildEmpresaTile(empresas[index]),
+              );
+            },
+          ),
         ),
       ],
     );

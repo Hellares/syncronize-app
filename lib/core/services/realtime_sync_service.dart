@@ -95,6 +95,17 @@ class RealtimeClienteCambiado extends RealtimeEvent {
   });
 }
 
+/// Un cliente empresa B2B (o sus contactos) cambió. El listener debe
+/// disparar un delta-sync del catálogo local B2B.
+class RealtimeClienteEmpresaCambiado extends RealtimeEvent {
+  final String empresaId;
+  final String? clienteEmpresaId;
+  const RealtimeClienteEmpresaCambiado({
+    required this.empresaId,
+    this.clienteEmpresaId,
+  });
+}
+
 /// Señal sintética emitida desde el propio cliente — NO viene de FCM
 /// externo. Disparada por:
 /// - Timer.periodic cada 5 min mientras la app está en foreground.
@@ -383,6 +394,13 @@ class RealtimeSyncService {
           empresaId: empresaId,
           clienteEmpresaId: _stringOrNull(data['clienteEmpresaId']),
           personaId: _stringOrNull(data['personaId']),
+        ));
+        break;
+
+      case 'CLIENTE_EMPRESA_CAMBIADO':
+        _eventsController.add(RealtimeClienteEmpresaCambiado(
+          empresaId: empresaId,
+          clienteEmpresaId: _stringOrNull(data['clienteEmpresaId']),
         ));
         break;
 
