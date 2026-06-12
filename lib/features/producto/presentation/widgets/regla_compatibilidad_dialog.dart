@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/fonts/app_fonts.dart';
+import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import '../../domain/entities/regla_compatibilidad.dart';
 import '../../domain/entities/producto_atributo.dart';
 import '../../../catalogo/presentation/bloc/categorias_empresa/categorias_empresa_cubit.dart';
@@ -563,14 +564,11 @@ class _ReglaCompatibilidadDialogState extends State<ReglaCompatibilidadDialog> {
             const Text('Nombre de la regla *',
                 style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
             const SizedBox(height: 6),
-            TextFormField(
+            CustomText(
               controller: _nombreController,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                hintText: 'Ej: Socket CPU compatible',
-                contentPadding:
-                    EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-              ),
+              hintText: 'Ej: Socket CPU compatible',
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               onChanged: (_) {
                 _nombreAutoGenerado = false;
                 setState(() {});
@@ -582,13 +580,10 @@ class _ReglaCompatibilidadDialogState extends State<ReglaCompatibilidadDialog> {
             const Text('Descripcion (opcional)',
                 style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
             const SizedBox(height: 6),
-            TextFormField(
+            CustomText(
               controller: _descripcionController,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                contentPadding:
-                    EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-              ),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               maxLines: 2,
             ),
             const SizedBox(height: 20),

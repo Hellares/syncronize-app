@@ -2303,11 +2303,22 @@ class _ConversorUnidadDialog extends StatefulWidget {
 
 class _ConversorUnidadDialogState extends State<_ConversorUnidadDialog> {
   final _ctrl = TextEditingController();
+  final _focusNode = FocusNode();
   double? _atomico;
+
+  @override
+  void initState() {
+    super.initState();
+    // Reemplaza autofocus: true del TextField original.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _focusNode.requestFocus();
+    });
+  }
 
   @override
   void dispose() {
     _ctrl.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -2360,16 +2371,12 @@ class _ConversorUnidadDialogState extends State<_ConversorUnidadDialog> {
           style: const TextStyle(fontSize: 11),
         ),
         const SizedBox(height: 12),
-        TextField(
+        CustomText(
           controller: _ctrl,
-          autofocus: true,
+          focusNode: _focusNode,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: InputDecoration(
-            labelText: 'Cantidad en ${widget.simboloCompra}',
-            hintText: 'Ej. 0.30',
-            isDense: true,
-            border: const OutlineInputBorder(),
-          ),
+          label: 'Cantidad en ${widget.simboloCompra}',
+          hintText: 'Ej. 0.30',
           onChanged: (_) => _recalcular(),
         ),
         const SizedBox(height: 12),
@@ -2427,12 +2434,23 @@ class _CalculadoraLoteDialogInlineState
     extends State<_CalculadoraLoteDialogInline> {
   final _cantidadCtrl = TextEditingController();
   final _totalCtrl = TextEditingController();
+  final _cantidadFocusNode = FocusNode();
   double? _unitario;
+
+  @override
+  void initState() {
+    super.initState();
+    // Reemplaza autofocus: true del TextField original.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _cantidadFocusNode.requestFocus();
+    });
+  }
 
   @override
   void dispose() {
     _cantidadCtrl.dispose();
     _totalCtrl.dispose();
+    _cantidadFocusNode.dispose();
     super.dispose();
   }
 
@@ -2483,30 +2501,22 @@ class _CalculadoraLoteDialogInlineState
           style: TextStyle(fontSize: 11),
         ),
         const SizedBox(height: 12),
-        TextField(
+        CustomText(
           controller: _cantidadCtrl,
-          autofocus: true,
+          focusNode: _cantidadFocusNode,
           keyboardType:
               const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(
-            labelText: 'Cantidad comprada',
-            hintText: 'Ej. 20',
-            isDense: true,
-            border: OutlineInputBorder(),
-          ),
+          label: 'Cantidad comprada',
+          hintText: 'Ej. 20',
           onChanged: (_) => _recalcular(),
         ),
         const SizedBox(height: 8),
-        TextField(
+        CustomText(
           controller: _totalCtrl,
           keyboardType:
               const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(
-            labelText: 'Total pagado (S/)',
-            hintText: 'Ej. 200',
-            isDense: true,
-            border: OutlineInputBorder(),
-          ),
+          label: 'Total pagado (S/)',
+          hintText: 'Ej. 200',
           onChanged: (_) => _recalcular(),
         ),
         const SizedBox(height: 12),

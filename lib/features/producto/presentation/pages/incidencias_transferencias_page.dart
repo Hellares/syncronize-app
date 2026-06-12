@@ -8,6 +8,7 @@ import 'package:syncronize/core/theme/gradient_background.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/theme/app_gradients.dart';
+import '../../../auth/presentation/widgets/custom_text.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../domain/entities/transferencia_incidencia.dart';
@@ -478,14 +479,11 @@ class _IncidenciasTransferenciasPageState
                   },
                 ),
                 const SizedBox(height: 16),
-                TextField(
+                CustomText(
                   controller: observacionesController,
                   maxLines: 3,
-                  decoration: const InputDecoration(
-                    labelText: 'Observaciones (opcional)',
-                    border: OutlineInputBorder(),
-                    hintText: 'Detalles adicionales sobre la resolución',
-                  ),
+                  label: 'Observaciones (opcional)',
+                  hintText: 'Detalles adicionales sobre la resolución',
                 ),
               ],
             ),

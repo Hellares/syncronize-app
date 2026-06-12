@@ -8,6 +8,7 @@ import 'package:syncronize/core/widgets/autorizacion_dialog.dart';
 import 'package:syncronize/core/widgets/currency/currency_textfield.dart';
 import 'package:syncronize/core/widgets/styled_dialog.dart';
 import 'package:syncronize/core/widgets/custom_dropdown.dart';
+import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
 import '../../../auth/presentation/widgets/custom_button.dart';
 import 'package:syncronize/core/widgets/date/custom_date.dart';
@@ -378,14 +379,11 @@ class _GestionarLiquidacionDialogState
                         fontSize: 12, fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 6),
-                  TextField(
+                  CustomText(
                     controller: _observacionesController,
                     maxLines: 2,
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.all(12),
-                      hintText: 'Ej: campaña navideña terminada',
-                    ),
+                    contentPadding: const EdgeInsets.all(12),
+                    hintText: 'Ej: campaña navideña terminada',
                   ),
                 ] else ...[
                   _readonlyField('Precio liquidación', 'S/ ${widget.stock.precioLiquidacion!.toStringAsFixed(2)}'),

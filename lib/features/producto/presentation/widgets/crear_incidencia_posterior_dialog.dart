@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import '../../domain/entities/transferencia_incidencia.dart';
 import '../../domain/entities/transferencia_stock.dart';
 
@@ -266,16 +267,14 @@ class _CrearIncidenciaPosteriorDialogState
   Widget _buildCantidadField() {
     final maxCantidad = _itemSeleccionado?.cantidadRecibida ?? 0;
 
-    return TextFormField(
+    return CustomText(
       controller: _cantidadController,
-      keyboardType: TextInputType.number,
+      fieldType: FieldType.number,
       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-      decoration: InputDecoration(
-        labelText: 'Cantidad Afectada',
-        border: const OutlineInputBorder(),
-        prefixIcon: const Icon(Icons.numbers),
-        suffixText: 'de $maxCantidad',
-      ),
+      label: 'Cantidad Afectada',
+      prefixIcon: const Icon(Icons.numbers),
+      suffixText: 'de $maxCantidad',
+      autovalidateMode: AutovalidateModeX.disabled,
       validator: (value) {
         if (value == null || value.isEmpty) {
           return 'Ingresa la cantidad';
@@ -293,15 +292,13 @@ class _CrearIncidenciaPosteriorDialogState
   }
 
   Widget _buildDescripcionField() {
-    return TextFormField(
+    return CustomText(
       controller: _descripcionController,
       maxLines: 3,
-      decoration: const InputDecoration(
-        labelText: 'Descripción del Problema',
-        border: OutlineInputBorder(),
-        prefixIcon: Icon(Icons.description),
-        hintText: 'Describe detalladamente el problema encontrado...',
-      ),
+      label: 'Descripción del Problema',
+      prefixIcon: const Icon(Icons.description),
+      hintText: 'Describe detalladamente el problema encontrado...',
+      autovalidateMode: AutovalidateModeX.disabled,
       validator: (value) {
         if (value == null || value.trim().isEmpty) {
           return 'La descripción es requerida';
@@ -312,15 +309,12 @@ class _CrearIncidenciaPosteriorDialogState
   }
 
   Widget _buildObservacionesField() {
-    return TextFormField(
+    return CustomText(
       controller: _observacionesController,
       maxLines: 2,
-      decoration: const InputDecoration(
-        labelText: 'Observaciones Adicionales (Opcional)',
-        border: OutlineInputBorder(),
-        prefixIcon: Icon(Icons.notes),
-        hintText: 'Agrega observaciones adicionales si lo deseas...',
-      ),
+      label: 'Observaciones Adicionales (Opcional)',
+      prefixIcon: const Icon(Icons.notes),
+      hintText: 'Agrega observaciones adicionales si lo deseas...',
     );
   }
 

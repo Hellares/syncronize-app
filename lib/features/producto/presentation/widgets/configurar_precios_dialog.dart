@@ -14,6 +14,7 @@ import 'package:syncronize/core/widgets/custom_button.dart';
 import 'package:syncronize/core/widgets/styled_dialog.dart';
 import 'package:syncronize/core/widgets/custom_dropdown.dart';
 import 'package:syncronize/core/widgets/date/custom_date.dart';
+import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import '../../domain/entities/precio_nivel.dart';
 import '../../domain/entities/producto_stock.dart';
 import '../../domain/repositories/precio_nivel_repository.dart';
@@ -1687,20 +1688,16 @@ class _MotivoCambioCostoDialogState extends State<_MotivoCambioCostoDialog> {
                   color: AppColors.blue1,
                 ),
               ),
-              TextField(
+              CustomText(
                 controller: _razonCtrl,
                 maxLines: 2,
-                style: const TextStyle(fontSize: 13),
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  contentPadding: const EdgeInsets.all(10),
-                  hintText:
-                      'Ej: proveedor cambió precio, error de carga, etc.',
-                  hintStyle:
-                      TextStyle(fontSize: 12, color: Colors.grey.shade400),
-                ),
+                textStyle: const TextStyle(fontSize: 13),
+                borderRadius: 6,
+                contentPadding: const EdgeInsets.all(10),
+                hintText:
+                    'Ej: proveedor cambió precio, error de carga, etc.',
+                hintStyle:
+                    TextStyle(fontSize: 12, color: Colors.grey.shade400),
               ),
               const SizedBox(height: 16),
 
@@ -1769,12 +1766,23 @@ class _CalculadoraLoteDialog extends StatefulWidget {
 class _CalculadoraLoteDialogState extends State<_CalculadoraLoteDialog> {
   final _cantidadCtrl = TextEditingController();
   final _totalCtrl = TextEditingController();
+  final _cantidadFocusNode = FocusNode();
   double? _unitario;
+
+  @override
+  void initState() {
+    super.initState();
+    // Reemplaza autofocus: true del TextField original.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _cantidadFocusNode.requestFocus();
+    });
+  }
 
   @override
   void dispose() {
     _cantidadCtrl.dispose();
     _totalCtrl.dispose();
+    _cantidadFocusNode.dispose();
     super.dispose();
   }
 
@@ -1801,30 +1809,22 @@ class _CalculadoraLoteDialogState extends State<_CalculadoraLoteDialog> {
             style: TextStyle(fontSize: 11),
           ),
           const SizedBox(height: 12),
-          TextField(
+          CustomText(
             controller: _cantidadCtrl,
-            autofocus: true,
+            focusNode: _cantidadFocusNode,
             keyboardType:
                 const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(
-              labelText: 'Cantidad comprada',
-              hintText: 'Ej. 50',
-              isDense: true,
-              border: OutlineInputBorder(),
-            ),
+            label: 'Cantidad comprada',
+            hintText: 'Ej. 50',
             onChanged: (_) => _recalcular(),
           ),
           const SizedBox(height: 8),
-          TextField(
+          CustomText(
             controller: _totalCtrl,
             keyboardType:
                 const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(
-              labelText: 'Total pagado (S/)',
-              hintText: 'Ej. 100',
-              isDense: true,
-              border: OutlineInputBorder(),
-            ),
+            label: 'Total pagado (S/)',
+            hintText: 'Ej. 100',
             onChanged: (_) => _recalcular(),
           ),
           const SizedBox(height: 12),

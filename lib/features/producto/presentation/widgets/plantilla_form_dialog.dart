@@ -8,6 +8,7 @@ import 'package:syncronize/core/storage/secure_storage_service.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/app_gradients.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
+import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 
 import '../../domain/entities/atributo_plantilla.dart';
 import '../../domain/entities/producto_atributo.dart';
@@ -194,58 +195,15 @@ class _PlantillaFormDialogState extends State<PlantillaFormDialog> {
   // CAMPOS DE FORMULARIO
   // ============================================
 
-  InputDecoration _buildInputDecoration({
-    required String label,
-    String? hint,
-    Widget? prefixIcon,
-    Widget? suffixIcon,
-  }) {
-    return InputDecoration(
-      labelText: label,
-      hintText: hint,
-      labelStyle: TextStyle(fontSize: 12, color: AppColors.blue1),
-      hintStyle:
-          TextStyle(fontSize: 11, color: Colors.grey.shade500),
-      prefixIcon: prefixIcon,
-      suffixIcon: suffixIcon,
-      isDense: true,
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide:
-            BorderSide(color: AppColors.blue1.withValues(alpha: 0.3)),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide:
-            BorderSide(color: AppColors.blue1.withValues(alpha: 0.3)),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: AppColors.blue1, width: 1.5),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: Colors.red, width: 1),
-      ),
-      focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: Colors.red, width: 1.5),
-      ),
-    );
-  }
-
   Widget _buildNombreField() {
-    return TextFormField(
+    return CustomText(
       controller: _nombreController,
-      style: const TextStyle(fontSize: 13),
-      decoration: _buildInputDecoration(
-        label: 'Nombre *',
-        hint: 'Ej: Motherboard, Procesador, RAM',
-        prefixIcon: Icon(Icons.label_outline,
-            size: 16, color: AppColors.blue1),
-      ),
+      label: 'Nombre *',
+      hintText: 'Ej: Motherboard, Procesador, RAM',
+      borderColor: AppColors.blue1,
+      prefixIcon: Icon(Icons.label_outline,
+          size: 16, color: AppColors.blue1),
+      autovalidateMode: AutovalidateModeX.disabled,
       validator: (value) {
         if (value == null || value.trim().isEmpty) {
           return 'Ingresa un nombre';
@@ -256,14 +214,12 @@ class _PlantillaFormDialogState extends State<PlantillaFormDialog> {
   }
 
   Widget _buildDescripcionField() {
-    return TextFormField(
+    return CustomText(
       controller: _descripcionController,
-      style: const TextStyle(fontSize: 13),
+      label: 'Descripción',
+      hintText: 'Describe para qué se usa esta plantilla',
+      borderColor: AppColors.blue1,
       maxLines: 2,
-      decoration: _buildInputDecoration(
-        label: 'Descripción',
-        hint: 'Describe para qué se usa esta plantilla',
-      ),
     );
   }
 

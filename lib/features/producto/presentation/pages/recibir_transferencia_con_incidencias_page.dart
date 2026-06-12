@@ -6,6 +6,7 @@ import 'package:syncronize/core/theme/app_gradients.dart';
 import 'package:syncronize/core/theme/gradient_background.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
+import '../../../auth/presentation/widgets/custom_text.dart';
 import '../../domain/entities/transferencia_stock.dart';
 import '../../domain/entities/transferencia_incidencia.dart';
 import '../../domain/entities/incidencia_item_request.dart';
@@ -441,15 +442,11 @@ class _RecibirTransferenciaConIncidenciasPageState
       gradient: AppGradients.sinfondo,
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: TextFormField(
+        child: CustomText(
           controller: _observacionesController,
           maxLines: 3,
-          decoration: const InputDecoration(
-            labelText: 'Observaciones generales (opcional)',
-            hintText: 'Comentarios adicionales sobre la recepción...',
-            border: OutlineInputBorder(),
-            alignLabelWithHint: true,
-          ),
+          label: 'Observaciones generales (opcional)',
+          hintText: 'Comentarios adicionales sobre la recepción...',
         ),
       ),
     );
@@ -550,25 +547,18 @@ class _RecibirTransferenciaConIncidenciasPageState
                   },
                 ),
                 const SizedBox(height: 12),
-                TextFormField(
+                CustomText(
                   controller: cantidadController,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  decoration: const InputDecoration(
-                    labelText: 'Cantidad afectada',
-                    border: OutlineInputBorder(),
-                    hintText: '0',
-                  ),
+                  fieldType: FieldType.number,
+                  label: 'Cantidad afectada',
+                  hintText: '0',
                 ),
                 const SizedBox(height: 12),
-                TextFormField(
+                CustomText(
                   controller: descripcionController,
                   maxLines: 2,
-                  decoration: const InputDecoration(
-                    labelText: 'Descripción (opcional)',
-                    border: OutlineInputBorder(),
-                    hintText: 'Detalles del problema...',
-                  ),
+                  label: 'Descripción (opcional)',
+                  hintText: 'Detalles del problema...',
                 ),
               ],
             ),

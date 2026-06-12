@@ -10,6 +10,7 @@ import 'package:syncronize/core/widgets/custom_dropdown.dart';
 import 'package:syncronize/core/widgets/custom_loading.dart';
 import 'package:syncronize/core/widgets/custom_sede_selector.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
+import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_gradients.dart';
 import '../../../../core/theme/gradient_background.dart';
@@ -314,26 +315,23 @@ class _HistorialPreciosViewState extends State<_HistorialPreciosView> {
             padding: const EdgeInsets.all(10),
             child: Column(
               children: [
-                TextField(
+                CustomText(
                   controller: _searchController,
-                  decoration: InputDecoration(
-                    hintText: 'Buscar producto...',
-                    hintStyle: const TextStyle(fontSize: 12),
-                    prefixIcon: const Icon(Icons.search, size: 18),
-                    suffixIcon: _searchController.text.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear, size: 16),
-                            onPressed: () {
-                              _searchController.clear();
-                              _applyFilters();
-                            },
-                          )
-                        : null,
-                    isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  style: const TextStyle(fontSize: 12),
+                  hintText: 'Buscar producto...',
+                  hintStyle: const TextStyle(fontSize: 12),
+                  prefixIcon: const Icon(Icons.search, size: 18),
+                  suffixIcon: _searchController.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear, size: 16),
+                          onPressed: () {
+                            _searchController.clear();
+                            _applyFilters();
+                          },
+                        )
+                      : null,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  borderRadius: 8,
+                  textStyle: const TextStyle(fontSize: 12),
                   onSubmitted: (_) => _applyFilters(),
                 ),
                 const SizedBox(height: 8),

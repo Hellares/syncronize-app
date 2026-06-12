@@ -7,6 +7,7 @@ import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/widgets/custom_button.dart';
 import 'package:syncronize/core/widgets/custom_dropdown.dart';
 import 'package:syncronize/core/widgets/styled_dialog.dart';
+import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../domain/entities/atributo_valor.dart';
 import '../../domain/entities/producto_atributo.dart';
@@ -358,7 +359,13 @@ class VarianteAtributosSection extends StatelessWidget {
       }
     }
     final valorController = TextEditingController(text: atributoValor.valor);
+    final valorFocusNode = FocusNode();
     String valor = atributoValor.valor;
+
+    // Preservar el autofocus que tenía el TextField original.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (valorFocusNode.canRequestFocus) valorFocusNode.requestFocus();
+    });
 
     showDialog(
       context: context,
@@ -376,14 +383,10 @@ class VarianteAtributosSection extends StatelessWidget {
                   onChanged: (v) => setStateDialog(() => valor = v),
                 )
               else
-                TextField(
+                CustomText(
                   controller: valorController,
-                  decoration: const InputDecoration(
-                    labelText: 'Valor',
-                    border: OutlineInputBorder(),
-                    isDense: true,
-                  ),
-                  autofocus: true,
+                  label: 'Valor',
+                  focusNode: valorFocusNode,
                   onChanged: (v) => setStateDialog(() => valor = v),
                 ),
             ],

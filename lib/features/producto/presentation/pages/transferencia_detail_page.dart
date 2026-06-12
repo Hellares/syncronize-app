@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:syncronize/core/theme/app_gradients.dart';
@@ -9,6 +8,7 @@ import 'package:syncronize/core/widgets/smart_appbar.dart';
 import 'package:syncronize/core/widgets/custom_loading.dart';
 import 'package:syncronize/core/theme/gradient_background.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
+import '../../../auth/presentation/widgets/custom_text.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../domain/entities/transferencia_stock.dart';
@@ -1181,33 +1181,23 @@ class _TransferenciaDetailPageState extends State<TransferenciaDetailPage> {
             children: [
               Text('Transferencia: ${transferencia.codigo}'),
               const SizedBox(height: 16),
-              TextField(
+              CustomText(
                 controller: cantidadController,
-                keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                decoration: InputDecoration(
-                  labelText: 'Cantidad Recibida',
-                  hintText: 'Enviados: ${transferencia.cantidadTotal}',
-                  border: const OutlineInputBorder(),
-                ),
+                fieldType: FieldType.number,
+                label: 'Cantidad Recibida',
+                hintText: 'Enviados: ${transferencia.cantidadTotal}',
               ),
               const SizedBox(height: 12),
-              TextField(
+              CustomText(
                 controller: ubicacionController,
-                decoration: const InputDecoration(
-                  labelText: 'Ubicación (opcional)',
-                  hintText: 'Ej: Estante A2',
-                  border: OutlineInputBorder(),
-                ),
+                label: 'Ubicación (opcional)',
+                hintText: 'Ej: Estante A2',
               ),
               const SizedBox(height: 12),
-              TextField(
+              CustomText(
                 controller: observacionesController,
                 maxLines: 2,
-                decoration: const InputDecoration(
-                  labelText: 'Observaciones (opcional)',
-                  border: OutlineInputBorder(),
-                ),
+                label: 'Observaciones (opcional)',
               ),
             ],
           ),
@@ -1257,14 +1247,11 @@ class _TransferenciaDetailPageState extends State<TransferenciaDetailPage> {
           children: [
             Text('¿Está seguro que desea rechazar ${transferencia.codigo}?'),
             const SizedBox(height: 16),
-            TextField(
+            CustomText(
               controller: motivoController,
               maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: 'Motivo del rechazo',
-                hintText: 'Explique por qué rechaza esta transferencia',
-                border: OutlineInputBorder(),
-              ),
+              label: 'Motivo del rechazo',
+              hintText: 'Explique por qué rechaza esta transferencia',
             ),
           ],
         ),
@@ -1306,14 +1293,11 @@ class _TransferenciaDetailPageState extends State<TransferenciaDetailPage> {
           children: [
             Text('¿Está seguro que desea cancelar ${transferencia.codigo}?'),
             const SizedBox(height: 16),
-            TextField(
+            CustomText(
               controller: motivoController,
               maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: 'Motivo de la cancelación',
-                hintText: 'Explique por qué cancela esta transferencia',
-                border: OutlineInputBorder(),
-              ),
+              label: 'Motivo de la cancelación',
+              hintText: 'Explique por qué cancela esta transferencia',
             ),
           ],
         ),
@@ -1384,23 +1368,17 @@ class _TransferenciaDetailPageState extends State<TransferenciaDetailPage> {
                 ),
               ),
               const SizedBox(height: 16),
-              TextField(
+              CustomText(
                 controller: ubicacionController,
-                decoration: const InputDecoration(
-                  labelText: 'Ubicación en destino (opcional)',
-                  hintText: 'Ej: Estante A2',
-                  border: OutlineInputBorder(),
-                ),
+                label: 'Ubicación en destino (opcional)',
+                hintText: 'Ej: Estante A2',
               ),
               const SizedBox(height: 12),
-              TextField(
+              CustomText(
                 controller: observacionesController,
                 maxLines: 2,
-                decoration: const InputDecoration(
-                  labelText: 'Observaciones (opcional)',
-                  hintText: 'Observaciones adicionales',
-                  border: OutlineInputBorder(),
-                ),
+                label: 'Observaciones (opcional)',
+                hintText: 'Observaciones adicionales',
               ),
             ],
           ),

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/custom_dropdown.dart';
+import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import '../../domain/entities/producto_atributo.dart';
 
 class AtributoInputWidget extends StatefulWidget {
@@ -224,14 +225,10 @@ class _AtributoInputWidgetState extends State<AtributoInputWidget> {
   }
 
   Widget _buildNumberInput() {
-    return TextField(
+    return CustomText(
       controller: _controller,
-      decoration: InputDecoration(
-        hintText: 'Ingrese un número',
-        border: const OutlineInputBorder(),
-        isDense: true,
-        suffixText: widget.atributo.unidad,
-      ),
+      hintText: 'Ingrese un número',
+      suffixText: widget.atributo.unidad,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       inputFormatters: [
         FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
@@ -241,14 +238,10 @@ class _AtributoInputWidgetState extends State<AtributoInputWidget> {
   }
 
   Widget _buildTextInput() {
-    return TextField(
+    return CustomText(
       controller: _controller,
-      decoration: InputDecoration(
-        hintText: 'Ingrese ${widget.atributo.nombre.toLowerCase()}',
-        border: const OutlineInputBorder(),
-        isDense: true,
-        suffixText: widget.atributo.unidad,
-      ),
+      hintText: 'Ingrese ${widget.atributo.nombre.toLowerCase()}',
+      suffixText: widget.atributo.unidad,
       maxLines: widget.atributo.descripcion != null ? 3 : 1,
       onChanged: widget.onChanged,
     );

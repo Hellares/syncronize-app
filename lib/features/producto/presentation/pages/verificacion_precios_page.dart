@@ -13,6 +13,7 @@ import '../../../../core/widgets/currency/currency_textfield.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_dropdown.dart';
 import '../../../../core/widgets/smart_appbar.dart';
+import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import '../../../empresa/domain/entities/sede.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
@@ -517,23 +518,15 @@ class _VerificacionPreciosPageState extends State<VerificacionPreciosPage> {
           ),
           if (_comparacion == _ComparacionPrecio.margenBajo) ...[
             const SizedBox(height: 8),
-            TextField(
+            CustomText(
               controller: _margenMinimoCtrl,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: InputDecoration(
-                isDense: true,
-                labelText: 'Margen mínimo (%)',
-                helperText: 'Lista productos con margen < a este valor',
-                helperStyle: const TextStyle(fontSize: 10),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: AppColors.blue1),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: AppColors.blue1, width: 1.5),
-                ),
-              ),
+              label: 'Margen mínimo (%)',
+              helperText: 'Lista productos con margen < a este valor',
+              helperStyle: const TextStyle(fontSize: 10),
+              showHelperOnlyOnFocus: false,
+              borderColor: AppColors.blue1,
+              borderRadius: 8,
             ),
           ],
           if (_comparacion == _ComparacionPrecio.ninguno) ...[
