@@ -13,7 +13,7 @@ class CajasActivasCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GradientContainer(
       borderColor: AppColors.blueborder,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.only(left: 10, right: 10, top: 6, bottom: 6),
       child: BlocBuilder<ResumenFinancieroCubit, ResumenFinancieroState>(
         builder: (context, state) {
           if (state is ResumenFinancieroLoading ||
@@ -77,7 +77,7 @@ class CajasActivasCard extends StatelessWidget {
             const Icon(Icons.point_of_sale, size: 16, color: AppColors.blue1),
             const SizedBox(width: 6),
             const AppSubtitle('Caja Hoy',
-                fontSize: 12, color: AppColors.blue1),
+                fontSize: 11, color: AppColors.blue1),
             const Spacer(),
             Container(
               padding:
@@ -127,7 +127,7 @@ class CajasActivasCard extends StatelessWidget {
           const Icon(Icons.point_of_sale, size: 16, color: AppColors.blue1),
           const SizedBox(width: 6),
           const AppSubtitle('Caja Hoy',
-              fontSize: 12, color: AppColors.blue1),
+              fontSize: 11, color: AppColors.blue1),
           const Spacer(),
           Text(
             'Sin actividad de caja hoy',
@@ -140,7 +140,7 @@ class CajasActivasCard extends StatelessWidget {
 
   Widget _miniMetric(String label, double monto, Color color) {
     return Container(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(8),
@@ -157,7 +157,7 @@ class CajasActivasCard extends StatelessWidget {
           Text(
             'S/ ${monto.toStringAsFixed(2)}',
             style: TextStyle(
-                fontSize: 14, fontWeight: FontWeight.bold, color: color),
+                fontSize: 12, fontWeight: FontWeight.bold, color: color),
           ),
         ],
       ),

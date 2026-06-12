@@ -149,7 +149,7 @@ class _UsuariosPageState extends State<UsuariosPage> {
       onRefresh: () => _cubit.refresh(),
       child: ListView.builder(
         controller: _scrollController,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 10),
         itemCount: usuarios.length + (hasMore ? 1 : 0),
         itemBuilder: (context, index) {
           if (index >= usuarios.length) {

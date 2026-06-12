@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/widgets/custom_button.dart';
-import 'package:syncronize/core/widgets/currency/currency_textfield.dart';
 import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import '../../domain/entities/inventario.dart';
 
@@ -44,6 +43,7 @@ class _ConteoBottomSheetState extends State<ConteoBottomSheet> {
         bottom: MediaQuery.of(context).viewInsets.bottom + 20,
       ),
       child: Form(
+        
         key: _formKey,
         child: SingleChildScrollView(
           child: Column(
@@ -117,14 +117,12 @@ class _ConteoBottomSheetState extends State<ConteoBottomSheet> {
               ),
               const SizedBox(height: 16),
               // Cantidad contada
-              CurrencyTextField(
+              CustomText(
                 label: 'Cantidad Contada',
+                borderColor: AppColors.blue1,
                 controller: _cantidadController,
                 hintText: 'Ingrese la cantidad contada',
-                currencySymbol: '',
-                decimalPlaces: 0,
-                requiredField: true,
-                allowZero: true,
+                keyboardType: TextInputType.number,
               ),
               const SizedBox(height: 12),
               // Ubicacion fisica
@@ -132,6 +130,7 @@ class _ConteoBottomSheetState extends State<ConteoBottomSheet> {
                 controller: _ubicacionController,
                 label: 'Ubicacion Fisica',
                 hintText: 'Opcional: estante, pasillo, etc.',
+                borderColor: AppColors.blue1,
               ),
               const SizedBox(height: 12),
               // Observaciones
@@ -140,12 +139,15 @@ class _ConteoBottomSheetState extends State<ConteoBottomSheet> {
                 label: 'Observaciones',
                 hintText: 'Opcional: notas adicionales',
                 maxLines: 2,
+                borderColor: AppColors.blue1,
               ),
               const SizedBox(height: 20),
               // Submit button
               SizedBox(
                 width: double.infinity,
                 child: CustomButton(
+                  borderColor: AppColors.blue1,
+                  textColor: AppColors.blue1,
                   text: 'Registrar Conteo',
                   onPressed: _submit,
                 ),

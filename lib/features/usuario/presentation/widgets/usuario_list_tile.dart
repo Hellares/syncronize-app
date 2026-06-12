@@ -30,9 +30,9 @@ class UsuarioListTile extends StatelessWidget {
       child: ListTile(
         dense: true,
         leading: AvatarCircle(
-          size: 40,
+          size: 35,
           text: _esCliente ? null : usuario.iniciales,
-          fontSize: 10,
+          fontSize: 8,
           colors: _esCliente
               ? [Colors.orange[400]!, Colors.orange[600]!]
               : usuario.isActive
@@ -47,11 +47,11 @@ class UsuarioListTile extends StatelessWidget {
               ? const Icon(
                   Icons.person,
                   color: Colors.white,
-                  size: 20,
+                  size: 16,
                 )
               : null,
         ),
-        title: AppSubtitle(usuario.nombreCompleto, fontSize: 12,),
+        title: AppSubtitle(usuario.nombreCompleto, fontSize: 10,),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

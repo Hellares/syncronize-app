@@ -475,6 +475,8 @@ class _InventarioDetailPageState extends State<InventarioDetailPage> {
       case EstadoInventario.planificado:
         buttons.add(
           CustomButton(
+            borderColor: AppColors.blue1,
+            textColor: AppColors.blue1,
             text: 'Iniciar Conteo',
             onPressed: isLoading
                 ? null
@@ -494,6 +496,8 @@ class _InventarioDetailPageState extends State<InventarioDetailPage> {
         buttons.add(
           CustomButton(
             text: 'Finalizar Conteo',
+            borderColor: AppColors.blue1,
+            textColor: AppColors.blue1,
             onPressed: isLoading || !allCounted
                 ? null
                 : () => _confirmAction(
@@ -519,6 +523,8 @@ class _InventarioDetailPageState extends State<InventarioDetailPage> {
         buttons.add(
           CustomButton(
             text: 'Aprobar Inventario',
+            borderColor: AppColors.blue1,
+            textColor: AppColors.blue1,
             onPressed: isLoading
                 ? null
                 : () => _confirmAction(
@@ -534,6 +540,8 @@ class _InventarioDetailPageState extends State<InventarioDetailPage> {
         buttons.add(
           CustomButton(
             text: 'Aplicar Ajustes de Stock',
+            borderColor: AppColors.blue1,
+            textColor: AppColors.blue1,
             onPressed: isLoading
                 ? null
                 : () => _confirmAction(
@@ -557,6 +565,8 @@ class _InventarioDetailPageState extends State<InventarioDetailPage> {
       buttons.add(
         CustomButton(
           text: 'Cancelar Inventario',
+          borderColor: AppColors.red,
+          textColor: AppColors.red,
           isOutlined: true,
           onPressed: isLoading
               ? null

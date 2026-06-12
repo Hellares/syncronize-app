@@ -8,6 +8,7 @@ import 'package:syncronize/core/utils/date_formatter.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/widgets/custom_button.dart';
 import 'package:syncronize/core/widgets/custom_dropdown.dart';
+import 'package:syncronize/core/widgets/custom_switch_tile.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import 'package:syncronize/core/widgets/snack_bar_helper.dart';
 import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
@@ -68,14 +69,16 @@ class _CrearInventarioPageState extends State<CrearInventarioPage> {
               children: [
                 const AppSubtitle(
                   'Nuevo Inventario Fisico',
-                  fontSize: 18,
+                  fontSize: 13,
                   color: AppColors.blue3,
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 12),
                 // Nombre
                 CustomText(
                   controller: _nombreController,
+                  borderColor: AppColors.blue1,
                   label: 'Nombre del Inventario',
+                  textCase: TextCase.upper,
                   hintText: 'Ej: Inventario Mensual Marzo',
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
@@ -88,6 +91,7 @@ class _CrearInventarioPageState extends State<CrearInventarioPage> {
                 // Tipo inventario
                 CustomDropdown<TipoInventario>(
                   label: 'Tipo de Inventario',
+                  borderColor: AppColors.blue1,
                   hintText: 'Seleccione un tipo',
                   value: _selectedTipo,
                   items: TipoInventario.values
@@ -110,6 +114,7 @@ class _CrearInventarioPageState extends State<CrearInventarioPage> {
                 // Sede
                 CustomDropdown<String>(
                   label: 'Sede',
+                  borderColor: AppColors.blue1,
                   hintText: 'Seleccione una sede',
                   value: _selectedSedeId,
                   items: sedes
@@ -173,6 +178,8 @@ class _CrearInventarioPageState extends State<CrearInventarioPage> {
                 // Descripcion
                 CustomText(
                   controller: _descripcionController,
+                  borderColor: AppColors.blue1,
+                  textCase: TextCase.upper,
                   label: 'Descripcion',
                   hintText: 'Opcional: descripcion del inventario',
                   maxLines: 2,
@@ -181,30 +188,21 @@ class _CrearInventarioPageState extends State<CrearInventarioPage> {
                 // Observaciones
                 CustomText(
                   controller: _observacionesController,
+                  borderColor: AppColors.blue1,
                   label: 'Observaciones',
+                  textCase: TextCase.upper,
                   hintText: 'Opcional: notas adicionales',
                   maxLines: 2,
                 ),
                 const SizedBox(height: 14),
-                // Incluir todos los productos
-                SwitchListTile(
-                  title: const Text(
-                    'Incluir todos los productos',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  subtitle: const Text(
-                    'Agrega automaticamente todos los productos con stock en la sede seleccionada',
-                    style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                  ),
+                CustomSwitchTile(
+                  title: 'Incluir todos los productos',
+                  subtitle:
+                      'Agrega automaticamente todos los productos con stock en la sede seleccionada',
                   value: _incluirTodosProductos,
                   onChanged: (value) {
                     setState(() => _incluirTodosProductos = value);
                   },
-                  activeThumbColor: AppColors.blue1,
-                  contentPadding: EdgeInsets.zero,
                 ),
                 const SizedBox(height: 24),
                 // Submit button
@@ -212,6 +210,8 @@ class _CrearInventarioPageState extends State<CrearInventarioPage> {
                   width: double.infinity,
                   child: CustomButton(
                     text: 'Crear Inventario',
+                    borderColor: AppColors.blue1,
+                    textColor: AppColors.blue1,
                     onPressed: _isLoading ? null : _crearInventario,
                   ),
                 ),
