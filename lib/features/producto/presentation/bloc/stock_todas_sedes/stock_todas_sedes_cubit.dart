@@ -54,6 +54,7 @@ class StockTodasSedesCubit extends Cubit<StockTodasSedesState> {
         sedesSinStock: (resumen['sedesSinStock'] as int?) ?? 0,
         productoId: productoId,
         varianteId: varianteId,
+        empresaId: empresaId,
       ));
     } else if (result is Error<Map<String, dynamic>>) {
       emit(StockTodasSedesError(result.message, errorCode: result.errorCode));
@@ -66,7 +67,7 @@ class StockTodasSedesCubit extends Cubit<StockTodasSedesState> {
     if (currentState is StockTodasSedesLoaded) {
       await loadStockTodasSedes(
         productoId: currentState.productoId,
-        empresaId: '', // Se necesitará pasar desde el widget
+        empresaId: currentState.empresaId,
         varianteId: currentState.varianteId,
       );
     }

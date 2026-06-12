@@ -29,6 +29,9 @@ class StockTodasSedesLoaded extends StockTodasSedesState {
   final String productoId;
   final String? varianteId;
 
+  /// Necesario para que reload() repita la carga con el tenant correcto.
+  final String empresaId;
+
   const StockTodasSedesLoaded({
     required this.stocks,
     required this.totalSedes,
@@ -37,6 +40,7 @@ class StockTodasSedesLoaded extends StockTodasSedesState {
     required this.sedesSinStock,
     required this.productoId,
     this.varianteId,
+    required this.empresaId,
   });
 
   @override
@@ -48,6 +52,7 @@ class StockTodasSedesLoaded extends StockTodasSedesState {
         sedesSinStock,
         productoId,
         varianteId,
+        empresaId,
       ];
 }
 
