@@ -3,7 +3,12 @@ import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/app_gradients.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
 
-enum ActionMenuType { edit, delete, share, disable, stock, stockPorSede, alertasStock, transferencias, precio, addField }
+enum ActionMenuType {
+  edit, delete, share, disable, stock, stockPorSede, alertasStock,
+  transferencias, precio, addField,
+  // Tipos de documento (selector compacto en VR cobro)
+  dni, ruc, ce, pasaporte,
+}
 
 class ActionMenuItem {
   final ActionMenuType type;
@@ -49,6 +54,10 @@ class CustomActionMenu extends StatefulWidget {
   final double triggerIconSize;
   final Color? triggerIconColor;
 
+  /// Trigger custom: si viene, reemplaza al icono (p.ej. un chip que
+  /// muestra la selección actual, como "DNI ▾" en VR cobro).
+  final Widget? trigger;
+
   // Card del menú
   final double menuWidth;
   final double borderRadius;
@@ -77,6 +86,7 @@ class CustomActionMenu extends StatefulWidget {
     this.triggerIcon = Icons.more_vert,
     this.triggerIconSize = 16,
     this.triggerIconColor,
+    this.trigger,
     this.menuWidth = 140,
     this.borderRadius = 10,
     this.menuPadding = const EdgeInsets.symmetric(vertical: 6),
@@ -282,14 +292,15 @@ class _CustomActionMenuState extends State<CustomActionMenu> {
       key: _triggerKey,
       onTap: _toggleMenu,
       borderRadius: BorderRadius.circular(999),
-      child: Padding(
-        padding: const EdgeInsets.all(2),
-        child: Icon(
-          widget.triggerIcon,
-          size: widget.triggerIconSize,
-          color: widget.triggerIconColor ?? Colors.grey[600],
-        ),
-      ),
+      child: widget.trigger ??
+          Padding(
+            padding: const EdgeInsets.all(2),
+            child: Icon(
+              widget.triggerIcon,
+              size: widget.triggerIconSize,
+              color: widget.triggerIconColor ?? Colors.grey[600],
+            ),
+          ),
     );
   }
 }

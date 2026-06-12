@@ -60,6 +60,17 @@ class ClienteRemoteDataSource {
     return response.data as Map<String, dynamic>;
   }
 
+  /// Crea el acceso al portal/app para un cliente sin cuenta
+  /// (login = DNI, contraseña = DNI). Idempotente.
+  ///
+  /// POST /api/clientes/:id/crear-acceso
+  Future<Map<String, dynamic>> crearAcceso(String clienteId) async {
+    final response = await _dioClient.post(
+      '${ApiConstants.clientes}/$clienteId/crear-acceso',
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
   /// Obtiene un cliente por ID
   ///
   /// GET /api/clientes/:id

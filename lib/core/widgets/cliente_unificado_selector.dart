@@ -109,16 +109,24 @@ class ClienteUnificadoSelector extends StatefulWidget {
   final String empresaId;
   final TipoClienteSeleccion? tipoPermitido;
 
+  /// Si viene, el tab correspondiente abre DIRECTO en modo registro con
+  /// el documento pre-llenado (y dispara el lookup RENIEC/SUNAT si está
+  /// completo). Usado por VR cobro cuando el documento tipeado no existe
+  /// ni local ni en el sistema: "no existe → regístralo ya".
+  final String? documentoInicial;
+
   const ClienteUnificadoSelector({
     super.key,
     required this.empresaId,
     this.tipoPermitido,
+    this.documentoInicial,
   });
 
   static Future<ClienteUnificadoResult?> show({
     required BuildContext context,
     required String empresaId,
     TipoClienteSeleccion? tipoPermitido,
+    String? documentoInicial,
   }) {
     return showModalBottomSheet<ClienteUnificadoResult>(
       context: context,
@@ -127,6 +135,7 @@ class ClienteUnificadoSelector extends StatefulWidget {
       builder: (_) => ClienteUnificadoSelector(
         empresaId: empresaId,
         tipoPermitido: tipoPermitido,
+        documentoInicial: documentoInicial,
       ),
     );
   }
@@ -258,13 +267,25 @@ class _ClienteUnificadoSelectorState extends State<ClienteUnificadoSelector>
                 ? TabBarView(
                     controller: _tabController,
                     children: [
-                      _PersonaTab(empresaId: widget.empresaId),
-                      _EmpresaTab(empresaId: widget.empresaId),
+                      _PersonaTab(
+                        empresaId: widget.empresaId,
+                        docInicial: widget.documentoInicial,
+                      ),
+                      _EmpresaTab(
+                        empresaId: widget.empresaId,
+                        docInicial: widget.documentoInicial,
+                      ),
                     ],
                   )
                 : widget.tipoPermitido == TipoClienteSeleccion.persona
-                    ? _PersonaTab(empresaId: widget.empresaId)
-                    : _EmpresaTab(empresaId: widget.empresaId),
+                    ? _PersonaTab(
+                        empresaId: widget.empresaId,
+                        docInicial: widget.documentoInicial,
+                      )
+                    : _EmpresaTab(
+                        empresaId: widget.empresaId,
+                        docInicial: widget.documentoInicial,
+                      ),
           ),
         ],
       ),
@@ -281,7 +302,11 @@ enum _PersonaMode { search, register }
 class _PersonaTab extends StatefulWidget {
   final String empresaId;
 
-  const _PersonaTab({required this.empresaId});
+  /// DNI para abrir directo en modo registro pre-llenado (ver
+  /// [ClienteUnificadoSelector.documentoInicial]).
+  final String? docInicial;
+
+  const _PersonaTab({required this.empresaId, this.docInicial});
 
   @override
   State<_PersonaTab> createState() => _PersonaTabState();
@@ -330,6 +355,17 @@ class _PersonaTabState extends State<_PersonaTab>
   void initState() {
     super.initState();
     _formCubit = locator<ClienteFormCubit>();
+    // Documento inicial → directo a registro con el DNI puesto + lookup.
+    final doc = widget.docInicial;
+    if (doc != null && RegExp(r'^\d{1,8}$').hasMatch(doc)) {
+      _mode = _PersonaMode.register;
+      _dniController.text = doc;
+      if (doc.length == 8) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _lookupDni();
+        });
+      }
+    }
     _initCatalogo();
     // Cambios del catálogo (sync por push/heartbeat, upsert local) →
     // re-aplicar el filtro vigente.
@@ -1031,7 +1067,11 @@ enum _EmpresaMode { search, register }
 class _EmpresaTab extends StatefulWidget {
   final String empresaId;
 
-  const _EmpresaTab({required this.empresaId});
+  /// RUC para abrir directo en modo registro pre-llenado (ver
+  /// [ClienteUnificadoSelector.documentoInicial]).
+  final String? docInicial;
+
+  const _EmpresaTab({required this.empresaId, this.docInicial});
 
   @override
   State<_EmpresaTab> createState() => _EmpresaTabState();
@@ -1091,6 +1131,17 @@ class _EmpresaTabState extends State<_EmpresaTab>
   void initState() {
     super.initState();
     _repo = locator<ClienteEmpresaRepository>();
+    // Documento inicial → directo a registro con el RUC puesto + lookup.
+    final doc = widget.docInicial;
+    if (doc != null && RegExp(r'^\d{1,11}$').hasMatch(doc)) {
+      _mode = _EmpresaMode.register;
+      _rucController.text = doc;
+      if (doc.length == 11) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _lookupRuc();
+        });
+      }
+    }
     _initCatalogo();
     _catalogoSub = _catalogoB2B.changes.listen((empresaId) {
       if (!mounted || empresaId != widget.empresaId) return;

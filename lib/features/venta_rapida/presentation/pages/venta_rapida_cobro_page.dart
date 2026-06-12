@@ -21,7 +21,13 @@ import '../../../../core/widgets/pagos_section_widget.dart'
 import '../../../../core/widgets/autorizacion_dialog.dart';
 import '../../../../core/widgets/confirm_dialog.dart';
 import '../../../../core/utils/cuota_calculator.dart';
+import '../../../../core/utils/resource.dart';
+import '../../../../core/widgets/cliente_unificado_selector.dart';
+import '../../../../core/widgets/popup_item.dart';
 import '../../../auth/presentation/widgets/custom_text.dart';
+import '../../../cliente/data/cache/cliente_catalogo_service.dart';
+import '../../../cliente/domain/entities/cliente.dart';
+import '../../../cliente/domain/repositories/cliente_repository.dart';
 import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_cubit.dart';
 import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_state.dart';
 import '../../../producto/presentation/bloc/producto_list/producto_list_cubit.dart';
@@ -72,6 +78,12 @@ class _CobroViewState extends State<_CobroView> {
   final _yapeRefFocus = FocusNode();
   final _docCtrl = TextEditingController();
   final _docFocus = FocusNode();
+
+  /// Cliente persona resuelto SIN cuenta de app (usuarioId null en el
+  /// catálogo, o aún no sincronizado = recién creado por RENIEC). Muestra
+  /// el chip "Crear acceso al app".
+  bool _clienteSinCuenta = false;
+  String? _accesoCheckedParaId;
 
   /// Filas de pago "otros" (TARJETA / PLIN / TRANSFERENCIA) renderizadas
   /// con el mismo patrón visual que efectivo/yape: input de monto + referencia.
@@ -191,6 +203,21 @@ class _CobroViewState extends State<_CobroView> {
       cubit.setNumeroDocCliente(text);
     }
     setState(() {});
+
+    // Auto-búsqueda al completar los dígitos (reemplaza al botón buscar):
+    // local-first → backend/RENIEC → si no existe, el cubit emite
+    // docSinResultado y el listener abre el sheet de registro.
+    final st = cubit.state;
+    final doc = text.trim();
+    // Ya resuelto para este mismo documento → no repetir.
+    if (st.nombreClienteResuelto.isNotEmpty && st.numeroDocCliente == doc) {
+      return;
+    }
+    if (st.tipoDocCliente == 'DNI' && doc.length == 8 && doc != '00000000') {
+      cubit.buscarClientePorDni(doc);
+    } else if (st.tipoDocCliente == 'RUC' && doc.length == 11) {
+      cubit.buscarClientePorRuc(doc);
+    }
   }
 
   /// Vincula el numpad al input que gana foco. El numpad sigue visible
@@ -682,18 +709,139 @@ class _CobroViewState extends State<_CobroView> {
   /// El botón "Buscar" se habilita cuando el doc tiene la longitud correcta
   /// para el tipo seleccionado (DNI: 8, RUC: 11) y no es el placeholder
   /// genérico '00000000'.
-  bool _validoParaBuscar(String tipoDoc, String doc) {
-    final d = doc.trim();
-    if (d == '00000000') return false;
-    if (tipoDoc == 'DNI') return d.length == 8;
-    if (tipoDoc == 'RUC') return d.length == 11;
-    return false;
+  /// Cambia el tipo de documento desde el chip (casos raros: CE,
+  /// Pasaporte, RUC en nota de venta) y limpia el campo.
+  void _setTipoDoc(BuildContext context, String tipo) {
+    context.read<VentaRapidaCubit>().setTipoDocCliente(tipo);
+    _docCtrl.clear();
+  }
+
+  /// Verifica contra el catálogo local si el cliente persona resuelto
+  /// tiene cuenta de app. Si el cliente no está aún en el catálogo
+  /// (recién creado vía RENIEC) se asume SIN cuenta — ese flujo nunca
+  /// crea Usuario.
+  Future<void> _checkAccesoCliente(VentaRapidaState st) async {
+    final id = st.clienteId;
+    if (id == null ||
+        st.nombreClienteResuelto.isEmpty ||
+        st.clienteGenerico ||
+        st.empresaId == null) {
+      if (_clienteSinCuenta && mounted) {
+        setState(() => _clienteSinCuenta = false);
+      }
+      _accesoCheckedParaId = null;
+      return;
+    }
+    if (_accesoCheckedParaId == id) return;
+    _accesoCheckedParaId = id;
+
+    final lista =
+        await ClienteCatalogoService.instance.hydrate(st.empresaId!);
+    if (!mounted || _accesoCheckedParaId != id) return;
+    Cliente? c;
+    for (final x in lista) {
+      if (x.id == id) {
+        c = x;
+        break;
+      }
+    }
+    setState(() => _clienteSinCuenta =
+        c == null || c.usuarioId == null || c.usuarioId!.isEmpty);
+  }
+
+  /// Crea el acceso al app para el cliente resuelto (login = DNI) y
+  /// muestra el mensaje para dictarle las credenciales.
+  Future<void> _crearAccesoCliente(String clienteId) async {
+    setState(() => _clienteSinCuenta = false); // optimista
+    final result =
+        await locator<ClienteRepository>().crearAcceso(clienteId: clienteId);
+    if (!mounted) return;
+    if (result is Success<Map<String, dynamic>>) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            result.data['mensaje']?.toString() ??
+                'Acceso creado: que ingrese con su DNI como usuario y contraseña',
+          ),
+          backgroundColor: Colors.green.shade700,
+          duration: const Duration(seconds: 6),
+        ),
+      );
+    } else if (result is Error<Map<String, dynamic>>) {
+      setState(() => _clienteSinCuenta = true); // revertir
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result.message),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+    }
+  }
+
+  /// Abre el ClienteUnificadoSelector para buscar por NOMBRE en el
+  /// catálogo local (instantáneo) — el camino para el cliente frecuente
+  /// al que no quieres pedirle el documento. Para FACTURA solo empresas.
+  Future<void> _abrirSelectorCliente(
+    BuildContext context,
+    VentaRapidaState state, {
+    String? documentoInicial,
+    TipoClienteSeleccion? tipoForzado,
+  }) async {
+    final empresaId = state.empresaId;
+    if (empresaId == null || empresaId.isEmpty) return;
+    FocusScope.of(context).unfocus();
+    final cubit = context.read<VentaRapidaCubit>();
+    final result = await ClienteUnificadoSelector.show(
+      context: context,
+      empresaId: empresaId,
+      tipoPermitido: tipoForzado ??
+          (state.tipoComprobante == 'FACTURA'
+              ? TipoClienteSeleccion.empresa
+              : null),
+      documentoInicial: documentoInicial,
+    );
+    if (result == null || !mounted) return;
+
+    if (result.tipo == TipoClienteSeleccion.persona) {
+      cubit.setClienteDesdeSelector(
+        clienteId: result.clienteId,
+        clienteEmpresaId: null,
+        nombre: result.nombreCompleto ?? '',
+        tipoDoc: 'DNI',
+        numeroDoc: result.dni,
+      );
+      _docCtrl.text = result.dni ?? '';
+    } else {
+      cubit.setClienteDesdeSelector(
+        clienteId: null,
+        clienteEmpresaId: result.clienteEmpresaId,
+        nombre: result.razonSocial ?? '',
+        tipoDoc: 'RUC',
+        numeroDoc: result.ruc,
+      );
+      _docCtrl.text = result.ruc ?? '';
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return BlocConsumer<VentaRapidaCubit, VentaRapidaState>(
       listener: (context, state) {
+        _checkAccesoCliente(state);
+        if (state.docSinResultado != null) {
+          // El documento no existe ni local ni en el sistema/API externa:
+          // abrir el sheet de registro pre-llenado para crearlo al vuelo.
+          final doc = state.docSinResultado!;
+          context.read<VentaRapidaCubit>().limpiarDocSinResultado();
+          _abrirSelectorCliente(
+            context,
+            state,
+            documentoInicial: doc,
+            tipoForzado: doc.length == 11
+                ? TipoClienteSeleccion.empresa
+                : TipoClienteSeleccion.persona,
+          );
+        }
         if (state.preciosDesactualizados != null) {
           // El backend rechazó la venta porque el precio cambió. Mostrar
           // dialog con la lista de productos afectados (cantidad, precio
@@ -871,59 +1019,99 @@ class _CobroViewState extends State<_CobroView> {
                   ),
                 const SizedBox(height: 6),
 
-                // Tipo doc + Genérico. Si es FACTURA, el tipo queda fijado
-                // a RUC (SUNAT solo permite facturas contra RUC) y se oculta
-                // el botón Genérico (CLIENTES VARIOS no aplica a factura).
+                // El tipo de documento se DERIVA del comprobante:
+                // FACTURA → RUC fijo (SUNAT); TICKET/BOLETA → DNI por
+                // defecto. El chip compacto cubre los casos raros
+                // (CE/Pasaporte/RUC en nota de venta) sin gastar una fila.
                 Row(
                   children: [
-                    Expanded(
-                      child: CustomDropdown<String>(
-                        value: state.tipoDocCliente,
-                        borderColor: AppColors.blue1,
-                        enabled: state.tipoComprobante != 'FACTURA',
-                        items: const [
-                          DropdownItem<String>(value: 'DNI', label: 'DNI'),
-                          DropdownItem<String>(value: 'RUC', label: 'RUC'),
-                          DropdownItem<String>(value: 'CE', label: 'CE'),
-                          DropdownItem<String>(value: 'PASAPORTE', label: 'Pasaporte'),
-                        ],
-                        onChanged: (v) {
-                          if (v == null) return;
-                          context.read<VentaRapidaCubit>().setTipoDocCliente(v);
-                          _docCtrl.clear();
-                        },
-                      ),
-                    ),
-                    if (state.tipoComprobante != 'FACTURA') ...[
-                      const SizedBox(width: 8),
-                      SizedBox(
-                        height: 35,
-                        child: OutlinedButton(
-                          onPressed: () {
-                            context.read<VentaRapidaCubit>().setClienteGenerico();
-                            _docCtrl.text = '00000000';
-                          },
-                          style: OutlinedButton.styleFrom(
-                            side: BorderSide(color: Colors.green.shade500),
-                            foregroundColor: Colors.green.shade600,
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(6),
-                            ),
+                    if (state.tipoComprobante == 'FACTURA')
+                      Container(
+                        height: 33,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(6),
+                          border:
+                              Border.all(color: AppColors.blue1, width: 0.6),
+                        ),
+                        child: const Text(
+                          'RUC',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.blue1,
                           ),
-                          child: Text(
-                            state.clienteGenerico ? 'Genérico ✓' : 'Genérico',
-                            style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 10),
+                        ),
+                      )
+                    else
+                      CustomActionMenu(
+                        // Misma config que el menú de productos: yNudge
+                        // baja el menú para que se despliegue DEBAJO del
+                        // chip (sin nudge queda centrado encima, muy arriba).
+                        yNudge: 50,
+                        menuWidth: 110,
+                        borderRadius: 8,
+                        itemHeight: 30,
+                        items: [
+                          ActionMenuItem(
+                            type: ActionMenuType.dni,
+                            label: 'DNI',
+                            icon: Icons.badge_outlined,
+                            color: AppColors.blue1,
+                            onTap: () => _setTipoDoc(context, 'DNI'),
+                          ),
+                          ActionMenuItem(
+                            type: ActionMenuType.ruc,
+                            label: 'RUC',
+                            icon: Icons.business_outlined,
+                            color: AppColors.blue1,
+                            onTap: () => _setTipoDoc(context, 'RUC'),
+                          ),
+                          ActionMenuItem(
+                            type: ActionMenuType.ce,
+                            label: 'CE',
+                            icon: Icons.credit_card_outlined,
+                            color: AppColors.blue1,
+                            onTap: () => _setTipoDoc(context, 'CE'),
+                          ),
+                          ActionMenuItem(
+                            type: ActionMenuType.pasaporte,
+                            label: 'Pasaporte',
+                            icon: Icons.flight_outlined,
+                            color: AppColors.blue1,
+                            onTap: () => _setTipoDoc(context, 'PASAPORTE'),
+                          ),
+                        ],
+                        trigger: Container(
+                          height: 33,
+                          padding: const EdgeInsets.only(left: 10, right: 4),
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade50,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                                color: AppColors.blue1, width: 0.6),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                state.tipoDocCliente,
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w500,
+                                  color: AppColors.blue1,
+                                ),
+                              ),
+                              const Icon(Icons.arrow_drop_down,
+                                  size: 16, color: AppColors.blue1),
+                            ],
                           ),
                         ),
                       ),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: 8),
-
-                Row(
-                  children: [
+                    const SizedBox(width: 8),
                     Expanded(
                       child: CustomText(
                         controller: _docCtrl,
@@ -937,38 +1125,71 @@ class _CobroViewState extends State<_CobroView> {
                             : (state.tipoDocCliente == 'RUC' ? 11 : null),
                       ),
                     ),
-                    if (state.tipoDocCliente == 'DNI' ||
-                        state.tipoDocCliente == 'RUC') ...[
+                    // La búsqueda por documento es automática al completar
+                    // los dígitos (ver _onDocChanged) — sin botón buscar.
+                    if (state.buscandoCliente) ...[
+                      const SizedBox(width: 10),
+                      const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.blue1,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(width: 8),
+                    // Buscar por NOMBRE en el catálogo local (cliente
+                    // frecuente sin dictar el documento). FACTURA
+                    // restringe al tab Empresas.
+                    SizedBox(
+                      height: 33,
+                      child: OutlinedButton(
+                        onPressed: () => _abrirSelectorCliente(context, state),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(
+                              color: AppColors.blue1, width: 0.5),
+                          padding:
+                              const EdgeInsets.symmetric(horizontal: 10),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                        ),
+                        child: const Icon(Icons.person_search,
+                            size: 18, color: AppColors.blue1),
+                      ),
+                    ),
+                    if (state.tipoComprobante != 'FACTURA') ...[
                       const SizedBox(width: 8),
-                      _BotonBuscarDocumento(
-                        habilitado: _validoParaBuscar(state.tipoDocCliente, _docCtrl.text) &&
-                            !state.buscandoCliente,
-                        cargando: state.buscandoCliente,
-                        onPressed: () {
-                          FocusScope.of(context).unfocus();
-                          final cubit = context.read<VentaRapidaCubit>();
-                          if (state.tipoDocCliente == 'DNI') {
-                            cubit.buscarClientePorDni(_docCtrl.text);
-                          } else {
-                            cubit.buscarClientePorRuc(_docCtrl.text);
-                          }
-                        },
+                      SizedBox(
+                        height: 33,
+                        child: OutlinedButton(
+                          onPressed: () {
+                            context
+                                .read<VentaRapidaCubit>()
+                                .setClienteGenerico();
+                            _docCtrl.text = '00000000';
+                          },
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(color: Colors.green.shade500, width: 0.5),
+                            foregroundColor: Colors.green.shade600,
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(6),
+                              
+                            ),
+                          ),
+                          child: Text(
+                            state.clienteGenerico ? 'Genérico ✓' : 'Genérico',
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w500, fontSize: 10),
+                          ),
+                        ),
                       ),
                     ],
                   ],
                 ),
-                if (state.tipoComprobante == 'FACTURA')
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4, left: 4),
-                    child: Text(
-                      'RUC obligatorio para Factura',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.grey.shade600,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  ),
                 if (state.nombreClienteResuelto.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 10),
@@ -988,6 +1209,27 @@ class _CobroViewState extends State<_CobroView> {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
+                        // Cliente persona sin cuenta de app: crearla al
+                        // vuelo y dictarle "ingresa con tu DNI".
+                        if (_clienteSinCuenta && state.clienteId != null)
+                          ActionChip(
+                            avatar: Icon(Icons.phone_iphone,
+                                size: 14, color: Colors.green.shade700),
+                            label: Text(
+                              'Crear acceso',
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.green.shade700,
+                              ),
+                            ),
+                            visualDensity: VisualDensity.compact,
+                            backgroundColor: Colors.green.shade50,
+                            side: BorderSide(
+                                color: Colors.green.shade300, width: 0.6),
+                            onPressed: () =>
+                                _crearAccesoCliente(state.clienteId!),
+                          ),
                       ],
                     ),
                   ),
@@ -1708,47 +1950,6 @@ enum _AccionPrecios { aplicar, cancelar }
 
 /// Acción elegida en el dialog de stock insuficiente.
 enum _AccionStock { ajustar, cancelar }
-
-class _BotonBuscarDocumento extends StatelessWidget {
-  final bool habilitado;
-  final bool cargando;
-  final VoidCallback onPressed;
-
-  const _BotonBuscarDocumento({
-    required this.habilitado,
-    required this.cargando,
-    required this.onPressed,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 35,
-      child: ElevatedButton(
-        onPressed: habilitado ? onPressed : null,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.blue1,
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          disabledBackgroundColor: Colors.grey.shade300,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(6),
-          ),
-        ),
-        child: cargando
-            ? const SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white,
-                ),
-              )
-            : const Icon(Icons.search, size: 18),
-      ),
-    );
-  }
-}
 
 /// Selector de entidad financiera para TARJETA / TRANSFERENCIA.
 /// Combina chips de bancos frecuentes + dropdown completo. El cajero

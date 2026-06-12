@@ -35,4 +35,10 @@ abstract class ClienteRepository {
     required String empresaId,
     required String clienteId,
   });
+
+  /// Crea el acceso al portal/app (login = DNI). Idempotente.
+  /// Devuelve {yaTeniaAcceso: bool, mensaje: String}.
+  Future<Resource<Map<String, dynamic>>> crearAcceso({
+    required String clienteId,
+  });
 }

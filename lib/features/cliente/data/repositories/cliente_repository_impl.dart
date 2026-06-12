@@ -165,4 +165,26 @@ class ClienteRepositoryImpl implements ClienteRepository {
       );
     }
   }
+
+  @override
+  Future<Resource<Map<String, dynamic>>> crearAcceso({
+    required String clienteId,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error(
+        'No hay conexión a internet',
+        errorCode: 'NETWORK_ERROR',
+      );
+    }
+
+    try {
+      final data = await _remoteDataSource.crearAcceso(clienteId);
+      return Success(data);
+    } catch (e) {
+      return Error(
+        e.toString().replaceFirst('Exception: ', ''),
+        errorCode: 'SERVER_ERROR',
+      );
+    }
+  }
 }

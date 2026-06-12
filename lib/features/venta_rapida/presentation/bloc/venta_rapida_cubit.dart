@@ -8,6 +8,10 @@ import 'package:injectable/injectable.dart';
 import '../../../../core/services/realtime_sync_service.dart';
 import '../../domain/combo_prorrateo.dart';
 import '../../../../core/utils/resource.dart';
+import '../../../cliente/data/cache/cliente_catalogo_service.dart';
+import '../../../cliente/domain/entities/cliente.dart';
+import '../../../cliente_empresa/data/cache/cliente_empresa_catalogo_service.dart';
+import '../../../cliente_empresa/domain/entities/cliente_empresa.dart';
 import '../../../combo/domain/entities/combo.dart';
 import '../../../combo/domain/repositories/combo_repository.dart';
 import '../../../producto/domain/entities/precio_nivel.dart';
@@ -907,16 +911,31 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
   // ── Comprobante / Cliente ──
 
   void setTipoComprobante(String tipo) {
-    // Las facturas SUNAT solo se emiten contra RUC. Si el cajero pasa a
-    // FACTURA y el tipo de documento previo no era RUC, lo forzamos y
-    // limpiamos el cliente resuelto (DNI ya no aplica).
+    // El tipo de documento se DERIVA del comprobante (la UI ya no tiene
+    // selector dedicado): FACTURA → RUC (SUNAT solo factura contra RUC);
+    // al volver a TICKET/BOLETA desde FACTURA → DNI. En ambos saltos se
+    // limpia el cliente resuelto (apunta a una entidad distinta).
     if (tipo == 'FACTURA' && state.tipoDocCliente != 'RUC') {
       emit(state.copyWith(
         tipoComprobante: tipo,
         tipoDocCliente: 'RUC',
         clienteGenerico: false,
-        clienteId: null,
-        clienteEmpresaId: null,
+        clearClienteId: true,
+        clearClienteEmpresaId: true,
+        numeroDocCliente: '',
+        nombreClienteResuelto: '',
+      ));
+      return;
+    }
+    if (tipo != 'FACTURA' &&
+        state.tipoComprobante == 'FACTURA' &&
+        state.tipoDocCliente == 'RUC') {
+      emit(state.copyWith(
+        tipoComprobante: tipo,
+        tipoDocCliente: 'DNI',
+        clienteGenerico: false,
+        clearClienteId: true,
+        clearClienteEmpresaId: true,
         numeroDocCliente: '',
         nombreClienteResuelto: '',
       ));
@@ -962,8 +981,8 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     emit(state.copyWith(
       tipoDocCliente: tipo,
       clienteGenerico: false,
-      clienteId: null,
-      clienteEmpresaId: null,
+      clearClienteId: true,
+      clearClienteEmpresaId: true,
       nombreClienteResuelto: '',
     ));
   }
@@ -975,8 +994,8 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     emit(state.copyWith(
       numeroDocCliente: numero,
       clienteGenerico: false,
-      clienteId: invalidar ? null : state.clienteId,
-      clienteEmpresaId: invalidar ? null : state.clienteEmpresaId,
+      clearClienteId: invalidar,
+      clearClienteEmpresaId: invalidar,
       nombreClienteResuelto: invalidar ? '' : state.nombreClienteResuelto,
     ));
   }
@@ -996,6 +1015,36 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       return;
     }
 
+    // Local-first: si el cliente ya está en el catálogo de la empresa,
+    // resolución instantánea sin red (y funciona offline). El backend
+    // (BD interna → RENIEC) queda solo para documentos desconocidos.
+    final empresaIdDni = state.empresaId;
+    if (empresaIdDni != null && empresaIdDni.isNotEmpty) {
+      Cliente? local;
+      for (final c
+          in await ClienteCatalogoService.instance.hydrate(empresaIdDni)) {
+        if (c.dni == dniLimpio) {
+          local = c;
+          break;
+        }
+      }
+      if (local != null) {
+        if (isClosed) return;
+        emit(state.copyWith(
+          buscandoCliente: false,
+          clienteGenerico: false,
+          clienteId: local.id,
+          clearClienteEmpresaId: true,
+          tipoDocCliente: 'DNI',
+          numeroDocCliente: dniLimpio,
+          nombreClienteResuelto: local.nombreCompleto,
+          clearError: true,
+          clearDocSinResultado: true,
+        ));
+        return;
+      }
+    }
+
     final mySeq = ++_searchSeq;
     emit(state.copyWith(buscandoCliente: true, clearError: true));
     final result = await _buscarClientePorDniUseCase(dniLimpio);
@@ -1008,17 +1057,21 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
         buscandoCliente: false,
         clienteGenerico: false,
         clienteId: c.clienteEmpresaId,
-        clienteEmpresaId: null,
+        clearClienteEmpresaId: true,
         tipoDocCliente: 'DNI',
         numeroDocCliente: c.dni,
         nombreClienteResuelto: c.nombreCompleto,
+        clearDocSinResultado: true,
       ));
     } else if (result is Error<ClienteResueltoDni>) {
+      // No existe ni local ni en el sistema/RENIEC → la UI abre el sheet
+      // de registro pre-llenado (sin snackbar de error: el sheet ES el
+      // siguiente paso del flujo).
       emit(state.copyWith(
         buscandoCliente: false,
-        error: result.message,
         nombreClienteResuelto: '',
-        clienteId: null,
+        clearClienteId: true,
+        docSinResultado: dniLimpio,
       ));
     }
   }
@@ -1033,6 +1086,34 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       return;
     }
 
+    // Local-first contra el catálogo B2B (paridad con el flujo DNI).
+    final empresaIdRuc = state.empresaId;
+    if (empresaIdRuc != null && empresaIdRuc.isNotEmpty) {
+      ClienteEmpresa? local;
+      for (final c in await ClienteEmpresaCatalogoService.instance
+          .hydrate(empresaIdRuc)) {
+        if (c.numeroDocumento == rucLimpio) {
+          local = c;
+          break;
+        }
+      }
+      if (local != null) {
+        if (isClosed) return;
+        emit(state.copyWith(
+          buscandoCliente: false,
+          clienteGenerico: false,
+          clearClienteId: true,
+          clienteEmpresaId: local.id,
+          tipoDocCliente: 'RUC',
+          numeroDocCliente: rucLimpio,
+          nombreClienteResuelto: local.razonSocial,
+          clearError: true,
+          clearDocSinResultado: true,
+        ));
+        return;
+      }
+    }
+
     final mySeq = ++_searchSeq;
     emit(state.copyWith(buscandoCliente: true, clearError: true));
     final result = await _buscarClientePorRucUseCase(rucLimpio);
@@ -1044,20 +1125,52 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       emit(state.copyWith(
         buscandoCliente: false,
         clienteGenerico: false,
-        clienteId: null,
+        clearClienteId: true,
         clienteEmpresaId: c.clienteEmpresaId,
         tipoDocCliente: 'RUC',
         numeroDocCliente: c.ruc,
         nombreClienteResuelto: c.razonSocial,
+        clearDocSinResultado: true,
       ));
     } else if (result is Error<ClienteResueltoRuc>) {
+      // No existe → sheet de registro pre-llenado (ver flujo DNI).
       emit(state.copyWith(
         buscandoCliente: false,
-        error: result.message,
         nombreClienteResuelto: '',
-        clienteEmpresaId: null,
+        clearClienteEmpresaId: true,
+        docSinResultado: rucLimpio,
       ));
     }
+  }
+
+  /// La UI consumió `docSinResultado` (abrió el sheet de registro).
+  void limpiarDocSinResultado() {
+    emit(state.copyWith(clearDocSinResultado: true));
+  }
+
+  /// Setea el cliente elegido desde el ClienteUnificadoSelector (búsqueda
+  /// por NOMBRE cuando el cajero no tiene el documento a la mano). Misma
+  /// semántica que buscarClientePorDni/Ruc: persona llena clienteId,
+  /// empresa llena clienteEmpresaId.
+  void setClienteDesdeSelector({
+    String? clienteId,
+    String? clienteEmpresaId,
+    required String nombre,
+    required String tipoDoc,
+    String? numeroDoc,
+  }) {
+    emit(state.copyWith(
+      clienteGenerico: false,
+      clienteId: clienteId,
+      clearClienteId: clienteId == null,
+      clienteEmpresaId: clienteEmpresaId,
+      clearClienteEmpresaId: clienteEmpresaId == null,
+      tipoDocCliente: tipoDoc,
+      numeroDocCliente: numeroDoc ?? '',
+      nombreClienteResuelto: nombre,
+      clearError: true,
+      clearDocSinResultado: true,
+    ));
   }
 
   // ── Pagos ──

@@ -124,6 +124,30 @@ class ClienteDetailSheet extends StatelessWidget {
                     ),
                   ),
                 ),
+                // Cliente sin cuenta (auto-creado por el lookup del POS):
+                // crear su acceso al app con un tap (login = DNI).
+                if (cliente.usuarioId == null ||
+                    cliente.usuarioId!.isEmpty) ...[
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _crearAcceso(context),
+                      icon: const Icon(Icons.phone_iphone, size: 16),
+                      label: const Text('Crear acceso al app',
+                          style: TextStyle(fontSize: 12)),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.green.shade700,
+                        side: BorderSide(
+                            color: Colors.green.shade400, width: 0.8),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
                 if (cliente.registradoPorNombre != null) ...[
                   const SizedBox(height: 16),
                   const Text(
@@ -182,6 +206,34 @@ class ClienteDetailSheet extends StatelessWidget {
     if (ok) {
       onUpdated?.call();
       Navigator.pop(context);
+    }
+  }
+
+  /// Crea el acceso al app (login = DNI) para un cliente sin cuenta.
+  Future<void> _crearAcceso(BuildContext context) async {
+    final result = await locator<ClienteRepository>()
+        .crearAcceso(clienteId: cliente.id);
+    if (!context.mounted) return;
+    if (result is Success<Map<String, dynamic>>) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            result.data['mensaje']?.toString() ??
+                'Acceso creado: ingresa con tu DNI',
+          ),
+          backgroundColor: Colors.green.shade700,
+          duration: const Duration(seconds: 5),
+        ),
+      );
+      onUpdated?.call();
+      Navigator.pop(context);
+    } else if (result is Error<Map<String, dynamic>>) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result.message),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
     }
   }
 

@@ -26,6 +26,12 @@ class VentaRapidaState extends Equatable {
   /// True mientras se está consultando el DNI/RUC (externo + upsert backend).
   final bool buscandoCliente;
 
+  /// Documento (DNI/RUC) buscado que NO existe ni en el catálogo local ni
+  /// en el sistema/API externa. Cuando no es null, la UI abre el
+  /// ClienteUnificadoSelector en modo registro pre-llenado y luego lo
+  /// limpia con `limpiarDocSinResultado()`.
+  final String? docSinResultado;
+
   // Crédito
   final String condicionPago; // CONTADO | CREDITO
   final int numeroCuotas;
@@ -75,6 +81,7 @@ class VentaRapidaState extends Equatable {
     this.numeroDocCliente = '',
     this.nombreClienteResuelto = '',
     this.buscandoCliente = false,
+    this.docSinResultado,
     this.condicionPago = 'CONTADO',
     this.numeroCuotas = 1,
     this.plazoDias = 30,
@@ -128,11 +135,15 @@ class VentaRapidaState extends Equatable {
     String? tipoComprobante,
     bool? clienteGenerico,
     String? clienteId,
+    bool clearClienteId = false,
     String? clienteEmpresaId,
+    bool clearClienteEmpresaId = false,
     String? tipoDocCliente,
     String? numeroDocCliente,
     String? nombreClienteResuelto,
     bool? buscandoCliente,
+    String? docSinResultado,
+    bool clearDocSinResultado = false,
     String? condicionPago,
     int? numeroCuotas,
     int? plazoDias,
@@ -158,12 +169,19 @@ class VentaRapidaState extends Equatable {
       items: items ?? this.items,
       tipoComprobante: tipoComprobante ?? this.tipoComprobante,
       clienteGenerico: clienteGenerico ?? this.clienteGenerico,
-      clienteId: clienteId ?? this.clienteId,
-      clienteEmpresaId: clienteEmpresaId ?? this.clienteEmpresaId,
+      // Clear flags: el patrón `?? this.x` no permite limpiar con null —
+      // cambiar de cliente persona→empresa dejaba AMBOS ids seteados.
+      clienteId: clearClienteId ? null : (clienteId ?? this.clienteId),
+      clienteEmpresaId: clearClienteEmpresaId
+          ? null
+          : (clienteEmpresaId ?? this.clienteEmpresaId),
       tipoDocCliente: tipoDocCliente ?? this.tipoDocCliente,
       numeroDocCliente: numeroDocCliente ?? this.numeroDocCliente,
       nombreClienteResuelto: nombreClienteResuelto ?? this.nombreClienteResuelto,
       buscandoCliente: buscandoCliente ?? this.buscandoCliente,
+      docSinResultado: clearDocSinResultado
+          ? null
+          : (docSinResultado ?? this.docSinResultado),
       condicionPago: condicionPago ?? this.condicionPago,
       numeroCuotas: numeroCuotas ?? this.numeroCuotas,
       plazoDias: plazoDias ?? this.plazoDias,
@@ -190,6 +208,7 @@ class VentaRapidaState extends Equatable {
         empresaId, sedeId, vendedorId, impuestoPorcentaje, moneda,
         items, tipoComprobante, clienteGenerico, clienteId, clienteEmpresaId,
         tipoDocCliente, numeroDocCliente, nombreClienteResuelto, buscandoCliente,
+        docSinResultado,
         condicionPago, numeroCuotas, plazoDias,
         pagos, procesando, error, ventaCompletadaId, comboPendienteOferta,
         preciosDesactualizados, stockInsuficiente,
