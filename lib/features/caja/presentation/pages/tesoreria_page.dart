@@ -1,9 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:syncronize/core/di/injection_container.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
+import 'package:syncronize/core/utils/date_formatter.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
+import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
+import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
+import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../domain/entities/movimiento_caja.dart';
 import '../../domain/entities/tesoreria.dart';
 import '../bloc/tesoreria_cubit.dart';
@@ -59,7 +65,19 @@ class _TesoreriaView extends StatelessWidget {
           ),
         ],
       ),
-      body: BlocBuilder<TesoreriaCubit, TesoreriaState>(
+      body: BlocConsumer<TesoreriaCubit, TesoreriaState>(
+        listenWhen: (prev, curr) =>
+            curr is TesoreriaLoaded && curr.errorMessage != null,
+        listener: (context, state) {
+          final msg = (state as TesoreriaLoaded).errorMessage;
+          if (msg == null) return;
+          ScaffoldMessenger.of(context)
+            ..hideCurrentSnackBar()
+            ..showSnackBar(SnackBar(
+              content: Text(msg),
+              backgroundColor: AppColors.red,
+            ));
+        },
         builder: (context, state) {
           if (state is TesoreriaLoading || state is TesoreriaInitial) {
             return const Center(child: CircularProgressIndicator());
@@ -93,9 +111,16 @@ class _TesoreriaView extends StatelessWidget {
           return const SizedBox();
         },
       ),
+      // El backend exige MANAGE_CAJA para crear ajustes: sin el permiso
+      // el FAB se oculta (antes se mostraba y recién fallaba el submit).
       floatingActionButton: BlocBuilder<TesoreriaCubit, TesoreriaState>(
         builder: (context, state) {
           if (state is! TesoreriaLoaded) return const SizedBox();
+          final empresaState = context.watch<EmpresaContextCubit>().state;
+          final puedeAjustar = empresaState is EmpresaContextLoaded &&
+              ((empresaState.context.primaryRole?.isAdminRole ?? false) ||
+                  empresaState.context.permissions.canManageCaja);
+          if (!puedeAjustar) return const SizedBox();
           return FloatingActionButton.extended(
             backgroundColor: AppColors.blue1,
             foregroundColor: AppColors.white,
@@ -127,7 +152,17 @@ class _Loaded extends StatelessWidget {
   Widget build(BuildContext context) {
     return RefreshIndicator(
       onRefresh: () => context.read<TesoreriaCubit>().refresh(),
-      child: CustomScrollView(
+      child: NotificationListener<ScrollNotification>(
+        onNotification: (n) {
+          // Scroll infinito: pide la siguiente página al acercarse al
+          // final. El cubit ya ignora llamadas repetidas (loadingMore).
+          if (state.hasMore &&
+              n.metrics.pixels >= n.metrics.maxScrollExtent - 300) {
+            context.read<TesoreriaCubit>().loadMore();
+          }
+          return false;
+        },
+        child: CustomScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
           SliverToBoxAdapter(child: _HeaderCard(resumen: state.resumen)),
@@ -165,14 +200,27 @@ class _Loaded extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Center(
-                child: Text(
-                  '${state.movimientos.items.length} de ${state.movimientos.total} movimientos',
-                  style: const TextStyle(color: AppColors.textSecondary),
-                ),
+                child: state.loadingMore
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(
+                        state.hasMore
+                            ? '${state.movimientos.items.length} de ${state.movimientos.total} movimientos · desliza para cargar más'
+                            : '${state.movimientos.items.length} de ${state.movimientos.total} movimientos',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 11,
+                        ),
+                      ),
               ),
             ),
           ),
         ],
+        ),
       ),
     );
   }
@@ -406,20 +454,121 @@ class _MiniStat extends StatelessWidget {
   }
 }
 
-class _FiltrosBar extends StatelessWidget {
+class _FiltrosBar extends StatefulWidget {
   final TesoreriaMovimientosFilter filter;
   final ValueChanged<TesoreriaMovimientosFilter> onChanged;
 
   const _FiltrosBar({required this.filter, required this.onChanged});
 
   @override
+  State<_FiltrosBar> createState() => _FiltrosBarState();
+}
+
+class _FiltrosBarState extends State<_FiltrosBar> {
+  final _searchCtrl = TextEditingController();
+  Timer? _debounce;
+
+  TesoreriaMovimientosFilter get filter => widget.filter;
+  ValueChanged<TesoreriaMovimientosFilter> get onChanged => widget.onChanged;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchCtrl.text = filter.q ?? '';
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged(String value) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 500), () {
+      final q = value.trim();
+      if (q == (filter.q ?? '')) return;
+      onChanged(q.isEmpty
+          ? filter.copyWith(clearQ: true)
+          : filter.copyWith(q: q));
+    });
+  }
+
+  Future<void> _pickRangoFechas() async {
+    final now = DateTime.now();
+    DateTimeRange? initial;
+    if (filter.fechaDesde != null && filter.fechaHasta != null) {
+      final d = DateTime.tryParse(filter.fechaDesde!)?.toLocal();
+      final h = DateTime.tryParse(filter.fechaHasta!)?.toLocal();
+      if (d != null && h != null && !h.isBefore(d)) {
+        initial = DateTimeRange(start: d, end: h);
+      }
+    }
+    final range = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(now.year - 3),
+      lastDate: now,
+      initialDateRange: initial,
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: Theme.of(context)
+              .colorScheme
+              .copyWith(primary: AppColors.blue1),
+        ),
+        child: child!,
+      ),
+    );
+    if (range == null) return;
+    // startOfDay/endOfDay en hora LOCAL → UTC ISO (gotcha timezone:
+    // DateTime.utc con componentes locales corre el rango por el offset).
+    onChanged(filter.copyWith(
+      fechaDesde:
+          DateFormatter.toUtcIso(DateFormatter.startOfDay(range.start)),
+      fechaHasta: DateFormatter.toUtcIso(DateFormatter.endOfDay(range.end)),
+    ));
+  }
+
+  String _fechaChipLabel() {
+    if (filter.fechaDesde == null) return 'Fechas';
+    String dm(String iso) {
+      final d = DateTime.tryParse(iso)?.toLocal();
+      if (d == null) return '—';
+      return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}';
+    }
+
+    return '${dm(filter.fechaDesde!)} – ${dm(filter.fechaHasta ?? filter.fechaDesde!)}';
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final fechasActivas = filter.fechaDesde != null;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Wrap(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CustomText(
+            controller: _searchCtrl,
+            label: 'Buscar en descripción',
+            onChanged: _onSearchChanged,
+          ),
+          const SizedBox(height: 8),
+          Wrap(
         spacing: 8,
         runSpacing: 8,
         children: [
+          _FechaChip(
+            label: _fechaChipLabel(),
+            selected: fechasActivas,
+            onTap: _pickRangoFechas,
+            onClear: fechasActivas
+                ? () => onChanged(filter.copyWith(
+                      clearFechaDesde: true,
+                      clearFechaHasta: true,
+                    ))
+                : null,
+          ),
           _Chip(
             label: 'Todos',
             selected: filter.tipo == null,
@@ -461,7 +610,72 @@ class _FiltrosBar extends StatelessWidget {
                     ),
             ),
           ),
+            ],
+          ),
         ],
+      ),
+    );
+  }
+}
+
+/// Chip de rango de fechas: tap abre el picker, la X limpia el filtro.
+class _FechaChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  final VoidCallback? onClear;
+
+  const _FechaChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.onClear,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.blue1 : Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: selected ? AppColors.blue1 : AppColors.textSecondary,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.calendar_month_rounded,
+              size: 12,
+              color: selected ? AppColors.white : AppColors.textSecondary,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: selected ? AppColors.white : AppColors.textSecondary,
+                fontWeight: FontWeight.w600,
+                fontSize: 10,
+              ),
+            ),
+            if (onClear != null) ...[
+              const SizedBox(width: 4),
+              GestureDetector(
+                onTap: onClear,
+                child: const Icon(
+                  Icons.close_rounded,
+                  size: 12,
+                  color: AppColors.white,
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }

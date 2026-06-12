@@ -68,7 +68,12 @@ class TesoreriaCubit extends Cubit<TesoreriaState> {
     if (isClosed) return;
 
     if (res is Error<TesoreriaMovimientosPage>) {
-      emit(current.copyWith(refreshingMovimientos: false));
+      // Conserva la data anterior pero avisa: filtrar no puede fallar mudo.
+      emit(current.copyWith(
+        refreshingMovimientos: false,
+        errorMessage: res.message,
+      ));
+      emit((state as TesoreriaLoaded).copyWith(clearError: true));
       return;
     }
 
@@ -76,18 +81,65 @@ class TesoreriaCubit extends Cubit<TesoreriaState> {
       movimientos: (res as Success<TesoreriaMovimientosPage>).data,
       filter: filter.copyWith(page: 1),
       refreshingMovimientos: false,
+      clearError: true,
     ));
   }
 
-  /// Refresca resumen + movimientos manteniendo el filtro actual.
+  /// Carga la siguiente página y la APPENDEA a la lista actual
+  /// (scroll infinito). No toca el resumen.
+  Future<void> loadMore() async {
+    if (state is! TesoreriaLoaded || _sedeId == null) return;
+    final current = state as TesoreriaLoaded;
+    if (current.loadingMore || current.refreshingMovimientos) return;
+
+    final mov = current.movimientos;
+    if (mov.items.length >= mov.total) return;
+
+    emit(current.copyWith(loadingMore: true));
+
+    final nextPage = mov.page + 1;
+    final res = await _getMovimientos(
+      sedeId: _sedeId!,
+      filter: current.filter.copyWith(page: nextPage),
+    );
+    if (isClosed) return;
+    if (state is! TesoreriaLoaded) return;
+
+    if (res is Error<TesoreriaMovimientosPage>) {
+      emit((state as TesoreriaLoaded).copyWith(
+        loadingMore: false,
+        errorMessage: res.message,
+      ));
+      emit((state as TesoreriaLoaded).copyWith(clearError: true));
+      return;
+    }
+
+    final next = (res as Success<TesoreriaMovimientosPage>).data;
+    emit((state as TesoreriaLoaded).copyWith(
+      movimientos: TesoreriaMovimientosPage(
+        items: [...mov.items, ...next.items],
+        total: next.total,
+        page: next.page,
+        pageSize: next.pageSize,
+        totalPages: next.totalPages,
+      ),
+      filter: current.filter.copyWith(page: next.page),
+      loadingMore: false,
+    ));
+  }
+
+  /// Refresca resumen + movimientos manteniendo el filtro actual
+  /// (vuelve a página 1; antes el refresh perdía los filtros activos).
   Future<void> refresh() async {
     if (_sedeId == null) return;
     final currentFilter = state is TesoreriaLoaded
         ? (state as TesoreriaLoaded).filter
         : const TesoreriaMovimientosFilter();
     await load(_sedeId!);
-    if (state is TesoreriaLoaded && currentFilter.page > 1) {
-      await applyFilter(currentFilter);
+    final reset = currentFilter.copyWith(page: 1);
+    if (state is TesoreriaLoaded &&
+        reset != const TesoreriaMovimientosFilter()) {
+      await applyFilter(reset);
     }
   }
 
