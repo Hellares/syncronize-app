@@ -159,7 +159,12 @@ class _NotificacionesPageState extends State<NotificacionesPage> {
     if (data != null) {
       final citaId = data['citaId'] as String?;
       final ordenId = data['ordenId'] as String?;
+      final tercerizacionId = data['tercerizacionId'] as String?;
 
+      if (tercerizacionId != null) {
+        context.push('/empresa/tercerizacion/$tercerizacionId');
+        return;
+      }
       if (citaId != null) {
         context.push('/empresa/citas/$citaId');
         return;

@@ -155,6 +155,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     PushNotificationService().onNotificationTapped = (data) {
       final citaId = data['citaId'] as String?;
       final ordenId = data['ordenId'] as String?;
+      final tercerizacionId = data['tercerizacionId'] as String?;
       final tipo = data['tipo'] as String?;
       final target = data['target'] as String?;
 
@@ -173,7 +174,11 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         esStaff = loginMode == 'management';
       }
 
-      if (citaId != null) {
+      if (tercerizacionId != null) {
+        // Eventos B2B (solicitud/aceptada/rechazada/completada/cancelada)
+        // van siempre a staff: el detalle valida pertenencia en el server.
+        router.push('/empresa/tercerizacion/$tercerizacionId');
+      } else if (citaId != null) {
         router.push(esStaff
             ? '/empresa/citas/$citaId'
             : '/empresa/mis-citas/$citaId');
