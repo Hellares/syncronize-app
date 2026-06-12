@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lottie/lottie.dart';
+import 'package:syncronize/core/fonts/app_fonts.dart';
+import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/empresa_info.dart';
 
@@ -30,7 +33,8 @@ class SuscripcionBanner extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      margin: const EdgeInsets.only(bottom: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 10,),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: esCritico
@@ -49,23 +53,22 @@ class SuscripcionBanner extends StatelessWidget {
         bottom: false,
         child: Row(
           children: [
-            Icon(
-              esCritico ? Icons.error_outline : Icons.warning_amber_rounded,
-              color: AppColors.white,
-              size: 20,
+            Lottie.asset(
+              'assets/animations/skull.json',
+              width: 50,
+              height: 50,
+              fit: BoxFit.contain,
             ),
             const SizedBox(width: 10),
             Expanded(
-              child: Text(
-                diasVencida == 0
-                    ? 'Tu plan vence hoy. Renueva para evitar la suspension.'
-                    : 'Tu plan vencio hace $diasVencida ${diasVencida == 1 ? 'dia' : 'dias'}. Renueva para evitar la suspension.',
-                style: const TextStyle(
-                  color: AppColors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
+            child: AppSubtitle(
+              diasVencida == 0
+                  ? 'Tu plan vence hoy. Renueva para evitar la suspensión.'
+                  : 'Tu plan venció hace $diasVencida ${diasVencida == 1 ? 'día' : 'días'}. Renueva para evitar la suspensión.',
+              color: AppColors.white,
+              fontSize: 10,
+              font: AppFont.amazonEmberMedium,
+            ),
             ),
             const SizedBox(width: 8),
             TextButton(
@@ -83,14 +86,14 @@ class SuscripcionBanner extends StatelessWidget {
                     const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                 minimumSize: Size.zero,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(6),
                 ),
               ),
               child: const Text(
                 'Renovar',
                 style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),

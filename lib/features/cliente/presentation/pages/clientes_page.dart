@@ -435,6 +435,8 @@ class _ClientesPageState extends State<ClientesPage> {
         builder: (context, scrollController) => ClienteDetailSheet(
           cliente: cliente,
           scrollController: scrollController,
+          empresaId: widget.empresaId,
+          onUpdated: () => _cubit.reload(),
         ),
       ),
     );

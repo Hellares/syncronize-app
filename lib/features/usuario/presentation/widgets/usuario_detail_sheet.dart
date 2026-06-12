@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:syncronize/core/fonts/app_fonts.dart';
+import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/app_gradients.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
+import 'package:syncronize/core/widgets/editar_datos_contacto_dialog.dart';
 import 'package:syncronize/features/auth/presentation/widgets/custom_button.dart';
 import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 
@@ -70,6 +73,12 @@ class UsuarioDetailSheet extends StatelessWidget {
                           ),
                         ],
                       ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.edit_outlined,
+                          size: 18, color: AppColors.blue1),
+                      tooltip: 'Editar datos',
+                      onPressed: () => _showEditarDatosDialog(context),
                     ),
                   ],
                 ),
@@ -231,15 +240,30 @@ class UsuarioDetailSheet extends StatelessWidget {
     );
   }
 
+  /// Ancho fijo de la columna de labels para que todos los valores
+  /// queden alineados verticalmente ("Departamento" es el más largo).
+  static const double _labelWidth = 90;
+
   Widget _buildInfoRow(IconData icon, String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 20, color: Colors.grey[600]),
+          Icon(icon, size: 18, color: Colors.grey[600]),
           const SizedBox(width: 12),
-          Text('$label: ', style: const TextStyle(fontWeight: FontWeight.w500)),
-          Expanded(child: Text(value)),
+          SizedBox(
+            width: _labelWidth,
+            child: AppSubtitle(
+              label,
+              font: AppFont.amazonEmberMedium,
+              fontSize: 11,
+              color: Colors.grey[700],
+            ),
+          ),
+          Expanded(
+            child: AppSubtitle(value, fontSize: 11, font: AppFont.amazonEmberMedium),
+          ),
         ],
       ),
     );
@@ -567,6 +591,31 @@ class UsuarioDetailSheet extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  /// Edita los datos de contacto con el dialog compartido. El PATCH
+  /// /usuarios/:id actualiza Persona+Usuario con validación de unicidad.
+  Future<void> _showEditarDatosDialog(BuildContext context) async {
+    final data = await showEditarDatosContactoDialog(
+      context,
+      telefono: usuario.telefono,
+      email: usuario.email,
+      direccion: usuario.direccion,
+    );
+    if (data == null || !context.mounted) return;
+
+    final ok = await cubit.updateUsuario(usuarioId: usuario.id, data: data);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(ok ? 'Datos actualizados' : 'No se pudo actualizar'),
+        backgroundColor: ok ? Colors.green.shade700 : Colors.red.shade700,
+      ),
+    );
+    if (ok) {
+      // Cerrar el sheet: al reabrir muestra los datos frescos de la lista.
+      Navigator.pop(context);
+    }
   }
 
   /// Dialog para asignar/cambiar/limpiar el alias del usuario que se

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:syncronize/core/fonts/app_fonts.dart';
+import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/utils/date_formatter.dart';
 import 'package:syncronize/core/widgets/info_chip.dart';
@@ -90,7 +92,7 @@ class _PlanSuscripcionCardState extends State<PlanSuscripcionCard> {
     return AnimatedNeonBorder(
       borderRadius: 8,
       enableGlow: true,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -100,28 +102,25 @@ class _PlanSuscripcionCardState extends State<PlanSuscripcionCard> {
             behavior: HitTestBehavior.opaque,
             child: Row(
               children: [
-                const Icon(Icons.workspace_premium, color: AppColors.blue1, size: 22),
-                const SizedBox(width: 12),
+                const Icon(Icons.workspace_premium, color: AppColors.blue1, size: 20),
+                const SizedBox(width: 6),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        plan != null ? 'Plan ${plan.nombre}' : 'Sin Plan',
-                        style: const TextStyle(
-                          color: AppColors.blue1,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      AppSubtitle(
+                        plan != null ? 'PLAN:  ${plan.nombre}' : 'Sin Plan',
+                        color: AppColors.blue1,
+                        fontSize: 10,
+                        font: AppFont.amazonEmberMedium
                       ),
                       if (plan != null)
-                        Text(
-                          '\$${plan.precio.toStringAsFixed(2)} / ${plan.periodo}',
-                          style: const TextStyle(
-                            color: AppColors.blue1,
-                            fontSize: 9,
-                          ),
-                        ),
+                        AppSubtitle(
+                          'S/${plan.precio.toStringAsFixed(2)} - ${plan.periodo}',
+                          color: AppColors.green,
+                          fontSize: 8,
+                          font: AppFont.amazonEmberMediumItalic
+                        )
                     ],
                   ),
                 ),
@@ -132,7 +131,8 @@ class _PlanSuscripcionCardState extends State<PlanSuscripcionCard> {
                     backgroundColor: Colors.green.withValues(alpha: 0.1),
                     textColor: Colors.green[800]!,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    text: 'USD C:${_tcCompra!.toStringAsFixed(3)} V:${_tcVenta!.toStringAsFixed(3)}',
+                    fontSize: 8,
+                    text: 'S/ C:${_tcCompra!.toStringAsFixed(3)} V:${_tcVenta!.toStringAsFixed(3)}',
                   ),
                   const SizedBox(width: 5),
                 ],
@@ -144,7 +144,8 @@ class _PlanSuscripcionCardState extends State<PlanSuscripcionCard> {
                     contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     text: _formatEstadoSuscripcion(empresa.estadoSuscripcion),
                     backgroundColor: _getEstadoColor(empresa.estadoSuscripcion),
-                    textColor: AppColors.blue2,
+                    fontSize: 8,
+                    textColor: _getEstadoTextColor(empresa.estadoSuscripcion),
                     icon: Icons.check_circle_outline_rounded,
                     iconSize: 12,
                   ),
@@ -197,11 +198,12 @@ class _PlanSuscripcionCardState extends State<PlanSuscripcionCard> {
                           borderWidth: 1,
                           height: 31,
                           text: 'Cambiar Plan',
+                          fontSize: 10,
                           textColor: AppColors.white,
                           onPressed: () {
                             context.push('/empresa/planes');
                           },
-                          icon: const Icon(Icons.upgrade, color: AppColors.white),
+                          icon: const Icon(Icons.upgrade, color: AppColors.white, size: 18),
                         ),
                       ),
                       if (plan != null && !plan.isFreePlan) ...[
@@ -212,6 +214,7 @@ class _PlanSuscripcionCardState extends State<PlanSuscripcionCard> {
                             borderWidth: 1,
                             height: 31,
                             text: 'Pagar',
+                            fontSize: 10,
                             textColor: AppColors.white,
                             onPressed: () {
                               context.push('/empresa/pagar-plan', extra: {
@@ -229,13 +232,11 @@ class _PlanSuscripcionCardState extends State<PlanSuscripcionCard> {
                   const SizedBox(height: 8),
                   GestureDetector(
                     onTap: () => context.push('/empresa/mis-pagos'),
-                    child: const Text(
+                    child: AppSubtitle(
                       'Ver historial de pagos',
-                      style: TextStyle(
-                        color: AppColors.blue1,
-                        fontSize: 11,
-                        decoration: TextDecoration.underline,
-                      ),
+                      color: AppColors.green,
+                      fontSize: 10,
+                      font: AppFont.amazonEmberMediumItalic,
                     ),
                   ),
                 ],
@@ -315,14 +316,12 @@ class _PlanSuscripcionCardState extends State<PlanSuscripcionCard> {
           children: [
             Icon(Icons.cloud_outlined, size: 14, color: esCritico ? Colors.red : AppColors.blue1),
             const SizedBox(width: 6),
-            Text(
-              'Almacenamiento: $usadoLabel / $limiteLabel',
-              style: TextStyle(
-                fontSize: 10,
+              AppSubtitle(
+                'Almacenamiento:  $usadoLabel / $limiteLabel',
+                fontSize: 9,
+                font: AppFont.amazonEmberMedium,
                 color: esCritico ? Colors.red : AppColors.blue1,
-                fontWeight: FontWeight.w600,
               ),
-            ),
           ],
         ),
         const SizedBox(height: 4),
@@ -381,6 +380,17 @@ class _PlanSuscripcionCardState extends State<PlanSuscripcionCard> {
         return Colors.red;
       default:
         return Colors.grey;
+    }
+  }
+
+  /// Texto blanco sobre los fondos sólidos del chip de estado (el azul
+  /// no se lee sobre rojo).
+  Color _getEstadoTextColor(String estado) {
+    switch (estado) {
+      case 'VENCIDA':
+        return Colors.white;
+      default:
+        return AppColors.blue1;
     }
   }
 

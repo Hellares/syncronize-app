@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lottie/lottie.dart';
+import 'package:syncronize/core/theme/app_gradients.dart';
+import 'package:syncronize/core/theme/gradient_container.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/date_formatter.dart';
@@ -15,6 +18,9 @@ class MiCajaBanner extends StatefulWidget {
 }
 
 class _MiCajaBannerState extends State<MiCajaBanner> {
+  static const _lottieCajaAbierta = 'assets/animations/cajaAbierta2.json';
+  static const _lottieCajaCerrada = 'assets/animations/cajaCerrada.json';
+
   late final CajaActivaCubit _cubit;
 
   @override
@@ -59,11 +65,11 @@ class _MiCajaBannerState extends State<MiCajaBanner> {
       onTap: () => context.push('/empresa/caja'),
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.green.shade300),
+          border: Border.all(color: Colors.green.shade300, width: 0.5),
           boxShadow: [
             BoxShadow(
               color: Colors.green.withValues(alpha: 0.1),
@@ -77,25 +83,17 @@ class _MiCajaBannerState extends State<MiCajaBanner> {
           children: [
             Row(
               children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.green,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.green.withValues(alpha: 0.4),
-                        blurRadius: 4,
-                      ),
-                    ],
-                  ),
+                Lottie.asset(
+                  _lottieCajaAbierta,
+                  width: 45,
+                  height: 45,
+                  fit: BoxFit.fill,
                 ),
                 const SizedBox(width: 8),
                 Text(
                   caja.codigo,
                   style: const TextStyle(
-                    fontSize: 13,
+                    fontSize: 11,
                     fontWeight: FontWeight.w700,
                     color: AppColors.blue1,
                   ),
@@ -103,7 +101,7 @@ class _MiCajaBannerState extends State<MiCajaBanner> {
                 const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 6, vertical: 2),
+                  horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
                     color: Colors.green.shade50,
                     borderRadius: BorderRadius.circular(4),
@@ -112,8 +110,8 @@ class _MiCajaBannerState extends State<MiCajaBanner> {
                   child: const Text(
                     'ABIERTA',
                     style: TextStyle(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 8,
+                      fontWeight: FontWeight.w500,
                       color: Colors.green,
                     ),
                   ),
@@ -123,7 +121,6 @@ class _MiCajaBannerState extends State<MiCajaBanner> {
                     size: 18, color: Colors.grey.shade400),
               ],
             ),
-            const SizedBox(height: 8),
             Row(
               children: [
                 _infoChip(
@@ -151,23 +148,24 @@ class _MiCajaBannerState extends State<MiCajaBanner> {
   Widget _buildSinCaja(BuildContext context) {
     return GestureDetector(
       onTap: () => context.push('/empresa/caja'),
-      child: Container(
+      child: GradientContainer(
+        borderColor: AppColors.blueGrey,
+        gradient: AppGradients.sinfondo,
         margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: Colors.grey.shade50,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.grey.shade300),
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         child: Row(
           children: [
-            Icon(Icons.point_of_sale,
-                size: 18, color: Colors.grey.shade500),
+            Lottie.asset(
+              _lottieCajaCerrada,
+              width: 40,
+              height: 40,
+              fit: BoxFit.contain,
+            ),
             const SizedBox(width: 8),
             Text(
               'Sin caja abierta',
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 10,
                 color: Colors.grey.shade600,
               ),
             ),
@@ -177,13 +175,12 @@ class _MiCajaBannerState extends State<MiCajaBanner> {
                   horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
                 color: AppColors.blue1,
-                borderRadius: BorderRadius.circular(6),
+                borderRadius: BorderRadius.circular(4),
               ),
               child: const Text(
                 'Abrir Caja',
                 style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 10,                  
                   color: Colors.white,
                 ),
               ),
@@ -203,7 +200,7 @@ class _MiCajaBannerState extends State<MiCajaBanner> {
         Text(
           text,
           style: TextStyle(
-            fontSize: 10,
+            fontSize: 9,
             color: Colors.grey.shade700,
           ),
           overflow: TextOverflow.ellipsis,

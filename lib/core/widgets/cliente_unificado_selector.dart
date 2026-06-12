@@ -11,10 +11,12 @@ import 'floating_button_icon.dart';
 import '../../features/auth/presentation/widgets/custom_button.dart';
 import '../../features/auth/presentation/widgets/custom_text.dart'
     show CustomText, FieldType;
+import 'editar_datos_contacto_dialog.dart';
 import '../../features/cliente/data/cache/cliente_catalogo_service.dart';
 import '../../features/cliente/domain/entities/cliente.dart';
 import '../../features/cliente/domain/entities/cliente_filtros.dart';
 import '../../features/cliente/domain/entities/registro_cliente_response.dart';
+import '../../features/cliente/domain/repositories/cliente_repository.dart';
 import '../../features/cliente/domain/usecases/get_clientes_usecase.dart';
 import '../../features/cliente/presentation/bloc/cliente_form/cliente_form_cubit.dart';
 import '../../features/cliente/presentation/bloc/cliente_form/cliente_form_state.dart';
@@ -738,18 +740,89 @@ class _PersonaTabState extends State<_PersonaTab>
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 2),
-                  Text(
-                    'DNI: ${cliente.dni ?? '-'}  ·  ${cliente.telefono ?? '-'}',
-                    style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                  Row(
+                    children: [
+                      Text(
+                        'DNI: ${cliente.dni ?? '-'}',
+                        style:
+                            TextStyle(fontSize: 10, color: Colors.grey[600]),
+                      ),
+                      const SizedBox(width: 10),
+                      // Teléfono destacado y tappable: si está en '-' el
+                      // tap abre el editor para completarlo ahí mismo.
+                      GestureDetector(
+                        onTap: () => _editarCliente(cliente),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.phone,
+                                size: 11, color: AppColors.blue1),
+                            const SizedBox(width: 3),
+                            Text(
+                              cliente.telefono?.isNotEmpty == true
+                                  ? cliente.telefono!
+                                  : '-',
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.blue1,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
+            ),
+            // Edición inline (el cliente cambió de celular al momento de
+            // crear la orden) — tap en el tile selecciona, el lapicito edita.
+            IconButton(
+              icon: Icon(Icons.edit_outlined,
+                  size: 16, color: Colors.grey.shade500),
+              visualDensity: VisualDensity.compact,
+              tooltip: 'Editar datos',
+              onPressed: () => _editarCliente(cliente),
             ),
             const Icon(Icons.chevron_right, size: 20, color: Colors.grey),
           ],
         ),
       ),
     );
+  }
+
+  /// Actualiza teléfono/email/dirección sin salir del selector. Tras
+  /// guardar, upsert al catálogo local → la lista visible se refresca al
+  /// instante; el push CLIENTE_CAMBIADO sincroniza al resto de devices
+  /// (y a las demás empresas vinculadas a la Persona).
+  Future<void> _editarCliente(Cliente cliente) async {
+    final data = await showEditarDatosContactoDialog(
+      context,
+      telefono: cliente.telefono,
+      email: cliente.email,
+      direccion: cliente.direccion,
+    );
+    if (data == null || !mounted) return;
+
+    final result = await locator<ClienteRepository>().updateCliente(
+      empresaId: widget.empresaId,
+      clienteId: cliente.id,
+      data: data,
+    );
+    if (!mounted) return;
+    if (result is Success<Cliente>) {
+      await _catalogo.upsertLocal(widget.empresaId, result.data);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Datos actualizados'),
+          backgroundColor: Colors.green.shade700,
+        ),
+      );
+    } else if (result is Error<Cliente>) {
+      SnackBarHelper.showError(context, result.message);
+    }
   }
 
   // ─── Register Mode ───
