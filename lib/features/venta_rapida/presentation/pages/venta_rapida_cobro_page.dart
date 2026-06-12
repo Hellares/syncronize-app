@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:syncronize/core/fonts/app_fonts.dart';
+import 'package:syncronize/core/fonts/app_text_widgets.dart';
+import 'package:syncronize/core/widgets/smart_appbar.dart';
 
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -926,10 +929,31 @@ class _CobroViewState extends State<_CobroView> {
         final vuelto = diferencia > _kPenRoundingTolerance ? diferencia : 0.0;
 
         return Scaffold(
-          appBar: AppBar(
+          // appBar: AppBar(
+          //   backgroundColor: AppColors.blue1,
+          //   foregroundColor: Colors.white,
+          //   title: Text(tituloAppBar),
+          //   actions: [
+          //     if (_creditoPermitido(context)) ...[
+          //       _AppBarCondicionChip(
+          //         label: 'Contado',
+          //         selected: !state.esCredito,
+          //         onTap: () => context.read<VentaRapidaCubit>().setCondicionPago('CONTADO'),
+          //       ),
+          //       _AppBarCondicionChip(
+          //         label: 'Credito',
+          //         selected: state.esCredito,
+          //         selectedColor: Colors.orange,
+          //         onTap: () => context.read<VentaRapidaCubit>().setCondicionPago('CREDITO'),
+          //       ),
+          //       const SizedBox(width: 8),
+          //     ],
+          //   ],
+          // ),
+          appBar: SmartAppBar(
+            title: tituloAppBar,
             backgroundColor: AppColors.blue1,
             foregroundColor: Colors.white,
-            title: Text(tituloAppBar),
             actions: [
               if (_creditoPermitido(context)) ...[
                 _AppBarCondicionChip(
@@ -938,7 +962,7 @@ class _CobroViewState extends State<_CobroView> {
                   onTap: () => context.read<VentaRapidaCubit>().setCondicionPago('CONTADO'),
                 ),
                 _AppBarCondicionChip(
-                  label: 'Credito',
+                  label: 'Crédito',
                   selected: state.esCredito,
                   selectedColor: Colors.orange,
                   onTap: () => context.read<VentaRapidaCubit>().setCondicionPago('CREDITO'),
@@ -971,15 +995,14 @@ class _CobroViewState extends State<_CobroView> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Text('Total a cobrar  ',
+                          const Text('Total a cobrar:  ',
                               style: TextStyle(
-                                  fontSize: 14, color: Colors.black87)),
-                          Text(
+                                  fontSize: 13, color: Colors.black87)),
+                          AppSubtitle(
                             'S/ ${totalCobrar.toStringAsFixed(2)}',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              color: Colors.black54,
-                            ),
+                            color: AppColors.blue1,
+                            fontSize: 18,
+                            font: AppFont.amazonEmberBold
                           ),
                         ],
                       ),
@@ -1192,20 +1215,18 @@ class _CobroViewState extends State<_CobroView> {
                 ),
                 if (state.nombreClienteResuelto.isNotEmpty)
                   Padding(
-                    padding: const EdgeInsets.only(top: 10),
+                    padding: const EdgeInsets.only(top: 6),
                     child: Row(
                       children: [
-                        Icon(Icons.check_circle,
-                            size: 16, color: Colors.green.shade600),
-                        const SizedBox(width: 6),
+                        Icon(Icons.check_circle_outline_rounded,
+                            size: 18, color: Colors.green.shade600),
+                        const SizedBox(width: 4),
                         Expanded(
-                          child: Text(
+                          child: AppSubtitle(
                             state.nombreClienteResuelto,
-                            style: TextStyle(
-                              color: Colors.green.shade700,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                            ),
+                            color: AppColors.greendark,
+                            font: AppFont.amazonEmberMedium,
+                            fontSize: 10,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
@@ -1220,13 +1241,16 @@ class _CobroViewState extends State<_CobroView> {
                               style: TextStyle(
                                 fontSize: 9,
                                 fontWeight: FontWeight.w500,
-                                color: Colors.green.shade700,
+                                color: AppColors.green,
                               ),
                             ),
                             visualDensity: VisualDensity.compact,
                             backgroundColor: Colors.green.shade50,
-                            side: BorderSide(
-                                color: Colors.green.shade300, width: 0.6),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(4),
+                              side: BorderSide(
+                                  color: Colors.green.shade300, width: 0.6),
+                            ),
                             onPressed: () =>
                                 _crearAccesoCliente(state.clienteId!),
                           ),
@@ -1251,7 +1275,7 @@ class _CobroViewState extends State<_CobroView> {
                   ),
 
                 _PagoRow(
-                  label: 'Pago efectivo',
+                  label: 'Pago Efectivo',
                   controller: _efectivoCtrl,
                   focusNode: _efectivoFocus,
                 ),
@@ -1263,12 +1287,17 @@ class _CobroViewState extends State<_CobroView> {
                   refController: _yapeRefCtrl,
                   refFocusNode: _yapeRefFocus,
                   showRef: CurrencyUtilsImproved.parseToDouble(_yapeCtrl.text) > 0,
+                  // Compacto: sin CircleAvatar (40px fantasma) ni el
+                  // mínimo 48x48 del IconButton — el área de tap queda
+                  // del tamaño del ícono y pegado al input.
                   trailing: IconButton(
-                    icon: const CircleAvatar(
-                      radius: 13,
-                      backgroundColor: AppColors.blue1,
-                      child: Icon(Icons.add, color: Colors.white, size: 12),
-                    ),
+                    padding: EdgeInsets.zero,
+                    constraints:
+                        const BoxConstraints(minWidth: 32, minHeight: 32),
+                    visualDensity: VisualDensity.compact,
+                    splashRadius: 18,
+                    icon: const Icon(Icons.add_circle_outline_rounded,
+                        color: AppColors.blue1, size: 24),
                     onPressed: () => _agregarOtroPago(context),
                     tooltip: 'Agregar otro método',
                   ),
@@ -1318,7 +1347,12 @@ class _CobroViewState extends State<_CobroView> {
                 Row(
                   children: [
                     const Expanded(
-                      child: Text('Total recibido', style: TextStyle(fontSize: 14)),
+                      // child: Text('Total recibido', style: TextStyle(fontSize: 14)),
+                      child: AppSubtitle(
+                        'Total recibido',
+                        fontSize: 13,
+                        color: AppColors.greendark,
+                      ),
                     ),
                     Container(
                       width: 120,
@@ -1331,8 +1365,8 @@ class _CobroViewState extends State<_CobroView> {
                         totalRecibido.toStringAsFixed(2),
                         textAlign: TextAlign.right,
                         style: const TextStyle(
-                          fontSize: 14,
-                          color: AppColors.green,
+                          fontSize: 18,
+                          color: AppColors.greendark,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -1371,8 +1405,8 @@ class _CobroViewState extends State<_CobroView> {
                         children: [
                           Text(
                             montoCredito > 0 ? montoCredito.toStringAsFixed(2) : '0.00',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w400,
-                                color: Colors.orange.shade700),
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700,
+                                color: Colors.orange.shade800),
                           ),
                           const SizedBox(width: 10),
                           Text('a credito',
@@ -1385,8 +1419,8 @@ class _CobroViewState extends State<_CobroView> {
                         Text(
                           monto.toStringAsFixed(2),
                           style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w400,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
                             color: color,
                           ),
                         ),
@@ -1411,20 +1445,44 @@ class _CobroViewState extends State<_CobroView> {
   Future<void> _agregarOtroPago(BuildContext context) async {
     // Métodos alineados con Venta Avanzada (POS).
     // EFECTIVO y YAPE no van acá porque ya están como inputs principales.
-    final metodos = ['TARJETA', 'PLIN', 'TRANSFERENCIA'];
-    final metodoElegido = await showModalBottomSheet<String>(
-      context: context,
-      builder: (_) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: metodos
-              .map((m) => ListTile(
-                    title: Text(m),
-                    onTap: () => Navigator.of(context).pop(m),
-                  ))
-              .toList(),
-        ),
-      ),
+    const metodos = [
+      ('TARJETA', 'Tarjeta', Icons.credit_card),
+      ('PLIN', 'Plin', Icons.phone_android),
+      ('TRANSFERENCIA', 'Transferencia', Icons.account_balance),
+    ];
+    final metodoElegido = await StyledDialog.show<String>(
+      context,
+      accentColor: AppColors.greendark,
+      backgroundColor: Colors.white,
+      icon: Icons.payments_outlined,
+      titulo: 'Agregar método de pago',
+      content: [
+        for (final (valor, label, icono) in metodos)
+          InkWell(
+            onTap: () => Navigator.of(context, rootNavigator: true).pop(valor),
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding:
+                  const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+              child: Row(
+                children: [
+                  Icon(icono, size: 18, color: AppColors.greendark),
+                  const SizedBox(width: 10),
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const Spacer(),
+                  Icon(Icons.chevron_right,
+                      size: 18, color: Colors.grey.shade400),
+                ],
+              ),
+            ),
+          ),
+      ],
     );
     if (metodoElegido == null || !context.mounted) return;
     _agregarOtraFila(metodoElegido);
@@ -2085,7 +2143,7 @@ class _PagoRow extends StatelessWidget {
     final mostrarRef = showRef && refController != null;
     return Row(
       children: [
-        Expanded(child: Text(label, style: const TextStyle(fontSize: 13))),
+        Expanded(child: AppSubtitle(label, font: AppFont.amazonEmberMedium, fontSize: 12,)),
         if (trailing != null)
           Padding(
             padding: const EdgeInsets.only(top: 18),

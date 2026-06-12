@@ -25,6 +25,10 @@ class StyledDialog extends StatelessWidget {
   final List<Widget> actions;
   final bool barrierDismissible;
 
+  /// Fondo sólido opcional (p.ej. blanco para que el acento resalte).
+  /// Null = gradiente default del GradientContainer.
+  final Color? backgroundColor;
+
   const StyledDialog({
     super.key,
     required this.accentColor,
@@ -33,6 +37,7 @@ class StyledDialog extends StatelessWidget {
     required this.content,
     this.actions = const [],
     this.barrierDismissible = true,
+    this.backgroundColor,
   });
 
   @override
@@ -41,6 +46,11 @@ class StyledDialog extends StatelessWidget {
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
       child: GradientContainer(
+        // GradientContainer no acepta color sólido: se simula con un
+        // gradiente plano del mismo color.
+        gradient: backgroundColor != null
+            ? LinearGradient(colors: [backgroundColor!, backgroundColor!])
+            : null,
         borderColor: accentColor.withValues(alpha: 0.4),
         borderWidth: 1,
         customShadows: [
@@ -118,6 +128,7 @@ class StyledDialog extends StatelessWidget {
     required List<Widget> content,
     List<Widget> actions = const [],
     bool barrierDismissible = true,
+    Color? backgroundColor,
   }) {
     return showDialog<T>(
       context: context,
@@ -128,6 +139,7 @@ class StyledDialog extends StatelessWidget {
         titulo: titulo,
         content: content,
         actions: actions,
+        backgroundColor: backgroundColor,
       ),
     );
   }
