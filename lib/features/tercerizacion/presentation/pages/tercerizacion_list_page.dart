@@ -79,7 +79,11 @@ class _TercerizacionContent extends StatelessWidget {
         ),
         body: GradientBackground(
           child: SafeArea(
-            child: BlocBuilder<TercerizacionListCubit, TercerizacionListState>(
+            child: Column(
+              children: [
+                const _EstadoFilterChips(),
+                Expanded(
+                  child: BlocBuilder<TercerizacionListCubit, TercerizacionListState>(
               builder: (context, state) {
                 if (state is TercerizacionListLoading) {
                   return const Center(child: CustomLoading());
@@ -158,10 +162,74 @@ class _TercerizacionContent extends StatelessWidget {
 
                 return const SizedBox.shrink();
               },
+                  ),
+                ),
+              ],
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Chips de filtro por estado de la tercerización. El cubit ya soportaba
+/// `filterByEstado` — esto solo le pone UI.
+class _EstadoFilterChips extends StatelessWidget {
+  const _EstadoFilterChips();
+
+  static const List<(String?, String)> _estados = [
+    (null, 'Todos'),
+    ('PENDIENTE', 'Pendientes'),
+    ('ACEPTADO', 'Aceptadas'),
+    ('COMPLETADO', 'Completadas'),
+    ('RECHAZADO', 'Rechazadas'),
+    ('CANCELADO', 'Canceladas'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<TercerizacionListCubit, TercerizacionListState>(
+      builder: (context, state) {
+        final seleccionado =
+            state is TercerizacionListLoaded ? state.estado : null;
+        return SizedBox(
+          height: 40,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+            children: _estados.map((e) {
+              final activo = seleccionado == e.$1;
+              return Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: ChoiceChip(
+                  label: Text(
+                    e.$2,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: activo ? Colors.white : AppColors.blue1,
+                    ),
+                  ),
+                  selected: activo,
+                  selectedColor: AppColors.blue1,
+                  backgroundColor: Colors.white,
+                  checkmarkColor: Colors.white,
+                  visualDensity: VisualDensity.compact,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  side: BorderSide(
+                    color: activo ? AppColors.blue1 : Colors.grey.shade300,
+                    width: 0.6,
+                  ),
+                  onSelected: (_) => context
+                      .read<TercerizacionListCubit>()
+                      .filterByEstado(e.$1),
+                ),
+              );
+            }).toList(),
+          ),
+        );
+      },
     );
   }
 }

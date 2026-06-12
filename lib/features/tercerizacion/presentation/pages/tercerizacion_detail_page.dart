@@ -995,7 +995,7 @@ class _TercerizacionDetailPageState extends State<TercerizacionDetailPage> {
             backgroundColor: Colors.green,
             height: 38,
             borderRadius: 8,
-            onPressed: _isActioning ? null : () => _aceptar(),
+            onPressed: _isActioning ? null : _showAceptarDialog,
           ),
         ),
       ]);
@@ -1062,10 +1062,50 @@ class _TercerizacionDetailPageState extends State<TercerizacionDetailPage> {
 
   // ─── Action handlers ───
 
-  Future<void> _aceptar() async {
+  void _showAceptarDialog() {
+    final notasController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Aceptar tercerización',
+            style: TextStyle(fontSize: 15)),
+        content: TextField(
+          controller: notasController,
+          decoration: const InputDecoration(
+            hintText:
+                'Notas para la empresa origen (opcional): tiempo estimado, condiciones...',
+            hintStyle: TextStyle(fontSize: 13),
+          ),
+          maxLines: 3,
+          style: const TextStyle(fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _aceptar(notasController.text.trim());
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+            child: const Text('Aceptar', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _aceptar(String notas) async {
     setState(() => _isActioning = true);
     final useCase = locator<ResponderTercerizacionUseCase>();
-    final result = await useCase(id: widget.tercerizacionId, aceptar: true);
+    final result = await useCase(
+      id: widget.tercerizacionId,
+      aceptar: true,
+      // El backend siempre guardó notasDestino al aceptar; solo faltaba la UI.
+      notasDestino: notas.isNotEmpty ? notas : null,
+    );
 
     if (!mounted) return;
     setState(() => _isActioning = false);
