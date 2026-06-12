@@ -46,6 +46,11 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
   String? _error;
   bool _procesandoReversion = false;
 
+  /// Último intento de pago: si el backend rechaza por Ley 28194 (efectivo
+  /// sobre el umbral de bancarización), se reintenta con el flag de
+  /// confirmación tras avisar al cajero.
+  Map<String, dynamic>? _ultimoPagoData;
+
   @override
   void initState() {
     super.initState();
@@ -106,6 +111,7 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
             _loadVenta();
           }
           if (state is VentaPagoRegistrado) {
+            _ultimoPagoData = null;
             setState(() => _venta = state.venta);
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Pago registrado')),
@@ -127,6 +133,48 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
             _loadVenta();
           }
           if (state is VentaFormError) {
+            // Pago en efectivo sobre el umbral de bancarización: el backend
+            // exige confirmación expresa — se pregunta y se reintenta con
+            // el flag en vez de dejar el pago bloqueado.
+            final pagoPendiente = _ultimoPagoData;
+            if (state.message.contains('Ley 28194') && pagoPendiente != null) {
+              _ultimoPagoData = null;
+              final cubit = context.read<VentaFormCubit>();
+              final ventaId = _venta!.id;
+              showDialog<bool>(
+                context: context,
+                builder: (dctx) => AlertDialog(
+                  title: const Text('Pago en efectivo — Ley 28194',
+                      style: TextStyle(fontSize: 15)),
+                  content: Text(
+                    '${state.message}\n\n¿Confirmar el pago en efectivo de todas formas?',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(dctx, false),
+                      child: const Text('Cancelar'),
+                    ),
+                    ElevatedButton(
+                      onPressed: () => Navigator.pop(dctx, true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange.shade700,
+                        foregroundColor: Colors.white,
+                      ),
+                      child: const Text('Confirmar pago'),
+                    ),
+                  ],
+                ),
+              ).then((ok) {
+                if (ok == true && mounted) {
+                  cubit.procesarPago(ventaId, {
+                    ...pagoPendiente,
+                    'aceptaRiesgoBancarizacion': true,
+                  });
+                }
+              });
+              return;
+            }
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(state.message),
@@ -2432,13 +2480,15 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                               final monto = double.tryParse(montoCtrl.text);
                               if (monto == null || monto <= 0) return;
                               Navigator.pop(ctx);
+                              final data = <String, dynamic>{
+                                'metodoPago': metodoActual,
+                                'monto': monto,
+                                if (refCtrl.text.isNotEmpty) 'referencia': refCtrl.text,
+                              };
+                              _ultimoPagoData = data;
                               context.read<VentaFormCubit>().procesarPago(
                                 _venta!.id,
-                                {
-                                  'metodoPago': metodoActual,
-                                  'monto': monto,
-                                  if (refCtrl.text.isNotEmpty) 'referencia': refCtrl.text,
-                                },
+                                data,
                               );
                             },
                             icon: const Icon(Icons.check, size: 18),
