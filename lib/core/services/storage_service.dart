@@ -108,9 +108,15 @@ class StorageService {
       // Venta Rápida). El endpoint genérico /storage/upload sigue
       // requiriendo MANAGE_SETTINGS y se usa para logos de empresa,
       // sedes, etc.
-      final endpoint = (entidadTipo == 'PRODUCTO')
-          ? '/storage/upload-producto-imagen'
-          : '/storage/upload';
+      final String endpoint;
+      if (entidadTipo == 'PRODUCTO') {
+        endpoint = '/storage/upload-producto-imagen';
+      } else if (entidadTipo == 'SERVICIO_COMPONENTE') {
+        // Endpoint con permiso MANAGE_ORDERS (técnicos suben evidencia).
+        endpoint = '/storage/upload-componente-imagen';
+      } else {
+        endpoint = '/storage/upload';
+      }
 
       final response = await _dioClient.post(
         endpoint,
@@ -142,9 +148,14 @@ class StorageService {
     String? entidadTipo,
   }) async {
     try {
-      final endpoint = (entidadTipo == 'PRODUCTO')
-          ? '/storage/producto-imagen/$archivoId'
-          : '/storage/$archivoId';
+      final String endpoint;
+      if (entidadTipo == 'PRODUCTO') {
+        endpoint = '/storage/producto-imagen/$archivoId';
+      } else if (entidadTipo == 'SERVICIO_COMPONENTE') {
+        endpoint = '/storage/componente-imagen/$archivoId';
+      } else {
+        endpoint = '/storage/$archivoId';
+      }
       await _dioClient.delete(
         endpoint,
         queryParameters: {'empresaId': empresaId},

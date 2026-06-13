@@ -34,6 +34,7 @@ import '../../../usuario/domain/entities/usuario.dart';
 import '../widgets/estado_badge_widget.dart';
 import '../widgets/add_componente_sheet.dart';
 import '../widgets/edit_componente_accion_sheet.dart';
+import '../widgets/componente_imagenes_section.dart';
 import '../widgets/asignar_tecnico_sheet.dart';
 import '../widgets/cronometro_servicio_widget.dart';
 import '../widgets/firma_digital_sheet.dart';
@@ -615,7 +616,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
 
   Widget _sectionDivider() {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Container(height: 1, color: Colors.grey.shade200),
     );
   }
@@ -2127,6 +2128,12 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                 const SizedBox(height: 12),
               ],
 
+              // Imágenes (evidencia) del componente
+              ComponenteImagenesSection(
+                ordenComponenteId: comp.id,
+                empresaId: _orden!.empresaId,
+              ),
+
               // Accion details
               if (comp.descripcionAccion != null ||
                   comp.resultadoAccion != null) ...[
@@ -3481,7 +3488,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                 const SizedBox(height: 14),
                 const Text(
                   'Enviar notificacion por WhatsApp al cliente sobre el cambio de estado?',
-                  style: TextStyle(fontSize: 13),
+                  style: TextStyle(fontSize: 12),
                 ),
                 const SizedBox(height: 20),
                 Row(
@@ -3695,7 +3702,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
           Expanded(
             child: AppSubtitle(
               value,
-              fontSize: 11,
+              fontSize: 10,
               font: AppFont.amazonEmberMedium,
               overflow: TextOverflow.ellipsis,
             ),
