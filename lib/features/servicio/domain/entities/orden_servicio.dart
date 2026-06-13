@@ -23,8 +23,12 @@ class OrdenServicio extends Equatable {
   final double? adelanto;
   final double? descuento;
   final String? metodoPagoAdelanto;
-  /// Comprobante emitido al cobrar (vía Venta Rápida). Si != null → la orden ya se cobró.
+  /// Comprobante emitido al cobrar (vía Venta Rápida). Solo se setea en boleta/factura.
   final String? comprobanteId;
+  /// True si existe una VentaDetalle vinculada → la orden fue cobrada (cualquier
+  /// comprobante, incluido TICKET). Señal precisa que distingue cobrada vs
+  /// finalizada-sin-cobro.
+  final bool cobradaPorVenta;
   final int? tiempoEstimado;
   final DateTime? fechaEntrega;
   final String estado;
@@ -78,6 +82,7 @@ class OrdenServicio extends Equatable {
     this.descuento,
     this.metodoPagoAdelanto,
     this.comprobanteId,
+    this.cobradaPorVenta = false,
     this.tiempoEstimado,
     this.fechaEntrega,
     required this.estado,
@@ -130,10 +135,10 @@ class OrdenServicio extends Equatable {
     return sub - (descuento ?? 0);
   }
 
-  /// La orden ya fue cobrada/cerrada. Señal doble porque el cobro por TICKET
-  /// no emite comprobante fiscal (comprobanteId queda null), pero sí deja la
-  /// orden en FINALIZADO (la transición automática del cobro vía Venta Rápida).
-  bool get estaCobrada => comprobanteId != null || estado == 'FINALIZADO';
+  /// La orden ya fue cobrada (existe venta vinculada). Señal precisa: NO usa
+  /// estado==FINALIZADO porque se puede finalizar sin cobrar. cobradaPorVenta
+  /// cubre el TICKET (sin comprobante fiscal); comprobanteId es complemento.
+  bool get estaCobrada => cobradaPorVenta || comprobanteId != null;
 
   /// Saldo pendiente = costoFinal - adelanto. Si ya se cobró → 0 (pagada).
   double? get saldoPendiente {
