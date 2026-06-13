@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:printing/printing.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/fonts/app_fonts.dart';
 import '../../../../core/fonts/app_text_widgets.dart';
@@ -20,6 +21,7 @@ import '../../domain/usecases/get_tercerizacion_usecase.dart';
 import '../../domain/usecases/responder_tercerizacion_usecase.dart';
 import '../../domain/usecases/completar_tercerizacion_usecase.dart';
 import '../../domain/usecases/cancelar_tercerizacion_usecase.dart';
+import '../services/pdf_tercerizacion_generator.dart';
 
 class TercerizacionDetailPage extends StatefulWidget {
   final String tercerizacionId;
@@ -114,6 +116,26 @@ class _TercerizacionDetailPageState extends State<TercerizacionDetailPage> {
     });
   }
 
+  Future<void> _generarDocumento() async {
+    final item = _item;
+    if (item == null) return;
+    try {
+      final bytes = await PdfTercerizacionGenerator.generar(t: item, notas: _notas);
+      await Printing.layoutPdf(
+        onLayout: (_) async => bytes,
+        name: 'tercerizacion_${item.ordenOrigen?.codigo ?? item.id}',
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo generar la hoja de derivación', style: TextStyle(fontSize: 12)),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   @override
   void dispose() {
     _notaCtrl.dispose();
@@ -129,6 +151,13 @@ class _TercerizacionDetailPageState extends State<TercerizacionDetailPage> {
           title: 'Tercerización',
           backgroundColor: AppColors.blue1,
           foregroundColor: Colors.white,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.picture_as_pdf_outlined, color: Colors.white),
+              tooltip: 'Hoja de derivación',
+              onPressed: _item == null ? null : _generarDocumento,
+            ),
+          ],
         ),
         body: _buildBody(),
         bottomNavigationBar: _buildActions(),
