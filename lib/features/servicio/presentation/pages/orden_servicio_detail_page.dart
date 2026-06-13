@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:syncronize/core/fonts/app_fonts.dart';
 import 'package:syncronize/core/widgets/info_chip.dart';
 import 'package:syncronize/core/widgets/animated_container.dart';
 import 'package:syncronize/core/widgets/animated_confirm_dialog.dart';
@@ -318,20 +319,20 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
                   color: prioridadColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: Icon(Icons.build_outlined,
-                    color: prioridadColor, size: 16),
+                    color: prioridadColor, size: 14),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    AppSubtitle(_orden!.codigo, fontSize: 12),
+                    AppSubtitle(_orden!.codigo, fontSize: 11),
                     Text(
                       _tipoServicioLabel(_orden!.tipoServicio),
                       style: TextStyle(
@@ -624,7 +625,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
       children: [
         Row(
           children: [
-            Icon(icon, size: 13, color: AppColors.blue1),
+            Icon(icon, size: 12, color: AppColors.blue1),
             const SizedBox(width: 6),
             AppSubtitle(title, fontSize: 10, color: AppColors.blue1),
           ],
@@ -1267,7 +1268,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                 Expanded(
                   child: AppSubtitle(
                       'COMPONENTES (${componentes.length})',
-                      fontSize: 11),
+                      fontSize: 10),
                 ),
                 InkWell(
                   onTap: _showAddComponenteSheet,
@@ -1885,7 +1886,6 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
 
   Widget _buildComponenteTile(OrdenComponente comp, int index) {
     final nombre = comp.componente?.displayName ?? comp.componenteId;
-    final categoria = comp.componente?.tipoComponente?.categoria;
     final hasDetails = comp.costoAccion != null ||
         comp.costoRepuestos != null ||
         comp.tiempoAccion != null ||
@@ -1908,22 +1908,20 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Icono categoría + botón quitar
+            // Nombre del componente + botón quitar
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 24,
-                  height: 24,
-                  decoration: BoxDecoration(
-                    color: AppColors.bluechip,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Center(
-                    child: Icon(_categoriaIcon(categoria),
-                        size: 14, color: AppColors.blue1),
+                Expanded(
+                  child: AppSubtitle(
+                    nombre,
+                    font: AppFont.amazonEmberMedium,
+                    fontSize: 11,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const Spacer(),
+                const SizedBox(width: 4),
                 InkWell(
                   onTap: () => _removeComponente(comp),
                   borderRadius: BorderRadius.circular(12),
@@ -1935,14 +1933,6 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                 ),
               ],
             ),
-            const SizedBox(height: 6),
-            // Nombre
-            Text(
-              nombre,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-            ),
             if (comp.descripcionAccion != null &&
                 comp.descripcionAccion!.isNotEmpty) ...[
               const SizedBox(height: 2),
@@ -1950,7 +1940,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                 comp.descripcionAccion!,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                style: TextStyle(fontSize: 8, color: Colors.grey.shade600),
               ),
             ],
             const SizedBox(height: 6),
@@ -3603,22 +3593,23 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
 
   Widget _buildDetailRow(IconData icon, String label, String value) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.only(bottom: 2),
       child: Row(
         children: [
           Icon(icon, size: 14, color: Colors.grey.shade500),
           const SizedBox(width: 8),
           SizedBox(
-            width: 85,
+            width: 90,
             child: Text(
               label,
-              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+              style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
             ),
           ),
           Expanded(
-            child: Text(
+            child: AppSubtitle(
               value,
-              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w400),
+              fontSize: 11,
+              font: AppFont.amazonEmberMedium,
               overflow: TextOverflow.ellipsis,
             ),
           ),
