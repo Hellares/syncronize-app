@@ -19,6 +19,7 @@ abstract class TercerizacionRepository {
     String? notasOrigen,
     String? descripcionProblema,
     List<String>? sintomas,
+    List<Map<String, dynamic>>? datosAdicionales,
   });
 
   Future<Resource<TercerizacionesPaginadas>> listar({

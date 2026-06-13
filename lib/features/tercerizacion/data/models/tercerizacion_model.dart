@@ -12,6 +12,7 @@ class TercerizacionServicioModel extends TercerizacionServicio {
     super.descripcionProblema,
     super.sintomas,
     super.componentesData,
+    super.datosAdicionales,
     super.precioB2B,
     super.metodoPagoB2B,
     super.notasOrigen,
@@ -38,6 +39,7 @@ class TercerizacionServicioModel extends TercerizacionServicio {
       descripcionProblema: json['descripcionProblema'] as String?,
       sintomas: json['sintomas'],
       componentesData: json['componentesData'],
+      datosAdicionales: json['datosAdicionales'] as List<dynamic>?,
       precioB2B: json['precioB2B'] != null
           ? double.tryParse(json['precioB2B'].toString())
           : null,

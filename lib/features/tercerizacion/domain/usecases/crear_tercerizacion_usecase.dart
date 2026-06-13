@@ -15,6 +15,7 @@ class CrearTercerizacionUseCase {
     String? notasOrigen,
     String? descripcionProblema,
     List<String>? sintomas,
+    List<Map<String, dynamic>>? datosAdicionales,
   }) async {
     return await _repository.crear(
       empresaDestinoId: empresaDestinoId,
@@ -22,6 +23,7 @@ class CrearTercerizacionUseCase {
       notasOrigen: notasOrigen,
       descripcionProblema: descripcionProblema,
       sintomas: sintomas,
+      datosAdicionales: datosAdicionales,
     );
   }
 }

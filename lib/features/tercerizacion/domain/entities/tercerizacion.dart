@@ -11,6 +11,9 @@ class TercerizacionServicio extends Equatable {
   final String? descripcionProblema;
   final dynamic sintomas;
   final dynamic componentesData;
+  /// Datos adicionales (campos personalizados) incluidos al tercerizar, denormalizados:
+  /// [{ etiqueta, valor, tipo? }]
+  final List<dynamic>? datosAdicionales;
   final double? precioB2B;
   final String? metodoPagoB2B;
   final String? notasOrigen;
@@ -37,6 +40,7 @@ class TercerizacionServicio extends Equatable {
     this.descripcionProblema,
     this.sintomas,
     this.componentesData,
+    this.datosAdicionales,
     this.precioB2B,
     this.metodoPagoB2B,
     this.notasOrigen,

@@ -69,6 +69,7 @@ class TercerizacionRepositoryImpl implements TercerizacionRepository {
     String? notasOrigen,
     String? descripcionProblema,
     List<String>? sintomas,
+    List<Map<String, dynamic>>? datosAdicionales,
   }) async {
     if (!await _networkInfo.isConnected) {
       return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
@@ -80,6 +81,8 @@ class TercerizacionRepositoryImpl implements TercerizacionRepository {
         if (notasOrigen != null) 'notasOrigen': notasOrigen,
         if (descripcionProblema != null) 'descripcionProblema': descripcionProblema,
         if (sintomas != null && sintomas.isNotEmpty) 'sintomas': sintomas,
+        if (datosAdicionales != null && datosAdicionales.isNotEmpty)
+          'datosAdicionales': datosAdicionales,
       };
       final result = await _remoteDataSource.crear(data);
       return Success(result);

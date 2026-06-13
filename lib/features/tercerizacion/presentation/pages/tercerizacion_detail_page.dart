@@ -336,6 +336,24 @@ class _TercerizacionDetailPageState extends State<TercerizacionDetailPage> {
                 ),
             ],
 
+            // ─── Datos adicionales (campos personalizados incluidos) ───
+            if (item.datosAdicionales != null && item.datosAdicionales!.isNotEmpty) ...[
+              _sectionDivider(),
+              _inlineSection('Datos adicionales', Icons.list_alt_outlined),
+              const SizedBox(height: 6),
+              ...item.datosAdicionales!.map((d) {
+                final m = d is Map ? d : const <dynamic, dynamic>{};
+                final etiqueta = (m['etiqueta'] ?? '').toString();
+                final valor = m['valor'];
+                final valorStr = valor is List
+                    ? valor.join(', ')
+                    : valor is Map
+                        ? valor.entries.map((e) => '${e.key}: ${e.value}').join(' · ')
+                        : (valor?.toString() ?? '');
+                return _notaRow(etiqueta, valorStr);
+              }),
+            ],
+
             // ─── Notas ───
             if (item.notasOrigen != null || item.notasDestino != null) ...[
               _sectionDivider(),

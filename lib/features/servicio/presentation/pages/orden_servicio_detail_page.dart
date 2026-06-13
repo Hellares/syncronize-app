@@ -3860,6 +3860,30 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
       text: sintomasActuales.join(', '),
     );
 
+    // Campos personalizados de la orden disponibles para incluir en la tercerización.
+    // La key del mapa es la etiqueta (nombre del campo). Filtramos vacíos y booleanos.
+    final datosPers = _orden!.datosPersonalizados ?? const <String, dynamic>{};
+    final camposDisponibles = datosPers.entries.where((e) {
+      final v = e.value;
+      if (v == null || v is bool) return false;
+      if (v is String) {
+        final t = v.trim();
+        return t.isNotEmpty && t != 'true' && t != 'false';
+      }
+      if (v is List) return v.isNotEmpty;
+      if (v is Map) return v.isNotEmpty;
+      return true;
+    }).map((e) => e.key).toList();
+    final Set<String> camposIncluidos = {...camposDisponibles}; // por defecto todos
+    String resumenValor(dynamic v) {
+      if (v == null) return '';
+      if (v is List) return v.join(', ');
+      if (v is Map) {
+        return v.entries.map((e) => '${e.key}: ${e.value}').join(' · ');
+      }
+      return v.toString();
+    }
+
     final confirmed = await showDialog<bool>(
       context: context,
       barrierColor: const Color(0x1A000000),
@@ -3944,6 +3968,46 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                   borderColor: AppColors.blue1,
                   maxLines: 2,
                 ),
+                if (camposDisponibles.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    'Datos adicionales a incluir',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey.shade700),
+                  ),
+                  Text(
+                    'Elige qué campos de la orden enviar al taller externo.',
+                    style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+                  ),
+                  StatefulBuilder(
+                    builder: (context, setSB) => Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: camposDisponibles.map((k) {
+                        return CheckboxListTile(
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          controlAffinity: ListTileControlAffinity.leading,
+                          value: camposIncluidos.contains(k),
+                          activeColor: AppColors.blue1,
+                          visualDensity: VisualDensity.compact,
+                          title: Text(k, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                          subtitle: Text(
+                            resumenValor(datosPers[k]),
+                            style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          onChanged: (v) => setSB(() {
+                            if (v == true) {
+                              camposIncluidos.add(k);
+                            } else {
+                              camposIncluidos.remove(k);
+                            }
+                          }),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ],
                       ],
                     ),
                   ),
@@ -3991,6 +4055,14 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
 
     setState(() => _isLoading = true);
 
+    // Snapshot denormalizado de los campos elegidos: {etiqueta, valor}.
+    final datosAdicionales = camposIncluidos.isEmpty
+        ? null
+        : camposDisponibles
+            .where((k) => camposIncluidos.contains(k))
+            .map((k) => <String, dynamic>{'etiqueta': k, 'valor': datosPers[k]})
+            .toList();
+
     final useCase = locator<CrearTercerizacionUseCase>();
     final result = await useCase(
       empresaDestinoId: empresaSeleccionada.id,
@@ -4002,6 +4074,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
           ? descripcionController.text.trim()
           : null,
       sintomas: sintomasList.isNotEmpty ? sintomasList : null,
+      datosAdicionales: datosAdicionales,
     );
 
     if (!mounted) return;
