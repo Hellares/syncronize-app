@@ -130,8 +130,10 @@ class OrdenServicio extends Equatable {
     return sub - (descuento ?? 0);
   }
 
-  /// La orden ya fue cobrada (se emitió comprobante vía Venta Rápida).
-  bool get estaCobrada => comprobanteId != null;
+  /// La orden ya fue cobrada/cerrada. Señal doble porque el cobro por TICKET
+  /// no emite comprobante fiscal (comprobanteId queda null), pero sí deja la
+  /// orden en FINALIZADO (la transición automática del cobro vía Venta Rápida).
+  bool get estaCobrada => comprobanteId != null || estado == 'FINALIZADO';
 
   /// Saldo pendiente = costoFinal - adelanto. Si ya se cobró → 0 (pagada).
   double? get saldoPendiente {
