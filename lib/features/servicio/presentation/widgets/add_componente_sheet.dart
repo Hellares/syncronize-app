@@ -694,6 +694,30 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
       return _buildNuevoComponenteForm();
     }
 
+    // Componente ya elegido → colapsa la lista, solo muestra el seleccionado
+    // con un enlace para volver a abrirla (evita ocupar mucho espacio).
+    if (_componenteSeleccionado != null) {
+      return [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.blue1, width: 1),
+            ),
+            child: _buildComponenteCard(_componenteSeleccionado!),
+          ),
+        ),
+        const SizedBox(height: 8),
+        _actionLink(
+          icon: Icons.swap_horiz,
+          label: 'Elegir otro componente',
+          onTap: () => setState(() => _componenteSeleccionado = null),
+        ),
+      ];
+    }
+
     // Modo lista: buscador + tarjetas de componentes registrados.
     final filtrados = _componentesFiltrados;
     return [
