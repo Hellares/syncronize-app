@@ -708,7 +708,25 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
           ),
         )
       else
-        ...filtrados.map(_buildComponenteCard),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey.shade300, width: 0.8),
+            ),
+            child: Column(
+              children: [
+                for (var i = 0; i < filtrados.length; i++) ...[
+                  if (i > 0)
+                    Divider(height: 1, thickness: 0.6, color: Colors.grey.shade200),
+                  _buildComponenteCard(filtrados[i]),
+                ],
+              ],
+            ),
+          ),
+        ),
       const SizedBox(height: 8),
       _actionLink(
         icon: Icons.add,
@@ -726,55 +744,46 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
 
   Widget _buildComponenteCard(Componente c) {
     final seleccionado = _componenteSeleccionado?.id == c.id;
-    final subtitlePieces = <String>[
-      if (c.numeroSerie != null && c.numeroSerie!.isNotEmpty) 'Serie: ${c.numeroSerie}',
+    // Fila compacta: "Marca · Modelo · Serie" en una sola línea.
+    final partes = <String>[
+      if (c.marca != null && c.marca!.isNotEmpty) c.marca!,
+      if (c.modelo != null && c.modelo!.isNotEmpty) c.modelo!,
+      if (c.numeroSerie != null && c.numeroSerie!.isNotEmpty) c.numeroSerie!,
     ];
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(8),
-        onTap: () => setState(() => _componenteSeleccionado = c),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            color: seleccionado ? AppColors.blue1.withValues(alpha: 0.08) : Colors.white,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: seleccionado ? AppColors.blue1 : Colors.grey.shade300,
-              width: seleccionado ? 1.2 : 0.8,
+    final texto = partes.isEmpty ? c.displayName : partes.join('  ·  ');
+    return InkWell(
+      onTap: () => setState(() => _componenteSeleccionado = c),
+      child: Container(
+        color: seleccionado
+            ? AppColors.blue1.withValues(alpha: 0.08)
+            : Colors.transparent,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+        child: Row(
+          children: [
+            Icon(
+              seleccionado
+                  ? Icons.radio_button_checked
+                  : Icons.radio_button_unchecked,
+              size: 16,
+              color: seleccionado ? AppColors.blue1 : Colors.grey.shade400,
             ),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                seleccionado ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-                size: 18,
-                color: seleccionado ? AppColors.blue1 : Colors.grey.shade400,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      c.displayName,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.blue1,
-                        fontFamily: AppFonts.getFontFamily(AppFont.oxygenBold),
-                      ),
-                    ),
-                    if (subtitlePieces.isNotEmpty)
-                      Text(
-                        subtitlePieces.join(' · '),
-                        style: TextStyle(fontSize: 9, color: Colors.grey.shade500),
-                      ),
-                  ],
+            const SizedBox(width: 9),
+            Expanded(
+              child: Text(
+                texto,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: seleccionado ? FontWeight.w700 : FontWeight.w500,
+                  color: seleccionado ? AppColors.blue1 : Colors.grey.shade800,
+                  fontFamily: AppFonts.getFontFamily(
+                    seleccionado ? AppFont.oxygenBold : AppFont.oxygenRegular,
+                  ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
