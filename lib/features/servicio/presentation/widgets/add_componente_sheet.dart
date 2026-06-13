@@ -746,6 +746,42 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
     final seleccionado = _componenteSeleccionado?.id == c.id;
     final nombre =
         _selectedTipo?.nombre ?? c.tipoComponente?.nombre ?? c.codigo;
+
+    final spans = <TextSpan>[];
+    void addKv(String label, String value, {bool bold = false}) {
+      if (spans.isNotEmpty) {
+        spans.add(const TextSpan(text: '   ')); // separador entre campos
+      }
+      spans.add(TextSpan(
+        text: '$label: ',
+        style: TextStyle(
+          fontSize: 10,
+          color: seleccionado
+              ? AppColors.blue1.withValues(alpha: 0.7)
+              : Colors.grey.shade500,
+          fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
+        ),
+      ));
+      spans.add(TextSpan(
+        text: value,
+        style: TextStyle(
+          fontSize: bold ? 11.5 : 11,
+          fontWeight: bold || seleccionado ? FontWeight.w700 : FontWeight.w500,
+          color: seleccionado ? AppColors.blue1 : Colors.grey.shade800,
+          fontFamily: AppFonts.getFontFamily(
+            bold ? AppFont.oxygenBold : AppFont.oxygenRegular,
+          ),
+        ),
+      ));
+    }
+
+    addKv('Nombre', nombre, bold: true);
+    if (c.marca != null && c.marca!.isNotEmpty) addKv('Marca', c.marca!);
+    if (c.modelo != null && c.modelo!.isNotEmpty) addKv('Modelo', c.modelo!);
+    if (c.numeroSerie != null && c.numeroSerie!.isNotEmpty) {
+      addKv('Serie', c.numeroSerie!);
+    }
+
     return InkWell(
       onTap: () => setState(() => _componenteSeleccionado = c),
       child: Container(
@@ -754,69 +790,20 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
             : Colors.transparent,
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: const EdgeInsets.only(top: 1),
-              child: Icon(
-                seleccionado
-                    ? Icons.radio_button_checked
-                    : Icons.radio_button_unchecked,
-                size: 16,
-                color: seleccionado ? AppColors.blue1 : Colors.grey.shade400,
-              ),
+            Icon(
+              seleccionado
+                  ? Icons.radio_button_checked
+                  : Icons.radio_button_unchecked,
+              size: 16,
+              color: seleccionado ? AppColors.blue1 : Colors.grey.shade400,
             ),
             const SizedBox(width: 9),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _kvLine('Nombre', nombre, seleccionado, bold: true),
-                  if (c.marca != null && c.marca!.isNotEmpty)
-                    _kvLine('Marca', c.marca!, seleccionado),
-                  if (c.modelo != null && c.modelo!.isNotEmpty)
-                    _kvLine('Modelo', c.modelo!, seleccionado),
-                  if (c.numeroSerie != null && c.numeroSerie!.isNotEmpty)
-                    _kvLine('Serie', c.numeroSerie!, seleccionado),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// Línea "Etiqueta: valor" compacta para las filas de componente.
-  Widget _kvLine(String label, String value, bool seleccionado,
-      {bool bold = false}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 1),
-      child: RichText(
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        text: TextSpan(
-          children: [
-            TextSpan(
-              text: '$label: ',
-              style: TextStyle(
-                fontSize: 10,
-                color: seleccionado
-                    ? AppColors.blue1.withValues(alpha: 0.7)
-                    : Colors.grey.shade500,
-                fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
-              ),
-            ),
-            TextSpan(
-              text: value,
-              style: TextStyle(
-                fontSize: bold ? 11.5 : 11,
-                fontWeight:
-                    bold || seleccionado ? FontWeight.w700 : FontWeight.w500,
-                color: seleccionado ? AppColors.blue1 : Colors.grey.shade800,
-                fontFamily: AppFonts.getFontFamily(
-                  bold ? AppFont.oxygenBold : AppFont.oxygenRegular,
-                ),
+              child: RichText(
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                text: TextSpan(children: spans),
               ),
             ),
           ],
