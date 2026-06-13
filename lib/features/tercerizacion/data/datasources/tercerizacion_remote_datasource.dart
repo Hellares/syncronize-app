@@ -104,4 +104,27 @@ class TercerizacionRemoteDataSource {
     return TercerizacionServicioModel.fromJson(
         response.data as Map<String, dynamic>);
   }
+
+  // ─── Bitácora ───
+
+  Future<List<TercerizacionNotaModel>> getNotas(String id) async {
+    final response = await _dioClient.get(
+      '${ApiConstants.tercerizacion}/$id/notas',
+    );
+    return (response.data as List)
+        .map((e) => TercerizacionNotaModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<TercerizacionNotaModel> agregarNota(
+    String id,
+    Map<String, dynamic> data,
+  ) async {
+    final response = await _dioClient.post(
+      '${ApiConstants.tercerizacion}/$id/notas',
+      data: data,
+    );
+    return TercerizacionNotaModel.fromJson(
+        response.data as Map<String, dynamic>);
+  }
 }

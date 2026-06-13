@@ -92,6 +92,41 @@ class TercerizacionRepositoryImpl implements TercerizacionRepository {
   }
 
   @override
+  Future<Resource<List<TercerizacionNota>>> listarNotas(
+      String tercerizacionId) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final result = await _remoteDataSource.getNotas(tercerizacionId);
+      return Success(result);
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Tercerizacion');
+    }
+  }
+
+  @override
+  Future<Resource<TercerizacionNota>> agregarNota(
+    String tercerizacionId, {
+    required String contenido,
+    String? tipo,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final data = <String, dynamic>{
+        'contenido': contenido,
+        if (tipo != null) 'tipo': tipo,
+      };
+      final result = await _remoteDataSource.agregarNota(tercerizacionId, data);
+      return Success(result);
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Tercerizacion');
+    }
+  }
+
+  @override
   Future<Resource<TercerizacionesPaginadas>> listar({
     required String empresaId,
     String? tipo,

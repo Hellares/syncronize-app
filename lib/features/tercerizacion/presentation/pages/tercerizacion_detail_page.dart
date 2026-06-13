@@ -15,6 +15,7 @@ import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../domain/entities/tercerizacion.dart';
+import '../../domain/repositories/tercerizacion_repository.dart';
 import '../../domain/usecases/get_tercerizacion_usecase.dart';
 import '../../domain/usecases/responder_tercerizacion_usecase.dart';
 import '../../domain/usecases/completar_tercerizacion_usecase.dart';
@@ -34,6 +35,13 @@ class _TercerizacionDetailPageState extends State<TercerizacionDetailPage> {
   bool _isLoading = true;
   bool _isActioning = false;
   String? _error;
+
+  // Bitácora compartida
+  List<TercerizacionNota> _notas = [];
+  bool _notasLoading = false;
+  final TextEditingController _notaCtrl = TextEditingController();
+  String _notaTipo = 'NOTA'; // NOTA | REQUERIMIENTO
+  bool _enviandoNota = false;
 
   String get _empresaId {
     final state = context.read<EmpresaContextCubit>().state;
@@ -68,6 +76,48 @@ class _TercerizacionDetailPageState extends State<TercerizacionDetailPage> {
         _error = result.message;
       }
     });
+
+    if (_item != null) _loadNotas();
+  }
+
+  Future<void> _loadNotas() async {
+    setState(() => _notasLoading = true);
+    final res = await locator<TercerizacionRepository>()
+        .listarNotas(widget.tercerizacionId);
+    if (!mounted) return;
+    setState(() {
+      _notasLoading = false;
+      if (res is Success<List<TercerizacionNota>>) _notas = res.data;
+    });
+  }
+
+  Future<void> _enviarNota() async {
+    final contenido = _notaCtrl.text.trim();
+    if (contenido.isEmpty || _enviandoNota) return;
+    setState(() => _enviandoNota = true);
+    final res = await locator<TercerizacionRepository>().agregarNota(
+      widget.tercerizacionId,
+      contenido: contenido,
+      tipo: _notaTipo,
+    );
+    if (!mounted) return;
+    setState(() {
+      _enviandoNota = false;
+      if (res is Success<TercerizacionNota>) {
+        _notas = [..._notas, res.data];
+        _notaCtrl.clear();
+      } else if (res is Error<TercerizacionNota>) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(res.message, style: const TextStyle(fontSize: 12)), backgroundColor: Colors.red),
+        );
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _notaCtrl.dispose();
+    super.dispose();
   }
 
   @override
@@ -131,9 +181,163 @@ class _TercerizacionDetailPageState extends State<TercerizacionDetailPage> {
             const SizedBox(height: 12),
           ],
           _buildTimelineSection(item),
+          const SizedBox(height: 12),
+          _buildBitacoraSection(item),
           const SizedBox(height: 80),
         ],
       ),
+    );
+  }
+
+  // ─── Bitácora (apuntes / requerimientos / estados, compartida) ───
+
+  Widget _buildBitacoraSection(TercerizacionServicio item) {
+    String autorLabel(String empresaAutorId) {
+      if (empresaAutorId == item.empresaOrigenId) {
+        return item.empresaOrigen?.nombre ?? 'Origen';
+      }
+      if (empresaAutorId == item.empresaDestinoId) {
+        return item.empresaDestino?.nombre ?? 'Destino';
+      }
+      return 'Empresa';
+    }
+
+    return GradientContainer(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _inlineSection('Bitácora', Icons.forum_outlined),
+            const SizedBox(height: 8),
+            if (_notasLoading && _notas.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Center(child: CustomLoading()),
+              )
+            else if (_notas.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Text(
+                  'Sin entradas aún. Agrega una nota o requerimiento.',
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                ),
+              )
+            else
+              ..._notas.map((n) => _bitacoraRow(n, autorLabel(n.empresaAutorId))),
+            const SizedBox(height: 10),
+            _bitacoraInput(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _bitacoraRow(TercerizacionNota n, String autor) {
+    String tipoLabel;
+    Color tipoColor;
+    switch (n.tipo) {
+      case 'REQUERIMIENTO':
+        tipoLabel = 'REQUERIMIENTO';
+        tipoColor = Colors.orange.shade700;
+        break;
+      case 'CAMBIO_ESTADO':
+        tipoLabel = 'ESTADO';
+        tipoColor = AppColors.blue2;
+        break;
+      case 'SISTEMA':
+        tipoLabel = 'SISTEMA';
+        tipoColor = Colors.grey.shade600;
+        break;
+      default:
+        tipoLabel = 'NOTA';
+        tipoColor = Colors.teal.shade700;
+    }
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                decoration: BoxDecoration(
+                  color: tipoColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(tipoLabel,
+                    style: TextStyle(fontSize: 8, fontWeight: FontWeight.w700, color: tipoColor)),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(autor,
+                    style: TextStyle(fontSize: 9, color: Colors.grey.shade500),
+                    overflow: TextOverflow.ellipsis),
+              ),
+              Text(DateFormatter.formatDate(n.creadoEn),
+                  style: TextStyle(fontSize: 8, color: Colors.grey.shade400)),
+            ],
+          ),
+          const SizedBox(height: 2),
+          Text(n.contenido, style: const TextStyle(fontSize: 11)),
+        ],
+      ),
+    );
+  }
+
+  Widget _bitacoraInput() {
+    final esReq = _notaTipo == 'REQUERIMIENTO';
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        GestureDetector(
+          onTap: () => setState(() => _notaTipo = esReq ? 'NOTA' : 'REQUERIMIENTO'),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
+            decoration: BoxDecoration(
+              color: (esReq ? Colors.orange : Colors.teal).withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(esReq ? 'Req.' : 'Nota',
+                style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: esReq ? Colors.orange.shade800 : Colors.teal.shade800)),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: TextField(
+            controller: _notaCtrl,
+            minLines: 1,
+            maxLines: 3,
+            style: const TextStyle(fontSize: 12),
+            decoration: InputDecoration(
+              hintText: 'Escribe una nota o requerimiento...',
+              hintStyle: TextStyle(fontSize: 11, color: Colors.grey.shade400),
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.grey.shade300)),
+              enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.grey.shade300)),
+              focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: AppColors.blue2, width: 0.8)),
+            ),
+          ),
+        ),
+        const SizedBox(width: 4),
+        IconButton(
+          onPressed: _enviandoNota ? null : _enviarNota,
+          icon: _enviandoNota
+              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+              : const Icon(Icons.send_rounded, color: AppColors.blue1),
+        ),
+      ],
     );
   }
 

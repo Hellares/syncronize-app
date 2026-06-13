@@ -133,3 +133,25 @@ class OrdenResumenModel extends OrdenResumen {
     );
   }
 }
+
+class TercerizacionNotaModel extends TercerizacionNota {
+  const TercerizacionNotaModel({
+    required super.id,
+    required super.empresaAutorId,
+    super.usuarioId,
+    required super.tipo,
+    required super.contenido,
+    required super.creadoEn,
+  });
+
+  factory TercerizacionNotaModel.fromJson(Map<String, dynamic> json) {
+    return TercerizacionNotaModel(
+      id: json['id'] as String,
+      empresaAutorId: json['empresaAutorId'] as String,
+      usuarioId: json['usuarioId'] as String?,
+      tipo: json['tipo'] as String? ?? 'NOTA',
+      contenido: json['contenido'] as String? ?? '',
+      creadoEn: DateTime.parse(json['creadoEn'] as String),
+    );
+  }
+}

@@ -65,6 +65,28 @@ class TercerizacionServicio extends Equatable {
   List<Object?> get props => [id, estado];
 }
 
+/// Entrada de la bitácora compartida de una tercerización (apunte/requerimiento/estado).
+class TercerizacionNota extends Equatable {
+  final String id;
+  final String empresaAutorId;
+  final String? usuarioId;
+  final String tipo; // NOTA | REQUERIMIENTO | CAMBIO_ESTADO | SISTEMA
+  final String contenido;
+  final DateTime creadoEn;
+
+  const TercerizacionNota({
+    required this.id,
+    required this.empresaAutorId,
+    this.usuarioId,
+    required this.tipo,
+    required this.contenido,
+    required this.creadoEn,
+  });
+
+  @override
+  List<Object?> get props => [id];
+}
+
 class EmpresaResumen extends Equatable {
   final String id;
   final String nombre;

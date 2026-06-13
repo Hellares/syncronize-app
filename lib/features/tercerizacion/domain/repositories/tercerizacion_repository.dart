@@ -22,6 +22,14 @@ abstract class TercerizacionRepository {
     List<Map<String, dynamic>>? datosAdicionales,
   });
 
+  Future<Resource<List<TercerizacionNota>>> listarNotas(String tercerizacionId);
+
+  Future<Resource<TercerizacionNota>> agregarNota(
+    String tercerizacionId, {
+    required String contenido,
+    String? tipo,
+  });
+
   Future<Resource<TercerizacionesPaginadas>> listar({
     required String empresaId,
     String? tipo, // 'enviadas' | 'recibidas'
