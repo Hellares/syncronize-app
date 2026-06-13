@@ -90,6 +90,7 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
     'DIAGNOSTICAR',
     'REPARAR',
     'REEMPLAZAR',
+    'COMPRAR',
     'LIMPIAR',
     'ACTUALIZAR',
     'INSTALAR',
@@ -102,6 +103,7 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
     'DIAGNOSTICAR': 'Diagnosticar',
     'REPARAR': 'Reparar',
     'REEMPLAZAR': 'Reemplazar',
+    'COMPRAR': 'Comprar (repuesto)',
     'LIMPIAR': 'Limpiar',
     'ACTUALIZAR': 'Actualizar',
     'INSTALAR': 'Instalar',
@@ -114,6 +116,7 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
     'DIAGNOSTICAR': Icons.search,
     'REPARAR': Icons.build,
     'REEMPLAZAR': Icons.swap_horiz,
+    'COMPRAR': Icons.shopping_cart_outlined,
     'LIMPIAR': Icons.cleaning_services,
     'ACTUALIZAR': Icons.system_update,
     'INSTALAR': Icons.install_desktop,
@@ -365,25 +368,25 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 10),
 
                       // Header
                       Row(
                         children: [
                           Container(
-                            padding: const EdgeInsets.all(8),
+                            padding: const EdgeInsets.all(6),
                             decoration: BoxDecoration(
                               color: AppColors.blue1.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(6),
                             ),
-                            child: const Icon(Icons.memory, color: AppColors.blue1, size: 20),
+                            child: const Icon(Icons.memory, color: AppColors.blue1, size: 18),
                           ),
                           const SizedBox(width: 12),
                           const Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                AppTitle('Agregar Componente', fontSize: 15, color: AppColors.blue1),
+                                AppTitle('Agregar Componente', fontSize: 12, color: AppColors.blue1),
                                 AppLabelText('Selecciona o crea un componente para la orden',
                                     fontSize: 10, color: Colors.grey),
                               ],
@@ -399,7 +402,7 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 15),
 
                       // === SECTION 1: Tipo de Componente ===
                       _buildSectionCard(
@@ -449,6 +452,7 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
                               prefixIcon: const Icon(Icons.label_outline, size: 18),
                               borderColor: AppColors.blue1,
                               colorIcon: AppColors.blue1,
+                              textCase: TextCase.upper,
                               validator: (v) => _crearNuevoTipo && (v == null || v.trim().isEmpty)
                                   ? 'Ingresa un nombre' : null,
                             ),
@@ -528,6 +532,7 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
                             prefixIcon: const Icon(Icons.description_outlined, size: 18),
                             borderColor: AppColors.blue1,
                             colorIcon: AppColors.blue1,
+                            textCase: TextCase.upper,
                           ),
                           const SizedBox(height: 12),
 
@@ -544,6 +549,7 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
                                   prefixIcon: const Icon(Icons.payments_outlined, size: 18),
                                   borderColor: AppColors.blue1,
                                   colorIcon: AppColors.blue1,
+                                  textCase: TextCase.upper,
                                 ),
                               ),
                               const SizedBox(width: 8),
@@ -568,6 +574,7 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
                               Expanded(
                                 child: CustomText(
                                   controller: _costoRepuestosController,
+                                  textCase: TextCase.upper,
                                   label: 'Repuestos',
                                   hintText: '0.00',
                                   prefixText: 'S/ ',
@@ -581,6 +588,7 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
                               Expanded(
                                 child: CustomText(
                                   controller: _garantiaMesesController,
+                                  textCase: TextCase.upper,
                                   label: 'Garantia',
                                   hintText: '0',
                                   keyboardType: TextInputType.number,
@@ -595,6 +603,7 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
 
                           CustomText(
                             controller: _resultadoAccionController,
+                            textCase: TextCase.upper,
                             label: 'Resultado (opcional)',
                             hintText: 'Detalle del resultado...',
                             maxLines: 2,
@@ -607,6 +616,7 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
 
                           CustomText(
                             controller: _observacionesController,
+                            textCase: TextCase.upper,
                             label: 'Observaciones (opcional)',
                             hintText: 'Notas adicionales...',
                             maxLines: 2,
@@ -636,7 +646,6 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
                         backgroundColor: AppColors.blue1,
                         borderColor: AppColors.blue1,
                         textColor: Colors.white,
-                        height: 44,
                         width: double.infinity,
                         isLoading: _isSubmitting,
                       ),
@@ -690,6 +699,7 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
     return [
       CustomText(
         controller: _buscarCompCtrl,
+        textCase: TextCase.upper,
         label: 'Buscar componente',
         hintText: 'Marca, modelo o serie...',
         prefixIcon: const Icon(Icons.search, size: 18),
@@ -765,7 +775,7 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
       spans.add(TextSpan(
         text: value,
         style: TextStyle(
-          fontSize: bold ? 11.5 : 11,
+          fontSize: bold ? 10.5 : 10.5,
           fontWeight: bold || seleccionado ? FontWeight.w700 : FontWeight.w500,
           color: seleccionado ? AppColors.blue1 : Colors.grey.shade800,
           fontFamily: AppFonts.getFontFamily(
@@ -775,7 +785,7 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
       ));
     }
 
-    addKv('Nombre', nombre, bold: true);
+    addKv('Comp.', nombre, bold: true);
     if (c.marca != null && c.marca!.isNotEmpty) addKv('Marca', c.marca!);
     if (c.modelo != null && c.modelo!.isNotEmpty) addKv('Modelo', c.modelo!);
     if (c.numeroSerie != null && c.numeroSerie!.isNotEmpty) {
@@ -798,7 +808,7 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
               size: 16,
               color: seleccionado ? AppColors.blue1 : Colors.grey.shade400,
             ),
-            const SizedBox(width: 9),
+            const SizedBox(width: 7),
             Expanded(
               child: RichText(
                 maxLines: 1,
@@ -816,6 +826,7 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
     return [
       CustomText(
         controller: _marcaController,
+        textCase: TextCase.upper,
         label: 'Marca',
         hintText: 'Ej: Samsung, HP, Lenovo...',
         prefixIcon: const Icon(Icons.branding_watermark_outlined, size: 18),
@@ -843,6 +854,7 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
       const SizedBox(height: 12),
       CustomText(
         controller: _modeloController,
+        textCase: TextCase.upper,
         label: 'Modelo',
         hintText: 'Ej: Galaxy S24, ProBook 450...',
         prefixIcon: const Icon(Icons.devices, size: 18),
@@ -852,6 +864,7 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
       const SizedBox(height: 12),
       CustomText(
         controller: _serieController,
+        textCase: TextCase.upper,
         label: 'Numero de serie (opcional)',
         hintText: 'Solo si es una pieza unica',
         prefixIcon: const Icon(Icons.qr_code_outlined, size: 18),
@@ -893,24 +906,24 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
       shadowStyle: ShadowStyle.glow,
       borderColor: AppColors.blueborder,
       borderWidth: 0.6,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Container(
-                width: 22,
-                height: 22,
+                width: 20,
+                height: 20,
                 decoration: BoxDecoration(
-                  color: AppColors.blue1,
-                  borderRadius: BorderRadius.circular(6),
+                  color: AppColors.blue1.withValues(alpha: 0.9),
+                  borderRadius: BorderRadius.circular(4),
                 ),
                 child: Center(
                   child: Text(
                     step,
                     style: const TextStyle(
-                      fontSize: 11,
+                      fontSize: 8,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                     ),
@@ -926,7 +939,7 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
                   children: [
                     AppSubtitle(
                       title,
-                      fontSize: 11,
+                      fontSize: 10,
                       color: AppColors.blue1,
                       font: AppFont.oxygenBold,
                     ),
@@ -940,7 +953,7 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 8),
           ...children,
         ],
       ),
@@ -965,7 +978,7 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
             Text(
               label,
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 9,
                 color: AppColors.blue1,
                 fontWeight: FontWeight.w600,
                 fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),

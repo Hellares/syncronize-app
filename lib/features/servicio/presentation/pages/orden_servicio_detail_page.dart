@@ -4241,6 +4241,8 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
         return Colors.orange;
       case 'REEMPLAZAR':
         return AppColors.red;
+      case 'COMPRAR':
+        return Colors.amber.shade800;
       case 'DIAGNOSTICAR':
         return AppColors.blue1;
       case 'LIMPIAR':

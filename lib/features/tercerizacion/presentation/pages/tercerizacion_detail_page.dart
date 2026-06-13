@@ -904,6 +904,8 @@ class _TercerizacionDetailPageState extends State<TercerizacionDetailPage> {
         return Colors.orange;
       case 'REEMPLAZAR':
         return Colors.red;
+      case 'COMPRAR':
+        return Colors.amber.shade800;
       case 'REVISAR':
         return Colors.blue;
       case 'LIMPIAR':
