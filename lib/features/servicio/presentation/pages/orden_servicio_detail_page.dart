@@ -1381,7 +1381,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                 Icon(Icons.receipt_long_outlined,
                     size: 16, color: AppColors.blue1),
                 const SizedBox(width: 8),
-                AppSubtitle('RESUMEN DE COSTOS', fontSize: 11),
+                AppSubtitle('RESUMEN DE COSTOS', fontSize: 10),
                 const Spacer(),
                 if (!isTerminal)
                   InkWell(
@@ -1416,22 +1416,74 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                   (c.costoAccion ?? 0) > 0 || (c.costoRepuestos ?? 0) > 0
               ).map((comp) {
                 final nombre = comp.componente?.displayName ?? 'Componente';
-                final costoComp = (comp.costoAccion ?? 0) + (comp.costoRepuestos ?? 0);
+                final mo = comp.costoAccion ?? 0;
+                final rep = comp.costoRepuestos ?? 0;
+                final costoComp = mo + rep;
+                final desglose = <_DesgloseItem>[
+                  if (mo > 0) _DesgloseItem('Mano obra', mo),
+                  if (rep > 0) _DesgloseItem('Repuesto/compra', rep),
+                ];
                 return Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: Row(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.build_outlined,
-                          size: 13, color: Colors.grey.shade500),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(nombre,
-                            style: const TextStyle(fontSize: 12),
-                            overflow: TextOverflow.ellipsis),
+                      Row(
+                        children: [
+                          Icon(Icons.build_outlined,
+                              size: 13, color: Colors.grey.shade500),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: AppSubtitle(nombre,
+                                fontSize: 10,
+                                font: AppFont.amazonEmberMedium,
+                                color: Colors.grey.shade700),
+                          ),
+                          Text('S/ ${costoComp.toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                  fontSize: 11, fontWeight: FontWeight.w600)),
+                        ],
                       ),
-                      Text('S/ ${costoComp.toStringAsFixed(2)}',
-                          style: const TextStyle(
-                              fontSize: 12, fontWeight: FontWeight.w500)),
+                      // Desglose mano de obra / repuesto-compra
+                      Padding(
+                        padding: const EdgeInsets.only(left: 21, top: 3),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(Icons.subdirectory_arrow_right,
+                                size: 13, color: Colors.grey.shade400),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Wrap(
+                                spacing: 14,
+                                runSpacing: 2,
+                                children: desglose
+                                    .map((d) => RichText(
+                                          text: TextSpan(
+                                            children: [
+                                              TextSpan(
+                                                text: '${d.label}: ',
+                                                style: TextStyle(
+                                                    fontSize: 9.5,
+                                                    color: Colors.grey.shade500),
+                                              ),
+                                              TextSpan(
+                                                text:
+                                                    'S/ ${d.monto.toStringAsFixed(2)}',
+                                                style: TextStyle(
+                                                    fontSize: 9.5,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: Colors.grey.shade700),
+                                              ),
+                                            ],
+                                          ),
+                                        ))
+                                    .toList(),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
                 );
@@ -1484,7 +1536,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                               Text(
                                 _metodoPagoLabel(_orden!.metodoPagoAdelanto!),
                                 style: TextStyle(
-                                    fontSize: 11, color: Colors.grey.shade600),
+                                    fontSize: 10, color: Colors.grey.shade600),
                               ),
                             ],
                           ),
@@ -1495,7 +1547,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                         saldoPendiente <= 0 ? 'PAGADO' : 'SALDO PENDIENTE',
                         saldoPendiente <= 0 ? 0 : saldoPendiente,
                         bold: true,
-                        fontSize: 13,
+                        fontSize: 11,
                         color: saldoPendiente <= 0
                             ? Colors.green.shade700
                             : Colors.orange.shade700,
@@ -1809,7 +1861,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
   }
 
   Widget _buildCostoRow(String label, double valor,
-      {bool bold = false, Color? color, bool showSign = false, double fontSize = 12}) {
+      {bool bold = false, Color? color, bool showSign = false, double fontSize = 11}) {
     final prefix = showSign && valor >= 0 ? '+' : '';
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
@@ -4287,6 +4339,13 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
         return Colors.grey;
     }
   }
+}
+
+/// Item del desglose de costo por componente (mano de obra / repuesto-compra).
+class _DesgloseItem {
+  final String label;
+  final double monto;
+  const _DesgloseItem(this.label, this.monto);
 }
 
 class _PatronMiniPainter extends CustomPainter {
