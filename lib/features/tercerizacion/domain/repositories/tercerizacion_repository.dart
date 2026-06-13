@@ -30,6 +30,11 @@ abstract class TercerizacionRepository {
     String? tipo,
   });
 
+  Future<Resource<TercerizacionServicio>> pagarTercero(
+    String tercerizacionId, {
+    required String metodoPago,
+  });
+
   Future<Resource<TercerizacionesPaginadas>> listar({
     required String empresaId,
     String? tipo, // 'enviadas' | 'recibidas'

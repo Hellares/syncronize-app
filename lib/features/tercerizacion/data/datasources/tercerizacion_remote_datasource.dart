@@ -127,4 +127,16 @@ class TercerizacionRemoteDataSource {
     return TercerizacionNotaModel.fromJson(
         response.data as Map<String, dynamic>);
   }
+
+  Future<TercerizacionServicioModel> pagarTercero(
+    String id,
+    Map<String, dynamic> data,
+  ) async {
+    final response = await _dioClient.patch(
+      '${ApiConstants.tercerizacion}/$id/pagar-tercero',
+      data: data,
+    );
+    return TercerizacionServicioModel.fromJson(
+        response.data as Map<String, dynamic>);
+  }
 }

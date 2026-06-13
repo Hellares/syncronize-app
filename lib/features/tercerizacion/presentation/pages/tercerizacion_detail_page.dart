@@ -209,6 +209,10 @@ class _TercerizacionDetailPageState extends State<TercerizacionDetailPage> {
             _buildRechazoSection(item),
             const SizedBox(height: 12),
           ],
+          if (_isEnviada) ...[
+            _buildPagoTerceroSection(item),
+            const SizedBox(height: 12),
+          ],
           _buildTimelineSection(item),
           const SizedBox(height: 12),
           _buildBitacoraSection(item),
@@ -368,6 +372,112 @@ class _TercerizacionDetailPageState extends State<TercerizacionDetailPage> {
         ),
       ],
     );
+  }
+
+  // ─── Pago al tercero y margen (solo lado origen) ───
+
+  Widget _kvMargen(String label, double valor, Color color, {bool bold = false}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 3),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+          Text('S/ ${valor.toStringAsFixed(2)}',
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
+                  color: color)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPagoTerceroSection(TercerizacionServicio item) {
+    final precio = item.precioB2B ?? 0;
+    if (precio <= 0) return const SizedBox.shrink();
+    final cobrado = item.ordenOrigen?.costoTotal;
+    final ganancia = cobrado != null ? cobrado - precio : null;
+    return GradientContainer(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _inlineSection('Pago al tercero y margen', Icons.payments_outlined),
+            const SizedBox(height: 8),
+            if (cobrado != null)
+              _kvMargen('Cobrado al cliente', cobrado, Colors.green.shade700),
+            _kvMargen('Costo tercero (B2B)', precio, Colors.orange.shade700),
+            if (ganancia != null) ...[
+              Divider(color: Colors.grey.shade200, height: 14),
+              _kvMargen('Ganancia', ganancia, AppColors.blue1, bold: true),
+            ],
+            const SizedBox(height: 12),
+            if (item.pagadoB2B)
+              Row(children: [
+                Icon(Icons.check_circle, size: 16, color: Colors.green.shade600),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Pagado al tercero${item.fechaPagoB2B != null ? ' · ${DateFormatter.formatDate(item.fechaPagoB2B!)}' : ''}',
+                    style: TextStyle(fontSize: 11, color: Colors.green.shade700, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ])
+            else if (item.isCompletado)
+              SizedBox(
+                width: double.infinity,
+                child: CustomButton(
+                  text: 'Registrar pago al tercero  S/ ${precio.toStringAsFixed(2)}',
+                  onPressed: _isActioning ? null : _registrarPagoTercero,
+                  backgroundColor: AppColors.blue1,
+                  borderColor: AppColors.blue1,
+                  textColor: Colors.white,
+                  enableShadows: false,
+                ),
+              )
+            else
+              Text(
+                'El pago se podrá registrar cuando el tercero complete el servicio.',
+                style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _registrarPagoTercero() async {
+    const metodos = ['EFECTIVO', 'YAPE', 'PLIN', 'TARJETA', 'TRANSFERENCIA'];
+    final metodo = await showDialog<String>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('Método de pago al tercero', style: TextStyle(fontSize: 14)),
+        children: metodos
+            .map((m) => SimpleDialogOption(
+                  onPressed: () => Navigator.pop(ctx, m),
+                  child: Text(m, style: const TextStyle(fontSize: 13)),
+                ))
+            .toList(),
+      ),
+    );
+    if (metodo == null || !mounted) return;
+    setState(() => _isActioning = true);
+    final res = await locator<TercerizacionRepository>()
+        .pagarTercero(widget.tercerizacionId, metodoPago: metodo);
+    if (!mounted) return;
+    setState(() => _isActioning = false);
+    if (res is Success<TercerizacionServicio>) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Pago al tercero registrado en caja', style: TextStyle(fontSize: 12)),
+          backgroundColor: Colors.green));
+      _load();
+    } else if (res is Error<TercerizacionServicio>) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(res.message, style: const TextStyle(fontSize: 12)),
+          backgroundColor: Colors.red));
+    }
   }
 
   // ─── Info Card Unificada ───

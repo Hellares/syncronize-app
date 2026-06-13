@@ -16,6 +16,8 @@ class TercerizacionServicio extends Equatable {
   final List<dynamic>? datosAdicionales;
   final double? precioB2B;
   final String? metodoPagoB2B;
+  final bool pagadoB2B;
+  final DateTime? fechaPagoB2B;
   final String? notasOrigen;
   final String? notasDestino;
   final String? motivoRechazo;
@@ -43,6 +45,8 @@ class TercerizacionServicio extends Equatable {
     this.datosAdicionales,
     this.precioB2B,
     this.metodoPagoB2B,
+    this.pagadoB2B = false,
+    this.fechaPagoB2B,
     this.notasOrigen,
     this.notasDestino,
     this.motivoRechazo,

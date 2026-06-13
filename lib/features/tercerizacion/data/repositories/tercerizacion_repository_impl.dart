@@ -127,6 +127,25 @@ class TercerizacionRepositoryImpl implements TercerizacionRepository {
   }
 
   @override
+  Future<Resource<TercerizacionServicio>> pagarTercero(
+    String tercerizacionId, {
+    required String metodoPago,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final result = await _remoteDataSource.pagarTercero(
+        tercerizacionId,
+        {'metodoPago': metodoPago},
+      );
+      return Success(result);
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Tercerizacion');
+    }
+  }
+
+  @override
   Future<Resource<TercerizacionesPaginadas>> listar({
     required String empresaId,
     String? tipo,

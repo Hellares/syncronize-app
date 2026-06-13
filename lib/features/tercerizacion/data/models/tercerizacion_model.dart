@@ -15,6 +15,8 @@ class TercerizacionServicioModel extends TercerizacionServicio {
     super.datosAdicionales,
     super.precioB2B,
     super.metodoPagoB2B,
+    super.pagadoB2B,
+    super.fechaPagoB2B,
     super.notasOrigen,
     super.notasDestino,
     super.motivoRechazo,
@@ -44,6 +46,10 @@ class TercerizacionServicioModel extends TercerizacionServicio {
           ? double.tryParse(json['precioB2B'].toString())
           : null,
       metodoPagoB2B: json['metodoPagoB2B'] as String?,
+      pagadoB2B: json['pagadoB2B'] as bool? ?? false,
+      fechaPagoB2B: json['fechaPagoB2B'] != null
+          ? DateTime.parse(json['fechaPagoB2B'] as String)
+          : null,
       notasOrigen: json['notasOrigen'] as String?,
       notasDestino: json['notasDestino'] as String?,
       motivoRechazo: json['motivoRechazo'] as String?,
