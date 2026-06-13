@@ -36,14 +36,16 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
   bool _crearNuevoTipo = false;
 
   List<TipoComponente> _tipos = [];
-  List<String> _marcasDisponibles = [];
-  List<String> _modelosDisponibles = [];
+  List<Componente> _componentes = []; // componentes registrados del tipo elegido
+  List<String> _marcasDisponibles = []; // sugerencias de marca para "nuevo"
 
   TipoComponente? _selectedTipo;
-  String? _selectedMarca;
-  String? _selectedModelo;
+  Componente? _componenteSeleccionado; // reutiliza uno existente (por id)
+  bool _mostrarFormNuevoComp = false; // true → muestra el form de "nuevo componente"
+  bool _cargandoComponentes = false;
   String _tipoAccion = 'DIAGNOSTICAR';
 
+  final _buscarCompCtrl = TextEditingController();
   final _marcaController = TextEditingController();
   final _modeloController = TextEditingController();
   final _serieController = TextEditingController();
@@ -59,9 +61,6 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
 
   final _nombreTipoController = TextEditingController();
   String _categoriaTipo = 'HARDWARE';
-
-  bool _marcaManual = false;
-  bool _modeloManual = false;
 
   static const _categorias = [
     'HARDWARE',
@@ -131,6 +130,7 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
 
   @override
   void dispose() {
+    _buscarCompCtrl.dispose();
     _marcaController.dispose();
     _modeloController.dispose();
     _serieController.dispose();
@@ -161,45 +161,50 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
     });
   }
 
-  Future<void> _loadMarcas(String tipoComponenteId) async {
+  /// Al elegir un tipo: carga sus componentes registrados (para reutilizar) y
+  /// las marcas conocidas (sugerencias del form "nuevo"). Si el tipo no tiene
+  /// componentes aún → va directo al form de registro.
+  Future<void> _loadComponentesYMarcas(String tipoComponenteId) async {
+    setState(() {
+      _cargandoComponentes = true;
+      _componenteSeleccionado = null;
+      _mostrarFormNuevoComp = false;
+      _componentes = [];
+      _buscarCompCtrl.clear();
+      _marcaController.clear();
+      _modeloController.clear();
+      _serieController.clear();
+    });
+
     final repo = locator<ComponenteRepository>();
-    final result = await repo.getMarcas(tipoComponenteId: tipoComponenteId);
+    final compResult =
+        await repo.getComponentes(tipoComponenteId: tipoComponenteId);
+    final marcasResult =
+        await repo.getMarcas(tipoComponenteId: tipoComponenteId);
     if (!mounted) return;
 
     setState(() {
-      if (result is Success<List<String>>) {
-        _marcasDisponibles = result.data;
-      } else {
-        _marcasDisponibles = [];
-      }
-      _selectedMarca = null;
-      _selectedModelo = null;
-      _modelosDisponibles = [];
-      _marcaManual = _marcasDisponibles.isEmpty;
-      _modeloManual = true;
-      _marcaController.clear();
-      _modeloController.clear();
+      _cargandoComponentes = false;
+      _componentes =
+          compResult is Success<List<Componente>> ? compResult.data : [];
+      _marcasDisponibles =
+          marcasResult is Success<List<String>> ? marcasResult.data : [];
+      // Sin componentes registrados → form de "nuevo" directo.
+      _mostrarFormNuevoComp = _componentes.isEmpty;
     });
   }
 
-  Future<void> _loadModelos(String tipoComponenteId, String marca) async {
-    final repo = locator<ComponenteRepository>();
-    final result = await repo.getModelos(
-      tipoComponenteId: tipoComponenteId,
-      marca: marca,
-    );
-    if (!mounted) return;
-
-    setState(() {
-      if (result is Success<List<String>>) {
-        _modelosDisponibles = result.data;
-      } else {
-        _modelosDisponibles = [];
-      }
-      _selectedModelo = null;
-      _modeloManual = _modelosDisponibles.isEmpty;
-      _modeloController.clear();
-    });
+  /// Componentes filtrados por el buscador (marca/modelo/serie).
+  List<Componente> get _componentesFiltrados {
+    final q = _buscarCompCtrl.text.trim().toLowerCase();
+    if (q.isEmpty) return _componentes;
+    return _componentes.where((c) {
+      final hay = [c.marca, c.modelo, c.numeroSerie, c.displayName]
+          .where((e) => e != null)
+          .map((e) => e!.toLowerCase())
+          .join(' ');
+      return hay.contains(q);
+    }).toList();
   }
 
   Future<void> _submit() async {
@@ -241,34 +246,46 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
       tipoComponenteId = _selectedTipo!.id;
     }
 
-    // Step 2: Resolve Componente via find-or-create
-    final marca = _marcaManual
-        ? (_marcaController.text.isNotEmpty ? _marcaController.text.trim() : null)
-        : _selectedMarca;
-    final modelo = _modeloManual
-        ? (_modeloController.text.isNotEmpty ? _modeloController.text.trim() : null)
-        : _selectedModelo;
-    final serie = _serieController.text.isNotEmpty
-        ? _serieController.text.trim()
-        : null;
-
-    final compRepo = locator<ComponenteRepository>();
-    final compResult = await compRepo.findOrCreateComponente(
-      tipoComponenteId: tipoComponenteId!,
-      marca: marca,
-      modelo: modelo,
-      numeroSerie: serie,
-    );
-
-    if (!mounted) return;
-
+    // Step 2: Resolve Componente
     String? componenteId;
-    if (compResult is Success<Componente>) {
-      componenteId = compResult.data.id;
-    } else if (compResult is Error) {
-      setState(() => _isSubmitting = false);
-      _showError((compResult as Error).message);
-      return;
+    if (!_mostrarFormNuevoComp && _componenteSeleccionado != null) {
+      // Reutiliza un componente ya registrado (por id, sin find-or-create).
+      componenteId = _componenteSeleccionado!.id;
+    } else {
+      // Registra/reutiliza vía find-or-create con los datos del form "nuevo".
+      final marca = _marcaController.text.trim().isNotEmpty
+          ? _marcaController.text.trim()
+          : null;
+      final modelo = _modeloController.text.trim().isNotEmpty
+          ? _modeloController.text.trim()
+          : null;
+      final serie = _serieController.text.trim().isNotEmpty
+          ? _serieController.text.trim()
+          : null;
+
+      if (marca == null && modelo == null && serie == null) {
+        setState(() => _isSubmitting = false);
+        _showError('Selecciona un componente o ingresa marca/modelo');
+        return;
+      }
+
+      final compRepo = locator<ComponenteRepository>();
+      final compResult = await compRepo.findOrCreateComponente(
+        tipoComponenteId: tipoComponenteId!,
+        marca: marca,
+        modelo: modelo,
+        numeroSerie: serie,
+      );
+
+      if (!mounted) return;
+
+      if (compResult is Success<Componente>) {
+        componenteId = compResult.data.id;
+      } else if (compResult is Error) {
+        setState(() => _isSubmitting = false);
+        _showError((compResult as Error).message);
+        return;
+      }
     }
 
     // Step 3: Add to order
@@ -405,16 +422,8 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
                               )).toList(),
                               onChanged: (id) {
                                 final tipo = id != null ? _tipos.firstWhere((t) => t.id == id) : null;
-                                setState(() {
-                                  _selectedTipo = tipo;
-                                  _selectedMarca = null;
-                                  _selectedModelo = null;
-                                  _marcasDisponibles = [];
-                                  _modelosDisponibles = [];
-                                  _marcaManual = false;
-                                  _modeloManual = true;
-                                });
-                                if (tipo != null) _loadMarcas(tipo.id);
+                                setState(() => _selectedTipo = tipo);
+                                if (tipo != null) _loadComponentesYMarcas(tipo.id);
                               },
                               borderColor: AppColors.blue1,
                             ),
@@ -425,8 +434,10 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
                               onTap: () => setState(() {
                                 _crearNuevoTipo = true;
                                 _selectedTipo = null;
+                                _componentes = [];
+                                _componenteSeleccionado = null;
                                 _marcasDisponibles = [];
-                                _modelosDisponibles = [];
+                                _mostrarFormNuevoComp = true;
                               }),
                             ),
                           ] else ...[
@@ -478,127 +489,8 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
                         icon: Icons.devices_outlined,
                         title: 'Componente',
                         step: '2',
-                        subtitle: 'Si ya existe se reutilizara automaticamente',
-                        children: [
-                          // --- Marca ---
-                          if (!_crearNuevoTipo && _marcasDisponibles.isNotEmpty && !_marcaManual) ...[
-                            CustomDropdown<String>(
-                              label: 'Marca',
-                              hintText: 'Selecciona marca',
-                              value: _selectedMarca,
-                              items: _marcasDisponibles.map((m) => DropdownItem<String>(
-                                value: m, label: m,
-                              )).toList(),
-                              onChanged: (marca) {
-                                setState(() {
-                                  _selectedMarca = marca;
-                                  _selectedModelo = null;
-                                  _modelosDisponibles = [];
-                                  _modeloManual = false;
-                                });
-                                if (marca != null && _selectedTipo != null) {
-                                  _loadModelos(_selectedTipo!.id, marca);
-                                }
-                              },
-                              borderColor: AppColors.blue1,
-                            ),
-                            const SizedBox(height: 4),
-                            _actionLink(
-                              icon: Icons.edit,
-                              label: 'Ingresar marca nueva',
-                              onTap: () => setState(() {
-                                _marcaManual = true;
-                                _selectedMarca = null;
-                                _modeloManual = true;
-                                _selectedModelo = null;
-                                _modelosDisponibles = [];
-                              }),
-                            ),
-                          ] else ...[
-                            CustomText(
-                              controller: _marcaController,
-                              label: 'Marca',
-                              hintText: 'Ej: Samsung, HP, Lenovo...',
-                              prefixIcon: const Icon(Icons.branding_watermark_outlined, size: 18),
-                              borderColor: AppColors.blue1,
-                              colorIcon: AppColors.blue1,
-                            ),
-                            if (!_crearNuevoTipo && _marcasDisponibles.isNotEmpty) ...[
-                              const SizedBox(height: 4),
-                              _actionLink(
-                                icon: Icons.list,
-                                label: 'Seleccionar marca existente',
-                                onTap: () => setState(() {
-                                  _marcaManual = false;
-                                  _marcaController.clear();
-                                }),
-                              ),
-                            ],
-                          ],
-                          const SizedBox(height: 12),
-
-                          // --- Modelo ---
-                          if (!_crearNuevoTipo && _modelosDisponibles.isNotEmpty && !_modeloManual) ...[
-                            CustomDropdown<String>(
-                              label: 'Modelo',
-                              hintText: 'Selecciona modelo',
-                              value: _selectedModelo,
-                              items: _modelosDisponibles.map((m) => DropdownItem<String>(
-                                value: m, label: m,
-                              )).toList(),
-                              onChanged: (modelo) {
-                                setState(() => _selectedModelo = modelo);
-                              },
-                              borderColor: AppColors.blue1,
-                            ),
-                            const SizedBox(height: 4),
-                            _actionLink(
-                              icon: Icons.edit,
-                              label: 'Ingresar modelo nuevo',
-                              onTap: () => setState(() {
-                                _modeloManual = true;
-                                _selectedModelo = null;
-                              }),
-                            ),
-                          ] else ...[
-                            CustomText(
-                              controller: _modeloController,
-                              label: 'Modelo',
-                              hintText: 'Ej: Galaxy S24, ProBook 450...',
-                              prefixIcon: const Icon(Icons.devices, size: 18),
-                              borderColor: AppColors.blue1,
-                              colorIcon: AppColors.blue1,
-                            ),
-                            if (!_crearNuevoTipo && _modelosDisponibles.isNotEmpty) ...[
-                              const SizedBox(height: 4),
-                              _actionLink(
-                                icon: Icons.list,
-                                label: 'Seleccionar modelo existente',
-                                onTap: () => setState(() {
-                                  _modeloManual = false;
-                                  _modeloController.clear();
-                                }),
-                              ),
-                            ],
-                          ],
-                          const SizedBox(height: 12),
-
-                          // --- Serie ---
-                          CustomText(
-                            controller: _serieController,
-                            label: 'Numero de serie (opcional)',
-                            hintText: 'Solo si es una pieza unica',
-                            prefixIcon: const Icon(Icons.qr_code_outlined, size: 18),
-                            borderColor: AppColors.blue1,
-                            colorIcon: AppColors.blue1,
-                          ),
-                          const SizedBox(height: 4),
-                          AppLabelText(
-                            'Si ingresas serie se creara un registro nuevo',
-                            fontSize: 9,
-                            color: Colors.grey.shade500,
-                          ),
-                        ],
+                        subtitle: 'Selecciona uno registrado o crea uno nuevo',
+                        children: _buildComponenteSection(),
                       ),
 
                       const SizedBox(height: 10),
@@ -755,6 +647,206 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
         );
       },
     );
+  }
+
+  /// Sección 2: lista buscable de componentes registrados + form "nuevo".
+  List<Widget> _buildComponenteSection() {
+    // Sin tipo seleccionado (y sin crear tipo nuevo) → pedir elegir tipo antes.
+    if (!_crearNuevoTipo && _selectedTipo == null) {
+      return [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: AppLabelText(
+            'Primero selecciona un tipo de componente',
+            fontSize: 11,
+            color: Colors.grey.shade500,
+          ),
+        ),
+      ];
+    }
+
+    if (_cargandoComponentes) {
+      return const [
+        Padding(
+          padding: EdgeInsets.symmetric(vertical: 16),
+          child: Center(
+            child: SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.blue1),
+            ),
+          ),
+        ),
+      ];
+    }
+
+    // Modo formulario de "nuevo componente".
+    if (_mostrarFormNuevoComp) {
+      return _buildNuevoComponenteForm();
+    }
+
+    // Modo lista: buscador + tarjetas de componentes registrados.
+    final filtrados = _componentesFiltrados;
+    return [
+      CustomText(
+        controller: _buscarCompCtrl,
+        label: 'Buscar componente',
+        hintText: 'Marca, modelo o serie...',
+        prefixIcon: const Icon(Icons.search, size: 18),
+        borderColor: AppColors.blue1,
+        colorIcon: AppColors.blue1,
+        onChanged: (_) => setState(() {}),
+      ),
+      const SizedBox(height: 10),
+      if (filtrados.isEmpty)
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: AppLabelText(
+            'Sin coincidencias. Registra un componente nuevo.',
+            fontSize: 11,
+            color: Colors.grey.shade500,
+          ),
+        )
+      else
+        ...filtrados.map(_buildComponenteCard),
+      const SizedBox(height: 8),
+      _actionLink(
+        icon: Icons.add,
+        label: 'Registrar nuevo componente',
+        onTap: () => setState(() {
+          _mostrarFormNuevoComp = true;
+          _componenteSeleccionado = null;
+          _marcaController.clear();
+          _modeloController.clear();
+          _serieController.clear();
+        }),
+      ),
+    ];
+  }
+
+  Widget _buildComponenteCard(Componente c) {
+    final seleccionado = _componenteSeleccionado?.id == c.id;
+    final subtitlePieces = <String>[
+      if (c.numeroSerie != null && c.numeroSerie!.isNotEmpty) 'Serie: ${c.numeroSerie}',
+    ];
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: () => setState(() => _componenteSeleccionado = c),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: seleccionado ? AppColors.blue1.withValues(alpha: 0.08) : Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: seleccionado ? AppColors.blue1 : Colors.grey.shade300,
+              width: seleccionado ? 1.2 : 0.8,
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                seleccionado ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+                size: 18,
+                color: seleccionado ? AppColors.blue1 : Colors.grey.shade400,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      c.displayName,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.blue1,
+                        fontFamily: AppFonts.getFontFamily(AppFont.oxygenBold),
+                      ),
+                    ),
+                    if (subtitlePieces.isNotEmpty)
+                      Text(
+                        subtitlePieces.join(' · '),
+                        style: TextStyle(fontSize: 9, color: Colors.grey.shade500),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _buildNuevoComponenteForm() {
+    return [
+      CustomText(
+        controller: _marcaController,
+        label: 'Marca',
+        hintText: 'Ej: Samsung, HP, Lenovo...',
+        prefixIcon: const Icon(Icons.branding_watermark_outlined, size: 18),
+        borderColor: AppColors.blue1,
+        colorIcon: AppColors.blue1,
+      ),
+      // Sugerencias de marcas ya registradas para este tipo.
+      if (_marcasDisponibles.isNotEmpty) ...[
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 6,
+          runSpacing: 4,
+          children: _marcasDisponibles.map((m) {
+            return ActionChip(
+              label: Text(m, style: const TextStyle(fontSize: 10)),
+              labelPadding: const EdgeInsets.symmetric(horizontal: 2),
+              visualDensity: VisualDensity.compact,
+              backgroundColor: AppColors.blue1.withValues(alpha: 0.06),
+              side: BorderSide(color: AppColors.blue1.withValues(alpha: 0.3)),
+              onPressed: () => setState(() => _marcaController.text = m),
+            );
+          }).toList(),
+        ),
+      ],
+      const SizedBox(height: 12),
+      CustomText(
+        controller: _modeloController,
+        label: 'Modelo',
+        hintText: 'Ej: Galaxy S24, ProBook 450...',
+        prefixIcon: const Icon(Icons.devices, size: 18),
+        borderColor: AppColors.blue1,
+        colorIcon: AppColors.blue1,
+      ),
+      const SizedBox(height: 12),
+      CustomText(
+        controller: _serieController,
+        label: 'Numero de serie (opcional)',
+        hintText: 'Solo si es una pieza unica',
+        prefixIcon: const Icon(Icons.qr_code_outlined, size: 18),
+        borderColor: AppColors.blue1,
+        colorIcon: AppColors.blue1,
+      ),
+      const SizedBox(height: 4),
+      AppLabelText(
+        'Si ingresas serie se creara un registro unico',
+        fontSize: 9,
+        color: Colors.grey.shade500,
+      ),
+      // Volver a la lista (solo si hay componentes registrados y no es tipo nuevo).
+      if (!_crearNuevoTipo && _componentes.isNotEmpty) ...[
+        const SizedBox(height: 8),
+        _actionLink(
+          icon: Icons.list,
+          label: 'Ver componentes registrados',
+          onTap: () => setState(() {
+            _mostrarFormNuevoComp = false;
+            _marcaController.clear();
+            _modeloController.clear();
+            _serieController.clear();
+          }),
+        ),
+      ],
+    ];
   }
 
   Widget _buildSectionCard({
