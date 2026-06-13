@@ -352,7 +352,7 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
                   key: _formKey,
                   child: ListView(
                     controller: scrollController,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
                     children: [
                       // Handle
                       Center(
@@ -744,13 +744,8 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
 
   Widget _buildComponenteCard(Componente c) {
     final seleccionado = _componenteSeleccionado?.id == c.id;
-    // Fila compacta: "Marca · Modelo · Serie" en una sola línea.
-    final partes = <String>[
-      if (c.marca != null && c.marca!.isNotEmpty) c.marca!,
-      if (c.modelo != null && c.modelo!.isNotEmpty) c.modelo!,
-      if (c.numeroSerie != null && c.numeroSerie!.isNotEmpty) c.numeroSerie!,
-    ];
-    final texto = partes.isEmpty ? c.displayName : partes.join('  ·  ');
+    final nombre =
+        _selectedTipo?.nombre ?? c.tipoComponente?.nombre ?? c.codigo;
     return InkWell(
       onTap: () => setState(() => _componenteSeleccionado = c),
       child: Container(
@@ -759,27 +754,68 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
             : Colors.transparent,
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(
-              seleccionado
-                  ? Icons.radio_button_checked
-                  : Icons.radio_button_unchecked,
-              size: 16,
-              color: seleccionado ? AppColors.blue1 : Colors.grey.shade400,
+            Padding(
+              padding: const EdgeInsets.only(top: 1),
+              child: Icon(
+                seleccionado
+                    ? Icons.radio_button_checked
+                    : Icons.radio_button_unchecked,
+                size: 16,
+                color: seleccionado ? AppColors.blue1 : Colors.grey.shade400,
+              ),
             ),
             const SizedBox(width: 9),
             Expanded(
-              child: Text(
-                texto,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 11.5,
-                  fontWeight: seleccionado ? FontWeight.w700 : FontWeight.w500,
-                  color: seleccionado ? AppColors.blue1 : Colors.grey.shade800,
-                  fontFamily: AppFonts.getFontFamily(
-                    seleccionado ? AppFont.oxygenBold : AppFont.oxygenRegular,
-                  ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _kvLine('Nombre', nombre, seleccionado, bold: true),
+                  if (c.marca != null && c.marca!.isNotEmpty)
+                    _kvLine('Marca', c.marca!, seleccionado),
+                  if (c.modelo != null && c.modelo!.isNotEmpty)
+                    _kvLine('Modelo', c.modelo!, seleccionado),
+                  if (c.numeroSerie != null && c.numeroSerie!.isNotEmpty)
+                    _kvLine('Serie', c.numeroSerie!, seleccionado),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Línea "Etiqueta: valor" compacta para las filas de componente.
+  Widget _kvLine(String label, String value, bool seleccionado,
+      {bool bold = false}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 1),
+      child: RichText(
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        text: TextSpan(
+          children: [
+            TextSpan(
+              text: '$label: ',
+              style: TextStyle(
+                fontSize: 10,
+                color: seleccionado
+                    ? AppColors.blue1.withValues(alpha: 0.7)
+                    : Colors.grey.shade500,
+                fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
+              ),
+            ),
+            TextSpan(
+              text: value,
+              style: TextStyle(
+                fontSize: bold ? 11.5 : 11,
+                fontWeight:
+                    bold || seleccionado ? FontWeight.w700 : FontWeight.w500,
+                color: seleccionado ? AppColors.blue1 : Colors.grey.shade800,
+                fontFamily: AppFonts.getFontFamily(
+                  bold ? AppFont.oxygenBold : AppFont.oxygenRegular,
                 ),
               ),
             ),
