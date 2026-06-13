@@ -88,6 +88,12 @@ abstract class OrdenServicioRepository {
     required String ordenId,
   });
 
+  Future<Resource<OrdenComponente>> updateComponente({
+    required String ordenId,
+    required String componenteId,
+    required Map<String, dynamic> data,
+  });
+
   Future<Resource<void>> removeComponente({
     required String ordenId,
     required String componenteId,

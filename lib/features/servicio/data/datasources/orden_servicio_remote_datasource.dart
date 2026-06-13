@@ -91,6 +91,18 @@ class OrdenServicioRemoteDataSource {
         .toList();
   }
 
+  Future<OrdenComponenteModel> updateComponente(
+    String ordenId,
+    String componenteId,
+    Map<String, dynamic> data,
+  ) async {
+    final response = await _dioClient.patch(
+      '${ApiConstants.ordenesServicio}/$ordenId/componentes/$componenteId',
+      data: data,
+    );
+    return OrdenComponenteModel.fromJson(response.data as Map<String, dynamic>);
+  }
+
   Future<void> removeComponente(String ordenId, String componenteId) async {
     await _dioClient.delete(
       '${ApiConstants.ordenesServicio}/$ordenId/componentes/$componenteId',

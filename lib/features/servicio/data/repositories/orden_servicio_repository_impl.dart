@@ -281,6 +281,27 @@ class OrdenServicioRepositoryImpl implements OrdenServicioRepository {
   }
 
   @override
+  Future<Resource<OrdenComponente>> updateComponente({
+    required String ordenId,
+    required String componenteId,
+    required Map<String, dynamic> data,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final result = await _remoteDataSource.updateComponente(
+        ordenId,
+        componenteId,
+        data,
+      );
+      return Success(result);
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'OrdenServicio');
+    }
+  }
+
+  @override
   Future<Resource<void>> removeComponente({
     required String ordenId,
     required String componenteId,

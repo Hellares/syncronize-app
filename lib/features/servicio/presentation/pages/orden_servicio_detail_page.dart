@@ -33,6 +33,7 @@ import 'package:http/http.dart' as http;
 import '../../../usuario/domain/entities/usuario.dart';
 import '../widgets/estado_badge_widget.dart';
 import '../widgets/add_componente_sheet.dart';
+import '../widgets/edit_componente_accion_sheet.dart';
 import '../widgets/asignar_tecnico_sheet.dart';
 import '../widgets/cronometro_servicio_widget.dart';
 import '../widgets/firma_digital_sheet.dart';
@@ -1901,7 +1902,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
           color: Colors.white.withValues(alpha: 0.45),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: AppColors.blueborder.withValues(alpha: 0.5),
+            color: AppColors.greendark.withValues(alpha: 0.5),
             width: 0.6,
           ),
         ),
@@ -1982,7 +1983,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (_) => DraggableScrollableSheet(
         initialChildSize: 0.55,
@@ -2005,7 +2006,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
 
               // Header
               Row(
@@ -2019,7 +2020,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                     child: Icon(
                       _categoriaIcon(tipo?.categoria),
                       color: _accionColor(comp.tipoAccion),
-                      size: 22,
+                      size: 20,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -2029,7 +2030,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                       children: [
                         Text(nombre,
                             style: const TextStyle(
-                                fontSize: 15, fontWeight: FontWeight.w700)),
+                                fontSize: 13, fontWeight: FontWeight.w700)),
                         const SizedBox(height: 2),
                         Container(
                           padding: const EdgeInsets.symmetric(
@@ -2042,7 +2043,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                           child: Text(
                             comp.tipoAccion,
                             style: TextStyle(
-                              fontSize: 11,
+                              fontSize: 10,
                               fontWeight: FontWeight.w600,
                               color: _accionColor(comp.tipoAccion),
                             ),
@@ -2152,6 +2153,27 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
 
               const SizedBox(height: 16),
 
+              // Edit button
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _showEditComponenteSheet(comp);
+                  },
+                  icon: const Icon(Icons.edit_outlined, size: 18),
+                  label: const Text('Editar acción / costos'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.blue1,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+
               // Delete button
               SizedBox(
                 width: double.infinity,
@@ -2174,6 +2196,19 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  void _showEditComponenteSheet(OrdenComponente comp) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => EditComponenteAccionSheet(
+        ordenId: widget.ordenId,
+        componente: comp,
+        onUpdated: (_) => _loadAll(),
       ),
     );
   }
