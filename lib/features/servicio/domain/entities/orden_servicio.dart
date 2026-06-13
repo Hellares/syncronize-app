@@ -23,6 +23,8 @@ class OrdenServicio extends Equatable {
   final double? adelanto;
   final double? descuento;
   final String? metodoPagoAdelanto;
+  /// Comprobante emitido al cobrar (vía Venta Rápida). Si != null → la orden ya se cobró.
+  final String? comprobanteId;
   final int? tiempoEstimado;
   final DateTime? fechaEntrega;
   final String estado;
@@ -75,6 +77,7 @@ class OrdenServicio extends Equatable {
     this.adelanto,
     this.descuento,
     this.metodoPagoAdelanto,
+    this.comprobanteId,
     this.tiempoEstimado,
     this.fechaEntrega,
     required this.estado,
@@ -127,8 +130,12 @@ class OrdenServicio extends Equatable {
     return sub - (descuento ?? 0);
   }
 
-  /// Saldo pendiente = costoFinal - adelanto
+  /// La orden ya fue cobrada (se emitió comprobante vía Venta Rápida).
+  bool get estaCobrada => comprobanteId != null;
+
+  /// Saldo pendiente = costoFinal - adelanto. Si ya se cobró → 0 (pagada).
   double? get saldoPendiente {
+    if (estaCobrada) return 0;
     final final_ = costoFinal;
     if (final_ == null) return null;
     return final_ - (adelanto ?? 0);
