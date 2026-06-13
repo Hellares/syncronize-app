@@ -36,12 +36,14 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
   bool _crearNuevoTipo = false;
 
   List<TipoComponente> _tipos = [];
-  List<Componente> _componentes = []; // componentes registrados del tipo elegido
+  List<Componente> _componentes =
+      []; // componentes registrados del tipo elegido
   List<String> _marcasDisponibles = []; // sugerencias de marca para "nuevo"
 
   TipoComponente? _selectedTipo;
   Componente? _componenteSeleccionado; // reutiliza uno existente (por id)
-  bool _mostrarFormNuevoComp = false; // true → muestra el form de "nuevo componente"
+  bool _mostrarFormNuevoComp =
+      false; // true → muestra el form de "nuevo componente"
   bool _cargandoComponentes = false;
   String _tipoAccion = 'DIAGNOSTICAR';
 
@@ -180,18 +182,22 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
     });
 
     final repo = locator<ComponenteRepository>();
-    final compResult =
-        await repo.getComponentes(tipoComponenteId: tipoComponenteId);
-    final marcasResult =
-        await repo.getMarcas(tipoComponenteId: tipoComponenteId);
+    final compResult = await repo.getComponentes(
+      tipoComponenteId: tipoComponenteId,
+    );
+    final marcasResult = await repo.getMarcas(
+      tipoComponenteId: tipoComponenteId,
+    );
     if (!mounted) return;
 
     setState(() {
       _cargandoComponentes = false;
-      _componentes =
-          compResult is Success<List<Componente>> ? compResult.data : [];
-      _marcasDisponibles =
-          marcasResult is Success<List<String>> ? marcasResult.data : [];
+      _componentes = compResult is Success<List<Componente>>
+          ? compResult.data
+          : [];
+      _marcasDisponibles = marcasResult is Success<List<String>>
+          ? marcasResult.data
+          : [];
       // Sin componentes registrados → form de "nuevo" directo.
       _mostrarFormNuevoComp = _componentes.isEmpty;
     });
@@ -202,10 +208,12 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
     final q = _buscarCompCtrl.text.trim().toLowerCase();
     if (q.isEmpty) return _componentes;
     return _componentes.where((c) {
-      final hay = [c.marca, c.modelo, c.numeroSerie, c.displayName]
-          .where((e) => e != null)
-          .map((e) => e!.toLowerCase())
-          .join(' ');
+      final hay = [
+        c.marca,
+        c.modelo,
+        c.numeroSerie,
+        c.displayName,
+      ].where((e) => e != null).map((e) => e!.toLowerCase()).join(' ');
       return hay.contains(q);
     }).toList();
   }
@@ -331,9 +339,9 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -347,314 +355,414 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
         return Container(
           decoration: const BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
           ),
           child: _isLoading
-              ? const Center(child: CircularProgressIndicator(color: AppColors.blue1))
+              ? const Center(
+                  child: CircularProgressIndicator(color: AppColors.blue1),
+                )
               : Form(
                   key: _formKey,
-                  child: ListView(
-                    controller: scrollController,
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                  child: Column(
                     children: [
-                      // Handle
-                      Center(
-                        child: Container(
-                          width: 40,
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade300,
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-
-                      // Header
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: AppColors.blue1.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(6),
+                      Expanded(
+                        child: ListView(
+                          controller: scrollController,
+                          padding: const EdgeInsets.fromLTRB(10, 12, 10, 16),
+                          children: [
+                            // Handle
+                            Center(
+                              child: Container(
+                                width: 40,
+                                height: 4,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade300,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
                             ),
-                            child: const Icon(Icons.memory, color: AppColors.blue1, size: 18),
-                          ),
-                          const SizedBox(width: 12),
-                          const Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                            const SizedBox(height: 10),
+
+                            // Header
+                            Row(
                               children: [
-                                AppTitle('Agregar Componente', fontSize: 12, color: AppColors.blue1),
-                                AppLabelText('Selecciona o crea un componente para la orden',
-                                    fontSize: 10, color: Colors.grey),
+                                Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.blue1.withValues(
+                                      alpha: 0.1,
+                                    ),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: const Icon(
+                                    Icons.memory,
+                                    color: AppColors.blue1,
+                                    size: 18,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                const Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      AppTitle(
+                                        'Agregar Componente',
+                                        fontSize: 12,
+                                        color: AppColors.blue1,
+                                      ),
+                                      AppLabelText(
+                                        'Selecciona o crea un componente para la orden',
+                                        fontSize: 10,
+                                        color: Colors.grey,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                InkWell(
+                                  onTap: () => Navigator.pop(context),
+                                  borderRadius: BorderRadius.circular(20),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(4),
+                                    child: Icon(
+                                      Icons.close,
+                                      size: 20,
+                                      color: Colors.grey.shade400,
+                                    ),
+                                  ),
+                                ),
                               ],
                             ),
-                          ),
-                          InkWell(
-                            onTap: () => Navigator.pop(context),
-                            borderRadius: BorderRadius.circular(20),
-                            child: Padding(
-                              padding: const EdgeInsets.all(4),
-                              child: Icon(Icons.close, size: 20, color: Colors.grey.shade400),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 15),
+                            const SizedBox(height: 15),
 
-                      // === SECTION 1: Tipo de Componente ===
-                      _buildSectionCard(
-                        icon: Icons.category_outlined,
-                        title: 'Tipo de componente',
-                        step: '1',
-                        children: [
-                          if (_tipos.isNotEmpty && !_crearNuevoTipo) ...[
-                            CustomDropdown<String>(
-                              label: 'Seleccionar tipo',
-                              hintText: 'Ej: Pantalla, Disco Duro...',
-                              value: _selectedTipo?.id,
-                              items: _tipos.map((t) => DropdownItem<String>(
-                                value: t.id,
-                                label: '${t.nombre} (${_categoriaLabels[t.categoria] ?? t.categoria})',
-                                leading: Icon(
-                                  _categoriaIcons[t.categoria] ?? Icons.memory,
-                                  size: 16, color: AppColors.blue1,
+                            // === SECTION 1: Tipo de Componente ===
+                            _buildSectionCard(
+                              icon: Icons.category_outlined,
+                              title: 'Tipo de componente',
+                              step: '1',
+                              children: [
+                                if (_tipos.isNotEmpty && !_crearNuevoTipo) ...[
+                                  CustomDropdown<String>(
+                                    label: 'Seleccionar tipo',
+                                    hintText: 'Ej: Pantalla, Disco Duro...',
+                                    value: _selectedTipo?.id,
+                                    items: _tipos
+                                        .map(
+                                          (t) => DropdownItem<String>(
+                                            value: t.id,
+                                            label:
+                                                '${t.nombre} (${_categoriaLabels[t.categoria] ?? t.categoria})',
+                                            leading: Icon(
+                                              _categoriaIcons[t.categoria] ??
+                                                  Icons.memory,
+                                              size: 16,
+                                              color: AppColors.blue1,
+                                            ),
+                                          ),
+                                        )
+                                        .toList(),
+                                    onChanged: (id) {
+                                      final tipo = id != null
+                                          ? _tipos.firstWhere((t) => t.id == id)
+                                          : null;
+                                      setState(() => _selectedTipo = tipo);
+                                      if (tipo != null) {
+                                        _loadComponentesYMarcas(tipo.id);
+                                      }
+                                    },
+                                    borderColor: AppColors.blue1,
+                                  ),
+                                  const SizedBox(height: 6),
+                                  _actionLink(
+                                    icon: Icons.add,
+                                    label: 'Crear nuevo tipo',
+                                    onTap: () => setState(() {
+                                      _crearNuevoTipo = true;
+                                      _selectedTipo = null;
+                                      _componentes = [];
+                                      _componenteSeleccionado = null;
+                                      _marcasDisponibles = [];
+                                      _mostrarFormNuevoComp = true;
+                                    }),
+                                  ),
+                                ] else ...[
+                                  CustomText(
+                                    controller: _nombreTipoController,
+                                    label: 'Nombre del tipo',
+                                    hintText:
+                                        'Ej: Pantalla, Disco Duro, Teclado...',
+                                    required: true,
+                                    prefixIcon: const Icon(
+                                      Icons.label_outline,
+                                      size: 18,
+                                    ),
+                                    borderColor: AppColors.blue1,
+                                    colorIcon: AppColors.blue1,
+                                    textCase: TextCase.upper,
+                                    validator: (v) =>
+                                        _crearNuevoTipo &&
+                                            (v == null || v.trim().isEmpty)
+                                        ? 'Ingresa un nombre'
+                                        : null,
+                                  ),
+                                  const SizedBox(height: 12),
+                                  CustomDropdown<String>(
+                                    label: 'Categoria',
+                                    hintText: 'Selecciona categoria',
+                                    value: _categoriaTipo,
+                                    items: _categorias
+                                        .map(
+                                          (c) => DropdownItem<String>(
+                                            value: c,
+                                            label: _categoriaLabels[c] ?? c,
+                                            leading: Icon(
+                                              _categoriaIcons[c] ??
+                                                  Icons.memory,
+                                              size: 16,
+                                              color: AppColors.blue1,
+                                            ),
+                                          ),
+                                        )
+                                        .toList(),
+                                    onChanged: (v) {
+                                      if (v != null) {
+                                        setState(() => _categoriaTipo = v);
+                                      }
+                                    },
+                                    borderColor: AppColors.blue1,
+                                  ),
+                                  if (_tipos.isNotEmpty) ...[
+                                    const SizedBox(height: 6),
+                                    _actionLink(
+                                      icon: Icons.list,
+                                      label: 'Seleccionar tipo existente',
+                                      onTap: () => setState(
+                                        () => _crearNuevoTipo = false,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ],
+                            ),
+
+                            const SizedBox(height: 10),
+
+                            // === SECTION 2: Componente ===
+                            _buildSectionCard(
+                              icon: Icons.devices_outlined,
+                              title: 'Componente',
+                              step: '2',
+                              subtitle:
+                                  'Selecciona uno registrado o crea uno nuevo',
+                              children: _buildComponenteSection(),
+                            ),
+
+                            const SizedBox(height: 10),
+
+                            // === SECTION 3: Accion ===
+                            _buildSectionCard(
+                              icon: Icons.handyman_outlined,
+                              title: 'Accion sobre el componente',
+                              step: '3',
+                              children: [
+                                CustomDropdown<String>(
+                                  label: 'Accion a realizar',
+                                  hintText: 'Selecciona una accion',
+                                  value: _tipoAccion,
+                                  items: _tiposAccion
+                                      .map(
+                                        (a) => DropdownItem<String>(
+                                          value: a,
+                                          label: _tipoAccionLabels[a] ?? a,
+                                          leading: Icon(
+                                            _tipoAccionIcons[a] ?? Icons.build,
+                                            size: 16,
+                                            color: AppColors.blue1,
+                                          ),
+                                        ),
+                                      )
+                                      .toList(),
+                                  onChanged: (v) {
+                                    if (v != null) {
+                                      setState(() => _tipoAccion = v);
+                                    }
+                                  },
+                                  borderColor: AppColors.blue1,
                                 ),
-                              )).toList(),
-                              onChanged: (id) {
-                                final tipo = id != null ? _tipos.firstWhere((t) => t.id == id) : null;
-                                setState(() => _selectedTipo = tipo);
-                                if (tipo != null) _loadComponentesYMarcas(tipo.id);
-                              },
-                              borderColor: AppColors.blue1,
-                            ),
-                            const SizedBox(height: 6),
-                            _actionLink(
-                              icon: Icons.add,
-                              label: 'Crear nuevo tipo',
-                              onTap: () => setState(() {
-                                _crearNuevoTipo = true;
-                                _selectedTipo = null;
-                                _componentes = [];
-                                _componenteSeleccionado = null;
-                                _marcasDisponibles = [];
-                                _mostrarFormNuevoComp = true;
-                              }),
-                            ),
-                          ] else ...[
-                            CustomText(
-                              controller: _nombreTipoController,
-                              label: 'Nombre del tipo',
-                              hintText: 'Ej: Pantalla, Disco Duro, Teclado...',
-                              required: true,
-                              prefixIcon: const Icon(Icons.label_outline, size: 18),
-                              borderColor: AppColors.blue1,
-                              colorIcon: AppColors.blue1,
-                              textCase: TextCase.upper,
-                              validator: (v) => _crearNuevoTipo && (v == null || v.trim().isEmpty)
-                                  ? 'Ingresa un nombre' : null,
-                            ),
-                            const SizedBox(height: 12),
-                            CustomDropdown<String>(
-                              label: 'Categoria',
-                              hintText: 'Selecciona categoria',
-                              value: _categoriaTipo,
-                              items: _categorias.map((c) => DropdownItem<String>(
-                                value: c,
-                                label: _categoriaLabels[c] ?? c,
-                                leading: Icon(
-                                  _categoriaIcons[c] ?? Icons.memory,
-                                  size: 16, color: AppColors.blue1,
+                                const SizedBox(height: 12),
+                                CustomText(
+                                  controller: _descripcionController,
+                                  label: 'Descripcion (opcional)',
+                                  hintText:
+                                      'Detalle de lo que se debe hacer...',
+                                  maxLines: 2,
+                                  height: null,
+                                  prefixIcon: const Icon(
+                                    Icons.description_outlined,
+                                    size: 18,
+                                  ),
+                                  borderColor: AppColors.blue1,
+                                  colorIcon: AppColors.blue1,
+                                  textCase: TextCase.upper,
                                 ),
-                              )).toList(),
-                              onChanged: (v) {
-                                if (v != null) setState(() => _categoriaTipo = v);
-                              },
-                              borderColor: AppColors.blue1,
+                                const SizedBox(height: 12),
+
+                                // Costos row
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: CustomText(
+                                        controller: _costoAccionController,
+                                        label: 'Costo accion',
+                                        hintText: '0.00',
+                                        prefixText: 'S/ ',
+                                        keyboardType: TextInputType.number,
+                                        prefixIcon: const Icon(
+                                          Icons.payments_outlined,
+                                          size: 18,
+                                        ),
+                                        borderColor: AppColors.blue1,
+                                        colorIcon: AppColors.blue1,
+                                        textCase: TextCase.upper,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: CustomText(
+                                        controller: _tiempoAccionController,
+                                        label: 'Tiempo (min)',
+                                        hintText: '0',
+                                        keyboardType: TextInputType.number,
+                                        prefixIcon: const Icon(
+                                          Icons.timer_outlined,
+                                          size: 18,
+                                        ),
+                                        borderColor: AppColors.blue1,
+                                        colorIcon: AppColors.blue1,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+
+                                // Repuestos + garantia row
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: CustomText(
+                                        controller: _costoRepuestosController,
+                                        textCase: TextCase.upper,
+                                        label: 'Repuestos',
+                                        hintText: '0.00',
+                                        prefixText: 'S/ ',
+                                        keyboardType: TextInputType.number,
+                                        prefixIcon: const Icon(
+                                          Icons.build_outlined,
+                                          size: 18,
+                                        ),
+                                        borderColor: AppColors.blue1,
+                                        colorIcon: AppColors.blue1,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: CustomText(
+                                        controller: _garantiaMesesController,
+                                        textCase: TextCase.upper,
+                                        label: 'Garantia',
+                                        hintText: '0',
+                                        keyboardType: TextInputType.number,
+                                        prefixIcon: const Icon(
+                                          Icons.shield_outlined,
+                                          size: 18,
+                                        ),
+                                        borderColor: AppColors.blue1,
+                                        colorIcon: AppColors.blue1,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+
+                                CustomText(
+                                  controller: _resultadoAccionController,
+                                  textCase: TextCase.upper,
+                                  label: 'Resultado (opcional)',
+                                  hintText: 'Detalle del resultado...',
+                                  maxLines: 2,
+                                  height: null,
+                                  prefixIcon: const Icon(
+                                    Icons.check_circle_outline,
+                                    size: 18,
+                                  ),
+                                  borderColor: AppColors.blue1,
+                                  colorIcon: AppColors.blue1,
+                                ),
+                                const SizedBox(height: 12),
+
+                                CustomText(
+                                  controller: _observacionesController,
+                                  textCase: TextCase.upper,
+                                  label: 'Observaciones (opcional)',
+                                  hintText: 'Notas adicionales...',
+                                  maxLines: 2,
+                                  height: null,
+                                  prefixIcon: const Icon(Icons.notes, size: 18),
+                                  borderColor: AppColors.blue1,
+                                  colorIcon: AppColors.blue1,
+                                ),
+                                const SizedBox(height: 10),
+
+                                CustomSwitchTile(
+                                  title: 'Prueba realizada',
+                                  subtitle: 'Se realizo prueba del componente',
+                                  value: _pruebaRealizada,
+                                  onChanged: (v) =>
+                                      setState(() => _pruebaRealizada = v),
+                                  activeTrackColor: AppColors.blue1,
+                                ),
+                              ],
                             ),
-                            if (_tipos.isNotEmpty) ...[
-                              const SizedBox(height: 6),
-                              _actionLink(
-                                icon: Icons.list,
-                                label: 'Seleccionar tipo existente',
-                                onTap: () => setState(() => _crearNuevoTipo = false),
-                              ),
-                            ],
                           ],
-                        ],
+                        ),
                       ),
-
-                      const SizedBox(height: 10),
-
-                      // === SECTION 2: Componente ===
-                      _buildSectionCard(
-                        icon: Icons.devices_outlined,
-                        title: 'Componente',
-                        step: '2',
-                        subtitle: 'Selecciona uno registrado o crea uno nuevo',
-                        children: _buildComponenteSection(),
-                      ),
-
-                      const SizedBox(height: 10),
-
-                      // === SECTION 3: Accion ===
-                      _buildSectionCard(
-                        icon: Icons.handyman_outlined,
-                        title: 'Accion sobre el componente',
-                        step: '3',
-                        children: [
-                          CustomDropdown<String>(
-                            label: 'Accion a realizar',
-                            hintText: 'Selecciona una accion',
-                            value: _tipoAccion,
-                            items: _tiposAccion.map((a) => DropdownItem<String>(
-                              value: a,
-                              label: _tipoAccionLabels[a] ?? a,
-                              leading: Icon(
-                                _tipoAccionIcons[a] ?? Icons.build,
-                                size: 16, color: AppColors.blue1,
-                              ),
-                            )).toList(),
-                            onChanged: (v) {
-                              if (v != null) setState(() => _tipoAccion = v);
-                            },
-                            borderColor: AppColors.blue1,
-                          ),
-                          const SizedBox(height: 12),
-                          CustomText(
-                            controller: _descripcionController,
-                            label: 'Descripcion (opcional)',
-                            hintText: 'Detalle de lo que se debe hacer...',
-                            maxLines: 2,
-                            height: null,
-                            prefixIcon: const Icon(Icons.description_outlined, size: 18),
-                            borderColor: AppColors.blue1,
-                            colorIcon: AppColors.blue1,
-                            textCase: TextCase.upper,
-                          ),
-                          const SizedBox(height: 12),
-
-                          // Costos row
-                          Row(
-                            children: [
-                              Expanded(
-                                child: CustomText(
-                                  controller: _costoAccionController,
-                                  label: 'Costo accion',
-                                  hintText: '0.00',
-                                  prefixText: 'S/ ',
-                                  keyboardType: TextInputType.number,
-                                  prefixIcon: const Icon(Icons.payments_outlined, size: 18),
-                                  borderColor: AppColors.blue1,
-                                  colorIcon: AppColors.blue1,
-                                  textCase: TextCase.upper,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: CustomText(
-                                  controller: _tiempoAccionController,
-                                  label: 'Tiempo (min)',
-                                  hintText: '0',
-                                  keyboardType: TextInputType.number,
-                                  prefixIcon: const Icon(Icons.timer_outlined, size: 18),
-                                  borderColor: AppColors.blue1,
-                                  colorIcon: AppColors.blue1,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-
-                          // Repuestos + garantia row
-                          Row(
-                            children: [
-                              Expanded(
-                                child: CustomText(
-                                  controller: _costoRepuestosController,
-                                  textCase: TextCase.upper,
-                                  label: 'Repuestos',
-                                  hintText: '0.00',
-                                  prefixText: 'S/ ',
-                                  keyboardType: TextInputType.number,
-                                  prefixIcon: const Icon(Icons.build_outlined, size: 18),
-                                  borderColor: AppColors.blue1,
-                                  colorIcon: AppColors.blue1,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: CustomText(
-                                  controller: _garantiaMesesController,
-                                  textCase: TextCase.upper,
-                                  label: 'Garantia',
-                                  hintText: '0',
-                                  keyboardType: TextInputType.number,
-                                  prefixIcon: const Icon(Icons.shield_outlined, size: 18),
-                                  borderColor: AppColors.blue1,
-                                  colorIcon: AppColors.blue1,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-
-                          CustomText(
-                            controller: _resultadoAccionController,
-                            textCase: TextCase.upper,
-                            label: 'Resultado (opcional)',
-                            hintText: 'Detalle del resultado...',
-                            maxLines: 2,
-                            height: null,
-                            prefixIcon: const Icon(Icons.check_circle_outline, size: 18),
-                            borderColor: AppColors.blue1,
-                            colorIcon: AppColors.blue1,
-                          ),
-                          const SizedBox(height: 12),
-
-                          CustomText(
-                            controller: _observacionesController,
-                            textCase: TextCase.upper,
-                            label: 'Observaciones (opcional)',
-                            hintText: 'Notas adicionales...',
-                            maxLines: 2,
-                            height: null,
-                            prefixIcon: const Icon(Icons.notes, size: 18),
-                            borderColor: AppColors.blue1,
-                            colorIcon: AppColors.blue1,
-                          ),
-                          const SizedBox(height: 10),
-
-                          CustomSwitchTile(
-                            title: 'Prueba realizada',
-                            subtitle: 'Se realizo prueba del componente',
-                            value: _pruebaRealizada,
-                            onChanged: (v) => setState(() => _pruebaRealizada = v),
-                            activeTrackColor: AppColors.blue1,
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 18),
-
-                      // Submit button
-                      CustomButton(
-                        text: _isSubmitting ? 'Agregando...' : 'Agregar Componente',
-                        onPressed: _isSubmitting ? null : _submit,
-                        backgroundColor: AppColors.blue1,
-                        borderColor: AppColors.blue1,
-                        textColor: Colors.white,
-                        width: double.infinity,
-                        isLoading: _isSubmitting,
-                      ),
-                      const SizedBox(height: 16),
+                      // Footer fijo: botón siempre visible abajo, sube con el teclado.
+                      _buildFooter(context),
                     ],
                   ),
                 ),
         );
       },
+    );
+  }
+
+  Widget _buildFooter(BuildContext context) {
+    final viewInsets = MediaQuery.of(context).viewInsets.bottom;
+    return AnimatedPadding(
+      duration: const Duration(milliseconds: 150),
+      curve: Curves.easeOut,
+      padding: EdgeInsets.only(bottom: viewInsets),
+      child: SafeArea(
+        top: false,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border(
+              top: BorderSide(color: Colors.grey.shade200, width: 0.8),
+            ),
+          ),
+          child: CustomButton(
+            text: _isSubmitting ? 'Agregando...' : 'Agregar Componente',
+            onPressed: _isSubmitting ? null : _submit,
+            backgroundColor: AppColors.blue1,
+            borderColor: AppColors.blue1,
+            textColor: Colors.white,
+            width: double.infinity,
+            isLoading: _isSubmitting,
+          ),
+        ),
+      ),
     );
   }
 
@@ -682,7 +790,10 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
             child: SizedBox(
               width: 22,
               height: 22,
-              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.blue1),
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppColors.blue1,
+              ),
             ),
           ),
         ),
@@ -699,12 +810,12 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
     if (_componenteSeleccionado != null) {
       return [
         ClipRRect(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(6),
           child: Container(
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppColors.blue1, width: 1),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: AppColors.blue1, width: 0.5),
             ),
             child: _buildComponenteCard(_componenteSeleccionado!),
           ),
@@ -754,7 +865,11 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
               children: [
                 for (var i = 0; i < filtrados.length; i++) ...[
                   if (i > 0)
-                    Divider(height: 1, thickness: 0.6, color: Colors.grey.shade200),
+                    Divider(
+                      height: 1,
+                      thickness: 0.6,
+                      color: Colors.grey.shade200,
+                    ),
                   _buildComponenteCard(filtrados[i]),
                 ],
               ],
@@ -786,27 +901,33 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
       if (spans.isNotEmpty) {
         spans.add(const TextSpan(text: '   ')); // separador entre campos
       }
-      spans.add(TextSpan(
-        text: '$label: ',
-        style: TextStyle(
-          fontSize: 10,
-          color: seleccionado
-              ? AppColors.blue1.withValues(alpha: 0.7)
-              : Colors.grey.shade500,
-          fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
-        ),
-      ));
-      spans.add(TextSpan(
-        text: value,
-        style: TextStyle(
-          fontSize: bold ? 10.5 : 10.5,
-          fontWeight: bold || seleccionado ? FontWeight.w700 : FontWeight.w500,
-          color: seleccionado ? AppColors.blue1 : Colors.grey.shade800,
-          fontFamily: AppFonts.getFontFamily(
-            bold ? AppFont.oxygenBold : AppFont.oxygenRegular,
+      spans.add(
+        TextSpan(
+          text: '$label: ',
+          style: TextStyle(
+            fontSize: 10,
+            color: seleccionado
+                ? AppColors.blue1.withValues(alpha: 0.7)
+                : Colors.grey.shade500,
+            fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
           ),
         ),
-      ));
+      );
+      spans.add(
+        TextSpan(
+          text: value,
+          style: TextStyle(
+            fontSize: bold ? 10.5 : 10.5,
+            fontWeight: bold || seleccionado
+                ? FontWeight.w700
+                : FontWeight.w500,
+            color: seleccionado ? AppColors.blue1 : Colors.grey.shade800,
+            fontFamily: AppFonts.getFontFamily(
+              bold ? AppFont.oxygenBold : AppFont.oxygenRegular,
+            ),
+          ),
+        ),
+      );
     }
 
     addKv('Comp.', nombre, bold: true);
@@ -970,7 +1091,10 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
                     if (subtitle != null)
                       Text(
                         subtitle,
-                        style: TextStyle(fontSize: 9, color: Colors.grey.shade500),
+                        style: TextStyle(
+                          fontSize: 9,
+                          color: Colors.grey.shade500,
+                        ),
                       ),
                   ],
                 ),
