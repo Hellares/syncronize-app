@@ -431,7 +431,14 @@ class _CobroViewState extends State<_CobroView> {
       realtime: cubit.realtimeSync,
     );
     if (paid && context.mounted) {
-      cubit.marcarVentaCompletada(res['ventaId'] as String);
+      // Diferimos un frame: la hoja (modal) todavía se está desmontando, y si
+      // emitimos ventaCompletadaId ahora, la cadena de navegación al ticket
+      // (go dashboard → push venta-rápida → push ticket) se corta a media.
+      // Esperar al siguiente frame deja la pila limpia → muestra el ticket
+      // igual que el flujo normal.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        cubit.marcarVentaCompletada(res['ventaId'] as String);
+      });
     }
   }
 
