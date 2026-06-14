@@ -1363,7 +1363,6 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     final costoTotal = _orden!.costoTotal;
     final adelanto = _orden!.adelanto;
     final descuento = _orden!.descuento;
-    final subtotal = _orden!.subtotal;
     final costoFinal = _orden!.costoFinal;
     final saldoPendiente = _orden!.saldoPendiente;
 
@@ -1490,27 +1489,20 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                 );
               }),
               Divider(height: 16, color: AppColors.blueborder.withValues(alpha: 0.5)),
-              if (totalMO > 0)
-                _buildCostoRow('Mano de obra', totalMO),
-              if (totalRep > 0)
-                _buildCostoRow('Repuestos', totalRep),
-              if (totalMO > 0 && totalRep > 0)
-                _buildCostoRow('Subtotal componentes', subtotalComponentes, bold: true),
+              _buildCostoRow('Repuestos / componentes', subtotalComponentes, bold: true),
             ],
 
-            // Costo total acordado + desglose
+            // Costo del servicio + total al cliente (modelo aditivo: repuestos + servicio)
             if (costoTotal != null) ...[
               if (subtotalComponentes > 0)
                 Divider(height: 16, color: AppColors.blueborder.withValues(alpha: 0.5)),
               _buildCostoRow('Costo del servicio', costoTotal),
-              if (subtotalComponentes > 0 && subtotal != null)
-                _buildCostoRow('Subtotal', subtotal, bold: true),
-              if (descuento != null && descuento > 0)
-                _buildCostoRow('Descuento', -descuento, color: Colors.green.shade700, showSign: true),
-              if (costoFinal != null)
-                _buildCostoRow('Costo final', costoFinal, bold: true,
-                    color: AppColors.blue1, fontSize: 13),
             ],
+            if (descuento != null && descuento > 0)
+              _buildCostoRow('Descuento', -descuento, color: Colors.green.shade700, showSign: true),
+            if (costoFinal != null)
+              _buildCostoRow('Total al cliente', costoFinal, bold: true,
+                  color: AppColors.blue1, fontSize: 13),
 
             // Sección de pagos
             if (costoFinal != null && (adelanto != null || saldoPendiente != null)) ...[
@@ -1749,15 +1741,13 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                         padding: const EdgeInsets.all(12),
                         child: Column(
                           children: [
-                            if (compCost > 0 && costo > 0) ...[
-                              _buildCostoRow('Componentes', compCost),
-                              _buildCostoRow('Servicio', costo),
-                              Divider(height: 12, color: Colors.grey.shade200),
-                              _buildCostoRow('Subtotal', subtotalCalc, bold: true),
-                            ],
+                            if (compCost > 0)
+                              _buildCostoRow('Repuestos / componentes', compCost),
+                            if (costo > 0)
+                              _buildCostoRow('Costo del servicio', costo),
                             if (desc > 0)
                               _buildCostoRow('Descuento', -desc, color: Colors.green.shade700, showSign: true),
-                            _buildCostoRow('Costo final', costoFinalCalc, bold: true,
+                            _buildCostoRow('Total al cliente', costoFinalCalc, bold: true,
                                 color: AppColors.blue1),
                             if (adel > 0)
                               _buildCostoRow('Adelanto', adel, color: Colors.green.shade700),
