@@ -175,6 +175,7 @@ class PushNotificationService {
       'IMAGEN_CAMBIADA',
       'PRODUCTO_CREADO',
       'PRODUCTO_ACTUALIZADO',
+      'VENTA_PAGADA', // confirmación de pago Yape/Plin → cierra la hoja de espera
     };
     if (tipo != null && realtimeTipos.contains(tipo)) {
       onRealtimeData?.call(Map<String, dynamic>.from(message.data));
