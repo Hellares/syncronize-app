@@ -157,6 +157,134 @@ class NumberFormatter extends TextInputFormatter {
   }
 }
 
+// -------------------- Auto numbered list formatter --------------------
+/// Estilo del marcador de lista automática.
+enum ListMarker {
+  /// 1. 2. 3. ...
+  number,
+
+  /// A. B. C. ... Z. AA. AB. ...
+  upperLetter,
+
+  /// a. b. c. ... z. aa. ab. ...
+  lowerLetter,
+}
+
+/// Cuando el usuario presiona Enter, inserta automáticamente el siguiente
+/// marcador de lista ("1. "/"2. ", o "A. "/"B. ", o "a. "/"b. ", según
+/// [marker]). Si presiona Enter en una línea vacía (solo "N. "), corta la
+/// lista.
+///
+/// Requiere que el campo sea multilínea (maxLines: null o > 1), de lo
+/// contrario el Enter no genera salto de línea y el formatter nunca actúa.
+class AutoNumberedListFormatter extends TextInputFormatter {
+  final ListMarker marker;
+
+  /// Separador que va después del marcador. Ej: "." -> "1.", ")" -> "1)",
+  /// "-" -> "1-".
+  final String separator;
+
+  AutoNumberedListFormatter({
+    this.marker = ListMarker.number,
+    this.separator = '.',
+  });
+
+  RegExp get _re {
+    final sep = RegExp.escape(separator);
+    return marker == ListMarker.number
+        ? RegExp('^([0-9]+)$sep' r'\s*(.*)$')
+        : RegExp('^([A-Za-z]+)$sep' r'\s*(.*)$');
+  }
+
+  /// Devuelve la etiqueta (sin el punto) para una posición 1-based.
+  String _label(int index) {
+    switch (marker) {
+      case ListMarker.number:
+        return '$index';
+      case ListMarker.upperLetter:
+        return _toLetters(index, base: 65); // 'A'
+      case ListMarker.lowerLetter:
+        return _toLetters(index, base: 97); // 'a'
+    }
+  }
+
+  /// 1 -> A, 26 -> Z, 27 -> AA, ... (estilo columnas de hoja de cálculo).
+  String _toLetters(int index, {required int base}) {
+    var n = index;
+    final chars = <int>[];
+    while (n > 0) {
+      n--;
+      chars.add(base + (n % 26));
+      n ~/= 26;
+    }
+    return String.fromCharCodes(chars.reversed);
+  }
+
+  /// Parsea una etiqueta a su posición 1-based, o null si es inválida.
+  int? _parse(String label) {
+    if (marker == ListMarker.number) return int.tryParse(label);
+    var n = 0;
+    for (final c in label.toUpperCase().codeUnits) {
+      if (c < 65 || c > 90) return null; // no A-Z
+      n = n * 26 + (c - 64);
+    }
+    return n == 0 ? null : n;
+  }
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    // Solo actuamos cuando se acaba de agregar UN carácter y es '\n'.
+    final added = newValue.text.length - oldValue.text.length;
+    if (added != 1) return newValue;
+
+    final cursor = newValue.selection.baseOffset;
+    if (cursor <= 0) return newValue;
+    if (newValue.text[cursor - 1] != '\n') return newValue;
+
+    // Texto antes del salto de línea.
+    final before = newValue.text.substring(0, cursor - 1);
+    final lines = before.split('\n');
+    final currentLine = lines.isNotEmpty ? lines.last : '';
+
+    final match = _re.firstMatch(currentLine.trim());
+
+    // Si la línea actual NO es un ítem de lista:
+    if (match == null) {
+      // Si está totalmente vacía (primera escritura), arrancamos en el 1º.
+      if (currentLine.trim().isEmpty && before.trim().isEmpty) {
+        return _insert(newValue, cursor, '${_label(1)}$separator ');
+      }
+      return newValue;
+    }
+
+    final index = _parse(match.group(1)!);
+    final content = match.group(2)!.trim();
+
+    // Enter en un ítem vacío => terminar la lista (quitamos el "N. " vacío).
+    if (content.isEmpty || index == null) {
+      final trimmed = before.substring(0, before.length - currentLine.length);
+      return TextEditingValue(
+        text: trimmed,
+        selection: TextSelection.collapsed(offset: trimmed.length),
+      );
+    }
+
+    return _insert(newValue, cursor, '${_label(index + 1)}$separator ');
+  }
+
+  TextEditingValue _insert(TextEditingValue value, int at, String text) {
+    final newText =
+        value.text.substring(0, at) + text + value.text.substring(at);
+    return TextEditingValue(
+      text: newText,
+      selection: TextSelection.collapsed(offset: at + text.length),
+    );
+  }
+}
+
 // -------------------- Validation Manager (async-safe) --------------------
 class ValidationManager {
   Timer? _timer;
@@ -330,6 +458,18 @@ class CustomText extends StatefulWidget {
 
   final List<TextInputFormatter>? inputFormatters;
 
+  /// Si true, al presionar Enter inserta automáticamente el siguiente
+  /// marcador de lista. Requiere un campo multilínea (maxLines: null o > 1).
+  /// Ver [AutoNumberedListFormatter].
+  final bool autoNumberedList;
+
+  /// Estilo del marcador cuando [autoNumberedList] es true:
+  /// números (1. 2.), letras mayúsculas (A. B.) o minúsculas (a. b.).
+  final ListMarker listMarker;
+
+  /// Separador después del marcador de lista: "." (1.), ")" (1)), "-" (1-)...
+  final String listSeparator;
+
   final Widget? prefixIcon;
   final Widget? suffixIcon;
   final String? prefixText;
@@ -397,6 +537,9 @@ class CustomText extends StatefulWidget {
     this.minLines,
     this.maxLength,
     this.inputFormatters,
+    this.autoNumberedList = false,
+    this.listMarker = ListMarker.number,
+    this.listSeparator = '.',
     this.prefixIcon,
     this.suffixIcon,
     this.prefixText,
@@ -575,6 +718,9 @@ class _CustomTextFieldState extends State<CustomText>
     if (oldWidget.fieldType != widget.fieldType ||
         oldWidget.textCase != widget.textCase ||
         oldWidget.inputFormatters != widget.inputFormatters ||
+        oldWidget.autoNumberedList != widget.autoNumberedList ||
+        oldWidget.listMarker != widget.listMarker ||
+        oldWidget.listSeparator != widget.listSeparator ||
         oldWidget.maxLength != widget.maxLength ||
         oldWidget.keyboardType != widget.keyboardType) {
       _formattersCache = null;
@@ -887,13 +1033,20 @@ class _CustomTextFieldState extends State<CustomText>
 
   List<TextInputFormatter> _formatters() {
     final key =
-        '${widget.fieldType}|${widget.textCase}|${widget.maxLength}|${widget.inputFormatters.hashCode}';
+        '${widget.fieldType}|${widget.textCase}|${widget.maxLength}|${widget.autoNumberedList}|${widget.listMarker}|${widget.listSeparator}|${widget.inputFormatters.hashCode}';
     if (_formattersCache != null && _formattersKey == key) {
       return _formattersCache!;
     }
     _formattersKey = key;
 
     final list = <TextInputFormatter>[...(widget.inputFormatters ?? const [])];
+
+    if (widget.autoNumberedList) {
+      list.add(AutoNumberedListFormatter(
+        marker: widget.listMarker,
+        separator: widget.listSeparator,
+      ));
+    }
 
     if (widget.textCase == TextCase.upper) {
       list.insert(

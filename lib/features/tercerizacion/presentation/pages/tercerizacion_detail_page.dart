@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:printing/printing.dart';
+import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/fonts/app_fonts.dart';
 import '../../../../core/fonts/app_text_widgets.dart';
@@ -1358,7 +1359,6 @@ class _TercerizacionDetailPageState extends State<TercerizacionDetailPage> {
           borderColor: Colors.red,
           textColor: Colors.red,
           enableShadows: false,
-          height: 38,
           borderRadius: 8,
           onPressed: _isActioning ? null : () => _showRechazarDialog(),
         ),
@@ -1368,7 +1368,6 @@ class _TercerizacionDetailPageState extends State<TercerizacionDetailPage> {
             text: 'Aceptar',
             icon: const Icon(Icons.check, size: 14, color: Colors.white),
             backgroundColor: Colors.green,
-            height: 38,
             borderRadius: 8,
             onPressed: _isActioning ? null : _showAceptarDialog,
           ),
@@ -1388,7 +1387,6 @@ class _TercerizacionDetailPageState extends State<TercerizacionDetailPage> {
             borderColor: AppColors.blue1,
             textColor: AppColors.blue1,
             enableShadows: false,
-            height: 38,
             borderRadius: 8,
             onPressed: _isActioning
                 ? null
@@ -1407,7 +1405,6 @@ class _TercerizacionDetailPageState extends State<TercerizacionDetailPage> {
             text: 'Costo del servicio',
             icon: const Icon(Icons.payments_outlined, size: 14, color: Colors.white),
             backgroundColor: Colors.green,
-            height: 38,
             borderRadius: 8,
             onPressed: _isActioning ? null : () => _showCompletarDialog(),
           ),
@@ -1426,7 +1423,6 @@ class _TercerizacionDetailPageState extends State<TercerizacionDetailPage> {
             borderColor: Colors.red,
             textColor: Colors.red,
             enableShadows: false,
-            height: 38,
             borderRadius: 8,
             onPressed: _isActioning ? null : () => _cancelar(),
           ),
@@ -1473,28 +1469,27 @@ class _TercerizacionDetailPageState extends State<TercerizacionDetailPage> {
           style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
         ),
         const SizedBox(height: 10),
-        TextField(
+        CustomText(
           controller: notasController,
-          decoration: InputDecoration(
-            hintText: 'Notas para la empresa origen (opcional): tiempo estimado, condiciones...',
-            hintStyle: const TextStyle(fontSize: 12),
-            isDense: true,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-          ),
+          borderColor: AppColors.green,
+          hintText: 'Notas para la empresa origen (opcional): tiempo estimado, condiciones...',
           maxLines: 3,
-          style: const TextStyle(fontSize: 13),
-        ),
+        )
       ],
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
-        ElevatedButton(
-          onPressed: () {
-            Navigator.pop(context);
-            _aceptar(notasController.text.trim());
-          },
-          style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-          child: const Text('Aceptar', style: TextStyle(color: Colors.white)),
-        ),
+        TextButton(onPressed: () => Navigator.pop(context), child: const AppSubtitle('Cancelar', color: AppColors.red),),
+        SizedBox(
+          width: 120,
+          child: CustomButton(
+            text: 'Aceptar',
+            icon: const Icon(Icons.check, size: 14, color: Colors.white),
+            backgroundColor: Colors.green,
+            onPressed: () {
+              Navigator.pop(context);
+              _aceptar(notasController.text.trim());
+            },
+          ),
+        )
       ],
     );
   }
@@ -1528,20 +1523,16 @@ class _TercerizacionDetailPageState extends State<TercerizacionDetailPage> {
       icon: Icons.cancel_outlined,
       titulo: 'Rechazar tercerización',
       content: [
-        TextField(
-          controller: motivoController,
-          decoration: InputDecoration(
-            hintText: 'Motivo del rechazo (opcional)',
-            hintStyle: const TextStyle(fontSize: 12),
-            isDense: true,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-          ),
-          maxLines: 3,
-          style: const TextStyle(fontSize: 13),
-        ),
+        CustomText(
+           controller: motivoController,
+           hintText: 'Motivo del rechazo (opcional)',
+           borderColor: AppColors.red,
+           maxLines: 3,
+        )
+    
       ],
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+        TextButton(onPressed: () => Navigator.pop(context), child: const AppSubtitle('Cancelar', color: AppColors.red),),
         ElevatedButton(
           onPressed: () {
             Navigator.pop(context);
@@ -1577,10 +1568,10 @@ class _TercerizacionDetailPageState extends State<TercerizacionDetailPage> {
   void _showCompletarDialog() {
     final precioController = TextEditingController();
     final notasController = TextEditingController();
-    final input = InputDecoration(
-      isDense: true,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-    );
+    // final input = InputDecoration(
+    //   isDense: true,
+    //   border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+    // );
 
     StyledDialog.show<void>(
       context,
@@ -1594,38 +1585,43 @@ class _TercerizacionDetailPageState extends State<TercerizacionDetailPage> {
           style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
         ),
         const SizedBox(height: 12),
-        TextField(
+        CustomText(
           controller: precioController,
-          decoration: input.copyWith(labelText: 'Costo del servicio (S/)', labelStyle: const TextStyle(fontSize: 13)),
+          borderColor: AppColors.green,
+          hintText: 'Costo del servicio (S/)',
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          style: const TextStyle(fontSize: 13),
         ),
+        
         const SizedBox(height: 10),
-        TextField(
+        CustomText(
           controller: notasController,
-          decoration: input.copyWith(labelText: 'Notas (opcional)', labelStyle: const TextStyle(fontSize: 13)),
+          borderColor: AppColors.green,
+          hintText: 'Notas (opcional)',
           maxLines: 2,
-          style: const TextStyle(fontSize: 13),
         ),
       ],
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
-        ElevatedButton(
-          onPressed: () {
-            final precio = double.tryParse(precioController.text.trim());
-            if (precio == null || precio <= 0) {
-              _showSnackBar('Ingrese un costo válido', Colors.red);
-              return;
-            }
-            Navigator.pop(context);
-            _completar(
-              precio,
-              null,
-              notasController.text.trim().isNotEmpty ? notasController.text.trim() : null,
-            );
-          },
-          style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-          child: const Text('Guardar costo', style: TextStyle(color: Colors.white)),
+        TextButton(onPressed: () => Navigator.pop(context), child: const AppSubtitle('Cancelar', color: AppColors.red),),
+        SizedBox(
+          width: 150,
+          child: CustomButton(
+            text: 'Guardar costo',
+            icon: const Icon(Icons.check, size: 14, color: Colors.white),
+            backgroundColor: Colors.green,
+            onPressed: () {
+              final precio = double.tryParse(precioController.text.trim());
+              if (precio == null || precio <= 0) {
+                _showSnackBar('Ingrese un costo válido', Colors.red);
+                return;
+              }
+              Navigator.pop(context);
+              _completar(
+                precio,
+                null,
+                notasController.text.trim().isNotEmpty ? notasController.text.trim() : null,
+              );
+            },
+          ),
         ),
       ],
     );

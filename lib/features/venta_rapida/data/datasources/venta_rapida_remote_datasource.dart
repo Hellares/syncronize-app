@@ -20,6 +20,20 @@ class VentaRapidaRemoteDataSource {
     return VentaModel.fromJson(response.data as Map<String, dynamic>);
   }
 
+  /// Genera un cobro Yape/Plin (monto único) para una venta ya creada.
+  /// Devuelve { habilitado, payAmount?, chargeId? }.
+  Future<Map<String, dynamic>> cobroYape(String ventaId) async {
+    final response = await _dioClient.post('/ventas/$ventaId/cobro-yape');
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  /// Registra un pago en una venta existente (fallback manual con el screenshot).
+  Future<VentaModel> registrarPago(
+      String ventaId, Map<String, dynamic> data) async {
+    final response = await _dioClient.post('/ventas/$ventaId/pago', data: data);
+    return VentaModel.fromJson(response.data as Map<String, dynamic>);
+  }
+
   /// Resuelve el id del EmpresaPersona "CLIENTES VARIOS" para la empresa
   /// actual (el backend lo crea si no existe).
   /// Devuelve solo el `id`. El resto de campos (`nombres`, `apellidos`, `dni`)

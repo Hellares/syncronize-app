@@ -355,7 +355,7 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
         return Container(
           decoration: const BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
           ),
           child: _isLoading
               ? const Center(
@@ -381,7 +381,7 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 10),
+                            const SizedBox(height: 5),
 
                             // Header
                             Row(

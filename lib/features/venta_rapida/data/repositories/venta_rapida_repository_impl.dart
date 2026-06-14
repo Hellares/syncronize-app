@@ -44,6 +44,34 @@ class VentaRapidaRepositoryImpl implements VentaRapidaRepository {
     }
   }
 
+  @override
+  Future<Resource<Map<String, dynamic>>> cobroYape(String ventaId) async {
+    if (!await _network.isConnected) {
+      return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final data = await _remote.cobroYape(ventaId);
+      return Success(data);
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'VentaRapida.cobroYape');
+    }
+  }
+
+  @override
+  Future<Resource<Venta>> registrarPago(
+      String ventaId, Map<String, dynamic> data) async {
+    if (!await _network.isConnected) {
+      return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final venta = await _remote.registrarPago(ventaId, data);
+      return Success(venta.toEntity());
+    } catch (e) {
+      return _errorHandler.handleException(e,
+          context: 'VentaRapida.registrarPago');
+    }
+  }
+
   /// Devuelve un `Error<Venta>` con un `errorCode` estructurado si la
   /// excepción representa un 409 del backend con `code:
   /// PRECIO_DESACTUALIZADO` o `STOCK_INSUFICIENTE`. Si no es ninguno,

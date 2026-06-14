@@ -120,6 +120,14 @@ class RealtimeHeartbeat extends RealtimeEvent {
   const RealtimeHeartbeat(this.empresaId);
 }
 
+/// Una venta fue PAGADA (confirmación de pago Yape/Plin validada por api-yape).
+/// La pantalla que está esperando el pago de esa venta debe cerrarse como pagada.
+class RealtimeVentaPagada extends RealtimeEvent {
+  final String empresaId;
+  final String ventaId;
+  const RealtimeVentaPagada({required this.empresaId, required this.ventaId});
+}
+
 /// Las imágenes de un producto fueron modificadas (upload/delete). El
 /// listener debe refrescar el catálogo — la URL puede ser nueva o
 /// haber desaparecido.
@@ -402,6 +410,16 @@ class RealtimeSyncService {
           empresaId: empresaId,
           clienteEmpresaId: _stringOrNull(data['clienteEmpresaId']),
         ));
+        break;
+
+      case 'VENTA_PAGADA':
+        final ventaId = _stringOrNull(data['ventaId']);
+        if (ventaId != null) {
+          _eventsController.add(RealtimeVentaPagada(
+            empresaId: empresaId,
+            ventaId: ventaId,
+          ));
+        }
         break;
 
       case 'PRODUCTO_CREADO':

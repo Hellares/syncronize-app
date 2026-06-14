@@ -58,7 +58,7 @@ class AnimatedConfirmDialog extends StatelessWidget {
     this.onCancel,
     this.showConfirmButton = true,
     // Borde animado
-    this.borderRadius = 14,
+    this.borderRadius = 8,
     this.borderWidth = 1.5,
     this.borderColors,
     this.animationDuration = const Duration(seconds: 5),
@@ -88,7 +88,7 @@ class AnimatedConfirmDialog extends StatelessWidget {
     VoidCallback? onConfirm,
     VoidCallback? onCancel,
     bool showConfirmButton = true,
-    double borderRadius = 14,
+    double borderRadius = 8,
     double borderWidth = 1.3,
     List<Color>? borderColors,
     Duration animationDuration = const Duration(seconds: 5),
@@ -150,7 +150,7 @@ class AnimatedConfirmDialog extends StatelessWidget {
             color: Colors.white,
             borderRadius: BorderRadius.circular(borderRadius),
           ),
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(14),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -158,7 +158,7 @@ class AnimatedConfirmDialog extends StatelessWidget {
               // Título
               AppTitle(
                 title,
-                fontSize: 14,
+                fontSize: 13,
                 color: titleColor ?? AppColors.blue1,
               ),
               const SizedBox(height: 12),

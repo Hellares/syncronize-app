@@ -241,6 +241,7 @@ class _CerrarCajaPageState extends State<CerrarCajaPage> {
         .where((m) =>
             !m.anulado &&
             m.tipo == TipoMovimientoCaja.ingreso &&
+
             m.categoria == CategoriaMovimientoCaja.venta)
         .fold<double>(0, (sum, m) => sum + m.monto);
 

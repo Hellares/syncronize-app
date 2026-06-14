@@ -13,6 +13,14 @@ abstract class VentaRapidaRepository {
   /// estructurado por el cubit del módulo Venta Rápida.
   Future<Resource<Venta>> cobrar({required Map<String, dynamic> data});
 
+  /// Genera un cobro Yape/Plin (monto único) para una venta ya creada.
+  /// Devuelve { habilitado: bool, payAmount?: num, chargeId?: String }.
+  Future<Resource<Map<String, dynamic>>> cobroYape(String ventaId);
+
+  /// Registra un pago en una venta existente (fallback manual con el screenshot).
+  Future<Resource<Venta>> registrarPago(
+      String ventaId, Map<String, dynamic> data);
+
   /// Obtiene (o crea on-the-fly) el id del EmpresaPersona "CLIENTES VARIOS"
   /// para la empresa actual. Usado cuando el cajero elige "Genérico" en el
   /// flujo de cobro.
