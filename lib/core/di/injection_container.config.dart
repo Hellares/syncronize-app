@@ -4613,22 +4613,23 @@ extension GetItInjectableX on _i174.GetIt {
         verifyEmailUseCase: gh<_i30.VerifyEmailUseCase>(),
       ),
     );
-    gh.lazySingleton<_i975.CotizacionRapidaCubit>(
-      () => _i975.CotizacionRapidaCubit(
-        gh<_i431.CrearCotizacionRapidaUseCase>(),
-        gh<_i865.ActualizarCotizacionRapidaUseCase>(),
+    gh.lazySingleton<_i985.VentaRapidaCubit>(
+      () => _i985.VentaRapidaCubit(
+        gh<_i40.CobrarVentaRapidaUseCase>(),
+        gh<_i696.ObtenerClienteGenericoUseCase>(),
         gh<_i765.BuscarClientePorDniUseCase>(),
         gh<_i33.BuscarClientePorRucUseCase>(),
         gh<_i574.PrecioNivelCacheService>(),
         gh<_i200.ComboRepository>(),
         gh<_i262.ProductoStockRepository>(),
         gh<_i805.RealtimeSyncService>(),
+        gh<_i569.VentaRapidaRepository>(),
       ),
     );
-    gh.lazySingleton<_i985.VentaRapidaCubit>(
-      () => _i985.VentaRapidaCubit(
-        gh<_i40.CobrarVentaRapidaUseCase>(),
-        gh<_i696.ObtenerClienteGenericoUseCase>(),
+    gh.lazySingleton<_i975.CotizacionRapidaCubit>(
+      () => _i975.CotizacionRapidaCubit(
+        gh<_i431.CrearCotizacionRapidaUseCase>(),
+        gh<_i865.ActualizarCotizacionRapidaUseCase>(),
         gh<_i765.BuscarClientePorDniUseCase>(),
         gh<_i33.BuscarClientePorRucUseCase>(),
         gh<_i574.PrecioNivelCacheService>(),

@@ -46,6 +46,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
   final ComboRepository _comboRepository;
   final ProductoStockRepository _stockRepository;
   final RealtimeSyncService _realtimeSync;
+  final VentaRapidaRepository _repository;
 
   VentaRapidaCubit(
     this._cobrarUseCase,
@@ -56,6 +57,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     this._comboRepository,
     this._stockRepository,
     this._realtimeSync,
+    this._repository,
   ) : super(const VentaRapidaState()) {
     _suscribirRealtime();
   }
@@ -1193,6 +1195,120 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     if (index < 0 || index >= state.pagos.length) return;
     final pagos = [...state.pagos]..removeAt(index);
     emit(state.copyWith(pagos: pagos));
+  }
+
+  // ── Validación de pago con api-yape (Yape/Plin) ──
+
+  /// Crea la venta como PENDIENTE (sin registrar el pago) y genera el monto
+  /// único a pagar con api-yape. Devuelve {ventaId, habilitado, payAmount} o
+  /// null si falló crear la venta. NO marca la venta pagada: eso lo hace el
+  /// webhook (automático) o la confirmación manual.
+  Future<Map<String, dynamic>?> iniciarCobroYape() async {
+    if (state.procesando) return null;
+    if (state.items.isEmpty) {
+      emit(state.copyWith(error: 'Agrega al menos un producto'));
+      return null;
+    }
+    emit(state.copyWith(procesando: true, clearError: true));
+
+    // Resolver cliente (mismo criterio que cobrar()).
+    final docTipeado = state.numeroDocCliente.trim();
+    final tieneClienteRucResuelto = state.clienteEmpresaId != null &&
+        state.nombreClienteResuelto.isNotEmpty &&
+        docTipeado.isNotEmpty;
+    final tieneClienteDniResuelto = !tieneClienteRucResuelto &&
+        state.clienteId != null &&
+        state.nombreClienteResuelto.isNotEmpty &&
+        docTipeado != '00000000' &&
+        docTipeado.isNotEmpty;
+    final esGenerico = !tieneClienteRucResuelto &&
+        !tieneClienteDniResuelto &&
+        (state.clienteGenerico || docTipeado.isEmpty || docTipeado == '00000000');
+
+    String? clienteId = tieneClienteDniResuelto ? state.clienteId : null;
+    final String? clienteEmpresaId =
+        tieneClienteRucResuelto ? state.clienteEmpresaId : null;
+    if (esGenerico) {
+      final r = await _obtenerClienteGenericoUseCase();
+      if (r is Success<String>) clienteId = r.data;
+    }
+    final docCliente = esGenerico ? '00000000' : docTipeado;
+    final nombreCliente = esGenerico
+        ? 'CLIENTES VARIOS'
+        : ((tieneClienteRucResuelto || tieneClienteDniResuelto)
+            ? state.nombreClienteResuelto
+            : docTipeado);
+
+    // Payload SIN bloque de pagos → montoRecibido 0 → venta CONFIRMADA pendiente.
+    final data = <String, dynamic>{
+      'canalVenta': 'POS',
+      'sedeId': state.sedeId,
+      'vendedorId': state.vendedorId,
+      if (clienteId != null) 'clienteId': clienteId,
+      if (clienteEmpresaId != null) 'clienteEmpresaId': clienteEmpresaId,
+      'nombreCliente': nombreCliente,
+      if (docCliente.isNotEmpty) 'documentoCliente': docCliente,
+      'moneda': state.moneda,
+      'tipoComprobante': state.tipoComprobante,
+      'esCredito': false,
+      'detalles': state.items.map((item) => item.toMap()).toList(),
+    };
+
+    final result = await _repository.cobrar(data: data);
+    if (isClosed) return null;
+    if (result is! Success<Venta>) {
+      emit(state.copyWith(
+        procesando: false,
+        error: result is Error<Venta>
+            ? result.message
+            : 'No se pudo crear la venta',
+      ));
+      return null;
+    }
+    final ventaId = result.data.id;
+
+    // Generar el monto único en api-yape.
+    final cobro = await _repository.cobroYape(ventaId);
+    if (isClosed) return null;
+    emit(state.copyWith(procesando: false));
+    if (cobro is Success<Map<String, dynamic>>) {
+      final payAmount = cobro.data['payAmount'];
+      return {
+        'ventaId': ventaId,
+        'habilitado': cobro.data['habilitado'] == true,
+        'payAmount': payAmount is num ? payAmount.toDouble() : null,
+      };
+    }
+    // api-yape no disponible → la venta existe (pendiente): fallback manual.
+    return {'ventaId': ventaId, 'habilitado': false, 'payAmount': null};
+  }
+
+  /// Registra el pago manualmente (fallback con el screenshot del Yape) y
+  /// marca la venta pagada. Devuelve true si quedó registrado.
+  Future<bool> confirmarPagoManualYape({
+    required String ventaId,
+    required double monto,
+    required String metodo, // YAPE | PLIN
+    String? referencia,
+  }) async {
+    final result = await _repository.registrarPago(ventaId, {
+      'metodoPago': metodo,
+      'monto': monto,
+      if (referencia != null && referencia.isNotEmpty) 'referencia': referencia,
+    });
+    return result is Success<Venta>;
+  }
+
+  /// Acceso al servicio de realtime para que la hoja de espera Yape escuche
+  /// el evento VENTA_PAGADA de esta venta.
+  RealtimeSyncService get realtimeSync => _realtimeSync;
+
+  /// Marca la venta como completada (dispara el flujo post-venta existente:
+  /// impresión de ticket, limpiar carrito, etc.). Se usa tras confirmarse el
+  /// pago Yape (automático por webhook o manual).
+  void marcarVentaCompletada(String ventaId) {
+    if (isClosed) return;
+    emit(state.copyWith(ventaCompletadaId: ventaId));
   }
 
   // ── Cobrar ──

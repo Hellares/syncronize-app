@@ -12,6 +12,7 @@ import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/currency/currency_formatter.dart';
 import '../../../../core/widgets/currency/currency_textfield.dart';
 import '../../../../core/widgets/custom_dropdown.dart';
+import '../widgets/cobro_yape_sheet.dart';
 import '../../../../core/widgets/numpad/numpad_controller.dart';
 import '../../../../core/widgets/numpad/pos_numpad.dart';
 import '../../../../core/widgets/pagos_section_widget.dart'
@@ -360,6 +361,18 @@ class _CobroViewState extends State<_CobroView> {
     final cubit = context.read<VentaRapidaCubit>();
     final state = cubit.state;
 
+    // Pago 100% por Yape/Plin → validación con api-yape (monto único + espera).
+    // Si api-yape no está disponible o la empresa no lo tiene, la hoja cae al
+    // cobro MANUAL (con el comprobante del cliente): la venta nunca se bloquea.
+    final soloYapePlin = !state.esCredito &&
+        state.pagos.isNotEmpty &&
+        state.pagos
+            .every((p) => p['metodo'] == 'YAPE' || p['metodo'] == 'PLIN');
+    if (soloYapePlin) {
+      await _cobrarConValidacionYape(context);
+      return;
+    }
+
     // Guard venta bajo costo: si hay líneas con margen negativo que NO
     // están en liquidación, pedimos autorización gerencial. Las líneas
     // en liquidación pasan automáticamente con resumen informativo.
@@ -393,6 +406,33 @@ class _CobroViewState extends State<_CobroView> {
       aceptaRiesgoBancarizacion: aceptaRiesgo,
       ventaBajoCostoAutorizadaPorId: autorizacion.autorizadoPorId,
     );
+  }
+
+  /// Flujo de cobro Yape/Plin con validación api-yape: crea la venta pendiente,
+  /// muestra el monto único a pagar y espera la confirmación (automática por
+  /// webhook o manual con el comprobante).
+  Future<void> _cobrarConValidacionYape(BuildContext context) async {
+    final cubit = context.read<VentaRapidaCubit>();
+    final state = cubit.state;
+    final metodo = state.pagos.first['metodo'] as String; // YAPE | PLIN
+    final total = state.totalACobrar;
+
+    final res = await cubit.iniciarCobroYape();
+    if (res == null || !context.mounted) return;
+
+    final paid = await CobroYapeSheet.mostrar(
+      context,
+      ventaId: res['ventaId'] as String,
+      total: total,
+      payAmount: res['payAmount'] as double?,
+      habilitado: res['habilitado'] == true,
+      metodo: metodo,
+      cubit: cubit,
+      realtime: cubit.realtimeSync,
+    );
+    if (paid && context.mounted) {
+      cubit.marcarVentaCompletada(res['ventaId'] as String);
+    }
   }
 
   /// Detecta líneas con margen negativo y devuelve:
