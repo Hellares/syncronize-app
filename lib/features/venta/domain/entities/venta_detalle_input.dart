@@ -1,4 +1,7 @@
 import '../../../producto/domain/entities/precio_nivel.dart';
+import '../../../descuento/domain/entities/vip_precio.dart';
+import '../../../descuento/domain/entities/politica_descuento.dart'
+    show EstrategiaMayor;
 
 /// Modelo tipado para items del formulario de venta.
 /// A diferencia de [VentaDetalle], no incluye campos calculados
@@ -93,6 +96,10 @@ class VentaDetalleInput {
   /// Permite mostrar badge naranja y omitir el guard de autorización.
   final bool enLiquidacion;
 
+  /// Intención de precio especial VIP resuelta para esta línea (según el
+  /// cliente seleccionado). null = sin VIP. La aplica recalcularPrecioPorNiveles.
+  final VipPrecioIntent? vipIntent;
+
   const VentaDetalleInput({
     this.productoId,
     this.varianteId,
@@ -123,7 +130,12 @@ class VentaDetalleInput {
     this.comboModificado = false,
     this.precioCostoSnapshot,
     this.enLiquidacion = false,
+    this.vipIntent,
   });
+
+  /// True si el precio actual de la línea proviene de una política VIP.
+  bool get esPrecioVip =>
+      nivelAplicado != null && nivelAplicado!.startsWith('VIP:');
 
   /// True si esta línea cobra una orden de servicio (cantidad fija 1,
   /// sin descuentos de línea, sin stock).
@@ -218,6 +230,8 @@ class VentaDetalleInput {
     bool? comboModificado,
     double? precioCostoSnapshot,
     bool? enLiquidacion,
+    VipPrecioIntent? vipIntent,
+    bool clearVipIntent = false,
     bool clearNivelAplicado = false,
     bool clearPrecioBase = false,
   }) {
@@ -254,6 +268,7 @@ class VentaDetalleInput {
       comboModificado: comboModificado ?? this.comboModificado,
       precioCostoSnapshot: precioCostoSnapshot ?? this.precioCostoSnapshot,
       enLiquidacion: enLiquidacion ?? this.enLiquidacion,
+      vipIntent: clearVipIntent ? null : (vipIntent ?? this.vipIntent),
     );
   }
 
@@ -287,48 +302,95 @@ class VentaDetalleInput {
   VentaDetalleInput recalcularPrecioPorNiveles(double cantidad) {
     final base = precioBase ?? precioUnitario;
 
-    if (enLiquidacion) {
+    // 1) Precio "normal" (base / nivel por mayor), igual que antes.
+    double precio = base;
+    String? etiqueta;
+    double? descPct;
+
+    if (!enLiquidacion) {
+      final nivel = nivelAplicableParaCantidad(niveles, cantidad);
+      if (nivel != null) {
+        final precioConNivel = nivel.calcularPrecioFinal(base);
+        // Un nivel por volumen NUNCA sube el precio.
+        if (precioConNivel < base) {
+          precio = precioConNivel;
+          etiqueta = nivel.nombre;
+          descPct = nivel.calcularDescuentoPorcentaje(base);
+        }
+      }
+    }
+    // enLiquidacion → precio = base (precio de liquidación ya viene en base),
+    // niveles ignorados (paridad con backend).
+
+    // 2) Candidato VIP (gana el menor): espejo del reduce del backend. El
+    //    cliente nunca paga más que una oferta/liquidación pública más barata.
+    if (vipIntent != null) {
+      final vipPrecio = _calcularCandidatoVip(vipIntent!, base);
+      if (vipPrecio != null && vipPrecio < precio) {
+        precio = vipPrecio;
+        etiqueta = vipIntent!.etiqueta;
+        descPct = base > 0 ? ((base - vipPrecio) / base) * 100 : 0;
+      }
+    }
+
+    if (etiqueta == null) {
       return copyWith(
         cantidad: cantidad,
-        precioUnitario: base,
+        precioUnitario: precio,
         precioBase: base,
         clearNivelAplicado: true,
       );
     }
-
-    final nivel = nivelAplicableParaCantidad(niveles, cantidad);
-
-    if (nivel == null) {
-      return copyWith(
-        cantidad: cantidad,
-        precioUnitario: base,
-        precioBase: base,
-        clearNivelAplicado: true,
-      );
-    }
-
-    final precioConNivel = nivel.calcularPrecioFinal(base);
-
-    // Un nivel por volumen NUNCA sube el precio: si el nivel resulta >= base,
-    // se ignora y manda el base. Coincide con el backend, que elige el menor
-    // entre base/nivel/oferta (calcularPrecioSegunCantidad). Evita mostrar un
-    // precio inflado y el consecuente 409 PRECIO_DESACTUALIZADO al cobrar.
-    if (precioConNivel >= base) {
-      return copyWith(
-        cantidad: cantidad,
-        precioUnitario: base,
-        precioBase: base,
-        clearNivelAplicado: true,
-      );
-    }
-
-    final descuentoPct = nivel.calcularDescuentoPorcentaje(base);
     return copyWith(
       cantidad: cantidad,
-      precioUnitario: precioConNivel,
+      precioUnitario: precio,
       precioBase: base,
-      nivelAplicado: nivel.nombre,
-      descuentoNivelPct: descuentoPct,
+      nivelAplicado: etiqueta,
+      descuentoNivelPct: descPct,
     );
+  }
+
+  /// Calcula el precio candidato de la política VIP para esta línea. Espejo
+  /// EXACTO de `_calcularCandidatoVip` del backend (PrecioNivelService). null
+  /// si no se puede resolver (costo nulo / sin niveles).
+  double? _calcularCandidatoVip(VipPrecioIntent vip, double base) {
+    double r4(double v) => (v * 10000).round() / 10000;
+    switch (vip.modo) {
+      case ModoPrecioVip.precioCosto:
+        final costo = precioCostoSnapshot;
+        if (costo == null || costo <= 0) return null;
+        return r4(costo * (1 + vip.markupSobreCosto / 100));
+      case ModoPrecioVip.precioMayorDesdeUnidad:
+        final activos = niveles.where((n) => n.isActive).toList();
+        if (activos.isEmpty) return null;
+        final mayoristas =
+            activos.where((n) => n.cantidadMinima > 1).toList();
+        final pool = mayoristas.isNotEmpty ? mayoristas : activos;
+        PrecioNivel elegido;
+        if (vip.estrategiaMayor == EstrategiaMayor.mejorNivel) {
+          elegido = pool.reduce((b, n) =>
+              n.calcularPrecioFinal(base) < b.calcularPrecioFinal(base)
+                  ? n
+                  : b);
+        } else {
+          pool.sort((a, b) => a.cantidadMinima.compareTo(b.cantidadMinima));
+          elegido = pool.first; // PRIMER_NIVEL: menor cantidadMinima
+        }
+        return r4(elegido.calcularPrecioFinal(base));
+      case ModoPrecioVip.porcentaje:
+        var desc = base * (vip.valor / 100);
+        if (vip.descuentoMaximo != null && desc > vip.descuentoMaximo!) {
+          desc = vip.descuentoMaximo!;
+        }
+        final p = base - desc;
+        return r4(p < 0 ? 0 : p);
+      case ModoPrecioVip.montoFijo:
+        var desc = vip.valor;
+        if (vip.descuentoMaximo != null && desc > vip.descuentoMaximo!) {
+          desc = vip.descuentoMaximo!;
+        }
+        final p = base - desc;
+        return r4(p < 0 ? 0 : p);
+    }
   }
 }

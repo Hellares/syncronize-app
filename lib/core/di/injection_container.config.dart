@@ -4630,18 +4630,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i469.AuthBloc>(),
       ),
     );
-    gh.factory<_i65.LoginCubit>(
-      () => _i65.LoginCubit(
-        loginUseCase: gh<_i188.LoginUseCase>(),
-        googleSignInUseCase: gh<_i91.GoogleSignInUseCase>(),
-        checkAuthMethodsUseCase: gh<_i809.CheckAuthMethodsUseCase>(),
-      ),
-    );
-    gh.factory<_i815.VerifyEmailCubit>(
-      () => _i815.VerifyEmailCubit(
-        verifyEmailUseCase: gh<_i30.VerifyEmailUseCase>(),
-      ),
-    );
     gh.lazySingleton<_i985.VentaRapidaCubit>(
       () => _i985.VentaRapidaCubit(
         gh<_i40.CobrarVentaRapidaUseCase>(),
@@ -4653,6 +4641,19 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i262.ProductoStockRepository>(),
         gh<_i805.RealtimeSyncService>(),
         gh<_i569.VentaRapidaRepository>(),
+        gh<_i50.ObtenerPoliticasVigentesCliente>(),
+      ),
+    );
+    gh.factory<_i65.LoginCubit>(
+      () => _i65.LoginCubit(
+        loginUseCase: gh<_i188.LoginUseCase>(),
+        googleSignInUseCase: gh<_i91.GoogleSignInUseCase>(),
+        checkAuthMethodsUseCase: gh<_i809.CheckAuthMethodsUseCase>(),
+      ),
+    );
+    gh.factory<_i815.VerifyEmailCubit>(
+      () => _i815.VerifyEmailCubit(
+        verifyEmailUseCase: gh<_i30.VerifyEmailUseCase>(),
       ),
     );
     gh.lazySingleton<_i975.CotizacionRapidaCubit>(

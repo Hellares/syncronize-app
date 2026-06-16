@@ -910,17 +910,25 @@ class _ItemRowState extends State<_ItemRow> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 5, vertical: 1),
                     decoration: BoxDecoration(
-                      color: Colors.green.shade50,
+                      // Precio VIP en ámbar; nivel por mayor en verde.
+                      color: item.esPrecioVip
+                          ? Colors.amber.shade50
+                          : Colors.green.shade50,
                       borderRadius: BorderRadius.circular(4),
                       border: Border.all(
-                          color: Colors.green.shade300, width: 0.5),
+                          color: item.esPrecioVip
+                              ? Colors.amber.shade400
+                              : Colors.green.shade300,
+                          width: 0.5),
                     ),
                     child: Text(
                       '${item.nivelAplicado} '
                       '−${(item.descuentoNivelPct ?? 0).toStringAsFixed(0)}%',
                       style: TextStyle(
                         fontSize: 9,
-                        color: Colors.green.shade700,
+                        color: item.esPrecioVip
+                            ? Colors.amber.shade900
+                            : Colors.green.shade700,
                         fontWeight: FontWeight.w600,
                       ),
                     ),

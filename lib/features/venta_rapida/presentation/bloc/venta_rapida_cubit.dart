@@ -14,6 +14,8 @@ import '../../../cliente_empresa/data/cache/cliente_empresa_catalogo_service.dar
 import '../../../cliente_empresa/domain/entities/cliente_empresa.dart';
 import '../../../combo/domain/entities/combo.dart';
 import '../../../combo/domain/repositories/combo_repository.dart';
+import '../../../descuento/domain/entities/vip_precio.dart';
+import '../../../descuento/domain/usecases/obtener_politicas_vigentes_cliente.dart';
 import '../../../producto/domain/entities/precio_nivel.dart';
 import '../../../producto/domain/entities/producto_list_item.dart';
 import '../../../producto/domain/entities/producto_variante.dart';
@@ -47,6 +49,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
   final ProductoStockRepository _stockRepository;
   final RealtimeSyncService _realtimeSync;
   final VentaRapidaRepository _repository;
+  final ObtenerPoliticasVigentesCliente _obtenerPoliticasVigentesCliente;
 
   VentaRapidaCubit(
     this._cobrarUseCase,
@@ -58,9 +61,83 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     this._stockRepository,
     this._realtimeSync,
     this._repository,
+    this._obtenerPoliticasVigentesCliente,
   ) : super(const VentaRapidaState()) {
     _suscribirRealtime();
   }
+
+  // ── Precio especial VIP del cliente ──
+  /// Resolver de precio VIP del cliente actual (null = sin VIP).
+  VipResolver? _vipResolver;
+  /// Clave del cliente para el que se cargó el VIP (evita recargas redundantes).
+  String? _vipClienteKey;
+
+  /// Detecta cambios de cliente (cualquier path) y recarga el precio VIP.
+  @override
+  void onChange(Change<VentaRapidaState> change) {
+    super.onChange(change);
+    final prev = change.currentState;
+    final next = change.nextState;
+    if (prev.clienteId != next.clienteId ||
+        prev.clienteEmpresaId != next.clienteEmpresaId) {
+      _onClienteCambiado(next.clienteId, next.clienteEmpresaId);
+    }
+  }
+
+  Future<void> _onClienteCambiado(
+    String? clienteId,
+    String? clienteEmpresaId,
+  ) async {
+    final key = clienteId ?? clienteEmpresaId;
+    if (key == _vipClienteKey) return;
+    _vipClienteKey = key;
+
+    if (clienteId == null && clienteEmpresaId == null) {
+      _vipResolver = null;
+      _reaplicarVipItems();
+      return;
+    }
+
+    final result = await _obtenerPoliticasVigentesCliente(
+      clienteId: clienteId,
+      clienteEmpresaId: clienteEmpresaId,
+    );
+    if (isClosed) return;
+    // El cliente pudo cambiar mientras esperábamos la respuesta.
+    if ((clienteId ?? clienteEmpresaId) != _vipClienteKey) return;
+
+    _vipResolver = result is Success<List<Map<String, dynamic>>>
+        ? VipResolver.fromVigentes(result.data)
+        : null;
+    _reaplicarVipItems();
+  }
+
+  /// Re-resuelve y reaplica el precio VIP a todas las líneas del carrito.
+  /// Combos, componentes de combo y órdenes de servicio quedan exentos
+  /// (paridad con el backend).
+  void _reaplicarVipItems() {
+    if (state.items.isEmpty) return;
+    var cambio = false;
+    final nuevos = state.items.map((item) {
+      final exento = item.origenComboId != null ||
+          item.comboId != null ||
+          item.esOrdenServicio ||
+          item.servicioId != null;
+      final intent =
+          exento ? null : _vipResolver?.intentParaProducto(item.productoId);
+      // Sin cambios si el intent es igual al que ya tenía.
+      if (intent == item.vipIntent) return item;
+      cambio = true;
+      return item
+          .copyWith(vipIntent: intent, clearVipIntent: intent == null)
+          .recalcularPrecioPorNiveles(item.cantidad);
+    }).toList();
+    if (cambio) emit(state.copyWith(items: nuevos));
+  }
+
+  /// Intent VIP para un producto recién agregado (o null si no aplica).
+  VipPrecioIntent? _vipParaNuevoProducto(String? productoId) =>
+      _vipResolver?.intentParaProducto(productoId);
 
   /// Token monotónico de búsqueda de cliente. Se usa para descartar
   /// respuestas obsoletas: si el cajero busca DNI A, lo cancela y busca DNI B,
@@ -244,6 +321,8 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       // guard de venta bajo costo en el cobro.
       precioCostoSnapshot: producto.precioCostoEnSede(sedeId),
       enLiquidacion: producto.enLiquidacionEnSede(sedeId),
+      // Precio especial VIP si el cliente actual lo tiene.
+      vipIntent: _vipParaNuevoProducto(producto.id),
     );
     final itemConNivel = nivelesEnCache != null
         ? item.recalcularPrecioPorNiveles(1)
@@ -305,6 +384,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       niveles: nivelesEnCache ?? const [],
       precioCostoSnapshot: variante.precioCostoEnSede(sedeId),
       enLiquidacion: variante.enLiquidacionEnSede(sedeId),
+      vipIntent: _vipParaNuevoProducto(producto.id),
     );
     final itemConNivel = nivelesEnCache != null
         ? item.recalcularPrecioPorNiveles(1)
