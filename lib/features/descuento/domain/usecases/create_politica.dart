@@ -24,6 +24,8 @@ class CreatePolitica {
     bool? aplicarATodos,
     int? prioridad,
     int? maxFamiliaresPorTrabajador,
+    double? markupSobreCosto,
+    EstrategiaMayor? estrategiaMayor,
   }) async {
     return await _repository.createPolitica(
       nombre: nombre,
@@ -39,6 +41,8 @@ class CreatePolitica {
       aplicarATodos: aplicarATodos,
       prioridad: prioridad,
       maxFamiliaresPorTrabajador: maxFamiliaresPorTrabajador,
+      markupSobreCosto: markupSobreCosto,
+      estrategiaMayor: estrategiaMayor,
     );
   }
 }

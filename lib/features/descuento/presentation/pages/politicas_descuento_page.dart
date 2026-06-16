@@ -248,6 +248,11 @@ class _PoliticasDescuentoPageState extends State<PoliticasDescuentoPage>
                       '/empresa/descuentos/${politica.id}/asignar-usuarios?nombre=${Uri.encodeComponent(politica.nombre)}',
                     );
                   },
+                  onAssignClients: () {
+                    context.push(
+                      '/empresa/descuentos/${politica.id}/asignar-clientes?nombre=${Uri.encodeComponent(politica.nombre)}',
+                    );
+                  },
                   onAssignProducts: () {
                     context.push(
                       '/empresa/descuentos/${politica.id}/asignar-productos?nombre=${Uri.encodeComponent(politica.nombre)}',
@@ -293,6 +298,11 @@ class _PoliticasDescuentoPageState extends State<PoliticasDescuentoPage>
                   onAssignUsers: () {
                     context.push(
                       '/empresa/descuentos/${politica.id}/asignar-usuarios?nombre=${Uri.encodeComponent(politica.nombre)}',
+                    );
+                  },
+                  onAssignClients: () {
+                    context.push(
+                      '/empresa/descuentos/${politica.id}/asignar-clientes?nombre=${Uri.encodeComponent(politica.nombre)}',
                     );
                   },
                   onAssignProducts: () {

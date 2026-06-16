@@ -17,6 +17,8 @@ class PoliticaDescuentoModel extends PoliticaDescuento {
     super.aplicarATodos,
     super.prioridad,
     super.maxFamiliaresPorTrabajador,
+    super.markupSobreCosto,
+    super.estrategiaMayor,
     super.isActive,
     required super.creadoEn,
     required super.actualizadoEn,
@@ -51,6 +53,10 @@ class PoliticaDescuentoModel extends PoliticaDescuento {
       aplicarATodos: json['aplicarATodos'] as bool? ?? false,
       prioridad: _parseInt(json['prioridad']) ?? 0,
       maxFamiliaresPorTrabajador: _parseInt(json['maxFamiliaresPorTrabajador']),
+      markupSobreCosto: json['markupSobreCosto'] != null
+          ? _parseDouble(json['markupSobreCosto'])
+          : null,
+      estrategiaMayor: _parseEstrategiaMayor(json['estrategiaMayor'] as String?),
       isActive: json['isActive'] as bool? ?? true,
       creadoEn: DateTime.parse(json['creadoEn'] as String),
       actualizadoEn: DateTime.parse(json['actualizadoEn'] as String),
@@ -102,6 +108,8 @@ class PoliticaDescuentoModel extends PoliticaDescuento {
       'aplicarATodos': aplicarATodos,
       'prioridad': prioridad,
       'maxFamiliaresPorTrabajador': maxFamiliaresPorTrabajador,
+      'markupSobreCosto': markupSobreCosto,
+      'estrategiaMayor': _serializeEstrategiaMayor(estrategiaMayor),
       'isActive': isActive,
     };
   }
@@ -148,6 +156,10 @@ class PoliticaDescuentoModel extends PoliticaDescuento {
         return TipoCalculoDescuento.porcentaje;
       case 'MONTO_FIJO':
         return TipoCalculoDescuento.montoFijo;
+      case 'PRECIO_COSTO':
+        return TipoCalculoDescuento.precioCosto;
+      case 'PRECIO_MAYOR_DESDE_UNIDAD':
+        return TipoCalculoDescuento.precioMayorDesdeUnidad;
       default:
         return TipoCalculoDescuento.porcentaje;
     }
@@ -159,6 +171,29 @@ class PoliticaDescuentoModel extends PoliticaDescuento {
         return 'PORCENTAJE';
       case TipoCalculoDescuento.montoFijo:
         return 'MONTO_FIJO';
+      case TipoCalculoDescuento.precioCosto:
+        return 'PRECIO_COSTO';
+      case TipoCalculoDescuento.precioMayorDesdeUnidad:
+        return 'PRECIO_MAYOR_DESDE_UNIDAD';
+    }
+  }
+
+  static EstrategiaMayor _parseEstrategiaMayor(String? value) {
+    switch (value) {
+      case 'MEJOR_NIVEL':
+        return EstrategiaMayor.mejorNivel;
+      case 'PRIMER_NIVEL':
+      default:
+        return EstrategiaMayor.primerNivel;
+    }
+  }
+
+  static String _serializeEstrategiaMayor(EstrategiaMayor estrategia) {
+    switch (estrategia) {
+      case EstrategiaMayor.primerNivel:
+        return 'PRIMER_NIVEL';
+      case EstrategiaMayor.mejorNivel:
+        return 'MEJOR_NIVEL';
     }
   }
 
@@ -180,6 +215,8 @@ class PoliticaDescuentoModel extends PoliticaDescuento {
       aplicarATodos: aplicarATodos,
       prioridad: prioridad,
       maxFamiliaresPorTrabajador: maxFamiliaresPorTrabajador,
+      markupSobreCosto: markupSobreCosto,
+      estrategiaMayor: estrategiaMayor,
       isActive: isActive,
       creadoEn: creadoEn,
       actualizadoEn: actualizadoEn,

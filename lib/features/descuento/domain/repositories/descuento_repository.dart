@@ -29,6 +29,8 @@ abstract class DescuentoRepository {
     bool? aplicarATodos,
     int? prioridad,
     int? maxFamiliaresPorTrabajador,
+    double? markupSobreCosto,
+    EstrategiaMayor? estrategiaMayor,
   });
 
   /// Actualizar política de descuento
@@ -47,6 +49,8 @@ abstract class DescuentoRepository {
     bool? aplicarATodos,
     int? prioridad,
     int? maxFamiliaresPorTrabajador,
+    double? markupSobreCosto,
+    EstrategiaMayor? estrategiaMayor,
     bool? isActive,
   });
 
@@ -67,6 +71,29 @@ abstract class DescuentoRepository {
   Future<Resource<void>> removerUsuario({
     required String politicaId,
     required String usuarioId,
+  });
+
+  /// Asignar clientes (VIP) a una política de precio especial
+  Future<Resource<List<Map<String, dynamic>>>> asignarClientes({
+    required String politicaId,
+    List<String>? clienteIds,
+    List<String>? clienteEmpresaIds,
+  });
+
+  /// Obtener clientes asignados a una política (enriquecido)
+  Future<Resource<List<Map<String, dynamic>>>> obtenerClientesAsignados(
+      String politicaId);
+
+  /// Remover un cliente de una política de precio especial
+  Future<Resource<void>> removerCliente({
+    required String politicaId,
+    required String asignacionId,
+  });
+
+  /// Políticas de precio especial vigentes de un cliente (para preview en VR)
+  Future<Resource<List<Map<String, dynamic>>>> obtenerPoliticasVigentesCliente({
+    String? clienteId,
+    String? clienteEmpresaId,
   });
 
   /// Agregar familiar a un trabajador

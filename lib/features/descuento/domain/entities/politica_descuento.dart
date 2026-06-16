@@ -12,6 +12,15 @@ enum TipoDescuento {
 enum TipoCalculoDescuento {
   porcentaje,
   montoFijo,
+  precioCosto, // VIP: vende al precio de costo (× markup opcional)
+  precioMayorDesdeUnidad, // VIP: precio por mayor desde la unidad 1
+}
+
+/// Estrategia para resolver qué escalón por mayor aplicar desde la unidad 1
+/// (solo para tipoCalculo = precioMayorDesdeUnidad).
+enum EstrategiaMayor {
+  primerNivel, // Primer escalón por mayor (menor cantidadMinima > 1)
+  mejorNivel, // El nivel de menor precio disponible
 }
 
 enum Parentesco {
@@ -50,6 +59,9 @@ class PoliticaDescuento extends Equatable {
   final bool aplicarATodos;
   final int prioridad;
   final int? maxFamiliaresPorTrabajador;
+  // Precio especial VIP
+  final double? markupSobreCosto; // % sobre costo (modo precioCosto)
+  final EstrategiaMayor estrategiaMayor; // modo precioMayorDesdeUnidad
   final bool isActive;
   final DateTime creadoEn;
   final DateTime actualizadoEn;
@@ -76,6 +88,8 @@ class PoliticaDescuento extends Equatable {
     this.aplicarATodos = false,
     this.prioridad = 0,
     this.maxFamiliaresPorTrabajador,
+    this.markupSobreCosto,
+    this.estrategiaMayor = EstrategiaMayor.primerNivel,
     this.isActive = true,
     required this.creadoEn,
     required this.actualizadoEn,
@@ -102,6 +116,8 @@ class PoliticaDescuento extends Equatable {
         aplicarATodos,
         prioridad,
         maxFamiliaresPorTrabajador,
+        markupSobreCosto,
+        estrategiaMayor,
         isActive,
         creadoEn,
         actualizadoEn,
@@ -127,6 +143,8 @@ class PoliticaDescuento extends Equatable {
     bool? aplicarATodos,
     int? prioridad,
     int? maxFamiliaresPorTrabajador,
+    double? markupSobreCosto,
+    EstrategiaMayor? estrategiaMayor,
     bool? isActive,
     DateTime? creadoEn,
     DateTime? actualizadoEn,
@@ -152,6 +170,8 @@ class PoliticaDescuento extends Equatable {
       prioridad: prioridad ?? this.prioridad,
       maxFamiliaresPorTrabajador:
           maxFamiliaresPorTrabajador ?? this.maxFamiliaresPorTrabajador,
+      markupSobreCosto: markupSobreCosto ?? this.markupSobreCosto,
+      estrategiaMayor: estrategiaMayor ?? this.estrategiaMayor,
       isActive: isActive ?? this.isActive,
       creadoEn: creadoEn ?? this.creadoEn,
       actualizadoEn: actualizadoEn ?? this.actualizadoEn,

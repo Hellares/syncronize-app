@@ -34,6 +34,8 @@ class PoliticaFormCubit extends Cubit<PoliticaFormState> {
     bool? aplicarATodos,
     int? prioridad,
     int? maxFamiliaresPorTrabajador,
+    double? markupSobreCosto,
+    EstrategiaMayor? estrategiaMayor,
   }) async {
     emit(const PoliticaFormLoading());
 
@@ -51,6 +53,8 @@ class PoliticaFormCubit extends Cubit<PoliticaFormState> {
       aplicarATodos: aplicarATodos,
       prioridad: prioridad,
       maxFamiliaresPorTrabajador: maxFamiliaresPorTrabajador,
+      markupSobreCosto: markupSobreCosto,
+      estrategiaMayor: estrategiaMayor,
     );
 
     if (result is Success<PoliticaDescuento>) {
@@ -76,6 +80,8 @@ class PoliticaFormCubit extends Cubit<PoliticaFormState> {
     bool? aplicarATodos,
     int? prioridad,
     int? maxFamiliaresPorTrabajador,
+    double? markupSobreCosto,
+    EstrategiaMayor? estrategiaMayor,
     bool? isActive,
   }) async {
     emit(const PoliticaFormLoading());
@@ -95,6 +101,8 @@ class PoliticaFormCubit extends Cubit<PoliticaFormState> {
       aplicarATodos: aplicarATodos,
       prioridad: prioridad,
       maxFamiliaresPorTrabajador: maxFamiliaresPorTrabajador,
+      markupSobreCosto: markupSobreCosto,
+      estrategiaMayor: estrategiaMayor,
       isActive: isActive,
     );
 

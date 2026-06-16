@@ -206,6 +206,67 @@ class DescuentoRemoteDataSource {
     return data.map((e) => e as Map<String, dynamic>).toList();
   }
 
+  /// Asigna clientes (VIP) a una política de precio especial
+  ///
+  /// POST /api/politicas-descuento/:politicaId/clientes
+  Future<List<Map<String, dynamic>>> asignarClientes(
+    String politicaId, {
+    List<String>? clienteIds,
+    List<String>? clienteEmpresaIds,
+  }) async {
+    final response = await _dioClient.post(
+      '${ApiConstants.politicasDescuento}/$politicaId/clientes',
+      data: {
+        if (clienteIds != null && clienteIds.isNotEmpty) 'clienteIds': clienteIds,
+        if (clienteEmpresaIds != null && clienteEmpresaIds.isNotEmpty)
+          'clienteEmpresaIds': clienteEmpresaIds,
+      },
+    );
+
+    final List<dynamic> data = response.data as List<dynamic>;
+    return data.map((e) => e as Map<String, dynamic>).toList();
+  }
+
+  /// Obtiene los clientes asignados a una política (enriquecido)
+  ///
+  /// GET /api/politicas-descuento/:politicaId/clientes
+  Future<List<Map<String, dynamic>>> obtenerClientesAsignados(
+      String politicaId) async {
+    final response = await _dioClient.get(
+      '${ApiConstants.politicasDescuento}/$politicaId/clientes',
+    );
+
+    final List<dynamic> data = response.data as List<dynamic>;
+    return data.map((e) => e as Map<String, dynamic>).toList();
+  }
+
+  /// Remueve un cliente de una política de precio especial
+  ///
+  /// DELETE /api/politicas-descuento/:politicaId/clientes/:asignacionId
+  Future<void> removerCliente(String politicaId, String asignacionId) async {
+    await _dioClient.delete(
+      '${ApiConstants.politicasDescuento}/$politicaId/clientes/$asignacionId',
+    );
+  }
+
+  /// Obtiene las políticas de precio especial vigentes de un cliente.
+  /// Usado por Venta Rápida para el preview (cálculo idéntico al backend).
+  ///
+  /// GET /api/politicas-descuento/cliente/:clienteId/vigentes  (B2C)
+  /// GET /api/politicas-descuento/cliente-empresa/:clienteEmpresaId/vigentes (B2B)
+  Future<List<Map<String, dynamic>>> obtenerPoliticasVigentesCliente({
+    String? clienteId,
+    String? clienteEmpresaId,
+  }) async {
+    final path = clienteId != null
+        ? '${ApiConstants.politicasDescuento}/cliente/$clienteId/vigentes'
+        : '${ApiConstants.politicasDescuento}/cliente-empresa/$clienteEmpresaId/vigentes';
+
+    final response = await _dioClient.get(path);
+    final List<dynamic> data = response.data as List<dynamic>;
+    return data.map((e) => e as Map<String, dynamic>).toList();
+  }
+
   /// Calcula el descuento aplicable para un usuario y producto
   ///
   /// POST /api/politicas-descuento/calcular-descuento

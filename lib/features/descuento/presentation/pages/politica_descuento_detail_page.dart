@@ -436,6 +436,10 @@ class _PoliticaDetailViewState extends State<_PoliticaDetailView> {
         return 'Porcentaje';
       case TipoCalculoDescuento.montoFijo:
         return 'Monto Fijo';
+      case TipoCalculoDescuento.precioCosto:
+        return 'Precio Costo (VIP)';
+      case TipoCalculoDescuento.precioMayorDesdeUnidad:
+        return 'Mayor desde 1 unidad (VIP)';
     }
   }
 

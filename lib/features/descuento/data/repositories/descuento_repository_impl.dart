@@ -75,6 +75,8 @@ class DescuentoRepositoryImpl implements DescuentoRepository {
     bool? aplicarATodos,
     int? prioridad,
     int? maxFamiliaresPorTrabajador,
+    double? markupSobreCosto,
+    EstrategiaMayor? estrategiaMayor,
   }) async {
     try {
       final data = <String, dynamic>{
@@ -92,6 +94,9 @@ class DescuentoRepositoryImpl implements DescuentoRepository {
         if (prioridad != null) 'prioridad': prioridad,
         if (maxFamiliaresPorTrabajador != null)
           'maxFamiliaresPorTrabajador': maxFamiliaresPorTrabajador,
+        if (markupSobreCosto != null) 'markupSobreCosto': markupSobreCosto,
+        if (estrategiaMayor != null)
+          'estrategiaMayor': _serializeEstrategiaMayor(estrategiaMayor),
       };
 
       final politica = await _remoteDataSource.createPolitica(data);
@@ -120,6 +125,8 @@ class DescuentoRepositoryImpl implements DescuentoRepository {
     bool? aplicarATodos,
     int? prioridad,
     int? maxFamiliaresPorTrabajador,
+    double? markupSobreCosto,
+    EstrategiaMayor? estrategiaMayor,
     bool? isActive,
   }) async {
     try {
@@ -140,6 +147,9 @@ class DescuentoRepositoryImpl implements DescuentoRepository {
         if (prioridad != null) 'prioridad': prioridad,
         if (maxFamiliaresPorTrabajador != null)
           'maxFamiliaresPorTrabajador': maxFamiliaresPorTrabajador,
+        if (markupSobreCosto != null) 'markupSobreCosto': markupSobreCosto,
+        if (estrategiaMayor != null)
+          'estrategiaMayor': _serializeEstrategiaMayor(estrategiaMayor),
         if (isActive != null) 'isActive': isActive,
       };
 
@@ -353,6 +363,76 @@ class DescuentoRepositoryImpl implements DescuentoRepository {
     }
   }
 
+  @override
+  Future<Resource<List<Map<String, dynamic>>>> asignarClientes({
+    required String politicaId,
+    List<String>? clienteIds,
+    List<String>? clienteEmpresaIds,
+  }) async {
+    try {
+      final result = await _remoteDataSource.asignarClientes(
+        politicaId,
+        clienteIds: clienteIds,
+        clienteEmpresaIds: clienteEmpresaIds,
+      );
+      return Success(result);
+    } catch (e) {
+      return Error(
+        e.toString().replaceFirst('Exception: ', ''),
+        errorCode: 'SERVER_ERROR',
+      );
+    }
+  }
+
+  @override
+  Future<Resource<List<Map<String, dynamic>>>> obtenerClientesAsignados(
+      String politicaId) async {
+    try {
+      final result = await _remoteDataSource.obtenerClientesAsignados(politicaId);
+      return Success(result);
+    } catch (e) {
+      return Error(
+        e.toString().replaceFirst('Exception: ', ''),
+        errorCode: 'SERVER_ERROR',
+      );
+    }
+  }
+
+  @override
+  Future<Resource<void>> removerCliente({
+    required String politicaId,
+    required String asignacionId,
+  }) async {
+    try {
+      await _remoteDataSource.removerCliente(politicaId, asignacionId);
+      return Success(null);
+    } catch (e) {
+      return Error(
+        e.toString().replaceFirst('Exception: ', ''),
+        errorCode: 'SERVER_ERROR',
+      );
+    }
+  }
+
+  @override
+  Future<Resource<List<Map<String, dynamic>>>> obtenerPoliticasVigentesCliente({
+    String? clienteId,
+    String? clienteEmpresaId,
+  }) async {
+    try {
+      final result = await _remoteDataSource.obtenerPoliticasVigentesCliente(
+        clienteId: clienteId,
+        clienteEmpresaId: clienteEmpresaId,
+      );
+      return Success(result);
+    } catch (e) {
+      return Error(
+        e.toString().replaceFirst('Exception: ', ''),
+        errorCode: 'SERVER_ERROR',
+      );
+    }
+  }
+
   // Helper methods para serializar enums a formato backend
   String _serializeTipoDescuento(TipoDescuento tipo) {
     switch (tipo) {
@@ -377,6 +457,19 @@ class DescuentoRepositoryImpl implements DescuentoRepository {
         return 'PORCENTAJE';
       case TipoCalculoDescuento.montoFijo:
         return 'MONTO_FIJO';
+      case TipoCalculoDescuento.precioCosto:
+        return 'PRECIO_COSTO';
+      case TipoCalculoDescuento.precioMayorDesdeUnidad:
+        return 'PRECIO_MAYOR_DESDE_UNIDAD';
+    }
+  }
+
+  String _serializeEstrategiaMayor(EstrategiaMayor estrategia) {
+    switch (estrategia) {
+      case EstrategiaMayor.primerNivel:
+        return 'PRIMER_NIVEL';
+      case EstrategiaMayor.mejorNivel:
+        return 'MEJOR_NIVEL';
     }
   }
 

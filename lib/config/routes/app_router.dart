@@ -970,6 +970,18 @@ class AppRouter {
         },
       ),
       GoRoute(
+        path: '/empresa/descuentos/:id/asignar-clientes',
+        name: 'empresa-descuentos-asignar-clientes',
+        builder: (context, state) {
+          final politicaId = state.pathParameters['id']!;
+          final politicaNombre = state.uri.queryParameters['nombre'] ?? '';
+          return AsignarClientesPage(
+            politicaId: politicaId,
+            politicaNombre: politicaNombre,
+          );
+        },
+      ),
+      GoRoute(
         path: '/empresa/descuentos/:id/asignar-productos',
         name: 'empresa-descuentos-asignar-productos',
         builder: (context, state) {

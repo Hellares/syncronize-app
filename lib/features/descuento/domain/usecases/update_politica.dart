@@ -25,6 +25,8 @@ class UpdatePolitica {
     bool? aplicarATodos,
     int? prioridad,
     int? maxFamiliaresPorTrabajador,
+    double? markupSobreCosto,
+    EstrategiaMayor? estrategiaMayor,
     bool? isActive,
   }) async {
     return await _repository.updatePolitica(
@@ -42,6 +44,8 @@ class UpdatePolitica {
       aplicarATodos: aplicarATodos,
       prioridad: prioridad,
       maxFamiliaresPorTrabajador: maxFamiliaresPorTrabajador,
+      markupSobreCosto: markupSobreCosto,
+      estrategiaMayor: estrategiaMayor,
       isActive: isActive,
     );
   }

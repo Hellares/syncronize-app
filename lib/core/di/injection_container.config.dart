@@ -570,6 +570,8 @@ import '../../features/descuento/domain/usecases/agregar_familiar.dart'
     as _i147;
 import '../../features/descuento/domain/usecases/asignar_categorias.dart'
     as _i269;
+import '../../features/descuento/domain/usecases/asignar_clientes.dart'
+    as _i269;
 import '../../features/descuento/domain/usecases/asignar_productos.dart'
     as _i1012;
 import '../../features/descuento/domain/usecases/asignar_usuarios.dart'
@@ -582,16 +584,23 @@ import '../../features/descuento/domain/usecases/get_politica_by_id.dart'
     as _i649;
 import '../../features/descuento/domain/usecases/get_politicas_descuento.dart'
     as _i849;
+import '../../features/descuento/domain/usecases/obtener_clientes_asignados.dart'
+    as _i865;
 import '../../features/descuento/domain/usecases/obtener_familiares.dart'
     as _i487;
 import '../../features/descuento/domain/usecases/obtener_historial_uso.dart'
     as _i145;
+import '../../features/descuento/domain/usecases/obtener_politicas_vigentes_cliente.dart'
+    as _i50;
 import '../../features/descuento/domain/usecases/obtener_usuarios_asignados.dart'
     as _i873;
+import '../../features/descuento/domain/usecases/remover_cliente.dart' as _i598;
 import '../../features/descuento/domain/usecases/remover_familiar.dart'
     as _i756;
 import '../../features/descuento/domain/usecases/remover_usuario.dart' as _i539;
 import '../../features/descuento/domain/usecases/update_politica.dart' as _i120;
+import '../../features/descuento/presentation/bloc/asignar_clientes/asignar_clientes_cubit.dart'
+    as _i654;
 import '../../features/descuento/presentation/bloc/asignar_productos/asignar_productos_cubit.dart'
     as _i457;
 import '../../features/descuento/presentation/bloc/asignar_usuarios/asignar_usuarios_cubit.dart'
@@ -3122,6 +3131,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i269.AsignarCategorias>(
       () => _i269.AsignarCategorias(gh<_i605.DescuentoRepository>()),
     );
+    gh.factory<_i269.AsignarClientes>(
+      () => _i269.AsignarClientes(gh<_i605.DescuentoRepository>()),
+    );
     gh.factory<_i1012.AsignarProductos>(
       () => _i1012.AsignarProductos(gh<_i605.DescuentoRepository>()),
     );
@@ -3143,14 +3155,24 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i849.GetPoliticasDescuento>(
       () => _i849.GetPoliticasDescuento(gh<_i605.DescuentoRepository>()),
     );
+    gh.factory<_i865.ObtenerClientesAsignados>(
+      () => _i865.ObtenerClientesAsignados(gh<_i605.DescuentoRepository>()),
+    );
     gh.factory<_i487.ObtenerFamiliares>(
       () => _i487.ObtenerFamiliares(gh<_i605.DescuentoRepository>()),
     );
     gh.factory<_i145.ObtenerHistorialUso>(
       () => _i145.ObtenerHistorialUso(gh<_i605.DescuentoRepository>()),
     );
+    gh.factory<_i50.ObtenerPoliticasVigentesCliente>(
+      () =>
+          _i50.ObtenerPoliticasVigentesCliente(gh<_i605.DescuentoRepository>()),
+    );
     gh.factory<_i873.ObtenerUsuariosAsignados>(
       () => _i873.ObtenerUsuariosAsignados(gh<_i605.DescuentoRepository>()),
+    );
+    gh.factory<_i598.RemoverCliente>(
+      () => _i598.RemoverCliente(gh<_i605.DescuentoRepository>()),
     );
     gh.factory<_i756.RemoverFamiliar>(
       () => _i756.RemoverFamiliar(gh<_i605.DescuentoRepository>()),
@@ -3858,6 +3880,13 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i123.GetServiciosUseCase>(
       () => _i123.GetServiciosUseCase(gh<_i603.ServicioRepository>()),
+    );
+    gh.factory<_i654.AsignarClientesCubit>(
+      () => _i654.AsignarClientesCubit(
+        gh<_i269.AsignarClientes>(),
+        gh<_i865.ObtenerClientesAsignados>(),
+        gh<_i598.RemoverCliente>(),
+      ),
     );
     gh.factory<_i1046.ConfiguracionCodigosCubit>(
       () => _i1046.ConfiguracionCodigosCubit(

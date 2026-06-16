@@ -137,6 +137,10 @@ class PoliticaUsadaModel extends PoliticaUsada {
         return 'PORCENTAJE';
       case TipoCalculoDescuento.montoFijo:
         return 'MONTO_FIJO';
+      case TipoCalculoDescuento.precioCosto:
+        return 'PRECIO_COSTO';
+      case TipoCalculoDescuento.precioMayorDesdeUnidad:
+        return 'PRECIO_MAYOR_DESDE_UNIDAD';
     }
   }
 }

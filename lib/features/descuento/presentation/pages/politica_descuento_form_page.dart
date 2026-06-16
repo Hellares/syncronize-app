@@ -62,10 +62,18 @@ class _PoliticaFormViewState extends State<_PoliticaFormView> {
   final _cantidadMaxUsosController = TextEditingController();
   final _prioridadController = TextEditingController();
   final _maxFamiliaresPorTrabajadorController = TextEditingController();
+  final _markupController = TextEditingController();
 
   TipoDescuento _tipoDescuento = TipoDescuento.trabajador;
   TipoCalculoDescuento _tipoCalculo = TipoCalculoDescuento.porcentaje;
+  EstrategiaMayor _estrategiaMayor = EstrategiaMayor.primerNivel;
   bool _aplicarATodos = false;
+
+  /// true si el modo de cálculo es un precio especial VIP (costo / mayor),
+  /// donde no se usa "valor de descuento" sino markup/estrategia.
+  bool get _esModoVip =>
+      _tipoCalculo == TipoCalculoDescuento.precioCosto ||
+      _tipoCalculo == TipoCalculoDescuento.precioMayorDesdeUnidad;
   DateTime? _fechaInicio;
   DateTime? _fechaFin;
   bool _isLoading = false;
@@ -93,6 +101,7 @@ class _PoliticaFormViewState extends State<_PoliticaFormView> {
     _cantidadMaxUsosController.dispose();
     _prioridadController.dispose();
     _maxFamiliaresPorTrabajadorController.dispose();
+    _markupController.dispose();
     super.dispose();
   }
 
@@ -103,6 +112,9 @@ class _PoliticaFormViewState extends State<_PoliticaFormView> {
       _descripcionController.text = politica.descripcion ?? '';
       _tipoDescuento = politica.tipoDescuento;
       _tipoCalculo = politica.tipoCalculo;
+      _estrategiaMayor = politica.estrategiaMayor;
+      _markupController.text =
+          politica.markupSobreCosto?.toStringAsFixed(2) ?? '';
       _valorDescuentoController.text = politica.valorDescuento.toStringAsFixed(
           politica.tipoCalculo == TipoCalculoDescuento.porcentaje ? 0 : 2);
       _descuentoMaximoController.text =
@@ -132,26 +144,11 @@ class _PoliticaFormViewState extends State<_PoliticaFormView> {
       return;
     }
 
-    // Validación de fechas
-    if (_fechaInicio == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('La fecha de inicio es requerida'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-    if (_fechaFin == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('La fecha de fin es requerida'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-    if (_fechaFin!.isBefore(_fechaInicio!)) {
+    // Vigencia: fechas OPCIONALES (sin fechas = política permanente).
+    // Solo validamos coherencia si ambas están presentes.
+    if (_fechaInicio != null &&
+        _fechaFin != null &&
+        _fechaFin!.isBefore(_fechaInicio!)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('La fecha de fin no puede ser anterior a la fecha de inicio'),
@@ -165,6 +162,21 @@ class _PoliticaFormViewState extends State<_PoliticaFormView> {
       _isLoading = true;
     });
 
+    // En modos VIP (costo / mayor) no se usa "valor de descuento": se manda 0
+    // y el precio se resuelve por markup/estrategia + niveles en el backend.
+    final valorDescuentoFinal = _esModoVip
+        ? 0.0
+        : double.tryParse(_valorDescuentoController.text) ?? 0.0;
+    final markupFinal =
+        _tipoCalculo == TipoCalculoDescuento.precioCosto &&
+                _markupController.text.trim().isNotEmpty
+            ? double.tryParse(_markupController.text)
+            : null;
+    final estrategiaFinal =
+        _tipoCalculo == TipoCalculoDescuento.precioMayorDesdeUnidad
+            ? _estrategiaMayor
+            : null;
+
     if (widget.isEditing && widget.politicaId != null) {
       // Actualizar política existente
       context.read<PoliticaFormCubit>().updatePolitica(
@@ -175,7 +187,7 @@ class _PoliticaFormViewState extends State<_PoliticaFormView> {
                 : _descripcionController.text.trim(),
             tipoDescuento: _tipoDescuento,
             tipoCalculo: _tipoCalculo,
-            valorDescuento: double.parse(_valorDescuentoController.text),
+            valorDescuento: valorDescuentoFinal,
             descuentoMaximo: _descuentoMaximoController.text.isEmpty
                 ? null
                 : double.parse(_descuentoMaximoController.text),
@@ -195,6 +207,8 @@ class _PoliticaFormViewState extends State<_PoliticaFormView> {
                 _maxFamiliaresPorTrabajadorController.text.isEmpty
                     ? null
                     : int.parse(_maxFamiliaresPorTrabajadorController.text),
+            markupSobreCosto: markupFinal,
+            estrategiaMayor: estrategiaFinal,
           );
     } else {
       // Crear nueva política
@@ -205,7 +219,7 @@ class _PoliticaFormViewState extends State<_PoliticaFormView> {
                 : _descripcionController.text.trim(),
             tipoDescuento: _tipoDescuento,
             tipoCalculo: _tipoCalculo,
-            valorDescuento: double.parse(_valorDescuentoController.text),
+            valorDescuento: valorDescuentoFinal,
             descuentoMaximo: _descuentoMaximoController.text.isEmpty
                 ? null
                 : double.parse(_descuentoMaximoController.text),
@@ -225,6 +239,8 @@ class _PoliticaFormViewState extends State<_PoliticaFormView> {
                 _maxFamiliaresPorTrabajadorController.text.isEmpty
                     ? null
                     : int.parse(_maxFamiliaresPorTrabajadorController.text),
+            markupSobreCosto: markupFinal,
+            estrategiaMayor: estrategiaFinal,
           );
     }
   }
@@ -402,35 +418,93 @@ class _PoliticaFormViewState extends State<_PoliticaFormView> {
               hintText: 'Selecciona el tipo',
             ),
             const SizedBox(height: 16),
-            CustomText(
-              controller: _valorDescuentoController,
-              hintText: _tipoCalculo == TipoCalculoDescuento.porcentaje
-                  ? 'Porcentaje de Descuento (Ej: 15)'
-                  : 'Monto Fijo de Descuento (Ej: 50.00)',
-              borderColor: AppColors.blue1,
-              keyboardType: TextInputType.number,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'El valor del descuento es requerido';
-                }
-                final number = double.tryParse(value);
-                if (number == null || number <= 0) {
-                  return 'Ingresa un valor válido mayor a 0';
-                }
-                if (_tipoCalculo == TipoCalculoDescuento.porcentaje &&
-                    number > 100) {
-                  return 'El porcentaje no puede ser mayor a 100';
-                }
-                return null;
-              },
-            ),
-            if (_tipoCalculo == TipoCalculoDescuento.porcentaje) ...[
-              const SizedBox(height: 12),
+            // Modos %/monto: campo de valor de descuento.
+            if (!_esModoVip) ...[
               CustomText(
-                controller: _descuentoMaximoController,
-                hintText: 'Descuento Máximo en S/. (Ej: 100.00)',
+                controller: _valorDescuentoController,
+                hintText: _tipoCalculo == TipoCalculoDescuento.porcentaje
+                    ? 'Porcentaje de Descuento (Ej: 15)'
+                    : 'Monto Fijo de Descuento (Ej: 50.00)',
                 borderColor: AppColors.blue1,
                 keyboardType: TextInputType.number,
+                validator: (value) {
+                  if (_esModoVip) return null;
+                  if (value == null || value.isEmpty) {
+                    return 'El valor del descuento es requerido';
+                  }
+                  final number = double.tryParse(value);
+                  if (number == null || number <= 0) {
+                    return 'Ingresa un valor válido mayor a 0';
+                  }
+                  if (_tipoCalculo == TipoCalculoDescuento.porcentaje &&
+                      number > 100) {
+                    return 'El porcentaje no puede ser mayor a 100';
+                  }
+                  return null;
+                },
+              ),
+              if (_tipoCalculo == TipoCalculoDescuento.porcentaje) ...[
+                const SizedBox(height: 12),
+                CustomText(
+                  controller: _descuentoMaximoController,
+                  hintText: 'Descuento Máximo en S/. (Ej: 100.00)',
+                  borderColor: AppColors.blue1,
+                  keyboardType: TextInputType.number,
+                ),
+              ],
+            ],
+            // Modo VIP: precio costo → markup opcional sobre el costo.
+            if (_tipoCalculo == TipoCalculoDescuento.precioCosto) ...[
+              CustomText(
+                controller: _markupController,
+                hintText: 'Markup sobre el costo en % (opcional, Ej: 5)',
+                borderColor: AppColors.blue1,
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 8),
+              AppCaption(
+                items: [
+                  CaptionItem(
+                    icon: Icons.info_outline,
+                    text:
+                        'Vende al precio de costo de la sede. Markup vacío o 0 = costo puro (margen 0).',
+                  ),
+                ],
+                color: AppColors.blue3,
+                fontSize: 9,
+              ),
+            ],
+            // Modo VIP: mayor desde la unidad 1 → estrategia de escalón.
+            if (_tipoCalculo ==
+                TipoCalculoDescuento.precioMayorDesdeUnidad) ...[
+              CustomDropdown<EstrategiaMayor>(
+                borderColor: AppColors.blue1,
+                value: _estrategiaMayor,
+                items: EstrategiaMayor.values
+                    .map((e) => DropdownItem(
+                          value: e,
+                          label: _getEstrategiaMayorLabel(e),
+                        ))
+                    .toList(),
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() => _estrategiaMayor = value);
+                  }
+                },
+                label: 'Escalón a aplicar',
+                hintText: 'Selecciona la estrategia',
+              ),
+              const SizedBox(height: 8),
+              AppCaption(
+                items: [
+                  CaptionItem(
+                    icon: Icons.info_outline,
+                    text:
+                        'Aplica el precio por mayor desde la primera unidad (sin esperar la cantidad mínima).',
+                  ),
+                ],
+                color: AppColors.blue3,
+                fontSize: 9,
               ),
             ],
           ],
@@ -586,7 +660,7 @@ class _PoliticaFormViewState extends State<_PoliticaFormView> {
             const SizedBox(height: 10),
             CustomText(
               controller: _prioridadController,
-              hintText: 'Prioridad (Ej: 1 = mayor prioridad)',
+              hintText: 'Prioridad (mayor número = mayor prioridad)',
               borderColor: AppColors.blue1,
               keyboardType: TextInputType.number,
             ),
@@ -619,6 +693,19 @@ class _PoliticaFormViewState extends State<_PoliticaFormView> {
         return 'Porcentaje (%)';
       case TipoCalculoDescuento.montoFijo:
         return 'Monto Fijo (S/.)';
+      case TipoCalculoDescuento.precioCosto:
+        return 'Precio Costo (VIP)';
+      case TipoCalculoDescuento.precioMayorDesdeUnidad:
+        return 'Mayor desde 1 unidad (VIP)';
+    }
+  }
+
+  String _getEstrategiaMayorLabel(EstrategiaMayor estrategia) {
+    switch (estrategia) {
+      case EstrategiaMayor.primerNivel:
+        return 'Primer escalón por mayor';
+      case EstrategiaMayor.mejorNivel:
+        return 'Mejor precio disponible';
     }
   }
 

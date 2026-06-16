@@ -13,6 +13,7 @@ class PoliticaCard extends StatelessWidget {
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
   final VoidCallback? onAssignUsers;
+  final VoidCallback? onAssignClients;
   final VoidCallback? onAssignProducts;
   final VoidCallback? onViewHistory;
 
@@ -22,6 +23,7 @@ class PoliticaCard extends StatelessWidget {
     this.onEdit,
     this.onDelete,
     this.onAssignUsers,
+    this.onAssignClients,
     this.onAssignProducts,
     this.onViewHistory,
   });
@@ -170,7 +172,19 @@ class PoliticaCard extends StatelessWidget {
               color: AppColors.blue1,
             ),
           ),
-        if (onAssignUsers != null && onAssignProducts != null)
+        if (onAssignUsers != null && onAssignClients != null)
+          const SizedBox(width: 8),
+        if (onAssignClients != null)
+          Expanded(
+            child: _buildActionButton(
+              icon: Icons.workspace_premium_outlined,
+              label: 'Clientes',
+              onTap: onAssignClients!,
+              color: Colors.amber.shade800,
+            ),
+          ),
+        if ((onAssignUsers != null || onAssignClients != null) &&
+            onAssignProducts != null)
           const SizedBox(width: 8),
         if (onAssignProducts != null)
           Expanded(
@@ -286,10 +300,16 @@ class PoliticaCard extends StatelessWidget {
   }
 
   String _getDescuentoValue() {
-    if (politica.tipoCalculo == TipoCalculoDescuento.porcentaje) {
-      return '${politica.valorDescuento.toStringAsFixed(0)}%';
-    } else {
-      return 'S/. ${politica.valorDescuento.toStringAsFixed(2)}';
+    switch (politica.tipoCalculo) {
+      case TipoCalculoDescuento.porcentaje:
+        return '${politica.valorDescuento.toStringAsFixed(0)}%';
+      case TipoCalculoDescuento.montoFijo:
+        return 'S/. ${politica.valorDescuento.toStringAsFixed(2)}';
+      case TipoCalculoDescuento.precioCosto:
+        final m = politica.markupSobreCosto ?? 0;
+        return m > 0 ? 'Costo +${m.toStringAsFixed(0)}%' : 'Precio costo';
+      case TipoCalculoDescuento.precioMayorDesdeUnidad:
+        return 'Mayor x1';
     }
   }
 
