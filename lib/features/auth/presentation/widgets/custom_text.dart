@@ -1587,6 +1587,13 @@ class _CustomTextFieldState extends State<CustomText>
               enabled: widget.enabled,
               readOnly: widget.readOnly,
               showCursor: true,
+              // Menú de selección flotante moderno (copiar/pegar/seleccionar)
+              // en vez del toolbar Material clásico (que se ve tosco).
+              contextMenuBuilder: (context, editableTextState) {
+                return AdaptiveTextSelectionToolbar.editableText(
+                  editableTextState: editableTextState,
+                );
+              },
               maxLines: widget.maxLines,
               minLines: widget.minLines,
               maxLength: widget.maxLength,
