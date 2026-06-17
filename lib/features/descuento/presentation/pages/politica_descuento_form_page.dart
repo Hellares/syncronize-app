@@ -631,9 +631,9 @@ class _PoliticaFormViewState extends State<_PoliticaFormView> {
             ),
             const SizedBox(height: 10),
             CustomSwitchTile(
-              title: 'Aplicar a Todos',
+              title: 'Aplicar a todos los productos',
               subtitle:
-                  'Aplicar esta política a todos los usuarios automáticamente',
+                  'El precio especial aplica a TODOS los productos. Apágalo para limitarlo a productos o categorías específicas.',
               value: _aplicarATodos,
               onChanged: (value) {
                 setState(() {
