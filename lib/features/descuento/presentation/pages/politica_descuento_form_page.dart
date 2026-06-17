@@ -462,16 +462,8 @@ class _PoliticaFormViewState extends State<_PoliticaFormView> {
                 keyboardType: TextInputType.number,
               ),
               const SizedBox(height: 8),
-              AppCaption(
-                items: [
-                  CaptionItem(
-                    icon: Icons.info_outline,
-                    text:
-                        'Vende al precio de costo de la sede. Markup vacío o 0 = costo puro (margen 0).',
-                  ),
-                ],
-                color: AppColors.blue3,
-                fontSize: 9,
+              _buildAyuda(
+                'Vende al precio de costo de la sede. Markup vacío o 0 = costo puro (margen 0).',
               ),
             ],
             // Modo VIP: mayor desde la unidad 1 → estrategia de escalón.
@@ -495,16 +487,8 @@ class _PoliticaFormViewState extends State<_PoliticaFormView> {
                 hintText: 'Selecciona la estrategia',
               ),
               const SizedBox(height: 8),
-              AppCaption(
-                items: [
-                  CaptionItem(
-                    icon: Icons.info_outline,
-                    text:
-                        'Aplica el precio por mayor desde la primera unidad (sin esperar la cantidad mínima).',
-                  ),
-                ],
-                color: AppColors.blue3,
-                fontSize: 9,
+              _buildAyuda(
+                'Aplica el precio por mayor desde la primera unidad (sin esperar la cantidad mínima).',
               ),
             ],
           ],
@@ -667,6 +651,24 @@ class _PoliticaFormViewState extends State<_PoliticaFormView> {
           ],
         ),
       ),
+    );
+  }
+
+  /// Texto de ayuda bajo un campo, que envuelve en varias líneas (a diferencia
+  /// de AppCaption, que es un Row sin wrap y desborda con textos largos).
+  Widget _buildAyuda(String text) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Icon(Icons.info_outline, size: 12, color: AppColors.blue3),
+        const SizedBox(width: 4),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(fontSize: 9, color: AppColors.blue3),
+          ),
+        ),
+      ],
     );
   }
 
