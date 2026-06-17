@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:syncronize/core/fonts/app_fonts.dart';
@@ -222,6 +223,29 @@ class _CobroViewState extends State<_CobroView> {
     } else if (st.tipoDocCliente == 'RUC' && doc.length == 11) {
       cubit.buscarClientePorRuc(doc);
     }
+  }
+
+  /// Pega el documento desde el portapapeles: extrae solo dígitos, recorta al
+  /// largo del tipo (DNI 8 / RUC 11) y lo escribe en `_docCtrl`. El listener
+  /// `_onDocChange` sincroniza el state y dispara la búsqueda automática.
+  Future<void> _pegarDocumento(VentaRapidaState state) async {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    if (!mounted) return;
+    final digitos = (data?.text ?? '').replaceAll(RegExp(r'\D'), '');
+    if (digitos.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('El portapapeles no tiene un número de documento'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    final max = state.tipoDocCliente == 'DNI'
+        ? 8
+        : (state.tipoDocCliente == 'RUC' ? 11 : digitos.length);
+    _docCtrl.text =
+        digitos.length > max ? digitos.substring(0, max) : digitos;
   }
 
   /// Vincula el numpad al input que gana foco. El numpad sigue visible
@@ -1194,6 +1218,16 @@ class _CobroViewState extends State<_CobroView> {
                             ? 8
                             : (state.tipoDocCliente == 'RUC' ? 11 : null),
                       ),
+                    ),
+                    // Pegar documento desde el portapapeles (el campo es
+                    // readOnly por el numpad, así que el "Pegar" nativo no
+                    // aparece; este botón lo suple).
+                    IconButton(
+                      icon: const Icon(Icons.content_paste_rounded,
+                          size: 18, color: AppColors.blue1),
+                      tooltip: 'Pegar documento',
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () => _pegarDocumento(state),
                     ),
                     // La búsqueda por documento es automática al completar
                     // los dígitos (ver _onDocChanged) — sin botón buscar.
