@@ -963,13 +963,20 @@ class _CobroViewState extends State<_CobroView> {
           // y el back desde productos cae en dashboard (no sale de
           // la app). Los pushes se difieren entre frames para que
           // GoRouter complete cada transición antes de la siguiente.
-          context.go('/empresa/dashboard');
+          //
+          // IMPORTANTE: usamos la instancia de GoRouter (global, estable) y NO
+          // `context`. El primer `go` destruye esta página de cobro y su
+          // `context`; si encadenáramos con `context.push` + `context.mounted`,
+          // a veces el context ya está desmontado en el frame siguiente y el
+          // push del TICKET se cancelaba → la venta terminaba en productos.
+          // Bug flaky reportado: el router no se desmonta, así que siempre
+          // completa los 3 pasos.
+          final router = GoRouter.of(context);
+          router.go('/empresa/dashboard');
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!context.mounted) return;
-            context.push('/empresa/venta-rapida');
+            router.push('/empresa/venta-rapida');
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (!context.mounted) return;
-              context.push('/empresa/ventas/$ventaId/ticket');
+              router.push('/empresa/ventas/$ventaId/ticket');
             });
           });
         }

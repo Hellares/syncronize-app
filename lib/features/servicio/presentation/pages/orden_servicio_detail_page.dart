@@ -4065,6 +4065,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                           activeColor: AppColors.blue1,
                           visualDensity: VisualDensity.compact,
                           title: Text(k, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+
                           subtitle: Text(
                             resumenValor(datosPers[k]),
                             style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
