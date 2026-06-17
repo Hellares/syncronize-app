@@ -159,27 +159,23 @@ class VipResolver {
 
   bool get isEmpty => politicas.isEmpty;
 
-  VipPrecioIntent? intentParaProducto(String? productoId) {
-    final aplicables =
-        politicas.where((p) => p.aplicaAProducto(productoId)).toList();
-    if (aplicables.isEmpty) return null;
-    // Mayor prioridad gana (desempate: la primera).
-    final g = aplicables
-        .reduce((best, p) => p.prioridad > best.prioridad ? p : best);
-
-    var valor = g.valor;
-    if (productoId != null && g.overridePorProducto.containsKey(productoId)) {
-      valor = g.overridePorProducto[productoId]!;
-    }
-
-    return VipPrecioIntent(
-      politicaId: g.politicaId,
-      etiqueta: 'VIP: ${g.nombre}',
-      modo: g.modo,
-      valor: valor,
-      markupSobreCosto: g.markupSobreCosto,
-      estrategiaMayor: g.estrategiaMayor,
-      descuentoMaximo: g.descuentoMaximo,
-    );
+  /// TODAS las políticas aplicables a la línea (el cliente puede estar en
+  /// varias). El cálculo de precio elige el menor entre ellas (gana el menor).
+  List<VipPrecioIntent> intentsParaProducto(String? productoId) {
+    return politicas.where((p) => p.aplicaAProducto(productoId)).map((g) {
+      var valor = g.valor;
+      if (productoId != null && g.overridePorProducto.containsKey(productoId)) {
+        valor = g.overridePorProducto[productoId]!;
+      }
+      return VipPrecioIntent(
+        politicaId: g.politicaId,
+        etiqueta: 'VIP: ${g.nombre}',
+        modo: g.modo,
+        valor: valor,
+        markupSobreCosto: g.markupSobreCosto,
+        estrategiaMayor: g.estrategiaMayor,
+        descuentoMaximo: g.descuentoMaximo,
+      );
+    }).toList();
   }
 }

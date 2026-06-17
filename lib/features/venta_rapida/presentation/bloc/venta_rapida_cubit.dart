@@ -130,21 +130,21 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
           item.comboId != null ||
           item.esOrdenServicio ||
           item.servicioId != null;
-      final intent =
-          exento ? null : _vipResolver?.intentParaProducto(item.productoId);
-      // Sin cambios si el intent es igual al que ya tenía.
-      if (intent == item.vipIntent) return item;
+      final intents = exento ? const <VipPrecioIntent>[] : _vipParaNuevoProducto(item.productoId);
+      // Sin cambios si las intenciones son iguales a las que ya tenía.
+      if (listEquals(intents, item.vipIntents)) return item;
       cambio = true;
       return item
-          .copyWith(vipIntent: intent, clearVipIntent: intent == null)
+          .copyWith(vipIntents: intents)
           .recalcularPrecioPorNiveles(item.cantidad);
     }).toList();
     if (cambio) emit(state.copyWith(items: nuevos));
   }
 
-  /// Intent VIP para un producto recién agregado (o null si no aplica).
-  VipPrecioIntent? _vipParaNuevoProducto(String? productoId) =>
-      _vipResolver?.intentParaProducto(productoId);
+  /// Intenciones VIP para un producto (todas las políticas aplicables del
+  /// cliente; vacío si no aplica ninguna).
+  List<VipPrecioIntent> _vipParaNuevoProducto(String? productoId) =>
+      _vipResolver?.intentsParaProducto(productoId) ?? const [];
 
   /// Token monotónico de búsqueda de cliente. Se usa para descartar
   /// respuestas obsoletas: si el cajero busca DNI A, lo cancela y busca DNI B,
@@ -329,7 +329,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       precioCostoSnapshot: producto.precioCostoEnSede(sedeId),
       enLiquidacion: producto.enLiquidacionEnSede(sedeId),
       // Precio especial VIP si el cliente actual lo tiene.
-      vipIntent: _vipParaNuevoProducto(producto.id),
+      vipIntents: _vipParaNuevoProducto(producto.id),
     );
     final itemConNivel = nivelesEnCache != null
         ? item.recalcularPrecioPorNiveles(1)
@@ -391,7 +391,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       niveles: nivelesEnCache ?? const [],
       precioCostoSnapshot: variante.precioCostoEnSede(sedeId),
       enLiquidacion: variante.enLiquidacionEnSede(sedeId),
-      vipIntent: _vipParaNuevoProducto(producto.id),
+      vipIntents: _vipParaNuevoProducto(producto.id),
     );
     final itemConNivel = nivelesEnCache != null
         ? item.recalcularPrecioPorNiveles(1)

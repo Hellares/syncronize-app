@@ -96,9 +96,10 @@ class VentaDetalleInput {
   /// Permite mostrar badge naranja y omitir el guard de autorización.
   final bool enLiquidacion;
 
-  /// Intención de precio especial VIP resuelta para esta línea (según el
-  /// cliente seleccionado). null = sin VIP. La aplica recalcularPrecioPorNiveles.
-  final VipPrecioIntent? vipIntent;
+  /// Intenciones de precio especial VIP aplicables a esta línea (el cliente
+  /// puede estar en varias políticas). Vacío = sin VIP. recalcularPrecioPorNiveles
+  /// elige el menor entre ellas.
+  final List<VipPrecioIntent> vipIntents;
 
   const VentaDetalleInput({
     this.productoId,
@@ -130,7 +131,7 @@ class VentaDetalleInput {
     this.comboModificado = false,
     this.precioCostoSnapshot,
     this.enLiquidacion = false,
-    this.vipIntent,
+    this.vipIntents = const [],
   });
 
   /// True si el precio actual de la línea proviene de una política VIP.
@@ -230,8 +231,7 @@ class VentaDetalleInput {
     bool? comboModificado,
     double? precioCostoSnapshot,
     bool? enLiquidacion,
-    VipPrecioIntent? vipIntent,
-    bool clearVipIntent = false,
+    List<VipPrecioIntent>? vipIntents,
     bool clearNivelAplicado = false,
     bool clearPrecioBase = false,
   }) {
@@ -268,7 +268,7 @@ class VentaDetalleInput {
       comboModificado: comboModificado ?? this.comboModificado,
       precioCostoSnapshot: precioCostoSnapshot ?? this.precioCostoSnapshot,
       enLiquidacion: enLiquidacion ?? this.enLiquidacion,
-      vipIntent: clearVipIntent ? null : (vipIntent ?? this.vipIntent),
+      vipIntents: vipIntents ?? this.vipIntents,
     );
   }
 
@@ -322,13 +322,14 @@ class VentaDetalleInput {
     // enLiquidacion → precio = base (precio de liquidación ya viene en base),
     // niveles ignorados (paridad con backend).
 
-    // 2) Candidato VIP (gana el menor): espejo del reduce del backend. El
+    // 2) Candidatos VIP (gana el menor): espejo del reduce del backend. Cada
+    //    política aplicable del cliente es un candidato; se toma el menor. El
     //    cliente nunca paga más que una oferta/liquidación pública más barata.
-    if (vipIntent != null) {
-      final vipPrecio = _calcularCandidatoVip(vipIntent!, base);
+    for (final vip in vipIntents) {
+      final vipPrecio = _calcularCandidatoVip(vip, base);
       if (vipPrecio != null && vipPrecio < precio) {
         precio = vipPrecio;
-        etiqueta = vipIntent!.etiqueta;
+        etiqueta = vip.etiqueta;
         descPct = base > 0 ? ((base - vipPrecio) / base) * 100 : 0;
       }
     }
