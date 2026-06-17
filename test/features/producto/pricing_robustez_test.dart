@@ -1,7 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:syncronize/features/producto/domain/entities/stock_por_sede_info.dart';
 import 'package:syncronize/features/producto/domain/entities/precio_nivel.dart';
+import 'package:syncronize/features/producto/data/models/precio_nivel_model.dart';
 import 'package:syncronize/features/venta/domain/entities/venta_detalle_input.dart';
+import 'package:syncronize/features/descuento/domain/entities/vip_precio.dart';
+import 'package:syncronize/features/descuento/domain/entities/politica_descuento.dart'
+    show EstrategiaMayor;
 
 /// Tests de robustez de la lógica de precios (productos, variantes, combos).
 /// Verifican las reglas de negocio que tocamos esta sesión:
@@ -213,6 +217,202 @@ void main() {
         12,
       );
       expect(sel?.cantidadMinima, 12);
+    });
+  });
+
+  // ── Precio especial VIP del cliente (feature "Cliente VIP") ──
+  // Estos cálculos deben ser ESPEJO EXACTO del backend (PrecioNivelService);
+  // si divergen, el guard 409 PRECIO_DESACTUALIZADO rebota la venta.
+
+  VipPrecioIntent vipCosto({double markup = 0}) => VipPrecioIntent(
+        politicaId: 'p-costo',
+        etiqueta: 'VIP: Costo',
+        modo: ModoPrecioVip.precioCosto,
+        markupSobreCosto: markup,
+      );
+  VipPrecioIntent vipMayor(
+          {EstrategiaMayor estrategia = EstrategiaMayor.primerNivel}) =>
+      VipPrecioIntent(
+        politicaId: 'p-mayor',
+        etiqueta: 'VIP: Mayor',
+        modo: ModoPrecioVip.precioMayorDesdeUnidad,
+        estrategiaMayor: estrategia,
+      );
+  VipPrecioIntent vipPct(double v, {double? max}) => VipPrecioIntent(
+        politicaId: 'p-pct',
+        etiqueta: 'VIP: %',
+        modo: ModoPrecioVip.porcentaje,
+        valor: v,
+        descuentoMaximo: max,
+      );
+  VipPrecioIntent vipMonto(double v) => VipPrecioIntent(
+        politicaId: 'p-monto',
+        etiqueta: 'VIP: Monto',
+        modo: ModoPrecioVip.montoFijo,
+        valor: v,
+      );
+  // PrecioNivelMODEL (no PrecioNivel): reproduce la covarianza que crasheaba
+  // el reduce de MEJOR_NIVEL (niveles runtime List<PrecioNivelModel>).
+  PrecioNivelModel nivelModel(int min, double precio) => PrecioNivelModel(
+        id: 'nm',
+        nombre: 'Por Mayor',
+        cantidadMinima: min,
+        tipoPrecio: TipoPrecioNivel.precioFijo,
+        precio: precio,
+        orden: 0,
+        isActive: true,
+        creadoEn: t0,
+        actualizadoEn: t0,
+      );
+
+  VentaDetalleInput linea({
+    double base = 47,
+    double? costo,
+    List<PrecioNivel> niveles = const [],
+    bool enLiq = false,
+    required List<VipPrecioIntent> vips,
+  }) =>
+      VentaDetalleInput(
+        descripcion: 'X',
+        cantidad: 1,
+        precioUnitario: base,
+        precioBase: base,
+        precioCostoSnapshot: costo,
+        niveles: niveles,
+        enLiquidacion: enLiq,
+        vipIntents: vips,
+      ).recalcularPrecioPorNiveles(1);
+
+  group('VentaDetalleInput VIP — recalcularPrecioPorNiveles', () {
+    test('costo puro gana cuando < base', () {
+      final i = linea(base: 47, costo: 27.5, vips: [vipCosto()]);
+      expect(i.precioUnitario, 27.5);
+      expect(i.esPrecioVip, isTrue);
+      expect(i.nivelAplicado, 'VIP: Costo');
+    });
+
+    test('costo + markup 5%', () {
+      final i = linea(base: 100, costo: 20, vips: [vipCosto(markup: 5)]);
+      expect(i.precioUnitario, closeTo(21, 0.0001));
+    });
+
+    test('costo null → no aplica, queda base', () {
+      final i = linea(base: 47, costo: null, vips: [vipCosto()]);
+      expect(i.precioUnitario, 47);
+      expect(i.esPrecioVip, isFalse);
+    });
+
+    test('costo 0 → no aplica (espejo backend, no vende a 0)', () {
+      final i = linea(base: 47, costo: 0, vips: [vipCosto()]);
+      expect(i.precioUnitario, 47);
+    });
+
+    test('mayor PRIMER_NIVEL: aplica el escalón de 3 desde la unidad 1', () {
+      final i = linea(base: 47, niveles: [nivelFijo(3, 39.9)], vips: [vipMayor()]);
+      expect(i.precioUnitario, 39.9);
+      expect(i.esPrecioVip, isTrue);
+    });
+
+    test('mayor MEJOR_NIVEL con PrecioNivelModel (covarianza) → menor precio', () {
+      final i = linea(
+        base: 47,
+        niveles: [nivelModel(3, 39.9), nivelModel(10, 35)],
+        vips: [vipMayor(estrategia: EstrategiaMayor.mejorNivel)],
+      );
+      expect(i.precioUnitario, 35);
+    });
+
+    test('mayor sin niveles → no aplica', () {
+      final i = linea(base: 47, niveles: const [], vips: [vipMayor()]);
+      expect(i.precioUnitario, 47);
+    });
+
+    test('porcentaje 15%', () {
+      final i = linea(base: 100, vips: [vipPct(15)]);
+      expect(i.precioUnitario, closeTo(85, 0.0001));
+    });
+
+    test('porcentaje capeado por descuentoMaximo', () {
+      final i = linea(base: 100, vips: [vipPct(50, max: 10)]);
+      expect(i.precioUnitario, 90);
+    });
+
+    test('monto fijo no baja de 0', () {
+      final i = linea(base: 100, vips: [vipMonto(200)]);
+      expect(i.precioUnitario, 0);
+    });
+
+    test('DOS políticas (costo + mayor) → gana el menor', () {
+      final i = linea(
+        base: 47,
+        costo: 27.5,
+        niveles: [nivelFijo(3, 39.9)],
+        vips: [vipCosto(), vipMayor()],
+      );
+      expect(i.precioUnitario, 27.5); // costo (27.5) < mayor (39.9)
+      expect(i.nivelAplicado, 'VIP: Costo');
+    });
+
+    test('liquidación (en base) gana sobre VIP costo (gana el menor)', () {
+      // En liquidación, precioBase = precio de liquidación (efectivo).
+      final i = linea(base: 5, costo: 27.5, enLiq: true, vips: [vipCosto()]);
+      expect(i.precioUnitario, 5);
+      expect(i.esPrecioVip, isFalse);
+    });
+  });
+
+  group('VipResolver.intentsParaProducto', () {
+    VipPoliticaVigente pol({
+      required String id,
+      ModoPrecioVip modo = ModoPrecioVip.precioCosto,
+      bool todos = true,
+      Set<String> productos = const {},
+      Map<String, double> override = const {},
+      double valor = 0,
+    }) =>
+        VipPoliticaVigente(
+          politicaId: id,
+          nombre: id,
+          modo: modo,
+          valor: valor,
+          markupSobreCosto: 0,
+          estrategiaMayor: EstrategiaMayor.primerNivel,
+          descuentoMaximo: null,
+          prioridad: 0,
+          aplicarATodos: todos,
+          productoIds: productos,
+          overridePorProducto: override,
+        );
+
+    test('aplicarATodos → aplica a cualquier producto', () {
+      expect(
+        VipResolver([pol(id: 'a', todos: true)]).intentsParaProducto('px').length,
+        1,
+      );
+    });
+
+    test('scope por producto: solo si está en la lista', () {
+      final r = VipResolver([pol(id: 'a', todos: false, productos: {'prod-1'})]);
+      expect(r.intentsParaProducto('prod-1').length, 1);
+      expect(r.intentsParaProducto('prod-2'), isEmpty);
+    });
+
+    test('devuelve TODAS las aplicables (multi-política)', () {
+      final r = VipResolver([pol(id: 'a'), pol(id: 'b')]);
+      expect(r.intentsParaProducto('px').length, 2);
+    });
+
+    test('override por producto cambia el valor', () {
+      final r = VipResolver([
+        pol(
+          id: 'a',
+          modo: ModoPrecioVip.porcentaje,
+          valor: 10,
+          override: {'prod-1': 25},
+        ),
+      ]);
+      expect(r.intentsParaProducto('prod-1').first.valor, 25);
+      expect(r.intentsParaProducto('prod-2').first.valor, 10);
     });
   });
 }
