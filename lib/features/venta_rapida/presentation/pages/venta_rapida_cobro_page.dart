@@ -426,22 +426,52 @@ class _CobroViewState extends State<_CobroView> {
     }
 
     if (!context.mounted) return;
+
+    // Pago MIXTO con Yape/Plin (ej. parte efectivo + parte Yape): el 100% Yape
+    // ya salió por el early-return de arriba, así que llegar acá con una porción
+    // Yape/Plin = mixto. Registramos lo no-Yape al crear y validamos solo la
+    // porción Yape con api-yape (QR + espera/manual).
+    final hayYapePlin = state.pagos
+        .any((p) => p['metodo'] == 'YAPE' || p['metodo'] == 'PLIN');
+    if (hayYapePlin) {
+      await _cobrarConValidacionYape(
+        context,
+        aceptaRiesgo: aceptaRiesgo,
+        autorizadoPorId: autorizacion.autorizadoPorId,
+      );
+      return;
+    }
+
     cubit.cobrar(
       aceptaRiesgoBancarizacion: aceptaRiesgo,
       ventaBajoCostoAutorizadaPorId: autorizacion.autorizadoPorId,
     );
   }
 
-  /// Flujo de cobro Yape/Plin con validación api-yape: crea la venta pendiente,
-  /// muestra el monto único a pagar y espera la confirmación (automática por
-  /// webhook o manual con el comprobante).
-  Future<void> _cobrarConValidacionYape(BuildContext context) async {
+  /// Flujo de cobro Yape/Plin con validación api-yape: crea la venta (con la
+  /// parte no-Yape ya cobrada si es mixto), muestra el QR/monto a pagar por la
+  /// porción Yape y espera la confirmación (automática por webhook o manual).
+  Future<void> _cobrarConValidacionYape(
+    BuildContext context, {
+    bool aceptaRiesgo = false,
+    String? autorizadoPorId,
+  }) async {
     final cubit = context.read<VentaRapidaCubit>();
     final state = cubit.state;
-    final metodo = state.pagos.first['metodo'] as String; // YAPE | PLIN
-    final total = state.totalACobrar;
+    // Porción Yape/Plin = lo que valida api-yape. En 100% Yape es el total;
+    // en mixto es solo esa parte (el resto se cobró al crear la venta).
+    final pagosYape = state.pagos
+        .where((p) => p['metodo'] == 'YAPE' || p['metodo'] == 'PLIN')
+        .toList();
+    if (pagosYape.isEmpty) return;
+    final metodo = pagosYape.first['metodo'] as String; // YAPE | PLIN
+    final total = pagosYape.fold<double>(
+        0, (s, p) => s + (p['monto'] as num).toDouble());
 
-    final res = await cubit.iniciarCobroYape();
+    final res = await cubit.iniciarCobroYape(
+      aceptaRiesgoBancarizacion: aceptaRiesgo,
+      ventaBajoCostoAutorizadaPorId: autorizadoPorId,
+    );
     if (res == null || !context.mounted) return;
 
     // QR precargado del comercio: el del método elegido, con fallback al otro

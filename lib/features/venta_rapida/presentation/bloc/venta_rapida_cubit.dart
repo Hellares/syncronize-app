@@ -1297,7 +1297,10 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
   /// único a pagar con api-yape. Devuelve {ventaId, habilitado, payAmount} o
   /// null si falló crear la venta. NO marca la venta pagada: eso lo hace el
   /// webhook (automático) o la confirmación manual.
-  Future<Map<String, dynamic>?> iniciarCobroYape() async {
+  Future<Map<String, dynamic>?> iniciarCobroYape({
+    bool aceptaRiesgoBancarizacion = false,
+    String? ventaBajoCostoAutorizadaPorId,
+  }) async {
     if (state.procesando) return null;
     if (state.items.isEmpty) {
       emit(state.copyWith(error: 'Agrega al menos un producto'));
@@ -1333,7 +1336,16 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
             ? state.nombreClienteResuelto
             : docTipeado);
 
-    // Payload SIN bloque de pagos → montoRecibido 0 → venta CONFIRMADA pendiente.
+    // Pagos NO-Yape/Plin (ej. efectivo en un pago MIXTO): se registran al crear
+    // la venta → queda CONFIRMADA con esa parte cobrada, y api-yape solo valida
+    // la porción Yape (el pendiente). Si el pago es 100% Yape, esta lista queda
+    // vacía → venta sin pagos (pendiente = total), igual que antes.
+    final pagosNoYape = state.pagos
+        .where((p) => p['metodo'] != 'YAPE' && p['metodo'] != 'PLIN')
+        .toList();
+    final montoNoYape = pagosNoYape.fold<double>(
+        0, (s, p) => s + (p['monto'] as num).toDouble());
+
     final data = <String, dynamic>{
       'canalVenta': 'POS',
       'sedeId': state.sedeId,
@@ -1345,6 +1357,25 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       'moneda': state.moneda,
       'tipoComprobante': state.tipoComprobante,
       'esCredito': false,
+      // La bancarización ya la validó la página (contando la porción Yape como
+      // medio de pago); al crear, el backend solo ve el efectivo, así que le
+      // confirmamos para no rebotar un mixto legítimo por su vista parcial.
+      if (aceptaRiesgoBancarizacion || pagosNoYape.isNotEmpty)
+        'aceptaRiesgoBancarizacion': true,
+      if (ventaBajoCostoAutorizadaPorId != null)
+        'ventaBajoCostoAutorizadaPorId': ventaBajoCostoAutorizadaPorId,
+      if (pagosNoYape.isNotEmpty) ...{
+        'metodoPago': pagosNoYape.first['metodo'],
+        'montoRecibido': montoNoYape,
+        'pagos': pagosNoYape
+            .map((p) => {
+                  'metodoPago': p['metodo'],
+                  'monto': p['monto'],
+                  if (p['banco'] != null) 'banco': p['banco'],
+                  if (p['referencia'] != null) 'referencia': p['referencia'],
+                })
+            .toList(),
+      },
       'detalles': state.items.map((item) => item.toMap()).toList(),
     };
 
