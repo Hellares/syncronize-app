@@ -11,7 +11,7 @@ import '../../../../core/constants/storage_constants.dart';
 import '../../../../core/utils/resource.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
-import '../../../producto/domain/entities/producto.dart';
+import '../../../producto/domain/entities/producto_list_item.dart';
 import '../../../producto/domain/entities/producto_filtros.dart';
 import '../../../producto/domain/usecases/get_productos_usecase.dart';
 import '../../../catalogo/domain/entities/empresa_categoria.dart';
@@ -51,7 +51,8 @@ class _AsignarProductosCategoriasPageState
 
   // ─── Productos (búsqueda + paginación) ───────────────────────────
   final GetProductosUseCase _getProductos = locator<GetProductosUseCase>();
-  final List<Producto> _productos = [];
+  // El repo devuelve ProductoListItem (no Producto) en ProductosPaginados.data.
+  final List<ProductoListItem> _productos = [];
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _productosScroll = ScrollController();
   Timer? _debounce;
@@ -149,7 +150,7 @@ class _AsignarProductosCategoriasPageState
 
     if (result is Success<ProductosPaginados>) {
       final data = result.data;
-      final nuevos = data.data.whereType<Producto>().toList();
+      final nuevos = data.data.whereType<ProductoListItem>().toList();
       setState(() {
         if (reset) {
           _productos
