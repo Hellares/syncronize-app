@@ -444,10 +444,16 @@ class _PoliticaDetailViewState extends State<_PoliticaDetailView> {
   }
 
   String _getDescuentoValue() {
-    if (_politica!.tipoCalculo == TipoCalculoDescuento.porcentaje) {
-      return '${_politica!.valorDescuento.toStringAsFixed(0)}%';
-    } else {
-      return 'S/. ${_politica!.valorDescuento.toStringAsFixed(2)}';
+    switch (_politica!.tipoCalculo) {
+      case TipoCalculoDescuento.porcentaje:
+        return '${_politica!.valorDescuento.toStringAsFixed(0)}%';
+      case TipoCalculoDescuento.montoFijo:
+        return 'S/. ${_politica!.valorDescuento.toStringAsFixed(2)}';
+      case TipoCalculoDescuento.precioCosto:
+        final m = _politica!.markupSobreCosto ?? 0;
+        return m > 0 ? 'Costo +${m.toStringAsFixed(0)}%' : 'Precio costo';
+      case TipoCalculoDescuento.precioMayorDesdeUnidad:
+        return 'Mayor desde 1 unidad';
     }
   }
 }
