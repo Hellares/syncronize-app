@@ -1267,6 +1267,7 @@ class _CobroViewState extends State<_CobroView> {
                     // readOnly por el numpad, así que el "Pegar" nativo no
                     // aparece; este botón lo suple).
                     IconButton(
+                      
                       icon: const Icon(Icons.content_paste_rounded,
                           size: 18, color: AppColors.blue1),
                       tooltip: 'Pegar documento',

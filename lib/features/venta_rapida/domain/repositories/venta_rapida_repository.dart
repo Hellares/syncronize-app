@@ -17,6 +17,9 @@ abstract class VentaRapidaRepository {
   /// Devuelve { habilitado: bool, payAmount?: num, chargeId?: String }.
   Future<Resource<Map<String, dynamic>>> cobroYape(String ventaId);
 
+  /// Estado actual de la venta (polling de respaldo de la hoja Yape).
+  Future<Resource<String>> estadoVenta(String ventaId);
+
   /// Registra un pago en una venta existente (fallback manual con el screenshot).
   Future<Resource<Venta>> registrarPago(
       String ventaId, Map<String, dynamic> data);

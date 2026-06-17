@@ -27,6 +27,14 @@ class VentaRapidaRemoteDataSource {
     return Map<String, dynamic>.from(response.data as Map);
   }
 
+  /// Devuelve el estado actual de una venta (para el polling de respaldo de la
+  /// hoja Yape: si el FCM tarda/se pierde, confirmamos por aquí).
+  Future<String> estadoVenta(String ventaId) async {
+    final response = await _dioClient.get('/ventas/$ventaId');
+    final data = response.data as Map<String, dynamic>;
+    return data['estado'] as String? ?? '';
+  }
+
   /// Registra un pago en una venta existente (fallback manual con el screenshot).
   Future<VentaModel> registrarPago(
       String ventaId, Map<String, dynamic> data) async {

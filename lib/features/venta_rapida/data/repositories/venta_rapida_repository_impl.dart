@@ -58,6 +58,19 @@ class VentaRapidaRepositoryImpl implements VentaRapidaRepository {
   }
 
   @override
+  Future<Resource<String>> estadoVenta(String ventaId) async {
+    if (!await _network.isConnected) {
+      return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final estado = await _remote.estadoVenta(ventaId);
+      return Success(estado);
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'VentaRapida.estadoVenta');
+    }
+  }
+
+  @override
   Future<Resource<Venta>> registrarPago(
       String ventaId, Map<String, dynamic> data) async {
     if (!await _network.isConnected) {

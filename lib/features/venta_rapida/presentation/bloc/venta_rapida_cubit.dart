@@ -1430,6 +1430,14 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
   /// el evento VENTA_PAGADA de esta venta.
   RealtimeSyncService get realtimeSync => _realtimeSync;
 
+  /// Polling de respaldo de la hoja Yape: consulta si la venta ya quedó pagada
+  /// en el backend. Cubre el cold-start del FCM (topic recién suscrito tras
+  /// instalar el APK) y los FCM perdidos por battery savers (Xiaomi/Huawei/doze).
+  Future<bool> verificarVentaPagada(String ventaId) async {
+    final r = await _repository.estadoVenta(ventaId);
+    return r is Success<String> && r.data == 'PAGADA_COMPLETA';
+  }
+
   /// Marca la venta como completada (dispara el flujo post-venta existente:
   /// impresión de ticket, limpiar carrito, etc.). Se usa tras confirmarse el
   /// pago Yape (automático por webhook o manual).

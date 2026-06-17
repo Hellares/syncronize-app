@@ -74,6 +74,8 @@ class CobroYapeSheet extends StatefulWidget {
 
 class _CobroYapeSheetState extends State<CobroYapeSheet> {
   StreamSubscription<RealtimeEvent>? _sub;
+  Timer? _poll;
+  bool _cerrado = false;
   bool _procesando = false;
   final _refCtrl = TextEditingController();
 
@@ -81,21 +83,37 @@ class _CobroYapeSheetState extends State<CobroYapeSheet> {
   void initState() {
     super.initState();
     if (widget.habilitado) {
-      // Auto-confirmación: el webhook de api-yape marcó la venta pagada y el
-      // backend emitió VENTA_PAGADA por FCM.
+      // Auto-confirmación capa 1 (instantánea): el webhook marcó la venta pagada
+      // y el backend emitió VENTA_PAGADA por FCM.
       _sub = widget.realtime.events.listen((e) {
-        if (e is RealtimeVentaPagada &&
-            e.ventaId == widget.ventaId &&
-            mounted) {
-          Navigator.of(context).pop(true);
+        if (e is RealtimeVentaPagada && e.ventaId == widget.ventaId) {
+          _cerrarPagada();
         }
       });
+      // Auto-confirmación capa 2 (respaldo): poll del estado real cada 4s. Cubre
+      // el cold-start del FCM (topic recién suscrito tras instalar el APK) y los
+      // FCM perdidos por battery savers / doze. Si la venta ya está pagada en el
+      // backend, cerramos sin depender del push.
+      _poll = Timer.periodic(const Duration(seconds: 4), (_) async {
+        if (_cerrado) return;
+        final pagada = await widget.cubit.verificarVentaPagada(widget.ventaId);
+        if (pagada) _cerrarPagada();
+      });
     }
+  }
+
+  /// Cierre idempotente (lo pueden disparar el FCM o el poll): pop una sola vez.
+  void _cerrarPagada() {
+    if (_cerrado || !mounted) return;
+    _cerrado = true;
+    _poll?.cancel();
+    Navigator.of(context).pop(true);
   }
 
   @override
   void dispose() {
     _sub?.cancel();
+    _poll?.cancel();
     _refCtrl.dispose();
     super.dispose();
   }
@@ -111,7 +129,7 @@ class _CobroYapeSheetState extends State<CobroYapeSheet> {
     if (!mounted) return;
     setState(() => _procesando = false);
     if (ok) {
-      Navigator.of(context).pop(true);
+      _cerrarPagada();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No se pudo registrar el pago')),
