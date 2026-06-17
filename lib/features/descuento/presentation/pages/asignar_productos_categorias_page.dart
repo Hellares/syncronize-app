@@ -6,6 +6,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../../../core/widgets/custom_search_field.dart';
+import '../../../../core/widgets/custom_checkbox_tile.dart';
 import '../../../../core/storage/local_storage_service.dart';
 import '../../../../core/constants/storage_constants.dart';
 import '../../../../core/utils/resource.dart';
@@ -295,7 +296,10 @@ class _AsignarProductosCategoriasPageState
             preferredSize: const Size.fromHeight(40),
             child: TabBar(
               controller: _tabController,
+              labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
               labelColor: AppColors.blue1,
+              dividerHeight: 0,
+              indicatorWeight: 1,
               unselectedLabelColor: Colors.grey,
               indicatorColor: AppColors.blue1,
               tabs: const [
@@ -526,43 +530,19 @@ class _AsignarProductosCategoriasPageState
           );
         }
         final producto = _productos[index];
-        final yaAsignado = _productosAsignados.contains(producto.id);
-        final isSelected = _selectedProductos.contains(producto.id);
-
-        return Card(
-          margin: const EdgeInsets.only(bottom: 8),
-          color: yaAsignado ? Colors.green.shade50 : null,
-          child: CheckboxListTile(
-            value: yaAsignado ? true : isSelected,
-            enabled: !yaAsignado,
-            onChanged: yaAsignado
-                ? null
-                : (value) {
-                    setState(() {
-                      if (value == true) {
-                        _selectedProductos.add(producto.id);
-                      } else {
-                        _selectedProductos.remove(producto.id);
-                      }
-                    });
-                  },
-            title: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    producto.nombre,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                ),
-                if (yaAsignado) _buildAsignadoChip(),
-              ],
-            ),
-            subtitle: Text('Código: ${producto.codigoEmpresa}'),
-            secondary: CircleAvatar(
-              backgroundColor: AppColors.blue1.withValues(alpha: 0.1),
-              child: const Icon(Icons.inventory_2, color: AppColors.blue1),
-            ),
-          ),
+        return _buildSelectableCard(
+          icon: Icons.inventory_2_outlined,
+          title: producto.nombre,
+          subtitle: 'Código: ${producto.codigoEmpresa}',
+          isSelected: _selectedProductos.contains(producto.id),
+          yaAsignado: _productosAsignados.contains(producto.id),
+          onChanged: (v) => setState(() {
+            if (v) {
+              _selectedProductos.add(producto.id);
+            } else {
+              _selectedProductos.remove(producto.id);
+            }
+          }),
         );
       },
     );
@@ -574,45 +554,102 @@ class _AsignarProductosCategoriasPageState
       itemCount: _categorias.length,
       itemBuilder: (context, index) {
         final categoria = _categorias[index];
-        final yaAsignada = _categoriasAsignadas.contains(categoria.id);
-        final isSelected = _selectedCategorias.contains(categoria.id);
-
-        return Card(
-          margin: const EdgeInsets.only(bottom: 8),
-          color: yaAsignada ? Colors.green.shade50 : null,
-          child: CheckboxListTile(
-            value: yaAsignada ? true : isSelected,
-            enabled: !yaAsignada,
-            onChanged: yaAsignada
-                ? null
-                : (value) {
-                    setState(() {
-                      if (value == true) {
-                        _selectedCategorias.add(categoria.id);
-                      } else {
-                        _selectedCategorias.remove(categoria.id);
-                      }
-                    });
-                  },
-            title: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    _nombreCategoria(categoria),
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                ),
-                if (yaAsignada) _buildAsignadoChip(),
-              ],
-            ),
-            subtitle: Text(_descCategoria(categoria)),
-            secondary: CircleAvatar(
-              backgroundColor: AppColors.blue1.withValues(alpha: 0.1),
-              child: const Icon(Icons.category, color: AppColors.blue1),
-            ),
-          ),
+        return _buildSelectableCard(
+          icon: Icons.category_outlined,
+          title: _nombreCategoria(categoria),
+          subtitle: _descCategoria(categoria),
+          isSelected: _selectedCategorias.contains(categoria.id),
+          yaAsignado: _categoriasAsignadas.contains(categoria.id),
+          onChanged: (v) => setState(() {
+            if (v) {
+              _selectedCategorias.add(categoria.id);
+            } else {
+              _selectedCategorias.remove(categoria.id);
+            }
+          }),
         );
       },
+    );
+  }
+
+  /// Card de selección reutilizable (productos/categorías) con CustomCheckboxTile.
+  /// Estados: normal (seleccionable), seleccionado (borde azul) y asignado
+  /// (verde, check fijo + chip "Asignado").
+  Widget _buildSelectableCard({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required bool isSelected,
+    required bool yaAsignado,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: yaAsignado ? Colors.green.shade50 : Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: yaAsignado
+              ? Colors.green.shade200
+              : (isSelected ? AppColors.blue1 : AppColors.bluechip),
+          width: (isSelected && !yaAsignado) ? 1.2 : 0.8,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: yaAsignado ? Colors.green.shade100 : AppColors.bluechip,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              icon,
+              size: 18,
+              color: yaAsignado ? Colors.green.shade700 : AppColors.blue1,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: yaAsignado
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.green.shade800,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  )
+                : CustomCheckboxTile(
+                    title: title,
+                    subtitle: subtitle,
+                    value: isSelected,
+                    activeColor: AppColors.blue1,
+                    borderColor: AppColors.blue1,
+                    onChanged: onChanged,
+                  ),
+          ),
+          if (yaAsignado) ...[
+            const SizedBox(width: 8),
+            _buildAsignadoChip(),
+          ],
+        ],
+      ),
     );
   }
 
