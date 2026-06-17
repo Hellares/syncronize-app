@@ -991,6 +991,13 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/configuracion-documentos')),
           ),
           tile(
+            title: 'QR de cobro Yape/Plin',
+            icon: Icons.qr_code_2,
+            visible: can(permissions?.canManageSettings),
+            routeMatch: const _RouteMatch.startsWith('/empresa/qr-cobro'),
+            onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/qr-cobro')),
+          ),
+          tile(
             title: 'Usuarios',
             icon: Icons.people,
             visible: can(permissions?.canViewUsers),

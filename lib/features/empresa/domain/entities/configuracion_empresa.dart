@@ -32,6 +32,10 @@ class ConfiguracionEmpresa extends Equatable {
   final String? etiquetaCondicionEquipo;
   final bool mostrarSeccionEquipo;
 
+  // QR de cobro Yape/Plin (imagen estática del comercio)
+  final String? qrYapeUrl;
+  final String? qrPlinUrl;
+
   const ConfiguracionEmpresa({
     required this.id,
     required this.empresaId,
@@ -56,6 +60,8 @@ class ConfiguracionEmpresa extends Equatable {
     this.etiquetaNumeroSerie,
     this.etiquetaCondicionEquipo,
     this.mostrarSeccionEquipo = true,
+    this.qrYapeUrl,
+    this.qrPlinUrl,
   });
 
   // Getters con defaults
@@ -75,6 +81,7 @@ class ConfiguracionEmpresa extends Equatable {
         moraHabilitada, porcentajeMoraDiario, moraMaximaPorcentaje, diasGraciaMora,
         etiquetaSeccionEquipo, etiquetaTipoEquipo, etiquetaMarcaEquipo,
         etiquetaNumeroSerie, etiquetaCondicionEquipo, mostrarSeccionEquipo,
+        qrYapeUrl, qrPlinUrl,
       ];
 
   ConfiguracionEmpresa copyWith({
@@ -101,6 +108,8 @@ class ConfiguracionEmpresa extends Equatable {
     String? etiquetaNumeroSerie,
     String? etiquetaCondicionEquipo,
     bool? mostrarSeccionEquipo,
+    String? qrYapeUrl,
+    String? qrPlinUrl,
   }) {
     return ConfiguracionEmpresa(
       id: id ?? this.id,
@@ -126,6 +135,8 @@ class ConfiguracionEmpresa extends Equatable {
       etiquetaNumeroSerie: etiquetaNumeroSerie ?? this.etiquetaNumeroSerie,
       etiquetaCondicionEquipo: etiquetaCondicionEquipo ?? this.etiquetaCondicionEquipo,
       mostrarSeccionEquipo: mostrarSeccionEquipo ?? this.mostrarSeccionEquipo,
+      qrYapeUrl: qrYapeUrl ?? this.qrYapeUrl,
+      qrPlinUrl: qrPlinUrl ?? this.qrPlinUrl,
     );
   }
 }

@@ -444,6 +444,12 @@ class _CobroViewState extends State<_CobroView> {
     final res = await cubit.iniciarCobroYape();
     if (res == null || !context.mounted) return;
 
+    // QR precargado del comercio: el del método elegido, con fallback al otro
+    // si solo hay uno cargado (decisión: un solo QR sirve para ambos).
+    final qrYape = res['qrYapeUrl'] as String?;
+    final qrPlin = res['qrPlinUrl'] as String?;
+    final qrUrl = metodo == 'PLIN' ? (qrPlin ?? qrYape) : (qrYape ?? qrPlin);
+
     final paid = await CobroYapeSheet.mostrar(
       context,
       ventaId: res['ventaId'] as String,
@@ -451,6 +457,7 @@ class _CobroViewState extends State<_CobroView> {
       payAmount: res['payAmount'] as double?,
       habilitado: res['habilitado'] == true,
       metodo: metodo,
+      qrUrl: qrUrl,
       cubit: cubit,
       realtime: cubit.realtimeSync,
     );

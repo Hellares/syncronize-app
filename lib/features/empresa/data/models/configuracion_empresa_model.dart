@@ -25,6 +25,8 @@ class ConfiguracionEmpresaModel extends ConfiguracionEmpresa {
     super.etiquetaNumeroSerie,
     super.etiquetaCondicionEquipo,
     super.mostrarSeccionEquipo,
+    super.qrYapeUrl,
+    super.qrPlinUrl,
   });
 
   factory ConfiguracionEmpresaModel.fromJson(Map<String, dynamic> json) {
@@ -57,6 +59,8 @@ class ConfiguracionEmpresaModel extends ConfiguracionEmpresa {
       etiquetaNumeroSerie: json['etiquetaNumeroSerie'] as String?,
       etiquetaCondicionEquipo: json['etiquetaCondicionEquipo'] as String?,
       mostrarSeccionEquipo: json['mostrarSeccionEquipo'] as bool? ?? true,
+      qrYapeUrl: json['qrYapeUrl'] as String?,
+      qrPlinUrl: json['qrPlinUrl'] as String?,
     );
   }
 
@@ -113,6 +117,8 @@ class ConfiguracionEmpresaModel extends ConfiguracionEmpresa {
       etiquetaNumeroSerie: entity.etiquetaNumeroSerie,
       etiquetaCondicionEquipo: entity.etiquetaCondicionEquipo,
       mostrarSeccionEquipo: entity.mostrarSeccionEquipo,
+      qrYapeUrl: entity.qrYapeUrl,
+      qrPlinUrl: entity.qrPlinUrl,
     );
   }
 

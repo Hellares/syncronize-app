@@ -1371,6 +1371,8 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
         'ventaId': ventaId,
         'habilitado': cobro.data['habilitado'] == true,
         'payAmount': payAmount is num ? payAmount.toDouble() : null,
+        'qrYapeUrl': cobro.data['qrYapeUrl'] as String?,
+        'qrPlinUrl': cobro.data['qrPlinUrl'] as String?,
       };
     }
     // api-yape no disponible → la venta existe (pendiente): fallback manual.

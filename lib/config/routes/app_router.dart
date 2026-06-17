@@ -24,6 +24,7 @@ import '../../features/empresa/presentation/pages/empresa_dashboard_page.dart';
 import '../../core/utils/role_navigation_helper.dart';
 import '../../features/empresa/presentation/pages/empresa_selection_page.dart';
 import '../../features/empresa/presentation/pages/configuracion_empresa_page.dart';
+import '../../features/empresa/presentation/pages/qr_cobro_page.dart';
 import '../../features/empresa/presentation/pages/empresa_profile_page.dart';
 import '../../features/empresa/presentation/pages/personalizacion_page.dart';
 import '../../features/empresa/presentation/pages/planes_page.dart';
@@ -416,6 +417,11 @@ class AppRouter {
         path: '/empresa/configuracion',
         name: 'empresa-configuracion',
         builder: (context, state) => const ConfiguracionEmpresaPage(),
+      ),
+      GoRoute(
+        path: '/empresa/qr-cobro',
+        name: 'empresa-qr-cobro',
+        builder: (context, state) => const QrCobroPage(),
       ),
       GoRoute(
         path: '/empresa/planes',
