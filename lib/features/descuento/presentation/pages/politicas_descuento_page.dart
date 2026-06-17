@@ -225,7 +225,7 @@ class _PoliticasDescuentoPageState extends State<PoliticasDescuentoPage>
             },
             child: ListView.builder(
               controller: _scrollController,
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(12),
               itemCount: politicas.length + (state.hasMore ? 1 : 0),
               itemBuilder: (context, index) {
                 if (index >= politicas.length) {

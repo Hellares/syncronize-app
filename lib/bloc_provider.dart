@@ -24,7 +24,6 @@ import 'package:syncronize/features/usuario/presentation/bloc/usuario_list/usuar
 import 'package:syncronize/features/usuario/presentation/bloc/usuario_form/usuario_form_cubit.dart';
 import 'package:syncronize/features/descuento/presentation/bloc/politica_list/politica_list_cubit.dart';
 import 'package:syncronize/features/descuento/presentation/bloc/politica_form/politica_form_cubit.dart';
-import 'package:syncronize/features/descuento/presentation/bloc/asignar_usuarios/asignar_usuarios_cubit.dart';
 import 'package:syncronize/features/configuracion_codigos/presentation/bloc/configuracion_codigos_cubit.dart';
 import 'package:syncronize/features/sede/presentation/bloc/sede_list/sede_list_cubit.dart';
 import 'package:syncronize/features/sede/presentation/bloc/sede_form/sede_form_cubit.dart';
@@ -232,11 +231,6 @@ List<BlocProvider> blocProviders = [
     lazy: true,
   ),
 
-  // Asignar Usuarios Cubit - Maneja la asignación de usuarios a políticas
-  BlocProvider<AsignarUsuariosCubit>(
-    create: (context) => locator<AsignarUsuariosCubit>(),
-    lazy: true,
-  ),
 
   // Usuario List Cubit - Maneja la lista de usuarios/empleados
   BlocProvider<UsuarioListCubit>(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:syncronize/core/fonts/app_fonts.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_gradients.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
@@ -53,7 +54,7 @@ class PoliticaCard extends StatelessWidget {
                       padding: const EdgeInsets.only(
                         right: 80,
                       ), // Espacio para chip y menú
-                      child: AppSubtitle(politica.nombre, fontSize: 12),
+                      child: AppSubtitle(politica.nombre, fontSize: 10),
                     ),
                     if (politica.descripcion != null) ...[
                       const SizedBox(height: 4),
@@ -64,7 +65,7 @@ class PoliticaCard extends StatelessWidget {
                         child: Text(
                           politica.descripcion!,
                           style: TextStyle(
-                            fontSize: 10,
+                            fontSize: 8,
                             color: AppColors.blueGrey,
                           ),
                           maxLines: 2,
@@ -74,19 +75,25 @@ class PoliticaCard extends StatelessWidget {
                     ],
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 Row(
                   children: [
                     InfoChip(
                       icon: Icons.category,
+                      iconSize: 12,
                       text: _getTipoDescuentoLabel(politica.tipoDescuento),
                       textColor: _getTipoDescuentoColor(politica.tipoDescuento),
+                      fontSize: 8,
+                      borderRadius: 6,
                     ),
                     const SizedBox(width: 8),
                     InfoChip(
                       icon: Icons.discount,
+                      iconSize: 12,
                       text: _getDescuentoValue(),
                       textColor: AppColors.blue1,
+                      fontSize: 8,
+                      borderRadius: 6,
                     ),
                   ],
                 ),
@@ -109,9 +116,9 @@ class PoliticaCard extends StatelessWidget {
                     ],
                   ),
                 ],
-                const SizedBox(height: 10),
+                const SizedBox(height: 6),
                 _buildAlcanceRow(),
-                const SizedBox(height: 12),
+                const SizedBox(height: 6),
                 Divider(height: 1, color: Colors.grey[300]),
                 const SizedBox(height: 8),
                 _buildActionButtons(),
@@ -231,7 +238,7 @@ class PoliticaCard extends StatelessWidget {
         ),
         child: Column(
           children: [
-            Icon(icon, size: 16, color: color),
+            Icon(icon, size: 14, color: color),
             // const SizedBox(height: 2),
             Text(
               label,
@@ -330,7 +337,7 @@ class PoliticaCard extends StatelessWidget {
         ),
         const SizedBox(width: 4),
         Expanded(
-          child: AppSubtitle(texto, fontSize: 10, color: color),
+          child: AppSubtitle(texto, fontSize: 9, color: color, font: AppFont.amazonEmberMediumItalic),
         ),
       ],
     );

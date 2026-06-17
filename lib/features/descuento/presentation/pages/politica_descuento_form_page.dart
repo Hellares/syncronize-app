@@ -337,6 +337,7 @@ class _PoliticaFormViewState extends State<_PoliticaFormView> {
             const SizedBox(height: 10),
             CustomText(
               controller: _nombreController,
+              textCase: TextCase.upper,
               label: 'Politica',
               hintText: 'Nombre de la política',
               borderColor: AppColors.blue1,
@@ -351,6 +352,7 @@ class _PoliticaFormViewState extends State<_PoliticaFormView> {
             CustomText(
               controller: _descripcionController,
               label: 'Descripcion',
+              textCase: TextCase.upper,
               hintText: 'Descripción (opcional)',
               borderColor: AppColors.blue1,
               maxLines: 3,
@@ -422,6 +424,7 @@ class _PoliticaFormViewState extends State<_PoliticaFormView> {
             if (!_esModoVip) ...[
               CustomText(
                 controller: _valorDescuentoController,
+                textCase: TextCase.upper,
                 hintText: _tipoCalculo == TipoCalculoDescuento.porcentaje
                     ? 'Porcentaje de Descuento (Ej: 15)'
                     : 'Monto Fijo de Descuento (Ej: 50.00)',
@@ -498,6 +501,9 @@ class _PoliticaFormViewState extends State<_PoliticaFormView> {
   }
 
   Widget _buildRestrictionsSection() {
+    // Monto mínimo / cantidad máx de usos NO se aplican en los precios especiales
+    // VIP (costo / mayor) → se ocultan para no confundir.
+    if (_esModoVip) return const SizedBox.shrink();
     return GradientContainer(
       gradient:AppGradients.blueWhiteBlue(),
       borderColor: AppColors.blueborder,
