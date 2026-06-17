@@ -80,7 +80,13 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     final next = change.nextState;
     if (prev.clienteId != next.clienteId ||
         prev.clienteEmpresaId != next.clienteEmpresaId) {
-      _onClienteCambiado(next.clienteId, next.clienteEmpresaId);
+      // Diferir a microtask: el caso "cliente → null" (limpiar DNI) reaplica
+      // VIP de forma SÍNCRONA y emitiría de forma reentrante DENTRO de este
+      // onChange, antes de que termine el emit externo — que luego pisaría ese
+      // strip. El microtask garantiza que el reaplicado corra después.
+      final cid = next.clienteId;
+      final ceid = next.clienteEmpresaId;
+      Future.microtask(() => _onClienteCambiado(cid, ceid));
     }
   }
 
@@ -88,6 +94,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     String? clienteId,
     String? clienteEmpresaId,
   ) async {
+    if (isClosed) return;
     final key = clienteId ?? clienteEmpresaId;
     if (key == _vipClienteKey) return;
     _vipClienteKey = key;
