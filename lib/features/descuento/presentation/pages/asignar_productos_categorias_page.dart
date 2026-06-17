@@ -16,6 +16,8 @@ import '../../../producto/domain/entities/producto_filtros.dart';
 import '../../../producto/domain/usecases/get_productos_usecase.dart';
 import '../../../catalogo/domain/entities/empresa_categoria.dart';
 import '../../../catalogo/domain/usecases/get_categorias_empresa_usecase.dart';
+import '../../domain/entities/politica_descuento.dart';
+import '../../domain/usecases/get_politica_by_id.dart';
 import '../bloc/asignar_productos/asignar_productos_cubit.dart';
 import '../bloc/asignar_productos/asignar_productos_state.dart';
 
@@ -92,6 +94,20 @@ class _AsignarProductosCategoriasPageState
     _productosScroll.addListener(_onProductosScroll);
     _cargarProductos(reset: true);
     _cargarCategorias();
+    _cargarAsignaciones();
+  }
+
+  /// Carga las asignaciones YA existentes de la política (GET /:id) para
+  /// mostrarlas como "Asignado" al entrar (no solo las de la sesión).
+  Future<void> _cargarAsignaciones() async {
+    final result = await locator<GetPoliticaById>()(widget.politicaId);
+    if (!mounted) return;
+    if (result is Success<PoliticaDescuento>) {
+      setState(() {
+        _productosAsignados.addAll(result.data.productoIdsAplicables);
+        _categoriasAsignadas.addAll(result.data.categoriaIdsAplicables);
+      });
+    }
   }
 
   @override
@@ -416,7 +432,7 @@ class _AsignarProductosCategoriasPageState
           Text(
             'Política: ${widget.politicaNombre}',
             style: const TextStyle(
-              fontSize: 14,
+              fontSize: 10,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -424,7 +440,7 @@ class _AsignarProductosCategoriasPageState
           Text(
             subtitle,
             style: TextStyle(
-              fontSize: 14,
+              fontSize: 10,
               color: Colors.grey[600],
             ),
           ),
@@ -439,7 +455,8 @@ class _AsignarProductosCategoriasPageState
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(icon, size: 80, color: Colors.grey[400]),
-          const SizedBox(height: 14),
+          const SizedBox(height: 14
+          ),
           Text(
             'No hay $tipo disponibles',
             style: TextStyle(fontSize: 16, color: Colors.grey[600]),
@@ -615,7 +632,7 @@ class _AsignarProductosCategoriasPageState
           Text(
             'Asignado',
             style: TextStyle(
-              fontSize: 11,
+              fontSize: 10,
               fontWeight: FontWeight.w600,
               color: Colors.green.shade700,
             ),

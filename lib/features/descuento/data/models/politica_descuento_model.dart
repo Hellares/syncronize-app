@@ -26,6 +26,8 @@ class PoliticaDescuentoModel extends PoliticaDescuento {
     super.totalProductos,
     super.totalCategorias,
     super.totalUsos,
+    super.productoIdsAplicables,
+    super.categoriaIdsAplicables,
   });
 
   factory PoliticaDescuentoModel.fromJson(Map<String, dynamic> json) {
@@ -72,7 +74,21 @@ class PoliticaDescuentoModel extends PoliticaDescuento {
       totalUsos: json['_count']?['usosHistorial'] != null
           ? _parseInt(json['_count']['usosHistorial'])
           : null,
+      productoIdsAplicables: _parseIds(json['productosAplicables'], 'productoId'),
+      categoriaIdsAplicables:
+          _parseIds(json['categoriasAplicables'], 'categoriaId'),
     );
+  }
+
+  /// Extrae los IDs de una lista de relaciones (productosAplicables /
+  /// categoriasAplicables) tanto del listado como del detalle del backend.
+  static List<String> _parseIds(dynamic lista, String campo) {
+    if (lista is! List) return const [];
+    return lista
+        .whereType<Map<String, dynamic>>()
+        .map((e) => e[campo])
+        .whereType<String>()
+        .toList();
   }
 
   static double _parseDouble(dynamic value) {
@@ -224,6 +240,8 @@ class PoliticaDescuentoModel extends PoliticaDescuento {
       totalProductos: totalProductos,
       totalCategorias: totalCategorias,
       totalUsos: totalUsos,
+      productoIdsAplicables: productoIdsAplicables,
+      categoriaIdsAplicables: categoriaIdsAplicables,
     );
   }
 }

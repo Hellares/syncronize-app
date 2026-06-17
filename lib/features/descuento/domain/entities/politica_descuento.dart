@@ -72,6 +72,11 @@ class PoliticaDescuento extends Equatable {
   final int? totalCategorias;
   final int? totalUsos;
 
+  // IDs de productos/categorías asignados (del detalle GET /:id). Vacío si no
+  // se cargaron. Usado por la pantalla de asignar para marcar "ya asignado".
+  final List<String> productoIdsAplicables;
+  final List<String> categoriaIdsAplicables;
+
   const PoliticaDescuento({
     required this.id,
     required this.empresaId,
@@ -97,6 +102,8 @@ class PoliticaDescuento extends Equatable {
     this.totalProductos,
     this.totalCategorias,
     this.totalUsos,
+    this.productoIdsAplicables = const [],
+    this.categoriaIdsAplicables = const [],
   });
 
   @override
@@ -125,6 +132,8 @@ class PoliticaDescuento extends Equatable {
         totalProductos,
         totalCategorias,
         totalUsos,
+        productoIdsAplicables,
+        categoriaIdsAplicables,
       ];
 
   PoliticaDescuento copyWith({
@@ -152,6 +161,8 @@ class PoliticaDescuento extends Equatable {
     int? totalProductos,
     int? totalCategorias,
     int? totalUsos,
+    List<String>? productoIdsAplicables,
+    List<String>? categoriaIdsAplicables,
   }) {
     return PoliticaDescuento(
       id: id ?? this.id,
