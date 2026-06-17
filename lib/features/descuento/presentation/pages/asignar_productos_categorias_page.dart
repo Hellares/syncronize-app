@@ -9,6 +9,8 @@ import '../../../../core/widgets/custom_search_field.dart';
 import '../../../../core/storage/local_storage_service.dart';
 import '../../../../core/constants/storage_constants.dart';
 import '../../../../core/utils/resource.dart';
+import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
+import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../../producto/domain/entities/producto.dart';
 import '../../../producto/domain/entities/producto_filtros.dart';
 import '../../../producto/domain/usecases/get_productos_usecase.dart';
@@ -72,9 +74,14 @@ class _AsignarProductosCategoriasPageState
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _asignarCubit = locator<AsignarProductosCubit>();
-    _empresaId =
-        locator<LocalStorageService>().getString(StorageConstants.tenantId) ??
-            '';
+    // empresaId del CONTEXTO VIVO (como las demás pantallas). El tenantId del
+    // storage podía quedar desfasado → se consultaban productos de otra empresa
+    // (o vacío) y por eso el buscador "no traía nada". Fallback al storage.
+    final empresaState = context.read<EmpresaContextCubit>().state;
+    _empresaId = empresaState is EmpresaContextLoaded
+        ? empresaState.context.empresa.id
+        : (locator<LocalStorageService>().getString(StorageConstants.tenantId) ??
+            '');
     _productosScroll.addListener(_onProductosScroll);
     _cargarProductos(reset: true);
     _cargarCategorias();
