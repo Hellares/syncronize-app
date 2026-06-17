@@ -325,6 +325,38 @@ class DescuentoRepositoryImpl implements DescuentoRepository {
   }
 
   @override
+  Future<Resource<void>> removerProductoDePolitica({
+    required String politicaId,
+    required String productoId,
+  }) async {
+    try {
+      await _remoteDataSource.removerProducto(politicaId, productoId);
+      return Success(null);
+    } catch (e) {
+      return Error(
+        e.toString().replaceFirst('Exception: ', ''),
+        errorCode: 'SERVER_ERROR',
+      );
+    }
+  }
+
+  @override
+  Future<Resource<void>> removerCategoriaDePolitica({
+    required String politicaId,
+    required String categoriaId,
+  }) async {
+    try {
+      await _remoteDataSource.removerCategoria(politicaId, categoriaId);
+      return Success(null);
+    } catch (e) {
+      return Error(
+        e.toString().replaceFirst('Exception: ', ''),
+        errorCode: 'SERVER_ERROR',
+      );
+    }
+  }
+
+  @override
   Future<Resource<Map<String, dynamic>>> calcularDescuento({
     required String usuarioId,
     required String productoId,

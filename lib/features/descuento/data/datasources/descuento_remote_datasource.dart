@@ -206,6 +206,24 @@ class DescuentoRemoteDataSource {
     return data.map((e) => e as Map<String, dynamic>).toList();
   }
 
+  /// Quita un producto de una política
+  ///
+  /// DELETE /api/politicas-descuento/:politicaId/productos/:productoId
+  Future<void> removerProducto(String politicaId, String productoId) async {
+    await _dioClient.delete(
+      '${ApiConstants.politicasDescuento}/$politicaId/productos/$productoId',
+    );
+  }
+
+  /// Quita una categoría de una política
+  ///
+  /// DELETE /api/politicas-descuento/:politicaId/categorias/:categoriaId
+  Future<void> removerCategoria(String politicaId, String categoriaId) async {
+    await _dioClient.delete(
+      '${ApiConstants.politicasDescuento}/$politicaId/categorias/$categoriaId',
+    );
+  }
+
   /// Asigna clientes (VIP) a una política de precio especial
   ///
   /// POST /api/politicas-descuento/:politicaId/clientes

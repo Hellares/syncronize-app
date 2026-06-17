@@ -126,6 +126,18 @@ abstract class DescuentoRepository {
     required List<Map<String, dynamic>> categorias,
   });
 
+  /// Quitar un producto de una política
+  Future<Resource<void>> removerProductoDePolitica({
+    required String politicaId,
+    required String productoId,
+  });
+
+  /// Quitar una categoría de una política
+  Future<Resource<void>> removerCategoriaDePolitica({
+    required String politicaId,
+    required String categoriaId,
+  });
+
   /// Calcular descuento aplicable
   Future<Resource<Map<String, dynamic>>> calcularDescuento({
     required String usuarioId,

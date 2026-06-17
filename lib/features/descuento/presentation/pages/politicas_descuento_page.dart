@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../../../core/widgets/custom_loading.dart';
 import '../../../../core/widgets/floating_button_icon.dart';
+import '../../../../core/widgets/styled_dialog.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
@@ -362,23 +363,28 @@ class _PoliticasDescuentoPageState extends State<PoliticasDescuentoPage>
   }
 
   Future<void> _showDeleteDialog(String id, String nombre) async {
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Eliminar política'),
-        content: Text('¿Estás seguro de que deseas eliminar la política "$nombre"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Eliminar'),
-          ),
-        ],
-      ),
+    final result = await StyledDialog.show<bool>(
+      context,
+      accentColor: AppColors.red,
+      icon: Icons.delete_outline,
+      titulo: 'Eliminar política',
+      content: [
+        Text(
+          '¿Estás seguro de que deseas eliminar la política "$nombre"?',
+          style: const TextStyle(fontSize: 13),
+        ),
+      ],
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Cancelar'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(true),
+          style: TextButton.styleFrom(foregroundColor: AppColors.red),
+          child: const Text('Eliminar'),
+        ),
+      ],
     );
 
     if (result == true && mounted) {

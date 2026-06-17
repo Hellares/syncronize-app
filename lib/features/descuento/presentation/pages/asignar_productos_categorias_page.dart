@@ -7,6 +7,7 @@ import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../../../core/widgets/custom_search_field.dart';
 import '../../../../core/widgets/custom_checkbox_tile.dart';
+import '../../../../core/widgets/styled_dialog.dart';
 import '../../../../core/storage/local_storage_service.dart';
 import '../../../../core/constants/storage_constants.dart';
 import '../../../../core/utils/resource.dart';
@@ -19,6 +20,8 @@ import '../../../catalogo/domain/entities/empresa_categoria.dart';
 import '../../../catalogo/domain/usecases/get_categorias_empresa_usecase.dart';
 import '../../domain/entities/politica_descuento.dart';
 import '../../domain/usecases/get_politica_by_id.dart';
+import '../../domain/usecases/remover_producto_politica.dart';
+import '../../domain/usecases/remover_categoria_politica.dart';
 import '../bloc/asignar_productos/asignar_productos_cubit.dart';
 import '../bloc/asignar_productos/asignar_productos_state.dart';
 
@@ -108,6 +111,78 @@ class _AsignarProductosCategoriasPageState
         _productosAsignados.addAll(result.data.productoIdsAplicables);
         _categoriasAsignadas.addAll(result.data.categoriaIdsAplicables);
       });
+    }
+  }
+
+  Future<bool> _confirmarQuitar(String mensaje) async {
+    final ok = await StyledDialog.show<bool>(
+      context,
+      accentColor: AppColors.red,
+      icon: Icons.delete_outline,
+      titulo: 'Quitar de la política',
+      content: [Text(mensaje, style: const TextStyle(fontSize: 13))],
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Cancelar'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context, true),
+          style: TextButton.styleFrom(foregroundColor: AppColors.red),
+          child: const Text('Quitar'),
+        ),
+      ],
+    );
+    return ok ?? false;
+  }
+
+  Future<void> _removerProductoAsignado(
+      String productoId, String nombre) async {
+    if (!await _confirmarQuitar('¿Quitar "$nombre" de esta política?') ||
+        !mounted) {
+      return;
+    }
+    final result = await locator<RemoverProductoPolitica>()(
+      politicaId: widget.politicaId,
+      productoId: productoId,
+    );
+    if (!mounted) return;
+    if (result is Success<void>) {
+      setState(() => _productosAsignados.remove(productoId));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Producto quitado'),
+            backgroundColor: Colors.green),
+      );
+    } else if (result is Error<void>) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result.message), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  Future<void> _removerCategoriaAsignada(
+      String categoriaId, String nombre) async {
+    if (!await _confirmarQuitar('¿Quitar "$nombre" de esta política?') ||
+        !mounted) {
+      return;
+    }
+    final result = await locator<RemoverCategoriaPolitica>()(
+      politicaId: widget.politicaId,
+      categoriaId: categoriaId,
+    );
+    if (!mounted) return;
+    if (result is Success<void>) {
+      setState(() => _categoriasAsignadas.remove(categoriaId));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Categoría quitada'),
+            backgroundColor: Colors.green),
+      );
+    } else if (result is Error<void>) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result.message), backgroundColor: Colors.red),
+      );
     }
   }
 
@@ -300,6 +375,8 @@ class _AsignarProductosCategoriasPageState
               labelColor: AppColors.blue1,
               dividerHeight: 0,
               indicatorWeight: 1,
+              labelPadding: const EdgeInsets.symmetric(horizontal: 10),
+              indicatorPadding: const EdgeInsets.only(bottom: 10),
               unselectedLabelColor: Colors.grey,
               indicatorColor: AppColors.blue1,
               tabs: const [
@@ -368,6 +445,7 @@ class _AsignarProductosCategoriasPageState
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
           child: CustomSearchField(
             controller: _searchController,
+            borderColor: AppColors.blue,
             hintText: 'Buscar producto por nombre o código...',
             onChanged: _onSearchChanged,
           ),
@@ -543,6 +621,8 @@ class _AsignarProductosCategoriasPageState
               _selectedProductos.remove(producto.id);
             }
           }),
+          onRemove: () =>
+              _removerProductoAsignado(producto.id, producto.nombre),
         );
       },
     );
@@ -567,6 +647,8 @@ class _AsignarProductosCategoriasPageState
               _selectedCategorias.remove(categoria.id);
             }
           }),
+          onRemove: () => _removerCategoriaAsignada(
+              categoria.id, _nombreCategoria(categoria)),
         );
       },
     );
@@ -582,6 +664,7 @@ class _AsignarProductosCategoriasPageState
     required bool isSelected,
     required bool yaAsignado,
     required ValueChanged<bool> onChanged,
+    VoidCallback? onRemove,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -647,6 +730,14 @@ class _AsignarProductosCategoriasPageState
           if (yaAsignado) ...[
             const SizedBox(width: 8),
             _buildAsignadoChip(),
+            if (onRemove != null)
+              IconButton(
+                icon: Icon(Icons.delete_outline,
+                    size: 20, color: AppColors.red),
+                tooltip: 'Quitar',
+                visualDensity: VisualDensity.compact,
+                onPressed: onRemove,
+              ),
           ],
         ],
       ),
