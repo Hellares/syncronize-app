@@ -8,6 +8,7 @@ import '../../../../core/widgets/custom_loading.dart';
 import '../../../../core/widgets/floating_button_icon.dart';
 import '../../../../core/widgets/cliente_unificado_selector.dart';
 import '../../../../core/widgets/snack_bar_helper.dart';
+import '../../../../core/widgets/styled_dialog.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../bloc/asignar_clientes/asignar_clientes_cubit.dart';
@@ -137,40 +138,79 @@ class _AsignarClientesView extends StatelessWidget {
             final c = state.clientes[index];
             final tipo = c['tipo'] as String? ?? 'B2C';
             final esB2B = tipo == 'B2B';
+            final nombre = c['nombre'] as String? ?? '(sin nombre)';
             return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppColors.bluechip),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.bluechip, width: 0.8),
               ),
-              child: ListTile(
-                dense: true,
-                leading: CircleAvatar(
-                  radius: 16,
-                  backgroundColor: AppColors.bluechip,
-                  child: Icon(
-                    esB2B ? Icons.business : Icons.person,
-                    size: 16,
-                    color: AppColors.blue1,
+              child: Row(
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: AppColors.bluechip,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      esB2B ? Icons.business : Icons.person,
+                      size: 19,
+                      color: AppColors.blue1,
+                    ),
                   ),
-                ),
-                title: Text(
-                  c['nombre'] as String? ?? '(sin nombre)',
-                  style: const TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.w600),
-                ),
-                subtitle: Text(
-                  '${esB2B ? 'RUC' : 'DNI'}: ${c['documento'] ?? '-'}  ·  $tipo',
-                  style: TextStyle(fontSize: 11, color: Colors.grey[600]),
-                ),
-                trailing: IconButton(
-                  icon: const Icon(Icons.delete_outline,
-                      size: 20, color: Colors.red),
-                  tooltip: 'Quitar',
-                  onPressed: state.working
-                      ? null
-                      : () => _confirmarRemover(context, c),
-                ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                nombre,
+                                style: const TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.blue1,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            _buildTipoChip(esB2B),
+                          ],
+                        ),
+                        const SizedBox(height: 3),
+                        Row(
+                          children: [
+                            Icon(Icons.badge_outlined,
+                                size: 12, color: Colors.grey[500]),
+                            const SizedBox(width: 3),
+                            Text(
+                              '${esB2B ? 'RUC' : 'DNI'}: ${c['documento'] ?? '-'}',
+                              style: TextStyle(
+                                  fontSize: 10.5, color: Colors.grey[600]),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.delete_outline,
+                        size: 20, color: AppColors.red),
+                    tooltip: 'Quitar',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: state.working
+                        ? null
+                        : () => _confirmarRemover(context, c),
+                  ),
+                ],
               ),
             );
           },
@@ -186,29 +226,53 @@ class _AsignarClientesView extends StatelessWidget {
     );
   }
 
+  /// Chip pequeño que distingue cliente B2C (persona) de B2B (empresa).
+  Widget _buildTipoChip(bool esB2B) {
+    final color = esB2B ? Colors.deepPurple : AppColors.blue1;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: color.withValues(alpha: 0.4), width: 0.6),
+      ),
+      child: Text(
+        esB2B ? 'B2B' : 'B2C',
+        style: TextStyle(
+          fontSize: 8.5,
+          fontWeight: FontWeight.w700,
+          color: color,
+        ),
+      ),
+    );
+  }
+
   Future<void> _confirmarRemover(
     BuildContext context,
     Map<String, dynamic> cliente,
   ) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Quitar cliente'),
-        content: Text(
+    final ok = await StyledDialog.show<bool>(
+      context,
+      accentColor: AppColors.red,
+      icon: Icons.person_remove_outlined,
+      titulo: 'Quitar cliente',
+      content: [
+        Text(
           '¿Quitar a "${cliente['nombre'] ?? 'este cliente'}" del precio especial?',
+          style: const TextStyle(fontSize: 13),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Quitar'),
-          ),
-        ],
-      ),
+      ],
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Cancelar'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context, true),
+          style: TextButton.styleFrom(foregroundColor: AppColors.red),
+          child: const Text('Quitar'),
+        ),
+      ],
     );
     if (ok == true && context.mounted) {
       await context
