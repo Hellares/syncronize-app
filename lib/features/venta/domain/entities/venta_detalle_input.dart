@@ -367,15 +367,16 @@ class VentaDetalleInput {
         final mayoristas =
             activos.where((n) => n.cantidadMinima > 1).toList();
         final pool = mayoristas.isNotEmpty ? mayoristas : activos;
-        PrecioNivel elegido;
-        if (vip.estrategiaMayor == EstrategiaMayor.mejorNivel) {
-          elegido = pool.reduce((b, n) =>
-              n.calcularPrecioFinal(base) < b.calcularPrecioFinal(base)
-                  ? n
-                  : b);
-        } else {
-          pool.sort((a, b) => a.cantidadMinima.compareTo(b.cantidadMinima));
-          elegido = pool.first; // PRIMER_NIVEL: menor cantidadMinima
+        // Loop manual (no reduce/sort): `niveles` tiene tipo estático
+        // List<PrecioNivel> pero runtime List<PrecioNivelModel>; reduce falla por
+        // covarianza (el combine devuelve el tipo del elemento) y sort mutaría.
+        PrecioNivel elegido = pool.first;
+        final mejorNivel = vip.estrategiaMayor == EstrategiaMayor.mejorNivel;
+        for (final n in pool) {
+          final mejorQue = mejorNivel
+              ? n.calcularPrecioFinal(base) < elegido.calcularPrecioFinal(base)
+              : n.cantidadMinima < elegido.cantidadMinima;
+          if (mejorQue) elegido = n;
         }
         return r4(elegido.calcularPrecioFinal(base));
       case ModoPrecioVip.porcentaje:
