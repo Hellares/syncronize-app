@@ -971,6 +971,10 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
   }
 
   void vaciarCarrito() {
+    // Reset del contexto VIP: nueva venta arranca sin precio especial hasta
+    // que se vuelva a seleccionar un cliente VIP.
+    _vipResolver = null;
+    _vipClienteKey = null;
     emit(state.copyWith(
       items: [],
       pagos: [],
@@ -979,8 +983,11 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       plazoDias: 30,
       tipoComprobante: 'TICKET',
       clienteGenerico: false,
-      clienteId: null,
-      clienteEmpresaId: null,
+      // `clienteId: null` NO limpia (copyWith usa `?? this`): hay que usar los
+      // flags clear*, si no el cliente queda pegado y la siguiente venta hereda
+      // su precio VIP.
+      clearClienteId: true,
+      clearClienteEmpresaId: true,
       tipoDocCliente: 'DNI',
       numeroDocCliente: '',
       nombreClienteResuelto: '',
@@ -2050,6 +2057,9 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
   }
 
   void resetCompletada() {
+    // Igual que vaciarCarrito: la próxima venta arranca limpia, sin VIP.
+    _vipResolver = null;
+    _vipClienteKey = null;
     emit(state.copyWith(
       items: [],
       pagos: [],
@@ -2058,8 +2068,9 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       plazoDias: 30,
       tipoComprobante: 'TICKET',
       clienteGenerico: false,
-      clienteId: null,
-      clienteEmpresaId: null,
+      // Ver nota en vaciarCarrito: usar flags clear* para limpiar de verdad.
+      clearClienteId: true,
+      clearClienteEmpresaId: true,
       tipoDocCliente: 'DNI',
       numeroDocCliente: '',
       nombreClienteResuelto: '',
