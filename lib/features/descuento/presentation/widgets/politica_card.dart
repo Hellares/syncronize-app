@@ -151,12 +151,9 @@ class PoliticaCard extends StatelessWidget {
         label: 'Eliminar',
         icon: Icons.delete_outline,
         color: Colors.red,
-        requireConfirm: true,
-        confirmTitle: 'Eliminar',
-        confirmMessage: '¿Seguro que deseas eliminar este registro?',
-        confirmOkText: 'Eliminar',
-        confirmCancelText: 'Cancelar',
-        // onTap: () => onDelete?.call(),
+        // Sin requireConfirm: la confirmación la maneja onDelete con
+        // StyledDialog (el confirm interno del menú tiene los botones
+        // comentados → diálogo sin acciones).
       ),
     ],
     onSelected: (ActionMenuType value){
