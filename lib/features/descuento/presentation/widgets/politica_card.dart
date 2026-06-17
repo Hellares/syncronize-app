@@ -109,6 +109,8 @@ class PoliticaCard extends StatelessWidget {
                     ],
                   ),
                 ],
+                const SizedBox(height: 10),
+                _buildAlcanceRow(),
                 const SizedBox(height: 12),
                 Divider(height: 1, color: Colors.grey[300]),
                 const SizedBox(height: 8),
@@ -297,6 +299,41 @@ class PoliticaCard extends StatelessWidget {
       case TipoDescuento.cumpleanios:
         return Colors.orange;
     }
+  }
+
+  /// Indicador de alcance de productos: "Aplica a todos los productos" si
+  /// aplicarATodos, o "Productos seleccionados (N)" según lo asignado.
+  Widget _buildAlcanceRow() {
+    final esTodos = politica.aplicarATodos;
+    final p = politica.productoIdsAplicables.length;
+    final c = politica.categoriaIdsAplicables.length;
+    final color = esTodos ? Colors.green.shade700 : AppColors.blue1;
+
+    String texto;
+    if (esTodos) {
+      texto = 'Aplica a todos los productos';
+    } else if (p == 0 && c == 0) {
+      texto = 'Sin productos seleccionados';
+    } else {
+      final partes = <String>[];
+      if (p > 0) partes.add('$p producto${p == 1 ? '' : 's'}');
+      if (c > 0) partes.add('$c categoría${c == 1 ? '' : 's'}');
+      texto = 'Productos seleccionados (${partes.join(' · ')})';
+    }
+
+    return Row(
+      children: [
+        Icon(
+          esTodos ? Icons.select_all : Icons.inventory_2_outlined,
+          size: 14,
+          color: color,
+        ),
+        const SizedBox(width: 4),
+        Expanded(
+          child: AppSubtitle(texto, fontSize: 10, color: color),
+        ),
+      ],
+    );
   }
 
   String _getDescuentoValue() {
