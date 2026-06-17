@@ -243,11 +243,6 @@ class _PoliticasDescuentoPageState extends State<PoliticasDescuentoPage>
                   onDelete: () {
                     _showDeleteDialog(politica.id, politica.nombre);
                   },
-                  onAssignUsers: () {
-                    context.push(
-                      '/empresa/descuentos/${politica.id}/asignar-usuarios?nombre=${Uri.encodeComponent(politica.nombre)}',
-                    );
-                  },
                   onAssignClients: () {
                     context.push(
                       '/empresa/descuentos/${politica.id}/asignar-clientes?nombre=${Uri.encodeComponent(politica.nombre)}',
@@ -294,11 +289,6 @@ class _PoliticasDescuentoPageState extends State<PoliticasDescuentoPage>
                   },
                   onDelete: () {
                     _showDeleteDialog(politica.id, politica.nombre);
-                  },
-                  onAssignUsers: () {
-                    context.push(
-                      '/empresa/descuentos/${politica.id}/asignar-usuarios?nombre=${Uri.encodeComponent(politica.nombre)}',
-                    );
                   },
                   onAssignClients: () {
                     context.push(
