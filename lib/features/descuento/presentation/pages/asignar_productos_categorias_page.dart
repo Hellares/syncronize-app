@@ -40,6 +40,12 @@ class _AsignarProductosCategoriasPageState
   late TabController _tabController;
   final Set<String> _selectedProductos = {};
   final Set<String> _selectedCategorias = {};
+  // Ya asignados a la política (en esta sesión) → check fijo + badge "Asignado".
+  final Set<String> _productosAsignados = {};
+  final Set<String> _categoriasAsignadas = {};
+  // Capturados al disparar la asignación; se mueven a *Asignados al confirmarse.
+  Set<String> _pendientesProductos = {};
+  Set<String> _pendientesCategorias = {};
 
   // Cubit de asignación: lo sostenemos como field y lo proveemos con
   // BlocProvider.value para que los métodos _asignar* puedan llamarlo
@@ -226,15 +232,16 @@ class _AsignarProductosCategoriasPageState
       return;
     }
 
+    // Capturar lo que se asigna; se mueve a _productosAsignados al confirmarse
+    // (en el listener del BlocConsumer), para mostrar el badge "Asignado".
+    _pendientesProductos = Set<String>.from(_selectedProductos);
     final productos =
-        _selectedProductos.map((id) => {'productoId': id}).toList();
+        _pendientesProductos.map((id) => {'productoId': id}).toList();
 
     _asignarCubit.asignarProductos(
       politicaId: widget.politicaId,
       productos: productos,
     );
-
-    setState(() => _selectedProductos.clear());
   }
 
   void _asignarCategorias() {
@@ -248,15 +255,14 @@ class _AsignarProductosCategoriasPageState
       return;
     }
 
+    _pendientesCategorias = Set<String>.from(_selectedCategorias);
     final categorias =
-        _selectedCategorias.map((id) => {'categoriaId': id}).toList();
+        _pendientesCategorias.map((id) => {'categoriaId': id}).toList();
 
     _asignarCubit.asignarCategorias(
       politicaId: widget.politicaId,
       categorias: categorias,
     );
-
-    setState(() => _selectedCategorias.clear());
   }
 
   @override
@@ -270,7 +276,7 @@ class _AsignarProductosCategoriasPageState
           showLogo: false,
           title: 'Asignar Productos/Categorías',
           bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(48),
+            preferredSize: const Size.fromHeight(40),
             child: TabBar(
               controller: _tabController,
               labelColor: AppColors.blue1,
@@ -289,6 +295,20 @@ class _AsignarProductosCategoriasPageState
             child: BlocConsumer<AsignarProductosCubit, AsignarProductosState>(
               listener: (context, state) {
                 if (state is AsignarProductosSuccess) {
+                  // Mover lo recién asignado a "asignados" (badge + check fijo)
+                  // y limpiar la selección. Solo una de las dos está pendiente.
+                  setState(() {
+                    if (_pendientesProductos.isNotEmpty) {
+                      _productosAsignados.addAll(_pendientesProductos);
+                      _selectedProductos.clear();
+                      _pendientesProductos = {};
+                    }
+                    if (_pendientesCategorias.isNotEmpty) {
+                      _categoriasAsignadas.addAll(_pendientesCategorias);
+                      _selectedCategorias.clear();
+                      _pendientesCategorias = {};
+                    }
+                  });
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(state.message),
@@ -396,7 +416,7 @@ class _AsignarProductosCategoriasPageState
           Text(
             'Política: ${widget.politicaNombre}',
             style: const TextStyle(
-              fontSize: 18,
+              fontSize: 14,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -419,7 +439,7 @@ class _AsignarProductosCategoriasPageState
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(icon, size: 80, color: Colors.grey[400]),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
           Text(
             'No hay $tipo disponibles',
             style: TextStyle(fontSize: 16, color: Colors.grey[600]),
@@ -489,24 +509,36 @@ class _AsignarProductosCategoriasPageState
           );
         }
         final producto = _productos[index];
+        final yaAsignado = _productosAsignados.contains(producto.id);
         final isSelected = _selectedProductos.contains(producto.id);
 
         return Card(
           margin: const EdgeInsets.only(bottom: 8),
+          color: yaAsignado ? Colors.green.shade50 : null,
           child: CheckboxListTile(
-            value: isSelected,
-            onChanged: (value) {
-              setState(() {
-                if (value == true) {
-                  _selectedProductos.add(producto.id);
-                } else {
-                  _selectedProductos.remove(producto.id);
-                }
-              });
-            },
-            title: Text(
-              producto.nombre,
-              style: const TextStyle(fontWeight: FontWeight.w600),
+            value: yaAsignado ? true : isSelected,
+            enabled: !yaAsignado,
+            onChanged: yaAsignado
+                ? null
+                : (value) {
+                    setState(() {
+                      if (value == true) {
+                        _selectedProductos.add(producto.id);
+                      } else {
+                        _selectedProductos.remove(producto.id);
+                      }
+                    });
+                  },
+            title: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    producto.nombre,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+                if (yaAsignado) _buildAsignadoChip(),
+              ],
             ),
             subtitle: Text('Código: ${producto.codigoEmpresa}'),
             secondary: CircleAvatar(
@@ -525,24 +557,36 @@ class _AsignarProductosCategoriasPageState
       itemCount: _categorias.length,
       itemBuilder: (context, index) {
         final categoria = _categorias[index];
+        final yaAsignada = _categoriasAsignadas.contains(categoria.id);
         final isSelected = _selectedCategorias.contains(categoria.id);
 
         return Card(
           margin: const EdgeInsets.only(bottom: 8),
+          color: yaAsignada ? Colors.green.shade50 : null,
           child: CheckboxListTile(
-            value: isSelected,
-            onChanged: (value) {
-              setState(() {
-                if (value == true) {
-                  _selectedCategorias.add(categoria.id);
-                } else {
-                  _selectedCategorias.remove(categoria.id);
-                }
-              });
-            },
-            title: Text(
-              _nombreCategoria(categoria),
-              style: const TextStyle(fontWeight: FontWeight.w600),
+            value: yaAsignada ? true : isSelected,
+            enabled: !yaAsignada,
+            onChanged: yaAsignada
+                ? null
+                : (value) {
+                    setState(() {
+                      if (value == true) {
+                        _selectedCategorias.add(categoria.id);
+                      } else {
+                        _selectedCategorias.remove(categoria.id);
+                      }
+                    });
+                  },
+            title: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _nombreCategoria(categoria),
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+                if (yaAsignada) _buildAsignadoChip(),
+              ],
             ),
             subtitle: Text(_descCategoria(categoria)),
             secondary: CircleAvatar(
@@ -552,6 +596,32 @@ class _AsignarProductosCategoriasPageState
           ),
         );
       },
+    );
+  }
+
+  Widget _buildAsignadoChip() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.green.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.green.shade300),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.check_circle, size: 13, color: Colors.green.shade700),
+          const SizedBox(width: 4),
+          Text(
+            'Asignado',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: Colors.green.shade700,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
