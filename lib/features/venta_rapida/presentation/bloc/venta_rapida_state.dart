@@ -107,6 +107,16 @@ class VentaRapidaState extends Equatable {
       items.fold(0, (sum, i) => sum + i.cantidad.toInt());
   bool get esCredito => condicionPago == 'CREDITO';
 
+  /// True si alguna línea tiene precio especial VIP aplicado (cliente VIP).
+  bool get tienePrecioVip => items.any((i) => i.esPrecioVip);
+
+  /// Ahorro total (S/) gracias al precio especial VIP, sobre el precio base.
+  double get ahorroVip => items.where((i) => i.esPrecioVip).fold(
+        0.0,
+        (s, i) =>
+            s + ((i.precioBase ?? i.precioUnitario) - i.precioUnitario) * i.cantidad,
+      );
+
   /// Adelantos ya pagados de las órdenes de servicio en el carrito. El
   /// `total` es por el TOTAL de los servicios (el comprobante se emite
   /// completo); HOY el cliente paga `totalACobrar` = total − adelantos.

@@ -1306,6 +1306,41 @@ class _CobroViewState extends State<_CobroView> {
                   ),
                 //const SizedBox(height: 14),
 
+                // Cliente VIP: precio especial aplicado.
+                if (state.tienePrecioVip)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.shade50,
+                        borderRadius: BorderRadius.circular(6),
+                        border:
+                            Border.all(color: Colors.amber.shade400, width: 0.8),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.workspace_premium,
+                              size: 16, color: Colors.amber.shade800),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              state.ahorroVip > 0
+                                  ? 'Cliente VIP · precio especial (ahorra S/ ${state.ahorroVip.toStringAsFixed(2)})'
+                                  : 'Cliente VIP · precio especial aplicado',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.amber.shade900,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
                 // Sección crédito (cuotas + preview)
                 if (state.esCredito)
                   _buildCreditoSection(context, state),
