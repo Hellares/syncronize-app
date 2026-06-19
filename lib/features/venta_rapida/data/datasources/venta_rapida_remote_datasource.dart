@@ -30,9 +30,14 @@ class VentaRapidaRemoteDataSource {
   }
 
   /// Genera un cobro Yape/Plin (monto único) para una venta ya creada.
-  /// Devuelve { habilitado, payAmount?, chargeId? }.
-  Future<Map<String, dynamic>> cobroYape(String ventaId) async {
-    final response = await _dioClient.post('/ventas/$ventaId/cobro-yape');
+  /// Si `monto` se pasa, crea un charge por ESE tramo (pagos divididos); sin
+  /// monto cobra el pendiente. Devuelve { habilitado, payAmount?, chargeId?,
+  /// qrYapeUrl?, qrPlinUrl? }.
+  Future<Map<String, dynamic>> cobroYape(String ventaId, {double? monto}) async {
+    final response = await _dioClient.post(
+      '/ventas/$ventaId/cobro-yape',
+      data: monto != null ? {'monto': monto} : null,
+    );
     return Map<String, dynamic>.from(response.data as Map);
   }
 
@@ -42,6 +47,18 @@ class VentaRapidaRemoteDataSource {
     final response = await _dioClient.get('/ventas/$ventaId');
     final data = response.data as Map<String, dynamic>;
     return data['estado'] as String? ?? '';
+  }
+
+  /// Progreso de pago de la venta: estado + monto acumulado recibido. Para el
+  /// auto-avance de tramos en pagos divididos (detecta cuándo el webhook
+  /// registró el pago del tramo actual sin depender de FCM).
+  Future<Map<String, dynamic>> progresoVenta(String ventaId) async {
+    final response = await _dioClient.get('/ventas/$ventaId');
+    final data = response.data as Map<String, dynamic>;
+    return {
+      'estado': data['estado'] as String? ?? '',
+      'montoRecibido': (data['montoRecibido'] as num?)?.toDouble() ?? 0.0,
+    };
   }
 
   /// Registra un pago en una venta existente (fallback manual con el screenshot).

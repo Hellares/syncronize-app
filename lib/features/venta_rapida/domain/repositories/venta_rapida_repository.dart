@@ -21,11 +21,16 @@ abstract class VentaRapidaRepository {
   });
 
   /// Genera un cobro Yape/Plin (monto único) para una venta ya creada.
-  /// Devuelve { habilitado: bool, payAmount?: num, chargeId?: String }.
-  Future<Resource<Map<String, dynamic>>> cobroYape(String ventaId);
+  /// Con `monto` crea el charge por ese tramo (pagos divididos). Devuelve
+  /// { habilitado, payAmount?, chargeId?, qrYapeUrl?, qrPlinUrl? }.
+  Future<Resource<Map<String, dynamic>>> cobroYape(String ventaId, {double? monto});
 
   /// Estado actual de la venta (polling de respaldo de la hoja Yape).
   Future<Resource<String>> estadoVenta(String ventaId);
+
+  /// Progreso de pago: { estado, montoRecibido } — para el auto-avance de
+  /// tramos en pagos divididos.
+  Future<Resource<Map<String, dynamic>>> progresoVenta(String ventaId);
 
   /// Registra un pago en una venta existente (fallback manual con el screenshot).
   Future<Resource<Venta>> registrarPago(

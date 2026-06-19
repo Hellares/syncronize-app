@@ -19,6 +19,12 @@ class EmpresaContext extends Equatable {
   /// Vacío/ausente = ninguna habilitada → el front no ofrece esas features.
   final Map<String, bool> caracteristicas;
 
+  /// Límite por transacción Yape/Plin (tamaño máx de cada tramo en el split).
+  final double yapeMaxPorTransaccion;
+
+  /// Tope diario por método Yape/Plin (advertencia en el split).
+  final double yapeMaxPorDia;
+
   const EmpresaContext({
     required this.empresa,
     required this.userRoles,
@@ -27,6 +33,8 @@ class EmpresaContext extends Equatable {
     required this.statistics,
     this.planLimits,
     this.caracteristicas = const {},
+    this.yapeMaxPorTransaccion = 500,
+    this.yapeMaxPorDia = 2000,
   });
 
   /// ¿El cobro Yape/Plin con QR (validación api-yape) está habilitado?
@@ -61,5 +69,7 @@ class EmpresaContext extends Equatable {
         statistics,
         planLimits,
         caracteristicas,
+        yapeMaxPorTransaccion,
+        yapeMaxPorDia,
       ];
 }

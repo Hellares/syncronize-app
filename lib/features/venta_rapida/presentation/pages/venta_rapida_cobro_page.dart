@@ -477,37 +477,41 @@ class _CobroViewState extends State<_CobroView> {
       return;
     }
 
-    // Porción Yape/Plin = lo que valida api-yape. En 100% Yape es el total;
-    // en mixto es solo esa parte (el resto se cobró al crear la venta).
+    // PAGOS DIVIDIDOS: cada línea Yape/Plin se parte en TRAMOS ≤ límite por
+    // transacción (auto-split). Ej: Yape 1500 → 3×500; Plin 1000 → 2×500.
+    // El cajero ya pudo pre-dividir agregando varias líneas; igual lo
+    // normalizamos a tramos ≤ límite.
+    // ctxState ya está promovido a EmpresaContextLoaded por el gate de arriba.
+    final maxTx = ctxState.context.yapeMaxPorTransaccion;
+    double r2(double v) => (v * 100).round() / 100;
     final pagosYape = state.pagos
         .where((p) => p['metodo'] == 'YAPE' || p['metodo'] == 'PLIN')
         .toList();
     if (pagosYape.isEmpty) return;
-    final metodo = pagosYape.first['metodo'] as String; // YAPE | PLIN
-    final total = pagosYape.fold<double>(
-        0, (s, p) => s + (p['monto'] as num).toDouble());
+    final tramos = <TramoCobro>[];
+    for (final p in pagosYape) {
+      final metodoP = p['metodo'] as String;
+      var resto = (p['monto'] as num).toDouble();
+      while (resto > 0.001) {
+        final m = resto > maxTx ? maxTx : resto;
+        tramos.add(TramoCobro(metodoP, r2(m)));
+        resto = r2(resto - m);
+      }
+    }
+    final metodoPrincipal = pagosYape.first['metodo'] as String;
 
     final res = await cubit.iniciarCobroYape(
-      metodoYape: metodo,
+      metodoYape: metodoPrincipal,
       aceptaRiesgoBancarizacion: aceptaRiesgo,
       ventaBajoCostoAutorizadaPorId: autorizadoPorId,
     );
     if (res == null || !context.mounted) return;
-
-    // QR precargado del comercio: el del método elegido, con fallback al otro
-    // si solo hay uno cargado (decisión: un solo QR sirve para ambos).
-    final qrYape = res['qrYapeUrl'] as String?;
-    final qrPlin = res['qrPlinUrl'] as String?;
-    final qrUrl = metodo == 'PLIN' ? (qrPlin ?? qrYape) : (qrYape ?? qrPlin);
+    final ventaId = res['ventaId'] as String;
 
     final paid = await CobroYapeSheet.mostrar(
       context,
-      ventaId: res['ventaId'] as String,
-      total: total,
-      payAmount: res['payAmount'] as double?,
-      habilitado: res['habilitado'] == true,
-      metodo: metodo,
-      qrUrl: qrUrl,
+      ventaId: ventaId,
+      tramos: tramos,
       cubit: cubit,
       realtime: cubit.realtimeSync,
     );
@@ -518,7 +522,7 @@ class _CobroViewState extends State<_CobroView> {
       // Esperar al siguiente frame deja la pila limpia → muestra el ticket
       // igual que el flujo normal.
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        cubit.marcarVentaCompletada(res['ventaId'] as String);
+        cubit.marcarVentaCompletada(ventaId);
       });
     }
   }

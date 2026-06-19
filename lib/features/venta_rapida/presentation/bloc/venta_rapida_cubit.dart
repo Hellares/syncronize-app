@@ -1409,23 +1409,46 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       return null;
     }
     final ventaId = result.data.id;
-
-    // Generar el monto único en api-yape.
-    final cobro = await _repository.cobroYape(ventaId);
     if (isClosed) return null;
     emit(state.copyWith(procesando: false));
-    if (cobro is Success<Map<String, dynamic>>) {
-      final payAmount = cobro.data['payAmount'];
+    // NO creamos el charge acá: la hoja de cobro lo hace POR TRAMO (pagos
+    // divididos). Devolvemos solo el ventaId; los QR + payAmount de cada tramo
+    // los trae `cobroYapeTramo`.
+    return {'ventaId': ventaId};
+  }
+
+  /// Crea el cobro (charge api-yape) de UN tramo de la venta (pagos divididos).
+  /// Devuelve { habilitado, payAmount, qrYapeUrl, qrPlinUrl } o null si falla.
+  Future<Map<String, dynamic>?> cobroYapeTramo(
+    String ventaId,
+    double monto,
+  ) async {
+    final r = await _repository.cobroYape(ventaId, monto: monto);
+    if (r is Success<Map<String, dynamic>>) {
+      final pa = r.data['payAmount'];
       return {
-        'ventaId': ventaId,
-        'habilitado': cobro.data['habilitado'] == true,
-        'payAmount': payAmount is num ? payAmount.toDouble() : null,
-        'qrYapeUrl': cobro.data['qrYapeUrl'] as String?,
-        'qrPlinUrl': cobro.data['qrPlinUrl'] as String?,
+        'habilitado': r.data['habilitado'] == true,
+        'payAmount': pa is num ? pa.toDouble() : null,
+        'qrYapeUrl': r.data['qrYapeUrl'] as String?,
+        'qrPlinUrl': r.data['qrPlinUrl'] as String?,
       };
     }
-    // api-yape no disponible → la venta existe (pendiente): fallback manual.
-    return {'ventaId': ventaId, 'habilitado': false, 'payAmount': null};
+    return null;
+  }
+
+  /// Progreso de pago de la venta (estado + monto acumulado), para el
+  /// auto-avance de tramos sin depender del FCM.
+  Future<({String estado, double montoRecibido})> progresoVentaYape(
+    String ventaId,
+  ) async {
+    final r = await _repository.progresoVenta(ventaId);
+    if (r is Success<Map<String, dynamic>>) {
+      return (
+        estado: r.data['estado'] as String? ?? '',
+        montoRecibido: (r.data['montoRecibido'] as num?)?.toDouble() ?? 0.0,
+      );
+    }
+    return (estado: '', montoRecibido: 0.0);
   }
 
   /// Registra el pago manualmente (fallback con el screenshot del Yape) y

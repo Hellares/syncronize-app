@@ -137,6 +137,40 @@ class EmpresaRemoteDataSource {
         response.data as Map<String, dynamic>);
   }
 
+  /// Obtiene la configuración de integración Yape (secretos enmascarados)
+  ///
+  /// GET /api/empresas/:empresaId/integracion-yape
+  Future<Map<String, dynamic>> getIntegracionYape(String empresaId) async {
+    final response = await _dioClient.get(
+      '${ApiConstants.empresas}/$empresaId/integracion-yape',
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
+  /// Crea/actualiza la integración Yape de la empresa
+  ///
+  /// PUT /api/empresas/:empresaId/integracion-yape
+  Future<Map<String, dynamic>> updateIntegracionYape({
+    required String empresaId,
+    required Map<String, dynamic> data,
+  }) async {
+    final response = await _dioClient.put(
+      '${ApiConstants.empresas}/$empresaId/integracion-yape',
+      data: data,
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
+  /// Prueba la conexión con api-yape (cobro de prueba que se cancela)
+  ///
+  /// POST /api/empresas/:empresaId/integracion-yape/probar
+  Future<Map<String, dynamic>> probarIntegracionYape(String empresaId) async {
+    final response = await _dioClient.post(
+      '${ApiConstants.empresas}/$empresaId/integracion-yape/probar',
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
   /// Obtiene informacion de limites del plan (uso de storage, etc.)
   Future<Map<String, dynamic>?> getPlanLimitsInfo(String empresaId) async {
     try {

@@ -14,6 +14,8 @@ class EmpresaContextModel extends EmpresaContext {
     required super.statistics,
     super.planLimits,
     super.caracteristicas,
+    super.yapeMaxPorTransaccion,
+    super.yapeMaxPorDia,
   });
 
   factory EmpresaContextModel.fromJson(Map<String, dynamic> json) {
@@ -40,6 +42,10 @@ class EmpresaContextModel extends EmpresaContext {
       caracteristicas: (json['caracteristicas'] as Map<String, dynamic>?)
               ?.map((k, v) => MapEntry(k, v == true)) ??
           const {},
+      yapeMaxPorTransaccion:
+          ((json['yapeLimites']?['maxPorTransaccion']) as num?)?.toDouble() ?? 500,
+      yapeMaxPorDia:
+          ((json['yapeLimites']?['maxPorDia']) as num?)?.toDouble() ?? 2000,
     );
   }
 
