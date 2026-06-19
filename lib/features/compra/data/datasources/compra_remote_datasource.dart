@@ -7,6 +7,7 @@ import '../models/lote_model.dart';
 import '../models/compra_analytics_model.dart';
 import '../models/historial_compras_model.dart';
 import '../models/reposicion_model.dart';
+import '../models/guia_remision_consulta_model.dart';
 
 @lazySingleton
 class CompraRemoteDataSource {
@@ -275,6 +276,13 @@ class CompraRemoteDataSource {
     return data
         .map((json) => LoteModel.fromJson(json as Map<String, dynamic>))
         .toList();
+  }
+
+  /// Consulta una Guía de Remisión (GRE) en SUNAT vía el backend (proxy a
+  /// Factiliza con token server-side). `numero` = RUC-tipo-serie-número.
+  Future<GuiaRemisionConsulta> consultarGuiaRemision(String numero) async {
+    final response = await _dioClient.get('/consultas/guia/$numero');
+    return GuiaRemisionConsulta.fromJson(response.data as Map<String, dynamic>);
   }
 
   /// Reposición sugerida: productos con stock ≤ mínimo + mejor proveedor.

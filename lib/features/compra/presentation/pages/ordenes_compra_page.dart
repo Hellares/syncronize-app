@@ -32,6 +32,11 @@ class OrdenesCompraPage extends StatelessWidget {
             title: 'Órdenes de Compra',
             actions: [
               IconButton(
+                icon: const Icon(Icons.local_shipping, color: AppColors.white),
+                tooltip: 'Consultar guía SUNAT',
+                onPressed: () => context.push('/empresa/compras/consultar-guia'),
+              ),
+              IconButton(
                 icon: const Icon(Icons.shopping_cart_checkout, color: AppColors.white),
                 tooltip: 'Reposición sugerida',
                 onPressed: () => context.push('/empresa/compras/reposicion'),

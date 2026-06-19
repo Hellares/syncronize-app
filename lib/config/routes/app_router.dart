@@ -176,6 +176,7 @@ import '../../features/compra/presentation/pages/compra_detail_page.dart';
 import '../../features/compra/presentation/pages/compra_form_page.dart';
 import '../../features/compra/presentation/pages/lotes_page.dart';
 import '../../features/compra/presentation/pages/reposicion_sugerida_page.dart';
+import '../../features/compra/presentation/pages/consultar_guia_page.dart';
 import '../../features/compra/presentation/pages/lote_detail_page.dart';
 import '../../features/compra/presentation/pages/compra_analytics_page.dart';
 import '../../features/compra/presentation/pages/compra_export_page.dart';
@@ -1555,6 +1556,12 @@ class AppRouter {
         path: '/empresa/compras/reposicion',
         name: 'empresa-compras-reposicion',
         builder: (context, state) => const ReposicionSugeridaPage(),
+      ),
+      GoRoute(
+        path: '/empresa/compras/consultar-guia',
+        name: 'empresa-compras-consultar-guia',
+        builder: (context, state) =>
+            ConsultarGuiaPage(numeroInicial: state.uri.queryParameters['numero']),
       ),
       // Rutas de lotes
       GoRoute(
