@@ -101,7 +101,9 @@ class _ConsultarGuiaPageState extends State<ConsultarGuiaPage> {
     return GestureDetector(
       onTap: () => setState(() => _tipo = val),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
+        height: 33, // = alto del campo CustomText (CustomTextFieldConstants.defaultHeight)
+        alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
         decoration: BoxDecoration(
           color: sel ? AppColors.blue1 : Colors.white,
           borderRadius: BorderRadius.circular(8),
@@ -110,7 +112,7 @@ class _ConsultarGuiaPageState extends State<ConsultarGuiaPage> {
         child: Text(
           label,
           style: TextStyle(
-            fontSize: 11,
+            fontSize: 9,
             fontWeight: FontWeight.w600,
             color: sel ? Colors.white : AppColors.blue1,
           ),
