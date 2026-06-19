@@ -43,4 +43,31 @@ class CuentasPagarRepositoryImpl implements CuentasPagarRepository {
       return _errorHandler.handleException(e, context: 'CuentasPagar');
     }
   }
+
+  @override
+  Future<Resource<void>> registrarPago(
+    String compraId, {
+    required String metodoPago,
+    required double monto,
+    String? referencia,
+    String? bancoDestino,
+    String? cuentaDestino,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      await _remoteDataSource.registrarPago(
+        compraId,
+        metodoPago: metodoPago,
+        monto: monto,
+        referencia: referencia,
+        bancoDestino: bancoDestino,
+        cuentaDestino: cuentaDestino,
+      );
+      return Success(null);
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'CuentasPagar.registrarPago');
+    }
+  }
 }

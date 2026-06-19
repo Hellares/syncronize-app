@@ -29,4 +29,26 @@ class CuentasPagarRemoteDataSource {
       response.data as Map<String, dynamic>,
     );
   }
+
+  /// Registra un pago a proveedor sobre una compra (CxP). Backend valida que el
+  /// monto no exceda el saldo y registra el EGRESO en caja.
+  Future<void> registrarPago(
+    String compraId, {
+    required String metodoPago,
+    required double monto,
+    String? referencia,
+    String? bancoDestino,
+    String? cuentaDestino,
+  }) async {
+    await _dioClient.post(
+      '$_basePath/$compraId/pago',
+      data: {
+        'metodoPago': metodoPago,
+        'monto': monto,
+        if (referencia != null && referencia.isNotEmpty) 'referencia': referencia,
+        if (bancoDestino != null && bancoDestino.isNotEmpty) 'bancoDestino': bancoDestino,
+        if (cuentaDestino != null && cuentaDestino.isNotEmpty) 'cuentaDestino': cuentaDestino,
+      },
+    );
+  }
 }

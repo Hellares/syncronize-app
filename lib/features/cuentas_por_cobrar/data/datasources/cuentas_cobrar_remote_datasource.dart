@@ -29,4 +29,25 @@ class CuentasCobrarRemoteDataSource {
       response.data as Map<String, dynamic>,
     );
   }
+
+  /// Registra un abono del cliente sobre una venta a crédito. El backend
+  /// (procesarPago) lo aplica en cascada a las cuotas (mora→interés→principal)
+  /// y registra el INGRESO en caja. Pasa aceptaRiesgoBancarizacion para no
+  /// bloquear abonos sobre ventas ≥ umbral.
+  Future<void> registrarAbono(
+    String ventaId, {
+    required String metodoPago,
+    required double monto,
+    String? referencia,
+  }) async {
+    await _dioClient.post(
+      '/ventas/$ventaId/pago',
+      data: {
+        'metodoPago': metodoPago,
+        'monto': monto,
+        if (referencia != null && referencia.isNotEmpty) 'referencia': referencia,
+        'aceptaRiesgoBancarizacion': true,
+      },
+    );
+  }
 }

@@ -43,4 +43,27 @@ class CuentasCobrarRepositoryImpl implements CuentasCobrarRepository {
       return _errorHandler.handleException(e, context: 'CuentasCobrar');
     }
   }
+
+  @override
+  Future<Resource<void>> registrarAbono(
+    String ventaId, {
+    required String metodoPago,
+    required double monto,
+    String? referencia,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      await _remoteDataSource.registrarAbono(
+        ventaId,
+        metodoPago: metodoPago,
+        monto: monto,
+        referencia: referencia,
+      );
+      return Success(null);
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'CuentasCobrar.registrarAbono');
+    }
+  }
 }

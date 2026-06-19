@@ -9,9 +9,11 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/theme/gradient_container.dart';
 import '../../../../core/widgets/smart_appbar.dart';
+import '../../../../core/widgets/custom_button.dart';
 import '../../domain/entities/cuenta_por_cobrar.dart';
 import '../bloc/cuentas_cobrar_cubit.dart';
 import '../bloc/cuentas_cobrar_state.dart';
+import '../widgets/abono_cliente_sheet.dart';
 
 class CuentasPorCobrarPage extends StatelessWidget {
   const CuentasPorCobrarPage({super.key});
@@ -340,9 +342,33 @@ class _CuentaCard extends StatelessWidget {
                 ],
               ),
             ],
+            // Registrar abono — solo si queda saldo.
+            if (cuenta.estado != 'PAGADA' && cuenta.saldoPendiente > 0.001) ...[
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: CustomButton(
+                  text: 'Registrar abono',
+                  height: 36,
+                  backgroundColor: AppColors.blue1,
+                  textColor: Colors.white,
+                  onPressed: () => _abonar(context, cuenta),
+                ),
+              ),
+            ],
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _abonar(BuildContext context, CuentaPorCobrar cuenta) async {
+    final cubit = context.read<CuentasCobrarCubit>();
+    final ok = await AbonoClienteSheet.mostrar(context, cuenta: cuenta, cubit: cubit);
+    if (ok == true && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Abono registrado'), backgroundColor: Colors.green),
+      );
+    }
   }
 }

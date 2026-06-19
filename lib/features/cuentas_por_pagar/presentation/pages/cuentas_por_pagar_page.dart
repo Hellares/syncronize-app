@@ -8,9 +8,11 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/theme/gradient_container.dart';
 import '../../../../core/widgets/smart_appbar.dart';
+import '../../../../core/widgets/custom_button.dart';
 import '../../domain/entities/cuenta_por_pagar.dart';
 import '../bloc/cuentas_pagar_cubit.dart';
 import '../bloc/cuentas_pagar_state.dart';
+import '../widgets/pago_proveedor_sheet.dart';
 
 class CuentasPorPagarPage extends StatelessWidget {
   const CuentasPorPagarPage({super.key});
@@ -294,9 +296,33 @@ class _CuentaCard extends StatelessWidget {
                 ],
               ),
             ],
+            // Registrar pago — solo si queda saldo.
+            if (cuenta.estado != 'PAGADA' && cuenta.saldoPendiente > 0.001) ...[
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: CustomButton(
+                  text: 'Registrar pago',
+                  height: 36,
+                  backgroundColor: AppColors.blue1,
+                  textColor: Colors.white,
+                  onPressed: () => _pagar(context, cuenta),
+                ),
+              ),
+            ],
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _pagar(BuildContext context, CuentaPorPagar cuenta) async {
+    final cubit = context.read<CuentasPagarCubit>();
+    final ok = await PagoProveedorSheet.mostrar(context, cuenta: cuenta, cubit: cubit);
+    if (ok == true && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pago registrado'), backgroundColor: Colors.green),
+      );
+    }
   }
 }
