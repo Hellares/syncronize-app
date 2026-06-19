@@ -77,7 +77,10 @@ class _CobroYapeSheetState extends State<CobroYapeSheet> {
   bool _iniciando = true; // creando el charge del tramo
   bool _procesando = false; // aprobando manual / cancelando
   bool _cerrado = false;
-  final _refCtrl = TextEditingController();
+  // Pre-llenado con '00000': la bancarización (venta ≥ S/2000) exige N° de
+  // operación en pagos Yape/Plin. Con un valor por defecto el cajero no se
+  // bloquea; si el cliente le da el N° real, lo sobrescribe.
+  final _refCtrl = TextEditingController(text: '00000');
 
   int get _n => widget.tramos.length;
   TramoCobro get _tramo => widget.tramos[_idx];
@@ -155,7 +158,7 @@ class _CobroYapeSheetState extends State<CobroYapeSheet> {
     _poll?.cancel();
     _acumulado = _r2(_acumulado + _tramo.monto);
     _idx++;
-    _refCtrl.clear();
+    _refCtrl.text = '00000'; // default para el siguiente tramo (ver _refCtrl)
     if (_idx >= _n) {
       _cerrarPagada();
     } else {
