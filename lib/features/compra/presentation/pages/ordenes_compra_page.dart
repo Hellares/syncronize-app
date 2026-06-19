@@ -30,6 +30,13 @@ class OrdenesCompraPage extends StatelessWidget {
             backgroundColor: AppColors.blue1,
             foregroundColor: AppColors.white,
             title: 'Órdenes de Compra',
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.shopping_cart_checkout, color: AppColors.white),
+                tooltip: 'Reposición sugerida',
+                onPressed: () => context.push('/empresa/compras/reposicion'),
+              ),
+            ],
           ),
           body: GradientContainer(
             child: Column(

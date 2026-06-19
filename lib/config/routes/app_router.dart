@@ -25,6 +25,7 @@ import '../../core/utils/role_navigation_helper.dart';
 import '../../features/empresa/presentation/pages/empresa_selection_page.dart';
 import '../../features/empresa/presentation/pages/configuracion_empresa_page.dart';
 import '../../features/empresa/presentation/pages/qr_cobro_page.dart';
+import '../../features/empresa/presentation/pages/integracion_yape_page.dart';
 import '../../features/empresa/presentation/pages/empresa_profile_page.dart';
 import '../../features/empresa/presentation/pages/personalizacion_page.dart';
 import '../../features/empresa/presentation/pages/planes_page.dart';
@@ -174,6 +175,7 @@ import '../../features/compra/presentation/pages/compras_page.dart';
 import '../../features/compra/presentation/pages/compra_detail_page.dart';
 import '../../features/compra/presentation/pages/compra_form_page.dart';
 import '../../features/compra/presentation/pages/lotes_page.dart';
+import '../../features/compra/presentation/pages/reposicion_sugerida_page.dart';
 import '../../features/compra/presentation/pages/lote_detail_page.dart';
 import '../../features/compra/presentation/pages/compra_analytics_page.dart';
 import '../../features/compra/presentation/pages/compra_export_page.dart';
@@ -422,6 +424,11 @@ class AppRouter {
         path: '/empresa/qr-cobro',
         name: 'empresa-qr-cobro',
         builder: (context, state) => const QrCobroPage(),
+      ),
+      GoRoute(
+        path: '/empresa/integracion-yape',
+        name: 'empresa-integracion-yape',
+        builder: (context, state) => const IntegracionYapePage(),
       ),
       GoRoute(
         path: '/empresa/planes',
@@ -1543,6 +1550,11 @@ class AppRouter {
           final empresaId = locator<LocalStorageService>().getString(StorageConstants.tenantId) ?? '';
           return CompraExportPage(empresaId: empresaId);
         },
+      ),
+      GoRoute(
+        path: '/empresa/compras/reposicion',
+        name: 'empresa-compras-reposicion',
+        builder: (context, state) => const ReposicionSugeridaPage(),
       ),
       // Rutas de lotes
       GoRoute(
