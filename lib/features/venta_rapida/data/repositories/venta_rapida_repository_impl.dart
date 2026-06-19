@@ -45,6 +45,23 @@ class VentaRapidaRepositoryImpl implements VentaRapidaRepository {
   }
 
   @override
+  Future<Resource<Venta>> cobrarYapeDiferido({
+    required Map<String, dynamic> data,
+  }) async {
+    if (!await _network.isConnected) {
+      return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final venta = await _remote.cobrarYapeDiferido(data);
+      return Success(venta.toEntity());
+    } catch (e) {
+      final priceConflict = _extractPriceConflict(e);
+      if (priceConflict != null) return priceConflict;
+      return _errorHandler.handleException(e, context: 'VentaRapida.cobrarYapeDiferido');
+    }
+  }
+
+  @override
   Future<Resource<Map<String, dynamic>>> cobroYape(String ventaId) async {
     if (!await _network.isConnected) {
       return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');

@@ -20,6 +20,15 @@ class VentaRapidaRemoteDataSource {
     return VentaModel.fromJson(response.data as Map<String, dynamic>);
   }
 
+  /// Crea una venta Yape/Plin con registro DIFERIDO: nace CONFIRMADA con stock
+  /// descontado pero SIN comprobante (se emite al confirmarse el pago). Si se
+  /// cancela/expira sin pagar, se borra (devuelve stock). Solo 100% Yape de
+  /// productos estándar (el backend rechaza órdenes de servicio y combos).
+  Future<VentaModel> cobrarYapeDiferido(Map<String, dynamic> data) async {
+    final response = await _dioClient.post('/ventas/cobrar-yape', data: data);
+    return VentaModel.fromJson(response.data as Map<String, dynamic>);
+  }
+
   /// Genera un cobro Yape/Plin (monto único) para una venta ya creada.
   /// Devuelve { habilitado, payAmount?, chargeId? }.
   Future<Map<String, dynamic>> cobroYape(String ventaId) async {

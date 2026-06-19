@@ -1067,6 +1067,7 @@ class _CobroViewState extends State<_CobroView> {
           //   ],
           // ),
           appBar: SmartAppBar(
+            customHeight: 40,
             title: tituloAppBar,
             backgroundColor: AppColors.blue1,
             foregroundColor: Colors.white,
@@ -2344,25 +2345,29 @@ class _AppBarCondicionChip extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 3),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 5),
+        // padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: const EdgeInsets.fromLTRB(6, 2, 6, 4),
         decoration: BoxDecoration(
           color: selected ? selectedColor : Colors.transparent,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: selected ? selectedColor : Colors.white54,
+            color: selected ? selectedColor : Colors.white54, width: 0.6
           ),
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: selected
+        // child: Text(
+        //   label,
+        //   style: TextStyle(
+        //     fontSize: 10,
+        //     fontWeight: FontWeight.w600,
+        //     color: selected
+        //         ? (selectedColor == Colors.white ? AppColors.blue1 : Colors.white)
+        //         : Colors.white70,
+        //   ),
+        // ),
+        child: AppSubtitle(label, fontSize: 10, color: selected
                 ? (selectedColor == Colors.white ? AppColors.blue1 : Colors.white)
-                : Colors.white70,
-          ),
-        ),
+                : Colors.white70)
       ),
     );
   }

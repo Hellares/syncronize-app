@@ -1386,7 +1386,19 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       'detalles': state.items.map((item) => item.toMap()).toList(),
     };
 
-    final result = await _repository.cobrar(data: data);
+    // Registro DIFERIDO: para 100% Yape de productos estándar (sin órdenes de
+    // servicio ni combos) la venta nace CONFIRMADA SIN comprobante; éste se
+    // emite al confirmarse el pago, y si se cancela/expira se BORRA (no deja
+    // venta anulada ni boleta). Mixto / órdenes / combos caen al flujo
+    // inmediato de siempre (`cobrar`).
+    final esDiferible = pagosNoYape.isEmpty &&
+        !state.items.any((i) =>
+            i.ordenServicioId != null ||
+            i.comboId != null ||
+            i.origenComboId != null);
+    final result = esDiferible
+        ? await _repository.cobrarYapeDiferido(data: data)
+        : await _repository.cobrar(data: data);
     if (isClosed) return null;
     if (result is! Success<Venta>) {
       emit(state.copyWith(

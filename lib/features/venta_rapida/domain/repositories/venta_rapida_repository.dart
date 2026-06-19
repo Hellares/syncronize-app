@@ -13,6 +13,13 @@ abstract class VentaRapidaRepository {
   /// estructurado por el cubit del módulo Venta Rápida.
   Future<Resource<Venta>> cobrar({required Map<String, dynamic> data});
 
+  /// Crea una venta Yape/Plin con registro DIFERIDO: nace CONFIRMADA con stock
+  /// descontado pero SIN comprobante (se emite al confirmarse el pago). Si se
+  /// cancela/expira sin pagar, se borra. Solo 100% Yape de productos estándar.
+  Future<Resource<Venta>> cobrarYapeDiferido({
+    required Map<String, dynamic> data,
+  });
+
   /// Genera un cobro Yape/Plin (monto único) para una venta ya creada.
   /// Devuelve { habilitado: bool, payAmount?: num, chargeId?: String }.
   Future<Resource<Map<String, dynamic>>> cobroYape(String ventaId);
