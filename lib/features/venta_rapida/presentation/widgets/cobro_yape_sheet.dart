@@ -95,7 +95,9 @@ class _CobroYapeSheetState extends State<CobroYapeSheet> {
       // FCM perdidos por battery savers / doze. Si la venta ya está pagada en el
       // backend, cerramos sin depender del push.
       _poll = Timer.periodic(const Duration(seconds: 4), (_) async {
-        if (_cerrado) return;
+        // No consultar si ya cerramos o si se está cancelando (la venta
+        // diferida se borra al cancelar → un GET daría 404).
+        if (_cerrado || _procesando) return;
         final pagada = await widget.cubit.verificarVentaPagada(widget.ventaId);
         if (pagada) _cerrarPagada();
       });
@@ -122,6 +124,10 @@ class _CobroYapeSheetState extends State<CobroYapeSheet> {
   /// monto único en api-yape. Si el pago llegó justo antes, cierra como pagada.
   Future<void> _cancelar() async {
     if (_cerrado) return;
+    // Frenar el polling/realtime antes de borrar: la venta diferida dejará de
+    // existir y un GET de estado daría 404 (ruido inofensivo, pero evitable).
+    _poll?.cancel();
+    _sub?.cancel();
     setState(() => _procesando = true);
     final res = await widget.cubit.cancelarCobroYape(widget.ventaId);
     if (!mounted) return;
