@@ -19,6 +19,7 @@ import '../bloc/compra_form/compra_form_state.dart';
 import '../../../../core/widgets/custom_proveedor_selector.dart';
 import '../widgets/orden_compra_item_selector.dart';
 import '../widgets/credito_selector.dart';
+import 'importar_guia_page.dart';
 
 class CompraFormPage extends StatelessWidget {
   final String empresaId;
@@ -142,6 +143,21 @@ class _CompraFormViewState extends State<_CompraFormView> {
     setState(() {
       _detalles.removeAt(index);
     });
+  }
+
+  Future<void> _importarDeGuia() async {
+    final items = await Navigator.of(context).push<List<dynamic>>(
+      MaterialPageRoute(
+        builder: (_) => ImportarGuiaPage(
+          empresaId: widget.empresaId,
+          proveedorId: _proveedorId!,
+          sedeId: _sedeId,
+        ),
+      ),
+    );
+    if (items != null && items.isNotEmpty && mounted) {
+      setState(() => _detalles.addAll(items.cast<Map<String, dynamic>>()));
+    }
   }
 
   void _submit() {
@@ -502,6 +518,24 @@ class _CompraFormViewState extends State<_CompraFormView> {
                         ),
                       if (!_isFromOc) const SizedBox(height: 16),
                       if (_isFromOc) const SizedBox(height: 4),
+
+                      // Importar ítems desde una guía SUNAT del proveedor (mapea
+                      // sus nombres a tu catálogo). Requiere proveedor elegido.
+                      if (!_isFromOc && _proveedorId != null) ...[
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.blue1,
+                              side: BorderSide(color: AppColors.blue1.withValues(alpha: 0.5)),
+                            ),
+                            onPressed: _importarDeGuia,
+                            icon: const Icon(Icons.local_shipping, size: 18),
+                            label: const Text('Importar ítems de guía SUNAT'),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
 
                       // Selector de items (solo para compra standalone)
                       if (!_isFromOc)

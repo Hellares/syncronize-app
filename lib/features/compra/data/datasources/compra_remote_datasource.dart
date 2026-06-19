@@ -285,6 +285,35 @@ class CompraRemoteDataSource {
     return GuiaRemisionConsulta.fromJson(response.data as Map<String, dynamic>);
   }
 
+  /// Sugiere el mapeo de bienes de una guía → catálogo (alias proveedor + similitud).
+  /// `bienes`: [{descripcion, cantidad?, unidad?}]. Devuelve cada uno enriquecido
+  /// con productoId/productoNombre/factorCompra/unidadCompraSimbolo/fuente.
+  Future<List<Map<String, dynamic>>> sugerirMapeoGuia({
+    required String empresaId,
+    required String proveedorId,
+    required List<Map<String, dynamic>> bienes,
+  }) async {
+    final r = await _dioClient.post(
+      '/empresas/$empresaId/compras/guia/sugerir-mapeo',
+      data: {'proveedorId': proveedorId, 'bienes': bienes},
+    );
+    final list = r.data as List? ?? [];
+    return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
+  /// Guarda el alias del proveedor para tus productos (recordar nombres).
+  /// `items`: [{descripcionProveedor, productoId, varianteId?, precioCompra?}].
+  Future<void> guardarAliasProveedor({
+    required String empresaId,
+    required String proveedorId,
+    required List<Map<String, dynamic>> items,
+  }) async {
+    await _dioClient.post(
+      '/empresas/$empresaId/compras/proveedor-alias',
+      data: {'proveedorId': proveedorId, 'items': items},
+    );
+  }
+
   /// Reposición sugerida: productos con stock ≤ mínimo + mejor proveedor.
   Future<List<ReposicionItem>> getReposicionSugerida({
     required String empresaId,
