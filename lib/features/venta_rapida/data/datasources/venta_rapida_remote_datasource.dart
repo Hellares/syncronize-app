@@ -42,6 +42,16 @@ class VentaRapidaRemoteDataSource {
     return VentaModel.fromJson(response.data as Map<String, dynamic>);
   }
 
+  /// Cancela el cobro Yape/Plin pendiente: anula la venta (devuelve stock) si
+  /// sigue sin pagar y libera el monto único en api-yape. Devuelve `yaPagada`
+  /// (true si el pago llegó justo antes de cancelar → no se anuló).
+  Future<bool> cancelarCobroYape(String ventaId) async {
+    final response =
+        await _dioClient.post('/ventas/$ventaId/cancelar-cobro-yape');
+    final data = Map<String, dynamic>.from(response.data as Map);
+    return data['yaPagada'] == true;
+  }
+
   /// Resuelve el id del EmpresaPersona "CLIENTES VARIOS" para la empresa
   /// actual (el backend lo crea si no existe).
   /// Devuelve solo el `id`. El resto de campos (`nombres`, `apellidos`, `dni`)

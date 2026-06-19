@@ -1298,6 +1298,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
   /// null si falló crear la venta. NO marca la venta pagada: eso lo hace el
   /// webhook (automático) o la confirmación manual.
   Future<Map<String, dynamic>?> iniciarCobroYape({
+    required String metodoYape, // YAPE | PLIN — método de la porción Yape
     bool aceptaRiesgoBancarizacion = false,
     String? ventaBajoCostoAutorizadaPorId,
   }) async {
@@ -1375,7 +1376,13 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
                   if (p['referencia'] != null) 'referencia': p['referencia'],
                 })
             .toList(),
-      },
+      }
+      // 100% Yape: marcar el método de pago previsto (sin montoRecibido → no
+      // registra pago, queda CONFIRMADA pendiente). Es CLAVE para que el cron
+      // TTL rescate esta venta si el cobro se abandona (filtra por YAPE/PLIN);
+      // sin esto nacía con metodoPago=NULL y el cron nunca la limpiaba.
+      else
+        'metodoPago': metodoYape,
       'detalles': state.items.map((item) => item.toMap()).toList(),
     };
 
@@ -1424,6 +1431,19 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       if (referencia != null && referencia.isNotEmpty) 'referencia': referencia,
     });
     return result is Success<Venta>;
+  }
+
+  /// Cancela el cobro Yape/Plin pendiente (cajero pulsa "Cancelar" en la hoja):
+  /// anula la venta recién creada devolviendo el stock y libera el monto único
+  /// en api-yape. Devuelve `yaPagada=true` si el pago llegó justo antes (carrera
+  /// con el webhook) → la hoja debe cerrar como pagada en vez de cancelar.
+  Future<({bool yaPagada})> cancelarCobroYape(String ventaId) async {
+    final result = await _repository.cancelarCobroYape(ventaId);
+    if (result is Success<bool>) {
+      return (yaPagada: result.data);
+    }
+    // Error de red: no bloqueamos al cajero (el cron TTL limpiará la venta).
+    return (yaPagada: false);
   }
 
   /// Acceso al servicio de realtime para que la hoja de espera Yape escuche

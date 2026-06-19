@@ -469,6 +469,7 @@ class _CobroViewState extends State<_CobroView> {
         0, (s, p) => s + (p['monto'] as num).toDouble());
 
     final res = await cubit.iniciarCobroYape(
+      metodoYape: metodo,
       aceptaRiesgoBancarizacion: aceptaRiesgo,
       ventaBajoCostoAutorizadaPorId: autorizadoPorId,
     );

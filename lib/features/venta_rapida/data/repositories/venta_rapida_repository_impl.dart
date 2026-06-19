@@ -85,6 +85,20 @@ class VentaRapidaRepositoryImpl implements VentaRapidaRepository {
     }
   }
 
+  @override
+  Future<Resource<bool>> cancelarCobroYape(String ventaId) async {
+    if (!await _network.isConnected) {
+      return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final yaPagada = await _remote.cancelarCobroYape(ventaId);
+      return Success(yaPagada);
+    } catch (e) {
+      return _errorHandler.handleException(e,
+          context: 'VentaRapida.cancelarCobroYape');
+    }
+  }
+
   /// Devuelve un `Error<Venta>` con un `errorCode` estructurado si la
   /// excepción representa un 409 del backend con `code:
   /// PRECIO_DESACTUALIZADO` o `STOCK_INSUFICIENTE`. Si no es ninguno,

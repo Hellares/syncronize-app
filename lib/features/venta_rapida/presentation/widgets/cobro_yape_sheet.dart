@@ -118,6 +118,21 @@ class _CobroYapeSheetState extends State<CobroYapeSheet> {
     super.dispose();
   }
 
+  /// Cancela el cobro: anula la venta pendiente (devuelve stock) y libera el
+  /// monto único en api-yape. Si el pago llegó justo antes, cierra como pagada.
+  Future<void> _cancelar() async {
+    if (_cerrado) return;
+    setState(() => _procesando = true);
+    final res = await widget.cubit.cancelarCobroYape(widget.ventaId);
+    if (!mounted) return;
+    if (res.yaPagada) {
+      _cerrarPagada(); // el webhook pagó justo antes → no perder la venta
+      return;
+    }
+    setState(() => _procesando = false);
+    if (mounted) Navigator.of(context).pop(false);
+  }
+
   Future<void> _marcarManual() async {
     setState(() => _procesando = true);
     final ok = await widget.cubit.confirmarPagoManualYape(
@@ -205,9 +220,7 @@ class _CobroYapeSheetState extends State<CobroYapeSheet> {
                         borderColor: Colors.grey.shade400,
                         textColor: Colors.grey.shade700,
                         enableShadows: false,
-                        onPressed: _procesando
-                            ? null
-                            : () => Navigator.of(context).pop(false),
+                        onPressed: _procesando ? null : _cancelar,
                       ),
                     ),
                     const SizedBox(width: 12),
