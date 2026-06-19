@@ -28,6 +28,8 @@ class _ConsultarGuiaPageState extends State<ConsultarGuiaPage> {
   bool _loading = false;
   String? _error;
   GuiaRemisionConsulta? _guia;
+  // Tipo de guía: 09 = Remisión (remitente), 31 = Transportista (GRT).
+  String _tipo = '09';
 
   @override
   void initState() {
@@ -43,11 +45,35 @@ class _ConsultarGuiaPageState extends State<ConsultarGuiaPage> {
   }
 
   Future<void> _consultar() async {
-    final n = _ctrl.text.trim().toUpperCase();
-    if (!RegExp(r'^\d{11}-\d{1,2}-[A-Z0-9]+-\d+$').hasMatch(n)) {
-      setState(() => _error = 'Formato: RUC-tipo-serie-número (ej. 20132373958-09-T290-120)');
+    // El usuario ingresa RUC-serie-número (sin el tipo) y elige el tipo con los
+    // botones (09 Remisión / 31 Transportista). Tolera que peguen el string
+    // completo (4 partes): igual respeta el tipo del botón.
+    final partes = _ctrl.text
+        .trim()
+        .toUpperCase()
+        .split('-')
+        .where((p) => p.isNotEmpty)
+        .toList();
+    String? ruc, serie, num;
+    if (partes.length == 4) {
+      ruc = partes[0];
+      serie = partes[2];
+      num = partes[3];
+    } else if (partes.length == 3) {
+      ruc = partes[0];
+      serie = partes[1];
+      num = partes[2];
+    }
+    if (ruc == null ||
+        !RegExp(r'^\d{11}$').hasMatch(ruc) ||
+        serie == null ||
+        num == null ||
+        !RegExp(r'^\d+$').hasMatch(num)) {
+      setState(() => _error =
+          'Ingresá RUC-serie-número (ej. 20132373958-T290-120) y elegí el tipo.');
       return;
     }
+    final n = '$ruc-$_tipo-$serie-$num';
     setState(() {
       _loading = true;
       _error = null;
@@ -70,6 +96,29 @@ class _ConsultarGuiaPageState extends State<ConsultarGuiaPage> {
     }
   }
 
+  Widget _tipoBtn(String label, String val) {
+    final sel = _tipo == val;
+    return GestureDetector(
+      onTap: () => setState(() => _tipo = val),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
+        decoration: BoxDecoration(
+          color: sel ? AppColors.blue1 : Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: sel ? AppColors.blue1 : Colors.grey.shade300),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: sel ? Colors.white : AppColors.blue1,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -89,15 +138,31 @@ class _ConsultarGuiaPageState extends State<ConsultarGuiaPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    CustomText(
-                      label: 'Número de guía',
-                      controller: _ctrl,
-                      hintText: '20132373958-09-T290-120',
-                      borderColor: AppColors.blueborder,
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Expanded(
+                          child: CustomText(
+                            label: 'Guía (RUC-serie-número)',
+                            controller: _ctrl,
+                            hintText: '20132373958-T290-120',
+                            borderColor: AppColors.blueborder,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        _tipoBtn('Remisión', '09'),
+                        const SizedBox(width: 6),
+                        _tipoBtn('Transp.', '31'),
+                      ],
                     ),
                     const SizedBox(height: 4),
-                    const AppSubtitle('Formato: RUC-tipo-serie-número',
-                        fontSize: 10, color: AppColors.blueGrey),
+                    AppSubtitle(
+                      _tipo == '09'
+                          ? 'Tipo 09 · Guía de remisión (remitente)'
+                          : 'Tipo 31 · Guía de remisión (transportista)',
+                      fontSize: 10,
+                      color: AppColors.blueGrey,
+                    ),
                     const SizedBox(height: 10),
                     SizedBox(
                       width: double.infinity,
