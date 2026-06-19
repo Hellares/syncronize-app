@@ -9,6 +9,7 @@ import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import '../../../../core/widgets/producto_sede_selector/producto_sede_selector_exports.dart';
 import '../../../producto/domain/entities/producto_list_item.dart';
 import '../../../producto/domain/entities/producto_variante.dart';
+import 'historial_compras_producto_panel.dart';
 
 /// Widget para buscar y agregar productos/items al detalle de una Orden de Compra.
 ///
@@ -560,6 +561,15 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
               _buildPreviewConversion(),
             if (_tipoItem == 'producto' && _productoSeleccionado != null)
               _buildAdvertenciaCosto(),
+            // Historial de compras del producto (a cuánto te lo dejó cada
+            // proveedor) + variación vs último costo + margen.
+            if (_tipoItem == 'producto' && _productoSeleccionado != null)
+              HistorialComprasProductoPanel(
+                productoId: _productoSeleccionado!.id,
+                varianteId: _varianteSeleccionada?.id,
+                precioCompra: _precioCompraAtomico,
+                precioVenta: _precioVentaActualSede,
+              ),
             if (_tipoItem == 'producto' &&
                 _productoSeleccionado != null &&
                 _varianteSeleccionada == null)

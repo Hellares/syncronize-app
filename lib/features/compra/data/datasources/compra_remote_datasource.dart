@@ -5,12 +5,30 @@ import '../models/orden_compra_model.dart';
 import '../models/compra_model.dart';
 import '../models/lote_model.dart';
 import '../models/compra_analytics_model.dart';
+import '../models/historial_compras_model.dart';
 
 @lazySingleton
 class CompraRemoteDataSource {
   final DioClient _dioClient;
 
   CompraRemoteDataSource(this._dioClient);
+
+  /// Historial de compras de un producto (para mostrar al comprar): últimas
+  /// compras + agregado por proveedor + último costo + mejor proveedor.
+  Future<HistorialComprasResult> getHistorialComprasProducto({
+    required String productoId,
+    String? varianteId,
+    int limit = 10,
+  }) async {
+    final resp = await _dioClient.get(
+      '/productos/$productoId/historial-compras',
+      queryParameters: {
+        if (varianteId != null) 'varianteId': varianteId,
+        'limit': limit.toString(),
+      },
+    );
+    return HistorialComprasResult.fromJson(resp.data as Map<String, dynamic>);
+  }
 
   // ===== ORDENES DE COMPRA =====
 

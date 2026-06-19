@@ -18,6 +18,7 @@ import '../bloc/orden_compra_form/orden_compra_form_cubit.dart';
 import '../bloc/orden_compra_form/orden_compra_form_state.dart';
 import '../../../../core/widgets/custom_proveedor_selector.dart';
 import '../widgets/orden_compra_item_selector.dart';
+import '../widgets/credito_selector.dart';
 
 class OrdenCompraFormPage extends StatelessWidget {
   final String empresaId;
@@ -63,6 +64,7 @@ class _OrdenCompraFormViewState extends State<_OrdenCompraFormView> {
 
   String _moneda = 'PEN';
   String? _terminosPago;
+  int? _diasCredito;
   DateTime? _fechaEntrega;
 
   // Detalles de la orden
@@ -86,6 +88,7 @@ class _OrdenCompraFormViewState extends State<_OrdenCompraFormView> {
       _sedeId = o.sedeId;
       _moneda = o.moneda;
       _terminosPago = o.terminosPago;
+      _diasCredito = o.diasCredito;
       // Backend devuelve UTC; convertir a local para el picker.
       _fechaEntrega = o.fechaEntregaEsperada?.toLocal();
 
@@ -166,6 +169,7 @@ class _OrdenCompraFormViewState extends State<_OrdenCompraFormView> {
       if (_fechaEntrega != null)
         'fechaEntregaEsperada': DateFormatter.toUtcIso(_fechaEntrega!),
       if (_terminosPago != null) 'terminosPago': _terminosPago,
+      if (_diasCredito != null) 'diasCredito': _diasCredito,
       if (_observacionesController.text.trim().isNotEmpty)
         'observaciones': _observacionesController.text.trim(),
       if (_condicionesController.text.trim().isNotEmpty)
@@ -306,6 +310,20 @@ class _OrdenCompraFormViewState extends State<_OrdenCompraFormView> {
                           if (date != null) {
                             setState(() => _fechaEntrega = date);
                           }
+                        },
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Condición de pago (Contado / Crédito)
+                      CreditoSelector(
+                        fechaBase: _fechaEntrega ?? DateTime.now(),
+                        initialTerminos: _terminosPago,
+                        initialDias: _diasCredito,
+                        onChanged: (terminos, dias) {
+                          setState(() {
+                            _terminosPago = terminos;
+                            _diasCredito = dias;
+                          });
                         },
                       ),
                       const SizedBox(height: 12),

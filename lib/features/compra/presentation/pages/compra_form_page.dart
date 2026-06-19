@@ -18,6 +18,7 @@ import '../bloc/compra_form/compra_form_cubit.dart';
 import '../bloc/compra_form/compra_form_state.dart';
 import '../../../../core/widgets/custom_proveedor_selector.dart';
 import '../widgets/orden_compra_item_selector.dart';
+import '../widgets/credito_selector.dart';
 
 class CompraFormPage extends StatelessWidget {
   final String empresaId;
@@ -74,6 +75,7 @@ class _CompraFormViewState extends State<_CompraFormView> {
   String _moneda = 'PEN';
   DateTime _fechaRecepcion = DateTime.now();
   String? _terminosPago;
+  int? _diasCredito;
 
   /// Convención de IGV de los precios ingresados. Default true porque
   /// en Perú el proveedor típicamente factura con precio TOTAL ya
@@ -99,6 +101,7 @@ class _CompraFormViewState extends State<_CompraFormView> {
       _sedeId = oc.sedeId;
       _moneda = oc.moneda;
       _terminosPago = oc.terminosPago;
+      _diasCredito = oc.diasCredito;
       // Pre-llenar detalles desde OC
       if (oc.detalles != null) {
         for (final d in oc.detalles!) {
@@ -179,6 +182,8 @@ class _CompraFormViewState extends State<_CompraFormView> {
       final data = {
         'ordenCompraId': widget.ordenCompra!.id,
         if (_terminosPago != null) 'terminosPago': _terminosPago,
+        if (_diasCredito != null) 'diasCredito': _diasCredito,
+        'fechaRecepcion': DateFormatter.toUtcIso(_fechaRecepcion),
         if (_moneda != 'PEN') 'moneda': _moneda,
         if (_tipoDocProveedor != null)
           'tipoDocumentoProveedor': _tipoDocProveedor,
@@ -214,6 +219,7 @@ class _CompraFormViewState extends State<_CompraFormView> {
         'precioIncluyeIgv': _precioIncluyeIgv,
         'fechaRecepcion': DateFormatter.toUtcIso(_fechaRecepcion),
         if (_terminosPago != null) 'terminosPago': _terminosPago,
+        if (_diasCredito != null) 'diasCredito': _diasCredito,
         if (_tipoDocProveedor != null)
           'tipoDocumentoProveedor': _tipoDocProveedor,
         if (_serieDocProveedorController.text.trim().isNotEmpty)
@@ -367,6 +373,20 @@ class _CompraFormViewState extends State<_CompraFormView> {
                           if (date != null) {
                             setState(() => _fechaRecepcion = date);
                           }
+                        },
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Condición de pago (Contado / Crédito con vencimiento).
+                      CreditoSelector(
+                        fechaBase: _fechaRecepcion,
+                        initialTerminos: _terminosPago,
+                        initialDias: _diasCredito,
+                        onChanged: (terminos, dias) {
+                          setState(() {
+                            _terminosPago = terminos;
+                            _diasCredito = dias;
+                          });
                         },
                       ),
                       const SizedBox(height: 12),
