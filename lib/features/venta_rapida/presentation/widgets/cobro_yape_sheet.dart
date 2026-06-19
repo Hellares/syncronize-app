@@ -120,11 +120,8 @@ class _CobroYapeSheetState extends State<CobroYapeSheet> {
       _payAmount = null;
       _qrUrl = null;
     });
-    // Baseline para detectar la confirmación de ESTE tramo por polling.
-    final prog = await widget.cubit.progresoVentaYape(widget.ventaId);
-    if (!mounted) return;
-    _montoBaseTramo = prog.montoRecibido;
-
+    // Creamos el charge PRIMERO (trae el QR) y mostramos el contenido tras UNA
+    // sola llamada → la hoja no salta de tamaño esperando dos round-trips.
     final cobro = await widget.cubit.cobroYapeTramo(widget.ventaId, _tramo.monto);
     if (!mounted) return;
     final qr = _tramo.metodo == 'PLIN'
@@ -136,6 +133,12 @@ class _CobroYapeSheetState extends State<CobroYapeSheet> {
       _payAmount = cobro?['payAmount'] as double?;
       _qrUrl = qr as String?;
     });
+
+    // Baseline para detectar la confirmación de ESTE tramo por polling (después
+    // de mostrar el QR; aún no entró ningún pago, no cambia el monto).
+    final prog = await widget.cubit.progresoVentaYape(widget.ventaId);
+    if (!mounted) return;
+    _montoBaseTramo = prog.montoRecibido;
 
     // Poll de auto-confirmación cada 4s: si el monto recibido subió ~el tramo,
     // el webhook ya lo registró → avanzamos. Si quedó COMPLETA, cerramos.
@@ -299,9 +302,11 @@ class _CobroYapeSheetState extends State<CobroYapeSheet> {
                 AppTitle(_tramo.metodo, fontSize: 18, color: AppColors.blue1),
                 const SizedBox(height: 8),
                 if (_iniciando)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 40),
-                    child: CircularProgressIndicator(),
+                  // Altura ~ al contenido cargado (QR + monto + estado + campo
+                  // + botones) para que la hoja abra a su tamaño y no "crezca".
+                  const SizedBox(
+                    height: 440,
+                    child: Center(child: CircularProgressIndicator()),
                   )
                 else ...[
                   AppSubtitle(
