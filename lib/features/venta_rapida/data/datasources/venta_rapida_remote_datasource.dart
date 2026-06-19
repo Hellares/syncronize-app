@@ -55,9 +55,13 @@ class VentaRapidaRemoteDataSource {
   Future<Map<String, dynamic>> progresoVenta(String ventaId) async {
     final response = await _dioClient.get('/ventas/$ventaId');
     final data = response.data as Map<String, dynamic>;
+    // montoRecibido puede venir como num o como String (Prisma Decimal → "500.00").
+    final mr = data['montoRecibido'];
     return {
       'estado': data['estado'] as String? ?? '',
-      'montoRecibido': (data['montoRecibido'] as num?)?.toDouble() ?? 0.0,
+      'montoRecibido': mr is num
+          ? mr.toDouble()
+          : double.tryParse(mr?.toString() ?? '') ?? 0.0,
     };
   }
 

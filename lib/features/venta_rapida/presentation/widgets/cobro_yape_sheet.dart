@@ -258,6 +258,11 @@ class _CobroYapeSheetState extends State<CobroYapeSheet> {
 
   @override
   Widget build(BuildContext context) {
+    // La hoja se está cerrando (último tramo aprobado → _idx == _n, o ya
+    // cerrada). Evita acceder a tramos[_idx] fuera de rango en un rebuild
+    // pendiente antes de que el pop() desmonte el widget.
+    if (_cerrado || _idx >= _n) return const SizedBox.shrink();
+
     final monto = _payAmount ?? _tramo.monto;
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
