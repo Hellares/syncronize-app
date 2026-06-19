@@ -314,7 +314,10 @@ class _CobroYapeSheetState extends State<CobroYapeSheet> {
     String metodo = 'EFECTIVO';
     final montoCtrl =
         TextEditingController(text: pendiente.toStringAsFixed(2));
-    final refCtrl = TextEditingController(text: '00000');
+    // Vacíos: el cajero escribe el N° real del voucher/operación y el banco; si
+    // los deja en blanco, al confirmar caen a un default para no bloquear la
+    // bancarización (00000 / No especificado).
+    final refCtrl = TextEditingController();
     final bancoCtrl = TextEditingController();
     return StyledDialog.show<Map<String, dynamic>>(
       context,
@@ -353,9 +356,10 @@ class _CobroYapeSheetState extends State<CobroYapeSheet> {
                 if (necesitaRef && metodo != 'YAPE' && metodo != 'PLIN') ...[
                   const SizedBox(height: 10),
                   CustomText(
-                    label: 'N° de operación',
+                    label: 'N° de operación / voucher (opcional)',
                     controller: refCtrl,
                     fieldType: FieldType.number,
+                    hintText: 'N° op.',
                     borderColor: AppColors.blueborder,
                     maxLength: 12,
                   ),
@@ -363,8 +367,9 @@ class _CobroYapeSheetState extends State<CobroYapeSheet> {
                 if (necesitaBanco) ...[
                   const SizedBox(height: 10),
                   CustomText(
-                    label: 'Banco / entidad',
+                    label: 'Banco / entidad (opcional)',
                     controller: bancoCtrl,
+                    hintText: 'Ej. BCP, Interbank…',
                     borderColor: AppColors.blueborder,
                   ),
                 ],
