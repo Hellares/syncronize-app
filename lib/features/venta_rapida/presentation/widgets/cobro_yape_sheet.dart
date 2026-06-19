@@ -7,6 +7,8 @@ import '../../../../core/services/realtime_sync_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_dropdown.dart';
+import '../../../../core/widgets/pagos_section_widget.dart'
+    show bancosPeru, bancosFrecuentes;
 import '../../../../core/widgets/styled_dialog.dart';
 import '../../../auth/presentation/widgets/custom_text.dart';
 import '../bloc/venta_rapida_cubit.dart';
@@ -314,11 +316,10 @@ class _CobroYapeSheetState extends State<CobroYapeSheet> {
     String metodo = 'EFECTIVO';
     final montoCtrl =
         TextEditingController(text: pendiente.toStringAsFixed(2));
-    // Vacíos: el cajero escribe el N° real del voucher/operación y el banco; si
-    // los deja en blanco, al confirmar caen a un default para no bloquear la
-    // bancarización (00000 / No especificado).
+    // Vacío: el cajero escribe el N° real del voucher/operación; si lo deja en
+    // blanco, al confirmar cae a 00000 para no bloquear la bancarización.
     final refCtrl = TextEditingController();
-    final bancoCtrl = TextEditingController();
+    String? bancoSel; // banco elegido (chips o dropdown)
     return StyledDialog.show<Map<String, dynamic>>(
       context,
       accentColor: AppColors.blue1,
@@ -366,11 +367,36 @@ class _CobroYapeSheetState extends State<CobroYapeSheet> {
                 ],
                 if (necesitaBanco) ...[
                   const SizedBox(height: 10),
-                  CustomText(
-                    label: 'Banco / entidad (opcional)',
-                    controller: bancoCtrl,
-                    hintText: 'Ej. BCP, Interbank…',
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: AppSubtitle('Banco / entidad',
+                        fontSize: 11, color: AppColors.blueGrey),
+                  ),
+                  const SizedBox(height: 6),
+                  // Chips de bancos populares (selección rápida).
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: bancosFrecuentes
+                        .map((b) => ChoiceChip(
+                              label: Text(b, style: const TextStyle(fontSize: 11)),
+                              selected: bancoSel == b,
+                              onSelected: (_) => setLocal(() => bancoSel = b),
+                              visualDensity: VisualDensity.compact,
+                            ))
+                        .toList(),
+                  ),
+                  const SizedBox(height: 8),
+                  // Dropdown con la lista completa (incluye 'Otro').
+                  CustomDropdown<String>(
+                    label: 'Otro banco / tarjeta',
+                    hintText: 'Seleccionar…',
+                    value: bancosPeru.contains(bancoSel) ? bancoSel : null,
                     borderColor: AppColors.blueborder,
+                    items: bancosPeru
+                        .map((b) => DropdownItem(value: b, label: b))
+                        .toList(),
+                    onChanged: (v) => setLocal(() => bancoSel = v),
                   ),
                 ],
               ],
@@ -400,9 +426,9 @@ class _CobroYapeSheetState extends State<CobroYapeSheet> {
                   ? null
                   : (refCtrl.text.trim().isEmpty ? '00000' : refCtrl.text.trim()),
               'banco': necesitaBanco
-                  ? (bancoCtrl.text.trim().isEmpty
+                  ? (bancoSel == null || bancoSel!.isEmpty
                       ? 'No especificado'
-                      : bancoCtrl.text.trim())
+                      : bancoSel)
                   : null,
             });
           },
