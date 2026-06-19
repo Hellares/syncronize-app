@@ -65,7 +65,7 @@ class VentaRapidaRemoteDataSource {
     };
   }
 
-  /// Registra un pago en una venta existente (fallback manual con el screenshot).
+  /// Registra un pago en una venta existente (manual / completar con otro medio).
   Future<VentaModel> registrarPago(
       String ventaId, Map<String, dynamic> data) async {
     final response = await _dioClient.post('/ventas/$ventaId/pago', data: data);
@@ -75,11 +75,10 @@ class VentaRapidaRemoteDataSource {
   /// Cancela el cobro Yape/Plin pendiente: anula la venta (devuelve stock) si
   /// sigue sin pagar y libera el monto único en api-yape. Devuelve `yaPagada`
   /// (true si el pago llegó justo antes de cancelar → no se anuló).
-  Future<bool> cancelarCobroYape(String ventaId) async {
+  Future<Map<String, dynamic>> cancelarCobroYape(String ventaId) async {
     final response =
         await _dioClient.post('/ventas/$ventaId/cancelar-cobro-yape');
-    final data = Map<String, dynamic>.from(response.data as Map);
-    return data['yaPagada'] == true;
+    return Map<String, dynamic>.from(response.data as Map);
   }
 
   /// Resuelve el id del EmpresaPersona "CLIENTES VARIOS" para la empresa

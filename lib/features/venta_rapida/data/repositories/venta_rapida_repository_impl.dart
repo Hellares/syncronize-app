@@ -116,13 +116,13 @@ class VentaRapidaRepositoryImpl implements VentaRapidaRepository {
   }
 
   @override
-  Future<Resource<bool>> cancelarCobroYape(String ventaId) async {
+  Future<Resource<Map<String, dynamic>>> cancelarCobroYape(String ventaId) async {
     if (!await _network.isConnected) {
       return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
     }
     try {
-      final yaPagada = await _remote.cancelarCobroYape(ventaId);
-      return Success(yaPagada);
+      final data = await _remote.cancelarCobroYape(ventaId);
+      return Success(data);
     } catch (e) {
       return _errorHandler.handleException(e,
           context: 'VentaRapida.cancelarCobroYape');

@@ -197,56 +197,96 @@ class _CobroYapeSheetState extends State<CobroYapeSheet> {
   }
 
   Future<void> _cancelar() async {
-    _poll?.cancel();
-    // Si NO se cobró ningún tramo aún → cancelar limpio (borra la venta diferida).
-    if (_acumulado <= 0) {
-      setState(() => _procesando = true);
-      final res = await widget.cubit.cancelarCobroYape(widget.ventaId);
+    // Con plata ya recibida: avisar que se ANULA y hay que DEVOLVER.
+    if (_acumulado > 0) {
+      setState(() => _procesando = true); // pausa el poll mientras decide
+      final confirmar = await StyledDialog.show<bool>(
+        context,
+        accentColor: AppColors.orange,
+        icon: Icons.warning_amber_rounded,
+        titulo: 'Cancelar con devolución',
+        content: [
+          Text(
+            'Ya se cobraron S/ ${_acumulado.toStringAsFixed(2)} por Yape/Plin. '
+            'Si cancelás, se ANULA la venta y deberás DEVOLVER ese dinero al '
+            'cliente (no se emite comprobante). ¿Confirmar?',
+            style: const TextStyle(fontSize: 13),
+          ),
+        ],
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Seguir cobrando'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red.shade600),
+            child: const Text('Cancelar y devolver'),
+          ),
+        ],
+      );
       if (!mounted) return;
-      if (res.yaPagada) {
-        _cerrarPagada();
+      if (confirmar != true) {
+        setState(() => _procesando = false); // reanuda el poll
         return;
       }
-      setState(() => _procesando = false);
-      Navigator.of(context).pop(false);
+    } else {
+      setState(() => _procesando = true);
+    }
+    _poll?.cancel();
+    final res = await widget.cubit.cancelarCobroYape(widget.ventaId);
+    if (!mounted) return;
+    // Carrera: el webhook completó justo antes → cerrar como pagada.
+    if (res.yaPagada) {
+      _cerrarPagada();
       return;
     }
-    // Ya se cobró parte (la plata entró): no se puede borrar. Ofrecemos completar
-    // el resto en EFECTIVO y finalizar (decisión: pago parcial → otro método).
-    final pendiente = _r2(_totalTramos - _acumulado);
-    final completar = await StyledDialog.show<bool>(
-      context,
-      accentColor: AppColors.orange,
-      icon: Icons.warning_amber_rounded,
-      titulo: 'Cobro a medias',
-      content: [
-        Text(
-          'Ya se cobraron S/ ${_acumulado.toStringAsFixed(2)} por Yape/Plin. '
-          '¿Completar el resto (S/ ${pendiente.toStringAsFixed(2)}) en EFECTIVO y finalizar la venta?',
-          style: const TextStyle(fontSize: 13),
-        ),
-      ],
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context, false),
-          child: const Text('Seguir cobrando'),
-        ),
-        TextButton(
-          onPressed: () => Navigator.pop(context, true),
-          style: TextButton.styleFrom(foregroundColor: AppColors.blue1),
-          child: const Text('Completar en efectivo'),
-        ),
-      ],
-    );
-    if (completar != true) {
-      _iniciarTramo(); // reanuda el tramo actual
+    // Anulada con plata recibida → recordar al cajero que debe devolver.
+    if (res.anulada && res.devuelto > 0) {
+      await StyledDialog.show<void>(
+        context,
+        accentColor: AppColors.orange,
+        icon: Icons.assignment_return,
+        titulo: 'Venta anulada',
+        content: [
+          Text(
+            'Devolvé S/ ${res.devuelto.toStringAsFixed(2)} al cliente — es el '
+            'pago que ya había hecho por Yape/Plin. La venta fue anulada y no '
+            'se emitió comprobante.',
+            style: const TextStyle(fontSize: 13),
+          ),
+        ],
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Entendido'),
+          ),
+        ],
+      );
+      if (!mounted) return;
+    }
+    Navigator.of(context).pop(false);
+  }
+
+  /// El cliente no puede seguir con Yape/Plin (agotó su límite) → cobra el resto
+  /// con otro medio (Tarjeta/Plin/Efectivo/Transferencia) y la venta se concreta
+  /// igual (1 solo comprobante por el total).
+  Future<void> _pagarRestoOtroMedio() async {
+    final resto = _r2(_totalTramos - _acumulado);
+    setState(() => _procesando = true); // pausa el poll mientras elige
+    final eleccion = await _elegirMetodoResto(resto);
+    if (!mounted) return;
+    if (eleccion == null) {
+      setState(() => _procesando = false); // reanuda
       return;
     }
-    setState(() => _procesando = true);
     final ok = await widget.cubit.confirmarPagoManualYape(
       ventaId: widget.ventaId,
-      monto: pendiente,
-      metodo: 'EFECTIVO',
+      monto: resto,
+      metodo: eleccion['metodo']!,
+      referencia: eleccion['referencia'],
+      banco: eleccion['banco'],
+      aceptaRiesgoBancarizacion: true, // el cajero confirma el cierre
     );
     if (!mounted) return;
     if (ok) {
@@ -254,9 +294,80 @@ class _CobroYapeSheetState extends State<CobroYapeSheet> {
     } else {
       setState(() => _procesando = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudo completar el pago')),
+        const SnackBar(content: Text('No se pudo registrar el pago')),
       );
     }
+  }
+
+  /// Selector del medio de pago para cubrir el resto. Devuelve
+  /// { metodo, referencia?, banco? } o null si cancela.
+  Future<Map<String, String?>?> _elegirMetodoResto(double resto) {
+    String metodo = 'EFECTIVO';
+    final refCtrl = TextEditingController(text: '00000');
+    final bancoCtrl = TextEditingController();
+    return showDialog<Map<String, String?>>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) {
+          final necesitaRef = metodo != 'EFECTIVO';
+          final necesitaBanco = metodo == 'TARJETA' || metodo == 'TRANSFERENCIA';
+          return AlertDialog(
+            title: Text('Pagar resto: S/ ${resto.toStringAsFixed(2)}'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<String>(
+                  initialValue: metodo,
+                  decoration: const InputDecoration(labelText: 'Medio de pago'),
+                  items: const [
+                    DropdownMenuItem(value: 'EFECTIVO', child: Text('Efectivo')),
+                    DropdownMenuItem(value: 'TARJETA', child: Text('Tarjeta')),
+                    DropdownMenuItem(value: 'PLIN', child: Text('Plin')),
+                    DropdownMenuItem(value: 'YAPE', child: Text('Yape')),
+                    DropdownMenuItem(
+                        value: 'TRANSFERENCIA', child: Text('Transferencia')),
+                  ],
+                  onChanged: (v) => setLocal(() => metodo = v ?? 'EFECTIVO'),
+                ),
+                if (necesitaRef)
+                  TextField(
+                    controller: refCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration:
+                        const InputDecoration(labelText: 'N° de operación'),
+                  ),
+                if (necesitaBanco)
+                  TextField(
+                    controller: bancoCtrl,
+                    decoration:
+                        const InputDecoration(labelText: 'Banco / entidad'),
+                  ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancelar'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, {
+                  'metodo': metodo,
+                  'referencia': necesitaRef
+                      ? (refCtrl.text.trim().isEmpty ? '00000' : refCtrl.text.trim())
+                      : null,
+                  'banco': necesitaBanco
+                      ? (bancoCtrl.text.trim().isEmpty
+                          ? 'No especificado'
+                          : bancoCtrl.text.trim())
+                      : null,
+                }),
+                child: const Text('Confirmar'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
   }
 
   @override
@@ -363,6 +474,17 @@ class _CobroYapeSheetState extends State<CobroYapeSheet> {
                       ),
                     ],
                   ),
+                  // El cliente no puede seguir con Yape/Plin (agotó su límite
+                  // diario) → cubrir el resto con otro medio y cerrar la venta.
+                  if (_totalTramos - _acumulado > 0.001)
+                    TextButton.icon(
+                      onPressed: _procesando ? null : _pagarRestoOtroMedio,
+                      icon: const Icon(Icons.swap_horiz, size: 16),
+                      label: Text(
+                        'Pagar resto (S/ ${_r2(_totalTramos - _acumulado).toStringAsFixed(2)}) con otro medio',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ),
                 ],
               ],
             ),

@@ -36,10 +36,11 @@ abstract class VentaRapidaRepository {
   Future<Resource<Venta>> registrarPago(
       String ventaId, Map<String, dynamic> data);
 
-  /// Cancela el cobro Yape/Plin pendiente: anula la venta (devuelve stock) si
-  /// sigue sin pagar y libera el monto único en api-yape. Devuelve `yaPagada`
-  /// (true si el pago llegó justo antes de cancelar → no se anuló).
-  Future<Resource<bool>> cancelarCobroYape(String ventaId);
+  /// Cancela el cobro Yape/Plin pendiente. Devuelve { yaPagada, anulada,
+  /// devuelto }: sin pagos borra la venta; con pago PARCIAL la anula y reversa
+  /// caja (`devuelto` = monto a reintegrar al cliente); si ya estaba COMPLETA
+  /// (carrera con el webhook) → `yaPagada`.
+  Future<Resource<Map<String, dynamic>>> cancelarCobroYape(String ventaId);
 
   /// Obtiene (o crea on-the-fly) el id del EmpresaPersona "CLIENTES VARIOS"
   /// para la empresa actual. Usado cuando el cajero elige "Genérico" en el

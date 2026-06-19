@@ -1456,13 +1456,17 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
   Future<bool> confirmarPagoManualYape({
     required String ventaId,
     required double monto,
-    required String metodo, // YAPE | PLIN
+    required String metodo, // YAPE | PLIN | EFECTIVO | TARJETA | TRANSFERENCIA
     String? referencia,
+    String? banco,
+    bool aceptaRiesgoBancarizacion = false,
   }) async {
     final result = await _repository.registrarPago(ventaId, {
       'metodoPago': metodo,
       'monto': monto,
       if (referencia != null && referencia.isNotEmpty) 'referencia': referencia,
+      if (banco != null && banco.isNotEmpty) 'banco': banco,
+      if (aceptaRiesgoBancarizacion) 'aceptaRiesgoBancarizacion': true,
     });
     return result is Success<Venta>;
   }
@@ -1471,13 +1475,20 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
   /// anula la venta recién creada devolviendo el stock y libera el monto único
   /// en api-yape. Devuelve `yaPagada=true` si el pago llegó justo antes (carrera
   /// con el webhook) → la hoja debe cerrar como pagada en vez de cancelar.
-  Future<({bool yaPagada})> cancelarCobroYape(String ventaId) async {
+  Future<({bool yaPagada, bool anulada, double devuelto})> cancelarCobroYape(
+    String ventaId,
+  ) async {
     final result = await _repository.cancelarCobroYape(ventaId);
-    if (result is Success<bool>) {
-      return (yaPagada: result.data);
+    if (result is Success<Map<String, dynamic>>) {
+      final d = result.data;
+      return (
+        yaPagada: d['yaPagada'] == true,
+        anulada: d['anulada'] == true,
+        devuelto: (d['devuelto'] as num?)?.toDouble() ?? 0.0,
+      );
     }
     // Error de red: no bloqueamos al cajero (el cron TTL limpiará la venta).
-    return (yaPagada: false);
+    return (yaPagada: false, anulada: false, devuelto: 0.0);
   }
 
   /// Acceso al servicio de realtime para que la hoja de espera Yape escuche
