@@ -13,6 +13,7 @@ class EmpresaContextModel extends EmpresaContext {
     required super.permissions,
     required super.statistics,
     super.planLimits,
+    super.caracteristicas,
   });
 
   factory EmpresaContextModel.fromJson(Map<String, dynamic> json) {
@@ -36,6 +37,9 @@ class EmpresaContextModel extends EmpresaContext {
           ? PlanLimitsInfoModel.fromJson(
               json['planLimits'] as Map<String, dynamic>)
           : null,
+      caracteristicas: (json['caracteristicas'] as Map<String, dynamic>?)
+              ?.map((k, v) => MapEntry(k, v == true)) ??
+          const {},
     );
   }
 

@@ -15,6 +15,10 @@ class EmpresaContext extends Equatable {
   final EmpresaStatistics statistics;
   final PlanLimitsInfo? planLimits;
 
+  /// Características PREMIUM habilitadas (gating). Ej: {'YAPE_QR': true}.
+  /// Vacío/ausente = ninguna habilitada → el front no ofrece esas features.
+  final Map<String, bool> caracteristicas;
+
   const EmpresaContext({
     required this.empresa,
     required this.userRoles,
@@ -22,7 +26,12 @@ class EmpresaContext extends Equatable {
     required this.permissions,
     required this.statistics,
     this.planLimits,
+    this.caracteristicas = const {},
   });
+
+  /// ¿El cobro Yape/Plin con QR (validación api-yape) está habilitado?
+  /// Si NO, Yape se cobra como medio de pago normal (sin hoja/QR/aprobación).
+  bool get yapeQrHabilitado => caracteristicas['YAPE_QR'] == true;
 
   /// Obtiene el rol principal del usuario (el primero de la lista)
   UserRoleInfo? get primaryRole =>
@@ -51,5 +60,6 @@ class EmpresaContext extends Equatable {
         permissions,
         statistics,
         planLimits,
+        caracteristicas,
       ];
 }

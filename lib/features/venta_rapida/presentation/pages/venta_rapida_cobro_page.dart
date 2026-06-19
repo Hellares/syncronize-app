@@ -14,6 +14,8 @@ import '../../../../core/widgets/currency/currency_formatter.dart';
 import '../../../../core/widgets/currency/currency_textfield.dart';
 import '../../../../core/widgets/custom_dropdown.dart';
 import '../widgets/cobro_yape_sheet.dart';
+import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
+import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../../../core/widgets/numpad/numpad_controller.dart';
 import '../../../../core/widgets/numpad/pos_numpad.dart';
 import '../../../../core/widgets/pagos_section_widget.dart'
@@ -458,6 +460,23 @@ class _CobroViewState extends State<_CobroView> {
   }) async {
     final cubit = context.read<VentaRapidaCubit>();
     final state = cubit.state;
+
+    // GATE PREMIUM: si la empresa NO tiene la característica YAPE_QR habilitada,
+    // Yape/Plin se cobra como un medio de pago NORMAL — sin hoja de cobro, sin
+    // QR, sin esperar confirmación ni "marcar pagado". Fluye como antes (igual
+    // que efectivo/tarjeta). Solo con la feature premium aparece la hoja con QR
+    // + verificación (automática por lector o aprobación manual del cajero).
+    final ctxState = context.read<EmpresaContextCubit>().state;
+    final yapeQrHabilitado =
+        ctxState is EmpresaContextLoaded && ctxState.context.yapeQrHabilitado;
+    if (!yapeQrHabilitado) {
+      await cubit.cobrar(
+        aceptaRiesgoBancarizacion: aceptaRiesgo,
+        ventaBajoCostoAutorizadaPorId: autorizadoPorId,
+      );
+      return;
+    }
+
     // Porción Yape/Plin = lo que valida api-yape. En 100% Yape es el total;
     // en mixto es solo esa parte (el resto se cobró al crear la venta).
     final pagosYape = state.pagos
