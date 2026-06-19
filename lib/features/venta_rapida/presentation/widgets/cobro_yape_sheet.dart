@@ -6,34 +6,35 @@ import '../../../../core/fonts/app_text_widgets.dart';
 import '../../../../core/services/realtime_sync_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/custom_button.dart';
+import '../../../../core/widgets/custom_dropdown.dart';
 import '../../../../core/widgets/styled_dialog.dart';
 import '../../../auth/presentation/widgets/custom_text.dart';
 import '../bloc/venta_rapida_cubit.dart';
 
-/// Un tramo de cobro Yape/Plin (cada uno ≤ límite por transacción).
-class TramoCobro {
-  final String metodo; // YAPE | PLIN
-  final double monto;
-  const TramoCobro(this.metodo, this.monto);
-}
-
-/// Hoja de cobro Yape/Plin con PAGOS DIVIDIDOS: procesa los tramos en secuencia
-/// ("Cobro 2 de 5"), crea un charge por tramo, muestra el QR + monto exacto, y
-/// confirma cada uno automáticamente (lector → webhook, detectado por polling)
-/// o manualmente (el cajero verifica el comprobante del cliente y aprueba).
-/// Al cubrir el total, la venta queda pagada y se emite el comprobante.
+/// Hoja de cobro Yape/Plin orientada a SALDO PENDIENTE: cobra el monto Yape/Plin
+/// de la venta en "chunks" (cada uno ≤ límite por transacción). El chunk actual
+/// se muestra como QR (Yape/Plin) y se confirma automático (lector → webhook,
+/// detectado por polling) o manual (el cajero verifica el comprobante y aprueba).
 ///
-/// Devuelve `true` (Navigator.pop) si la venta quedó pagada.
+/// En cualquier momento el cajero puede "Pagar con otro medio": elige método
+/// (Efectivo/Tarjeta/Plin/Yape/Transferencia) y MONTO (≤ pendiente) → si es
+/// Yape/Plin recarga el QR; si es efectivo/tarjeta lo registra directo. Así se
+/// cubren casos como "el cliente agotó su Yape: paga 300 Plin + 200 efectivo".
+/// Al cubrir el total → venta pagada (1 comprobante). Devuelve `true` si pagó.
 class CobroYapeSheet extends StatefulWidget {
   final String ventaId;
-  final List<TramoCobro> tramos;
+  final double montoTotal; // porción Yape/Plin a cobrar
+  final String metodoInicial; // YAPE | PLIN
+  final double maxPorTransaccion; // tamaño máx de cada chunk QR
   final VentaRapidaCubit cubit;
   final RealtimeSyncService realtime;
 
   const CobroYapeSheet({
     super.key,
     required this.ventaId,
-    required this.tramos,
+    required this.montoTotal,
+    required this.metodoInicial,
+    required this.maxPorTransaccion,
     required this.cubit,
     required this.realtime,
   });
@@ -41,7 +42,9 @@ class CobroYapeSheet extends StatefulWidget {
   static Future<bool> mostrar(
     BuildContext context, {
     required String ventaId,
-    required List<TramoCobro> tramos,
+    required double montoTotal,
+    required String metodoInicial,
+    required double maxPorTransaccion,
     required VentaRapidaCubit cubit,
     required RealtimeSyncService realtime,
   }) async {
@@ -53,7 +56,9 @@ class CobroYapeSheet extends StatefulWidget {
       backgroundColor: Colors.transparent,
       builder: (_) => CobroYapeSheet(
         ventaId: ventaId,
-        tramos: tramos,
+        montoTotal: montoTotal,
+        metodoInicial: metodoInicial,
+        maxPorTransaccion: maxPorTransaccion,
         cubit: cubit,
         realtime: realtime,
       ),
@@ -68,36 +73,34 @@ class CobroYapeSheet extends StatefulWidget {
 class _CobroYapeSheetState extends State<CobroYapeSheet> {
   StreamSubscription<RealtimeEvent>? _sub;
   Timer? _poll;
-  int _idx = 0;
-  double _acumulado = 0; // tramos ya confirmados (Yape/Plin)
-  double _montoBaseTramo = 0; // montoRecibido al iniciar el tramo (auto-avance)
-  double? _payAmount;
-  bool _habilitado = false; // api-yape generó el charge (espera automática)
+  double _acumulado = 0; // Yape/Plin ya confirmado
+  double _montoBaseChunk = 0; // montoRecibido al iniciar el chunk (auto-avance)
+  String _chunkMetodo = 'YAPE'; // método del chunk actual (QR)
+  double _chunkMonto = 0; // monto del chunk actual
+  double? _payAmount; // monto único a pagar (con céntimos)
   String? _qrUrl;
-  bool _iniciando = true; // creando el charge del tramo
-  bool _procesando = false; // aprobando manual / cancelando
+  bool _habilitado = false; // api-yape generó el charge
+  bool _iniciando = true; // creando el charge del chunk
+  bool _procesando = false; // aprobando manual / dialog abierto
   bool _cerrado = false;
-  // Pre-llenado con '00000': la bancarización (venta ≥ S/2000) exige N° de
-  // operación en pagos Yape/Plin. Con un valor por defecto el cajero no se
-  // bloquea; si el cliente le da el N° real, lo sobrescribe.
   final _refCtrl = TextEditingController(text: '00000');
 
-  int get _n => widget.tramos.length;
-  TramoCobro get _tramo => widget.tramos[_idx];
-  double get _totalTramos =>
-      widget.tramos.fold(0.0, (s, t) => s + t.monto);
+  double get _pendiente => _r2(widget.montoTotal - _acumulado);
   double _r2(double v) => (v * 100).round() / 100;
+  double _chunkDefault() =>
+      _pendiente > widget.maxPorTransaccion ? widget.maxPorTransaccion : _pendiente;
 
   @override
   void initState() {
     super.initState();
+    _chunkMetodo = widget.metodoInicial;
     // El FCM VENTA_PAGADA llega solo al COMPLETAR el total → cierra la hoja.
     _sub = widget.realtime.events.listen((e) {
       if (e is RealtimeVentaPagada && e.ventaId == widget.ventaId) {
         _cerrarPagada();
       }
     });
-    _iniciarTramo();
+    _prepararChunk(monto: _chunkDefault());
   }
 
   @override
@@ -108,23 +111,28 @@ class _CobroYapeSheetState extends State<CobroYapeSheet> {
     super.dispose();
   }
 
-  /// Crea el charge del tramo actual y arranca el poll de auto-confirmación.
-  Future<void> _iniciarTramo() async {
+  /// Prepara el chunk actual (Yape/Plin): crea el charge, muestra el QR y arranca
+  /// el poll de auto-confirmación. Si no queda saldo, cierra como pagada.
+  Future<void> _prepararChunk({String? metodo, required double monto}) async {
     _poll?.cancel();
-    if (_idx >= _n) {
+    if (_pendiente <= 0.001) {
       _cerrarPagada();
       return;
     }
     setState(() {
+      _chunkMetodo = metodo ?? _chunkMetodo;
+      _chunkMonto = monto;
       _iniciando = true;
       _payAmount = null;
       _qrUrl = null;
+      _procesando = false;
+      _refCtrl.text = '00000';
     });
-    // Creamos el charge PRIMERO (trae el QR) y mostramos el contenido tras UNA
-    // sola llamada → la hoja no salta de tamaño esperando dos round-trips.
-    final cobro = await widget.cubit.cobroYapeTramo(widget.ventaId, _tramo.monto);
+
+    // Creamos el charge (trae el QR) → mostramos contenido tras UNA llamada.
+    final cobro = await widget.cubit.cobroYapeTramo(widget.ventaId, monto);
     if (!mounted) return;
-    final qr = _tramo.metodo == 'PLIN'
+    final qr = _chunkMetodo == 'PLIN'
         ? (cobro?['qrPlinUrl'] ?? cobro?['qrYapeUrl'])
         : (cobro?['qrYapeUrl'] ?? cobro?['qrPlinUrl']);
     setState(() {
@@ -134,14 +142,10 @@ class _CobroYapeSheetState extends State<CobroYapeSheet> {
       _qrUrl = qr as String?;
     });
 
-    // Baseline para detectar la confirmación de ESTE tramo por polling (después
-    // de mostrar el QR; aún no entró ningún pago, no cambia el monto).
+    // Baseline para auto-avance (aún no entró pago, no cambia el monto).
     final prog = await widget.cubit.progresoVentaYape(widget.ventaId);
     if (!mounted) return;
-    _montoBaseTramo = prog.montoRecibido;
-
-    // Poll de auto-confirmación cada 4s: si el monto recibido subió ~el tramo,
-    // el webhook ya lo registró → avanzamos. Si quedó COMPLETA, cerramos.
+    _montoBaseChunk = prog.montoRecibido;
     _poll = Timer.periodic(const Duration(seconds: 4), (_) async {
       if (_cerrado || _procesando || _iniciando) return;
       final p = await widget.cubit.progresoVentaYape(widget.ventaId);
@@ -149,23 +153,22 @@ class _CobroYapeSheetState extends State<CobroYapeSheet> {
         _cerrarPagada();
         return;
       }
-      if (p.montoRecibido >= _montoBaseTramo + _tramo.monto - 0.5) {
+      if (p.montoRecibido >= _montoBaseChunk + _chunkMonto - 0.5) {
         _avanzar();
       }
     });
   }
 
-  /// Tramo confirmado → siguiente (o cierre si era el último).
-  void _avanzar() {
+  /// Registra el avance de `monto` (chunk confirmado) y prepara el siguiente, o
+  /// cierra si ya se cubrió el total.
+  void _avanzar([double? monto]) {
     if (_cerrado || !mounted) return;
     _poll?.cancel();
-    _acumulado = _r2(_acumulado + _tramo.monto);
-    _idx++;
-    _refCtrl.text = '00000'; // default para el siguiente tramo (ver _refCtrl)
-    if (_idx >= _n) {
+    _acumulado = _r2(_acumulado + (monto ?? _chunkMonto));
+    if (_acumulado >= widget.montoTotal - 0.001) {
       _cerrarPagada();
     } else {
-      _iniciarTramo();
+      _prepararChunk(monto: _chunkDefault());
     }
   }
 
@@ -176,28 +179,67 @@ class _CobroYapeSheetState extends State<CobroYapeSheet> {
     Navigator.of(context).pop(true);
   }
 
-  /// El cajero verifica el comprobante del cliente y aprueba este tramo.
-  Future<void> _aprobarTramo() async {
+  /// El cajero verifica el comprobante del cliente y aprueba el chunk QR actual.
+  Future<void> _aprobarChunk() async {
     setState(() => _procesando = true);
     final ok = await widget.cubit.confirmarPagoManualYape(
       ventaId: widget.ventaId,
-      monto: _tramo.monto,
-      metodo: _tramo.metodo,
-      referencia: _refCtrl.text.trim().isEmpty ? null : _refCtrl.text.trim(),
+      monto: _chunkMonto,
+      metodo: _chunkMetodo,
+      referencia: _refCtrl.text.trim().isEmpty ? '00000' : _refCtrl.text.trim(),
     );
     if (!mounted) return;
-    setState(() => _procesando = false);
     if (ok) {
       _avanzar();
     } else {
+      setState(() => _procesando = false);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No se pudo registrar el pago')),
       );
     }
   }
 
+  /// "Pagar con otro medio": elige método + MONTO (≤ pendiente). Si es Yape/Plin
+  /// recarga el QR; si es efectivo/tarjeta/transferencia lo registra directo.
+  Future<void> _pagarOtroMedio() async {
+    setState(() => _procesando = true); // pausa el poll mientras elige
+    final eleccion = await _dialogMedioMonto(_pendiente);
+    if (!mounted) return;
+    if (eleccion == null) {
+      setState(() => _procesando = false);
+      return;
+    }
+    final metodo = eleccion['metodo'] as String;
+    final monto = eleccion['monto'] as double;
+
+    if (metodo == 'YAPE' || metodo == 'PLIN') {
+      // Recargar el QR para ese método/monto (nuevo chunk).
+      _prepararChunk(metodo: metodo, monto: monto);
+      return;
+    }
+    // Efectivo/Tarjeta/Transferencia → registrar directo y avanzar.
+    final ok = await widget.cubit.confirmarPagoManualYape(
+      ventaId: widget.ventaId,
+      monto: monto,
+      metodo: metodo,
+      referencia: eleccion['referencia'] as String?,
+      banco: eleccion['banco'] as String?,
+      aceptaRiesgoBancarizacion: true, // el cajero confirma el cierre
+    );
+    if (!mounted) return;
+    if (ok) {
+      _avanzar(monto);
+    } else {
+      setState(() => _procesando = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo registrar el pago')),
+      );
+    }
+  }
+
+  /// Cancelar: sin plata recibida borra la venta; con plata recibida (pago
+  /// parcial) la anula + reversa caja (devolución) y avisa cuánto devolver.
   Future<void> _cancelar() async {
-    // Con plata ya recibida: avisar que se ANULA y hay que DEVOLVER.
     if (_acumulado > 0) {
       setState(() => _procesando = true); // pausa el poll mientras decide
       final confirmar = await StyledDialog.show<bool>(
@@ -227,7 +269,7 @@ class _CobroYapeSheetState extends State<CobroYapeSheet> {
       );
       if (!mounted) return;
       if (confirmar != true) {
-        setState(() => _procesando = false); // reanuda el poll
+        setState(() => _procesando = false);
         return;
       }
     } else {
@@ -236,12 +278,10 @@ class _CobroYapeSheetState extends State<CobroYapeSheet> {
     _poll?.cancel();
     final res = await widget.cubit.cancelarCobroYape(widget.ventaId);
     if (!mounted) return;
-    // Carrera: el webhook completó justo antes → cerrar como pagada.
     if (res.yaPagada) {
       _cerrarPagada();
       return;
     }
-    // Anulada con plata recibida → recordar al cajero que debe devolver.
     if (res.anulada && res.devuelto > 0) {
       await StyledDialog.show<void>(
         context,
@@ -268,116 +308,109 @@ class _CobroYapeSheetState extends State<CobroYapeSheet> {
     Navigator.of(context).pop(false);
   }
 
-  /// El cliente no puede seguir con Yape/Plin (agotó su límite) → cobra el resto
-  /// con otro medio (Tarjeta/Plin/Efectivo/Transferencia) y la venta se concreta
-  /// igual (1 solo comprobante por el total).
-  Future<void> _pagarRestoOtroMedio() async {
-    final resto = _r2(_totalTramos - _acumulado);
-    setState(() => _procesando = true); // pausa el poll mientras elige
-    final eleccion = await _elegirMetodoResto(resto);
-    if (!mounted) return;
-    if (eleccion == null) {
-      setState(() => _procesando = false); // reanuda
-      return;
-    }
-    final ok = await widget.cubit.confirmarPagoManualYape(
-      ventaId: widget.ventaId,
-      monto: resto,
-      metodo: eleccion['metodo']!,
-      referencia: eleccion['referencia'],
-      banco: eleccion['banco'],
-      aceptaRiesgoBancarizacion: true, // el cajero confirma el cierre
-    );
-    if (!mounted) return;
-    if (ok) {
-      _cerrarPagada();
-    } else {
-      setState(() => _procesando = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudo registrar el pago')),
-      );
-    }
-  }
-
-  /// Selector del medio de pago para cubrir el resto. Devuelve
-  /// { metodo, referencia?, banco? } o null si cancela.
-  Future<Map<String, String?>?> _elegirMetodoResto(double resto) {
+  /// Selector estilizado de medio + monto para cubrir parte del pendiente.
+  /// Devuelve { metodo, monto, referencia?, banco? } o null si cancela.
+  Future<Map<String, dynamic>?> _dialogMedioMonto(double pendiente) {
     String metodo = 'EFECTIVO';
+    final montoCtrl =
+        TextEditingController(text: pendiente.toStringAsFixed(2));
     final refCtrl = TextEditingController(text: '00000');
     final bancoCtrl = TextEditingController();
-    return showDialog<Map<String, String?>>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setLocal) {
-          final necesitaRef = metodo != 'EFECTIVO';
-          final necesitaBanco = metodo == 'TARJETA' || metodo == 'TRANSFERENCIA';
-          return AlertDialog(
-            title: Text('Pagar resto: S/ ${resto.toStringAsFixed(2)}'),
-            content: Column(
+    return StyledDialog.show<Map<String, dynamic>>(
+      context,
+      accentColor: AppColors.blue1,
+      icon: Icons.account_balance_wallet_outlined,
+      titulo: 'Pagar con otro medio',
+      content: [
+        StatefulBuilder(
+          builder: (ctx, setLocal) {
+            final necesitaRef = metodo != 'EFECTIVO';
+            final necesitaBanco =
+                metodo == 'TARJETA' || metodo == 'TRANSFERENCIA';
+            return Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                DropdownButtonFormField<String>(
-                  initialValue: metodo,
-                  decoration: const InputDecoration(labelText: 'Medio de pago'),
+                CustomDropdown<String>(
+                  label: 'Medio de pago',
+                  value: metodo,
+                  borderColor: AppColors.blueborder,
                   items: const [
-                    DropdownMenuItem(value: 'EFECTIVO', child: Text('Efectivo')),
-                    DropdownMenuItem(value: 'TARJETA', child: Text('Tarjeta')),
-                    DropdownMenuItem(value: 'PLIN', child: Text('Plin')),
-                    DropdownMenuItem(value: 'YAPE', child: Text('Yape')),
-                    DropdownMenuItem(
-                        value: 'TRANSFERENCIA', child: Text('Transferencia')),
+                    DropdownItem(value: 'EFECTIVO', label: 'Efectivo'),
+                    DropdownItem(value: 'TARJETA', label: 'Tarjeta'),
+                    DropdownItem(value: 'PLIN', label: 'Plin (QR)'),
+                    DropdownItem(value: 'YAPE', label: 'Yape (QR)'),
+                    DropdownItem(value: 'TRANSFERENCIA', label: 'Transferencia'),
                   ],
                   onChanged: (v) => setLocal(() => metodo = v ?? 'EFECTIVO'),
                 ),
-                if (necesitaRef)
-                  TextField(
+                const SizedBox(height: 10),
+                CustomText(
+                  label: 'Monto (máx S/ ${pendiente.toStringAsFixed(2)})',
+                  controller: montoCtrl,
+                  fieldType: FieldType.number,
+                  borderColor: AppColors.blueborder,
+                ),
+                if (necesitaRef && metodo != 'YAPE' && metodo != 'PLIN') ...[
+                  const SizedBox(height: 10),
+                  CustomText(
+                    label: 'N° de operación',
                     controller: refCtrl,
-                    keyboardType: TextInputType.number,
-                    decoration:
-                        const InputDecoration(labelText: 'N° de operación'),
+                    fieldType: FieldType.number,
+                    borderColor: AppColors.blueborder,
+                    maxLength: 12,
                   ),
-                if (necesitaBanco)
-                  TextField(
+                ],
+                if (necesitaBanco) ...[
+                  const SizedBox(height: 10),
+                  CustomText(
+                    label: 'Banco / entidad',
                     controller: bancoCtrl,
-                    decoration:
-                        const InputDecoration(labelText: 'Banco / entidad'),
+                    borderColor: AppColors.blueborder,
                   ),
+                ],
               ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cancelar'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, {
-                  'metodo': metodo,
-                  'referencia': necesitaRef
-                      ? (refCtrl.text.trim().isEmpty ? '00000' : refCtrl.text.trim())
-                      : null,
-                  'banco': necesitaBanco
-                      ? (bancoCtrl.text.trim().isEmpty
-                          ? 'No especificado'
-                          : bancoCtrl.text.trim())
-                      : null,
-                }),
-                child: const Text('Confirmar'),
-              ),
-            ],
-          );
-        },
-      ),
+            );
+          },
+        ),
+      ],
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        TextButton(
+          style: TextButton.styleFrom(foregroundColor: AppColors.blue1),
+          onPressed: () {
+            var monto =
+                double.tryParse(montoCtrl.text.trim().replaceAll(',', '.')) ?? 0;
+            if (monto <= 0) return;
+            if (monto > pendiente) monto = pendiente; // cap al pendiente
+            final esQr = metodo == 'YAPE' || metodo == 'PLIN';
+            final necesitaBanco =
+                metodo == 'TARJETA' || metodo == 'TRANSFERENCIA';
+            Navigator.pop(context, {
+              'metodo': metodo,
+              'monto': (monto * 100).round() / 100,
+              'referencia': (metodo == 'EFECTIVO' || esQr)
+                  ? null
+                  : (refCtrl.text.trim().isEmpty ? '00000' : refCtrl.text.trim()),
+              'banco': necesitaBanco
+                  ? (bancoCtrl.text.trim().isEmpty
+                      ? 'No especificado'
+                      : bancoCtrl.text.trim())
+                  : null,
+            });
+          },
+          child: const Text('Continuar'),
+        ),
+      ],
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    // La hoja se está cerrando (último tramo aprobado → _idx == _n, o ya
-    // cerrada). Evita acceder a tramos[_idx] fuera de rango en un rebuild
-    // pendiente antes de que el pop() desmonte el widget.
-    if (_cerrado || _idx >= _n) return const SizedBox.shrink();
-
-    final monto = _payAmount ?? _tramo.monto;
+    if (_cerrado) return const SizedBox.shrink();
+    final monto = _payAmount ?? _chunkMonto;
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Container(
@@ -401,20 +434,18 @@ class _CobroYapeSheetState extends State<CobroYapeSheet> {
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
-                // Progreso de tramos (solo si hay más de uno).
-                if (_n > 1) ...[
+                // Progreso de saldo (solo si se cobra en partes).
+                if (_acumulado > 0 || widget.montoTotal > widget.maxPorTransaccion) ...[
                   AppSubtitle(
-                    'Cobro ${_idx + 1} de $_n  ·  acumulado S/ ${_acumulado.toStringAsFixed(2)} de ${_totalTramos.toStringAsFixed(2)}',
+                    'Cobrado S/ ${_acumulado.toStringAsFixed(2)} de ${widget.montoTotal.toStringAsFixed(2)}  ·  falta S/ ${_pendiente.toStringAsFixed(2)}',
                     fontSize: 11,
                     color: AppColors.blueGrey,
                   ),
                   const SizedBox(height: 6),
                 ],
-                AppTitle(_tramo.metodo, fontSize: 18, color: AppColors.blue1),
+                AppTitle(_chunkMetodo, fontSize: 18, color: AppColors.blue1),
                 const SizedBox(height: 8),
                 if (_iniciando)
-                  // Altura ~ al contenido cargado (QR + monto + estado + campo
-                  // + botones) para que la hoja abra a su tamaño y no "crezca".
                   const SizedBox(
                     height: 440,
                     child: Center(child: CircularProgressIndicator()),
@@ -465,26 +496,25 @@ class _CobroYapeSheetState extends State<CobroYapeSheet> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: CustomButton(
-                          text: _idx + 1 < _n ? 'Aprobar y seguir' : 'Aprobar pago',
+                          text: _chunkMonto < _pendiente - 0.001
+                              ? 'Aprobar y seguir'
+                              : 'Aprobar pago',
                           backgroundColor: AppColors.blue1,
                           textColor: AppColors.white,
                           isLoading: _procesando,
-                          onPressed: _procesando ? null : _aprobarTramo,
+                          onPressed: _procesando ? null : _aprobarChunk,
                         ),
                       ),
                     ],
                   ),
-                  // El cliente no puede seguir con Yape/Plin (agotó su límite
-                  // diario) → cubrir el resto con otro medio y cerrar la venta.
-                  if (_totalTramos - _acumulado > 0.001)
-                    TextButton.icon(
-                      onPressed: _procesando ? null : _pagarRestoOtroMedio,
-                      icon: const Icon(Icons.swap_horiz, size: 16),
-                      label: Text(
-                        'Pagar resto (S/ ${_r2(_totalTramos - _acumulado).toStringAsFixed(2)}) con otro medio',
-                        style: const TextStyle(fontSize: 12),
-                      ),
+                  TextButton.icon(
+                    onPressed: _procesando ? null : _pagarOtroMedio,
+                    icon: const Icon(Icons.swap_horiz, size: 16),
+                    label: const Text(
+                      'Pagar con otro medio',
+                      style: TextStyle(fontSize: 12),
                     ),
+                  ),
                 ],
               ],
             ),

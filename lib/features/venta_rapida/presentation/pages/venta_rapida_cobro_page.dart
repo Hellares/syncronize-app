@@ -477,27 +477,16 @@ class _CobroViewState extends State<_CobroView> {
       return;
     }
 
-    // PAGOS DIVIDIDOS: cada línea Yape/Plin se parte en TRAMOS ≤ límite por
-    // transacción (auto-split). Ej: Yape 1500 → 3×500; Plin 1000 → 2×500.
-    // El cajero ya pudo pre-dividir agregando varias líneas; igual lo
-    // normalizamos a tramos ≤ límite.
-    // ctxState ya está promovido a EmpresaContextLoaded por el gate de arriba.
+    // PAGOS DIVIDIDOS: la hoja cobra la porción Yape/Plin como saldo pendiente,
+    // auto-dividida en chunks ≤ límite por transacción, y permite cubrir parte
+    // con otro medio/monto. ctxState ya está promovido por el gate de arriba.
     final maxTx = ctxState.context.yapeMaxPorTransaccion;
-    double r2(double v) => (v * 100).round() / 100;
     final pagosYape = state.pagos
         .where((p) => p['metodo'] == 'YAPE' || p['metodo'] == 'PLIN')
         .toList();
     if (pagosYape.isEmpty) return;
-    final tramos = <TramoCobro>[];
-    for (final p in pagosYape) {
-      final metodoP = p['metodo'] as String;
-      var resto = (p['monto'] as num).toDouble();
-      while (resto > 0.001) {
-        final m = resto > maxTx ? maxTx : resto;
-        tramos.add(TramoCobro(metodoP, r2(m)));
-        resto = r2(resto - m);
-      }
-    }
+    final montoYapePlin = pagosYape.fold<double>(
+        0, (s, p) => s + (p['monto'] as num).toDouble());
     final metodoPrincipal = pagosYape.first['metodo'] as String;
 
     final res = await cubit.iniciarCobroYape(
@@ -511,7 +500,9 @@ class _CobroViewState extends State<_CobroView> {
     final paid = await CobroYapeSheet.mostrar(
       context,
       ventaId: ventaId,
-      tramos: tramos,
+      montoTotal: (montoYapePlin * 100).round() / 100,
+      metodoInicial: metodoPrincipal,
+      maxPorTransaccion: maxTx,
       cubit: cubit,
       realtime: cubit.realtimeSync,
     );
