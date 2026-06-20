@@ -86,6 +86,26 @@ class EmpresaBancoRemoteDataSource {
     return EmpresaBancoModel.fromJson(response.data as Map<String, dynamic>);
   }
 
+  /// Ajuste manual del saldo (+/-) con motivo. Registra AjusteBanco.
+  Future<void> ajustar({
+    required String id,
+    required String tipo, // INGRESO | EGRESO
+    required double monto,
+    required String motivo,
+  }) async {
+    await _dioClient.post(
+      '$_basePath/$id/ajuste',
+      data: {'tipo': tipo, 'monto': monto, 'motivo': motivo},
+    );
+  }
+
+  /// Historial de ajustes/conciliaciones de una cuenta (lista de mapas).
+  Future<List<Map<String, dynamic>>> getAjustes({required String id}) async {
+    final response = await _dioClient.get('$_basePath/$id/ajustes');
+    final list = response.data as List<dynamic>? ?? [];
+    return list.map((e) => e as Map<String, dynamic>).toList();
+  }
+
   Future<ConciliacionBancariaModel> getConciliacion({
     required String cuentaId,
     String? fechaDesde,

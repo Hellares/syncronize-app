@@ -10,6 +10,7 @@ import '../../../../core/widgets/smart_appbar.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_dropdown.dart';
 import '../../../auth/presentation/widgets/custom_text.dart' show CustomText;
+import '../../data/datasources/empresa_banco_remote_datasource.dart';
 import '../../domain/entities/empresa_banco.dart';
 import '../bloc/empresa_banco_cubit.dart';
 import '../bloc/empresa_banco_state.dart';
@@ -89,6 +90,8 @@ class _EmpresaBancoView extends StatelessWidget {
                       onMarcarPrincipal: () => cubit.marcarPrincipal(id: cuenta.id),
                       onEliminar: () => _eliminar(context, cubit, cuenta.id),
                       onActualizarSaldo: () => _showSaldoDialog(context, cubit, cuenta),
+                      onAjuste: () => _showAjusteDialog(context, cubit, cuenta),
+                      onHistorial: () => _showHistorialAjustes(context, cuenta),
                       onConciliacion: () => context.push(
                         '/empresa/cuentas-bancarias/${cuenta.id}/conciliacion',
                         extra: {'nombre': cuenta.nombreBanco},
@@ -229,24 +232,166 @@ class _EmpresaBancoView extends StatelessWidget {
     );
   }
 
+  /// Conciliar: el usuario ingresa el saldo REAL del extracto. El backend
+  /// asienta la diferencia como ajuste de conciliación (no pisa en silencio).
   void _showSaldoDialog(BuildContext context, EmpresaBancoCubit cubit, EmpresaBanco cuenta) {
-    final saldoCtrl = TextEditingController(text: cuenta.saldoActual.toString());
+    final saldoCtrl = TextEditingController(text: cuenta.saldoActual.toStringAsFixed(2));
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Actualizar saldo - ${cuenta.nombreBanco}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
-        content: CustomText(controller: saldoCtrl, label: 'Saldo actual', hintText: '0.00', borderColor: AppColors.blue1, keyboardType: TextInputType.number),
+        title: Text('Conciliar saldo - ${cuenta.nombreBanco}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Ingresá el saldo REAL del extracto. La diferencia con el saldo del sistema (${cuenta.moneda ?? 'S/'} ${cuenta.saldoActual.toStringAsFixed(2)}) queda registrada como conciliación.',
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 10),
+            CustomText(controller: saldoCtrl, label: 'Saldo del extracto', hintText: '0.00', borderColor: AppColors.blue1, keyboardType: TextInputType.number),
+          ],
+        ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(ctx);
-              final saldo = double.tryParse(saldoCtrl.text) ?? 0;
+              final saldo = double.tryParse(saldoCtrl.text.replaceAll(',', '.')) ?? 0;
               cubit.actualizarSaldo(id: cuenta.id, saldo: saldo);
             },
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.blue1, foregroundColor: Colors.white),
-            child: const Text('Guardar'),
+            child: const Text('Conciliar'),
           ),
+        ],
+      ),
+    );
+  }
+
+  /// Ajuste manual +/- con motivo (comisión, interés, corrección).
+  void _showAjusteDialog(BuildContext context, EmpresaBancoCubit cubit, EmpresaBanco cuenta) {
+    final montoCtrl = TextEditingController();
+    final motivoCtrl = TextEditingController();
+    String tipo = 'EGRESO';
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSt) => AlertDialog(
+          title: Text('Ajuste de saldo - ${cuenta.nombreBanco}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CustomDropdown<String>(
+                label: 'Tipo',
+                value: tipo,
+                borderColor: AppColors.blue1,
+                items: const [
+                  DropdownItem(value: 'EGRESO', label: 'Resta (comisión, retiro…)'),
+                  DropdownItem(value: 'INGRESO', label: 'Suma (interés, depósito…)'),
+                ],
+                onChanged: (v) => setSt(() => tipo = v ?? 'EGRESO'),
+              ),
+              const SizedBox(height: 10),
+              CustomText(controller: montoCtrl, label: 'Monto', hintText: '0.00', borderColor: AppColors.blue1, keyboardType: TextInputType.number),
+              const SizedBox(height: 10),
+              CustomText(controller: motivoCtrl, label: 'Motivo', hintText: 'Ej: comisión de mantenimiento', borderColor: AppColors.blue1),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+            ElevatedButton(
+              onPressed: () async {
+                final monto = double.tryParse(montoCtrl.text.replaceAll(',', '.')) ?? 0;
+                final motivo = motivoCtrl.text.trim();
+                if (monto <= 0 || motivo.isEmpty) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Ingresá monto (> 0) y motivo')));
+                  return;
+                }
+                Navigator.pop(ctx);
+                try {
+                  await locator<EmpresaBancoRemoteDataSource>().ajustar(id: cuenta.id, tipo: tipo, monto: monto, motivo: motivo);
+                  cubit.loadCuentas();
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ajuste registrado'), backgroundColor: Colors.green));
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('No se pudo: $e'), backgroundColor: Colors.red));
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.blue1, foregroundColor: Colors.white),
+              child: const Text('Registrar'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Historial de ajustes/conciliaciones de la cuenta.
+  Future<void> _showHistorialAjustes(BuildContext context, EmpresaBanco cuenta) async {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (_) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.6,
+        maxChildSize: 0.9,
+        builder: (ctx, scrollCtrl) => FutureBuilder<List<Map<String, dynamic>>>(
+          future: locator<EmpresaBancoRemoteDataSource>().getAjustes(id: cuenta.id),
+          builder: (ctx, snap) {
+            if (snap.connectionState == ConnectionState.waiting) {
+              return const Center(child: Padding(padding: EdgeInsets.all(40), child: CircularProgressIndicator()));
+            }
+            final ajustes = snap.data ?? [];
+            return ListView(
+              controller: scrollCtrl,
+              padding: const EdgeInsets.all(16),
+              children: [
+                Center(child: AppSubtitle('Ajustes - ${cuenta.nombreBanco}', fontSize: 14, color: AppColors.blue1)),
+                const SizedBox(height: 12),
+                if (ajustes.isEmpty)
+                  Padding(padding: const EdgeInsets.all(24), child: Center(child: Text('Sin ajustes registrados', style: TextStyle(color: Colors.grey.shade500))))
+                else
+                  ...ajustes.map(_ajusteTile),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _ajusteTile(Map<String, dynamic> a) {
+    final tipo = a['tipo']?.toString() ?? '';
+    final esIngreso = tipo == 'INGRESO';
+    final monto = (a['monto'] as num?)?.toDouble() ?? 0;
+    final origen = a['origen']?.toString() == 'CONCILIACION' ? 'Conciliación' : 'Ajuste';
+    final anterior = (a['saldoAnterior'] as num?)?.toDouble() ?? 0;
+    final nuevo = (a['saldoNuevo'] as num?)?.toDouble() ?? 0;
+    final fecha = a['creadoEn'] != null ? DateTime.tryParse(a['creadoEn'].toString()) : null;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey.shade200)),
+      child: Row(
+        children: [
+          Icon(esIngreso ? Icons.add_circle : Icons.remove_circle, size: 18, color: esIngreso ? Colors.green : Colors.red),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('$origen · ${a['motivo'] ?? ''}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                Text('${anterior.toStringAsFixed(2)} → ${nuevo.toStringAsFixed(2)}'
+                    '${fecha != null ? '  ·  ${fecha.day}/${fecha.month}/${fecha.year}' : ''}',
+                    style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
+              ],
+            ),
+          ),
+          Text('${esIngreso ? '+' : '-'}${monto.toStringAsFixed(2)}',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: esIngreso ? Colors.green : Colors.red)),
         ],
       ),
     );
@@ -280,8 +425,10 @@ class _CuentaCard extends StatelessWidget {
   final VoidCallback onEliminar;
   final VoidCallback onConciliacion;
   final VoidCallback onActualizarSaldo;
+  final VoidCallback onAjuste;
+  final VoidCallback onHistorial;
 
-  const _CuentaCard({required this.cuenta, required this.onMarcarPrincipal, required this.onEliminar, required this.onActualizarSaldo, required this.onConciliacion});
+  const _CuentaCard({required this.cuenta, required this.onMarcarPrincipal, required this.onEliminar, required this.onActualizarSaldo, required this.onConciliacion, required this.onAjuste, required this.onHistorial});
 
   @override
   Widget build(BuildContext context) {
@@ -292,15 +439,15 @@ class _CuentaCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       borderColor: esPrincipal ? AppColors.blue1 : AppColors.blueborder,
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.only(left: 8, right: 8, bottom: 8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                const Icon(Icons.account_balance, size: 20, color: AppColors.blue1),
+                const Icon(Icons.account_balance, size: 16, color: AppColors.blue1),
                 const SizedBox(width: 8),
-                Expanded(child: AppSubtitle(cuenta.nombreBanco, fontSize: 14)),
+                Expanded(child: AppSubtitle(cuenta.nombreBanco, fontSize: 12)),
                 if (esPrincipal)
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -311,19 +458,23 @@ class _CuentaCard extends StatelessWidget {
                   onSelected: (v) {
                     if (v == 'principal') onMarcarPrincipal();
                     if (v == 'saldo') onActualizarSaldo();
+                    if (v == 'ajuste') onAjuste();
+                    if (v == 'historial') onHistorial();
                     if (v == 'conciliacion') onConciliacion();
                     if (v == 'eliminar') onEliminar();
                   },
                   itemBuilder: (_) => [
                     if (!esPrincipal) const PopupMenuItem(value: 'principal', child: Text('Marcar como principal')),
-                    const PopupMenuItem(value: 'saldo', child: Text('Actualizar saldo')),
-                    const PopupMenuItem(value: 'conciliacion', child: Text('Conciliación')),
+                    const PopupMenuItem(value: 'saldo', child: Text('Conciliar saldo')),
+                    const PopupMenuItem(value: 'ajuste', child: Text('Ajuste (+/-)')),
+                    const PopupMenuItem(value: 'historial', child: Text('Historial de ajustes')),
+                    const PopupMenuItem(value: 'conciliacion', child: Text('Conciliación (movimientos)')),
                     const PopupMenuItem(value: 'eliminar', child: Text('Eliminar', style: TextStyle(color: Colors.red))),
                   ],
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            // const SizedBox(height: 8),
             _infoRow(Icons.credit_card, '${_tipoCuentaLabel(cuenta.tipoCuenta)} - ${cuenta.moneda ?? 'PEN'}'),
             _infoRow(Icons.numbers, cuenta.numeroCuenta),
             if (cuenta.cci != null && cuenta.cci!.isNotEmpty)
@@ -336,7 +487,7 @@ class _CuentaCard extends StatelessWidget {
               children: [
                 Text('Saldo:', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
                 AppSubtitle('${cuenta.moneda ?? 'S/'} ${saldo.toStringAsFixed(2)}',
-                  fontSize: 16, color: saldo >= 0 ? Colors.green : Colors.red),
+                  fontSize: 12, color: saldo >= 0 ? Colors.green : Colors.red),
               ],
             ),
           ],
