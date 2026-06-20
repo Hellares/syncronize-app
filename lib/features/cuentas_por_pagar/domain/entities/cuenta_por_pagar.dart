@@ -19,6 +19,7 @@ class CuentaPorPagar extends Equatable {
   final String estado;
   final int? diasVencimiento;
   final DateTime? fechaVencimiento;
+  final DateTime? fechaCompra;
   final BancoPrincipal? bancoPrincipal;
 
   const CuentaPorPagar({
@@ -30,8 +31,12 @@ class CuentaPorPagar extends Equatable {
     required this.estado,
     this.diasVencimiento,
     this.fechaVencimiento,
+    this.fechaCompra,
     this.bancoPrincipal,
   });
+
+  /// Pagado = total − saldo (el endpoint de lista no trae el pagado por separado).
+  double get totalPagado => (totalCompra - saldoPendiente).clamp(0, totalCompra);
 
   @override
   List<Object?> get props => [id, codigo, nombreProveedor, saldoPendiente, totalCompra, estado];
@@ -169,6 +174,7 @@ class CuentaPagarDetalle extends Equatable {
         estado: estado,
         diasVencimiento: diasVencimiento,
         fechaVencimiento: fechaVencimiento,
+        fechaCompra: fechaCompra,
         bancoPrincipal: bancoPrincipal,
       );
 
