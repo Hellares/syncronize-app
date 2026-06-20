@@ -227,13 +227,40 @@ class _Loaded extends StatelessWidget {
   }
 }
 
-class _HeaderCard extends StatelessWidget {
+class _HeaderCard extends StatefulWidget {
   final TesoreriaResumen resumen;
 
   const _HeaderCard({required this.resumen});
 
   @override
+  State<_HeaderCard> createState() => _HeaderCardState();
+}
+
+class _HeaderCardState extends State<_HeaderCard> {
+  Map<String, dynamic>? _porMoneda;
+  Map<String, dynamic> _porMetodo = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarConsolidado();
+  }
+
+  Future<void> _cargarConsolidado() async {
+    try {
+      final res = await locator<DioClient>().get('/caja/tesoreria-consolidado');
+      if (!mounted) return;
+      setState(() {
+        _porMoneda = (res.data['bancosPorMoneda'] as Map<String, dynamic>?) ?? {};
+        _porMetodo = (res.data['recaudadoPorMetodo'] as Map<String, dynamic>?) ?? {};
+      });
+    } catch (_) {/* deja el total solo-efectivo */}
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final resumen = widget.resumen;
+    final digitalPen = (_porMoneda?['PEN'] as num?)?.toDouble() ?? 0;
     return Container(
       margin: const EdgeInsets.all(10),
       padding: const EdgeInsets.all(10),
@@ -320,10 +347,10 @@ class _HeaderCard extends StatelessWidget {
                         const SizedBox(height: 4),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
-                          children: const [
-                            Text('en los bancos',
-                                style: TextStyle(color: AppColors.white, fontWeight: FontWeight.w600, fontSize: 12)),
-                            Icon(Icons.chevron_right, color: AppColors.white, size: 18),
+                          children: [
+                            Text(_money(digitalPen),
+                                style: const TextStyle(color: AppColors.white, fontWeight: FontWeight.w700, fontSize: 16)),
+                            const Icon(Icons.chevron_right, color: AppColors.white, size: 18),
                           ],
                         ),
                       ],
@@ -341,7 +368,11 @@ class _HeaderCard extends StatelessWidget {
               color: AppColors.white.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(6),
             ),
-            child: _TotalConBancos(saldoEfectivo: resumen.saldoEfectivo),
+            child: _TotalConBancos(
+              saldoEfectivo: resumen.saldoEfectivo,
+              porMoneda: _porMoneda,
+              porMetodo: _porMetodo,
+            ),
           ),
           const SizedBox(height: 12),
           Row(
@@ -379,40 +410,27 @@ class _HeaderCard extends StatelessWidget {
 /// bancos (los cobros digitales). Trae el total de bancos del consolidado.
 class _TotalConBancos extends StatefulWidget {
   final double saldoEfectivo;
-  const _TotalConBancos({required this.saldoEfectivo});
+  final Map<String, dynamic>? porMoneda;
+  final Map<String, dynamic> porMetodo;
+  const _TotalConBancos({
+    required this.saldoEfectivo,
+    required this.porMoneda,
+    required this.porMetodo,
+  });
 
   @override
   State<_TotalConBancos> createState() => _TotalConBancosState();
 }
 
 class _TotalConBancosState extends State<_TotalConBancos> {
-  Map<String, dynamic>? _porMoneda;
-  Map<String, dynamic> _porMetodo = {};
   bool _expandido = false;
 
   @override
-  void initState() {
-    super.initState();
-    _cargar();
-  }
-
-  Future<void> _cargar() async {
-    try {
-      final res = await locator<DioClient>().get('/caja/tesoreria-consolidado');
-      if (!mounted) return;
-      setState(() {
-        _porMoneda = (res.data['bancosPorMoneda'] as Map<String, dynamic>?) ?? {};
-        _porMetodo = (res.data['recaudadoPorMetodo'] as Map<String, dynamic>?) ?? {};
-      });
-    } catch (_) {/* deja el total solo-efectivo */}
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final pen = (_porMoneda?['PEN'] as num?)?.toDouble() ?? 0;
-    final usd = (_porMoneda?['USD'] as num?)?.toDouble() ?? 0;
+    final pen = (widget.porMoneda?['PEN'] as num?)?.toDouble() ?? 0;
+    final usd = (widget.porMoneda?['USD'] as num?)?.toDouble() ?? 0;
     final totalPen = widget.saldoEfectivo + pen;
-    final metodos = _porMetodo.entries
+    final metodos = widget.porMetodo.entries
         .where((e) => ((e.value as num?)?.toDouble() ?? 0).abs() > 0.001)
         .toList()
       ..sort((a, b) => ((b.value as num).toDouble()).compareTo((a.value as num).toDouble()));
@@ -423,24 +441,24 @@ class _TotalConBancosState extends State<_TotalConBancos> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text('Total (efectivo + bancos)',
-                style: TextStyle(color: AppColors.white, fontWeight: FontWeight.w600, fontSize: 12)),
+                style: TextStyle(color: AppColors.white, fontWeight: FontWeight.w600, fontSize: 10)),
             Text(_money(totalPen),
-                style: const TextStyle(color: AppColors.white, fontWeight: FontWeight.w800, fontSize: 14)),
+                style: const TextStyle(color: AppColors.white, fontWeight: FontWeight.w600, fontSize: 12)),
           ],
         ),
-        if (_porMoneda != null) ...[
-          const SizedBox(height: 3),
+        if (widget.porMoneda != null) ...[
+          // const SizedBox(height: 3),
           Text(
             '${_money(widget.saldoEfectivo)} efectivo  +  ${_money(pen)} en bancos',
             style: TextStyle(color: AppColors.white.withValues(alpha: 0.85), fontSize: 10.5),
           ),
           if (usd != 0)
             Text('+ \$ ${usd.toStringAsFixed(2)} en cuentas USD',
-                style: TextStyle(color: AppColors.white.withValues(alpha: 0.85), fontSize: 10)),
+                style: TextStyle(color: AppColors.white.withValues(alpha: 0.85), fontSize: 9)),
         ],
         // Flechita expandible: desglose de medios digitales → bancos (chips).
         if (metodos.isNotEmpty) ...[
-          const SizedBox(height: 6),
+          // const SizedBox(height: 6),
           InkWell(
             onTap: () => setState(() => _expandido = !_expandido),
             borderRadius: BorderRadius.circular(6),
@@ -452,7 +470,7 @@ class _TotalConBancosState extends State<_TotalConBancos> {
                       color: AppColors.white.withValues(alpha: 0.9), size: 16),
                   const SizedBox(width: 2),
                   Text('Medios digitales → bancos',
-                      style: TextStyle(color: AppColors.white.withValues(alpha: 0.9), fontSize: 10.5, fontWeight: FontWeight.w600)),
+                      style: TextStyle(color: AppColors.white.withValues(alpha: 0.9), fontSize: 10, fontWeight: FontWeight.w600)),
                 ],
               ),
             ),
@@ -474,14 +492,14 @@ class _TotalConBancosState extends State<_TotalConBancos> {
 
   Widget _chipMetodo(String label, double monto) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
         color: AppColors.white.withValues(alpha: 0.18),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.white.withValues(alpha: 0.30)),
       ),
       child: Text('$label  ${_money(monto)}',
-          style: const TextStyle(color: AppColors.white, fontSize: 10.5, fontWeight: FontWeight.w600)),
+          style: const TextStyle(color: AppColors.white, fontSize: 9.5, fontWeight: FontWeight.w600)),
     );
   }
 
