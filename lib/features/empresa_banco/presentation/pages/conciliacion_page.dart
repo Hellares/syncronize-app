@@ -159,7 +159,7 @@ class _ConciliacionPageState extends State<ConciliacionPage> {
                   const SizedBox(width: 8),
                   Expanded(child: _accion(Icons.tune, 'Ajuste', _ajuste)),
                   const SizedBox(width: 8),
-                  Expanded(child: _accion(Icons.history, 'Ajustes', _historial)),
+                  Expanded(child: _accion(Icons.history, 'Historial', _historial)),
                 ],
               ),
             ],
