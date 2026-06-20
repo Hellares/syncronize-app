@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:printing/printing.dart';
 
 import '../../../../core/di/injection_container.dart';
+import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
+import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
+import '../services/estado_cuenta_tercero_pdf.dart';
 import '../../../../core/fonts/app_text_widgets.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/gradient_background.dart';
@@ -80,6 +85,34 @@ class _EstadoCuentaTerceroPageState extends State<EstadoCuentaTerceroPage> {
   double _d(dynamic v) => v == null ? 0 : (v as num).toDouble();
   Map<String, dynamic> _map(dynamic v) => (v as Map<String, dynamic>?) ?? {};
 
+  Future<void> _compartirPdf() async {
+    if (_data == null) return;
+    final ctx = context.read<EmpresaContextCubit>().state;
+    var empNombre = 'Mi empresa';
+    String? empRuc;
+    if (ctx is EmpresaContextLoaded) {
+      empNombre = ctx.context.empresa.razonSocial ?? ctx.context.empresa.nombre;
+      empRuc = ctx.context.empresa.ruc;
+    }
+    try {
+      final bytes = await EstadoCuentaTerceroPdf.generar(
+        data: _data!,
+        empresaNombre: empNombre,
+        empresaRuc: empRuc,
+        fechaEmision: DateTime.now(),
+      );
+      final nombreArchivo =
+          widget.proveedorNombre.replaceAll(RegExp(r'[^A-Za-z0-9]+'), '_');
+      await Printing.sharePdf(bytes: bytes, filename: 'estado-cuenta-$nombreArchivo.pdf');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No se pudo generar el PDF: $e'), backgroundColor: AppColors.red),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -87,7 +120,15 @@ class _EstadoCuentaTerceroPageState extends State<EstadoCuentaTerceroPage> {
         title: 'Estado de cuenta',
         backgroundColor: AppColors.blue1,
         foregroundColor: Colors.white,
-        actions: [IconButton(icon: const Icon(Icons.refresh), onPressed: _cargar)],
+        actions: [
+          if (_data != null)
+            IconButton(
+              icon: const Icon(Icons.share),
+              tooltip: 'Compartir PDF',
+              onPressed: _compartirPdf,
+            ),
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _cargar),
+        ],
       ),
       body: GradientBackground(
         child: _loading
