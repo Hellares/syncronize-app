@@ -23,7 +23,7 @@ class EstadoCuentaTerceroPdf {
   static String _money(String? moneda, dynamic v) => '${_sim(moneda)} ${_d(v).toStringAsFixed(2)}';
   static String _porMoneda(Map m) {
     final e = m.entries.where((x) => _d(x.value).abs() > 0.001).toList();
-    return e.isEmpty ? '—' : e.map((x) => _money(x.key.toString(), x.value)).join('   ');
+    return e.isEmpty ? '-' : e.map((x) => _money(x.key.toString(), x.value)).join('   ');
   }
 
   static const _azul = PdfColor.fromInt(0xFF004A94);
@@ -164,7 +164,7 @@ class EstadoCuentaTerceroPdf {
   static String _itemsTxt(Map d) {
     final moneda = d['moneda']?.toString();
     final items = (d['items'] as List?) ?? [];
-    if (items.isEmpty) return '—';
+    if (items.isEmpty) return '-';
     return items.map((it) {
       final i = it as Map;
       final c = _d(i['cantidad']);
@@ -190,7 +190,7 @@ class EstadoCuentaTerceroPdf {
             '${d['codigo'] ?? ''}\n${fecha != null ? DateFormatter.formatDate(fecha) : ''} · ${d['estado'] ?? ''}',
             _itemsTxt(d),
             _money(moneda, d['total']),
-            saldo > 0.001 ? _money(moneda, saldo) : '—',
+            saldo > 0.001 ? _money(moneda, saldo) : '-',
           ];
         }).toList(),
         headerStyle: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: PdfColors.white),
