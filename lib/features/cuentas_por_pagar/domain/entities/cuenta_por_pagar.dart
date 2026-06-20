@@ -20,6 +20,8 @@ class CuentaPorPagar extends Equatable {
   final int? diasVencimiento;
   final DateTime? fechaVencimiento;
   final DateTime? fechaCompra;
+  final String? serieDocumentoProveedor;
+  final String? numeroDocumentoProveedor;
   final BancoPrincipal? bancoPrincipal;
 
   const CuentaPorPagar({
@@ -32,11 +34,22 @@ class CuentaPorPagar extends Equatable {
     this.diasVencimiento,
     this.fechaVencimiento,
     this.fechaCompra,
+    this.serieDocumentoProveedor,
+    this.numeroDocumentoProveedor,
     this.bancoPrincipal,
   });
 
   /// Pagado = total − saldo (el endpoint de lista no trae el pagado por separado).
   double get totalPagado => (totalCompra - saldoPendiente).clamp(0, totalCompra);
+
+  /// Documento del proveedor con el que se ingresó la compra (serie-número),
+  /// p. ej. "F001-123". Null si la compra no registró documento.
+  String? get documentoCompra {
+    final serie = serieDocumentoProveedor?.trim();
+    final numero = numeroDocumentoProveedor?.trim();
+    final partes = [serie, numero].where((e) => e != null && e.isNotEmpty).join('-');
+    return partes.isEmpty ? null : partes;
+  }
 
   @override
   List<Object?> get props => [id, codigo, nombreProveedor, saldoPendiente, totalCompra, estado];
@@ -175,6 +188,8 @@ class CuentaPagarDetalle extends Equatable {
         diasVencimiento: diasVencimiento,
         fechaVencimiento: fechaVencimiento,
         fechaCompra: fechaCompra,
+        serieDocumentoProveedor: serieDocumentoProveedor,
+        numeroDocumentoProveedor: numeroDocumentoProveedor,
         bancoPrincipal: bancoPrincipal,
       );
 

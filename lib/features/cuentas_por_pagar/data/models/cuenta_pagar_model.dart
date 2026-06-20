@@ -10,6 +10,8 @@ class CuentaPagarModel {
   final int? diasVencimiento;
   final DateTime? fechaVencimiento;
   final DateTime? fechaCompra;
+  final String? serieDocumentoProveedor;
+  final String? numeroDocumentoProveedor;
   final Map<String, dynamic>? bancoPrincipal;
 
   const CuentaPagarModel({
@@ -22,6 +24,8 @@ class CuentaPagarModel {
     this.diasVencimiento,
     this.fechaVencimiento,
     this.fechaCompra,
+    this.serieDocumentoProveedor,
+    this.numeroDocumentoProveedor,
     this.bancoPrincipal,
   });
 
@@ -48,6 +52,8 @@ class CuentaPagarModel {
       fechaCompra: json['fechaCompra'] != null
           ? DateTime.tryParse(json['fechaCompra'].toString())
           : null,
+      serieDocumentoProveedor: json['serieDocumentoProveedor'] as String?,
+      numeroDocumentoProveedor: json['numeroDocumentoProveedor'] as String?,
       bancoPrincipal: json['bancoPrincipal'] as Map<String, dynamic>?,
     );
   }
@@ -63,6 +69,8 @@ class CuentaPagarModel {
       diasVencimiento: diasVencimiento,
       fechaVencimiento: fechaVencimiento,
       fechaCompra: fechaCompra,
+      serieDocumentoProveedor: serieDocumentoProveedor,
+      numeroDocumentoProveedor: numeroDocumentoProveedor,
       bancoPrincipal: bancoPrincipal != null
           ? BancoPrincipal(
               nombreBanco: bancoPrincipal!['nombreBanco'] as String? ?? '',

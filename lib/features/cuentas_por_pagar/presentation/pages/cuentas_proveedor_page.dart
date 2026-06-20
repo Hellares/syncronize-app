@@ -51,7 +51,8 @@ class _CuentasProveedorViewState extends State<_CuentasProveedorView> {
   bool _syncingScroll = false;
 
   // Anchos fijos por columna. Header y filas usan los mismos.
-  static const double _wCodigo = 95;
+  static const double _wCodigo = 110;
+  static const double _wDoc = 95;
   static const double _wEstado = 78;
   static const double _wCompra = 72;
   static const double _wVence = 72;
@@ -68,7 +69,7 @@ class _CuentasProveedorViewState extends State<_CuentasProveedorView> {
   static final Color _bgSaldo = Colors.orange.shade50;
 
   double get _totalWidth =>
-      _wCodigo + _wEstado + _wCompra + _wVence + _wTotal + _wPagado + _wSaldo;
+      _wCodigo + _wDoc + _wEstado + _wCompra + _wVence + _wTotal + _wPagado + _wSaldo;
 
   @override
   void initState() {
@@ -238,6 +239,7 @@ class _CuentasProveedorViewState extends State<_CuentasProveedorView> {
       child: Row(
         children: [
           _hCell('Código', _wCodigo, s),
+          _hCell('Documento', _wDoc, s),
           _hCell('Estado', _wEstado, s),
           _hCell('Compra', _wCompra, s),
           _hCell('Vence', _wVence, s),
@@ -297,6 +299,7 @@ class _CuentasProveedorViewState extends State<_CuentasProveedorView> {
         child: Row(
           children: [
             _dCell(c.codigo, _wCodigo, ts.copyWith(color: AppColors.blue1, fontWeight: FontWeight.w600), ellipsis: true),
+            _dCell(c.documentoCompra ?? '—', _wDoc, ts, ellipsis: true),
             _dCell(estadoLabel, _wEstado, ts.copyWith(color: estadoColor, fontWeight: FontWeight.w600)),
             _dCell(c.fechaCompra != null ? DateFormatter.formatDateShort(c.fechaCompra!) : '—', _wCompra, ts),
             _dCell(c.fechaVencimiento != null ? DateFormatter.formatDateShort(c.fechaVencimiento!) : '—', _wVence, ts,
