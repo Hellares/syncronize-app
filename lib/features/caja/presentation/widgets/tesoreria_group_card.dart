@@ -170,33 +170,71 @@ class TesoreriaGroupCard extends StatelessWidget {
 
     return Padding(
       padding: EdgeInsets.only(left: indent ? 15 : 0),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (indent)
-            Padding(
-              padding: const EdgeInsets.only(top: 2, right: 6),
-              child: Icon(
-                Icons.subdirectory_arrow_right,
-                size: 18,
-                color: AppColors.textSecondary.withValues(alpha: 0.5),
+          // Header: info (izq) + monto/barrido (der).
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (indent)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2, right: 6),
+                  child: Icon(
+                    Icons.subdirectory_arrow_right,
+                    size: 18,
+                    color: AppColors.textSecondary.withValues(alpha: 0.5),
+                  ),
+                ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    AppSubtitle('Depósito de $cajaCodigo', color: AppColors.green),
+                    const SizedBox(height: 4),
+                    if (cajero != null)
+                      AppLabelText('Cajero: $cajero', color: AppColors.black54),
+                    if (cierra != null && !cajeroEsCerro)
+                      AppLabelText('Cerró: $cierra', color: AppColors.black54),
+                    AppLabelText(
+                      multiMetodo ? fechaStr : '${depositos.first.metodoPago.label} · $fechaStr',
+                      color: AppColors.black54,
+                    ),
+                  ],
+                ),
               ),
-            ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                  AppSubtitle('Depósito de $cajaCodigo', color: AppColors.green),
-                const SizedBox(height: 4),
-                if (cajero != null)
-                  AppLabelText('Cajero: $cajero', color: AppColors.black54),
-                if (cierra != null && !cajeroEsCerro)
-                  AppLabelText('Cerró: $cierra', color: AppColors.black54),
-                if (!multiMetodo)
-                  AppLabelText('${depositos.first.metodoPago.label} · $fechaStr', color: AppColors.black54)
-                else ...[
-                    AppLabelText(fechaStr, color: AppColors.black54),
-                  const SizedBox(height: 4),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '+${_money(montoTotal)}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.greendark,
+                    ),
+                  ),
+                  if (resumen.isNotEmpty && (totalBarrido - montoTotal).abs() > 0.001)
+                    Text(
+                      'Barrido: ${_money(totalBarrido)}',
+                      style: TextStyle(
+                        fontSize: 9,
+                        color: AppColors.textSecondary.withValues(alpha: 0.9),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+          // Chips a TODO EL ANCHO (debajo del header).
+          if (multiMetodo) ...[
+            const SizedBox(height: 6),
+            Padding(
+              padding: EdgeInsets.only(left: indent ? 24 : 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   resumen.isNotEmpty
                       ? _chipsResumen(resumen)
                       : Wrap(
@@ -216,31 +254,9 @@ class TesoreriaGroupCard extends StatelessWidget {
                     AppLabelText('Efectivo → bóveda · digital → bancos', color: AppColors.black54),
                   ],
                 ],
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                '+${_money(montoTotal)}',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.greendark,
-                ),
               ),
-              if (resumen.isNotEmpty && (totalBarrido - montoTotal).abs() > 0.001)
-                Text(
-                  'Barrido: ${_money(totalBarrido)}',
-                  style: TextStyle(
-                    fontSize: 9,
-                    color: AppColors.textSecondary.withValues(alpha: 0.9),
-                  ),
-                ),
-            ],
-          ),
+            ),
+          ],
         ],
       ),
     );
