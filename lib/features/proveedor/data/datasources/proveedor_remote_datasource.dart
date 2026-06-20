@@ -44,6 +44,18 @@ class ProveedorRemoteDataSource {
     return ProveedorModel.fromJson(response.data as Map<String, dynamic>);
   }
 
+  /// Estado de cuenta del tercero: compras (le debo) + ventas (me debe) + neto.
+  /// GET /api/empresas/:empresaId/proveedores/:id/estado-cuenta
+  Future<Map<String, dynamic>> estadoCuentaTercero({
+    required String empresaId,
+    required String proveedorId,
+  }) async {
+    final response = await _dioClient.get(
+      '/empresas/$empresaId/proveedores/$proveedorId/estado-cuenta',
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
   /// Registra/vincula el proveedor como cliente (mismo tercero). Idempotente.
   /// POST /api/empresas/:empresaId/proveedores/:id/registrar-como-cliente
   Future<Map<String, dynamic>> registrarComoCliente({

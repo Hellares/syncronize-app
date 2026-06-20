@@ -126,6 +126,7 @@ import '../../features/combo/presentation/pages/pages.dart';
 import '../../features/cliente/presentation/pages/clientes_page.dart';
 import '../../features/cliente/presentation/pages/cliente_form_page.dart';
 import '../../features/proveedor/presentation/pages/proveedores_page.dart';
+import '../../features/proveedor/presentation/pages/estado_cuenta_tercero_page.dart';
 import '../../features/proveedor/presentation/pages/proveedor_form_page.dart';
 import '../../features/proveedor/presentation/pages/proveedor_banco_page.dart';
 import '../../features/proveedor/presentation/pages/proveedor_detail_page.dart';
@@ -823,6 +824,20 @@ class AppRouter {
           final id = state.pathParameters['id']!;
           final extra = state.extra as Map<String, dynamic>? ?? {};
           return ProveedorBancoPage(
+            empresaId: empresaId,
+            proveedorId: id,
+            proveedorNombre: extra['nombre'] as String? ?? 'Proveedor',
+          );
+        },
+      ),
+      GoRoute(
+        path: '/empresa/proveedores/:id/estado-cuenta',
+        name: 'empresa-proveedores-estado-cuenta',
+        builder: (context, state) {
+          final empresaId = locator<LocalStorageService>().getString(StorageConstants.tenantId) ?? '';
+          final id = state.pathParameters['id']!;
+          final extra = state.extra as Map<String, dynamic>? ?? {};
+          return EstadoCuentaTerceroPage(
             empresaId: empresaId,
             proveedorId: id,
             proveedorNombre: extra['nombre'] as String? ?? 'Proveedor',

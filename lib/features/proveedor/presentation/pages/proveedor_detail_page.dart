@@ -144,40 +144,61 @@ class ProveedorDetailPage extends StatelessWidget {
       borderColor: AppColors.blueborder,
       child: Padding(
         padding: const EdgeInsets.all(14),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(esCliente ? Icons.verified_user_rounded : Icons.swap_horiz_rounded,
-                size: 22, color: AppColors.blue1),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  AppSubtitle(
-                    esCliente ? 'También es cliente' : '¿También le vendés?',
-                    fontSize: 13,
-                    color: AppColors.blue1,
+            Row(
+              children: [
+                Icon(esCliente ? Icons.verified_user_rounded : Icons.swap_horiz_rounded,
+                    size: 22, color: AppColors.blue1),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      AppSubtitle(
+                        esCliente ? 'También es cliente' : '¿También le vendés?',
+                        fontSize: 13,
+                        color: AppColors.blue1,
+                      ),
+                      Text(
+                        esCliente
+                            ? 'Vinculado como cliente ${proveedor.clienteEmpresaCodigo ?? ''}'
+                            : 'Registralo como cliente para venderle y ver su cuenta corriente.',
+                        style: TextStyle(fontSize: 10.5, color: Colors.grey.shade600),
+                      ),
+                    ],
                   ),
-                  Text(
-                    esCliente
-                        ? 'Vinculado como cliente ${proveedor.clienteEmpresaCodigo ?? ''}'
-                        : 'Registralo como cliente para venderle y ver su cuenta corriente.',
-                    style: TextStyle(fontSize: 10.5, color: Colors.grey.shade600),
+                ),
+                const SizedBox(width: 8),
+                if (!esCliente)
+                  ElevatedButton(
+                    onPressed: () => _registrarComoCliente(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.blue1,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
+                    child: const Text('Registrar', style: TextStyle(fontSize: 12)),
                   ),
-                ],
+              ],
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => context.push(
+                  '/empresa/proveedores/${proveedor.id}/estado-cuenta',
+                  extra: {'nombre': proveedor.nombre},
+                ),
+                icon: const Icon(Icons.account_balance_wallet_outlined, size: 16),
+                label: const Text('Estado de cuenta (compras y ventas)'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.blue1,
+                  side: BorderSide(color: AppColors.blueborder),
+                ),
               ),
             ),
-            const SizedBox(width: 8),
-            if (!esCliente)
-              ElevatedButton(
-                onPressed: () => _registrarComoCliente(context),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.blue1,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                ),
-                child: const Text('Registrar', style: TextStyle(fontSize: 12)),
-              ),
           ],
         ),
       ),
