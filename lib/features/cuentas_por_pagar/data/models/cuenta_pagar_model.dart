@@ -186,20 +186,31 @@ class DeudaProveedorModel {
 class ResumenCuentasPagarModel {
   final double totalPendiente;
   final double totalVencido;
+  final Map<String, double> pendientePorMoneda;
+  final Map<String, double> vencidoPorMoneda;
   final int cantidadPendientes;
   final int cantidadVencidas;
 
   const ResumenCuentasPagarModel({
     required this.totalPendiente,
     required this.totalVencido,
+    required this.pendientePorMoneda,
+    required this.vencidoPorMoneda,
     required this.cantidadPendientes,
     required this.cantidadVencidas,
   });
+
+  static Map<String, double> _toMonedaMap(dynamic raw) {
+    if (raw is! Map) return {};
+    return raw.map((k, v) => MapEntry(k.toString(), CuentaPagarModel._toDouble(v)));
+  }
 
   factory ResumenCuentasPagarModel.fromJson(Map<String, dynamic> json) {
     return ResumenCuentasPagarModel(
       totalPendiente: CuentaPagarModel._toDouble(json['totalPendiente']),
       totalVencido: CuentaPagarModel._toDouble(json['totalVencido']),
+      pendientePorMoneda: _toMonedaMap(json['pendientePorMoneda']),
+      vencidoPorMoneda: _toMonedaMap(json['vencidoPorMoneda']),
       cantidadPendientes: json['cantidadPendientes'] as int? ?? 0,
       cantidadVencidas: json['cantidadVencidas'] as int? ?? 0,
     );
@@ -209,6 +220,8 @@ class ResumenCuentasPagarModel {
     return ResumenCuentasPagar(
       totalPendiente: totalPendiente,
       totalVencido: totalVencido,
+      pendientePorMoneda: pendientePorMoneda,
+      vencidoPorMoneda: vencidoPorMoneda,
       cantidadPendientes: cantidadPendientes,
       cantidadVencidas: cantidadVencidas,
     );

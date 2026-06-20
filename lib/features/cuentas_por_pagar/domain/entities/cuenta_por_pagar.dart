@@ -284,15 +284,51 @@ class ResumenCuentasPagar extends Equatable {
   final int cantidadPendientes;
   final int cantidadVencidas;
 
+  /// Pendiente/vencido separado por moneda (ej {PEN: 200.0, USD: 15.0}). No se
+  /// suman monedas distintas en un total único.
+  final Map<String, double> pendientePorMoneda;
+  final Map<String, double> vencidoPorMoneda;
+
   const ResumenCuentasPagar({
     required this.totalPendiente,
     required this.totalVencido,
     required this.cantidadPendientes,
     required this.cantidadVencidas,
+    this.pendientePorMoneda = const {},
+    this.vencidoPorMoneda = const {},
   });
 
   double get totalPorPagar => totalPendiente + totalVencido;
 
+  /// Pendiente formateado por moneda, ej "S/ 200.00" o "S/ 200.00 · $ 15.00".
+  String get pendienteFormateado {
+    if (pendientePorMoneda.isEmpty) return 'S/ ${totalPendiente.toStringAsFixed(2)}';
+    final e = pendientePorMoneda.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+    return e.map((x) => '${simboloMoneda(x.key)} ${x.value.toStringAsFixed(2)}').join('  ·  ');
+  }
+
+  String get vencidoFormateado {
+    if (vencidoPorMoneda.isEmpty) return 'S/ ${totalVencido.toStringAsFixed(2)}';
+    final e = vencidoPorMoneda.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+    return e.map((x) => '${simboloMoneda(x.key)} ${x.value.toStringAsFixed(2)}').join('  ·  ');
+  }
+
+  bool get pendienteVariasMonedas => pendientePorMoneda.length > 1;
+
+  /// Total a pagar (pendiente + vencido) combinado por moneda → formateado.
+  String get totalPorPagarFormateado {
+    final combinado = <String, double>{};
+    for (final e in pendientePorMoneda.entries) {
+      combinado[e.key] = (combinado[e.key] ?? 0) + e.value;
+    }
+    for (final e in vencidoPorMoneda.entries) {
+      combinado[e.key] = (combinado[e.key] ?? 0) + e.value;
+    }
+    if (combinado.isEmpty) return 'S/ ${totalPorPagar.toStringAsFixed(2)}';
+    final entradas = combinado.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+    return entradas.map((x) => '${simboloMoneda(x.key)} ${x.value.toStringAsFixed(2)}').join('  ·  ');
+  }
+
   @override
-  List<Object?> get props => [totalPendiente, totalVencido, cantidadPendientes, cantidadVencidas];
+  List<Object?> get props => [totalPendiente, totalVencido, cantidadPendientes, cantidadVencidas, pendientePorMoneda, vencidoPorMoneda];
 }

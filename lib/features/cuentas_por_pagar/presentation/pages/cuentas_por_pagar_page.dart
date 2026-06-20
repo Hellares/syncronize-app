@@ -216,7 +216,7 @@ class _CuentasPagarViewState extends State<_CuentasPagarView> {
                 Expanded(
                   child: _ResumenItem(
                     label: 'Pendiente',
-                    monto: resumen.totalPendiente,
+                    montoTexto: resumen.pendienteFormateado,
                     cantidad: resumen.cantidadPendientes,
                     color: Colors.orange,
                   ),
@@ -225,7 +225,7 @@ class _CuentasPagarViewState extends State<_CuentasPagarView> {
                 Expanded(
                   child: _ResumenItem(
                     label: 'Vencido',
-                    monto: resumen.totalVencido,
+                    montoTexto: resumen.vencidoFormateado,
                     cantidad: resumen.cantidadVencidas,
                     color: Colors.red,
                   ),
@@ -238,7 +238,7 @@ class _CuentasPagarViewState extends State<_CuentasPagarView> {
               children: [
                 const AppSubtitle('Total por pagar', fontSize: 13),
                 AppSubtitle(
-                  'S/ ${resumen.totalPorPagar.toStringAsFixed(2)}',
+                  resumen.totalPorPagarFormateado,
                   fontSize: 16,
                   color: Colors.red,
                 ),
@@ -286,11 +286,11 @@ class _CuentasPagarViewState extends State<_CuentasPagarView> {
 
 class _ResumenItem extends StatelessWidget {
   final String label;
-  final double monto;
+  final String montoTexto;
   final int cantidad;
   final Color color;
 
-  const _ResumenItem({required this.label, required this.monto, required this.cantidad, required this.color});
+  const _ResumenItem({required this.label, required this.montoTexto, required this.cantidad, required this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -305,7 +305,7 @@ class _ResumenItem extends StatelessWidget {
         children: [
           Text(label, style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600)),
           const SizedBox(height: 4),
-          Text('S/ ${monto.toStringAsFixed(2)}', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color)),
+          Text(montoTexto, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color), softWrap: true, maxLines: 2, overflow: TextOverflow.ellipsis),
           Text('$cantidad cuenta${cantidad != 1 ? 's' : ''}', style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
         ],
       ),
