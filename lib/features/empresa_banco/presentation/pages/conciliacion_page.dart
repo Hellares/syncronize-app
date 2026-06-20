@@ -76,8 +76,8 @@ class _ConciliacionPageState extends State<ConciliacionPage> {
       final res = await locator<DioClient>().get(
         '/empresa-banco/${widget.cuentaId}/estado-cuenta',
         queryParameters: {
-          'fechaDesde': desde.toIso8601String().split('T').first,
-          'fechaHasta': now.toIso8601String().split('T').first,
+          'fechaDesde': DateFormatter.toUtcIso(DateFormatter.startOfDay(desde)),
+          'fechaHasta': DateFormatter.toUtcIso(DateFormatter.endOfDay(now)),
         },
       );
       if (!mounted) return;
