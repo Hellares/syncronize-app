@@ -152,8 +152,14 @@ class TesoreriaGroupCard extends StatelessWidget {
     final fechaCierre = depositos.first.fechaMovimiento;
     final fechaStr = DateFormatter.formatDateTime(fechaCierre);
 
-    // Si hay múltiples métodos, mostramos chips inline después de la info.
-    final multiMetodo = depositos.length > 1;
+    // Desglose completo del barrido (efectivo + digital→banco), informativo.
+    // Lo adjunta el backend en la metadata del INGRESO de tesorería.
+    final resumen = _barridoResumen(depositos.first);
+    final hayDigitalABanco = resumen.any((r) => r.aBanco);
+
+    // Si hay múltiples métodos (en el resumen o en los depósitos), mostramos
+    // chips inline después de la info.
+    final multiMetodo = depositos.length > 1 || resumen.length > 1;
 
     final cajeroEsCerro =
         cajero != null && cierra != null && _sameName(cajero, cierra);
@@ -187,18 +193,24 @@ class TesoreriaGroupCard extends StatelessWidget {
                 else ...[
                     AppLabelText(fechaStr, color: AppColors.black54),
                   const SizedBox(height: 4),
-                  Wrap(
-                    spacing: 4,
-                    runSpacing: 4,
-                    children: depositos
-                        .map((m) => _MetodoChip(
-                              metodo: m.metodoPago,
-                              monto: m.monto,
-                              signo: '+',
-                              color: AppColors.greendark,
-                            ))
-                        .toList(),
-                  ),
+                  resumen.isNotEmpty
+                      ? _chipsResumen(resumen)
+                      : Wrap(
+                          spacing: 4,
+                          runSpacing: 4,
+                          children: depositos
+                              .map((m) => _MetodoChip(
+                                    metodo: m.metodoPago,
+                                    monto: m.monto,
+                                    signo: '+',
+                                    color: AppColors.greendark,
+                                  ))
+                              .toList(),
+                        ),
+                  if (hayDigitalABanco) ...[
+                    const SizedBox(height: 3),
+                    AppLabelText('Efectivo → bóveda · digital → bancos', color: AppColors.black54),
+                  ],
                 ],
               ],
             ),
@@ -241,6 +253,29 @@ class TesoreriaGroupCard extends StatelessWidget {
 
   bool _sameName(String a, String b) =>
       a.trim().toLowerCase() == b.trim().toLowerCase();
+
+  /// Desglose completo del barrido del cierre, adjuntado por el backend en la
+  /// metadata del INGRESO de tesorería (incluye el digital que fue a bancos).
+  List<_BarridoItem> _barridoResumen(MovimientoCaja dep) {
+    final raw = dep.metadata?['barridoResumen'];
+    if (raw is! List) return const [];
+    return raw.map((e) {
+      final m = e as Map;
+      return _BarridoItem(
+        (m['metodoPago'] ?? '').toString(),
+        (m['monto'] as num?)?.toDouble() ?? 0,
+        m['aBanco'] == true,
+      );
+    }).toList();
+  }
+
+  Widget _chipsResumen(List<_BarridoItem> items) {
+    return Wrap(
+      spacing: 4,
+      runSpacing: 4,
+      children: items.map((i) => _BarridoChip(item: i)).toList(),
+    );
+  }
 
   Widget _singleTile(MovimientoCaja mov) {
     final tile = ListTile(
@@ -430,20 +465,38 @@ class TesoreriaGroupCard extends StatelessWidget {
                 ],
               ),
             ),
-            // Desglose por método (chips inline)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-              child: Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: group.items.map((m) => _MetodoChip(
-                  metodo: m.metodoPago,
-                  monto: m.monto,
-                  signo: _signo,
-                  color: _color,
-                )).toList(),
-              ),
-            ),
+            // Desglose por método (chips inline). Si el barrido adjuntó el
+            // resumen completo (efectivo + digital→banco), lo usamos.
+            Builder(builder: (_) {
+              final resumen = _barridoResumen(group.items.first);
+              final hayDigital = resumen.any((r) => r.aBanco);
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    resumen.isNotEmpty
+                        ? _chipsResumen(resumen)
+                        : Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: group.items
+                                .map((m) => _MetodoChip(
+                                      metodo: m.metodoPago,
+                                      monto: m.monto,
+                                      signo: _signo,
+                                      color: _color,
+                                    ))
+                                .toList(),
+                          ),
+                    if (hayDigital) ...[
+                      const SizedBox(height: 4),
+                      AppLabelText('Efectivo → bóveda · digital → bancos', color: AppColors.textSecondary),
+                    ],
+                  ],
+                ),
+              );
+            }),
             // Banner informativo si la caja origen tuvo anulaciones
             // posteriores (reversos vinculados desde tesorería).
             if (group.tieneReversosVinculados)
@@ -555,6 +608,54 @@ class _ReversosAfectanBanner extends StatelessWidget {
               color: AppColors.orange,
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BarridoItem {
+  final String metodo; // 'EFECTIVO' | 'YAPE' | ...
+  final double monto;
+  final bool aBanco; // fue a una cuenta bancaria (no a la bóveda)
+  const _BarridoItem(this.metodo, this.monto, this.aBanco);
+
+  MetodoPago get metodoEnum => MetodoPago.values.firstWhere(
+        (e) => e.name.toUpperCase() == metodo.toUpperCase(),
+        orElse: () => MetodoPago.efectivo,
+      );
+}
+
+/// Chip informativo de un método del barrido. Los que fueron a un banco llevan
+/// un ícono de banco para dejar claro que no entraron a la bóveda.
+class _BarridoChip extends StatelessWidget {
+  final _BarridoItem item;
+  const _BarridoChip({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = item.aBanco ? AppColors.blue1 : AppColors.greendark;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: color.withValues(alpha: 0.30), width: 0.5),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(item.metodoEnum.icon, size: 12, color: color),
+          const SizedBox(width: 4),
+          Text(item.metodoEnum.label,
+              style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w500)),
+          const SizedBox(width: 6),
+          Text('+ S/${item.monto.toStringAsFixed(2)}',
+              style: TextStyle(fontSize: 9, color: color, fontWeight: FontWeight.w700)),
+          if (item.aBanco) ...[
+            const SizedBox(width: 4),
+            Icon(Icons.account_balance_rounded, size: 10, color: color.withValues(alpha: 0.8)),
+          ],
         ],
       ),
     );
