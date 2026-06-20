@@ -758,6 +758,19 @@ class _CarritoView extends StatelessWidget {
                   textColor: Colors.white,
                   onPressed: () {
                     final monto = double.tryParse(montoCtrl.text) ?? 0;
+                    // Aviso: el descuento no puede superar el precio de la línea
+                    // (si no, quedaría negativa y SUNAT rechaza la boleta).
+                    if (monto > bruto + 0.001) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          backgroundColor: Colors.orange.shade800,
+                          content: Text(
+                            'El descuento (S/ ${monto.toStringAsFixed(2)}) supera el '
+                            'precio (S/ ${bruto.toStringAsFixed(2)}). Se aplicó el máximo.',
+                          ),
+                        ),
+                      );
+                    }
                     onAplicar(monto.clamp(0, bruto));
                     Navigator.pop(ctx);
                   },
