@@ -102,46 +102,66 @@ class _CuentaPagarDetallePageState extends State<CuentaPagarDetallePage> {
     }
     if (picked == null || !mounted) return;
 
-    _mostrarCargando('Subiendo comprobante...');
+    final esReemplazo = pago.tieneComprobante;
+    _mostrarCargando(esReemplazo ? 'Cambiando comprobante...' : 'Subiendo comprobante...');
     final res = await locator<AdjuntarComprobantePagoUseCase>().call(pago.id, picked.path);
     if (!mounted) return;
     Navigator.of(context, rootNavigator: true).pop(); // cierra el loading
     if (res is Success<String>) {
       await _refrescar();
-      if (mounted) _snack('Comprobante adjuntado', ok: true);
+      if (mounted) _snack(esReemplazo ? 'Comprobante actualizado' : 'Comprobante adjuntado', ok: true);
     } else if (res is Error<String>) {
       _snack(res.message);
     }
   }
 
-  void _verComprobante(String url) {
+  void _verComprobante(PagoRealizado pago) {
     showDialog(
       context: context,
-      builder: (_) => Dialog(
+      builder: (dialogCtx) => Dialog(
         backgroundColor: Colors.transparent,
         insetPadding: const EdgeInsets.all(12),
-        child: Stack(
-          alignment: Alignment.topRight,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: InteractiveViewer(
-                child: Image.network(
-                  url,
-                  fit: BoxFit.contain,
-                  loadingBuilder: (c, child, p) =>
-                      p == null ? child : const SizedBox(height: 200, child: Center(child: CircularProgressIndicator())),
-                  errorBuilder: (c, e, s) => Container(
-                    height: 160,
-                    color: Colors.white,
-                    child: const Center(child: Text('No se pudo cargar el comprobante')),
+            Stack(
+              alignment: Alignment.topRight,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: InteractiveViewer(
+                    child: Image.network(
+                      pago.comprobanteUrl!,
+                      fit: BoxFit.contain,
+                      loadingBuilder: (c, child, p) =>
+                          p == null ? child : const SizedBox(height: 200, child: Center(child: CircularProgressIndicator())),
+                      errorBuilder: (c, e, s) => Container(
+                        height: 160,
+                        color: Colors.white,
+                        child: const Center(child: Text('No se pudo cargar el comprobante')),
+                      ),
+                    ),
                   ),
                 ),
-              ),
+                IconButton(
+                  icon: const CircleAvatar(backgroundColor: Colors.black54, child: Icon(Icons.close, color: Colors.white, size: 20)),
+                  onPressed: () => Navigator.of(dialogCtx).pop(),
+                ),
+              ],
             ),
-            IconButton(
-              icon: const CircleAvatar(backgroundColor: Colors.black54, child: Icon(Icons.close, color: Colors.white, size: 20)),
-              onPressed: () => Navigator.of(context).pop(),
+            const SizedBox(height: 12),
+            // Reemplazar el comprobante (subir uno por error y corregirlo).
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: AppColors.blue1,
+              ),
+              icon: const Icon(Icons.swap_horiz, size: 18),
+              label: const Text('Cambiar imagen'),
+              onPressed: () {
+                Navigator.of(dialogCtx).pop();
+                _adjuntarComprobante(pago);
+              },
             ),
           ],
         ),
@@ -243,7 +263,7 @@ class _DetalleView extends StatelessWidget {
   final Future<void> Function() onRefresh;
   final Future<void> Function(CuentaPagarDetalle) onPagar;
   final void Function(PagoRealizado) onAdjuntarComprobante;
-  final void Function(String url) onVerComprobante;
+  final void Function(PagoRealizado) onVerComprobante;
 
   const _DetalleView({
     required this.detalle,
@@ -524,7 +544,7 @@ class _DetalleView extends StatelessWidget {
   Widget _buildComprobanteIcon(PagoRealizado pago) {
     if (pago.tieneComprobante) {
       return InkWell(
-        onTap: () => onVerComprobante(pago.comprobanteUrl!),
+        onTap: () => onVerComprobante(pago),
         borderRadius: BorderRadius.circular(6),
         child: Padding(
           padding: const EdgeInsets.all(4),
