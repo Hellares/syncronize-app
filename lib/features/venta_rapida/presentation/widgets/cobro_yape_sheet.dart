@@ -26,7 +26,11 @@ import '../bloc/venta_rapida_cubit.dart';
 class CobroYapeSheet extends StatefulWidget {
   final String ventaId;
   final double montoTotal; // porción Yape/Plin a cobrar
-  final String metodoInicial; // YAPE | PLIN
+  final String metodoInicial; // YAPE | PLIN (fallback si no hay tramos)
+  // Tramos por método tal como los dividió el cajero, ej. [{YAPE,50},{PLIN,100}].
+  // La hoja los cobra EN ORDEN (Yape primero, luego Plin), cada uno con su QR y
+  // registrado con su método. Si va vacío → todo con metodoInicial (compat).
+  final List<Map<String, dynamic>> tramos;
   final double maxPorTransaccion; // tamaño máx de cada chunk QR
   final VentaRapidaCubit cubit;
   final RealtimeSyncService realtime;
@@ -36,6 +40,7 @@ class CobroYapeSheet extends StatefulWidget {
     required this.ventaId,
     required this.montoTotal,
     required this.metodoInicial,
+    this.tramos = const [],
     required this.maxPorTransaccion,
     required this.cubit,
     required this.realtime,
@@ -46,6 +51,7 @@ class CobroYapeSheet extends StatefulWidget {
     required String ventaId,
     required double montoTotal,
     required String metodoInicial,
+    List<Map<String, dynamic>> tramos = const [],
     required double maxPorTransaccion,
     required VentaRapidaCubit cubit,
     required RealtimeSyncService realtime,
@@ -60,6 +66,7 @@ class CobroYapeSheet extends StatefulWidget {
         ventaId: ventaId,
         montoTotal: montoTotal,
         metodoInicial: metodoInicial,
+        tramos: tramos,
         maxPorTransaccion: maxPorTransaccion,
         cubit: cubit,
         realtime: realtime,
@@ -89,20 +96,48 @@ class _CobroYapeSheetState extends State<CobroYapeSheet> {
 
   double get _pendiente => _r2(widget.montoTotal - _acumulado);
   double _r2(double v) => (v * 100).round() / 100;
-  double _chunkDefault() =>
-      _pendiente > widget.maxPorTransaccion ? widget.maxPorTransaccion : _pendiente;
+
+  /// Método del tramo que cubre el acumulado actual (Yape primero, luego Plin…).
+  String _metodoEnAcumulado(double acum) {
+    var start = 0.0;
+    for (final t in widget.tramos) {
+      final end = start + (t['monto'] as num).toDouble();
+      if (acum < end - 0.001) return t['metodo'] as String;
+      start = end;
+    }
+    return widget.tramos.isEmpty
+        ? widget.metodoInicial
+        : widget.tramos.last['metodo'] as String;
+  }
+
+  /// Cuánto falta para cerrar el tramo actual (no se mezcla con el siguiente
+  /// método). Sin tramos = todo el pendiente.
+  double _restanteEnTramo(double acum) {
+    var start = 0.0;
+    for (final t in widget.tramos) {
+      final end = start + (t['monto'] as num).toDouble();
+      if (acum < end - 0.001) return _r2(end - acum);
+      start = end;
+    }
+    return _pendiente;
+  }
+
+  double _chunkDefault() {
+    final lim = _restanteEnTramo(_acumulado); // <= pendiente
+    return lim > widget.maxPorTransaccion ? widget.maxPorTransaccion : lim;
+  }
 
   @override
   void initState() {
     super.initState();
-    _chunkMetodo = widget.metodoInicial;
+    _chunkMetodo = _metodoEnAcumulado(0);
     // El FCM VENTA_PAGADA llega solo al COMPLETAR el total → cierra la hoja.
     _sub = widget.realtime.events.listen((e) {
       if (e is RealtimeVentaPagada && e.ventaId == widget.ventaId) {
         _cerrarPagada();
       }
     });
-    _prepararChunk(monto: _chunkDefault());
+    _prepararChunk(metodo: _chunkMetodo, monto: _chunkDefault());
   }
 
   @override
@@ -170,7 +205,9 @@ class _CobroYapeSheetState extends State<CobroYapeSheet> {
     if (_acumulado >= widget.montoTotal - 0.001) {
       _cerrarPagada();
     } else {
-      _prepararChunk(monto: _chunkDefault());
+      // El siguiente chunk toma el método del tramo que corresponda al avance
+      // (ej. cubierto el Yape, pasa a Plin).
+      _prepararChunk(metodo: _metodoEnAcumulado(_acumulado), monto: _chunkDefault());
     }
   }
 
@@ -465,8 +502,11 @@ class _CobroYapeSheetState extends State<CobroYapeSheet> {
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
-                // Progreso de saldo (solo si se cobra en partes).
-                if (_acumulado > 0 || widget.montoTotal > widget.maxPorTransaccion) ...[
+                // Progreso de saldo (si se cobra en partes: varios métodos o
+                // chunks por límite por transacción).
+                if (_acumulado > 0 ||
+                    widget.tramos.length > 1 ||
+                    widget.montoTotal > widget.maxPorTransaccion) ...[
                   AppSubtitle(
                     'Cobrado S/ ${_acumulado.toStringAsFixed(2)} de ${widget.montoTotal.toStringAsFixed(2)}  ·  falta S/ ${_pendiente.toStringAsFixed(2)}',
                     fontSize: 11,

@@ -485,9 +485,19 @@ class _CobroViewState extends State<_CobroView> {
         .where((p) => p['metodo'] == 'YAPE' || p['metodo'] == 'PLIN')
         .toList();
     if (pagosYape.isEmpty) return;
-    final montoYapePlin = pagosYape.fold<double>(
-        0, (s, p) => s + (p['monto'] as num).toDouble());
-    final metodoPrincipal = pagosYape.first['metodo'] as String;
+    // Un tramo por MÉTODO (Yape vs Plin) en orden de aparición, así la hoja
+    // muestra el QR de cada uno con su monto y lo registra con su método (antes
+    // se fusionaba todo en un solo cargo Yape → se perdía el Plin).
+    final porMetodo = <String, double>{};
+    for (final p in pagosYape) {
+      final m = p['metodo'] as String;
+      porMetodo[m] = (porMetodo[m] ?? 0) + (p['monto'] as num).toDouble();
+    }
+    final tramos = porMetodo.entries
+        .map((e) => {'metodo': e.key, 'monto': (e.value * 100).round() / 100})
+        .toList();
+    final montoYapePlin = tramos.fold<double>(0, (s, t) => s + (t['monto'] as double));
+    final metodoPrincipal = tramos.first['metodo'] as String;
 
     final res = await cubit.iniciarCobroYape(
       metodoYape: metodoPrincipal,
@@ -502,6 +512,7 @@ class _CobroViewState extends State<_CobroView> {
       ventaId: ventaId,
       montoTotal: (montoYapePlin * 100).round() / 100,
       metodoInicial: metodoPrincipal,
+      tramos: tramos,
       maxPorTransaccion: maxTx,
       cubit: cubit,
       realtime: cubit.realtimeSync,
