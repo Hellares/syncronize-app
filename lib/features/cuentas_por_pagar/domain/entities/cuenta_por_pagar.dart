@@ -104,6 +104,7 @@ class PagoRealizado extends Equatable {
   final String? bancoDestino;
   final String? cuentaDestino;
   final String? comprobanteUrl;
+  final String? fuente; // TESORERIA | CAJA | BANCO
   final DateTime? fechaPago;
 
   const PagoRealizado({
@@ -114,8 +115,23 @@ class PagoRealizado extends Equatable {
     this.bancoDestino,
     this.cuentaDestino,
     this.comprobanteUrl,
+    this.fuente,
     this.fechaPago,
   });
+
+  /// Etiqueta legible de la fuente del dinero.
+  String? get fuenteLabel {
+    switch (fuente) {
+      case 'TESORERIA':
+        return 'Tesorería';
+      case 'CAJA':
+        return 'Caja';
+      case 'BANCO':
+        return 'Banco';
+      default:
+        return null;
+    }
+  }
 
   /// Métodos digitales que tienen voucher (habilitan adjuntar comprobante).
   bool get esDigital =>

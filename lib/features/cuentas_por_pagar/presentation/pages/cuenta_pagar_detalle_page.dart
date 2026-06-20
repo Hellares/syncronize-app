@@ -339,7 +339,7 @@ class _DetalleView extends StatelessWidget {
           children: [
             Row(
               children: [
-                AppTitle(detalle.codigo, fontSize: 15, color: AppColors.blue1),
+                AppTitle(detalle.codigo, fontSize: 12, color: AppColors.blue1),
                 const Spacer(),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -518,6 +518,10 @@ class _DetalleView extends StatelessWidget {
                     if (pago.referencia != null && pago.referencia!.isNotEmpty) ...[
                       const SizedBox(width: 6),
                       Text('· Op. ${pago.referencia}', style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
+                    ],
+                    if (pago.fuenteLabel != null) ...[
+                      const SizedBox(width: 6),
+                      Text('· ${pago.fuenteLabel}', style: TextStyle(fontSize: 10, color: AppColors.blue1, fontWeight: FontWeight.w500)),
                     ],
                   ],
                 ),

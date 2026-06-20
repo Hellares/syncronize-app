@@ -154,6 +154,7 @@ class CuentaPagarDetalleModel {
                 bancoDestino: e['bancoDestino'] as String?,
                 cuentaDestino: e['cuentaDestino'] as String?,
                 comprobanteUrl: e['comprobanteUrl'] as String?,
+                fuente: e['fuente'] as String?,
                 fechaPago: _toDate(e['fechaPago']),
               ))
           .toList(),

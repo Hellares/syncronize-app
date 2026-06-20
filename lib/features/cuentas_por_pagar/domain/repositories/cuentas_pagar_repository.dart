@@ -20,6 +20,8 @@ abstract class CuentasPagarRepository {
     String? bancoDestino,
     String? cuentaDestino,
     String? comprobanteUrl,
+    String? fuente,
+    String? bancoId,
   });
 
   /// Sube un comprobante a S3 (sin asociar a un pago). Devuelve la URL.

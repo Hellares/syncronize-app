@@ -61,6 +61,8 @@ class CuentasPagarRemoteDataSource {
     String? bancoDestino,
     String? cuentaDestino,
     String? comprobanteUrl,
+    String? fuente,
+    String? bancoId,
   }) async {
     await _dioClient.post(
       '$_basePath/$compraId/pago',
@@ -71,6 +73,8 @@ class CuentasPagarRemoteDataSource {
         if (bancoDestino != null && bancoDestino.isNotEmpty) 'bancoDestino': bancoDestino,
         if (cuentaDestino != null && cuentaDestino.isNotEmpty) 'cuentaDestino': cuentaDestino,
         if (comprobanteUrl != null && comprobanteUrl.isNotEmpty) 'comprobanteUrl': comprobanteUrl,
+        if (fuente != null) 'fuente': fuente,
+        if (bancoId != null && bancoId.isNotEmpty) 'bancoId': bancoId,
       },
     );
   }

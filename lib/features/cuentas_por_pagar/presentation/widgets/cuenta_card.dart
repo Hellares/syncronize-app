@@ -42,19 +42,19 @@ class CuentaCard extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 8),
         borderColor: cuenta.estado == 'VENCIDA' ? Colors.red.shade300 : AppColors.blueborder,
         child: Padding(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.only(left: 10, right: 10, top: 5, bottom: 10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  AppSubtitle(cuenta.codigo, fontSize: 13, color: AppColors.blue1),
+                  AppSubtitle(cuenta.codigo, fontSize: 11, color: AppColors.blue1),
                   const SizedBox(width: 6),
                   const Icon(Icons.chevron_right, size: 16, color: Colors.grey),
                   const Spacer(),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(color: estadoColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
+                    decoration: BoxDecoration(color: estadoColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
                     child: Text(estadoLabel, style: TextStyle(fontSize: 10, color: estadoColor, fontWeight: FontWeight.w600)),
                   ),
                 ],
@@ -62,9 +62,9 @@ class CuentaCard extends StatelessWidget {
               const SizedBox(height: 6),
               Row(
                 children: [
-                  const Icon(Icons.business, size: 14, color: Colors.grey),
+                  const Icon(Icons.business, size: 12, color: Colors.grey),
                   const SizedBox(width: 4),
-                  Expanded(child: AppSubtitle(cuenta.nombreProveedor, fontSize: 12)),
+                  Expanded(child: AppSubtitle(cuenta.nombreProveedor, fontSize: 10)),
                 ],
               ),
               if (cuenta.bancoPrincipal != null) ...[
@@ -87,7 +87,7 @@ class CuentaCard extends StatelessWidget {
                 children: [
                   Text('Total: ${cuenta.simbolo} ${cuenta.totalCompra.toStringAsFixed(2)}', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
                   const Spacer(),
-                  AppSubtitle('Saldo: ${cuenta.simbolo} ${cuenta.saldoPendiente.toStringAsFixed(2)}', fontSize: 13, color: estadoColor),
+                  AppSubtitle('Saldo: ${cuenta.simbolo} ${cuenta.saldoPendiente.toStringAsFixed(2)}', fontSize: 11, color: estadoColor),
                 ],
               ),
               if (cuenta.fechaVencimiento != null) ...[
@@ -110,9 +110,12 @@ class CuentaCard extends StatelessWidget {
                   width: double.infinity,
                   child: CustomButton(
                     text: 'Registrar pago',
-                    height: 36,
-                    backgroundColor: AppColors.blue1,
-                    textColor: Colors.white,
+                    borderColor: AppColors.blue1,
+                    borderWidth: 0.5,
+                    // isOutlined: true,
+                    enableGlow: true,
+                    // backgroundColor: AppColors.white,
+                    textColor: AppColors.blue1,
                     onPressed: () => _pagar(context, cuenta),
                   ),
                 ),

@@ -79,6 +79,8 @@ class CuentasPagarRepositoryImpl implements CuentasPagarRepository {
     String? bancoDestino,
     String? cuentaDestino,
     String? comprobanteUrl,
+    String? fuente,
+    String? bancoId,
   }) async {
     if (!await _networkInfo.isConnected) {
       return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
@@ -92,6 +94,8 @@ class CuentasPagarRepositoryImpl implements CuentasPagarRepository {
         bancoDestino: bancoDestino,
         cuentaDestino: cuentaDestino,
         comprobanteUrl: comprobanteUrl,
+        fuente: fuente,
+        bancoId: bancoId,
       );
       return Success(null);
     } catch (e) {
