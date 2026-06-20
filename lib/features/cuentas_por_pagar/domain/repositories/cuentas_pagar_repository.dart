@@ -16,5 +16,12 @@ abstract class CuentasPagarRepository {
     String? referencia,
     String? bancoDestino,
     String? cuentaDestino,
+    String? comprobanteUrl,
   });
+
+  /// Sube un comprobante a S3 (sin asociar a un pago). Devuelve la URL.
+  Future<Resource<String>> subirComprobante(String filePath);
+
+  /// Adjunta un comprobante a un pago ya registrado. Devuelve la URL.
+  Future<Resource<String>> adjuntarComprobantePago(String pagoId, String filePath);
 }

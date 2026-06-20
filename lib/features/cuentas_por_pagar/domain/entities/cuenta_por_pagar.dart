@@ -69,6 +69,7 @@ class PagoRealizado extends Equatable {
   final String? referencia;
   final String? bancoDestino;
   final String? cuentaDestino;
+  final String? comprobanteUrl;
   final DateTime? fechaPago;
 
   const PagoRealizado({
@@ -78,11 +79,21 @@ class PagoRealizado extends Equatable {
     this.referencia,
     this.bancoDestino,
     this.cuentaDestino,
+    this.comprobanteUrl,
     this.fechaPago,
   });
 
+  /// Métodos digitales que tienen voucher (habilitan adjuntar comprobante).
+  bool get esDigital =>
+      metodoPago == 'YAPE' ||
+      metodoPago == 'PLIN' ||
+      metodoPago == 'TRANSFERENCIA' ||
+      metodoPago == 'TARJETA';
+
+  bool get tieneComprobante => comprobanteUrl != null && comprobanteUrl!.isNotEmpty;
+
   @override
-  List<Object?> get props => [id, metodoPago, monto, fechaPago];
+  List<Object?> get props => [id, metodoPago, monto, comprobanteUrl, fechaPago];
 }
 
 /// Detalle completo de una cuenta por pagar: cabecera + ítems + historial de pagos.

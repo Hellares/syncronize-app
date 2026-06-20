@@ -14,6 +14,7 @@ class RegistrarPagoCuentaPagarUseCase {
     String? referencia,
     String? bancoDestino,
     String? cuentaDestino,
+    String? comprobanteUrl,
   }) {
     return _repository.registrarPago(
       compraId,
@@ -22,6 +23,7 @@ class RegistrarPagoCuentaPagarUseCase {
       referencia: referencia,
       bancoDestino: bancoDestino,
       cuentaDestino: cuentaDestino,
+      comprobanteUrl: comprobanteUrl,
     );
   }
 }

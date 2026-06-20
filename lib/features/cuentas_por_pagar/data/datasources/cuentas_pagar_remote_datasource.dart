@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:dio/dio.dart';
 import 'package:injectable/injectable.dart';
 import '../../../../core/network/dio_client.dart';
 import '../models/cuenta_pagar_model.dart';
@@ -47,6 +49,7 @@ class CuentasPagarRemoteDataSource {
     String? referencia,
     String? bancoDestino,
     String? cuentaDestino,
+    String? comprobanteUrl,
   }) async {
     await _dioClient.post(
       '$_basePath/$compraId/pago',
@@ -56,7 +59,37 @@ class CuentasPagarRemoteDataSource {
         if (referencia != null && referencia.isNotEmpty) 'referencia': referencia,
         if (bancoDestino != null && bancoDestino.isNotEmpty) 'bancoDestino': bancoDestino,
         if (cuentaDestino != null && cuentaDestino.isNotEmpty) 'cuentaDestino': cuentaDestino,
+        if (comprobanteUrl != null && comprobanteUrl.isNotEmpty) 'comprobanteUrl': comprobanteUrl,
       },
     );
+  }
+
+  /// Sube un comprobante a S3 SIN asociarlo a un pago. Devuelve la URL para
+  /// mandarla en registrarPago (subir al momento de pagar).
+  Future<String> subirComprobante(String filePath) async {
+    final fileName = filePath.split(RegExp(r'[\\/]')).last;
+    final formData = FormData.fromMap({
+      'file': await MultipartFile.fromFile(File(filePath).path, filename: fileName),
+    });
+    final res = await _dioClient.post(
+      '$_basePath/comprobante',
+      data: formData,
+      options: Options(contentType: 'multipart/form-data'),
+    );
+    return (res.data as Map<String, dynamic>)['url'] as String;
+  }
+
+  /// Adjunta un comprobante a un pago YA registrado. Devuelve la URL.
+  Future<String> adjuntarComprobantePago(String pagoId, String filePath) async {
+    final fileName = filePath.split(RegExp(r'[\\/]')).last;
+    final formData = FormData.fromMap({
+      'file': await MultipartFile.fromFile(File(filePath).path, filename: fileName),
+    });
+    final res = await _dioClient.post(
+      '$_basePath/pagos/$pagoId/comprobante',
+      data: formData,
+      options: Options(contentType: 'multipart/form-data'),
+    );
+    return (res.data as Map<String, dynamic>)['url'] as String;
   }
 }

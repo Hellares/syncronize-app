@@ -54,6 +54,7 @@ class CuentasPagarCubit extends Cubit<CuentasPagarState> {
     String? referencia,
     String? bancoDestino,
     String? cuentaDestino,
+    String? comprobanteUrl,
   }) async {
     final res = await _registrarPagoUseCase(
       compraId,
@@ -62,6 +63,7 @@ class CuentasPagarCubit extends Cubit<CuentasPagarState> {
       referencia: referencia,
       bancoDestino: bancoDestino,
       cuentaDestino: cuentaDestino,
+      comprobanteUrl: comprobanteUrl,
     );
     if (res is Error<void>) return res.message;
     await loadCuentas(estado: _filtroEstado);

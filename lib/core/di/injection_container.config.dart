@@ -546,6 +546,8 @@ import '../../features/cuentas_por_pagar/data/repositories/cuentas_pagar_reposit
     as _i17;
 import '../../features/cuentas_por_pagar/domain/repositories/cuentas_pagar_repository.dart'
     as _i855;
+import '../../features/cuentas_por_pagar/domain/usecases/comprobante_pago_usecases.dart'
+    as _i212;
 import '../../features/cuentas_por_pagar/domain/usecases/get_cuentas_pagar_usecase.dart'
     as _i455;
 import '../../features/cuentas_por_pagar/domain/usecases/get_detalle_cuenta_pagar_usecase.dart'
@@ -2225,6 +2227,15 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i475.ProductoImagesCubit>(
       () => _i475.ProductoImagesCubit(gh<_i306.StorageService>()),
+    );
+    gh.factory<_i212.SubirComprobantePagoUseCase>(
+      () =>
+          _i212.SubirComprobantePagoUseCase(gh<_i855.CuentasPagarRepository>()),
+    );
+    gh.factory<_i212.AdjuntarComprobantePagoUseCase>(
+      () => _i212.AdjuntarComprobantePagoUseCase(
+        gh<_i855.CuentasPagarRepository>(),
+      ),
     );
     gh.factory<_i455.GetCuentasPagarUseCase>(
       () => _i455.GetCuentasPagarUseCase(gh<_i855.CuentasPagarRepository>()),

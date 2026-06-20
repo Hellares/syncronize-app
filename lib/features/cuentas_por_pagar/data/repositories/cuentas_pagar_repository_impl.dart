@@ -65,6 +65,7 @@ class CuentasPagarRepositoryImpl implements CuentasPagarRepository {
     String? referencia,
     String? bancoDestino,
     String? cuentaDestino,
+    String? comprobanteUrl,
   }) async {
     if (!await _networkInfo.isConnected) {
       return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
@@ -77,10 +78,37 @@ class CuentasPagarRepositoryImpl implements CuentasPagarRepository {
         referencia: referencia,
         bancoDestino: bancoDestino,
         cuentaDestino: cuentaDestino,
+        comprobanteUrl: comprobanteUrl,
       );
       return Success(null);
     } catch (e) {
       return _errorHandler.handleException(e, context: 'CuentasPagar.registrarPago');
+    }
+  }
+
+  @override
+  Future<Resource<String>> subirComprobante(String filePath) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final url = await _remoteDataSource.subirComprobante(filePath);
+      return Success(url);
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'CuentasPagar.subirComprobante');
+    }
+  }
+
+  @override
+  Future<Resource<String>> adjuntarComprobantePago(String pagoId, String filePath) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final url = await _remoteDataSource.adjuntarComprobantePago(pagoId, filePath);
+      return Success(url);
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'CuentasPagar.adjuntarComprobante');
     }
   }
 }

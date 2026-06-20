@@ -1,11 +1,17 @@
-import 'package:flutter/material.dart';
+import 'dart:io';
 
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+
+import '../../../../core/di/injection_container.dart';
 import '../../../../core/fonts/app_text_widgets.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/resource.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_dropdown.dart';
 import '../../../auth/presentation/widgets/custom_text.dart';
 import '../../domain/entities/cuenta_por_pagar.dart';
+import '../../domain/usecases/comprobante_pago_usecases.dart';
 import '../bloc/cuentas_pagar_cubit.dart';
 
 /// Hoja para registrar un pago/abono a proveedor sobre una compra (CxP).
@@ -40,6 +46,8 @@ class _PagoProveedorSheetState extends State<PagoProveedorSheet> {
   late final TextEditingController _bancoCtrl;
   late final TextEditingController _cuentaCtrl;
   bool _procesando = false;
+  File? _comprobante;
+  final _picker = ImagePicker();
 
   bool get _esBancario =>
       _metodo == 'TRANSFERENCIA' || _metodo == 'YAPE' || _metodo == 'PLIN' || _metodo == 'TARJETA';
@@ -74,6 +82,21 @@ class _PagoProveedorSheetState extends State<PagoProveedorSheet> {
     }
     monto = (monto * 100).round() / 100;
     setState(() => _procesando = true);
+
+    // Si adjuntó comprobante, súbelo primero para obtener la URL.
+    String? comprobanteUrl;
+    if (_esBancario && _comprobante != null) {
+      final res = await locator<SubirComprobantePagoUseCase>().call(_comprobante!.path);
+      if (!mounted) return;
+      if (res is Success<String>) {
+        comprobanteUrl = res.data;
+      } else {
+        setState(() => _procesando = false);
+        _snack('No se pudo subir el comprobante. Intentá de nuevo.');
+        return;
+      }
+    }
+
     final err = await widget.cubit.registrarPago(
       widget.cuenta.id,
       metodoPago: _metodo,
@@ -81,6 +104,7 @@ class _PagoProveedorSheetState extends State<PagoProveedorSheet> {
       referencia: _refCtrl.text.trim().isEmpty ? null : _refCtrl.text.trim(),
       bancoDestino: _esBancario && _bancoCtrl.text.trim().isNotEmpty ? _bancoCtrl.text.trim() : null,
       cuentaDestino: _esBancario && _cuentaCtrl.text.trim().isNotEmpty ? _cuentaCtrl.text.trim() : null,
+      comprobanteUrl: comprobanteUrl,
     );
     if (!mounted) return;
     if (err == null) {
@@ -91,8 +115,92 @@ class _PagoProveedorSheetState extends State<PagoProveedorSheet> {
     }
   }
 
+  Future<void> _pickComprobante() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            ListTile(
+              leading: const Icon(Icons.camera_alt, color: AppColors.blue1),
+              title: const Text('Cámara'),
+              onTap: () => Navigator.of(ctx).pop(ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library, color: AppColors.blue1),
+              title: const Text('Galería'),
+              onTap: () => Navigator.of(ctx).pop(ImageSource.gallery),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (source == null) return;
+    try {
+      final picked = await _picker.pickImage(
+        source: source,
+        maxWidth: 1920,
+        maxHeight: 1920,
+        imageQuality: 80,
+      );
+      if (picked != null) setState(() => _comprobante = File(picked.path));
+    } catch (e) {
+      if (mounted) _snack('No se pudo seleccionar la imagen');
+    }
+  }
+
   void _snack(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  Widget _buildComprobantePicker() {
+    if (_comprobante == null) {
+      return GestureDetector(
+        onTap: _procesando ? null : _pickComprobante,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          decoration: BoxDecoration(
+            color: AppColors.blue1.withValues(alpha: 0.04),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: AppColors.blueborder),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.attach_file, size: 18, color: AppColors.blue1.withValues(alpha: 0.7)),
+              const SizedBox(width: 8),
+              AppSubtitle('Adjuntar comprobante (opcional)', fontSize: 12, color: AppColors.blue1),
+            ],
+          ),
+        ),
+      );
+    }
+    return Row(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.file(_comprobante!, width: 54, height: 54, fit: BoxFit.cover),
+        ),
+        const SizedBox(width: 10),
+        const Expanded(
+          child: AppSubtitle('Comprobante adjuntado', fontSize: 12, color: AppColors.blueGrey),
+        ),
+        IconButton(
+          icon: const Icon(Icons.edit, size: 18, color: AppColors.blue1),
+          onPressed: _procesando ? null : _pickComprobante,
+        ),
+        IconButton(
+          icon: Icon(Icons.close, size: 18, color: Colors.red.shade400),
+          onPressed: _procesando ? null : () => setState(() => _comprobante = null),
+        ),
+      ],
+    );
   }
 
   @override
@@ -176,6 +284,8 @@ class _PagoProveedorSheetState extends State<PagoProveedorSheet> {
                     controller: _cuentaCtrl,
                     borderColor: AppColors.blueborder,
                   ),
+                  const SizedBox(height: 12),
+                  _buildComprobantePicker(),
                 ],
                 const SizedBox(height: 18),
                 Row(

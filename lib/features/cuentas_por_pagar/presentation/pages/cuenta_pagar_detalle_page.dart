@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/fonts/app_text_widgets.dart';
@@ -10,6 +11,7 @@ import '../../../../core/utils/resource.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../domain/entities/cuenta_por_pagar.dart';
+import '../../domain/usecases/comprobante_pago_usecases.dart';
 import '../../domain/usecases/get_detalle_cuenta_pagar_usecase.dart';
 import '../bloc/cuentas_pagar_cubit.dart';
 import '../widgets/pago_proveedor_sheet.dart';
@@ -65,6 +67,116 @@ class _CuentaPagarDetallePageState extends State<CuentaPagarDetallePage> {
     }
   }
 
+  Future<void> _adjuntarComprobante(PagoRealizado pago) async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            ListTile(
+              leading: const Icon(Icons.camera_alt, color: AppColors.blue1),
+              title: const Text('Cámara'),
+              onTap: () => Navigator.of(ctx).pop(ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library, color: AppColors.blue1),
+              title: const Text('Galería'),
+              onTap: () => Navigator.of(ctx).pop(ImageSource.gallery),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (source == null) return;
+
+    XFile? picked;
+    try {
+      picked = await ImagePicker().pickImage(source: source, maxWidth: 1920, maxHeight: 1920, imageQuality: 80);
+    } catch (_) {
+      if (mounted) _snack('No se pudo seleccionar la imagen');
+      return;
+    }
+    if (picked == null || !mounted) return;
+
+    _mostrarCargando('Subiendo comprobante...');
+    final res = await locator<AdjuntarComprobantePagoUseCase>().call(pago.id, picked.path);
+    if (!mounted) return;
+    Navigator.of(context, rootNavigator: true).pop(); // cierra el loading
+    if (res is Success<String>) {
+      await _refrescar();
+      if (mounted) _snack('Comprobante adjuntado', ok: true);
+    } else if (res is Error<String>) {
+      _snack(res.message);
+    }
+  }
+
+  void _verComprobante(String url) {
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(12),
+        child: Stack(
+          alignment: Alignment.topRight,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: InteractiveViewer(
+                child: Image.network(
+                  url,
+                  fit: BoxFit.contain,
+                  loadingBuilder: (c, child, p) =>
+                      p == null ? child : const SizedBox(height: 200, child: Center(child: CircularProgressIndicator())),
+                  errorBuilder: (c, e, s) => Container(
+                    height: 160,
+                    color: Colors.white,
+                    child: const Center(child: Text('No se pudo cargar el comprobante')),
+                  ),
+                ),
+              ),
+            ),
+            IconButton(
+              icon: const CircleAvatar(backgroundColor: Colors.black54, child: Icon(Icons.close, color: Colors.white, size: 20)),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _mostrarCargando(String msg) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => Center(
+        child: Card(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5)),
+                const SizedBox(width: 14),
+                Text(msg),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _snack(String msg, {bool ok = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), backgroundColor: ok ? Colors.green : null),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -89,6 +201,8 @@ class _CuentaPagarDetallePageState extends State<CuentaPagarDetallePage> {
                 detalle: res.data,
                 onRefresh: _refrescar,
                 onPagar: _pagar,
+                onAdjuntarComprobante: _adjuntarComprobante,
+                onVerComprobante: _verComprobante,
               );
             }
             return const SizedBox.shrink();
@@ -128,8 +242,16 @@ class _DetalleView extends StatelessWidget {
   final CuentaPagarDetalle detalle;
   final Future<void> Function() onRefresh;
   final Future<void> Function(CuentaPagarDetalle) onPagar;
+  final void Function(PagoRealizado) onAdjuntarComprobante;
+  final void Function(String url) onVerComprobante;
 
-  const _DetalleView({required this.detalle, required this.onRefresh, required this.onPagar});
+  const _DetalleView({
+    required this.detalle,
+    required this.onRefresh,
+    required this.onPagar,
+    required this.onAdjuntarComprobante,
+    required this.onVerComprobante,
+  });
 
   Color get _estadoColor {
     switch (detalle.estado) {
@@ -389,10 +511,38 @@ class _DetalleView extends StatelessWidget {
               ],
             ),
           ),
+          _buildComprobanteIcon(pago),
+          const SizedBox(width: 4),
           Text('S/ ${pago.monto.toStringAsFixed(2)}', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.green.shade700)),
         ],
       ),
     );
+  }
+
+  /// Ícono pequeño: ver el comprobante si existe, o adjuntarlo (solo métodos
+  /// digitales: Yape/Plin/Transferencia/Tarjeta).
+  Widget _buildComprobanteIcon(PagoRealizado pago) {
+    if (pago.tieneComprobante) {
+      return InkWell(
+        onTap: () => onVerComprobante(pago.comprobanteUrl!),
+        borderRadius: BorderRadius.circular(6),
+        child: Padding(
+          padding: const EdgeInsets.all(4),
+          child: Icon(Icons.receipt_long, size: 18, color: Colors.green.shade600),
+        ),
+      );
+    }
+    if (pago.esDigital) {
+      return InkWell(
+        onTap: () => onAdjuntarComprobante(pago),
+        borderRadius: BorderRadius.circular(6),
+        child: Padding(
+          padding: const EdgeInsets.all(4),
+          child: Icon(Icons.add_a_photo_outlined, size: 17, color: Colors.grey.shade500),
+        ),
+      );
+    }
+    return const SizedBox.shrink();
   }
 
   String _metodoLabel(String m) {
