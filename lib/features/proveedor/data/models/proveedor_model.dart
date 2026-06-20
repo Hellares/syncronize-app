@@ -37,6 +37,8 @@ class ProveedorModel extends Proveedor {
     super.contactos,
     super.bancos,
     super.totalProductosPreferenciales,
+    super.clienteEmpresaId,
+    super.clienteEmpresaCodigo,
     required super.creadoPor,
     super.actualizadoPor,
     required super.creadoEn,
@@ -96,6 +98,12 @@ class ProveedorModel extends Proveedor {
           : null,
       totalProductosPreferenciales: json['_count'] != null
           ? (json['_count'] as Map<String, dynamic>)['productosPreferenciales'] as int?
+          : null,
+      clienteEmpresaId: json['clienteEmpresa'] != null
+          ? (json['clienteEmpresa'] as Map<String, dynamic>)['id'] as String?
+          : null,
+      clienteEmpresaCodigo: json['clienteEmpresa'] != null
+          ? (json['clienteEmpresa'] as Map<String, dynamic>)['codigo'] as String?
           : null,
       creadoPor: json['creadoPor'] as String,
       actualizadoPor: json['actualizadoPor'] as String?,

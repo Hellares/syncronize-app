@@ -5,7 +5,9 @@ import '../../../../core/fonts/app_text_widgets.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/theme/gradient_container.dart';
+import '../../../../core/di/injection_container.dart';
 import '../../../../core/widgets/smart_appbar.dart';
+import '../../data/datasources/proveedor_remote_datasource.dart';
 import '../../domain/entities/proveedor.dart';
 
 class ProveedorDetailPage extends StatelessWidget {
@@ -44,6 +46,10 @@ class ProveedorDetailPage extends StatelessWidget {
             children: [
               // Header card
               _buildHeaderCard(),
+              const SizedBox(height: 12),
+
+              // Tercero: este proveedor también puede ser cliente (le compro y le vendo).
+              _buildClienteCard(context),
               const SizedBox(height: 12),
 
               // Info general
@@ -128,6 +134,86 @@ class ProveedorDetailPage extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// Card "También es cliente": si ya está vinculado muestra el código; si no,
+  /// el botón para registrarlo/vincularlo (le compro y le vendo → cuenta corriente).
+  Widget _buildClienteCard(BuildContext context) {
+    final esCliente = proveedor.esTambienCliente;
+    return GradientContainer(
+      borderColor: AppColors.blueborder,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            Icon(esCliente ? Icons.verified_user_rounded : Icons.swap_horiz_rounded,
+                size: 22, color: AppColors.blue1),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  AppSubtitle(
+                    esCliente ? 'También es cliente' : '¿También le vendés?',
+                    fontSize: 13,
+                    color: AppColors.blue1,
+                  ),
+                  Text(
+                    esCliente
+                        ? 'Vinculado como cliente ${proveedor.clienteEmpresaCodigo ?? ''}'
+                        : 'Registralo como cliente para venderle y ver su cuenta corriente.',
+                    style: TextStyle(fontSize: 10.5, color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            if (!esCliente)
+              ElevatedButton(
+                onPressed: () => _registrarComoCliente(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.blue1,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+                child: const Text('Registrar', style: TextStyle(fontSize: 12)),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _registrarComoCliente(BuildContext context) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+    try {
+      final res = await locator<ProveedorRemoteDataSource>().registrarComoCliente(
+        empresaId: empresaId,
+        proveedorId: proveedor.id,
+      );
+      if (!context.mounted) return;
+      Navigator.of(context, rootNavigator: true).pop(); // cierra loading
+      final accion = res['accion'] as String?;
+      final msg = accion == 'CREADO'
+          ? 'Registrado como cliente ✓'
+          : accion == 'VINCULADO_EXISTENTE'
+              ? 'Vinculado al cliente existente ✓'
+              : 'Ya estaba registrado como cliente';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(msg), backgroundColor: AppColors.green),
+      );
+      context.pop(true); // vuelve a la lista (refrescará el estado)
+    } catch (e) {
+      if (!context.mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo registrar: $e'), backgroundColor: AppColors.red),
+      );
+    }
   }
 
   Widget _buildHeaderCard() {

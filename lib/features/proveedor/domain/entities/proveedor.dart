@@ -74,6 +74,11 @@ class Proveedor extends Equatable {
   final List<ProveedorBanco>? bancos;
   final int? totalProductosPreferenciales;
 
+  // Si también es cliente (mismo tercero): ficha de cliente vinculada.
+  final String? clienteEmpresaId;
+  final String? clienteEmpresaCodigo;
+  bool get esTambienCliente => clienteEmpresaId != null;
+
   // Auditoría
   final String creadoPor;
   final String? actualizadoPor;
@@ -112,6 +117,8 @@ class Proveedor extends Equatable {
     this.contactos,
     this.bancos,
     this.totalProductosPreferenciales,
+    this.clienteEmpresaId,
+    this.clienteEmpresaCodigo,
     required this.creadoPor,
     this.actualizadoPor,
     required this.creadoEn,
