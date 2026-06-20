@@ -208,8 +208,8 @@ class EstadoCuentaTerceroPdf {
           return pw.Padding(
             padding: const pw.EdgeInsets.only(left: 6, top: 1),
             child: pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [
-              pw.Expanded(child: pw.Text('$cant x ${i['descripcion']}', style: const pw.TextStyle(fontSize: 9))),
-              pw.Text(_money(moneda, i['total']), style: const pw.TextStyle(fontSize: 9)),
+              pw.Expanded(child: pw.Text('$cant x ${i['descripcion']}', style: const pw.TextStyle(fontSize: 7))),
+              pw.Text(_money(moneda, i['total']), style: const pw.TextStyle(fontSize: 7)),
             ]),
           );
         }),
