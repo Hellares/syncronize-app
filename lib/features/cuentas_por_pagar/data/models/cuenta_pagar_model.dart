@@ -33,7 +33,7 @@ class CuentaPagarModel {
 
   factory CuentaPagarModel.fromJson(Map<String, dynamic> json) {
     return CuentaPagarModel(
-      id: json['id'] as String? ?? '',
+      id: (json['compraId'] ?? json['id']) as String? ?? '',
       codigo: json['codigo'] as String? ?? '',
       nombreProveedor: json['nombreProveedor'] as String? ?? '',
       saldoPendiente: _toDouble(json['saldoPendiente']),
@@ -63,6 +63,80 @@ class CuentaPagarModel {
               numeroCuenta: bancoPrincipal!['numeroCuenta'] as String? ?? '',
             )
           : null,
+    );
+  }
+}
+
+class CuentaPagarDetalleModel {
+  final Map<String, dynamic> json;
+  const CuentaPagarDetalleModel(this.json);
+
+  factory CuentaPagarDetalleModel.fromJson(Map<String, dynamic> json) =>
+      CuentaPagarDetalleModel(json);
+
+  static int _toInt(dynamic v) {
+    if (v is int) return v;
+    if (v is double) return v.toInt();
+    if (v is String) return int.tryParse(v) ?? 0;
+    return 0;
+  }
+
+  static DateTime? _toDate(dynamic v) =>
+      v != null ? DateTime.tryParse(v.toString()) : null;
+
+  CuentaPagarDetalle toEntity() {
+    final d = CuentaPagarModel._toDouble;
+    final banco = json['bancoPrincipal'] as Map<String, dynamic>?;
+    return CuentaPagarDetalle(
+      id: json['compraId'] as String? ?? '',
+      codigo: json['codigo'] as String? ?? '',
+      nombreProveedor: json['nombreProveedor'] as String? ?? '',
+      documentoProveedor: json['documentoProveedor'] as String?,
+      sedeNombre: json['sedeNombre'] as String?,
+      estado: json['estado'] as String? ?? 'PENDIENTE',
+      totalCompra: d(json['totalCompra']),
+      totalPagado: d(json['totalPagado']),
+      saldoPendiente: d(json['saldoPendiente']),
+      subtotal: d(json['subtotal']),
+      impuestos: d(json['impuestos']),
+      descuento: d(json['descuento']),
+      terminosPago: json['terminosPago'] as String?,
+      fechaCompra: _toDate(json['fechaCompra']),
+      fechaVencimiento: _toDate(json['fechaVencimiento']),
+      diasVencimiento: json['diasVencimiento'] as int?,
+      observaciones: json['observaciones'] as String?,
+      tipoDocumentoProveedor: json['tipoDocumentoProveedor'] as String?,
+      serieDocumentoProveedor: json['serieDocumentoProveedor'] as String?,
+      numeroDocumentoProveedor: json['numeroDocumentoProveedor'] as String?,
+      bancoPrincipal: banco != null
+          ? BancoPrincipal(
+              nombreBanco: banco['nombreBanco'] as String? ?? '',
+              numeroCuenta: banco['numeroCuenta'] as String? ?? '',
+            )
+          : null,
+      detalles: (json['detalles'] as List<dynamic>? ?? [])
+          .map((e) => CompraItem(
+                descripcion: (e as Map<String, dynamic>)['descripcion'] as String? ?? '',
+                cantidad: _toInt(e['cantidad']),
+                precioUnitario: d(e['precioUnitario']),
+                total: d(e['total']),
+                usaUnidadCompra: e['usaUnidadCompra'] as bool? ?? false,
+                cantidadOriginal:
+                    e['cantidadOriginal'] != null ? d(e['cantidadOriginal']) : null,
+                unidadOriginalSimbolo: e['unidadOriginalSimbolo'] as String?,
+              ))
+          .toList(),
+      pagos: (json['pagos'] as List<dynamic>? ?? [])
+          .map((e) => PagoRealizado(
+                id: (e as Map<String, dynamic>)['id'] as String? ?? '',
+                metodoPago: e['metodoPago'] as String? ?? '',
+                monto: d(e['monto']),
+                referencia: e['referencia'] as String?,
+                bancoDestino: e['bancoDestino'] as String?,
+                cuentaDestino: e['cuentaDestino'] as String?,
+                fechaPago: _toDate(e['fechaPago']),
+              ))
+          .toList(),
     );
   }
 }

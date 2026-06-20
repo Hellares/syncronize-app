@@ -32,6 +32,19 @@ class CuentasPagarRepositoryImpl implements CuentasPagarRepository {
   }
 
   @override
+  Future<Resource<CuentaPagarDetalle>> getDetalle(String compraId) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final result = await _remoteDataSource.getDetalle(compraId);
+      return Success(result.toEntity());
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'CuentasPagar.detalle');
+    }
+  }
+
+  @override
   Future<Resource<ResumenCuentasPagar>> getResumen() async {
     if (!await _networkInfo.isConnected) {
       return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');

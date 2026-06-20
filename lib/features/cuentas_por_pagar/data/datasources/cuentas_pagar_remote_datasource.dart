@@ -23,6 +23,14 @@ class CuentasPagarRemoteDataSource {
         .toList();
   }
 
+  /// Detalle de una cuenta por pagar: ítems comprados + historial de pagos.
+  Future<CuentaPagarDetalleModel> getDetalle(String compraId) async {
+    final response = await _dioClient.get('$_basePath/$compraId/detalle');
+    return CuentaPagarDetalleModel.fromJson(
+      response.data as Map<String, dynamic>,
+    );
+  }
+
   Future<ResumenCuentasPagarModel> getResumen() async {
     final response = await _dioClient.get('$_basePath/resumen');
     return ResumenCuentasPagarModel.fromJson(

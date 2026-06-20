@@ -13,6 +13,7 @@ import '../../domain/entities/cuenta_por_pagar.dart';
 import '../bloc/cuentas_pagar_cubit.dart';
 import '../bloc/cuentas_pagar_state.dart';
 import '../widgets/pago_proveedor_sheet.dart';
+import 'cuenta_pagar_detalle_page.dart';
 
 class CuentasPorPagarPage extends StatelessWidget {
   const CuentasPorPagarPage({super.key});
@@ -233,7 +234,9 @@ class _CuentaCard extends StatelessWidget {
       default: estadoColor = Colors.orange; estadoLabel = 'Pendiente';
     }
 
-    return GradientContainer(
+    return GestureDetector(
+      onTap: () => _abrirDetalle(context, cuenta),
+      child: GradientContainer(
       margin: const EdgeInsets.only(bottom: 8),
       borderColor: cuenta.estado == 'VENCIDA' ? Colors.red.shade300 : AppColors.blueborder,
       child: Padding(
@@ -244,6 +247,8 @@ class _CuentaCard extends StatelessWidget {
             Row(
               children: [
                 AppSubtitle(cuenta.codigo, fontSize: 13, color: AppColors.blue1),
+                const SizedBox(width: 6),
+                const Icon(Icons.chevron_right, size: 16, color: Colors.grey),
                 const Spacer(),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -312,6 +317,16 @@ class _CuentaCard extends StatelessWidget {
             ],
           ],
         ),
+      ),
+      ),
+    );
+  }
+
+  Future<void> _abrirDetalle(BuildContext context, CuentaPorPagar cuenta) async {
+    final cubit = context.read<CuentasPagarCubit>();
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => CuentaPagarDetallePage(compraId: cuenta.id, cubit: cubit),
       ),
     );
   }

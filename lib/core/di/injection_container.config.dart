@@ -548,6 +548,8 @@ import '../../features/cuentas_por_pagar/domain/repositories/cuentas_pagar_repos
     as _i855;
 import '../../features/cuentas_por_pagar/domain/usecases/get_cuentas_pagar_usecase.dart'
     as _i455;
+import '../../features/cuentas_por_pagar/domain/usecases/get_detalle_cuenta_pagar_usecase.dart'
+    as _i132;
 import '../../features/cuentas_por_pagar/domain/usecases/get_resumen_cuentas_pagar_usecase.dart'
     as _i211;
 import '../../features/cuentas_por_pagar/domain/usecases/registrar_pago_cuenta_pagar_usecase.dart'
@@ -2226,6 +2228,11 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i455.GetCuentasPagarUseCase>(
       () => _i455.GetCuentasPagarUseCase(gh<_i855.CuentasPagarRepository>()),
+    );
+    gh.factory<_i132.GetDetalleCuentaPagarUseCase>(
+      () => _i132.GetDetalleCuentaPagarUseCase(
+        gh<_i855.CuentasPagarRepository>(),
+      ),
     );
     gh.factory<_i211.GetResumenCuentasPagarUseCase>(
       () => _i211.GetResumenCuentasPagarUseCase(
