@@ -11,6 +11,7 @@ import '../../../../core/utils/resource.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../domain/entities/cuenta_por_pagar.dart';
+import '../../data/datasources/cuentas_pagar_remote_datasource.dart';
 import '../../domain/usecases/comprobante_pago_usecases.dart';
 import '../../domain/usecases/get_detalle_cuenta_pagar_usecase.dart';
 import '../bloc/cuentas_pagar_cubit.dart';
@@ -112,6 +113,52 @@ class _CuentaPagarDetallePageState extends State<CuentaPagarDetallePage> {
       if (mounted) _snack(esReemplazo ? 'Comprobante actualizado' : 'Comprobante adjuntado', ok: true);
     } else if (res is Error<String>) {
       _snack(res.message);
+    }
+  }
+
+  Future<void> _anularPago(PagoRealizado pago) async {
+    final motivoCtrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Anular pago', style: TextStyle(fontSize: 15)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Se revertirá el egreso (vuelve a tu caja/tesorería o se devuelve al banco) y el saldo de la compra subirá. ¿Continuar?',
+              style: TextStyle(fontSize: 13),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: motivoCtrl,
+              decoration: const InputDecoration(labelText: 'Motivo (opcional)', isDense: true),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            child: const Text('Anular'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    _mostrarCargando('Anulando pago...');
+    try {
+      await locator<CuentasPagarRemoteDataSource>().anularPago(pago.id, motivo: motivoCtrl.text.trim());
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
+      await _refrescar();
+      if (mounted) _snack('Pago anulado', ok: true);
+    } catch (e) {
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+        _snack('No se pudo anular: $e');
+      }
     }
   }
 
@@ -223,6 +270,7 @@ class _CuentaPagarDetallePageState extends State<CuentaPagarDetallePage> {
                 onPagar: _pagar,
                 onAdjuntarComprobante: _adjuntarComprobante,
                 onVerComprobante: _verComprobante,
+                onAnularPago: _anularPago,
               );
             }
             return const SizedBox.shrink();
@@ -264,6 +312,7 @@ class _DetalleView extends StatelessWidget {
   final Future<void> Function(CuentaPagarDetalle) onPagar;
   final void Function(PagoRealizado) onAdjuntarComprobante;
   final void Function(PagoRealizado) onVerComprobante;
+  final void Function(PagoRealizado) onAnularPago;
 
   const _DetalleView({
     required this.detalle,
@@ -271,6 +320,7 @@ class _DetalleView extends StatelessWidget {
     required this.onPagar,
     required this.onAdjuntarComprobante,
     required this.onVerComprobante,
+    required this.onAnularPago,
   });
 
   Color get _estadoColor {
@@ -538,6 +588,20 @@ class _DetalleView extends StatelessWidget {
           _buildComprobanteIcon(pago),
           const SizedBox(width: 4),
           Text('${detalle.simbolo} ${pago.monto.toStringAsFixed(2)}', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.green.shade700)),
+          SizedBox(
+            width: 28,
+            child: PopupMenuButton<String>(
+              padding: EdgeInsets.zero,
+              iconSize: 16,
+              icon: Icon(Icons.more_vert, size: 16, color: Colors.grey.shade500),
+              onSelected: (v) {
+                if (v == 'anular') onAnularPago(pago);
+              },
+              itemBuilder: (_) => const [
+                PopupMenuItem(value: 'anular', child: Text('Anular pago', style: TextStyle(color: Colors.red))),
+              ],
+            ),
+          ),
         ],
       ),
     );

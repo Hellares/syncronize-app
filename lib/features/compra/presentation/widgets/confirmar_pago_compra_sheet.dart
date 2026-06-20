@@ -6,6 +6,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/resource.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_dropdown.dart';
+import '../../../auth/presentation/widgets/custom_text.dart';
 import '../../../empresa_banco/domain/entities/empresa_banco.dart';
 import '../../../empresa_banco/domain/usecases/get_cuentas_bancarias_usecase.dart';
 
@@ -51,6 +52,7 @@ class _ConfirmarPagoCompraSheetState extends State<ConfirmarPagoCompraSheet> {
   String? _bancoId;
   List<EmpresaBanco> _bancos = [];
   bool _cargandoBancos = true;
+  late final TextEditingController _montoCtrl;
 
   bool get _esBancario =>
       _metodo == 'TRANSFERENCIA' || _metodo == 'YAPE' || _metodo == 'PLIN' || _metodo == 'TARJETA';
@@ -80,7 +82,14 @@ class _ConfirmarPagoCompraSheetState extends State<ConfirmarPagoCompraSheet> {
   void initState() {
     super.initState();
     _fuente = _defaultFuente(_metodo);
+    _montoCtrl = TextEditingController(text: widget.total.toStringAsFixed(2));
     _cargarBancos();
+  }
+
+  @override
+  void dispose() {
+    _montoCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _cargarBancos() async {
@@ -114,9 +123,17 @@ class _ConfirmarPagoCompraSheetState extends State<ConfirmarPagoCompraSheet> {
       );
       return;
     }
+    var monto = double.tryParse(_montoCtrl.text.trim().replaceAll(',', '.')) ?? 0;
+    if (monto <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ingresá un monto válido')));
+      return;
+    }
+    if (monto > widget.total + 0.001) monto = widget.total; // no más que el total
+    monto = (monto * 100).round() / 100;
     Navigator.of(context).pop(ResultadoPagoContado.pagar({
       'metodoPago': _metodo,
       'fuente': _fuente,
+      'monto': monto,
       if (_fuente == 'BANCO') 'bancoId': _bancoId,
     }));
   }
@@ -162,6 +179,12 @@ class _ConfirmarPagoCompraSheetState extends State<ConfirmarPagoCompraSheet> {
                     DropdownItem(value: 'TARJETA', label: 'Tarjeta'),
                   ],
                   onChanged: (v) => _onMetodoChanged(v ?? 'EFECTIVO'),
+                ),
+                const SizedBox(height: 12),
+                CustomText(
+                  label: 'Monto (máx ${_sim()} ${widget.total.toStringAsFixed(2)})',
+                  controller: _montoCtrl,
+                  fieldType: FieldType.number,
                 ),
                 const SizedBox(height: 12),
                 _buildFuenteSelector(),

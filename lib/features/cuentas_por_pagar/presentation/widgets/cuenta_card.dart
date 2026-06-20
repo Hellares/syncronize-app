@@ -105,7 +105,7 @@ class CuentaCard extends StatelessWidget {
               ],
               // Registrar pago — solo si queda saldo.
               if (cuenta.estado != 'PAGADA' && cuenta.saldoPendiente > 0.001) ...[
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 SizedBox(
                   width: double.infinity,
                   child: CustomButton(

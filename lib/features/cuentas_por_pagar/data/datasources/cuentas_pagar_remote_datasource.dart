@@ -94,6 +94,14 @@ class CuentasPagarRemoteDataSource {
     return (res.data as Map<String, dynamic>)['url'] as String;
   }
 
+  /// Anula un pago a proveedor (revierte el egreso y devuelve el saldo).
+  Future<void> anularPago(String pagoId, {String? motivo}) async {
+    await _dioClient.post(
+      '$_basePath/pagos/$pagoId/anular',
+      data: {if (motivo != null && motivo.isNotEmpty) 'motivo': motivo},
+    );
+  }
+
   /// Adjunta un comprobante a un pago YA registrado. Devuelve la URL.
   Future<String> adjuntarComprobantePago(String pagoId, String filePath) async {
     final fileName = filePath.split(RegExp(r'[\\/]')).last;

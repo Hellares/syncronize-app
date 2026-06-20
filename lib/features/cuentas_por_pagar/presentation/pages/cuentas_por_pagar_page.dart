@@ -335,28 +335,28 @@ class _ProveedorCard extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 8),
         borderColor: tieneVencido ? Colors.red.shade300 : AppColors.blueborder,
         child: Padding(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(8),
           child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(9),
+                padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
                   color: AppColors.blue1.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(6),
                 ),
-                child: const Icon(Icons.business, size: 20, color: AppColors.blue1),
+                child: const Icon(Icons.business, size: 16, color: AppColors.blue1),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    AppSubtitle(deuda.nombreProveedor, fontSize: 13, color: AppColors.blue1),
+                    AppSubtitle(deuda.nombreProveedor, fontSize: 10, color: AppColors.blue1),
                     const SizedBox(height: 2),
                     Text(
                       '${deuda.cantidadCompras} compra${deuda.cantidadCompras != 1 ? 's' : ''}'
                       '${deuda.cantidadVencidas > 0 ? ' · ${deuda.cantidadVencidas} vencida${deuda.cantidadVencidas != 1 ? 's' : ''}' : ''}',
-                      style: TextStyle(fontSize: 11, color: tieneVencido ? Colors.red : Colors.grey.shade600),
+                      style: TextStyle(fontSize: 10, color: tieneVencido ? AppColors.red : Colors.grey.shade600),
                     ),
                     if (deuda.proximoVencimiento != null) ...[
                       const SizedBox(height: 2),
@@ -374,9 +374,9 @@ class _ProveedorCard extends StatelessWidget {
                 children: [
                   ...deuda.deudaFormateada.split('  ·  ').map(
                         (linea) => Text(linea,
-                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.red)),
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.red)),
                       ),
-                  const Icon(Icons.chevron_right, size: 18, color: Colors.grey),
+                  const Icon(Icons.chevron_right, size: 16, color: Colors.grey),
                 ],
               ),
             ],
