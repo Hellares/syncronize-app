@@ -32,9 +32,20 @@ class EstadoCuentaTerceroPdf {
     final leDebo = (data['leDeboPorMoneda'] as Map?) ?? {};
     final meDebe = (data['meDebePorMoneda'] as Map?) ?? {};
     final neto = (data['netoPorMoneda'] as Map?) ?? {};
-    final movs = (data['movimientos'] as List?) ?? [];
-    final ventas = movs.where((m) => m['tipo'] == 'VENTA').toList();
-    final compras = movs.where((m) => m['tipo'] == 'COMPRA').toList();
+    final pend = (data['pendientes'] as Map?) ?? {};
+    final hist = (data['historial'] as Map?) ?? {};
+    final rango = (data['rango'] as Map?) ?? {};
+    final pendVentas = (pend['ventas'] as List?) ?? [];
+    final pendCompras = (pend['compras'] as List?) ?? [];
+    final histVentas = (hist['ventas'] as List?) ?? [];
+    final histCompras = (hist['compras'] as List?) ?? [];
+    final hayPend = pendVentas.isNotEmpty || pendCompras.isNotEmpty;
+    final hayHist = histVentas.isNotEmpty || histCompras.isNotEmpty;
+    final rDesde = rango['desde'] != null ? DateTime.tryParse(rango['desde'].toString()) : null;
+    final rHasta = rango['hasta'] != null ? DateTime.tryParse(rango['hasta'].toString()) : null;
+    final rangoTxt = rDesde != null && rHasta != null
+        ? ' (${DateFormatter.formatDate(rDesde)} - ${DateFormatter.formatDate(rHasta)})'
+        : '';
 
     pdf.addPage(
       pw.MultiPage(
@@ -46,22 +57,51 @@ class EstadoCuentaTerceroPdf {
           _clienteBlock(prov),
           pw.SizedBox(height: 12),
           _resumen(leDebo, meDebe, neto),
-          pw.SizedBox(height: 14),
-          if (ventas.isNotEmpty) ...[
-            _seccionTitulo('VENTAS — lo que me debe', PdfColors.green800),
-            ...ventas.map(_docBloque),
-            pw.SizedBox(height: 12),
-          ],
-          if (compras.isNotEmpty) ...[
-            _seccionTitulo('COMPRAS — lo que le debo', PdfColors.red800),
-            ...compras.map(_docBloque),
-            pw.SizedBox(height: 12),
-          ],
+          pw.SizedBox(height: 6),
           _netoFinal(neto),
+          pw.SizedBox(height: 14),
+
+          // ── PENDIENTES (deuda viva) ──
+          _seccionTitulo('PENDIENTES DE PAGO', PdfColors.blue800),
+          if (!hayPend)
+            pw.Text('No hay saldos pendientes.', style: const pw.TextStyle(fontSize: 10))
+          else ...[
+            if (pendVentas.isNotEmpty) ...[
+              _subtitulo('Ventas por cobrar', PdfColors.green800),
+              ...pendVentas.map(_docBloque),
+            ],
+            if (pendCompras.isNotEmpty) ...[
+              _subtitulo('Compras por pagar', PdfColors.red800),
+              ...pendCompras.map(_docBloque),
+            ],
+          ],
+          pw.SizedBox(height: 14),
+
+          // ── HISTORIAL (rango) ──
+          _seccionTitulo('HISTORIAL$rangoTxt', PdfColors.blue800),
+          if (!hayHist)
+            pw.Text('Sin movimientos en el período.', style: const pw.TextStyle(fontSize: 10))
+          else ...[
+            if (histVentas.isNotEmpty) ...[
+              _subtitulo('Ventas', PdfColors.green800),
+              ...histVentas.map(_docBloque),
+            ],
+            if (histCompras.isNotEmpty) ...[
+              _subtitulo('Compras', PdfColors.red800),
+              ...histCompras.map(_docBloque),
+            ],
+          ],
         ],
       ),
     );
     return pdf.save();
+  }
+
+  static pw.Widget _subtitulo(String t, PdfColor color) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.only(top: 6, bottom: 3),
+      child: pw.Text(t, style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: color)),
+    );
   }
 
   static pw.Widget _header(String empresa, String? ruc, DateTime fecha) {

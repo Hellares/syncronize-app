@@ -50,10 +50,15 @@ class _EstadoCuentaTerceroPageState extends State<EstadoCuentaTerceroPage> {
   bool _loading = true;
   String? _error;
   Map<String, dynamic>? _data;
+  late DateTime _desde;
+  late DateTime _hasta;
 
   @override
   void initState() {
     super.initState();
+    final ahora = DateTime.now();
+    _desde = DateTime(ahora.year, ahora.month, 1); // 1er día del mes
+    _hasta = ahora;
     _cargar();
   }
 
@@ -66,6 +71,8 @@ class _EstadoCuentaTerceroPageState extends State<EstadoCuentaTerceroPage> {
       final d = await locator<ProveedorRemoteDataSource>().estadoCuentaTercero(
         empresaId: widget.empresaId,
         proveedorId: widget.proveedorId,
+        fechaDesde: DateFormatter.toUtcIso(DateFormatter.startOfDay(_desde)),
+        fechaHasta: DateFormatter.toUtcIso(DateFormatter.endOfDay(_hasta)),
       );
       if (!mounted) return;
       setState(() {
@@ -159,7 +166,14 @@ class _EstadoCuentaTerceroPageState extends State<EstadoCuentaTerceroPage> {
     final meDebe = _map(data['meDebePorMoneda']);
     final neto = _map(data['netoPorMoneda']);
     final esTercero = data['esTercero'] == true;
-    final movs = (data['movimientos'] as List<dynamic>? ?? []);
+    final pend = _map(data['pendientes']);
+    final hist = _map(data['historial']);
+    final pendVentas = (pend['ventas'] as List<dynamic>? ?? []);
+    final pendCompras = (pend['compras'] as List<dynamic>? ?? []);
+    final histVentas = (hist['ventas'] as List<dynamic>? ?? []);
+    final histCompras = (hist['compras'] as List<dynamic>? ?? []);
+    final hayPend = pendVentas.isNotEmpty || pendCompras.isNotEmpty;
+    final hayHist = histVentas.isNotEmpty || histCompras.isNotEmpty;
 
     return [
       // Neto por moneda
@@ -198,18 +212,89 @@ class _EstadoCuentaTerceroPageState extends State<EstadoCuentaTerceroPage> {
           style: TextStyle(fontSize: 10.5, color: Colors.grey.shade600),
         ),
       ],
-      const SizedBox(height: 12),
-      const AppSubtitle('Movimientos', fontSize: 13, color: AppColors.blue1),
+
+      // ── PENDIENTES (siempre arriba) ──
+      const SizedBox(height: 14),
+      const AppSubtitle('Pendientes de pago', fontSize: 13, color: AppColors.blue1),
       const SizedBox(height: 4),
-      if (movs.isEmpty)
-        const Padding(
-          padding: EdgeInsets.all(20),
-          child: Center(child: Text('Sin compras ni ventas registradas.')),
+      if (!hayPend)
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppColors.green.withValues(alpha: 0.07),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: const Text('No hay saldos pendientes 🎉', style: TextStyle(fontSize: 12)),
         )
-      else
-        ...movs.map((m) => _movTile(m as Map<String, dynamic>)),
+      else ...[
+        if (pendVentas.isNotEmpty) ..._grupo('Ventas por cobrar', pendVentas),
+        if (pendCompras.isNotEmpty) ..._grupo('Compras por pagar', pendCompras),
+      ],
+
+      // ── HISTORIAL (por rango de fechas) ──
+      const SizedBox(height: 16),
+      Row(
+        children: [
+          const Expanded(child: AppSubtitle('Historial', fontSize: 13, color: AppColors.blue1)),
+          OutlinedButton.icon(
+            onPressed: _pickRango,
+            icon: const Icon(Icons.calendar_today, size: 13),
+            label: Text(
+              '${DateFormatter.formatDateShort(_desde)} - ${DateFormatter.formatDateShort(_hasta)}',
+              style: const TextStyle(fontSize: 11),
+            ),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.blue1,
+              side: BorderSide(color: AppColors.blueborder),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 4),
+      if (!hayHist)
+        const Padding(
+          padding: EdgeInsets.all(16),
+          child: Center(child: Text('Sin movimientos en el período seleccionado.')),
+        )
+      else ...[
+        if (histVentas.isNotEmpty) ..._grupo('Ventas', histVentas),
+        if (histCompras.isNotEmpty) ..._grupo('Compras', histCompras),
+      ],
       const SizedBox(height: 20),
     ];
+  }
+
+  /// Subtítulo de grupo + los tiles de movimientos.
+  List<Widget> _grupo(String titulo, List<dynamic> docs) {
+    return [
+      Padding(
+        padding: const EdgeInsets.only(top: 6, bottom: 2),
+        child: Text(titulo, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey.shade700)),
+      ),
+      ...docs.map((m) => _movTile(m as Map<String, dynamic>)),
+    ];
+  }
+
+  Future<void> _pickRango() async {
+    final rango = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+      initialDateRange: DateTimeRange(start: _desde, end: _hasta),
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: Theme.of(context).colorScheme.copyWith(primary: AppColors.blue1),
+        ),
+        child: child!,
+      ),
+    );
+    if (rango == null) return;
+    setState(() {
+      _desde = rango.start;
+      _hasta = rango.end;
+    });
+    _cargar();
   }
 
   Widget _netoLinea(String moneda, double monto) {

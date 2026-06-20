@@ -49,9 +49,15 @@ class ProveedorRemoteDataSource {
   Future<Map<String, dynamic>> estadoCuentaTercero({
     required String empresaId,
     required String proveedorId,
+    String? fechaDesde,
+    String? fechaHasta,
   }) async {
     final response = await _dioClient.get(
       '/empresas/$empresaId/proveedores/$proveedorId/estado-cuenta',
+      queryParameters: {
+        if (fechaDesde != null) 'fechaDesde': fechaDesde,
+        if (fechaHasta != null) 'fechaHasta': fechaHasta,
+      },
     );
     return response.data as Map<String, dynamic>;
   }
