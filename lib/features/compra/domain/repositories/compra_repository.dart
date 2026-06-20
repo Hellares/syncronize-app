@@ -79,6 +79,7 @@ abstract class CompraRepository {
   Future<Resource<Compra>> confirmarCompra({
     required String empresaId,
     required String id,
+    Map<String, dynamic>? pago,
   });
 
   Future<Resource<Compra>> anularCompra({

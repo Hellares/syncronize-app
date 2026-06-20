@@ -21,6 +21,7 @@ import '../../../configuracion_documentos/domain/usecases/get_configuracion_comp
 import '../../domain/entities/compra.dart';
 import '../../domain/usecases/get_compra_usecase.dart';
 import '../../domain/usecases/confirmar_compra_usecase.dart';
+import '../widgets/confirmar_pago_compra_sheet.dart';
 import '../../domain/usecases/anular_compra_usecase.dart';
 import '../../domain/usecases/eliminar_compra_usecase.dart';
 import 'documento_compra_preview_page.dart';
@@ -868,28 +869,41 @@ class _CompraDetailPageState extends State<CompraDetailPage> {
   void _handleAction(BuildContext context, String action) async {
     switch (action) {
       case 'confirmar':
-        final confirm = await showDialog<bool>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text('Confirmar compra'),
-            content: const Text(
-                'Al confirmar, se actualizara el stock y se crearan los lotes correspondientes. Continuar?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancelar'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('Confirmar'),
-              ),
-            ],
-          ),
-        );
-        if (confirm == true) {
+        final t = _compra.terminosPago?.toUpperCase() ?? '';
+        final esContado = t.isEmpty || t == 'CONTADO';
+        Map<String, dynamic>? pago;
+
+        if (esContado) {
+          // Contado: ofrecer registrar el pago; si lo omite, cae en CxP.
+          final res = await ConfirmarPagoCompraSheet.mostrar(
+            context,
+            total: _compra.total,
+            moneda: _compra.moneda,
+          );
+          if (res == null) break; // canceló → no confirma
+          pago = res.omitir ? null : res.pago;
+        } else {
+          // Crédito: confirma directo (va a Cuentas por Pagar).
+          final confirm = await showDialog<bool>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Text('Confirmar compra'),
+              content: const Text(
+                  'Al confirmar, se actualizara el stock y se crearan los lotes. La compra quedará en Cuentas por Pagar. Continuar?'),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+                TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Confirmar')),
+              ],
+            ),
+          );
+          if (confirm != true) break;
+        }
+
+        if (context.mounted) {
           final result = await locator<ConfirmarCompraUseCase>()(
             empresaId: widget.empresaId,
             id: _compra.id,
+            pago: pago,
           );
           if (result is Success<Compra> && context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(

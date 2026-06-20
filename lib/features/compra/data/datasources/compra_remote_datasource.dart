@@ -193,9 +193,11 @@ class CompraRemoteDataSource {
   Future<CompraModel> confirmarCompra({
     required String empresaId,
     required String id,
+    Map<String, dynamic>? pago,
   }) async {
     final response = await _dioClient.post(
       '/empresas/$empresaId/compras/$id/confirmar',
+      data: pago != null ? {'pago': pago} : null,
     );
     return CompraModel.fromJson(response.data as Map<String, dynamic>);
   }

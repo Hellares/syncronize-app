@@ -12,10 +12,12 @@ class ConfirmarCompraUseCase {
   Future<Resource<Compra>> call({
     required String empresaId,
     required String id,
+    Map<String, dynamic>? pago,
   }) async {
     return await _repository.confirmarCompra(
       empresaId: empresaId,
       id: id,
+      pago: pago,
     );
   }
 }

@@ -113,7 +113,7 @@ class ComprasPage extends StatelessWidget {
                           onRefresh: () =>
                               context.read<CompraListCubit>().reload(),
                           child: ListView.builder(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 8),
                             itemCount: compras.length,
                             itemBuilder: (context, index) {
                               final compra = compras[index];

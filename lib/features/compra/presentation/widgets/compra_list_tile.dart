@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:syncronize/core/fonts/app_fonts.dart';
+import 'package:syncronize/core/theme/app_gradients.dart';
 import 'package:syncronize/core/utils/date_formatter.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
@@ -44,9 +45,10 @@ class CompraListTile extends StatelessWidget {
 
     return GradientContainer(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      padding: EdgeInsets.zero,
+      // padding: EdgeInsets.zero,
+      shadowStyle: ShadowStyle.glow,
       borderRadius: BorderRadius.circular(10),
-      borderColor: AppColors.blue.withValues(alpha: 0.15),
+      borderColor: AppColors.blueborder,
       child: Material(
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(10),
