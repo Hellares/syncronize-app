@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:syncronize/core/di/injection_container.dart';
+import 'package:syncronize/core/network/dio_client.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/utils/date_formatter.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
@@ -235,7 +236,7 @@ class _HeaderCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.all(10),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [AppColors.blue1, Color(0xFF1976D2)],
@@ -257,7 +258,7 @@ class _HeaderCard extends StatelessWidget {
           Row(
             children: [
               const Icon(Icons.account_balance_rounded,
-                  color: AppColors.white, size: 22),
+                  color: AppColors.white, size: 18),
               const SizedBox(width: 8),
               Expanded(
                 child: Column(
@@ -340,26 +341,7 @@ class _HeaderCard extends StatelessWidget {
               color: AppColors.white.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Total',
-                  style: TextStyle(
-                    color: AppColors.white,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                Text(
-                  _money(resumen.saldoTotal),
-                  style: const TextStyle(
-                    color: AppColors.white,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 18,
-                  ),
-                ),
-              ],
-            ),
+            child: _TotalConBancos(saldoEfectivo: resumen.saldoEfectivo),
           ),
           const SizedBox(height: 12),
           Row(
@@ -389,6 +371,65 @@ class _HeaderCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Total informativo de tesorería = efectivo (bóveda) + lo que está en los
+/// bancos (los cobros digitales). Trae el total de bancos del consolidado.
+class _TotalConBancos extends StatefulWidget {
+  final double saldoEfectivo;
+  const _TotalConBancos({required this.saldoEfectivo});
+
+  @override
+  State<_TotalConBancos> createState() => _TotalConBancosState();
+}
+
+class _TotalConBancosState extends State<_TotalConBancos> {
+  Map<String, dynamic>? _porMoneda;
+
+  @override
+  void initState() {
+    super.initState();
+    _cargar();
+  }
+
+  Future<void> _cargar() async {
+    try {
+      final res = await locator<DioClient>().get('/caja/tesoreria-consolidado');
+      if (!mounted) return;
+      setState(() => _porMoneda = (res.data['bancosPorMoneda'] as Map<String, dynamic>?) ?? {});
+    } catch (_) {/* deja el total solo-efectivo */}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pen = (_porMoneda?['PEN'] as num?)?.toDouble() ?? 0;
+    final usd = (_porMoneda?['USD'] as num?)?.toDouble() ?? 0;
+    final totalPen = widget.saldoEfectivo + pen;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text('Total (efectivo + bancos)',
+                style: TextStyle(color: AppColors.white, fontWeight: FontWeight.w600, fontSize: 12)),
+            Text(_money(totalPen),
+                style: const TextStyle(color: AppColors.white, fontWeight: FontWeight.w800, fontSize: 18)),
+          ],
+        ),
+        if (_porMoneda != null) ...[
+          const SizedBox(height: 3),
+          Text(
+            '${_money(widget.saldoEfectivo)} efectivo  +  ${_money(pen)} en bancos',
+            style: TextStyle(color: AppColors.white.withValues(alpha: 0.85), fontSize: 10.5),
+          ),
+          if (usd != 0)
+            Text('+ \$ ${usd.toStringAsFixed(2)} en cuentas USD',
+                style: TextStyle(color: AppColors.white.withValues(alpha: 0.85), fontSize: 10)),
+        ],
+      ],
     );
   }
 }
