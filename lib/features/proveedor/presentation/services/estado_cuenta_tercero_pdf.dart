@@ -151,18 +151,17 @@ class EstadoCuentaTerceroPdf {
           padding: const pw.EdgeInsets.all(8),
           margin: const pw.EdgeInsets.symmetric(horizontal: 2),
           decoration: pw.BoxDecoration(
-            color: PdfColor.fromInt(color.toInt()).shade(0.05),
-            border: pw.Border.all(color: color, width: 0.5),
+            color: color, // fondo sólido para que resalte
             borderRadius: pw.BorderRadius.circular(4),
           ),
           child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-            pw.Text(titulo, style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: color)),
+            pw.Text(titulo, style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColors.white)),
             pw.SizedBox(height: 2),
             if (entradas.isEmpty)
-              pw.Text('—', style: const pw.TextStyle(fontSize: 11))
+              pw.Text('—', style: const pw.TextStyle(fontSize: 11, color: PdfColors.white))
             else
               ...entradas.map((e) => pw.Text(_money(e.key, e.value),
-                  style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: color))),
+                  style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfColors.white))),
           ]),
         ),
       );
@@ -229,12 +228,12 @@ class EstadoCuentaTerceroPdf {
     return pw.Container(
       width: double.infinity,
       padding: const pw.EdgeInsets.all(10),
-      decoration: pw.BoxDecoration(color: PdfColors.blue50, border: pw.Border.all(color: PdfColors.blue800)),
+      decoration: pw.BoxDecoration(color: PdfColors.blue700), // celeste sólido
       child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-        pw.Text('SALDO NETO', style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: PdfColors.blue800)),
+        pw.Text('SALDO NETO', style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: PdfColors.white)),
         pw.SizedBox(height: 2),
         if (entradas.isEmpty)
-          pw.Text('Sin saldos', style: const pw.TextStyle(fontSize: 11))
+          pw.Text('Sin saldos', style: const pw.TextStyle(fontSize: 11, color: PdfColors.white))
         else
           ...entradas.map((e) {
             final v = _d(e.value);
@@ -243,8 +242,7 @@ class EstadoCuentaTerceroPdf {
                 : v > 0
                     ? 'Le debo ${_money(e.key, v)}'
                     : 'Me debe ${_money(e.key, -v)}';
-            final color = v.abs() < 0.01 ? PdfColors.grey700 : (v > 0 ? PdfColors.red800 : PdfColors.green800);
-            return pw.Text(texto, style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold, color: color));
+            return pw.Text(texto, style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold, color: PdfColors.white));
           }),
       ]),
     );
