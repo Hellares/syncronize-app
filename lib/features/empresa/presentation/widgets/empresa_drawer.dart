@@ -636,6 +636,14 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             ),
           ),
           tile(
+            title: 'Tesorería Consolidado',
+            icon: Icons.savings_rounded,
+            iconColor: Colors.teal,
+            visible: can(permissions?.canViewCaja),
+            routeMatch: const _RouteMatch.startsWith('/empresa/tesoreria-consolidado'),
+            onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/tesoreria-consolidado')),
+          ),
+          tile(
             title: 'Caja Chica',
             icon: Icons.account_balance_wallet,
             iconColor: Colors.teal,

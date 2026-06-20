@@ -78,6 +78,7 @@ import '../../features/caja/presentation/pages/caja_monitor_page.dart';
 import '../../features/caja/presentation/pages/caja_auditoria_page.dart';
 import '../../features/caja/presentation/pages/tesoreria_page.dart';
 import '../../features/caja/presentation/pages/tesoreria_sede_selector_page.dart';
+import '../../features/caja/presentation/pages/tesoreria_consolidado_page.dart';
 import '../../features/solicitud_cotizacion_empresa/presentation/pages/solicitud_recibida_detail_page.dart';
 import '../../features/marketplace/presentation/pages/producto_marketplace_detail_page.dart';
 import '../../features/marketplace/presentation/pages/empresa_public_profile_page.dart';
@@ -1260,6 +1261,11 @@ class AppRouter {
           final empresaId = state.uri.queryParameters['empresaId'] ?? '';
           return TesoreriaSedeSelectorPage(empresaId: empresaId);
         },
+      ),
+      GoRoute(
+        path: '/empresa/tesoreria-consolidado',
+        name: 'empresa-tesoreria-consolidado',
+        builder: (context, state) => const TesoreriaConsolidadoPage(),
       ),
       GoRoute(
         path: '/empresa/tesoreria/:sedeId',
