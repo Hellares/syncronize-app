@@ -690,23 +690,29 @@ class _BarridoChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(4),
         border: Border.all(color: color.withValues(alpha: 0.30), width: 0.5),
       ),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(item.metodoEnum.icon, size: 12, color: color),
-          const SizedBox(width: 4),
-          Flexible(
-            child: Text(item.metodoEnum.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w500)),
+          Row(
+            children: [
+              Icon(item.metodoEnum.icon, size: 12, color: color),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(item.metodoEnum.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w600)),
+              ),
+              if (item.aBanco)
+                Icon(Icons.account_balance_rounded, size: 10, color: color.withValues(alpha: 0.8)),
+            ],
           ),
-          const SizedBox(width: 6),
+          const SizedBox(height: 2),
           Text('+ S/${item.monto.toStringAsFixed(2)}',
-              style: TextStyle(fontSize: 9, color: color, fontWeight: FontWeight.w700)),
-          if (item.aBanco) ...[
-            const SizedBox(width: 4),
-            Icon(Icons.account_balance_rounded, size: 10, color: color.withValues(alpha: 0.8)),
-          ],
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w700)),
         ],
       ),
     );
