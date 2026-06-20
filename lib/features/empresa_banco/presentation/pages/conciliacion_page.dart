@@ -23,6 +23,23 @@ String _sim(String? m) {
   }
 }
 
+String _metodoLabel(String m) {
+  switch (m) {
+    case 'YAPE':
+      return 'Yape';
+    case 'PLIN':
+      return 'Plin';
+    case 'TARJETA':
+      return 'Tarjeta';
+    case 'TRANSFERENCIA':
+      return 'Transferencia';
+    case 'EFECTIVO':
+      return 'Efectivo';
+    default:
+      return m;
+  }
+}
+
 /// Estado de cuenta REAL de un banco (conciliación por banco): saldo del
 /// sistema + los movimientos que tocaron esta cuenta (recaudación que entró,
 /// pagos que salieron, ajustes), y las acciones para conciliar/ajustar.
@@ -119,6 +136,7 @@ class _ConciliacionPageState extends State<ConciliacionPage> {
     final movs = (data['movimientos'] as List<dynamic>? ?? []);
     final moneda = cuenta['moneda']?.toString() ?? 'PEN';
     final saldo = _d(cuenta['saldoActual']);
+    final recaudado = (data['recaudadoPorMetodo'] as Map<String, dynamic>? ?? {});
 
     return [
       // Saldo + acciones
@@ -149,6 +167,44 @@ class _ConciliacionPageState extends State<ConciliacionPage> {
         ),
       ),
       const SizedBox(height: 10),
+      // Desglose acumulado por método (cuánto se tiene de Yape/Plin/etc.)
+      if (recaudado.isNotEmpty) ...[
+        GradientContainer(
+          borderColor: AppColors.blueborder,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.pie_chart_outline, size: 15, color: AppColors.blue1),
+                    const SizedBox(width: 6),
+                    const AppSubtitle('Recaudado por método', fontSize: 12, color: AppColors.blue1),
+                  ],
+                ),
+                Text('Acumulado de lo que entró por cada medio',
+                    style: TextStyle(fontSize: 9.5, color: Colors.grey.shade500)),
+                const SizedBox(height: 6),
+                ...(recaudado.entries.toList()
+                      ..sort((a, b) => _d(b.value).compareTo(_d(a.value))))
+                    .map((e) => Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 2),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(_metodoLabel(e.key), style: const TextStyle(fontSize: 12)),
+                              Text('${_sim(moneda)} ${_d(e.value).toStringAsFixed(2)}',
+                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                            ],
+                          ),
+                        )),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+      ],
       // Resumen del período
       Row(
         children: [
