@@ -142,6 +142,23 @@ class CuentaPagarDetalleModel {
   }
 }
 
+class DeudaProveedorModel {
+  static DeudaProveedor fromJson(Map<String, dynamic> json) {
+    return DeudaProveedor(
+      proveedorId: json['proveedorId'] as String? ?? '',
+      nombreProveedor: json['nombreProveedor'] as String? ?? '',
+      documentoProveedor: json['documentoProveedor'] as String?,
+      totalDeuda: CuentaPagarModel._toDouble(json['totalDeuda']),
+      totalVencido: CuentaPagarModel._toDouble(json['totalVencido']),
+      cantidadCompras: json['cantidadCompras'] as int? ?? 0,
+      cantidadVencidas: json['cantidadVencidas'] as int? ?? 0,
+      proximoVencimiento: json['proximoVencimiento'] != null
+          ? DateTime.tryParse(json['proximoVencimiento'].toString())
+          : null,
+    );
+  }
+}
+
 class ResumenCuentasPagarModel {
   final double totalPendiente;
   final double totalVencido;

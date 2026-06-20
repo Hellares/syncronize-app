@@ -14,6 +14,7 @@ class CuentasPagarCubit extends Cubit<CuentasPagarState> {
   final RegistrarPagoCuentaPagarUseCase _registrarPagoUseCase;
 
   String? _filtroEstado;
+  String? _proveedorId;
 
   CuentasPagarCubit(
     this._getCuentasPagarUseCase,
@@ -21,18 +22,19 @@ class CuentasPagarCubit extends Cubit<CuentasPagarState> {
     this._registrarPagoUseCase,
   ) : super(const CuentasPagarInitial());
 
-  Future<void> loadCuentas({String? estado}) async {
+  /// Carga las cuentas. Si [proveedorId] está fijo (vista de un proveedor), no
+  /// trae el resumen global (los totales se calculan de la lista en esa vista).
+  Future<void> loadCuentas({String? estado, String? proveedorId}) async {
     _filtroEstado = estado;
+    if (proveedorId != null) _proveedorId = proveedorId;
     emit(const CuentasPagarLoading());
 
-    final results = await Future.wait([
-      _getCuentasPagarUseCase(estado: estado),
-      _getResumenUseCase(),
-    ]);
-    if (isClosed) return;
+    final cuentasFut = _getCuentasPagarUseCase(estado: estado, proveedorId: _proveedorId);
+    final resumenFut = _proveedorId == null ? _getResumenUseCase() : null;
 
-    final cuentasResult = results[0] as Resource<List<CuentaPorPagar>>;
-    final resumenResult = results[1] as Resource<ResumenCuentasPagar>;
+    final cuentasResult = await cuentasFut;
+    final resumenResult = resumenFut != null ? await resumenFut : null;
+    if (isClosed) return;
 
     if (cuentasResult is Success<List<CuentaPorPagar>>) {
       ResumenCuentasPagar? resumen;

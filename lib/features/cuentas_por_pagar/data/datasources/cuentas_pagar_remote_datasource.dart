@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:injectable/injectable.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../domain/entities/cuenta_por_pagar.dart';
 import '../models/cuenta_pagar_model.dart';
 
 @lazySingleton
@@ -11,9 +12,10 @@ class CuentasPagarRemoteDataSource {
 
   CuentasPagarRemoteDataSource(this._dioClient);
 
-  Future<List<CuentaPagarModel>> listar({String? estado}) async {
+  Future<List<CuentaPagarModel>> listar({String? estado, String? proveedorId}) async {
     final queryParams = <String, dynamic>{};
     if (estado != null) queryParams['estado'] = estado;
+    if (proveedorId != null) queryParams['proveedorId'] = proveedorId;
 
     final response = await _dioClient.get(
       _basePath,
@@ -22,6 +24,15 @@ class CuentasPagarRemoteDataSource {
     final list = response.data as List<dynamic>? ?? [];
     return list
         .map((e) => CuentaPagarModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Deuda agrupada por proveedor (vista "Por proveedor").
+  Future<List<DeudaProveedor>> getPorProveedor() async {
+    final response = await _dioClient.get('$_basePath/por-proveedor');
+    final list = response.data as List<dynamic>? ?? [];
+    return list
+        .map((e) => DeudaProveedorModel.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 

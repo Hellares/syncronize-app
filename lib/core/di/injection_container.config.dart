@@ -552,6 +552,8 @@ import '../../features/cuentas_por_pagar/domain/usecases/get_cuentas_pagar_useca
     as _i455;
 import '../../features/cuentas_por_pagar/domain/usecases/get_detalle_cuenta_pagar_usecase.dart'
     as _i132;
+import '../../features/cuentas_por_pagar/domain/usecases/get_deuda_por_proveedor_usecase.dart'
+    as _i91;
 import '../../features/cuentas_por_pagar/domain/usecases/get_resumen_cuentas_pagar_usecase.dart'
     as _i211;
 import '../../features/cuentas_por_pagar/domain/usecases/registrar_pago_cuenta_pagar_usecase.dart'
@@ -2244,6 +2246,10 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i132.GetDetalleCuentaPagarUseCase(
         gh<_i855.CuentasPagarRepository>(),
       ),
+    );
+    gh.factory<_i91.GetDeudaPorProveedorUseCase>(
+      () =>
+          _i91.GetDeudaPorProveedorUseCase(gh<_i855.CuentasPagarRepository>()),
     );
     gh.factory<_i211.GetResumenCuentasPagarUseCase>(
       () => _i211.GetResumenCuentasPagarUseCase(

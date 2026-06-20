@@ -176,6 +176,32 @@ class CuentaPagarDetalle extends Equatable {
   List<Object?> get props => [id, codigo, estado, saldoPendiente, totalPagado, pagos];
 }
 
+/// Deuda agregada de un proveedor (vista "Por proveedor").
+class DeudaProveedor extends Equatable {
+  final String proveedorId;
+  final String nombreProveedor;
+  final String? documentoProveedor;
+  final double totalDeuda;
+  final double totalVencido;
+  final int cantidadCompras;
+  final int cantidadVencidas;
+  final DateTime? proximoVencimiento;
+
+  const DeudaProveedor({
+    required this.proveedorId,
+    required this.nombreProveedor,
+    this.documentoProveedor,
+    required this.totalDeuda,
+    required this.totalVencido,
+    required this.cantidadCompras,
+    required this.cantidadVencidas,
+    this.proximoVencimiento,
+  });
+
+  @override
+  List<Object?> get props => [proveedorId, totalDeuda, totalVencido, cantidadCompras];
+}
+
 class ResumenCuentasPagar extends Equatable {
   final double totalPendiente;
   final double totalVencido;

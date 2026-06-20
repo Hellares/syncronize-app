@@ -2,8 +2,11 @@ import '../../../../core/utils/resource.dart';
 import '../entities/cuenta_por_pagar.dart';
 
 abstract class CuentasPagarRepository {
-  Future<Resource<List<CuentaPorPagar>>> listar({String? estado});
+  Future<Resource<List<CuentaPorPagar>>> listar({String? estado, String? proveedorId});
   Future<Resource<ResumenCuentasPagar>> getResumen();
+
+  /// Deuda agrupada por proveedor (vista "Por proveedor").
+  Future<Resource<List<DeudaProveedor>>> getPorProveedor();
 
   /// Detalle de una cuenta por pagar (ítems + historial de pagos).
   Future<Resource<CuentaPagarDetalle>> getDetalle(String compraId);

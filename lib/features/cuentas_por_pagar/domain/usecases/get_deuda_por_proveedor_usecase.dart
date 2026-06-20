@@ -3,12 +3,11 @@ import '../../../../core/utils/resource.dart';
 import '../entities/cuenta_por_pagar.dart';
 import '../repositories/cuentas_pagar_repository.dart';
 
+/// Deuda agrupada por proveedor (vista "Por proveedor" de CxP).
 @injectable
-class GetCuentasPagarUseCase {
+class GetDeudaPorProveedorUseCase {
   final CuentasPagarRepository _repository;
-  GetCuentasPagarUseCase(this._repository);
+  GetDeudaPorProveedorUseCase(this._repository);
 
-  Future<Resource<List<CuentaPorPagar>>> call({String? estado, String? proveedorId}) {
-    return _repository.listar(estado: estado, proveedorId: proveedorId);
-  }
+  Future<Resource<List<DeudaProveedor>>> call() => _repository.getPorProveedor();
 }

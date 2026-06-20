@@ -3,17 +3,18 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/services/export_service.dart';
 import '../../../../core/utils/date_formatter.dart';
+import '../../../../core/utils/resource.dart';
 import '../../../../core/fonts/app_text_widgets.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/theme/gradient_container.dart';
 import '../../../../core/widgets/smart_appbar.dart';
-import '../../../../core/widgets/custom_button.dart';
 import '../../domain/entities/cuenta_por_pagar.dart';
+import '../../domain/usecases/get_deuda_por_proveedor_usecase.dart';
 import '../bloc/cuentas_pagar_cubit.dart';
 import '../bloc/cuentas_pagar_state.dart';
-import '../widgets/pago_proveedor_sheet.dart';
-import 'cuenta_pagar_detalle_page.dart';
+import '../widgets/cuenta_card.dart';
+import 'cuentas_proveedor_page.dart';
 
 class CuentasPorPagarPage extends StatelessWidget {
   const CuentasPorPagarPage({super.key});
@@ -35,6 +36,7 @@ class _CuentasPagarView extends StatefulWidget {
 
 class _CuentasPagarViewState extends State<_CuentasPagarView> {
   String? _filtroEstado;
+  String _vista = 'compra'; // 'compra' | 'proveedor'
 
   Future<void> _exportExcel(BuildContext context) async {
     final now = DateTime.now();
@@ -66,48 +68,139 @@ class _CuentasPagarViewState extends State<_CuentasPagarView> {
         ],
       ),
       body: GradientBackground(
-        child: BlocBuilder<CuentasPagarCubit, CuentasPagarState>(
-          builder: (context, state) {
-            if (state is CuentasPagarLoading) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (state is CuentasPagarError) {
-              return Center(child: Text(state.message));
-            }
-            if (state is CuentasPagarLoaded) {
-              return RefreshIndicator(
-                onRefresh: () => context.read<CuentasPagarCubit>().loadCuentas(estado: _filtroEstado),
-                color: AppColors.blue1,
-                child: ListView(
-                  padding: const EdgeInsets.all(12),
-                  children: [
-                    if (state.resumen != null) _buildResumen(state.resumen!),
-                    const SizedBox(height: 12),
-                    _buildFiltros(context),
-                    const SizedBox(height: 8),
-                    if (state.cuentas.isEmpty)
-                      Padding(
-                        padding: const EdgeInsets.all(32),
-                        child: Center(
-                          child: Column(
-                            children: [
-                              Icon(Icons.check_circle_outline, size: 56, color: Colors.green.shade300),
-                              const SizedBox(height: 12),
-                              Text('No hay cuentas pendientes', style: TextStyle(color: Colors.grey.shade500)),
-                            ],
-                          ),
-                        ),
-                      )
-                    else
-                      ...state.cuentas.map((c) => _CuentaCard(cuenta: c)),
-                  ],
-                ),
-              );
-            }
-            return const SizedBox.shrink();
-          },
+        child: Column(
+          children: [
+            _buildVistaToggle(),
+            Expanded(
+              child: _vista == 'proveedor' ? _buildPorProveedor(context) : _buildPorCompra(),
+            ),
+          ],
         ),
       ),
+    );
+  }
+
+  Widget _buildVistaToggle() {
+    Widget seg(String value, IconData icon, String label) {
+      final sel = _vista == value;
+      return Expanded(
+        child: GestureDetector(
+          onTap: () => setState(() => _vista = value),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 9),
+            decoration: BoxDecoration(
+              color: sel ? AppColors.blue1 : Colors.transparent,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 15, color: sel ? Colors.white : AppColors.blue1),
+                const SizedBox(width: 6),
+                Text(label, style: TextStyle(fontSize: 12, color: sel ? Colors.white : AppColors.blue1, fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.blueborder),
+      ),
+      child: Row(
+        children: [
+          seg('compra', Icons.receipt_long, 'Por compra'),
+          seg('proveedor', Icons.business, 'Por proveedor'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPorCompra() {
+    return BlocBuilder<CuentasPagarCubit, CuentasPagarState>(
+      builder: (context, state) {
+        if (state is CuentasPagarLoading) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (state is CuentasPagarError) {
+          return Center(child: Text(state.message));
+        }
+        if (state is CuentasPagarLoaded) {
+          return RefreshIndicator(
+            onRefresh: () => context.read<CuentasPagarCubit>().loadCuentas(estado: _filtroEstado),
+            color: AppColors.blue1,
+            child: ListView(
+              padding: const EdgeInsets.all(12),
+              children: [
+                if (state.resumen != null) _buildResumen(state.resumen!),
+                const SizedBox(height: 12),
+                _buildFiltros(context),
+                const SizedBox(height: 8),
+                if (state.cuentas.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Center(
+                      child: Column(
+                        children: [
+                          Icon(Icons.check_circle_outline, size: 56, color: Colors.green.shade300),
+                          const SizedBox(height: 12),
+                          Text('No hay cuentas pendientes', style: TextStyle(color: Colors.grey.shade500)),
+                        ],
+                      ),
+                    ),
+                  )
+                else
+                  ...state.cuentas.map((c) => CuentaCard(cuenta: c)),
+              ],
+            ),
+          );
+        }
+        return const SizedBox.shrink();
+      },
+    );
+  }
+
+  Widget _buildPorProveedor(BuildContext context) {
+    return FutureBuilder<Resource<List<DeudaProveedor>>>(
+      future: locator<GetDeudaPorProveedorUseCase>().call(),
+      builder: (ctx, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final res = snapshot.data;
+        if (res is Error<List<DeudaProveedor>>) {
+          return Center(child: Text(res.message));
+        }
+        if (res is Success<List<DeudaProveedor>>) {
+          final proveedores = res.data;
+          if (proveedores.isEmpty) {
+            return Padding(
+              padding: const EdgeInsets.all(32),
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.check_circle_outline, size: 56, color: Colors.green.shade300),
+                    const SizedBox(height: 12),
+                    Text('Ningún proveedor con deuda', style: TextStyle(color: Colors.grey.shade500)),
+                  ],
+                ),
+              ),
+            );
+          }
+          return ListView(
+            padding: const EdgeInsets.all(12),
+            children: proveedores.map((p) => _ProveedorCard(deuda: p)).toList(),
+          );
+        }
+        return const SizedBox.shrink();
+      },
     );
   }
 
@@ -220,124 +313,74 @@ class _ResumenItem extends StatelessWidget {
   }
 }
 
-class _CuentaCard extends StatelessWidget {
-  final CuentaPorPagar cuenta;
-  const _CuentaCard({required this.cuenta});
+/// Card de la vista "Por proveedor": nombre + deuda total. Tap → todas sus
+/// compras a crédito.
+class _ProveedorCard extends StatelessWidget {
+  final DeudaProveedor deuda;
+  const _ProveedorCard({required this.deuda});
 
   @override
   Widget build(BuildContext context) {
-    Color estadoColor;
-    String estadoLabel;
-    switch (cuenta.estado) {
-      case 'VENCIDA': estadoColor = Colors.red; estadoLabel = 'Vencida'; break;
-      case 'PAGADA': estadoColor = Colors.green; estadoLabel = 'Pagada'; break;
-      default: estadoColor = Colors.orange; estadoLabel = 'Pendiente';
-    }
-
+    final tieneVencido = deuda.totalVencido > 0;
     return GestureDetector(
-      onTap: () => _abrirDetalle(context, cuenta),
-      child: GradientContainer(
-      margin: const EdgeInsets.only(bottom: 8),
-      borderColor: cuenta.estado == 'VENCIDA' ? Colors.red.shade300 : AppColors.blueborder,
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                AppSubtitle(cuenta.codigo, fontSize: 13, color: AppColors.blue1),
-                const SizedBox(width: 6),
-                const Icon(Icons.chevron_right, size: 16, color: Colors.grey),
-                const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(color: estadoColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
-                  child: Text(estadoLabel, style: TextStyle(fontSize: 10, color: estadoColor, fontWeight: FontWeight.w600)),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                const Icon(Icons.business, size: 14, color: Colors.grey),
-                const SizedBox(width: 4),
-                Expanded(child: AppSubtitle(cuenta.nombreProveedor, fontSize: 12)),
-              ],
-            ),
-            if (cuenta.bancoPrincipal != null) ...[
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  const Icon(Icons.account_balance, size: 13, color: Colors.grey),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      '${cuenta.bancoPrincipal!.nombreBanco} - ${cuenta.bancoPrincipal!.numeroCuenta}',
-                      style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                Text('Total: S/ ${cuenta.totalCompra.toStringAsFixed(2)}', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
-                const Spacer(),
-                AppSubtitle('Saldo: S/ ${cuenta.saldoPendiente.toStringAsFixed(2)}', fontSize: 13, color: estadoColor),
-              ],
-            ),
-            if (cuenta.fechaVencimiento != null) ...[
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  Icon(Icons.event, size: 13, color: cuenta.estado == 'VENCIDA' ? Colors.red : Colors.grey.shade500),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Vence: ${DateFormatter.formatDate(cuenta.fechaVencimiento!)}${cuenta.diasVencimiento != null ? ' (${cuenta.diasVencimiento! > 0 ? 'en ${cuenta.diasVencimiento} días' : cuenta.diasVencimiento == 0 ? 'hoy' : '${cuenta.diasVencimiento!.abs()} días atrás'})' : ''}',
-                    style: TextStyle(fontSize: 10, color: cuenta.estado == 'VENCIDA' ? Colors.red : Colors.grey.shade600),
-                  ),
-                ],
-              ),
-            ],
-            // Registrar pago — solo si queda saldo.
-            if (cuenta.estado != 'PAGADA' && cuenta.saldoPendiente > 0.001) ...[
-              const SizedBox(height: 10),
-              SizedBox(
-                width: double.infinity,
-                child: CustomButton(
-                  text: 'Registrar pago',
-                  height: 36,
-                  backgroundColor: AppColors.blue1,
-                  textColor: Colors.white,
-                  onPressed: () => _pagar(context, cuenta),
-                ),
-              ),
-            ],
-          ],
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => CuentasProveedorPage(
+            proveedorId: deuda.proveedorId,
+            nombreProveedor: deuda.nombreProveedor,
+          ),
         ),
       ),
+      child: GradientContainer(
+        margin: const EdgeInsets.only(bottom: 8),
+        borderColor: tieneVencido ? Colors.red.shade300 : AppColors.blueborder,
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(9),
+                decoration: BoxDecoration(
+                  color: AppColors.blue1.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.business, size: 20, color: AppColors.blue1),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    AppSubtitle(deuda.nombreProveedor, fontSize: 13, color: AppColors.blue1),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${deuda.cantidadCompras} compra${deuda.cantidadCompras != 1 ? 's' : ''}'
+                      '${deuda.cantidadVencidas > 0 ? ' · ${deuda.cantidadVencidas} vencida${deuda.cantidadVencidas != 1 ? 's' : ''}' : ''}',
+                      style: TextStyle(fontSize: 11, color: tieneVencido ? Colors.red : Colors.grey.shade600),
+                    ),
+                    if (deuda.proximoVencimiento != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        'Próx. vence: ${DateFormatter.formatDate(deuda.proximoVencimiento!)}',
+                        style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text('S/ ${deuda.totalDeuda.toStringAsFixed(2)}',
+                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.red)),
+                  const Icon(Icons.chevron_right, size: 18, color: Colors.grey),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
-  }
-
-  Future<void> _abrirDetalle(BuildContext context, CuentaPorPagar cuenta) async {
-    final cubit = context.read<CuentasPagarCubit>();
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => CuentaPagarDetallePage(compraId: cuenta.id, cubit: cubit),
-      ),
-    );
-  }
-
-  Future<void> _pagar(BuildContext context, CuentaPorPagar cuenta) async {
-    final cubit = context.read<CuentasPagarCubit>();
-    final ok = await PagoProveedorSheet.mostrar(context, cuenta: cuenta, cubit: cubit);
-    if (ok == true && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pago registrado'), backgroundColor: Colors.green),
-      );
-    }
   }
 }
