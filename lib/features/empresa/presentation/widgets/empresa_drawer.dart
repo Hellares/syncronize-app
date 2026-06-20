@@ -660,6 +660,14 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/cuentas-bancarias')),
           ),
           tile(
+            title: 'Cuentas de Recaudación',
+            icon: Icons.sync_alt,
+            iconColor: Colors.indigo,
+            visible: can(permissions?.canViewReports),
+            routeMatch: const _RouteMatch.startsWith('/empresa/cuentas-recaudacion'),
+            onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/cuentas-recaudacion')),
+          ),
+          tile(
             title: 'Agentes Bancarios',
             icon: Icons.account_balance,
             iconColor: Colors.teal,

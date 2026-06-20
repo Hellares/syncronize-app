@@ -560,6 +560,8 @@ import '../../features/cuentas_por_pagar/domain/usecases/registrar_pago_cuenta_p
     as _i639;
 import '../../features/cuentas_por_pagar/presentation/bloc/cuentas_pagar_cubit.dart'
     as _i23;
+import '../../features/cuentas_recaudacion/data/datasources/cuentas_recaudacion_remote_datasource.dart'
+    as _i655;
 import '../../features/dashboard_vendedor/data/datasources/dashboard_vendedor_remote_datasource.dart'
     as _i340;
 import '../../features/dashboard_vendedor/data/repositories/dashboard_vendedor_repository_impl.dart'
@@ -2338,6 +2340,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i599.AsistenciaResumenCubit>(
       () => _i599.AsistenciaResumenCubit(gh<_i301.AsistenciaRepository>()),
+    );
+    gh.lazySingleton<_i655.CuentasRecaudacionRemoteDataSource>(
+      () => _i655.CuentasRecaudacionRemoteDataSource(gh<_i667.DioClient>()),
     );
     gh.factory<_i690.ProductosStockRepository>(
       () => _i733.ProductosStockRepositoryImpl(

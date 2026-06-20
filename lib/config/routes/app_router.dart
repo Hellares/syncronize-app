@@ -58,6 +58,7 @@ import '../../features/caja_chica/presentation/pages/rendicion_page.dart';
 import '../../features/cuentas_por_cobrar/presentation/pages/cuentas_por_cobrar_page.dart';
 import '../../features/cuentas_por_pagar/presentation/pages/cuentas_por_pagar_page.dart';
 import '../../features/empresa_banco/presentation/pages/empresa_banco_page.dart';
+import '../../features/cuentas_recaudacion/presentation/pages/cuentas_recaudacion_page.dart';
 import '../../features/resumen_financiero/presentation/pages/resumen_financiero_page.dart';
 import '../../features/pago_suscripcion/presentation/pages/pagar_plan_page.dart';
 import '../../features/pago_suscripcion/presentation/pages/mis_pagos_page.dart';
@@ -1177,6 +1178,11 @@ class AppRouter {
         path: '/empresa/cuentas-bancarias',
         name: 'empresa-cuentas-bancarias',
         builder: (context, state) => const EmpresaBancoPage(),
+      ),
+      GoRoute(
+        path: '/empresa/cuentas-recaudacion',
+        name: 'empresa-cuentas-recaudacion',
+        builder: (context, state) => const CuentasRecaudacionPage(),
       ),
       GoRoute(
         path: '/empresa/resumen-financiero',
