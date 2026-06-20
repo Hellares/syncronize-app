@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/fonts/app_text_widgets.dart';
@@ -7,6 +8,8 @@ import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/theme/gradient_container.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/widgets/smart_appbar.dart';
+import '../../../cuentas_por_pagar/presentation/bloc/cuentas_pagar_cubit.dart';
+import '../../../cuentas_por_pagar/presentation/pages/cuenta_pagar_detalle_page.dart';
 import '../../data/datasources/proveedor_remote_datasource.dart';
 
 String _sim(String? m) {
@@ -218,53 +221,106 @@ class _EstadoCuentaTerceroPageState extends State<EstadoCuentaTerceroPage> {
     );
   }
 
+  String _fmtCant(double c) =>
+      c == c.roundToDouble() ? c.toStringAsFixed(0) : c.toStringAsFixed(2);
+
   Widget _movTile(Map<String, dynamic> m) {
     final esCompra = m['tipo'] == 'COMPRA';
     final color = esCompra ? AppColors.red : AppColors.green;
     final fecha = m['fecha'] != null ? DateTime.tryParse(m['fecha'].toString()) : null;
     final saldo = _d(m['saldoPendiente']);
     final estado = m['estado']?.toString() ?? '';
+    final moneda = m['moneda']?.toString();
+    final items = (m['items'] as List<dynamic>? ?? []);
     return Container(
       margin: const EdgeInsets.only(bottom: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: AppColors.blueborder.withValues(alpha: 0.4)),
       ),
-      child: Row(
-        children: [
-          CircleAvatar(
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          tilePadding: const EdgeInsets.symmetric(horizontal: 12),
+          childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+          leading: CircleAvatar(
             radius: 16,
             backgroundColor: color.withValues(alpha: 0.12),
             child: Icon(esCompra ? Icons.shopping_cart_rounded : Icons.sell_rounded, size: 15, color: color),
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('${esCompra ? 'Compra' : 'Venta'} · ${m['codigo'] ?? ''}',
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                Text(
-                  '${fecha != null ? DateFormatter.formatDate(fecha) : ''}  ·  $estado',
-                  style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
-                ),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+          title: Row(
             children: [
-              Text('${_sim(m['moneda']?.toString())} ${_d(m['total']).toStringAsFixed(2)}',
+              Expanded(
+                child: Text('${esCompra ? 'Compra' : 'Venta'} · ${m['codigo'] ?? ''}',
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+              ),
+              Text('${_sim(moneda)} ${_d(m['total']).toStringAsFixed(2)}',
                   style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-              if (saldo > 0.001)
-                Text('saldo ${_sim(m['moneda']?.toString())} ${saldo.toStringAsFixed(2)}',
-                    style: TextStyle(fontSize: 9.5, color: color)),
             ],
           ),
-        ],
+          subtitle: Text(
+            '${fecha != null ? DateFormatter.formatDate(fecha) : ''}  ·  $estado'
+            '${saldo > 0.001 ? '  ·  saldo ${_sim(moneda)} ${saldo.toStringAsFixed(2)}' : ''}',
+            style: TextStyle(fontSize: 10, color: saldo > 0.001 ? color : Colors.grey.shade600),
+          ),
+          children: [
+            if (items.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Text('Sin ítems', style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+              )
+            else
+              ...items.map((it) {
+                final i = it as Map<String, dynamic>;
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text('${_fmtCant(_d(i['cantidad']))} × ${i['descripcion']}',
+                            style: const TextStyle(fontSize: 11)),
+                      ),
+                      Text('${_sim(moneda)} ${_d(i['total']).toStringAsFixed(2)}',
+                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                    ],
+                  ),
+                );
+              }),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => _verDetalle(m),
+                icon: const Icon(Icons.open_in_new, size: 14),
+                label: Text(esCompra ? 'Ver compra' : 'Ver venta'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: color,
+                  side: BorderSide(color: color.withValues(alpha: 0.4)),
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
+  }
+
+  void _verDetalle(Map<String, dynamic> m) {
+    final id = m['id']?.toString();
+    if (id == null || id.isEmpty) return;
+    if (m['tipo'] == 'VENTA') {
+      context.push('/empresa/ventas/$id');
+    } else {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => CuentaPagarDetallePage(
+            compraId: id,
+            cubit: locator<CuentasPagarCubit>(),
+          ),
+        ),
+      );
+    }
   }
 }
