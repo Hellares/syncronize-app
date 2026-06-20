@@ -419,7 +419,7 @@ class _DetalleView extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label, style: TextStyle(fontSize: bold ? 13 : 12, color: Colors.grey.shade600, fontWeight: bold ? FontWeight.w600 : FontWeight.normal)),
-        Text('S/ ${monto.toStringAsFixed(2)}', style: TextStyle(fontSize: bold ? 16 : 13, color: color, fontWeight: bold ? FontWeight.bold : FontWeight.w500)),
+        Text('${detalle.simbolo} ${monto.toStringAsFixed(2)}', style: TextStyle(fontSize: bold ? 16 : 13, color: color, fontWeight: bold ? FontWeight.bold : FontWeight.w500)),
       ],
     );
   }
@@ -459,12 +459,12 @@ class _DetalleView extends StatelessWidget {
               children: [
                 Text(item.descripcion, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
                 const SizedBox(height: 2),
-                Text('$cantidadTxt × S/ ${item.precioUnitario.toStringAsFixed(2)}', style: TextStyle(fontSize: 10.5, color: Colors.grey.shade600)),
+                Text('$cantidadTxt × ${detalle.simbolo} ${item.precioUnitario.toStringAsFixed(2)}', style: TextStyle(fontSize: 10.5, color: Colors.grey.shade600)),
               ],
             ),
           ),
           const SizedBox(width: 8),
-          Text('S/ ${item.total.toStringAsFixed(2)}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+          Text('${detalle.simbolo} ${item.total.toStringAsFixed(2)}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
         ],
       ),
     );
@@ -533,7 +533,7 @@ class _DetalleView extends StatelessWidget {
           ),
           _buildComprobanteIcon(pago),
           const SizedBox(width: 4),
-          Text('S/ ${pago.monto.toStringAsFixed(2)}', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.green.shade700)),
+          Text('${detalle.simbolo} ${pago.monto.toStringAsFixed(2)}', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.green.shade700)),
         ],
       ),
     );

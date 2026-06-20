@@ -1,5 +1,17 @@
 import 'package:equatable/equatable.dart';
 
+/// Símbolo a mostrar para un código de moneda ISO. PEN→S/, USD→$, otros→"COD ".
+String simboloMoneda(String? moneda) {
+  switch ((moneda ?? 'PEN').toUpperCase()) {
+    case 'PEN':
+      return 'S/';
+    case 'USD':
+      return '\$';
+    default:
+      return '${(moneda ?? '').toUpperCase()} ';
+  }
+}
+
 class BancoPrincipal extends Equatable {
   final String nombreBanco;
   final String numeroCuenta;
@@ -22,6 +34,7 @@ class CuentaPorPagar extends Equatable {
   final DateTime? fechaCompra;
   final String? serieDocumentoProveedor;
   final String? numeroDocumentoProveedor;
+  final String moneda;
   final BancoPrincipal? bancoPrincipal;
 
   const CuentaPorPagar({
@@ -36,8 +49,11 @@ class CuentaPorPagar extends Equatable {
     this.fechaCompra,
     this.serieDocumentoProveedor,
     this.numeroDocumentoProveedor,
+    this.moneda = 'PEN',
     this.bancoPrincipal,
   });
+
+  String get simbolo => simboloMoneda(moneda);
 
   /// Pagado = total − saldo (el endpoint de lista no trae el pagado por separado).
   double get totalPagado => (totalCompra - saldoPendiente).clamp(0, totalCompra);
@@ -136,6 +152,7 @@ class CuentaPagarDetalle extends Equatable {
   final String? tipoDocumentoProveedor;
   final String? serieDocumentoProveedor;
   final String? numeroDocumentoProveedor;
+  final String moneda;
   final BancoPrincipal? bancoPrincipal;
   final List<CompraItem> detalles;
   final List<PagoRealizado> pagos;
@@ -161,10 +178,13 @@ class CuentaPagarDetalle extends Equatable {
     this.tipoDocumentoProveedor,
     this.serieDocumentoProveedor,
     this.numeroDocumentoProveedor,
+    this.moneda = 'PEN',
     this.bancoPrincipal,
     this.detalles = const [],
     this.pagos = const [],
   });
+
+  String get simbolo => simboloMoneda(moneda);
 
   String? get documentoProveedorCompleto {
     if (serieDocumentoProveedor == null && numeroDocumentoProveedor == null) {
@@ -190,6 +210,7 @@ class CuentaPagarDetalle extends Equatable {
         fechaCompra: fechaCompra,
         serieDocumentoProveedor: serieDocumentoProveedor,
         numeroDocumentoProveedor: numeroDocumentoProveedor,
+        moneda: moneda,
         bancoPrincipal: bancoPrincipal,
       );
 
@@ -208,6 +229,10 @@ class DeudaProveedor extends Equatable {
   final int cantidadVencidas;
   final DateTime? proximoVencimiento;
 
+  /// Deuda separada por moneda (ej {PEN: 200.0, USD: 15.0}). Se usa para no
+  /// mostrar un total sumando monedas distintas.
+  final Map<String, double> deudaPorMoneda;
+
   const DeudaProveedor({
     required this.proveedorId,
     required this.nombreProveedor,
@@ -217,7 +242,21 @@ class DeudaProveedor extends Equatable {
     required this.cantidadCompras,
     required this.cantidadVencidas,
     this.proximoVencimiento,
+    this.deudaPorMoneda = const {},
   });
+
+  /// Total(es) formateado(s) con símbolo por moneda, ej "S/ 200.00" o
+  /// "S/ 200.00 · $ 15.00" si hay varias.
+  String get deudaFormateada {
+    if (deudaPorMoneda.isEmpty) return 'S/ ${totalDeuda.toStringAsFixed(2)}';
+    final entradas = deudaPorMoneda.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    return entradas
+        .map((e) => '${simboloMoneda(e.key)} ${e.value.toStringAsFixed(2)}')
+        .join('  ·  ');
+  }
+
+  bool get variasMonedas => deudaPorMoneda.length > 1;
 
   @override
   List<Object?> get props => [proveedorId, totalDeuda, totalVencido, cantidadCompras];

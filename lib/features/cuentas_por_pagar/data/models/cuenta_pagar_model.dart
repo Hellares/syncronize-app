@@ -12,6 +12,7 @@ class CuentaPagarModel {
   final DateTime? fechaCompra;
   final String? serieDocumentoProveedor;
   final String? numeroDocumentoProveedor;
+  final String moneda;
   final Map<String, dynamic>? bancoPrincipal;
 
   const CuentaPagarModel({
@@ -26,6 +27,7 @@ class CuentaPagarModel {
     this.fechaCompra,
     this.serieDocumentoProveedor,
     this.numeroDocumentoProveedor,
+    this.moneda = 'PEN',
     this.bancoPrincipal,
   });
 
@@ -54,6 +56,7 @@ class CuentaPagarModel {
           : null,
       serieDocumentoProveedor: json['serieDocumentoProveedor'] as String?,
       numeroDocumentoProveedor: json['numeroDocumentoProveedor'] as String?,
+      moneda: json['moneda'] as String? ?? 'PEN',
       bancoPrincipal: json['bancoPrincipal'] as Map<String, dynamic>?,
     );
   }
@@ -71,6 +74,7 @@ class CuentaPagarModel {
       fechaCompra: fechaCompra,
       serieDocumentoProveedor: serieDocumentoProveedor,
       numeroDocumentoProveedor: numeroDocumentoProveedor,
+      moneda: moneda,
       bancoPrincipal: bancoPrincipal != null
           ? BancoPrincipal(
               nombreBanco: bancoPrincipal!['nombreBanco'] as String? ?? '',
@@ -122,6 +126,7 @@ class CuentaPagarDetalleModel {
       tipoDocumentoProveedor: json['tipoDocumentoProveedor'] as String?,
       serieDocumentoProveedor: json['serieDocumentoProveedor'] as String?,
       numeroDocumentoProveedor: json['numeroDocumentoProveedor'] as String?,
+      moneda: json['moneda'] as String? ?? 'PEN',
       bancoPrincipal: banco != null
           ? BancoPrincipal(
               nombreBanco: banco['nombreBanco'] as String? ?? '',
@@ -169,6 +174,10 @@ class DeudaProveedorModel {
       proximoVencimiento: json['proximoVencimiento'] != null
           ? DateTime.tryParse(json['proximoVencimiento'].toString())
           : null,
+      deudaPorMoneda: (json['deudaPorMoneda'] as Map<String, dynamic>?)?.map(
+            (k, v) => MapEntry(k, CuentaPagarModel._toDouble(v)),
+          ) ??
+          const {},
     );
   }
 }

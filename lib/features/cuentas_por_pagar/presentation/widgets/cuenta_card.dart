@@ -85,9 +85,9 @@ class CuentaCard extends StatelessWidget {
               const SizedBox(height: 6),
               Row(
                 children: [
-                  Text('Total: S/ ${cuenta.totalCompra.toStringAsFixed(2)}', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                  Text('Total: ${cuenta.simbolo} ${cuenta.totalCompra.toStringAsFixed(2)}', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
                   const Spacer(),
-                  AppSubtitle('Saldo: S/ ${cuenta.saldoPendiente.toStringAsFixed(2)}', fontSize: 13, color: estadoColor),
+                  AppSubtitle('Saldo: ${cuenta.simbolo} ${cuenta.saldoPendiente.toStringAsFixed(2)}', fontSize: 13, color: estadoColor),
                 ],
               ),
               if (cuenta.fechaVencimiento != null) ...[

@@ -372,8 +372,10 @@ class _ProveedorCard extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text('S/ ${deuda.totalDeuda.toStringAsFixed(2)}',
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.red)),
+                  ...deuda.deudaFormateada.split('  ·  ').map(
+                        (linea) => Text(linea,
+                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.red)),
+                      ),
                   const Icon(Icons.chevron_right, size: 18, color: Colors.grey),
                 ],
               ),

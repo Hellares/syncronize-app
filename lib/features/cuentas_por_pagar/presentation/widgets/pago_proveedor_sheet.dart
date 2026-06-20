@@ -77,7 +77,7 @@ class _PagoProveedorSheetState extends State<PagoProveedorSheet> {
       return;
     }
     if (monto > saldo + 0.001) {
-      _snack('El monto no puede superar el saldo (S/ ${saldo.toStringAsFixed(2)})');
+      _snack('El monto no puede superar el saldo (${widget.cuenta.simbolo} ${saldo.toStringAsFixed(2)})');
       return;
     }
     monto = (monto * 100).round() / 100;
@@ -237,7 +237,7 @@ class _PagoProveedorSheetState extends State<PagoProveedorSheet> {
                 AppSubtitle(widget.cuenta.nombreProveedor, fontSize: 12, color: AppColors.blueGrey),
                 const SizedBox(height: 2),
                 AppSubtitle(
-                  '${widget.cuenta.codigo}  ·  Saldo: S/ ${saldo.toStringAsFixed(2)}',
+                  '${widget.cuenta.codigo}  ·  Saldo: ${widget.cuenta.simbolo} ${saldo.toStringAsFixed(2)}',
                   fontSize: 11,
                   color: Colors.grey,
                 ),
@@ -257,7 +257,7 @@ class _PagoProveedorSheetState extends State<PagoProveedorSheet> {
                 ),
                 const SizedBox(height: 12),
                 CustomText(
-                  label: 'Monto (máx S/ ${saldo.toStringAsFixed(2)})',
+                  label: 'Monto (máx ${widget.cuenta.simbolo} ${saldo.toStringAsFixed(2)})',
                   controller: _montoCtrl,
                   fieldType: FieldType.number,
                   borderColor: AppColors.blueborder,

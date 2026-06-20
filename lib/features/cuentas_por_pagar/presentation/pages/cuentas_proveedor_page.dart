@@ -56,9 +56,9 @@ class _CuentasProveedorViewState extends State<_CuentasProveedorView> {
   static const double _wEstado = 78;
   static const double _wCompra = 72;
   static const double _wVence = 72;
-  static const double _wTotal = 66;
-  static const double _wPagado = 66;
-  static const double _wSaldo = 74;
+  static const double _wTotal = 80;
+  static const double _wPagado = 80;
+  static const double _wSaldo = 86;
   static const double _rowH = 38;
 
   static final Color _bgTotalH = Colors.blue.shade100;
@@ -111,15 +111,19 @@ class _CuentasProveedorViewState extends State<_CuentasProveedorView> {
             }
             if (state is CuentasPagarLoaded) {
               final pendientes = state.cuentas.where((c) => c.estado != 'PAGADA').toList();
-              final totalDeuda = pendientes.fold<double>(0, (s, c) => s + c.saldoPendiente);
               final vencidas = pendientes.where((c) => c.estado == 'VENCIDA').toList();
               final totalVencido = vencidas.fold<double>(0, (s, c) => s + c.saldoPendiente);
+              // Deuda separada por moneda (no se suman PEN y USD juntos).
+              final deudaPorMoneda = <String, double>{};
+              for (final c in pendientes) {
+                deudaPorMoneda[c.moneda] = (deudaPorMoneda[c.moneda] ?? 0) + c.saldoPendiente;
+              }
 
               return Column(
                 children: [
                   Padding(
                     padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-                    child: _buildHeader(totalDeuda, totalVencido, pendientes.length, vencidas.length),
+                    child: _buildHeader(deudaPorMoneda, totalVencido, pendientes.length, vencidas.length),
                   ),
                   const SizedBox(height: 10),
                   Expanded(
@@ -150,7 +154,10 @@ class _CuentasProveedorViewState extends State<_CuentasProveedorView> {
     );
   }
 
-  Widget _buildHeader(double totalDeuda, double totalVencido, int compras, int vencidas) {
+  Widget _buildHeader(Map<String, double> deudaPorMoneda, double totalVencido, int compras, int vencidas) {
+    // Una línea de total por moneda (ej "S/ 200.00" y "$ 15.00" si hay ambas).
+    final entradas = deudaPorMoneda.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
     return GradientContainer(
       borderColor: totalVencido > 0 ? Colors.red.shade300 : AppColors.blueborder,
       child: Padding(
@@ -160,14 +167,25 @@ class _CuentasProveedorViewState extends State<_CuentasProveedorView> {
           children: [
             const AppSubtitle('Total que debes', fontSize: 12, color: AppColors.blueGrey),
             const SizedBox(height: 4),
-            AppTitle('S/ ${totalDeuda.toStringAsFixed(2)}', fontSize: 24, color: Colors.red),
+            if (entradas.isEmpty)
+              AppTitle('S/ 0.00', fontSize: 24, color: Colors.red)
+            else
+              Wrap(
+                spacing: 14,
+                runSpacing: 2,
+                crossAxisAlignment: WrapCrossAlignment.end,
+                children: entradas
+                    .map((e) => AppTitle('${simboloMoneda(e.key)} ${e.value.toStringAsFixed(2)}',
+                        fontSize: 20, color: Colors.red))
+                    .toList(),
+              ),
             const SizedBox(height: 8),
             Row(
               children: [
                 _chip(Icons.receipt_long, '$compras compra${compras != 1 ? 's' : ''}', AppColors.blue1),
                 const SizedBox(width: 8),
                 if (vencidas > 0)
-                  _chip(Icons.warning_amber_rounded, 'Vencido S/ ${totalVencido.toStringAsFixed(2)}', Colors.red),
+                  _chip(Icons.warning_amber_rounded, '$vencidas vencida${vencidas != 1 ? 's' : ''}', Colors.red),
               ],
             ),
           ],
@@ -179,7 +197,7 @@ class _CuentasProveedorViewState extends State<_CuentasProveedorView> {
   Widget _chip(IconData icon, String texto, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(color: color.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(8)),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(4)),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -304,9 +322,9 @@ class _CuentasProveedorViewState extends State<_CuentasProveedorView> {
             _dCell(c.fechaCompra != null ? DateFormatter.formatDateShort(c.fechaCompra!) : '—', _wCompra, ts),
             _dCell(c.fechaVencimiento != null ? DateFormatter.formatDateShort(c.fechaVencimiento!) : '—', _wVence, ts,
                 color: c.estado == 'VENCIDA' ? Colors.red : null),
-            _dCell(c.totalCompra.toStringAsFixed(2), _wTotal, ts, alignRight: true, bgColor: _bgTotal),
-            _dCell(c.totalPagado.toStringAsFixed(2), _wPagado, ts, alignRight: true, bgColor: _bgPagado),
-            _dCell(c.saldoPendiente.toStringAsFixed(2), _wSaldo,
+            _dCell('${c.simbolo} ${c.totalCompra.toStringAsFixed(2)}', _wTotal, ts, alignRight: true, bgColor: _bgTotal),
+            _dCell('${c.simbolo} ${c.totalPagado.toStringAsFixed(2)}', _wPagado, ts, alignRight: true, bgColor: _bgPagado),
+            _dCell('${c.simbolo} ${c.saldoPendiente.toStringAsFixed(2)}', _wSaldo,
                 ts.copyWith(color: estadoColor, fontWeight: FontWeight.bold),
                 alignRight: true, bgColor: _bgSaldo),
           ],
