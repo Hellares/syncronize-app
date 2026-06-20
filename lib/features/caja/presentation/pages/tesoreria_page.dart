@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:syncronize/core/di/injection_container.dart';
+import 'package:syncronize/core/network/dio_client.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/utils/date_formatter.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
@@ -166,6 +167,7 @@ class _Loaded extends StatelessWidget {
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
           SliverToBoxAdapter(child: _HeaderCard(resumen: state.resumen)),
+          const SliverToBoxAdapter(child: _BancosResumen()),
           SliverToBoxAdapter(
             child: _FiltrosBar(
               filter: state.filter,
@@ -300,7 +302,7 @@ class _HeaderCard extends StatelessWidget {
               ),
               Expanded(
                 child: _SaldoColumn(
-                  label: 'Digital',
+                  label: 'Digital (histórico)',
                   icon: Icons.phone_android_rounded,
                   monto: resumen.saldoDigital,
                 ),
@@ -364,6 +366,95 @@ class _HeaderCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Desglose por banco de los cobros digitales. Tras el rediseño, Yape/Plin/
+/// tarjeta/transferencia ya NO se acumulan en la tesorería (bóveda) sino en
+/// las cuentas bancarias. Esta tarjeta lo muestra ahí mismo.
+class _BancosResumen extends StatelessWidget {
+  const _BancosResumen();
+
+  String _sim(String? m) {
+    switch ((m ?? 'PEN').toUpperCase()) {
+      case 'USD':
+        return '\$';
+      case 'PEN':
+        return 'S/';
+      default:
+        return '${(m ?? '').toUpperCase()} ';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder(
+      future: locator<DioClient>().get('/caja/tesoreria-consolidado'),
+      builder: (context, snap) {
+        if (!snap.hasData) return const SizedBox.shrink();
+        final data = snap.data!.data as Map<String, dynamic>;
+        final bancos = (data['bancos'] as List<dynamic>? ?? []);
+        if (bancos.isEmpty) return const SizedBox.shrink();
+        return Container(
+          margin: const EdgeInsets.fromLTRB(10, 0, 10, 4),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AppColors.blueborder),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.account_balance, size: 15, color: AppColors.blue1),
+                  const SizedBox(width: 6),
+                  const Expanded(
+                    child: Text('Cobros digitales — en los bancos',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.blue1)),
+                  ),
+                  InkWell(
+                    onTap: () => context.push('/empresa/tesoreria-consolidado'),
+                    child: const Text('Ver detalle ›', style: TextStyle(fontSize: 11, color: AppColors.blue1)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 2),
+              Text('Yape/Plin/tarjeta ya no van a la bóveda: se acreditan acá.',
+                  style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
+              const SizedBox(height: 8),
+              ...bancos.map((b) {
+                final m = b as Map<String, dynamic>;
+                final metodos = (m['metodos'] as List<dynamic>? ?? []).cast<String>();
+                final saldo = (m['saldoActual'] as num?)?.toDouble() ?? 0;
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 3),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('${m['nombreBanco'] ?? ''}${m['esPrincipal'] == true ? ' ★' : ''}',
+                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                            if (metodos.isNotEmpty)
+                              Text('Recauda: ${metodos.join(', ')}',
+                                  style: TextStyle(fontSize: 9.5, color: Colors.grey.shade600)),
+                          ],
+                        ),
+                      ),
+                      Text('${_sim(m['moneda']?.toString())} ${saldo.toStringAsFixed(2)}',
+                          style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: AppColors.blue1)),
+                    ],
+                  ),
+                );
+              }),
+            ],
+          ),
+        );
+      },
     );
   }
 }
