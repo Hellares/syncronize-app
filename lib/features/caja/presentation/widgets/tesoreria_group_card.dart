@@ -286,12 +286,29 @@ class TesoreriaGroupCard extends StatelessWidget {
     }).toList();
   }
 
+  /// Chips del desglose en filas de a DOS (grid de 2 columnas), cada uno
+  /// ocupando media fila para aprovechar el ancho.
   Widget _chipsResumen(List<_BarridoItem> items) {
-    return Wrap(
-      spacing: 4,
-      runSpacing: 4,
-      children: items.map((i) => _BarridoChip(item: i)).toList(),
-    );
+    final filas = <Widget>[];
+    for (var i = 0; i < items.length; i += 2) {
+      final primero = items[i];
+      final segundo = (i + 1 < items.length) ? items[i + 1] : null;
+      filas.add(Padding(
+        padding: EdgeInsets.only(top: i == 0 ? 0 : 4),
+        child: Row(
+          children: [
+            Expanded(child: _BarridoChip(item: primero)),
+            const SizedBox(width: 4),
+            Expanded(
+              child: segundo != null
+                  ? _BarridoChip(item: segundo)
+                  : const SizedBox(),
+            ),
+          ],
+        ),
+      ));
+    }
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: filas);
   }
 
   Widget _singleTile(MovimientoCaja mov) {
@@ -674,12 +691,15 @@ class _BarridoChip extends StatelessWidget {
         border: Border.all(color: color.withValues(alpha: 0.30), width: 0.5),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
           Icon(item.metodoEnum.icon, size: 12, color: color),
           const SizedBox(width: 4),
-          Text(item.metodoEnum.label,
-              style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w500)),
+          Flexible(
+            child: Text(item.metodoEnum.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w500)),
+          ),
           const SizedBox(width: 6),
           Text('+ S/${item.monto.toStringAsFixed(2)}',
               style: TextStyle(fontSize: 9, color: color, fontWeight: FontWeight.w700)),
