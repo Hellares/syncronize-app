@@ -447,12 +447,54 @@ class _CerrarCajaPageState extends State<CerrarCajaPage> {
   }
 
   Widget _buildAvisoTesoreria(NumberFormat currencyFormat) {
-    double totalDeposito = 0;
-    for (final c in _conteoControllers.values) {
-      totalDeposito +=
-          double.tryParse(c.text.replaceAll(',', '.')) ?? 0;
-    }
+    double efectivo = 0;
+    double digital = 0;
+    final digitalChips = <MapEntry<MetodoPago, double>>[];
+    _conteoControllers.forEach((metodo, c) {
+      final v = double.tryParse(c.text.replaceAll(',', '.')) ?? 0;
+      if (v <= 0) return;
+      if (metodo == MetodoPago.efectivo) {
+        efectivo += v;
+      } else {
+        digital += v;
+        digitalChips.add(MapEntry(metodo, v));
+      }
+    });
+    final totalDeposito = efectivo + digital;
     if (totalDeposito <= 0) return const SizedBox.shrink();
+    digitalChips.sort((a, b) => b.value.compareTo(a.value));
+
+    Widget destino({
+      required IconData icon,
+      required String titulo,
+      required String detalle,
+      required double monto,
+    }) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: AppColors.blue1, size: 18),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(titulo,
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.blue1)),
+                  Text(detalle,
+                      style: TextStyle(fontSize: 10.5, color: AppColors.textSecondary.withValues(alpha: 0.9))),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(currencyFormat.format(monto),
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.blue1)),
+          ],
+        ),
+      );
+    }
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -463,45 +505,46 @@ class _CerrarCajaPageState extends State<CerrarCajaPage> {
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: AppColors.blue1.withValues(alpha: 0.20)),
         ),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(
-              Icons.account_balance_rounded,
-              color: AppColors.blue1,
-              size: 20,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Se depositará en Tesorería',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.blue1,
-                    ),
-                  ),
-                  Text(
-                    'El conteo declarado se transfiere automáticamente a la Caja Central de la sede al cerrar.',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: AppColors.textSecondary.withValues(alpha: 0.90),
-                    ),
-                  ),
-                ],
+            const Text('Al cerrar se distribuye así',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.blue1)),
+            const SizedBox(height: 2),
+            if (efectivo > 0)
+              destino(
+                icon: Icons.savings_rounded,
+                titulo: 'Efectivo → Tesorería (bóveda)',
+                detalle: 'Va a la Caja Central de la sede.',
+                monto: efectivo,
               ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              currencyFormat.format(totalDeposito),
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w800,
-                color: AppColors.blue1,
+            if (digital > 0) ...[
+              destino(
+                icon: Icons.account_balance_rounded,
+                titulo: 'Medios digitales → tus bancos',
+                detalle: 'Cada método entra a su cuenta bancaria configurada.',
+                monto: digital,
               ),
-            ),
+              Padding(
+                padding: const EdgeInsets.only(left: 26, top: 2),
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: digitalChips
+                      .map((e) => Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: AppColors.blue1.withValues(alpha: 0.10),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: AppColors.blue1.withValues(alpha: 0.25)),
+                            ),
+                            child: Text('${e.key.label}  ${currencyFormat.format(e.value)}',
+                                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.blue1)),
+                          ))
+                      .toList(),
+                ),
+              ),
+            ],
           ],
         ),
       ),

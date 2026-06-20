@@ -269,14 +269,14 @@ class _HeaderCard extends StatelessWidget {
                       style: const TextStyle(
                         color: AppColors.white,
                         fontWeight: FontWeight.w700,
-                        fontSize: 12,
+                        fontSize: 11,
                       ),
                     ),
                     Text(
                       resumen.caja.codigo,
                       style: TextStyle(
                         color: AppColors.white.withValues(alpha: 0.85),
-                        fontSize: 10,
+                        fontSize: 8,
                       ),
                     ),
                   ],
@@ -284,7 +284,7 @@ class _HeaderCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
           Row(
             children: [
               Expanded(
@@ -314,7 +314,7 @@ class _HeaderCard extends StatelessWidget {
                             Icon(Icons.phone_android_rounded, color: AppColors.white.withValues(alpha: 0.85), size: 16),
                             const SizedBox(width: 4),
                             Text('Cobros digitales',
-                                style: TextStyle(color: AppColors.white.withValues(alpha: 0.85), fontSize: 12)),
+                                style: TextStyle(color: AppColors.white.withValues(alpha: 0.85), fontSize: 10)),
                           ],
                         ),
                         const SizedBox(height: 4),
@@ -322,7 +322,7 @@ class _HeaderCard extends StatelessWidget {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: const [
                             Text('en los bancos',
-                                style: TextStyle(color: AppColors.white, fontWeight: FontWeight.w700, fontSize: 13)),
+                                style: TextStyle(color: AppColors.white, fontWeight: FontWeight.w600, fontSize: 12)),
                             Icon(Icons.chevron_right, color: AppColors.white, size: 18),
                           ],
                         ),
@@ -333,13 +333,13 @@ class _HeaderCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Container(
             padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             decoration: BoxDecoration(
               color: AppColors.white.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(6),
             ),
             child: _TotalConBancos(saldoEfectivo: resumen.saldoEfectivo),
           ),
@@ -387,6 +387,8 @@ class _TotalConBancos extends StatefulWidget {
 
 class _TotalConBancosState extends State<_TotalConBancos> {
   Map<String, dynamic>? _porMoneda;
+  Map<String, dynamic> _porMetodo = {};
+  bool _expandido = false;
 
   @override
   void initState() {
@@ -398,7 +400,10 @@ class _TotalConBancosState extends State<_TotalConBancos> {
     try {
       final res = await locator<DioClient>().get('/caja/tesoreria-consolidado');
       if (!mounted) return;
-      setState(() => _porMoneda = (res.data['bancosPorMoneda'] as Map<String, dynamic>?) ?? {});
+      setState(() {
+        _porMoneda = (res.data['bancosPorMoneda'] as Map<String, dynamic>?) ?? {};
+        _porMetodo = (res.data['recaudadoPorMetodo'] as Map<String, dynamic>?) ?? {};
+      });
     } catch (_) {/* deja el total solo-efectivo */}
   }
 
@@ -407,6 +412,10 @@ class _TotalConBancosState extends State<_TotalConBancos> {
     final pen = (_porMoneda?['PEN'] as num?)?.toDouble() ?? 0;
     final usd = (_porMoneda?['USD'] as num?)?.toDouble() ?? 0;
     final totalPen = widget.saldoEfectivo + pen;
+    final metodos = _porMetodo.entries
+        .where((e) => ((e.value as num?)?.toDouble() ?? 0).abs() > 0.001)
+        .toList()
+      ..sort((a, b) => ((b.value as num).toDouble()).compareTo((a.value as num).toDouble()));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -416,7 +425,7 @@ class _TotalConBancosState extends State<_TotalConBancos> {
             const Text('Total (efectivo + bancos)',
                 style: TextStyle(color: AppColors.white, fontWeight: FontWeight.w600, fontSize: 12)),
             Text(_money(totalPen),
-                style: const TextStyle(color: AppColors.white, fontWeight: FontWeight.w800, fontSize: 18)),
+                style: const TextStyle(color: AppColors.white, fontWeight: FontWeight.w800, fontSize: 14)),
           ],
         ),
         if (_porMoneda != null) ...[
@@ -429,8 +438,68 @@ class _TotalConBancosState extends State<_TotalConBancos> {
             Text('+ \$ ${usd.toStringAsFixed(2)} en cuentas USD',
                 style: TextStyle(color: AppColors.white.withValues(alpha: 0.85), fontSize: 10)),
         ],
+        // Flechita expandible: desglose de medios digitales → bancos (chips).
+        if (metodos.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          InkWell(
+            onTap: () => setState(() => _expandido = !_expandido),
+            borderRadius: BorderRadius.circular(6),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Row(
+                children: [
+                  Icon(_expandido ? Icons.keyboard_arrow_down : Icons.chevron_right,
+                      color: AppColors.white.withValues(alpha: 0.9), size: 16),
+                  const SizedBox(width: 2),
+                  Text('Medios digitales → bancos',
+                      style: TextStyle(color: AppColors.white.withValues(alpha: 0.9), fontSize: 10.5, fontWeight: FontWeight.w600)),
+                ],
+              ),
+            ),
+          ),
+          if (_expandido) ...[
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: metodos
+                  .map((e) => _chipMetodo(_labelMetodo(e.key), (e.value as num).toDouble()))
+                  .toList(),
+            ),
+          ],
+        ],
       ],
     );
+  }
+
+  Widget _chipMetodo(String label, double monto) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.white.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.white.withValues(alpha: 0.30)),
+      ),
+      child: Text('$label  ${_money(monto)}',
+          style: const TextStyle(color: AppColors.white, fontSize: 10.5, fontWeight: FontWeight.w600)),
+    );
+  }
+
+  String _labelMetodo(String m) {
+    switch (m.toUpperCase()) {
+      case 'YAPE':
+        return 'Yape';
+      case 'PLIN':
+        return 'Plin';
+      case 'TARJETA':
+        return 'Tarjeta';
+      case 'TRANSFERENCIA':
+        return 'Transferencia';
+      case 'EFECTIVO':
+        return 'Efectivo';
+      default:
+        return m;
+    }
   }
 }
 
@@ -458,7 +527,7 @@ class _SaldoColumn extends StatelessWidget {
               label,
               style: TextStyle(
                 color: AppColors.white.withValues(alpha: 0.85),
-                fontSize: 12,
+                fontSize: 10,
               ),
             ),
           ],
@@ -469,7 +538,7 @@ class _SaldoColumn extends StatelessWidget {
           style: const TextStyle(
             color: AppColors.white,
             fontWeight: FontWeight.w700,
-            fontSize: 18,
+            fontSize: 16,
           ),
         ),
       ],
@@ -616,10 +685,12 @@ class _FiltrosBarState extends State<_FiltrosBar> {
         children: [
           CustomText(
             controller: _searchCtrl,
+            borderColor: AppColors.blue1,
             label: 'Buscar en descripción',
             onChanged: _onSearchChanged,
+            prefixIcon: Icon(Icons.search),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Wrap(
         spacing: 8,
         runSpacing: 8,
@@ -710,6 +781,7 @@ class _FechaChip extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: selected ? AppColors.blue1 : AppColors.textSecondary,
+            width: 0.6
           ),
         ),
         child: Row(
@@ -726,7 +798,7 @@ class _FechaChip extends StatelessWidget {
               style: TextStyle(
                 color: selected ? AppColors.white : AppColors.textSecondary,
                 fontWeight: FontWeight.w600,
-                fontSize: 10,
+                fontSize: 9,
               ),
             ),
             if (onClear != null) ...[
@@ -770,6 +842,7 @@ class _Chip extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: selected ? AppColors.blue1 : AppColors.textSecondary,
+            width: 0.6
           ),
         ),
         child: Text(
@@ -777,7 +850,7 @@ class _Chip extends StatelessWidget {
           style: TextStyle(
             color: selected ? AppColors.white : AppColors.textSecondary,
             fontWeight: FontWeight.w600,
-            fontSize: 10,
+            fontSize: 9,
           ),
         ),
       ),
