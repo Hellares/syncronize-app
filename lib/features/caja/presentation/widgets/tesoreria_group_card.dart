@@ -286,26 +286,25 @@ class TesoreriaGroupCard extends StatelessWidget {
     }).toList();
   }
 
-  /// Chips del desglose en filas de a DOS (grid de 2 columnas), cada uno
-  /// ocupando media fila para aprovechar el ancho.
+  /// Chips del desglose en filas de a TRES (grid de 3 columnas), cada uno
+  /// ocupando un tercio de la fila para aprovechar el ancho.
   Widget _chipsResumen(List<_BarridoItem> items) {
+    const columnas = 3;
     final filas = <Widget>[];
-    for (var i = 0; i < items.length; i += 2) {
-      final primero = items[i];
-      final segundo = (i + 1 < items.length) ? items[i + 1] : null;
+    for (var i = 0; i < items.length; i += columnas) {
+      final celdas = <Widget>[];
+      for (var j = 0; j < columnas; j++) {
+        final idx = i + j;
+        if (j > 0) celdas.add(const SizedBox(width: 4));
+        celdas.add(Expanded(
+          child: idx < items.length
+              ? _BarridoChip(item: items[idx])
+              : const SizedBox(),
+        ));
+      }
       filas.add(Padding(
         padding: EdgeInsets.only(top: i == 0 ? 0 : 4),
-        child: Row(
-          children: [
-            Expanded(child: _BarridoChip(item: primero)),
-            const SizedBox(width: 4),
-            Expanded(
-              child: segundo != null
-                  ? _BarridoChip(item: segundo)
-                  : const SizedBox(),
-            ),
-          ],
-        ),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: celdas),
       ));
     }
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: filas);
