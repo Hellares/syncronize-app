@@ -78,6 +78,46 @@ class _TesoreriaConsolidadoPageState extends State<TesoreriaConsolidadoPage> {
 
   double _d(dynamic v) => v == null ? 0 : (v as num).toDouble();
 
+  Future<void> _confirmarMigracion() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Mover digital histórico', style: TextStyle(fontSize: 15)),
+        content: const Text(
+          'Se moverá el digital acumulado en tesorería a las cuentas bancarias '
+          'según el mapeo de recaudación (Yape→su banco, Plin→su banco, etc.). '
+          'Queda registrado como ajuste. ¿Continuar?',
+          style: TextStyle(fontSize: 13),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.blue1, foregroundColor: Colors.white),
+            child: const Text('Mover'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      final res = await locator<DioClient>().post('/caja/tesoreria/migrar-digital-historico');
+      final total = (res.data?['totalMovido'] as num?)?.toDouble() ?? 0;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Movido a bancos: S/ ${total.toStringAsFixed(2)}'), backgroundColor: Colors.green),
+        );
+      }
+      await _cargar();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No se pudo migrar: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -165,10 +205,25 @@ class _TesoreriaConsolidadoPageState extends State<TesoreriaConsolidadoPage> {
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: Colors.orange.shade200),
                   ),
-                  child: Text(
-                    'Digital histórico en tesorería: S/ ${totalDigHist.toStringAsFixed(2)} '
-                    '(de cierres previos; lo nuevo ya entra a los bancos)',
-                    style: TextStyle(fontSize: 10.5, color: Colors.orange.shade900),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Digital histórico en tesorería: S/ ${totalDigHist.toStringAsFixed(2)} '
+                        '(de cierres previos; lo nuevo ya entra a los bancos)',
+                        style: TextStyle(fontSize: 10.5, color: Colors.orange.shade900),
+                      ),
+                      const SizedBox(height: 6),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.move_up, size: 16),
+                          label: const Text('Mover a los bancos', style: TextStyle(fontSize: 12)),
+                          style: OutlinedButton.styleFrom(foregroundColor: Colors.orange.shade900),
+                          onPressed: _confirmarMigracion,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
