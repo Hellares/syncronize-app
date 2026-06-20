@@ -277,6 +277,7 @@ class _TesoreriaConsolidadoPageState extends State<TesoreriaConsolidadoPage> {
   Widget _bancoCard(Map<String, dynamic> b) {
     final metodos = (b['metodos'] as List<dynamic>? ?? []).cast<String>();
     final moneda = b['moneda']?.toString() ?? 'PEN';
+    final recaudado = (b['recaudadoPorMetodo'] as Map<String, dynamic>? ?? {});
     return GradientContainer(
       margin: const EdgeInsets.only(bottom: 8),
       borderColor: AppColors.blueborder,
@@ -319,6 +320,25 @@ class _TesoreriaConsolidadoPageState extends State<TesoreriaConsolidadoPage> {
                         ))
                     .toList(),
               ),
+            ],
+            // Desglose: cuánto entró por cada método (acumulado de recaudación).
+            if (recaudado.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              const Divider(height: 1),
+              const SizedBox(height: 6),
+              Text('Recaudado por método', style: TextStyle(fontSize: 9.5, color: Colors.grey.shade500, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 2),
+              ...recaudado.entries.map((e) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 1),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(_metodoLabel(e.key), style: const TextStyle(fontSize: 11)),
+                        Text('${_sim(moneda)} ${_d(e.value).toStringAsFixed(2)}',
+                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                  )),
             ],
           ],
         ),
