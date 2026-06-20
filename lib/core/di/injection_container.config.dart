@@ -770,6 +770,8 @@ import '../../features/guia_remision/domain/usecases/enviar_guia_remision_usecas
     as _i605;
 import '../../features/guia_remision/domain/usecases/listar_guias_remision_usecase.dart'
     as _i934;
+import '../../features/impresoras/data/datasources/impresoras_remote_datasource.dart'
+    as _i516;
 import '../../features/impresoras/domain/services/impresoras_manager.dart'
     as _i473;
 import '../../features/impresoras/presentation/bloc/impresora_form_cubit.dart'
@@ -1545,6 +1547,7 @@ import '../network/interceptors/refresh_token_interceptor.dart' as _i322;
 import '../network/interceptors/sanitized_logging_interceptor.dart' as _i954;
 import '../network/network_info.dart' as _i932;
 import '../services/autorizacion_service.dart' as _i90;
+import '../services/device_id_service.dart' as _i148;
 import '../services/error_handler_service.dart' as _i490;
 import '../services/export_service.dart' as _i26;
 import '../services/logger_service.dart' as _i141;
@@ -1578,12 +1581,12 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i895.Connectivity>(() => registerModule.connectivity);
     gh.lazySingleton<_i361.Dio>(() => registerModule.dio);
+    gh.lazySingleton<_i148.DeviceIdService>(() => _i148.DeviceIdService());
     gh.lazySingleton<_i141.LoggerService>(() => _i141.LoggerService());
     gh.lazySingleton<_i284.SessionExpiredNotifier>(
       () => _i284.SessionExpiredNotifier(),
       dispose: (i) => i.dispose(),
     );
-    gh.lazySingleton<_i473.ImpresorasManager>(() => _i473.ImpresorasManager());
     gh.lazySingleton<_i559.ProductoCatalogoLocalStore>(
       () => _i559.ProductoCatalogoLocalStore(),
     );
@@ -1620,12 +1623,6 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i966.ProductoLocalDataSource>(
       () => _i966.ProductoLocalDataSource(gh<_i744.LocalStorageService>()),
-    );
-    gh.factory<_i602.ImpresoraFormCubit>(
-      () => _i602.ImpresoraFormCubit(gh<_i473.ImpresorasManager>()),
-    );
-    gh.factory<_i577.ImpresorasListCubit>(
-      () => _i577.ImpresorasListCubit(gh<_i473.ImpresorasManager>()),
     );
     gh.factory<_i322.RefreshTokenInterceptor>(
       () => _i322.RefreshTokenInterceptor(
@@ -2343,6 +2340,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i655.CuentasRecaudacionRemoteDataSource>(
       () => _i655.CuentasRecaudacionRemoteDataSource(gh<_i667.DioClient>()),
+    );
+    gh.lazySingleton<_i516.ImpresorasRemoteDataSource>(
+      () => _i516.ImpresorasRemoteDataSource(gh<_i667.DioClient>()),
     );
     gh.factory<_i690.ProductosStockRepository>(
       () => _i733.ProductosStockRepositoryImpl(
@@ -3496,6 +3496,12 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i763.LibroContableCubit>(
       () => _i763.LibroContableCubit(gh<_i86.GetLibroContableUseCase>()),
     );
+    gh.lazySingleton<_i473.ImpresorasManager>(
+      () => _i473.ImpresorasManager(
+        gh<_i516.ImpresorasRemoteDataSource>(),
+        gh<_i148.DeviceIdService>(),
+      ),
+    );
     gh.factory<_i911.CajaChicaListCubit>(
       () => _i911.CajaChicaListCubit(gh<_i322.ListarCajasChicasUseCase>()),
     );
@@ -3832,6 +3838,12 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i835.AgregarItemCubit>(
       () => _i835.AgregarItemCubit(gh<_i87.AgregarItemUsecase>()),
+    );
+    gh.factory<_i602.ImpresoraFormCubit>(
+      () => _i602.ImpresoraFormCubit(gh<_i473.ImpresorasManager>()),
+    );
+    gh.factory<_i577.ImpresorasListCubit>(
+      () => _i577.ImpresorasListCubit(gh<_i473.ImpresorasManager>()),
     );
     gh.factory<_i1047.AdelantoCubit>(
       () => _i1047.AdelantoCubit(gh<_i345.AdelantoRepository>()),

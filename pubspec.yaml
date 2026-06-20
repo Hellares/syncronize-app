@@ -43,6 +43,7 @@ dependencies:
   pretty_dio_logger: ^1.4.0
   flutter_secure_storage: ^9.2.4
   shared_preferences: ^2.5.3
+  device_info_plus: ^11.1.0
   dartz: ^0.10.1
   go_router: ^14.7.0
   json_annotation: ^4.9.0
