@@ -8,6 +8,8 @@ enum ActionMenuType {
   transferencias, precio, addField,
   // Tipos de documento (selector compacto en VR cobro)
   dni, ruc, ce, pasaporte,
+  // Cuentas bancarias
+  bancoEstado, bancoPrincipal,
 }
 
 class ActionMenuItem {
