@@ -156,6 +156,10 @@ class TesoreriaGroupCard extends StatelessWidget {
     // Lo adjunta el backend en la metadata del INGRESO de tesorería.
     final resumen = _barridoResumen(depositos.first);
     final hayDigitalABanco = resumen.any((r) => r.aBanco);
+    // Total del barrido = efectivo (bóveda) + medios digitales (bancos).
+    final totalBarrido = resumen.isNotEmpty
+        ? resumen.fold<double>(0, (s, r) => s + r.monto)
+        : montoTotal;
 
     // Si hay múltiples métodos (en el resumen o en los depósitos), mostramos
     // chips inline después de la info.
@@ -216,13 +220,26 @@ class TesoreriaGroupCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          Text(
-            '+${_money(montoTotal)}',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-              color: AppColors.greendark,
-            ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '+${_money(montoTotal)}',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.greendark,
+                ),
+              ),
+              if (resumen.isNotEmpty && (totalBarrido - montoTotal).abs() > 0.001)
+                Text(
+                  'Barrido: ${_money(totalBarrido)}',
+                  style: TextStyle(
+                    fontSize: 9,
+                    color: AppColors.textSecondary.withValues(alpha: 0.9),
+                  ),
+                ),
+            ],
           ),
         ],
       ),
@@ -405,6 +422,11 @@ class TesoreriaGroupCard extends StatelessWidget {
   Widget _groupedCard() {
     final iconCategoria = group.items.first.categoria.icon;
     final radius = BorderRadius.circular(10);
+    final resumen = _barridoResumen(group.items.first);
+    final hayDigital = resumen.any((r) => r.aBanco);
+    final totalBarrido = resumen.isNotEmpty
+        ? resumen.fold<double>(0, (s, r) => s + r.monto)
+        : group.montoTotal;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: Material(
@@ -454,49 +476,58 @@ class TesoreriaGroupCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  Text(
-                    '$_signo${_money(group.montoTotal)}',
-                    style: TextStyle(
-                      color: _color,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 12,
-                    ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        '$_signo${_money(group.montoTotal)}',
+                        style: TextStyle(
+                          color: _color,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 12,
+                        ),
+                      ),
+                      if (resumen.isNotEmpty && (totalBarrido - group.montoTotal).abs() > 0.001)
+                        Text(
+                          'Barrido: ${_money(totalBarrido)}',
+                          style: TextStyle(
+                            fontSize: 9,
+                            color: AppColors.textSecondary.withValues(alpha: 0.9),
+                          ),
+                        ),
+                    ],
                   ),
                 ],
               ),
             ),
             // Desglose por método (chips inline). Si el barrido adjuntó el
             // resumen completo (efectivo + digital→banco), lo usamos.
-            Builder(builder: (_) {
-              final resumen = _barridoResumen(group.items.first);
-              final hayDigital = resumen.any((r) => r.aBanco);
-              return Padding(
-                padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    resumen.isNotEmpty
-                        ? _chipsResumen(resumen)
-                        : Wrap(
-                            spacing: 6,
-                            runSpacing: 6,
-                            children: group.items
-                                .map((m) => _MetodoChip(
-                                      metodo: m.metodoPago,
-                                      monto: m.monto,
-                                      signo: _signo,
-                                      color: _color,
-                                    ))
-                                .toList(),
-                          ),
-                    if (hayDigital) ...[
-                      const SizedBox(height: 4),
-                      AppLabelText('Efectivo → bóveda · digital → bancos', color: AppColors.textSecondary),
-                    ],
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  resumen.isNotEmpty
+                      ? _chipsResumen(resumen)
+                      : Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: group.items
+                              .map((m) => _MetodoChip(
+                                    metodo: m.metodoPago,
+                                    monto: m.monto,
+                                    signo: _signo,
+                                    color: _color,
+                                  ))
+                              .toList(),
+                        ),
+                  if (hayDigital) ...[
+                    const SizedBox(height: 4),
+                    AppLabelText('Efectivo → bóveda · digital → bancos', color: AppColors.textSecondary),
                   ],
-                ),
-              );
-            }),
+                ],
+              ),
+            ),
             // Banner informativo si la caja origen tuvo anulaciones
             // posteriores (reversos vinculados desde tesorería).
             if (group.tieneReversosVinculados)
