@@ -270,23 +270,30 @@ class _ProductoSedeSelectorState extends State<ProductoSedeSelector> {
 
   Widget _buildProductosListWithScanner() {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      // Alinea al fondo para que el botón de escaneo quede a la misma
+      // altura que la caja del dropdown (33px), sin importar el label.
+      crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         Expanded(child: _buildProductosList()),
-        // const SizedBox(width: 8),
-        Padding(
-          padding: const EdgeInsets.only(top: 5),
-          child: IconButton(
-            onPressed: _escanearCodigoBarras,
-            icon: const Icon(Icons.qr_code_scanner_rounded),
+        const SizedBox(width: 8),
+        // Botón escáner a la misma altura que la caja del dropdown (33px).
+        SizedBox(
+          height: 33,
+          width: 42,
+          child: Material(
             color: AppColors.blue1,
-            tooltip: 'Escanear codigo de barras',
-            style: IconButton.styleFrom(
-              backgroundColor: AppColors.blue1.withValues(alpha: 0.1),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(6),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(6),
+              onTap: _escanearCodigoBarras,
+              child: const Center(
+                child: Icon(
+                  Icons.qr_code_scanner_rounded,
+                  color: Colors.white,
+                  size: 22,
+                ),
               ),
-             ),
+            ),
           ),
         ),
       ],

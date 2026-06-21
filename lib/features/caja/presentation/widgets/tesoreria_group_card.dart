@@ -278,7 +278,7 @@ class TesoreriaGroupCard extends StatelessWidget {
         style: TextStyle(
           fontSize: 9,
           color: AppColors.orange,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w500,
         ),
       ),
     );

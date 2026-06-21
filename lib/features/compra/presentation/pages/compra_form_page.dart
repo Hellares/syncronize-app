@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:syncronize/core/fonts/app_fonts.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import 'package:syncronize/features/auth/presentation/widgets/custom_button.dart';
 import 'package:syncronize/core/widgets/custom_dropdown.dart';
+import 'package:syncronize/core/widgets/custom_switch_tile.dart';
 import 'package:syncronize/core/widgets/date/custom_date.dart' hide DateFormatter;
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/utils/date_formatter.dart';
@@ -340,56 +342,71 @@ class _CompraFormViewState extends State<_CompraFormView> {
                         ),
                       if (_isFromOc) const SizedBox(height: 12),
 
-                      // Proveedor selector
-                      CustomProveedorSelector( 
-                        empresaId: widget.empresaId,
-                        proveedorId: _proveedorId,
-                        proveedorNombre: _proveedorNombre,
-                        enabled: !_isFromOc,
-                        onSelected: (result) {
-                          setState(() {
-                            _proveedorId = result.proveedorId;
-                            _proveedorNombre = result.nombre;
-                          });
-                        },
-                        onCleared: () {
-                          setState(() {
-                            _proveedorId = null;
-                            _proveedorNombre = null;
-                          });
-                        },
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Sede selector
-                      _buildSedeDropdown(sedes),
-                      const SizedBox(height: 12),
-
-                      CustomDropdown<String>(
-                        borderColor: AppColors.blue1,
-                        label: 'Moneda',
-                        value: _moneda,
-                        items: const [
-                          DropdownItem(value: 'PEN', label: 'PEN - Soles'),
-                          DropdownItem(value: 'USD', label: 'USD - Dólares'),
+                      // Sede + Fecha en una sola fila
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(child: _buildSedeDropdown(sedes)),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: CustomDate(
+                              label: 'Fecha de Recepción',
+                              borderColor: AppColors.blue1,
+                              initialDate: _fechaRecepcion,
+                              firstDate: DateTime(2020),
+                              lastDate: DateTime(2030),
+                              onDateSelected: (date) {
+                                if (date != null) {
+                                  setState(() => _fechaRecepcion = date);
+                                }
+                              },
+                            ),
+                          ),
                         ],
-                        onChanged: (value) {
-                          if (value != null) setState(() => _moneda = value);
-                        },
                       ),
                       const SizedBox(height: 12),
 
-                      CustomDate(
-                        label: 'Fecha de Recepción',
-                        borderColor: AppColors.blue1,
-                        initialDate: _fechaRecepcion,
-                        firstDate: DateTime(2020),
-                        lastDate: DateTime(2030),
-                        onDateSelected: (date) {
-                          if (date != null) {
-                            setState(() => _fechaRecepcion = date);
-                          }
-                        },
+                      // Proveedor + Moneda en una sola fila
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            flex: 2,
+                            child: CustomProveedorSelector(
+                              empresaId: widget.empresaId,
+                              proveedorId: _proveedorId,
+                              proveedorNombre: _proveedorNombre,
+                              enabled: !_isFromOc,
+                              onSelected: (result) {
+                                setState(() {
+                                  _proveedorId = result.proveedorId;
+                                  _proveedorNombre = result.nombre;
+                                });
+                              },
+                              onCleared: () {
+                                setState(() {
+                                  _proveedorId = null;
+                                  _proveedorNombre = null;
+                                });
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: CustomDropdown<String>(
+                              borderColor: AppColors.blue1,
+                              label: 'Moneda',
+                              value: _moneda,
+                              items: const [
+                                DropdownItem(value: 'PEN', label: 'PEN - Soles'),
+                                DropdownItem(value: 'USD', label: 'USD - Dólares'),
+                              ],
+                              onChanged: (value) {
+                                if (value != null) setState(() => _moneda = value);
+                              },
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 12),
 
@@ -406,13 +423,8 @@ class _CompraFormViewState extends State<_CompraFormView> {
                         },
                       ),
                       const SizedBox(height: 12),
-
-                      // Documento proveedor
-                      const Text(
-                        'Documento del Proveedor (opcional)',
-                        style: TextStyle(fontWeight: FontWeight.w500),
-                      ),
-                      const SizedBox(height: 8),
+                      AppSubtitle('Documento del Proveedor', font: AppFont.amazonEmberMedium,fontSize: 11,),
+                      const SizedBox(height: 4),
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -435,6 +447,7 @@ class _CompraFormViewState extends State<_CompraFormView> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: CustomText(
+                              textCase: TextCase.upper,
                               borderColor: AppColors.blue1,
                               controller: _serieDocProveedorController,
                               label: 'Serie',
@@ -457,6 +470,7 @@ class _CompraFormViewState extends State<_CompraFormView> {
                       CustomText(
                         borderColor: AppColors.blue1, 
                         controller: _observacionesController,
+                        textCase: TextCase.upper,
                         label: 'Observaciones (opcional)',
                         hintText: 'Notas de la recepción',
                         prefixIcon: const Icon(Icons.notes),
@@ -480,40 +494,14 @@ class _CompraFormViewState extends State<_CompraFormView> {
                               width: 0.6,
                             ),
                           ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Precios YA incluyen IGV',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.blue1,
-                                      ),
-                                    ),
-                                    Text(
-                                      _precioIncluyeIgv
-                                          ? 'S/150 = S/127.12 base + S/22.88 IGV'
-                                          : 'S/150 + 18% IGV = S/177 total',
-                                      style: TextStyle(
-                                        fontSize: 9,
-                                        color: Colors.grey.shade700,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Switch(
-                                value: _precioIncluyeIgv,
-                                activeThumbColor: AppColors.blue1,
-                                onChanged: (v) =>
-                                    setState(() => _precioIncluyeIgv = v),
-                              ),
-                            ],
+                          child: CustomSwitchTile(
+                            title: 'Precios YA incluyen IGV',
+                            subtitle: _precioIncluyeIgv
+                                ? 'S/150 = S/127.12 base + S/22.88 IGV'
+                                : 'S/150 + 18% IGV = S/177 total',
+                            value: _precioIncluyeIgv,
+                            onChanged: (v) =>
+                                setState(() => _precioIncluyeIgv = v),
                           ),
                         ),
                       if (!_isFromOc) const SizedBox(height: 16),

@@ -151,7 +151,7 @@ class _ConciliacionPageState extends State<ConciliacionPage> {
               Text('${cuenta['numeroCuenta'] ?? ''} · $moneda', style: TextStyle(fontSize: 10.5, color: Colors.grey.shade600)),
               const SizedBox(height: 6),
               const AppSubtitle('Saldo del sistema', fontSize: 11, color: AppColors.blueGrey),
-              AppTitle('${_sim(moneda)} ${saldo.toStringAsFixed(2)}', fontSize: 24, color: AppColors.blue1),
+              AppTitle('${_sim(moneda)} ${saldo.toStringAsFixed(2)}', fontSize: 18, color: AppColors.blue1),
               const SizedBox(height: 10),
               Row(
                 children: [
@@ -288,7 +288,7 @@ class _ConciliacionPageState extends State<ConciliacionPage> {
     }
     return Container(
       margin: const EdgeInsets.only(bottom: 6),
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(8),
@@ -296,22 +296,22 @@ class _ConciliacionPageState extends State<ConciliacionPage> {
       ),
       child: Row(
         children: [
-          Icon(icon, size: 18, color: esIngreso ? Colors.green : Colors.red),
+          Icon(icon, size: 16, color: esIngreso ? Colors.green : Colors.red),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(m['concepto']?.toString() ?? '', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                Text(m['concepto']?.toString() ?? '', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600)),
                 if (detalle != null && detalle.isNotEmpty)
-                  Text(detalle, style: TextStyle(fontSize: 10, color: Colors.grey.shade600), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  Text(detalle, style: TextStyle(fontSize: 9, color: Colors.grey.shade600), maxLines: 1, overflow: TextOverflow.ellipsis),
                 if (fecha != null)
                   Text(DateFormatter.formatDate(fecha), style: TextStyle(fontSize: 9.5, color: Colors.grey.shade500)),
               ],
             ),
           ),
           Text('${esIngreso ? '+' : '-'}${_sim(moneda)} ${monto.toStringAsFixed(2)}',
-              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: esIngreso ? Colors.green : Colors.red)),
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: esIngreso ? Colors.green : Colors.red)),
         ],
       ),
     );

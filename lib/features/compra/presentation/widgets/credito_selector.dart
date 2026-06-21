@@ -67,8 +67,8 @@ class _CreditoSelectorState extends State<CreditoSelector> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const AppSubtitle('Condición de pago', fontSize: 12, color: AppColors.blue1),
-        const SizedBox(height: 6),
+        const AppSubtitle('Condición de pago', fontSize: 10, color: AppColors.blue1),
+        // const SizedBox(height: 6),
         SegmentedButton<bool>(
           style: SegmentedButton.styleFrom(
             minimumSize: const Size(0, 32),
@@ -77,7 +77,8 @@ class _CreditoSelectorState extends State<CreditoSelector> {
             foregroundColor: AppColors.blue3,
             selectedForegroundColor: Colors.white,
             side: BorderSide(color: AppColors.blue1, width: 0.6),
-            textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+            textStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600),
+            visualDensity: VisualDensity.compact
           ),
           segments: const [
             ButtonSegment(value: false, label: Text('Contado'), icon: Icon(Icons.payments, size: 15)),

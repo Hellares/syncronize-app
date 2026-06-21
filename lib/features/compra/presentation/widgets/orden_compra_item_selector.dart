@@ -4,7 +4,6 @@ import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/network/dio_client.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
-import 'package:syncronize/core/widgets/floating_button_text.dart';
 import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import '../../../../core/widgets/producto_sede_selector/producto_sede_selector_exports.dart';
 import '../../../producto/domain/entities/producto_list_item.dart';
@@ -574,13 +573,6 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
                 _productoSeleccionado != null &&
                 _varianteSeleccionada == null)
               _buildAjustePrecioVentaCard(),
-            const SizedBox(height: 12),
-            FloatingButtonText(
-              width: double.infinity,
-              onPressed: _agregarItem,
-              label: 'Agregar Item',
-              icon: Icons.add,
-            ),
           ],
         ),
       ),
@@ -593,17 +585,18 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
       child: SegmentedButton<String>(
         style: SegmentedButton.styleFrom(
           minimumSize: const Size(0, 30),
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          visualDensity: VisualDensity.compact,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
           backgroundColor: AppColors.blue1.withValues(alpha: 0.08),
           selectedBackgroundColor: AppColors.blue1,
           foregroundColor: AppColors.blue3,
           selectedForegroundColor: Colors.white,
           side: BorderSide(color: AppColors.blue1, width: 0.6),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(16),
           ),
           textStyle: const TextStyle(
-            fontSize: 11,
+            fontSize: 10,
             fontWeight: FontWeight.w600,
             fontFamily: 'Oxygen',
           ),
@@ -901,6 +894,9 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
 
   Widget _buildCamposComunes() {
     return Row(
+      // Alinea al fondo para que las cajas (33px) y el botón "+" queden
+      // a la misma altura, sin importar si algún label ocupa 2 líneas.
+      crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         Expanded(
           child: CustomText(
@@ -918,7 +914,7 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
             },
           ),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: 8),
         Expanded(
           child: CustomText(
             controller: _precioController,
@@ -934,7 +930,7 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
             },
           ),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: 8),
         Expanded(
           child: CustomText(
             controller: _descuentoController,
@@ -945,7 +941,30 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
                 const TextInputType.numberWithOptions(decimal: true),
           ),
         ),
+        const SizedBox(width: 8),
+        // Botón "+" a la misma altura que las cajas (33px).
+        _buildAddButton(),
       ],
+    );
+  }
+
+  /// Botón compacto "+" para agregar el ítem, alineado con la altura de
+  /// las cajas de Cantidad/Precio/Descuento (33px).
+  Widget _buildAddButton() {
+    return SizedBox(
+      height: CustomTextFieldConstants.defaultHeight,
+      width: 42,
+      child: Material(
+        color: AppColors.blue1,
+        borderRadius: BorderRadius.circular(6),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(6),
+          onTap: _agregarItem,
+          child: const Center(
+            child: Icon(Icons.add, color: Colors.white, size: 22),
+          ),
+        ),
+      ),
     );
   }
 }

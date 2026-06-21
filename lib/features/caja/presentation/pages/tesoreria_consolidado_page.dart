@@ -169,15 +169,15 @@ class _TesoreriaConsolidadoPageState extends State<TesoreriaConsolidadoPage> {
       GradientContainer(
         borderColor: AppColors.blueborder,
         child: Padding(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const AppSubtitle('Efectivo total en tesorería', fontSize: 12, color: AppColors.blueGrey),
-                  AppTitle('S/ ${totalEfectivo.toStringAsFixed(2)}', fontSize: 20, color: AppColors.blue1),
+                  const AppSubtitle('Efectivo total en tesorería', fontSize: 11, color: AppColors.blueGrey),
+                  AppTitle('S/ ${totalEfectivo.toStringAsFixed(2)}', fontSize: 14, color: AppColors.blue1),
                 ],
               ),
               if (bovedas.length > 1) ...[
@@ -268,7 +268,7 @@ class _TesoreriaConsolidadoPageState extends State<TesoreriaConsolidadoPage> {
         children: [
           Icon(icon, size: 16, color: AppColors.blue1),
           const SizedBox(width: 6),
-          AppSubtitle(t, fontSize: 13, color: AppColors.blue1),
+          AppSubtitle(t, fontSize: 11, color: AppColors.blue1),
         ],
       ),
     );
@@ -282,18 +282,18 @@ class _TesoreriaConsolidadoPageState extends State<TesoreriaConsolidadoPage> {
       margin: const EdgeInsets.only(bottom: 8),
       borderColor: AppColors.blueborder,
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                const Icon(Icons.account_balance, size: 16, color: AppColors.blue1),
+                const Icon(Icons.account_balance, size: 14, color: AppColors.blue1),
                 const SizedBox(width: 6),
                 Expanded(
                   child: AppSubtitle(
                     '${b['nombreBanco'] ?? ''}${b['esPrincipal'] == true ? ' ★' : ''}',
-                    fontSize: 13,
+                    fontSize: 11,
                     color: AppColors.blue1,
                   ),
                 ),

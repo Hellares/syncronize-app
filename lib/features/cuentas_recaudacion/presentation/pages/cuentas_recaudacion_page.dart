@@ -168,7 +168,7 @@ class _CuentasRecaudacionPageState extends State<CuentasRecaudacionPage> {
           children: [
             Icon(Icons.account_balance, size: 48, color: Colors.grey.shade400),
             const SizedBox(height: 12),
-            Text('No tenés cuentas bancarias registradas.\nCreá una en "Cuentas bancarias".',
+            Text('No tienes cuentas bancarias registradas.\nCrea una en "Cuentas bancarias".',
                 textAlign: TextAlign.center, style: TextStyle(color: Colors.grey.shade600)),
           ],
         ),

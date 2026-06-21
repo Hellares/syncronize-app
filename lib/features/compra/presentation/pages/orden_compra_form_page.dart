@@ -511,7 +511,7 @@ class _OrdenCompraFormViewState extends State<_OrdenCompraFormView> {
                   Row(
                     children: [
                       Text(
-                        '$cantidad × ${precioNum.toStringAsFixed(2)}',
+                        '$cantidad x ${precioNum.toStringAsFixed(2)}',
                         style: TextStyle(
                           fontSize: 10,
                           color: Colors.grey.shade600,
