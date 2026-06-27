@@ -390,8 +390,10 @@ class _HorarioPlantillaPageState extends State<HorarioPlantillaPage> {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      // Get turnos from cubit state
+                      // Get turnos from cubit state. El diálogo es otra ruta y
+                      // no hereda el provider del page → pasar el cubit explícito.
                       BlocBuilder<TurnoListCubit, TurnoListState>(
+                        bloc: _turnoCubit,
                         builder: (context, turnoState) {
                           final turnos = turnoState is TurnoListLoaded
                               ? turnoState.turnos
