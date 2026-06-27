@@ -280,6 +280,12 @@ class _ConciliacionPageState extends State<ConciliacionPage> {
       case 'PAGO_GASTO':
         icon = Icons.receipt_long;
         break;
+      case 'ADELANTO_EMPLEADO':
+        icon = Icons.badge;
+        break;
+      case 'PAGO_PLANILLA':
+        icon = Icons.groups;
+        break;
       case 'CONCILIACION':
         icon = Icons.fact_check;
         break;
