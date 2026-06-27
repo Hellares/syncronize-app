@@ -163,6 +163,17 @@ class _CobroViewState extends State<_CobroView> {
       // Foco automático al efectivo para que el cajero pueda tipear sin
       // tap previo.
       _efectivoFocus.requestFocus();
+
+      // Asegurar que la config de empresa esté cargada/fresca: el selector
+      // Contado/Crédito del AppBar la lee (ventaCreditoHabilitada). Si no se
+      // cargó antes en la sesión, el cubit queda en Initial y el selector no
+      // aparece ("a veces no aparece").
+      final ctxState = context.read<EmpresaContextCubit>().state;
+      if (ctxState is EmpresaContextLoaded) {
+        context
+            .read<ConfiguracionEmpresaCubit>()
+            .cargar(ctxState.context.empresa.id);
+      }
     });
   }
 
@@ -374,8 +385,10 @@ class _CobroViewState extends State<_CobroView> {
   /// confirmación al cajero, y finalmente llama al cubit. La venta SE
   /// CONCRETA aunque se haya pagado en efectivo sobre el límite — el
   /// cliente asume el riesgo y queda registrado en `bancarizacionAdvertida`.
+  // Se llama dentro del build (AppBar). Usa watch para que el AppBar se
+  // redibuje cuando la config termine de cargar y aparezca el selector.
   bool _creditoPermitido(BuildContext context) {
-    final configState = context.read<ConfiguracionEmpresaCubit>().state;
+    final configState = context.watch<ConfiguracionEmpresaCubit>().state;
     if (configState is ConfiguracionEmpresaLoaded) {
       return configState.configuracion.ventaCreditoHabilitada;
     }
