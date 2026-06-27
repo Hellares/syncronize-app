@@ -7,11 +7,15 @@ import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import 'package:syncronize/core/widgets/snack_bar_helper.dart';
+import 'package:syncronize/core/widgets/styled_dialog.dart';
+import 'package:syncronize/core/widgets/custom_dropdown.dart';
 import 'package:syncronize/core/utils/date_formatter.dart';
 
 import '../../domain/entities/asistencia.dart';
 import '../bloc/asistencia/asistencia_cubit.dart';
 import '../bloc/asistencia/asistencia_state.dart';
+import '../bloc/empleado_list/empleado_list_cubit.dart';
+import '../bloc/empleado_list/empleado_list_state.dart';
 
 class AsistenciaPage extends StatefulWidget {
   const AsistenciaPage({super.key});
@@ -56,6 +60,95 @@ class _AsistenciaPageState extends State<AsistenciaPage> {
     }
   }
 
+  void _showMarcarFaltaDialog(BuildContext context) {
+    final empleadoCubit = locator<EmpleadoListCubit>()
+      ..loadEmpleados(estado: 'ACTIVO');
+    String? selectedId;
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => BlocProvider.value(
+          value: empleadoCubit,
+          child: StyledDialog(
+            accentColor: AppColors.red,
+            icon: Icons.person_off,
+            titulo: 'Marcar Falta',
+            content: [
+              Text(
+                DateFormatter.formatWeekdayDate(_selectedDate),
+                style: const TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 10),
+              BlocBuilder<EmpleadoListCubit, EmpleadoListState>(
+                builder: (context, state) {
+                  if (state is EmpleadoListLoaded) {
+                    final ids = state.empleados.map((e) => e.id).toSet();
+                    return CustomDropdown<String>(
+                      label: 'Empleado',
+                      hintText: 'Seleccionar...',
+                      borderColor: AppColors.red,
+                      value: ids.contains(selectedId) ? selectedId : null,
+                      items: state.empleados
+                          .map((e) => DropdownItem<String>(
+                                value: e.id,
+                                label: e.nombreCompleto,
+                              ))
+                          .toList(),
+                      onChanged: (v) => setLocal(() => selectedId = v),
+                    );
+                  }
+                  return const Padding(
+                    padding: EdgeInsets.all(8),
+                    child: CircularProgressIndicator(),
+                  );
+                },
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Marca al empleado como ausente este día. La planilla lo descuenta.',
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+              ),
+            ],
+            actions: [
+              Expanded(
+                child: TextButton(
+                  onPressed: () {
+                    empleadoCubit.close();
+                    Navigator.of(ctx).pop();
+                  },
+                  child: const Text('Cancelar'),
+                ),
+              ),
+              Expanded(
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.red,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () {
+                    if (selectedId == null) {
+                      SnackBarHelper.showWarning(ctx, 'Seleccione un empleado');
+                      return;
+                    }
+                    Navigator.of(ctx).pop();
+                    empleadoCubit.close();
+                    _cubit.registrarEntrada({
+                      'empleadoId': selectedId,
+                      'fecha': DateFormat('yyyy-MM-dd').format(_selectedDate),
+                      'estado': 'FALTA',
+                    });
+                  },
+                  child: const Text('Marcar Falta'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocProvider.value(
@@ -66,6 +159,11 @@ class _AsistenciaPageState extends State<AsistenciaPage> {
           backgroundColor: AppColors.blue1,
           foregroundColor: AppColors.white,
           actions: [
+            IconButton(
+              icon: const Icon(Icons.person_off, color: Colors.white, size: 20),
+              onPressed: () => _showMarcarFaltaDialog(context),
+              tooltip: 'Marcar falta',
+            ),
             IconButton(
               icon: const Icon(Icons.person_add, color: Colors.white, size: 20),
               onPressed: () async {

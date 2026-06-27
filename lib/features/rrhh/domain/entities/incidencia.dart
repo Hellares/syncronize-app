@@ -6,6 +6,8 @@ enum TipoIncidencia {
   vacacion,
   licenciaMedica,
   permiso,
+  permisoPersonal,
+  salidaEmergencia,
   descansoMedico,
   licenciaPaternidad,
   licenciaMaternidad,
@@ -19,6 +21,10 @@ enum TipoIncidencia {
         return 'Licencia Médica';
       case permiso:
         return 'Permiso';
+      case permisoPersonal:
+        return 'Permiso Personal';
+      case salidaEmergencia:
+        return 'Salida de Emergencia';
       case descansoMedico:
         return 'Descanso Médico';
       case licenciaPaternidad:
@@ -38,6 +44,10 @@ enum TipoIncidencia {
         return Colors.red;
       case permiso:
         return Colors.blue;
+      case permisoPersonal:
+        return Colors.cyan;
+      case salidaEmergencia:
+        return Colors.deepOrange;
       case descansoMedico:
         return Colors.orange;
       case licenciaPaternidad:
@@ -57,6 +67,10 @@ enum TipoIncidencia {
         return 'LICENCIA_MEDICA';
       case permiso:
         return 'PERMISO';
+      case permisoPersonal:
+        return 'PERMISO_PERSONAL';
+      case salidaEmergencia:
+        return 'SALIDA_EMERGENCIA';
       case descansoMedico:
         return 'DESCANSO_MEDICO';
       case licenciaPaternidad:
@@ -76,6 +90,10 @@ enum TipoIncidencia {
         return licenciaMedica;
       case 'PERMISO':
         return permiso;
+      case 'PERMISO_PERSONAL':
+        return permisoPersonal;
+      case 'SALIDA_EMERGENCIA':
+        return salidaEmergencia;
       case 'DESCANSO_MEDICO':
         return descansoMedico;
       case 'LICENCIA_PATERNIDAD':
