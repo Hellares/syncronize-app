@@ -7,6 +7,7 @@ import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import 'package:syncronize/core/widgets/snack_bar_helper.dart';
+import 'package:syncronize/core/utils/date_formatter.dart';
 
 import '../../domain/entities/asistencia.dart';
 import '../bloc/asistencia/asistencia_cubit.dart';
@@ -95,7 +96,7 @@ class _AsistenciaPageState extends State<AsistenciaPage> {
                       const Icon(Icons.calendar_today, size: 18, color: AppColors.blue1),
                       const SizedBox(width: 10),
                       Text(
-                        DateFormat('EEEE dd/MM/yyyy', 'es').format(_selectedDate),
+                        DateFormatter.formatWeekdayDate(_selectedDate),
                         style: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/network/dio_client.dart';
@@ -155,7 +156,7 @@ class _CitaClienteDetailPageState extends State<CitaClienteDetailPage> {
     if (fecha != null) {
       try {
         final date = DateTime.parse(fecha).toLocal();
-        fechaFormateada = DateFormat('EEEE dd/MM/yyyy', 'es').format(date);
+        fechaFormateada = DateFormatter.formatWeekdayDate(date);
       } catch (_) {
         fechaFormateada = fecha;
       }

@@ -8,6 +8,7 @@ import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/widgets/custom_button.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import 'package:syncronize/core/widgets/snack_bar_helper.dart';
+import 'package:syncronize/core/utils/date_formatter.dart';
 
 import '../../domain/entities/empleado.dart';
 import '../bloc/asistencia/asistencia_cubit.dart';
@@ -120,7 +121,7 @@ class _RegistrarAsistenciaPageState extends State<RegistrarAsistenciaPage> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        DateFormat('EEEE dd/MM/yyyy', 'es').format(DateTime.now()),
+                        DateFormatter.formatWeekdayDate(DateTime.now()),
                         style: const TextStyle(
                           fontSize: 14,
                           color: AppColors.textSecondary,

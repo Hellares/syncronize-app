@@ -74,8 +74,11 @@ class DateFormatter {
   ///
   /// Ejemplo: 31 de enero de 2026 a las 21:33
   static String formatDateTimeLong(DateTime dateTime) {
-    final localDate = toLocal(dateTime);
-    return DateFormat("dd 'de' MMMM 'de' yyyy 'a las' HH:mm", 'es').format(localDate);
+    final d = toLocal(dateTime);
+    final mes = _mesesEs[(d.month - 1).clamp(0, 11)].toLowerCase();
+    return '${d.day.toString().padLeft(2, '0')} de $mes de ${d.year} '
+        'a las ${d.hour.toString().padLeft(2, '0')}:'
+        '${d.minute.toString().padLeft(2, '0')}';
   }
 
   /// Formatea para API: yyyy-MM-dd (siempre local)
@@ -184,6 +187,19 @@ class DateFormatter {
     'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
     'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic',
   ];
+
+  /// Nombres de días de la semana en español (1=Lunes .. 7=Domingo).
+  static const _diasEs = [
+    'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo',
+  ];
+
+  /// Devuelve "Lunes 27/06/2026". Locale-agnóstico (no requiere
+  /// `initializeDateFormatting`).
+  static String formatWeekdayDate(DateTime date) {
+    final dia = _diasEs[(date.weekday - 1).clamp(0, 6)];
+    return '$dia ${date.day.toString().padLeft(2, '0')}/'
+        '${date.month.toString().padLeft(2, '0')}/${date.year}';
+  }
 
   /// Devuelve "Mayo 2026". Locale-agnóstico (no requiere
   /// `initializeDateFormatting`, que el AppInitializer del proyecto no llama).
