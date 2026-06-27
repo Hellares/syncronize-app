@@ -16,6 +16,9 @@ class ComprobanteItem extends Equatable {
   final String? sunatHash;
   final bool enviadoAProveedor;
   final String? errorProveedor;
+  /// Código de error de SUNAT (ej. "2335", "0103") cuando hay rechazo. Null si
+  /// es error de validación del proveedor (sin código SUNAT) o si fue aceptado.
+  final String? sunatCodigo;
   final int intentosEnvio;
   final String? enlaceProveedor;
   final String? sunatPdfUrl;
@@ -45,6 +48,7 @@ class ComprobanteItem extends Equatable {
     this.sunatHash,
     this.enviadoAProveedor = false,
     this.errorProveedor,
+    this.sunatCodigo,
     this.intentosEnvio = 0,
     this.enlaceProveedor,
     this.sunatPdfUrl,
@@ -66,6 +70,15 @@ class ComprobanteItem extends Equatable {
   bool get esPendiente => sunatStatus == 'PENDIENTE' || sunatStatus == 'ERROR_COMUNICACION';
   bool get esAceptado => sunatStatus == 'ACEPTADO';
   bool get esRechazado => sunatStatus == 'RECHAZADO';
+
+  /// Mensaje de error listo para mostrar: antepone el código SUNAT si existe.
+  /// Ej. "SUNAT 2335: El dato ingresado no cumple con el patrón SERIE".
+  String? get errorDetallado {
+    if (errorProveedor == null || errorProveedor!.isEmpty) return null;
+    final cod = sunatCodigo;
+    if (cod != null && cod.isNotEmpty) return 'SUNAT $cod: ${errorProveedor!}';
+    return errorProveedor;
+  }
 
   /// true si el proveedor emisor está archivado y no admite nuevas operaciones.
   bool get proveedorArchivado => _proveedoresArchivados.contains(proveedorEmisor);
@@ -92,5 +105,5 @@ class ComprobanteItem extends Equatable {
   String get simboloMoneda => moneda == 'USD' ? '\$' : 'S/';
 
   @override
-  List<Object?> get props => [id, sunatStatus, estado, intentosEnvio, proveedorEmisor];
+  List<Object?> get props => [id, sunatStatus, estado, intentosEnvio, proveedorEmisor, sunatCodigo];
 }

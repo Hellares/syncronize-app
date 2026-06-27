@@ -559,12 +559,14 @@ class _ComprobanteCard extends StatelessWidget {
                     style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
               ],
             ),
-            // Error
-            if (item.errorProveedor != null && item.esPendiente) ...[
+            // Error: se muestra el mensaje EXACTO de SUNAT/proveedor (con su
+            // código si existe). También para RECHAZADO, no solo pendientes.
+            if (item.errorDetallado != null &&
+                (item.esPendiente || item.esRechazado)) ...[
               const SizedBox(height: 4),
-              Text(_traducirError(item.errorProveedor!),
+              Text(item.errorDetallado!,
                   style: TextStyle(fontSize: 9, color: Colors.red.shade400),
-                  maxLines: 2, overflow: TextOverflow.ellipsis),
+                  maxLines: 3, overflow: TextOverflow.ellipsis),
             ],
             // Motivo nota
             if (item.motivoNota != null) ...[
@@ -740,26 +742,4 @@ class _ComprobanteCard extends StatelessWidget {
     }
   }
 
-  static String _traducirError(String error) {
-    final lower = error.toLowerCase();
-    if (lower.contains('token') || lower.contains('unauthorized') || lower.contains('403')) {
-      return 'Credenciales del proveedor vencidas o inválidas';
-    }
-    if (lower.contains('ya existe')) {
-      return 'Comprobante ya registrado en SUNAT';
-    }
-    if (lower.contains('serie') || lower.contains('numero')) {
-      return 'Error en serie/correlativo, verifique configuración';
-    }
-    if (lower.contains('ruc') || lower.contains('documento')) {
-      return 'Verifique RUC/DNI del cliente';
-    }
-    if (lower.contains('timeout') || lower.contains('no respondió') || lower.contains('econnrefused')) {
-      return 'Proveedor no respondió, reintente más tarde';
-    }
-    if (lower.contains('certificado') || lower.contains('ssl')) {
-      return 'Error de certificado, contacte soporte';
-    }
-    return error.length > 80 ? '${error.substring(0, 80)}...' : error;
-  }
 }
