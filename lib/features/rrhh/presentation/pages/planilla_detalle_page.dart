@@ -321,7 +321,7 @@ class _PlanillaDetallePageState extends State<PlanillaDetallePage> {
       child: InkWell(
         onTap: () async {
           final result = await context.push(
-            '/empresa/rrhh/planilla/boleta/${boleta.id}',
+            '/empresa/rrhh/boleta/${boleta.id}',
           );
           if (result == true) {
             _hasChanges = true;
