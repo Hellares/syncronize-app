@@ -13,6 +13,7 @@ class EmpleadoModel extends Empleado {
     super.fechaCese,
     required super.tipoContrato,
     required super.salarioBase,
+    super.regimenPension,
     super.moneda,
     super.banco,
     super.numeroCuenta,
@@ -48,6 +49,8 @@ class EmpleadoModel extends Empleado {
       tipoContrato: TipoContrato.fromString(
           json['tipoContrato'] as String? ?? 'PLANILLA'),
       salarioBase: _toDouble(json['salarioBase']),
+      regimenPension: RegimenPension.fromString(
+          json['regimenPension'] as String? ?? 'NINGUNO'),
       moneda: json['moneda'] as String? ?? 'PEN',
       banco: json['banco'] as String?,
       numeroCuenta: json['numeroCuenta'] as String?,

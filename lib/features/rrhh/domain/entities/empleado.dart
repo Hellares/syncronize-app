@@ -108,6 +108,46 @@ enum EstadoEmpleado {
   }
 }
 
+/// Régimen pensionario del empleado (define el descuento de pensión en planilla)
+enum RegimenPension {
+  ninguno,
+  onp,
+  afp;
+
+  String get label {
+    switch (this) {
+      case ninguno:
+        return 'Sin pensión';
+      case onp:
+        return 'ONP';
+      case afp:
+        return 'AFP';
+    }
+  }
+
+  String get apiValue {
+    switch (this) {
+      case ninguno:
+        return 'NINGUNO';
+      case onp:
+        return 'ONP';
+      case afp:
+        return 'AFP';
+    }
+  }
+
+  static RegimenPension fromString(String value) {
+    switch (value.toUpperCase()) {
+      case 'ONP':
+        return onp;
+      case 'AFP':
+        return afp;
+      default:
+        return ninguno;
+    }
+  }
+}
+
 /// Entity que representa un empleado
 class Empleado extends Equatable {
   final String id;
@@ -121,6 +161,7 @@ class Empleado extends Equatable {
   final DateTime? fechaCese;
   final TipoContrato tipoContrato;
   final double salarioBase;
+  final RegimenPension regimenPension;
   final String moneda;
   final String? banco;
   final String? numeroCuenta;
@@ -151,6 +192,7 @@ class Empleado extends Equatable {
     this.fechaCese,
     required this.tipoContrato,
     required this.salarioBase,
+    this.regimenPension = RegimenPension.ninguno,
     this.moneda = 'PEN',
     this.banco,
     this.numeroCuenta,
@@ -200,6 +242,7 @@ class Empleado extends Equatable {
         fechaCese,
         tipoContrato,
         salarioBase,
+        regimenPension,
         moneda,
         banco,
         numeroCuenta,

@@ -51,6 +51,7 @@ class _EmpleadoFormPageState extends State<EmpleadoFormPage> {
   final _cciController = TextEditingController();
 
   TipoContrato _tipoContrato = TipoContrato.planilla;
+  RegimenPension _regimenPension = RegimenPension.ninguno;
   DateTime _fechaIngreso = DateTime.now();
 
   // Usuarios cargados
@@ -74,6 +75,7 @@ class _EmpleadoFormPageState extends State<EmpleadoFormPage> {
       _numeroCuentaController.text = e.numeroCuenta ?? '';
       _cciController.text = e.cci ?? '';
       _tipoContrato = e.tipoContrato;
+      _regimenPension = e.regimenPension;
       _fechaIngreso = e.fechaIngreso.toLocal();
     }
   }
@@ -156,6 +158,7 @@ class _EmpleadoFormPageState extends State<EmpleadoFormPage> {
       'sedeId': _selectedSedeId,
       'fechaIngreso': _fechaIngreso.toIso8601String(),
       'tipoContrato': _tipoContrato.apiValue,
+      'regimenPension': _regimenPension.apiValue,
       'salarioBase': double.tryParse(_salarioBaseController.text) ?? 0,
     };
 
@@ -310,6 +313,25 @@ class _EmpleadoFormPageState extends State<EmpleadoFormPage> {
                           .toList(),
                       onChanged: (v) {
                         if (v != null) setState(() => _tipoContrato = v);
+                      },
+                      borderColor: AppColors.blue1,
+                      backgroundColor: Colors.white,
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Régimen pensionario (define el descuento de pensión)
+                    CustomDropdown<RegimenPension>(
+                      label: 'Régimen Pensionario',
+                      hintText: 'Seleccionar...',
+                      value: _regimenPension,
+                      items: RegimenPension.values
+                          .map((r) => DropdownItem<RegimenPension>(
+                                value: r,
+                                label: r.label,
+                              ))
+                          .toList(),
+                      onChanged: (v) {
+                        if (v != null) setState(() => _regimenPension = v);
                       },
                       borderColor: AppColors.blue1,
                       backgroundColor: Colors.white,
