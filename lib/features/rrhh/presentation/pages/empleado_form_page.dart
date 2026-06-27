@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import 'package:syncronize/core/di/injection_container.dart';
+import 'package:syncronize/core/widgets/date/custom_date.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/utils/resource.dart';
@@ -137,18 +137,6 @@ class _EmpleadoFormPageState extends State<EmpleadoFormPage> {
     _numeroCuentaController.dispose();
     _cciController.dispose();
     super.dispose();
-  }
-
-  Future<void> _selectDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _fechaIngreso,
-      firstDate: DateTime(2000),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-    );
-    if (picked != null) {
-      setState(() => _fechaIngreso = picked);
-    }
   }
 
   void _submit() {
@@ -286,29 +274,17 @@ class _EmpleadoFormPageState extends State<EmpleadoFormPage> {
                     const SizedBox(height: 14),
 
                     // Fecha de ingreso
-                    InkWell(
-                      onTap: _selectDate,
-                      child: InputDecorator(
-                        decoration: InputDecoration(
-                          labelText: 'Fecha de Ingreso',
-                          prefixIcon:
-                              const Icon(Icons.calendar_today, size: 20),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          filled: true,
-                          fillColor: Colors.white,
-                          contentPadding: const EdgeInsets.symmetric(
-                            vertical: 10,
-                            horizontal: 12,
-                          ),
-                          isDense: true,
-                        ),
-                        child: Text(
-                          DateFormat('dd/MM/yyyy').format(_fechaIngreso),
-                          style: const TextStyle(fontSize: 14),
-                        ),
-                      ),
+                    CustomDate(
+                      label: 'Fecha de Ingreso',
+                      borderColor: AppColors.blue1,
+                      initialDate: _fechaIngreso,
+                      firstDate: DateTime(2000),
+                      lastDate: DateTime(2100),
+                      onDateSelected: (date) {
+                        if (date != null) {
+                          setState(() => _fechaIngreso = date);
+                        }
+                      },
                     ),
                     const SizedBox(height: 14),
 
