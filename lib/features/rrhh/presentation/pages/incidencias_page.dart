@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:intl/intl.dart';
 import 'package:syncronize/core/di/injection_container.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/utils/date_formatter.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import 'package:syncronize/core/widgets/snack_bar_helper.dart';
+import 'package:syncronize/core/widgets/styled_dialog.dart';
+import 'package:syncronize/core/widgets/custom_dropdown.dart';
+import 'package:syncronize/core/widgets/date/custom_date.dart'
+    show CustomDate;
+import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart'
+    show CustomText;
 
 import '../../domain/entities/incidencia.dart';
-import '../../domain/entities/empleado.dart';
 import '../bloc/incidencia/incidencia_cubit.dart';
 import '../bloc/incidencia/incidencia_state.dart';
 import '../bloc/empleado_list/empleado_list_cubit.dart';
@@ -390,32 +394,38 @@ class _IncidenciasPageState extends State<IncidenciasPage> {
     final motivoCtrl = TextEditingController();
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Rechazar Incidencia'),
-        content: TextField(
-          controller: motivoCtrl,
-          maxLines: 3,
-          decoration: const InputDecoration(
-            labelText: 'Motivo del rechazo',
-            border: OutlineInputBorder(),
-            isDense: true,
+      builder: (ctx) => StyledDialog(
+        accentColor: AppColors.red,
+        icon: Icons.cancel_outlined,
+        titulo: 'Rechazar Incidencia',
+        content: [
+          CustomText(
+            controller: motivoCtrl,
+            label: 'Motivo del rechazo',
+            hintText: 'Indica por qué se rechaza',
+            maxLines: 3,
+            borderColor: AppColors.red,
           ),
-        ),
+        ],
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.red,
-              foregroundColor: Colors.white,
+          Expanded(
+            child: TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancelar'),
             ),
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              _cubit.rechazar(incidencia.id, motivoCtrl.text.trim());
-            },
-            child: const Text('Rechazar'),
+          ),
+          Expanded(
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.red,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                _cubit.rechazar(incidencia.id, motivoCtrl.text.trim());
+              },
+              child: const Text('Rechazar'),
+            ),
           ),
         ],
       ),
@@ -426,7 +436,7 @@ class _IncidenciasPageState extends State<IncidenciasPage> {
     final empleadoListCubit = locator<EmpleadoListCubit>();
     empleadoListCubit.loadEmpleados(estado: 'ACTIVO');
 
-    Empleado? selectedEmpleado;
+    String? selectedEmpleadoId;
     TipoIncidencia selectedTipo = TipoIncidencia.vacacion;
     DateTime fechaInicio = DateTime.now();
     DateTime fechaFin = DateTime.now().add(const Duration(days: 1));
@@ -439,176 +449,139 @@ class _IncidenciasPageState extends State<IncidenciasPage> {
           builder: (ctx, setDialogState) {
             return BlocProvider.value(
               value: empleadoListCubit,
-              child: AlertDialog(
-                title: const Text('Nueva Incidencia'),
-                content: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
+              child: StyledDialog(
+                accentColor: AppColors.blue1,
+                icon: Icons.event_busy,
+                titulo: 'Nueva Incidencia',
+                content: [
+                  // Empleado selector
+                  BlocBuilder<EmpleadoListCubit, EmpleadoListState>(
+                    builder: (context, state) {
+                      if (state is EmpleadoListLoaded) {
+                        final ids =
+                            state.empleados.map((e) => e.id).toSet();
+                        return CustomDropdown<String>(
+                          label: 'Empleado',
+                          hintText: 'Seleccionar...',
+                          borderColor: AppColors.blue1,
+                          value: ids.contains(selectedEmpleadoId)
+                              ? selectedEmpleadoId
+                              : null,
+                          items: state.empleados
+                              .map((e) => DropdownItem<String>(
+                                    value: e.id,
+                                    label: e.nombreCompleto,
+                                  ))
+                              .toList(),
+                          onChanged: (v) =>
+                              setDialogState(() => selectedEmpleadoId = v),
+                        );
+                      }
+                      return const Padding(
+                        padding: EdgeInsets.all(8),
+                        child: CircularProgressIndicator(),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Tipo
+                  CustomDropdown<TipoIncidencia>(
+                    label: 'Tipo',
+                    borderColor: AppColors.blue1,
+                    value: selectedTipo,
+                    items: TipoIncidencia.values
+                        .map((t) => DropdownItem<TipoIncidencia>(
+                              value: t,
+                              label: t.label,
+                            ))
+                        .toList(),
+                    onChanged: (v) {
+                      if (v != null) setDialogState(() => selectedTipo = v);
+                    },
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Dates
+                  Row(
                     children: [
-                      // Empleado selector
-                      BlocBuilder<EmpleadoListCubit, EmpleadoListState>(
-                        builder: (context, state) {
-                          if (state is EmpleadoListLoaded) {
-                            return DropdownButtonFormField<Empleado>(
-                              initialValue: selectedEmpleado,
-                              decoration: const InputDecoration(
-                                labelText: 'Empleado',
-                                isDense: true,
-                                border: OutlineInputBorder(),
-                              ),
-                              isExpanded: true,
-                              items: state.empleados.map((e) {
-                                return DropdownMenuItem(
-                                  value: e,
-                                  child: Text(
-                                    e.nombreCompleto,
-                                    style: const TextStyle(fontSize: 12),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                );
-                              }).toList(),
-                              onChanged: (v) {
-                                setDialogState(() => selectedEmpleado = v);
-                              },
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppColors.textPrimary,
-                              ),
-                            );
-                          }
-                          return const Padding(
-                            padding: EdgeInsets.all(8),
-                            child: CircularProgressIndicator(),
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Tipo
-                      DropdownButtonFormField<TipoIncidencia>(
-                        initialValue: selectedTipo,
-                        decoration: const InputDecoration(
-                          labelText: 'Tipo',
-                          isDense: true,
-                          border: OutlineInputBorder(),
+                      Expanded(
+                        child: CustomDate(
+                          label: 'Desde',
+                          borderColor: AppColors.blue1,
+                          initialDate: fechaInicio,
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime(2030),
+                          onDateSelected: (d) {
+                            if (d != null) {
+                              setDialogState(() => fechaInicio = d);
+                            }
+                          },
                         ),
-                        items: TipoIncidencia.values.map((t) {
-                          return DropdownMenuItem(
-                            value: t,
-                            child: Text(t.label, style: const TextStyle(fontSize: 12)),
-                          );
-                        }).toList(),
-                        onChanged: (v) {
-                          if (v != null) setDialogState(() => selectedTipo = v);
-                        },
-                        style: const TextStyle(fontSize: 12, color: AppColors.textPrimary),
                       ),
-                      const SizedBox(height: 12),
-
-                      // Dates
-                      Row(
-                        children: [
-                          Expanded(
-                            child: InkWell(
-                              onTap: () async {
-                                final d = await showDatePicker(
-                                  context: ctx,
-                                  initialDate: fechaInicio,
-                                  firstDate: DateTime(2020),
-                                  lastDate: DateTime(2030),
-                                );
-                                if (d != null) {
-                                  setDialogState(() => fechaInicio = d);
-                                }
-                              },
-                              child: InputDecorator(
-                                decoration: const InputDecoration(
-                                  labelText: 'Desde',
-                                  isDense: true,
-                                  border: OutlineInputBorder(),
-                                ),
-                                child: Text(
-                                  DateFormat('dd/MM/yyyy').format(fechaInicio),
-                                  style: const TextStyle(fontSize: 12),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: InkWell(
-                              onTap: () async {
-                                final d = await showDatePicker(
-                                  context: ctx,
-                                  initialDate: fechaFin,
-                                  firstDate: DateTime(2020),
-                                  lastDate: DateTime(2030),
-                                );
-                                if (d != null) {
-                                  setDialogState(() => fechaFin = d);
-                                }
-                              },
-                              child: InputDecorator(
-                                decoration: const InputDecoration(
-                                  labelText: 'Hasta',
-                                  isDense: true,
-                                  border: OutlineInputBorder(),
-                                ),
-                                child: Text(
-                                  DateFormat('dd/MM/yyyy').format(fechaFin),
-                                  style: const TextStyle(fontSize: 12),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Motivo
-                      TextField(
-                        controller: motivoCtrl,
-                        maxLines: 2,
-                        decoration: const InputDecoration(
-                          labelText: 'Motivo',
-                          isDense: true,
-                          border: OutlineInputBorder(),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: CustomDate(
+                          label: 'Hasta',
+                          borderColor: AppColors.blue1,
+                          initialDate: fechaFin,
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime(2030),
+                          onDateSelected: (d) {
+                            if (d != null) {
+                              setDialogState(() => fechaFin = d);
+                            }
+                          },
                         ),
-                        style: const TextStyle(fontSize: 12),
                       ),
                     ],
                   ),
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () {
-                      empleadoListCubit.close();
-                      Navigator.of(ctx).pop();
-                    },
-                    child: const Text('Cancelar'),
-                  ),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.blue1,
-                      foregroundColor: Colors.white,
-                    ),
-                    onPressed: () {
-                      if (selectedEmpleado == null) {
-                        SnackBarHelper.showWarning(ctx, 'Seleccione un empleado');
-                        return;
-                      }
-                      Navigator.of(ctx).pop();
-                      empleadoListCubit.close();
+                  const SizedBox(height: 12),
 
-                      _cubit.crearIncidencia({
-                        'empleadoId': selectedEmpleado!.id,
-                        'tipo': selectedTipo.apiValue,
-                        'fechaInicio': fechaInicio.toIso8601String(),
-                        'fechaFin': fechaFin.toIso8601String(),
-                        'motivo': motivoCtrl.text.trim(),
-                      });
-                    },
-                    child: const Text('Crear'),
+                  // Motivo
+                  CustomText(
+                    controller: motivoCtrl,
+                    label: 'Motivo',
+                    hintText: 'Opcional',
+                    maxLines: 2,
+                    borderColor: AppColors.blue1,
+                  ),
+                ],
+                actions: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () {
+                        empleadoListCubit.close();
+                        Navigator.of(ctx).pop();
+                      },
+                      child: const Text('Cancelar'),
+                    ),
+                  ),
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.blue1,
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: () {
+                        if (selectedEmpleadoId == null) {
+                          SnackBarHelper.showWarning(
+                              ctx, 'Seleccione un empleado');
+                          return;
+                        }
+                        Navigator.of(ctx).pop();
+                        empleadoListCubit.close();
+
+                        _cubit.crearIncidencia({
+                          'empleadoId': selectedEmpleadoId,
+                          'tipo': selectedTipo.apiValue,
+                          'fechaInicio': fechaInicio.toIso8601String(),
+                          'fechaFin': fechaFin.toIso8601String(),
+                          'motivo': motivoCtrl.text.trim(),
+                        });
+                      },
+                      child: const Text('Crear'),
+                    ),
                   ),
                 ],
               ),
