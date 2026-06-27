@@ -20,8 +20,11 @@ import 'package:syncronize/features/usuario/domain/entities/usuario_filtros.dart
 import 'package:syncronize/features/usuario/domain/usecases/get_usuarios_usecase.dart';
 
 import '../../domain/entities/empleado.dart';
+import '../../domain/entities/horario_plantilla.dart';
 import '../bloc/empleado_form/empleado_form_cubit.dart';
 import '../bloc/empleado_form/empleado_form_state.dart';
+import '../bloc/horario_list/horario_list_cubit.dart';
+import '../bloc/horario_list/horario_list_state.dart';
 
 class EmpleadoFormPage extends StatefulWidget {
   final Empleado? empleado;
@@ -34,6 +37,7 @@ class EmpleadoFormPage extends StatefulWidget {
 
 class _EmpleadoFormPageState extends State<EmpleadoFormPage> {
   late final EmpleadoFormCubit _formCubit;
+  late final HorarioListCubit _horarioCubit;
   final _formKey = GlobalKey<FormState>();
 
   bool get isEditing => widget.empleado != null;
@@ -53,6 +57,7 @@ class _EmpleadoFormPageState extends State<EmpleadoFormPage> {
   TipoContrato _tipoContrato = TipoContrato.planilla;
   RegimenPension _regimenPension = RegimenPension.ninguno;
   bool _aportaEssalud = true;
+  String? _horarioPlantillaId;
   DateTime _fechaIngreso = DateTime.now();
 
   // Usuarios cargados
@@ -64,6 +69,7 @@ class _EmpleadoFormPageState extends State<EmpleadoFormPage> {
   void initState() {
     super.initState();
     _formCubit = locator<EmpleadoFormCubit>();
+    _horarioCubit = locator<HorarioListCubit>()..loadHorarios();
 
     if (isEditing) {
       final e = widget.empleado!;
@@ -78,6 +84,7 @@ class _EmpleadoFormPageState extends State<EmpleadoFormPage> {
       _tipoContrato = e.tipoContrato;
       _regimenPension = e.regimenPension;
       _aportaEssalud = e.aportaEssalud;
+      _horarioPlantillaId = e.horarioPlantillaId;
       _fechaIngreso = e.fechaIngreso.toLocal();
     }
   }
@@ -122,6 +129,7 @@ class _EmpleadoFormPageState extends State<EmpleadoFormPage> {
   @override
   void dispose() {
     _formCubit.close();
+    _horarioCubit.close();
     _cargoController.dispose();
     _departamentoController.dispose();
     _salarioBaseController.dispose();
@@ -162,6 +170,7 @@ class _EmpleadoFormPageState extends State<EmpleadoFormPage> {
       'tipoContrato': _tipoContrato.apiValue,
       'regimenPension': _regimenPension.apiValue,
       'aportaEssalud': _aportaEssalud,
+      'horarioPlantillaId': _horarioPlantillaId,
       'salarioBase': double.tryParse(_salarioBaseController.text) ?? 0,
     };
 
@@ -366,6 +375,40 @@ class _EmpleadoFormPageState extends State<EmpleadoFormPage> {
                           style: TextStyle(fontSize: 11),
                         ),
                       ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Horario (plantilla) asignado al empleado
+                    BlocBuilder<HorarioListCubit, HorarioListState>(
+                      bloc: _horarioCubit,
+                      builder: (context, state) {
+                        final horarios = state is HorarioListLoaded
+                            ? state.horarios
+                            : <HorarioPlantilla>[];
+                        final ids = horarios.map((h) => h.id).toSet();
+                        final value = (_horarioPlantillaId != null &&
+                                ids.contains(_horarioPlantillaId))
+                            ? _horarioPlantillaId!
+                            : '';
+                        return CustomDropdown<String>(
+                          label: 'Horario',
+                          hintText: 'Sin horario asignado',
+                          value: value,
+                          borderColor: AppColors.blue1,
+                          backgroundColor: Colors.white,
+                          items: [
+                            const DropdownItem(
+                                value: '', label: 'Sin horario asignado'),
+                            ...horarios.map((h) => DropdownItem(
+                                  value: h.id,
+                                  label: h.nombre,
+                                )),
+                          ],
+                          onChanged: (v) => setState(() =>
+                              _horarioPlantillaId =
+                                  (v == null || v.isEmpty) ? null : v),
+                        );
+                      },
                     ),
                     const SizedBox(height: 14),
 
