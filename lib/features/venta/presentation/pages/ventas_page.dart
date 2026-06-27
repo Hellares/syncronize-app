@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
+import 'package:syncronize/core/widgets/custom_loading.dart';
 import '../../../../core/utils/date_formatter.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/app_gradients.dart';
@@ -281,7 +282,8 @@ class _VentasPageState extends State<VentasPage> {
                 child: BlocBuilder<VentaListCubit, VentaListState>(
                   builder: (context, state) {
                     if (state is VentaListLoading) {
-                      return const Center(child: CircularProgressIndicator());
+                      // return const Center(child: CircularProgressIndicator());
+                      return CustomLoading.small(message: 'Cargando...'); 
                     }
 
                     if (state is VentaListError) {

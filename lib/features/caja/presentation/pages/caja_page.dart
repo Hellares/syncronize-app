@@ -118,14 +118,14 @@ class _CajaViewState extends State<_CajaView> {
         // de caja + estado) cuando hay caja abierta. Cuando no hay
         // caja, el subtítulo está vacío y el espacio sobra — preferimos
         // eso a que cambie el alto del AppBar al rebuild.
-        preferredSize: const Size.fromHeight(52),
+        preferredSize: const Size.fromHeight(45),
         child: BlocBuilder<CajaActivaCubit, CajaActivaState>(
           builder: (context, state) {
             final caja = state is CajaActivaAbierta ? state.caja : null;
             return SmartAppBar(
               title: caja?.codigo ?? 'Caja',
               subtitle: caja?.estado.label,
-              customHeight: 52,
+              // customHeight: 52,
               backgroundColor: AppColors.blue1,
               foregroundColor: AppColors.white,
               actions: [
@@ -137,7 +137,7 @@ class _CajaViewState extends State<_CajaView> {
                     }
                     return IconButton(
                       tooltip: 'Auditoría de esta caja',
-                      icon: const Icon(Icons.assignment_outlined),
+                      icon: const Icon(Icons.assignment_outlined, size: 20,),
                       onPressed: () => context.push(
                         '/empresa/caja/auditoria/${state.caja.id}',
                       ),
@@ -153,7 +153,7 @@ class _CajaViewState extends State<_CajaView> {
                     }
                     return IconButton(
                       tooltip: 'Arqueos de esta caja',
-                      icon: const Icon(Icons.fact_check_outlined),
+                      icon: const Icon(Icons.fact_check_outlined, size: 20,),
                       onPressed: () =>
                           _navigateToArqueosLista(context, state.caja),
                     );
@@ -172,7 +172,7 @@ class _CajaViewState extends State<_CajaView> {
                     if (!esAdmin) return const SizedBox.shrink();
                     return IconButton(
                       tooltip: 'Historial de cajas',
-                      icon: const Icon(Icons.history_rounded),
+                      icon: const Icon(Icons.history_rounded, size: 20,),
                       onPressed: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
@@ -634,7 +634,7 @@ class _CajaViewState extends State<_CajaView> {
                                 children: [
                                   const AppSubtitle(
                                     'MOVIMIENTOS RECIENTES',
-                                    fontSize: 11,
+                                    fontSize: 10,
                                     color: AppColors.blue3,
                                   ),
                                   if (movState.movimientos.length >
@@ -658,7 +658,7 @@ class _CajaViewState extends State<_CajaView> {
                                     ),
                                 ],
                               ),
-                              const SizedBox(height: 12),
+                              const SizedBox(height: 10),
                               ...groups.map(
                                 (g) => MovimientoGroupCard(
                                   group: g,

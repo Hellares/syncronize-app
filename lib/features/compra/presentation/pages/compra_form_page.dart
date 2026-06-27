@@ -6,12 +6,12 @@ import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
-import 'package:syncronize/features/auth/presentation/widgets/custom_button.dart';
 import 'package:syncronize/core/widgets/custom_dropdown.dart';
 import 'package:syncronize/core/widgets/custom_switch_tile.dart';
 import 'package:syncronize/core/widgets/date/custom_date.dart' hide DateFormatter;
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/utils/date_formatter.dart';
+import '../../../../core/widgets/custom_button.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../../empresa/domain/entities/sede.dart';
@@ -258,6 +258,10 @@ class _CompraFormViewState extends State<_CompraFormView> {
                   'descuento': d['descuento'] ?? 0,
                   if (d['usaUnidadCompra'] == true)
                     'usaUnidadCompra': true,
+                  // Override puntual del empaque (ej. saco de 40 en vez de 50).
+                  if (d['usaUnidadCompra'] == true &&
+                      d['factorCompra'] != null)
+                    'factorCompra': d['factorCompra'],
                   if (d['nuevoPrecioVenta'] != null)
                     'nuevoPrecioVenta': d['nuevoPrecioVenta'],
                 })
@@ -284,9 +288,14 @@ class _CompraFormViewState extends State<_CompraFormView> {
         foregroundColor: Colors.white,
         title: _isFromOc ? 'Recepción desde OC' : 'Nueva Compra',
       ),
-      body: BlocConsumer<CompraFormCubit, CompraFormState>(
-        listener: (context, state) {
-          if (state is CompraFormSuccess) {
+      // Tocar cualquier parte vacía del form oculta el teclado y quita el foco
+      // del campo activo (para escribir, se toca el campo).
+      body: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: BlocConsumer<CompraFormCubit, CompraFormState>(
+          listener: (context, state) {
+            if (state is CompraFormSuccess) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text('Compra creada: ${state.compra.codigo}'),
@@ -311,7 +320,7 @@ class _CompraFormViewState extends State<_CompraFormView> {
           return Stack(
             children: [
               SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(10),
                 child: Form(
                   key: _formKey,
                   child: Column(
@@ -485,7 +494,7 @@ class _CompraFormViewState extends State<_CompraFormView> {
                       if (!_isFromOc)
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 4),
+                              horizontal: 10, vertical: 2),
                           decoration: BoxDecoration(
                             color: AppColors.blue1.withValues(alpha: 0.05),
                             borderRadius: BorderRadius.circular(6),
@@ -512,14 +521,14 @@ class _CompraFormViewState extends State<_CompraFormView> {
                       if (!_isFromOc && _proveedorId != null) ...[
                         SizedBox(
                           width: double.infinity,
-                          child: OutlinedButton.icon(
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: AppColors.blue1,
-                              side: BorderSide(color: AppColors.blue1.withValues(alpha: 0.5)),
-                            ),
+                          child: CustomButton(
+                            text: 'Importar ítems de guía SUNAT',
+                            textColor: AppColors.blue1,
+                            borderColor: AppColors.blue1,
+                            borderWidth: 0.6,
+                            icon: const Icon(Icons.local_shipping,
+                                size: 16, color: AppColors.blue1),
                             onPressed: _importarDeGuia,
-                            icon: const Icon(Icons.local_shipping, size: 18),
-                            label: const Text('Importar ítems de guía SUNAT'),
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -547,7 +556,7 @@ class _CompraFormViewState extends State<_CompraFormView> {
                               _isFromOc
                                   ? 'Líneas de la OC (${_detalles.length})'
                                   : 'Items agregados (${_detalles.length})',
-                              fontSize: 13,
+                              fontSize: 10,
                             ),
                             const Spacer(),
                             AppSubtitle(
@@ -558,13 +567,11 @@ class _CompraFormViewState extends State<_CompraFormView> {
                           ],
                         ),
                         const SizedBox(height: 8),
-                        ..._detalles.asMap().entries.map((entry) {
-                          final index = entry.key;
-                          final detalle = entry.value;
-                          return _isFromOc
-                              ? _buildOcDetalleCard(index, detalle)
-                              : _buildDetalleCard(index, detalle);
-                        }),
+                        if (_isFromOc)
+                          ..._detalles.asMap().entries.map((entry) =>
+                              _buildOcDetalleCard(entry.key, entry.value))
+                        else
+                          _buildDetallesTabla(),
                         _buildTotalRow(),
                         const SizedBox(height: 8),
                       ],
@@ -602,6 +609,7 @@ class _CompraFormViewState extends State<_CompraFormView> {
             ],
           );
         },
+        ),
       ),
     );
   }
@@ -634,130 +642,128 @@ class _CompraFormViewState extends State<_CompraFormView> {
     );
   }
 
-  /// Card para items de compra standalone (read-only con delete)
-  Widget _buildDetalleCard(int index, Map<String, dynamic> detalle) {
-    final hasProduct = detalle['productoId'] != null;
-    final descripcion = detalle['descripcion'] as String? ?? '';
-    final cantidad = detalle['cantidad'];
-    final precio = detalle['precioUnitario'];
-    final descuento = (detalle['descuento'] as num?)?.toDouble() ?? 0.0;
+  /// Formatea una cantidad quitando el ".0" cuando es entera (2.0 → "2").
+  String _fmtCant(double v) =>
+      v == v.truncateToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(2);
 
-    final cantidadNum =
-        cantidad is int ? cantidad.toDouble() : (cantidad as num).toDouble();
-    final precioNum =
-        precio is int ? precio.toDouble() : (precio as num).toDouble();
-    final subtotal = cantidadNum * precioNum - descuento;
+  /// Tabla estilo "Excel" de los items agregados (compra standalone), con
+  /// dual-view de unidad de compra y botón de eliminar por fila.
+  Widget _buildDetallesTabla() {
+    final headerStyle = TextStyle(
+        fontSize: 9, color: Colors.grey.shade600, fontWeight: FontWeight.w700);
+    final cellStyle = TextStyle(fontSize: 9.5, color: Colors.grey.shade800);
+    final cellBold = TextStyle(
+        fontSize: 9.5, color: Colors.grey.shade900, fontWeight: FontWeight.w700);
 
-    // Si el item fue ingresado en unidad de compra, calcular equivalente
-    // atómico para mostrar dual-view en la línea.
-    final bool usaUC = detalle['usaUnidadCompra'] == true;
-    final double? factor = (detalle['factorCompra'] as num?)?.toDouble();
-    final String? simboloUC = detalle['unidadCompraSimbolo'] as String?;
-    final double? cantidadAtomica =
-        usaUC && factor != null ? cantidadNum * factor : null;
-    final double? precioAtomico =
-        usaUC && factor != null && factor > 0 ? precioNum / factor : null;
+    Widget celda(String text, TextStyle style,
+        {TextAlign align = TextAlign.left, int? maxLines}) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 6),
+        child: Text(text,
+            style: style,
+            textAlign: align,
+            maxLines: maxLines,
+            overflow:
+                maxLines != null ? TextOverflow.ellipsis : TextOverflow.clip),
+      );
+    }
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 6),
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-        side: BorderSide(color: Colors.grey.shade200),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: hasProduct
-                    ? AppColors.blue1.withValues(alpha: 0.1)
-                    : Colors.orange.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Icon(
-                hasProduct ? Icons.inventory_2 : Icons.edit_note,
-                size: 16,
-                color: hasProduct ? AppColors.blue1 : Colors.orange.shade700,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    descripcion,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
-                  Row(
-                    children: [
-                      Text(
-                        usaUC && simboloUC != null
-                            ? '$cantidad $simboloUC × ${precioNum.toStringAsFixed(2)}'
-                            : '$cantidad × ${precioNum.toStringAsFixed(2)}',
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                      if (descuento > 0)
-                        Text(
-                          ' - ${descuento.toStringAsFixed(2)}',
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: Colors.red.shade400,
-                          ),
-                        ),
-                      const Spacer(),
-                      Text(
-                        subtotal.toStringAsFixed(2),
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.blue1,
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (usaUC && cantidadAtomica != null && precioAtomico != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 2),
-                      child: Text(
-                        '= ${cantidadAtomica.toStringAsFixed(cantidadAtomica == cantidadAtomica.truncateToDouble() ? 0 : 2)} u @ S/${precioAtomico.toStringAsFixed(2)}/u',
-                        style: TextStyle(
-                          fontSize: 9,
-                          color: Colors.green.shade700,
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 4),
-            InkWell(
-              onTap: () => _removeDetalle(index),
-              borderRadius: BorderRadius.circular(12),
-              child: Padding(
-                padding: const EdgeInsets.all(4),
-                child: Icon(
-                  Icons.close,
-                  color: Colors.red.shade300,
-                  size: 18,
-                ),
-              ),
-            ),
-          ],
+    final header = TableRow(
+      decoration:
+          BoxDecoration(color: AppColors.blue1.withValues(alpha: 0.07)),
+      children: [
+        celda('Descripción', headerStyle),
+        celda('Cant.', headerStyle, align: TextAlign.right),
+        celda('P.Unit', headerStyle, align: TextAlign.right),
+        celda('Subtotal', headerStyle, align: TextAlign.right),
+        const SizedBox.shrink(),
+      ],
+    );
+
+    final filas = _detalles.asMap().entries.map((entry) {
+      final index = entry.key;
+      final d = entry.value;
+      final descripcion = d['descripcion'] as String? ?? '';
+      final cantidad = d['cantidad'];
+      final precio = d['precioUnitario'];
+      final descuento = (d['descuento'] as num?)?.toDouble() ?? 0.0;
+      final cantidadNum =
+          cantidad is int ? cantidad.toDouble() : (cantidad as num).toDouble();
+      final precioNum =
+          precio is int ? precio.toDouble() : (precio as num).toDouble();
+      final subtotal = cantidadNum * precioNum - descuento;
+
+      final usaUC = d['usaUnidadCompra'] == true;
+      final simboloUC = d['unidadCompraSimbolo'] as String?;
+      final factor = (d['factorCompra'] as num?)?.toDouble();
+      final cantAtomica = usaUC && factor != null ? cantidadNum * factor : null;
+      final precioAtomico =
+          usaUC && factor != null && factor > 0 ? precioNum / factor : null;
+
+      final cantTxt = usaUC && simboloUC != null
+          ? '${_fmtCant(cantidadNum)} $simboloUC'
+          : _fmtCant(cantidadNum);
+
+      return TableRow(
+        decoration: BoxDecoration(
+          color: index.isOdd ? Colors.grey.withValues(alpha: 0.04) : Colors.white,
         ),
+        children: [
+          // Descripción + dual-view (= u @ S//u) + descuento
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 6),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(descripcion,
+                    style: cellBold,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis),
+                if (usaUC && cantAtomica != null && precioAtomico != null)
+                  Text(
+                    '= ${_fmtCant(cantAtomica)} u @ S/${precioAtomico.toStringAsFixed(2)}/u',
+                    style: TextStyle(
+                        fontSize: 8,
+                        color: Colors.green.shade700,
+                        fontStyle: FontStyle.italic),
+                  ),
+                if (descuento > 0)
+                  Text('desc. -${descuento.toStringAsFixed(2)}',
+                      style:
+                          TextStyle(fontSize: 8, color: Colors.red.shade400)),
+              ],
+            ),
+          ),
+          celda(cantTxt, cellStyle, align: TextAlign.right, maxLines: 1),
+          celda(precioNum.toStringAsFixed(2), cellStyle,
+              align: TextAlign.right, maxLines: 1),
+          celda(subtotal.toStringAsFixed(2), cellBold,
+              align: TextAlign.right, maxLines: 1),
+          // Eliminar fila
+          InkWell(
+            onTap: () => _removeDetalle(index),
+            child: Padding(
+              padding: const EdgeInsets.all(5),
+              child: Icon(Icons.close, size: 15, color: Colors.red.shade300),
+            ),
+          ),
+        ],
+      );
+    }).toList();
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(6),
+      child: Table(
+        border: TableBorder.all(color: Colors.grey.shade200, width: 0.6),
+        columnWidths: const {
+          0: FlexColumnWidth(2.4),
+          1: FlexColumnWidth(1.0),
+          2: FlexColumnWidth(1.0),
+          3: FlexColumnWidth(1.15),
+          4: FixedColumnWidth(26),
+        },
+        defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+        children: [header, ...filas],
       ),
     );
   }

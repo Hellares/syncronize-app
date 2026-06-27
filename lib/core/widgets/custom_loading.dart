@@ -21,27 +21,27 @@ class CustomLoading extends StatelessWidget {
     this.backgroundColor = Colors.white,
     this.textColor,
     this.borderRadius = 10,
-    this.animationPath = 'assets/animations/Loading.json',
+    this.animationPath = 'assets/animations/logo1.json',
     this.showOverlay = true,
   });
 
   @override
   Widget build(BuildContext context) {
     final widget = Center(
-      child: Container(
+      child: SizedBox(
         width: width,
         height: height,
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          borderRadius: BorderRadius.circular(borderRadius!),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 10,
-              spreadRadius: 5,
-            ),
-          ],
-        ),
+        // decoration: BoxDecoration(
+        //   color: backgroundColor,
+        //   borderRadius: BorderRadius.circular(borderRadius!),
+        //   boxShadow: [
+        //     BoxShadow(
+        //       color: Colors.black.withValues(alpha: 0.1),
+        //       blurRadius: 10,
+        //       spreadRadius: 5,
+        //     ),
+        //   ],
+        // ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -108,7 +108,7 @@ class CustomLoading extends StatelessWidget {
       width: 90,
       height: 90,
       animationSize: 50,
-      animationPath: 'assets/animations/Loading.json',
+      animationPath: 'assets/animations/logo1.json',
     );
   }
 

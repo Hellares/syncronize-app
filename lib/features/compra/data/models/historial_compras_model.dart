@@ -50,6 +50,15 @@ class HistorialCompraItem {
   final double costoUnitario;
   final double total;
 
+  /// Si la compra se hizo en unidad de compra (saco, paquete, caja...).
+  final bool usaUnidadCompra;
+
+  /// Cantidad en unidad de compra (ej. 2 sacos). `cantidad` es la atómica.
+  final double? cantidadOriginal;
+
+  /// Símbolo de la unidad de compra (ej. "Saco").
+  final String? unidadOriginalSimbolo;
+
   const HistorialCompraItem({
     this.compraId,
     required this.codigo,
@@ -60,7 +69,22 @@ class HistorialCompraItem {
     required this.cantidad,
     required this.costoUnitario,
     required this.total,
+    this.usaUnidadCompra = false,
+    this.cantidadOriginal,
+    this.unidadOriginalSimbolo,
   });
+
+  /// Costo por paquete/saco (total ÷ cantidad en unidad de compra).
+  double? get costoPaquete =>
+      (cantidadOriginal != null && cantidadOriginal! > 0)
+          ? total / cantidadOriginal!
+          : null;
+
+  /// Cuántas unidades atómicas trae cada paquete (factor de compra).
+  double? get unidadesPorPaquete =>
+      (cantidadOriginal != null && cantidadOriginal! > 0)
+          ? cantidad / cantidadOriginal!
+          : null;
 
   factory HistorialCompraItem.fromJson(Map<String, dynamic> json) {
     return HistorialCompraItem(
@@ -73,6 +97,9 @@ class HistorialCompraItem {
       cantidad: (json['cantidad'] as num?)?.toInt() ?? 0,
       costoUnitario: HistorialComprasResult._toDouble(json['costoUnitario']),
       total: HistorialComprasResult._toDouble(json['total']),
+      usaUnidadCompra: json['usaUnidadCompra'] == true,
+      cantidadOriginal: HistorialComprasResult._toDoubleN(json['cantidadOriginal']),
+      unidadOriginalSimbolo: json['unidadOriginalSimbolo'] as String?,
     );
   }
 }

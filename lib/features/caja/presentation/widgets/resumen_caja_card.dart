@@ -31,10 +31,10 @@ class ResumenCajaCard extends StatelessWidget {
         children: [
           const AppSubtitle(
             'RESUMEN DE CAJA',
-            fontSize: 11,
+            fontSize: 10,
             color: AppColors.blue3,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           // Monto apertura
           if (montoApertura > 0) ...[
             _buildResumenRow(
@@ -42,7 +42,7 @@ class ResumenCajaCard extends StatelessWidget {
               currencyFormat.format(montoApertura),
               AppColors.blue2,
             ),
-            const Divider(height: 16),
+            const Divider(height: 14),
           ],
           // Total Ingresos
           _buildResumenRow(
@@ -177,7 +177,7 @@ class ResumenCajaCard extends StatelessWidget {
           // aparece aunque esté en 0 si hubo apertura (apertura inflada en
           // saldo).
           if (resumen.detalles.isNotEmpty) ...[
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
             const Divider(height: 1),
             const SizedBox(height: 12),
             const AppSubtitle(

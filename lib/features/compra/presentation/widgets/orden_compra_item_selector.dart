@@ -4,11 +4,14 @@ import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/network/dio_client.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
+import 'package:syncronize/core/widgets/styled_dialog.dart';
+import 'package:syncronize/features/auth/presentation/widgets/custom_button.dart';
 import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import '../../../../core/widgets/producto_sede_selector/producto_sede_selector_exports.dart';
 import '../../../producto/domain/entities/producto_list_item.dart';
 import '../../../producto/domain/entities/producto_variante.dart';
 import 'historial_compras_producto_panel.dart';
+import 'quick_create_producto_dialog.dart';
 
 /// Widget para buscar y agregar productos/items al detalle de una Orden de Compra.
 ///
@@ -38,6 +41,10 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
   final _precioController = TextEditingController();
   final _descuentoController = TextEditingController(text: '0');
   final _nuevoPrecioVentaController = TextEditingController();
+  // Empaque (unidades por paquete/saco) para ESTA compra. Arranca con el
+  // factor configurado del producto, pero el usuario puede ajustarlo si el
+  // lote vino con otra cantidad (override puntual, no toca la config).
+  final _factorController = TextEditingController();
   final DioClient _dio = locator<DioClient>();
 
   String _tipoItem = 'producto';
@@ -58,6 +65,9 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
   int? _stockActualSede;
   bool _loadingStockSede = false;
   String? _productoIdInfoCargada; // Evitar reload si ya tenemos los datos
+  // Se incrementa para forzar un buscador de productos FRESCO (limpia el
+  // mensaje "no encontrados" y re-carga la lista) tras crear un producto.
+  int _selectorReset = 0;
 
   @override
   void dispose() {
@@ -66,6 +76,7 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
     _precioController.dispose();
     _descuentoController.dispose();
     _nuevoPrecioVentaController.dispose();
+    _factorController.dispose();
     super.dispose();
   }
 
@@ -75,6 +86,7 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
     _precioController.clear();
     _descuentoController.text = '0';
     _nuevoPrecioVentaController.clear();
+    _factorController.clear();
     _productoSeleccionado = null;
     _varianteSeleccionada = null;
     _usaUnidadCompra = false;
@@ -112,6 +124,13 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
         _stockActualSede = (data?['stockActual'] as num?)?.toInt();
         _loadingStockSede = false;
         _productoIdInfoCargada = productoId;
+        // Precargar el precio de la línea con el COSTO actual (solo si el
+        // usuario no escribió nada todavía).
+        if (_costoActualSede != null &&
+            _costoActualSede! > 0 &&
+            _precioController.text.trim().isEmpty) {
+          _precioController.text = _fmtPrecio(_costoActualSede!);
+        }
       });
     } catch (_) {
       if (mounted) {
@@ -126,7 +145,7 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
     final raw = double.tryParse(_precioController.text.replaceAll(',', '.')) ?? 0;
     if (raw <= 0) return 0;
     if (_usaUnidadCompra && _productoSoportaUnidadCompra) {
-      final factor = _productoSeleccionado!.factorCompra ?? 1;
+      final factor = _factorEfectivo;
       return factor > 0 ? raw / factor : raw;
     }
     return raw;
@@ -139,7 +158,7 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
         double.tryParse(_cantidadController.text.replaceAll(',', '.')) ?? 0;
     if (raw <= 0) return 0;
     if (_usaUnidadCompra && _productoSoportaUnidadCompra) {
-      final factor = _productoSeleccionado!.factorCompra ?? 1;
+      final factor = _factorEfectivo;
       return (raw * factor).round();
     }
     return raw.round();
@@ -180,11 +199,33 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
     );
   }
 
-  /// Sugerencia: precio actual + 10%.
+  /// Sugerencia: costo NUEVO + 10% (margen fijo del 10% sobre el costo
+  /// proyectado). Siempre cubre el costo, a diferencia de basarlo en la venta
+  /// vieja (que en un salto de costo se quedaba por debajo).
   double? get _precioMas10 {
-    final precio = _precioVentaActualSede;
-    if (precio == null) return null;
-    return double.parse((precio * 1.1).toStringAsFixed(2));
+    final costoNuevo = _nuevoCostoProyectado;
+    if (costoNuevo == null || costoNuevo <= 0) return null;
+    return double.parse((costoNuevo * 1.1).toStringAsFixed(2));
+  }
+
+  /// Precio de venta que quedaría tras esta compra: el nuevo (si se escribió)
+  /// o, si no, el actual.
+  double? get _precioVentaEfectivo {
+    final txt = _nuevoPrecioVentaController.text.trim().replaceAll(',', '.');
+    final nuevo = double.tryParse(txt);
+    if (nuevo != null && nuevo > 0) return nuevo;
+    return _precioVentaActualSede;
+  }
+
+  /// True si el costo (el de ESTA compra / el proyectado del producto) supera
+  /// al precio de venta efectivo → se vendería con pérdida.
+  bool get _costoSuperaVenta {
+    final precioCompra = _precioCompraAtomico;
+    if (precioCompra <= 0) return false; // aún no hay precio de compra
+    final costo = _nuevoCostoProyectado ?? precioCompra;
+    final venta = _precioVentaEfectivo;
+    if (venta == null || venta <= 0) return false;
+    return costo > venta;
   }
 
   void _aplicarSugerencia(double v) {
@@ -198,6 +239,24 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
       _productoSeleccionado?.factorCompra != null &&
       _productoSeleccionado!.factorCompra! > 0 &&
       (_productoSeleccionado?.unidadCompraSimbolo?.isNotEmpty ?? false);
+
+  /// Factor de compra EFECTIVO para esta línea: el que el usuario escribió en
+  /// el campo de empaque (override puntual) o, si está vacío/ inválido, el
+  /// configurado en el producto.
+  double get _factorEfectivo {
+    final base = _productoSeleccionado?.factorCompra ?? 1;
+    final parsed =
+        double.tryParse(_factorController.text.replaceAll(',', '.').trim());
+    if (parsed != null && parsed > 0) return parsed;
+    return base > 0 ? base : 1;
+  }
+
+  /// True si el empaque de esta compra difiere del configurado en el producto.
+  bool get _factorDifiereDelProducto {
+    final base = _productoSeleccionado?.factorCompra;
+    if (base == null) return false;
+    return (_factorEfectivo - base).abs() > 1e-9;
+  }
 
   /// Símbolo de la unidad actualmente seleccionada en "Comprar por":
   /// la de compra si el toggle está en compra, si no la base.
@@ -227,7 +286,7 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
   /// permite y `_agregarItem` la aplana a unidad base al enviar.
   void _cambiarUnidadCompra(bool nuevo) {
     if (nuevo == _usaUnidadCompra) return;
-    final factor = _productoSeleccionado?.factorCompra ?? 1;
+    final factor = _factorEfectivo;
     final precio = double.tryParse(_precioController.text.replaceAll(',', '.'));
     final cantidad =
         double.tryParse(_cantidadController.text.replaceAll(',', '.'));
@@ -246,7 +305,7 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
     });
   }
 
-  void _agregarItem() {
+  Future<void> _agregarItem() async {
     final descripcion = _descripcionController.text.trim();
     if (descripcion.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -294,7 +353,7 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
     final usaUC = _tipoItem == 'producto' &&
         _productoSoportaUnidadCompra &&
         _usaUnidadCompra;
-    final factor = _productoSeleccionado?.factorCompra ?? 1;
+    final factor = _factorEfectivo;
     final esEntera = (cantidadSel - cantidadSel.roundToDouble()).abs() < 1e-9;
 
     int cantidadEnviar;
@@ -339,7 +398,9 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
       // antes de enviar al backend.
       if (enviarUsaUC) {
         item['usaUnidadCompra'] = true;
-        item['factorCompra'] = _productoSeleccionado!.factorCompra;
+        // Factor EFECTIVO (override puntual o el del producto). Se usa para el
+        // snapshot dual-view y se envía al backend como override de la línea.
+        item['factorCompra'] = _factorEfectivo;
         item['unidadCompraSimbolo'] =
             _productoSeleccionado!.unidadCompraSimbolo;
       }
@@ -360,8 +421,54 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
       }
     }
 
+    // Bloqueo: si el costo nuevo supera el precio de venta, NO se agrega
+    // hasta que el usuario actualice el precio de venta para cubrirlo.
+    if (_costoSuperaVenta) {
+      await _avisarCostoSupera();
+      return;
+    }
+
     widget.onItemAdded(item);
     setState(() => _limpiarSeleccion());
+  }
+
+  /// Aviso BLOQUEANTE: el costo supera el precio de venta. No deja agregar el
+  /// ítem; el usuario debe actualizar el precio de venta en la card de abajo.
+  Future<void> _avisarCostoSupera() async {
+    final costo = _nuevoCostoProyectado ?? _precioCompraAtomico;
+    final venta = _precioVentaEfectivo;
+    await StyledDialog.show<void>(
+      context,
+      accentColor: Colors.red.shade700,
+      icon: Icons.block,
+      titulo: 'Actualiza el precio de venta',
+      backgroundColor: Colors.white,
+      content: [
+        Text(
+          'El nuevo costo (S/ ${costo.toStringAsFixed(2)}) supera el precio de '
+          'venta (S/ ${venta?.toStringAsFixed(2) ?? '—'}).',
+          style: const TextStyle(
+              fontSize: 12.5, height: 1.35, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Para agregar este producto, primero sube el precio de venta por '
+          'encima del costo en la card "Ajustar precio venta" de abajo '
+          '(puedes usar "Mantener margen" o "+10%").',
+          style: TextStyle(
+              fontSize: 11.5, height: 1.35, color: Colors.grey.shade700),
+        ),
+      ],
+      actions: [
+        Expanded(
+          child: CustomButton(
+            text: 'Entendido',
+            backgroundColor: AppColors.blue1,
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ),
+      ],
+    );
   }
 
   /// Card debajo de los campos cantidad/precio con:
@@ -395,11 +502,8 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
       );
     }
 
-    if (_costoActualSede == null && _precioVentaActualSede == null) {
-      // Producto sin stock todavía — nada que mostrar
-      return const SizedBox.shrink();
-    }
-
+    // La card se muestra aunque el producto aún no tenga costo/venta (ej. un
+    // producto recién creado), para poder fijar el precio de venta aquí mismo.
     final costoNuevo = _nuevoCostoProyectado;
     final margenActual = _margenActualPct;
     final mantenerMargen = _precioMantenerMargen;
@@ -437,6 +541,38 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
                 ),
               ],
             ),
+            // Aviso fuerte: el costo nuevo supera el precio de venta.
+            if (_costoSuperaVenta) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.red.shade300),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.warning_amber_rounded,
+                        size: 16, color: Colors.red.shade700),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'El costo nuevo supera el precio de venta. '
+                        'Actualiza el precio de venta para no vender con pérdida.',
+                        style: TextStyle(
+                          fontSize: 10,
+                          height: 1.3,
+                          color: Colors.red.shade800,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 8),
             // Línea costo: actual → proyectado
             Row(
@@ -508,12 +644,12 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
                 if (mantenerMargen != null)
                   _SugerenciaChip(
                     label:
-                        'Mantener margen → S/${mantenerMargen.toStringAsFixed(2)}',
+                        'Mantener margen${margenActual != null ? ' ${margenActual.toStringAsFixed(0)}%' : ''} → S/${mantenerMargen.toStringAsFixed(2)}',
                     onTap: () => _aplicarSugerencia(mantenerMargen),
                   ),
                 if (mas10 != null)
                   _SugerenciaChip(
-                    label: '+10% → S/${mas10.toStringAsFixed(2)}',
+                    label: 'Costo +10% → S/${mas10.toStringAsFixed(2)}',
                     onTap: () => _aplicarSugerencia(mas10),
                   ),
               ],
@@ -564,6 +700,7 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
             // proveedor) + variación vs último costo + margen.
             if (_tipoItem == 'producto' && _productoSeleccionado != null)
               HistorialComprasProductoPanel(
+                empresaId: widget.empresaId,
                 productoId: _productoSeleccionado!.id,
                 varianteId: _varianteSeleccionada?.id,
                 precioCompra: _precioCompraAtomico,
@@ -636,45 +773,183 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
       );
     }
 
-    return ProductoSedeSelector(
-      key: ValueKey(widget.sedeId),
-      empresaId: widget.empresaId,
-      sedeIdInicial: widget.sedeId,
-      mostrarSelectorSede: false,
-      soloProductos: true,
-      label: 'Selecciona un producto *',
-      hintText: 'Buscar producto...',
-      labelBuilder: (producto) {
-        return '${producto.nombre} | Stock: ${producto.stockTotal}';
-      },
-      onProductoSeleccionado: ({
-        required ProductoListItem producto,
-        required String sedeId,
-        ProductoVariante? variante,
-      }) {
-        setState(() {
-          _productoSeleccionado = producto;
-          _varianteSeleccionada = variante;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Indicador claro del producto activo (el buscador no muestra la
+        // selección hecha por código, ej. tras crear un producto).
+        if (_productoSeleccionado != null) _buildProductoSeleccionadoBanner(),
+        ProductoSedeSelector(
+          key: ValueKey('${widget.sedeId}_$_selectorReset'),
+          empresaId: widget.empresaId,
+          sedeIdInicial: widget.sedeId,
+          mostrarSelectorSede: false,
+          soloProductos: true,
+          label: 'Selecciona un producto *',
+          hintText: 'Buscar producto...',
+          labelBuilder: (producto) {
+            return '${producto.nombre} | Stock: ${producto.stockTotal}';
+          },
+          onProductoSeleccionado: ({
+            required ProductoListItem producto,
+            required String sedeId,
+            ProductoVariante? variante,
+          }) {
+            _aplicarSeleccionProducto(
+              producto: producto,
+              variante: variante,
+              sedeId: sedeId,
+            );
+          },
+        ),
+        // const SizedBox(height: 6),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: _crearProductoNuevo,
+            icon: const Icon(Icons.add_box_outlined, size: 16),
+            label: const Text('¿No existe? Crear producto nuevo'),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.blue1,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              textStyle: const TextStyle(
+                  fontSize: 10, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
-          if (variante != null) {
-            _descripcionController.text =
-                '${producto.nombre} - ${variante.nombre}';
-            final precio = variante.precioEnSede(sedeId) ?? 0.0;
-            _precioController.text = precio.toStringAsFixed(2);
-          } else {
-            _descripcionController.text = producto.nombre;
-            final precio = producto.precioEnSede(sedeId) ?? 0.0;
-            _precioController.text = precio.toStringAsFixed(2);
-          }
-        });
-        // Cargar precio venta + costo + stock actual en la sede para
-        // mostrar el card "ajustar precio venta al confirmar".
-        // Solo para producto base sin variante (las variantes tienen
-        // su propio stock; por ahora soportamos solo el caso base).
-        if (variante == null) {
-          _cargarStockSede(producto.id);
+  /// Aplica la selección de un producto (desde el buscador o recién creado):
+  /// setea descripción, empaque (factor) y precio por defecto (= costo) y
+  /// dispara la carga de costo/stock de la sede.
+  void _aplicarSeleccionProducto({
+    required ProductoListItem producto,
+    ProductoVariante? variante,
+    required String sedeId,
+  }) {
+    setState(() {
+      _productoSeleccionado = producto;
+      _varianteSeleccionada = variante;
+      // Pre-cargar el empaque con el factor configurado del producto.
+      final f = producto.factorCompra;
+      _factorController.text = (f != null && f > 0) ? _fmtPrecio(f) : '';
+
+      if (variante != null) {
+        _descripcionController.text =
+            '${producto.nombre} - ${variante.nombre}';
+        final precio = variante.precioEnSede(sedeId) ?? 0.0;
+        _precioController.text = precio.toStringAsFixed(2);
+      } else {
+        _descripcionController.text = producto.nombre;
+        // En una COMPRA el precio por defecto es el COSTO actual, no el de
+        // venta. Si ya está cargado para este producto, lo ponemos; si no,
+        // queda vacío y _cargarStockSede lo completa al traer el costo.
+        if (_productoIdInfoCargada == producto.id &&
+            _costoActualSede != null &&
+            _costoActualSede! > 0) {
+          _precioController.text = _fmtPrecio(_costoActualSede!);
+        } else {
+          _precioController.clear();
         }
-      },
+      }
+    });
+    // Cargar precio venta + costo + stock actual en la sede para mostrar el
+    // card "ajustar precio venta al confirmar". Solo producto base sin variante.
+    if (variante == null) {
+      _cargarStockSede(producto.id);
+    }
+  }
+
+  /// Abre el diálogo de creación rápida y, si se crea, lo deja seleccionado.
+  Future<void> _crearProductoNuevo() async {
+    final sedeId = widget.sedeId;
+    if (sedeId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Selecciona una sede primero'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    final res = await showQuickCreateProductoDialog(
+      context,
+      empresaId: widget.empresaId,
+      sedeId: sedeId,
+    );
+    if (res == null || !mounted) return;
+    // Producto nuevo: forzamos recarga de costo/stock (cache por id) y
+    // reseteamos el buscador (limpia "no encontrados" + re-carga la lista).
+    _productoIdInfoCargada = null;
+    setState(() => _selectorReset++);
+    _aplicarSeleccionProducto(producto: res.producto, sedeId: sedeId);
+    // Precio de venta opcional → se aplica al confirmar la compra (mismo
+    // mecanismo que con productos existentes).
+    if (res.precioVenta != null) {
+      _nuevoPrecioVentaController.text = res.precioVenta!.toStringAsFixed(2);
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+            'Producto "${res.producto.nombre}" creado. Completa cantidad y precio de compra.'),
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
+
+  /// Banner verde que confirma cuál es el producto activo. El buscador no
+  /// muestra la selección hecha por código, así que este indicador evita la
+  /// confusión de "parece que no se agregó".
+  Widget _buildProductoSeleccionadoBanner() {
+    final p = _productoSeleccionado!;
+    final nombre = _varianteSeleccionada != null
+        ? '${p.nombre} - ${_varianteSeleccionada!.nombre}'
+        : p.nombre;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.green.shade50,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: Colors.green.shade300, width: 0.8),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.check_circle, color: Colors.green.shade600, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Producto seleccionado',
+                  style: TextStyle(
+                      fontSize: 9,
+                      color: Colors.green.shade800,
+                      fontWeight: FontWeight.w600),
+                ),
+                Text(
+                  nombre,
+                  style: const TextStyle(
+                      fontSize: 10, fontWeight: FontWeight.w700),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          InkWell(
+            onTap: () => setState(() => _limpiarSeleccion()),
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.all(4),
+              child: Icon(Icons.close, size: 16, color: Colors.grey.shade600),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -693,7 +968,8 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
   /// unidadCompra+factor configurados (`_productoSoportaUnidadCompra`).
   Widget _buildUnidadCompraToggle() {
     final simbolo = _productoSeleccionado!.unidadCompraSimbolo ?? '?';
-    final factor = _productoSeleccionado!.factorCompra ?? 1;
+    // Factor efectivo (override puntual o config del producto).
+    final factor = _factorEfectivo;
     // Unidad base real (ej. "cm"). Si el producto no la tiene, caemos a "UNID".
     final base = _productoSeleccionado!.unidadMedidaSimbolo ?? 'UNID';
     return Padding(
@@ -741,9 +1017,114 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
                 ),
               ],
             ),
+            if (_usaUnidadCompra) _buildFactorEditable(simbolo, base),
             _buildCostoEquivalente(base, simbolo, factor),
           ],
         ),
+      ),
+    );
+  }
+
+  /// Campo editable del empaque para ESTA compra: cuántas unidades base trae
+  /// el paquete/saco. Default = factor del producto; el usuario lo ajusta si
+  /// el lote vino con otra cantidad (no toca la config del producto).
+  Widget _buildFactorEditable(String simboloCompra, String base) {
+    final configurado = _productoSeleccionado?.factorCompra ?? 1;
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                '1 $simboloCompra =',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.grey.shade800,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(width: 8),
+              // SizedBox(
+              //   width: 60,
+              //   height: 32,
+                // child: TextField(
+                //   controller: _factorController,
+                //   keyboardType:
+                //       const TextInputType.numberWithOptions(decimal: true),
+                //   textAlign: TextAlign.center,
+                //   style: const TextStyle(
+                //       fontSize: 12, fontWeight: FontWeight.w600),
+                //   decoration: InputDecoration(
+                //     isDense: true,
+                //     contentPadding:
+                //         const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+                //     border: OutlineInputBorder(
+                //       borderRadius: BorderRadius.circular(6),
+                //     ),
+                //     enabledBorder: OutlineInputBorder(
+                //       borderRadius: BorderRadius.circular(6),
+                //       borderSide: BorderSide(
+                //           color: AppColors.blue1.withValues(alpha: 0.4)),
+                //     ),
+                //   ),
+                //   onChanged: (_) => setState(() {}),
+                // ),
+              // ),
+              SizedBox(
+                width: 70,
+                child: CustomText(
+                  controller: _factorController,
+                  keyboardType: TextInputType.numberWithOptions(),
+                  onChanged: (_) => setState((){}),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                base,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.grey.shade800,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const Spacer(),
+              if (_factorDifiereDelProducto)
+                InkWell(
+                  onTap: () => setState(
+                      () => _factorController.text = _fmtPrecio(configurado)),
+                  borderRadius: BorderRadius.circular(4),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 4, vertical: 2),
+                    child: Text(
+                      'Restablecer (${_formatFactor(configurado)})',
+                      style: const TextStyle(
+                          fontSize: 10,
+                          color: AppColors.blue1,
+                          fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Text(
+              _factorDifiereDelProducto
+                  ? 'Empaque solo para esta compra (no cambia la config del producto)'
+                  : 'Unidades por $simboloCompra en esta compra',
+              style: TextStyle(
+                fontSize: 8.5,
+                color: _factorDifiereDelProducto
+                    ? Colors.orange.shade800
+                    : Colors.grey.shade500,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -798,7 +1179,7 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
         double.tryParse(_cantidadController.text.replaceAll(',', '.')) ?? 0;
     final precio =
         double.tryParse(_precioController.text.replaceAll(',', '.')) ?? 0;
-    final factor = _productoSeleccionado!.factorCompra ?? 1;
+    final factor = _factorEfectivo;
     final cantidadAtomica = cantidad * factor;
     final precioAtomico = factor > 0 ? precio / factor : 0;
     if (cantidad <= 0 && precio <= 0) return const SizedBox.shrink();
