@@ -2,16 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:syncronize/core/di/injection_container.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
+import 'package:syncronize/core/theme/app_gradients.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/utils/date_formatter.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import 'package:syncronize/core/widgets/snack_bar_helper.dart';
 import 'package:syncronize/core/widgets/styled_dialog.dart';
+import 'package:syncronize/core/widgets/custom_dropdown.dart';
 import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart'
     show CustomText;
 
 import '../../domain/entities/adelanto.dart';
-import '../../domain/entities/empleado.dart';
 import '../bloc/adelanto/adelanto_cubit.dart';
 import '../bloc/adelanto/adelanto_state.dart';
 import '../bloc/empleado_list/empleado_list_cubit.dart';
@@ -148,7 +149,7 @@ class _AdelantosPageState extends State<AdelantosPage> {
                       return RefreshIndicator(
                         onRefresh: () async => await _cubit.refresh(),
                         child: ListView.separated(
-                          padding: const EdgeInsets.all(16),
+                          padding: const EdgeInsets.all(10),
                           itemCount: state.adelantos.length,
                           separatorBuilder: (_, __) => const SizedBox(height: 10),
                           itemBuilder: (context, index) {
@@ -191,7 +192,8 @@ class _AdelantosPageState extends State<AdelantosPage> {
 
   Widget _buildAdelantoCard(BuildContext context, Adelanto adelanto) {
     return GradientContainer(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(10),
+      shadowStyle: ShadowStyle.glow,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -211,7 +213,7 @@ class _AdelantosPageState extends State<AdelantosPage> {
                     Text(
                       adelanto.empleadoNombre ?? 'Empleado',
                       style: const TextStyle(
-                        fontSize: 14,
+                        fontSize: 11,
                         fontWeight: FontWeight.w600,
                         color: AppColors.textPrimary,
                       ),
@@ -222,7 +224,7 @@ class _AdelantosPageState extends State<AdelantosPage> {
                       Text(
                         adelanto.empleadoCodigo!,
                         style: const TextStyle(
-                          fontSize: 11,
+                          fontSize: 10,
                           color: AppColors.textSecondary,
                         ),
                       ),
@@ -233,14 +235,14 @@ class _AdelantosPageState extends State<AdelantosPage> {
               Text(
                 'S/ ${adelanto.monto.toStringAsFixed(2)}',
                 style: const TextStyle(
-                  fontSize: 16,
+                  fontSize: 12,
                   fontWeight: FontWeight.w800,
                   color: AppColors.blue3,
                 ),
               ),
             ],
           ),
-          const Divider(height: 16),
+          const Divider(height: 12),
 
           // Info row
           Row(
@@ -249,7 +251,7 @@ class _AdelantosPageState extends State<AdelantosPage> {
               const SizedBox(width: 4),
               Text(
                 DateFormatter.formatDate(adelanto.fechaSolicitud),
-                style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                style: const TextStyle(fontSize: 10, color: AppColors.textSecondary),
               ),
               const Spacer(),
               // Estado badge
@@ -262,7 +264,7 @@ class _AdelantosPageState extends State<AdelantosPage> {
                 child: Text(
                   adelanto.estado.label,
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 10,
                     fontWeight: FontWeight.w600,
                     color: adelanto.estado.color,
                   ),
@@ -276,7 +278,7 @@ class _AdelantosPageState extends State<AdelantosPage> {
             Text(
               adelanto.motivo!,
               style: const TextStyle(
-                fontSize: 12,
+                fontSize: 10,
                 fontStyle: FontStyle.italic,
                 color: AppColors.textSecondary,
               ),
@@ -487,7 +489,7 @@ class _AdelantosPageState extends State<AdelantosPage> {
     final empleadoListCubit = locator<EmpleadoListCubit>();
     empleadoListCubit.loadEmpleados(estado: 'ACTIVO');
 
-    Empleado? selectedEmpleado;
+    String? selectedEmpleadoId;
     final montoCtrl = TextEditingController();
     final motivoCtrl = TextEditingController();
 
@@ -498,113 +500,102 @@ class _AdelantosPageState extends State<AdelantosPage> {
           builder: (ctx, setDialogState) {
             return BlocProvider.value(
               value: empleadoListCubit,
-              child: AlertDialog(
-                title: const Text('Nuevo Adelanto'),
-                content: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Employee selector
-                      BlocBuilder<EmpleadoListCubit, EmpleadoListState>(
-                        builder: (context, state) {
-                          if (state is EmpleadoListLoaded) {
-                            return DropdownButtonFormField<Empleado>(
-                              initialValue: selectedEmpleado,
-                              decoration: const InputDecoration(
-                                labelText: 'Empleado',
-                                isDense: true,
-                                border: OutlineInputBorder(),
-                              ),
-                              isExpanded: true,
-                              items: state.empleados.map((e) {
-                                return DropdownMenuItem(
-                                  value: e,
-                                  child: Text(
-                                    e.nombreCompleto,
-                                    style: const TextStyle(fontSize: 12),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                );
-                              }).toList(),
-                              onChanged: (v) {
-                                setDialogState(() => selectedEmpleado = v);
-                              },
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppColors.textPrimary,
-                              ),
-                            );
-                          }
-                          return const Padding(
-                            padding: EdgeInsets.all(8),
-                            child: CircularProgressIndicator(),
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Monto
-                      TextField(
-                        controller: montoCtrl,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        decoration: const InputDecoration(
-                          labelText: 'Monto (S/)',
-                          isDense: true,
-                          border: OutlineInputBorder(),
-                          prefixText: 'S/ ',
-                        ),
-                        style: const TextStyle(fontSize: 13),
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Motivo
-                      TextField(
-                        controller: motivoCtrl,
-                        maxLines: 3,
-                        decoration: const InputDecoration(
-                          labelText: 'Motivo',
-                          isDense: true,
-                          border: OutlineInputBorder(),
-                        ),
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    ],
+              child: StyledDialog(
+                accentColor: AppColors.blue1,
+                icon: Icons.request_quote_outlined,
+                titulo: 'Nuevo Adelanto',
+                content: [
+                  // Selector de empleado
+                  BlocBuilder<EmpleadoListCubit, EmpleadoListState>(
+                    builder: (context, state) {
+                      if (state is EmpleadoListLoaded) {
+                        final ids = state.empleados.map((e) => e.id).toSet();
+                        return CustomDropdown<String>(
+                          label: 'Empleado',
+                          hintText: 'Seleccionar...',
+                          borderColor: AppColors.blue1,
+                          value: ids.contains(selectedEmpleadoId)
+                              ? selectedEmpleadoId
+                              : null,
+                          items: state.empleados
+                              .map((e) => DropdownItem<String>(
+                                    value: e.id,
+                                    label: e.nombreCompleto,
+                                  ))
+                              .toList(),
+                          onChanged: (v) =>
+                              setDialogState(() => selectedEmpleadoId = v),
+                        );
+                      }
+                      return const Padding(
+                        padding: EdgeInsets.all(8),
+                        child: CircularProgressIndicator(),
+                      );
+                    },
                   ),
-                ),
+                  const SizedBox(height: 12),
+
+                  // Monto
+                  CustomText(
+                    controller: montoCtrl,
+                    label: 'Monto',
+                    hintText: '0.00',
+                    prefixText: 'S/ ',
+                    borderColor: AppColors.blue1,
+                    keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Motivo
+                  CustomText(
+                    controller: motivoCtrl,
+                    label: 'Motivo',
+                    hintText: 'Opcional',
+                    maxLines: 3,
+                    borderColor: AppColors.blue1,
+                  ),
+                ],
                 actions: [
-                  TextButton(
-                    onPressed: () {
-                      empleadoListCubit.close();
-                      Navigator.of(ctx).pop();
-                    },
-                    child: const Text('Cancelar'),
-                  ),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.blue1,
-                      foregroundColor: Colors.white,
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () {
+                        empleadoListCubit.close();
+                        Navigator.of(ctx).pop();
+                      },
+                      child: const Text('Cancelar'),
                     ),
-                    onPressed: () {
-                      if (selectedEmpleado == null) {
-                        SnackBarHelper.showWarning(ctx, 'Seleccione un empleado');
-                        return;
-                      }
-                      final monto = double.tryParse(montoCtrl.text);
-                      if (monto == null || monto <= 0) {
-                        SnackBarHelper.showWarning(ctx, 'Ingrese un monto valido');
-                        return;
-                      }
+                  ),
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.blue1,
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: () {
+                        if (selectedEmpleadoId == null) {
+                          SnackBarHelper.showWarning(
+                              ctx, 'Seleccione un empleado');
+                          return;
+                        }
+                        final monto = double.tryParse(montoCtrl.text);
+                        if (monto == null || monto <= 0) {
+                          SnackBarHelper.showWarning(
+                              ctx, 'Ingrese un monto válido');
+                          return;
+                        }
 
-                      Navigator.of(ctx).pop();
-                      empleadoListCubit.close();
+                        Navigator.of(ctx).pop();
+                        empleadoListCubit.close();
 
-                      _cubit.crearAdelanto({
-                        'empleadoId': selectedEmpleado!.id,
-                        'monto': monto,
-                        'motivo': motivoCtrl.text.trim(),
-                      });
-                    },
-                    child: const Text('Crear'),
+                        _cubit.crearAdelanto({
+                          'empleadoId': selectedEmpleadoId,
+                          'monto': monto,
+                          'motivo': motivoCtrl.text.trim(),
+                        });
+                      },
+                      child: const Text('Crear'),
+                    ),
                   ),
                 ],
               ),
