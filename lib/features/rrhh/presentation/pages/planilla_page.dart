@@ -353,6 +353,7 @@ class _PlanillaPageState extends State<PlanillaPage> {
               'Calcular Planilla',
               'Se calculara la planilla para el periodo ${periodo.periodo}.',
               () => _cubit.calcularPlanilla(periodo.id),
+              icon: Icons.calculate,
             ),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.blue1,
@@ -374,6 +375,7 @@ class _PlanillaPageState extends State<PlanillaPage> {
                   'Recalcular Planilla',
                   'Se recalculará ${periodo.periodo} con la asistencia, incidencias y adelantos actuales. Las boletas previas se reemplazan.',
                   () => _cubit.calcularPlanilla(periodo.id),
+                  icon: Icons.refresh,
                 ),
                 style: OutlinedButton.styleFrom(
                   side: const BorderSide(color: AppColors.blue1),
@@ -391,6 +393,7 @@ class _PlanillaPageState extends State<PlanillaPage> {
                   'Aprobar Periodo',
                   'Se aprobará ${periodo.periodo}. Después ya NO se podrá recalcular.',
                   () => _cubit.aprobarPeriodo(periodo.id),
+                  icon: Icons.check_circle,
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
@@ -436,28 +439,37 @@ class _PlanillaPageState extends State<PlanillaPage> {
     BuildContext context,
     String title,
     String message,
-    VoidCallback onConfirm,
-  ) {
+    VoidCallback onConfirm, {
+    IconData icon = Icons.help_outline,
+  }) {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
+      builder: (ctx) => StyledDialog(
+        accentColor: AppColors.blue1,
+        icon: icon,
+        titulo: title,
+        content: [
+          Text(message, style: const TextStyle(fontSize: 13)),
+        ],
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.blue1,
-              foregroundColor: Colors.white,
+          Expanded(
+            child: TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancelar'),
             ),
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              onConfirm();
-            },
-            child: const Text('Confirmar'),
+          ),
+          Expanded(
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.blue1,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                onConfirm();
+              },
+              child: const Text('Confirmar'),
+            ),
           ),
         ],
       ),
