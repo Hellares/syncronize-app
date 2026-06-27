@@ -58,6 +58,8 @@ class _RegistrarAsistenciaPageState extends State<RegistrarAsistenciaPage> {
     final data = <String, dynamic>{
       'empleadoId': _selectedEmpleado!.id,
       'fecha': DateFormat('yyyy-MM-dd').format(now),
+      'estado': 'PRESENTE',
+      'horaEntrada': now.toUtc().toIso8601String(),
     };
 
     if (_observacionesController.text.isNotEmpty) {
