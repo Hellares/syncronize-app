@@ -99,7 +99,8 @@ class _DashboardRrhhPageState extends State<DashboardRrhhPage> {
           const SizedBox(height: 20),
 
           // Asistencia hoy
-          _buildAsistenciaHoyCard(dashboard.asistenciaHoy),
+          _buildAsistenciaHoyCard(
+              context, dashboard.asistenciaHoy, dashboard.totalEmpleados),
           const SizedBox(height: 16),
 
           // Planilla actual
@@ -110,32 +111,44 @@ class _DashboardRrhhPageState extends State<DashboardRrhhPage> {
 
           // Alertas
           if (dashboard.alertas.isNotEmpty) ...[
-            const Text(
-              'Alertas',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
-              ),
-            ),
+            _buildSectionTitle('Alertas', Icons.notifications_active_outlined),
             const SizedBox(height: 10),
             ...dashboard.alertas.map((a) => _buildAlertaCard(a)),
           ],
 
           // Quick navigation
           const SizedBox(height: 20),
-          const Text(
-            'Accesos Directos',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 10),
+          _buildSectionTitle('Accesos Directos', Icons.apps_rounded),
+          const SizedBox(height: 12),
           _buildQuickActions(context),
         ],
       ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title, IconData icon) {
+    return Row(
+      children: [
+        Container(
+          width: 3,
+          height: 16,
+          decoration: BoxDecoration(
+            color: AppColors.blue1,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Icon(icon, size: 16, color: AppColors.blue1),
+        const SizedBox(width: 6),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textPrimary,
+          ),
+        ),
+      ],
     );
   }
 
@@ -144,33 +157,37 @@ class _DashboardRrhhPageState extends State<DashboardRrhhPage> {
       crossAxisCount: 2,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 12,
-      crossAxisSpacing: 12,
-      childAspectRatio: 1.6,
+      mainAxisSpacing: 10,
+      crossAxisSpacing: 10,
+      childAspectRatio: 2.5,
       children: [
         _buildStatCard(
           icon: Icons.people_rounded,
           label: 'Total Empleados',
           value: '${dashboard.totalEmpleados}',
           color: AppColors.blue1,
+          onTap: () => context.push('/empresa/rrhh/empleados'),
         ),
         _buildStatCard(
           icon: Icons.fingerprint_rounded,
           label: 'Asistencia Hoy',
           value: '${dashboard.asistenciaHoy.presentes}',
           color: Colors.green,
+          onTap: () => context.push('/empresa/rrhh/asistencia'),
         ),
         _buildStatCard(
           icon: Icons.warning_amber_rounded,
           label: 'Incidencias Pend.',
           value: '${dashboard.incidenciasPendientes}',
           color: Colors.orange,
+          onTap: () => context.push('/empresa/rrhh/incidencias'),
         ),
         _buildStatCard(
           icon: Icons.request_quote_rounded,
           label: 'Adelantos Pend.',
           value: '${dashboard.adelantosPendientes}',
           color: Colors.purple,
+          onTap: () => context.push('/empresa/rrhh/adelantos'),
         ),
       ],
     );
@@ -181,76 +198,226 @@ class _DashboardRrhhPageState extends State<DashboardRrhhPage> {
     required String label,
     required String value,
     required Color color,
+    VoidCallback? onTap,
   }) {
-    return GradientContainer(
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(icon, size: 18, color: color),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: GradientContainer(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
               ),
-              const Spacer(),
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  color: color,
-                ),
-              ),
-            ],
-          ),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: AppColors.textSecondary,
+              child: Icon(icon, size: 18, color: color),
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    value,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: color,
+                      height: 1,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textSecondary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildAsistenciaHoyCard(AsistenciaHoy asistencia) {
-    return GradientContainer(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildAsistenciaHoyCard(
+      BuildContext context, AsistenciaHoy a, int totalEmpleados) {
+    final items = <_AsistStat>[
+      _AsistStat('Presentes', a.presentes, Colors.green, Icons.check_circle),
+      _AsistStat('Tardanzas', a.tardanzas, Colors.orange, Icons.timelapse),
+      _AsistStat('Ausentes', a.ausentes, Colors.red, Icons.cancel),
+      _AsistStat(
+          'Justificados', a.justificados, Colors.blue, Icons.verified_outlined),
+      _AsistStat('Vacaciones', a.enVacacion, Colors.teal, Icons.beach_access),
+      _AsistStat('Licencia', a.enLicencia, Colors.purple, Icons.local_hospital),
+      _AsistStat(
+          'Sin registro', a.sinRegistro, Colors.blueGrey, Icons.help_outline),
+    ];
+    final total = items.fold<int>(0, (s, i) => s + i.count);
+    final registrados = total - a.sinRegistro;
+    final pct = total > 0 ? (a.presentes / total * 100).round() : 0;
+    final visibles = items.where((i) => i.count > 0).toList();
+
+    return InkWell(
+      onTap: () => context.push('/empresa/rrhh/asistencia'),
+      borderRadius: BorderRadius.circular(16),
+      child: GradientContainer(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.fingerprint_rounded,
+                      size: 20, color: Colors.green),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Asistencia de Hoy',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.blue3,
+                        ),
+                      ),
+                      Text(
+                        '$registrados de $totalEmpleados registrados',
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // % de asistencia
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      '$pct%',
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.green,
+                        height: 1,
+                      ),
+                    ),
+                    const Text(
+                      'presentes',
+                      style:
+                          TextStyle(fontSize: 10, color: AppColors.textSecondary),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 4),
+                const Icon(Icons.chevron_right,
+                    size: 20, color: AppColors.textSecondary),
+              ],
+            ),
+            const SizedBox(height: 14),
+
+            // Barra apilada por estado
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: SizedBox(
+                height: 10,
+                child: total == 0
+                    ? Container(color: Colors.grey.withValues(alpha: 0.15))
+                    : Row(
+                        children: visibles
+                            .map((i) => Expanded(
+                                  flex: i.count,
+                                  child: Container(color: i.color),
+                                ))
+                            .toList(),
+                      ),
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // Desglose: TODOS los estados (2 por fila), ícono + número + label
+            for (var i = 0; i < items.length; i += 2)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    Expanded(child: _buildAsistStatTile(items[i])),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: i + 1 < items.length
+                          ? _buildAsistStatTile(items[i + 1])
+                          : const SizedBox(),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAsistStatTile(_AsistStat item) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: item.color.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: item.color.withValues(alpha: 0.18)),
+      ),
+      child: Row(
         children: [
-          const Text(
-            'Asistencia de Hoy',
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: item.color.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(item.icon, size: 14, color: item.color),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            '${item.count}',
             style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              color: AppColors.blue3,
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: item.color,
             ),
           ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _buildMiniChip('Presentes', '${asistencia.presentes}', Colors.green),
-              _buildMiniChip('Tardanzas', '${asistencia.tardanzas}', Colors.orange),
-              _buildMiniChip('Ausentes', '${asistencia.ausentes}', Colors.red),
-              _buildMiniChip('Justificados', '${asistencia.justificados}', Colors.blue),
-              _buildMiniChip('Vacaciones', '${asistencia.enVacacion}', Colors.teal),
-              _buildMiniChip('Licencia', '${asistencia.enLicencia}', Colors.purple),
-              _buildMiniChip('Sin Registro', '${asistencia.sinRegistro}', Colors.grey),
-            ],
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              item.label,
+              style: const TextStyle(
+                fontSize: 11,
+                color: AppColors.textSecondary,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ],
       ),
@@ -424,13 +591,20 @@ class _DashboardRrhhPageState extends State<DashboardRrhhPage> {
 
   Widget _buildQuickActions(BuildContext context) {
     final actions = <_QuickAction>[
-      _QuickAction(Icons.people, 'Empleados', '/empresa/rrhh/empleados'),
-      _QuickAction(Icons.schedule, 'Turnos', '/empresa/rrhh/turnos'),
-      _QuickAction(Icons.calendar_view_week, 'Horarios', '/empresa/rrhh/horarios'),
-      _QuickAction(Icons.fingerprint, 'Asistencia', '/empresa/rrhh/asistencia'),
-      _QuickAction(Icons.event_note, 'Incidencias', '/empresa/rrhh/incidencias'),
-      _QuickAction(Icons.receipt_long, 'Planilla', '/empresa/rrhh/planilla'),
-      _QuickAction(Icons.payments, 'Adelantos', '/empresa/rrhh/adelantos'),
+      _QuickAction(
+          Icons.people, 'Empleados', '/empresa/rrhh/empleados', AppColors.blue1),
+      _QuickAction(
+          Icons.schedule, 'Turnos', '/empresa/rrhh/turnos', Colors.indigo),
+      _QuickAction(Icons.calendar_view_week, 'Horarios',
+          '/empresa/rrhh/horarios', Colors.deepPurple),
+      _QuickAction(Icons.fingerprint, 'Asistencia',
+          '/empresa/rrhh/asistencia', Colors.green),
+      _QuickAction(Icons.event_note, 'Incidencias',
+          '/empresa/rrhh/incidencias', Colors.orange),
+      _QuickAction(Icons.receipt_long, 'Planilla', '/empresa/rrhh/planilla',
+          Colors.teal),
+      _QuickAction(Icons.payments, 'Adelantos', '/empresa/rrhh/adelantos',
+          Colors.purple),
     ];
 
     return GridView.builder(
@@ -452,12 +626,14 @@ class _DashboardRrhhPageState extends State<DashboardRrhhPage> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.all(11),
                 decoration: BoxDecoration(
-                  color: AppColors.blue1.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(12),
+                  color: action.color.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                      color: action.color.withValues(alpha: 0.18)),
                 ),
-                child: Icon(action.icon, size: 24, color: AppColors.blue1),
+                child: Icon(action.icon, size: 24, color: action.color),
               ),
               const SizedBox(height: 6),
               Text(
@@ -483,6 +659,16 @@ class _QuickAction {
   final IconData icon;
   final String label;
   final String route;
+  final Color color;
 
-  const _QuickAction(this.icon, this.label, this.route);
+  const _QuickAction(this.icon, this.label, this.route, this.color);
+}
+
+class _AsistStat {
+  final String label;
+  final int count;
+  final Color color;
+  final IconData icon;
+
+  const _AsistStat(this.label, this.count, this.color, this.icon);
 }
