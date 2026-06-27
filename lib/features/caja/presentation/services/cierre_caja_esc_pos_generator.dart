@@ -463,6 +463,10 @@ class CierreCajaEscPosGenerator {
         return 'OTRO ING';
       case CategoriaMovimientoCaja.reposicionCajaChica:
         return 'REPO C.CH.';
+      case CategoriaMovimientoCaja.adelantoEmpleado:
+        return 'ADEL SUELDO';
+      case CategoriaMovimientoCaja.pagoPlanilla:
+        return 'PAGO PLAN';
       case CategoriaMovimientoCaja.adelantoServicio:
         return 'ADEL SERV';
       case CategoriaMovimientoCaja.adelantoCotizacion:
