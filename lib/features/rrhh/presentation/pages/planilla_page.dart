@@ -362,23 +362,44 @@ class _PlanillaPageState extends State<PlanillaPage> {
           ),
         );
       case EstadoPeriodoPlanilla.calculada:
-        return SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            icon: const Icon(Icons.check_circle, size: 16),
-            label: const Text('Aprobar', style: TextStyle(fontSize: 12)),
-            onPressed: () => _confirmAction(
-              context,
-              'Aprobar Periodo',
-              'Se aprobara el periodo ${periodo.periodo}.',
-              () => _cubit.aprobarPeriodo(periodo.id),
+        return Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.refresh, size: 16, color: AppColors.blue1),
+                label: const Text('Recalcular',
+                    style: TextStyle(fontSize: 12, color: AppColors.blue1)),
+                onPressed: () => _confirmAction(
+                  context,
+                  'Recalcular Planilla',
+                  'Se recalculará ${periodo.periodo} con la asistencia, incidencias y adelantos actuales. Las boletas previas se reemplazan.',
+                  () => _cubit.calcularPlanilla(periodo.id),
+                ),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: AppColors.blue1),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
             ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
-              foregroundColor: Colors.white,
-              visualDensity: VisualDensity.compact,
+            const SizedBox(width: 8),
+            Expanded(
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.check_circle, size: 16),
+                label: const Text('Aprobar', style: TextStyle(fontSize: 12)),
+                onPressed: () => _confirmAction(
+                  context,
+                  'Aprobar Periodo',
+                  'Se aprobará ${periodo.periodo}. Después ya NO se podrá recalcular.',
+                  () => _cubit.aprobarPeriodo(periodo.id),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  foregroundColor: Colors.white,
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
             ),
-          ),
+          ],
         );
       case EstadoPeriodoPlanilla.aprobada:
         return SizedBox(
