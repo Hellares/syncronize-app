@@ -36,6 +36,7 @@ class AdelantoCubit extends Cubit<AdelantoState> {
 
     if (result is Success<Adelanto>) {
       emit(const AdelantoActionSuccess('Adelanto creado exitosamente'));
+      await loadAdelantos(queryParams: _lastParams);
     } else if (result is Error) {
       emit(AdelantoError((result as Error).message));
     }
