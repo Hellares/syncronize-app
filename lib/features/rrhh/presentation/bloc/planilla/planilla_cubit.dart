@@ -63,7 +63,8 @@ class PlanillaCubit extends Cubit<PlanillaState> {
       final adv = result.data.advertencias ?? const [];
       emit(PlanillaActionSuccess(adv.isEmpty
           ? 'Planilla calculada exitosamente'
-          : 'Planilla calculada. ⚠️ ${adv.length} empleado(s) sin asistencia (pagados mes completo)'));
+          : 'Planilla calculada. ⚠️ ${adv.first}'
+              '${adv.length > 1 ? ' (+${adv.length - 1} aviso más)' : ''}'));
     } else if (result is Error) {
       emit(PlanillaError((result as Error).message));
     }
