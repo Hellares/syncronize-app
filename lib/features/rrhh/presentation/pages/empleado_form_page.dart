@@ -179,6 +179,9 @@ class _EmpleadoFormPageState extends State<EmpleadoFormPage> {
     }
 
     if (isEditing) {
+      // El UpdateEmpleadoDto omite usuarioId (el usuario vinculado no se
+      // cambia al editar) → enviarlo da 400 "property usuarioId should not exist".
+      data.remove('usuarioId');
       _formCubit.actualizarEmpleado(widget.empleado!.id, data);
     } else {
       _formCubit.crearEmpleado(data);
