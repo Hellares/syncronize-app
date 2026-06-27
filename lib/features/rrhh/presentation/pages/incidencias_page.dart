@@ -379,6 +379,10 @@ class _IncidenciasPageState extends State<IncidenciasPage> {
         return Icons.local_hospital;
       case TipoIncidencia.permiso:
         return Icons.event_available;
+      case TipoIncidencia.permisoPersonal:
+        return Icons.assignment_ind;
+      case TipoIncidencia.salidaEmergencia:
+        return Icons.directions_run;
       case TipoIncidencia.descansoMedico:
         return Icons.medical_services;
       case TipoIncidencia.licenciaPaternidad:
