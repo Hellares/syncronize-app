@@ -7,6 +7,7 @@ import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import 'package:syncronize/core/widgets/snack_bar_helper.dart';
 import 'package:syncronize/core/widgets/custom_dropdown.dart';
+import 'package:syncronize/core/widgets/styled_dialog.dart';
 
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
@@ -265,72 +266,73 @@ class _PlanillaPageState extends State<PlanillaPage> {
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setLocal) => AlertDialog(
-          title: const Text('Nuevo período de planilla'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CustomDropdown<int>(
-                  label: 'Mes',
-                  value: mes,
-                  borderColor: AppColors.blue1,
-                  items: [
-                    for (var i = 1; i <= 12; i++)
-                      DropdownItem(value: i, label: meses[i - 1]),
-                  ],
-                  onChanged: (v) => setLocal(() => mes = v ?? mes),
-                ),
-                const SizedBox(height: 10),
-                CustomDropdown<int>(
-                  label: 'Año',
-                  value: anio,
-                  borderColor: AppColors.blue1,
-                  items: [
-                    for (var y = ahora.year - 1; y <= ahora.year + 1; y++)
-                      DropdownItem(value: y, label: '$y'),
-                  ],
-                  onChanged: (v) => setLocal(() => anio = v ?? anio),
-                ),
-                const SizedBox(height: 10),
-                CustomDropdown<String>(
-                  label: 'Sede',
-                  value: sedeId,
-                  borderColor: AppColors.blue1,
-                  items: [
-                    const DropdownItem(value: '', label: 'Todas las sedes'),
-                    ...sedes.map((s) =>
-                        DropdownItem(value: s.id, label: s.nombre)),
-                  ],
-                  onChanged: (v) => setLocal(() => sedeId = v ?? ''),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Se generará una boleta por cada empleado activo. Luego: Calcular → Aprobar → Pagar.',
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-                ),
+        builder: (ctx, setLocal) => StyledDialog(
+          accentColor: AppColors.blue1,
+          icon: Icons.event_note,
+          titulo: 'Nuevo período de planilla',
+          content: [
+            CustomDropdown<int>(
+              label: 'Mes',
+              value: mes,
+              borderColor: AppColors.blue1,
+              items: [
+                for (var i = 1; i <= 12; i++)
+                  DropdownItem(value: i, label: meses[i - 1]),
               ],
+              onChanged: (v) => setLocal(() => mes = v ?? mes),
             ),
-          ),
+            const SizedBox(height: 10),
+            CustomDropdown<int>(
+              label: 'Año',
+              value: anio,
+              borderColor: AppColors.blue1,
+              items: [
+                for (var y = ahora.year - 1; y <= ahora.year + 1; y++)
+                  DropdownItem(value: y, label: '$y'),
+              ],
+              onChanged: (v) => setLocal(() => anio = v ?? anio),
+            ),
+            const SizedBox(height: 10),
+            CustomDropdown<String>(
+              label: 'Sede',
+              value: sedeId,
+              borderColor: AppColors.blue1,
+              items: [
+                const DropdownItem(value: '', label: 'Todas las sedes'),
+                ...sedes.map((s) =>
+                    DropdownItem(value: s.id, label: s.nombre)),
+              ],
+              onChanged: (v) => setLocal(() => sedeId = v ?? ''),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Se generará una boleta por cada empleado activo. Luego: Calcular → Aprobar → Pagar.',
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+            ),
+          ],
           actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.blue1,
-                foregroundColor: Colors.white,
+            Expanded(
+              child: TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('Cancelar'),
               ),
-              onPressed: () {
-                final periodo = '$anio-${mes.toString().padLeft(2, '0')}';
-                Navigator.of(ctx).pop();
-                _cubit.crearPeriodo({
-                  'periodo': periodo,
-                  if (sedeId.isNotEmpty) 'sedeId': sedeId,
-                });
-              },
-              child: const Text('Crear'),
+            ),
+            Expanded(
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.blue1,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () {
+                  final periodo = '$anio-${mes.toString().padLeft(2, '0')}';
+                  Navigator.of(ctx).pop();
+                  _cubit.crearPeriodo({
+                    'periodo': periodo,
+                    if (sedeId.isNotEmpty) 'sedeId': sedeId,
+                  });
+                },
+                child: const Text('Crear'),
+              ),
             ),
           ],
         ),

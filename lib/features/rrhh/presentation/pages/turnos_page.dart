@@ -5,6 +5,9 @@ import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import 'package:syncronize/core/widgets/snack_bar_helper.dart';
+import 'package:syncronize/core/widgets/styled_dialog.dart';
+import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart'
+    show CustomText;
 
 import '../../domain/entities/turno.dart';
 import '../bloc/turno_list/turno_list_cubit.dart';
@@ -237,98 +240,106 @@ class _TurnosPageState extends State<TurnosPage> {
     showDialog(
       context: context,
       builder: (ctx) {
-        return AlertDialog(
-          title: Text(isEditing ? 'Editar Turno' : 'Nuevo Turno'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: nombreController,
-                  decoration: const InputDecoration(
-                    labelText: 'Nombre',
-                    isDense: true,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: horaInicioController,
-                  decoration: const InputDecoration(
-                    labelText: 'Hora Inicio (HH:mm)',
-                    isDense: true,
-                  ),
-                  readOnly: true,
-                  onTap: () async {
-                    final time = await _pickTime(context, horaInicioController.text);
-                    if (time != null) {
-                      horaInicioController.text = _formatTime(time);
-                    }
-                  },
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: horaFinController,
-                  decoration: const InputDecoration(
-                    labelText: 'Hora Fin (HH:mm)',
-                    isDense: true,
-                  ),
-                  readOnly: true,
-                  onTap: () async {
-                    final time = await _pickTime(context, horaFinController.text);
-                    if (time != null) {
-                      horaFinController.text = _formatTime(time);
-                    }
-                  },
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: almuerzoController,
-                  decoration: const InputDecoration(
-                    labelText: 'Almuerzo (minutos)',
-                    isDense: true,
-                  ),
-                  keyboardType: TextInputType.number,
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: colorController,
-                  decoration: const InputDecoration(
-                    labelText: 'Color (hex, ej: #3B82F6)',
-                    isDense: true,
-                  ),
-                ),
-              ],
+        return StyledDialog(
+          accentColor: AppColors.blue1,
+          icon: Icons.schedule,
+          titulo: isEditing ? 'Editar Turno' : 'Nuevo Turno',
+          content: [
+            CustomText(
+              controller: nombreController,
+              label: 'Nombre',
+              hintText: 'Ej. Mañana',
+              borderColor: AppColors.blue1,
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.blue1,
-                foregroundColor: Colors.white,
-              ),
-              onPressed: () {
-                Navigator.of(ctx).pop();
-                final data = <String, dynamic>{
-                  'nombre': nombreController.text.trim(),
-                  'horaInicio': horaInicioController.text.trim(),
-                  'horaFin': horaFinController.text.trim(),
-                  'duracionAlmuerzoMin': int.tryParse(almuerzoController.text) ?? 60,
-                };
-                if (colorController.text.isNotEmpty) {
-                  data['color'] = colorController.text.trim();
-                }
-
-                if (isEditing) {
-                  _cubit.actualizarTurno(turno.id, data);
-                } else {
-                  _cubit.crearTurno(data);
+            const SizedBox(height: 12),
+            GestureDetector(
+              onTap: () async {
+                final time = await _pickTime(context, horaInicioController.text);
+                if (time != null) {
+                  horaInicioController.text = _formatTime(time);
                 }
               },
-              child: Text(isEditing ? 'Actualizar' : 'Crear'),
+              child: AbsorbPointer(
+                child: CustomText(
+                  controller: horaInicioController,
+                  label: 'Hora Inicio (HH:mm)',
+                  hintText: '08:00',
+                  readOnly: true,
+                  borderColor: AppColors.blue1,
+                  prefixIcon: const Icon(Icons.login, size: 18),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            GestureDetector(
+              onTap: () async {
+                final time = await _pickTime(context, horaFinController.text);
+                if (time != null) {
+                  horaFinController.text = _formatTime(time);
+                }
+              },
+              child: AbsorbPointer(
+                child: CustomText(
+                  controller: horaFinController,
+                  label: 'Hora Fin (HH:mm)',
+                  hintText: '17:00',
+                  readOnly: true,
+                  borderColor: AppColors.blue1,
+                  prefixIcon: const Icon(Icons.logout, size: 18),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            CustomText(
+              controller: almuerzoController,
+              label: 'Almuerzo (minutos)',
+              hintText: '60',
+              keyboardType: TextInputType.number,
+              borderColor: AppColors.blue1,
+              prefixIcon: const Icon(Icons.restaurant, size: 18),
+            ),
+            const SizedBox(height: 12),
+            CustomText(
+              controller: colorController,
+              label: 'Color (hex, ej: #3B82F6)',
+              hintText: '#3B82F6',
+              borderColor: AppColors.blue1,
+            ),
+          ],
+          actions: [
+            Expanded(
+              child: TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('Cancelar'),
+              ),
+            ),
+            Expanded(
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.blue1,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                  final data = <String, dynamic>{
+                    'nombre': nombreController.text.trim(),
+                    'horaInicio': horaInicioController.text.trim(),
+                    'horaFin': horaFinController.text.trim(),
+                    'duracionAlmuerzoMin':
+                        int.tryParse(almuerzoController.text) ?? 60,
+                  };
+                  if (colorController.text.isNotEmpty) {
+                    data['color'] = colorController.text.trim();
+                  }
+
+                  if (isEditing) {
+                    _cubit.actualizarTurno(turno.id, data);
+                  } else {
+                    _cubit.crearTurno(data);
+                  }
+                },
+                child: Text(isEditing ? 'Actualizar' : 'Crear'),
+              ),
             ),
           ],
         );
@@ -367,24 +378,33 @@ class _TurnosPageState extends State<TurnosPage> {
   void _confirmDelete(BuildContext context, Turno turno) {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Eliminar Turno'),
-        content: Text('Esta seguro de eliminar el turno "${turno.nombre}"?'),
+      builder: (ctx) => StyledDialog(
+        accentColor: AppColors.red,
+        icon: Icons.delete_outline,
+        titulo: 'Eliminar Turno',
+        content: [
+          Text('¿Seguro de eliminar el turno "${turno.nombre}"?',
+              style: const TextStyle(fontSize: 13)),
+        ],
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.red,
-              foregroundColor: Colors.white,
+          Expanded(
+            child: TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancelar'),
             ),
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              _cubit.eliminarTurno(turno.id);
-            },
-            child: const Text('Eliminar'),
+          ),
+          Expanded(
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.red,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                _cubit.eliminarTurno(turno.id);
+              },
+              child: const Text('Eliminar'),
+            ),
           ),
         ],
       ),

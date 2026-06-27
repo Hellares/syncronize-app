@@ -5,6 +5,10 @@ import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import 'package:syncronize/core/widgets/snack_bar_helper.dart';
+import 'package:syncronize/core/widgets/styled_dialog.dart';
+import 'package:syncronize/core/widgets/custom_dropdown.dart';
+import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart'
+    show CustomText;
 
 import '../../domain/entities/horario_plantilla.dart';
 import '../../domain/entities/turno.dart';
@@ -372,40 +376,35 @@ class _HorarioPlantillaPageState extends State<HorarioPlantillaPage> {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, setDialogState) {
-            return AlertDialog(
-              title: Text(isEditing
+            return StyledDialog(
+              accentColor: AppColors.blue1,
+              icon: Icons.calendar_view_week,
+              titulo: isEditing
                   ? 'Editar Horario'
-                  : (duplicate ? 'Duplicar Horario' : 'Nuevo Horario')),
-              content: SizedBox(
-                width: double.maxFinite,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      TextField(
-                        controller: nombreCtrl,
-                        decoration: const InputDecoration(
-                          labelText: 'Nombre',
-                          isDense: true,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      TextField(
-                        controller: descripcionCtrl,
-                        decoration: const InputDecoration(
-                          labelText: 'Descripcion',
-                          isDense: true,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Asignacion por dia',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
+                  : (duplicate ? 'Duplicar Horario' : 'Nuevo Horario'),
+              content: [
+                CustomText(
+                  controller: nombreCtrl,
+                  label: 'Nombre',
+                  hintText: 'Ej. Mañana - descanso Domingo',
+                  borderColor: AppColors.blue1,
+                ),
+                const SizedBox(height: 10),
+                CustomText(
+                  controller: descripcionCtrl,
+                  label: 'Descripción',
+                  hintText: 'Opcional',
+                  borderColor: AppColors.blue1,
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Asignación por día',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8),
                       // Get turnos from cubit state. El diálogo es otra ruta y
                       // no hereda el provider del page → pasar el cubit explícito.
                       BlocBuilder<TurnoListCubit, TurnoListState>(
@@ -447,36 +446,26 @@ class _HorarioPlantillaPageState extends State<HorarioPlantillaPage> {
                                     const SizedBox(width: 8),
                                     if (!(dayDescanso[dia] ?? false))
                                       Expanded(
-                                        child: DropdownButtonFormField<String>(
-                                          initialValue: dayTurnos[dia],
-                                          decoration: const InputDecoration(
-                                            isDense: true,
-                                            contentPadding: EdgeInsets.symmetric(
-                                              horizontal: 8,
-                                              vertical: 6,
-                                            ),
-                                            border: OutlineInputBorder(),
-                                          ),
-                                          isExpanded: true,
-                                          hint: const Text('Turno', style: TextStyle(fontSize: 11)),
-                                          items: turnos.map((t) {
-                                            return DropdownMenuItem(
-                                              value: t.id,
-                                              child: Text(
-                                                '${t.nombre} (${t.rangoHorario})',
-                                                style: const TextStyle(fontSize: 11),
-                                              ),
-                                            );
-                                          }).toList(),
+                                        child: CustomDropdown<String>(
+                                          hintText: 'Turno',
+                                          height: 33,
+                                          borderColor: AppColors.blue1,
+                                          value: turnos.any(
+                                                  (t) => t.id == dayTurnos[dia])
+                                              ? dayTurnos[dia]
+                                              : null,
+                                          items: turnos
+                                              .map((t) => DropdownItem<String>(
+                                                    value: t.id,
+                                                    label:
+                                                        '${t.nombre} (${t.rangoHorario})',
+                                                  ))
+                                              .toList(),
                                           onChanged: (v) {
                                             setDialogState(() {
                                               dayTurnos[dia] = v;
                                             });
                                           },
-                                          style: const TextStyle(
-                                            fontSize: 11,
-                                            color: AppColors.textPrimary,
-                                          ),
                                         ),
                                       )
                                     else
@@ -497,46 +486,47 @@ class _HorarioPlantillaPageState extends State<HorarioPlantillaPage> {
                           );
                         },
                       ),
-                    ],
-                  ),
-                ),
-              ),
+              ],
               actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(ctx).pop(),
-                  child: const Text('Cancelar'),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.blue1,
-                    foregroundColor: Colors.white,
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    child: const Text('Cancelar'),
                   ),
-                  onPressed: () {
-                    Navigator.of(ctx).pop();
-                    final dias = <Map<String, dynamic>>[];
-                    for (final dia in DiaSemana.values) {
-                      dias.add({
-                        'diaSemana': dia.apiValue,
-                        'esDescanso': dayDescanso[dia] ?? false,
-                        if (dayTurnos[dia] != null) 'turnoId': dayTurnos[dia],
-                      });
-                    }
+                ),
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.blue1,
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: () {
+                      Navigator.of(ctx).pop();
+                      final dias = <Map<String, dynamic>>[];
+                      for (final dia in DiaSemana.values) {
+                        dias.add({
+                          'diaSemana': dia.apiValue,
+                          'esDescanso': dayDescanso[dia] ?? false,
+                          if (dayTurnos[dia] != null) 'turnoId': dayTurnos[dia],
+                        });
+                      }
 
-                    final data = <String, dynamic>{
-                      'nombre': nombreCtrl.text.trim(),
-                      'descripcion': descripcionCtrl.text.trim(),
-                      'dias': dias,
-                    };
+                      final data = <String, dynamic>{
+                        'nombre': nombreCtrl.text.trim(),
+                        'descripcion': descripcionCtrl.text.trim(),
+                        'dias': dias,
+                      };
 
-                    if (isEditing) {
-                      _horarioCubit.actualizarHorario(horario.id, data);
-                    } else {
-                      _horarioCubit.crearHorario(data);
-                    }
-                  },
-                  child: Text(isEditing
-                      ? 'Actualizar'
-                      : (duplicate ? 'Duplicar' : 'Crear')),
+                      if (isEditing) {
+                        _horarioCubit.actualizarHorario(horario.id, data);
+                      } else {
+                        _horarioCubit.crearHorario(data);
+                      }
+                    },
+                    child: Text(isEditing
+                        ? 'Actualizar'
+                        : (duplicate ? 'Duplicar' : 'Crear')),
+                  ),
                 ),
               ],
             );
@@ -549,27 +539,36 @@ class _HorarioPlantillaPageState extends State<HorarioPlantillaPage> {
   void _confirmDelete(BuildContext context, HorarioPlantilla horario) {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Eliminar Horario'),
-        content: Text('Esta seguro de eliminar la plantilla "${horario.nombre}"?'),
+      builder: (ctx) => StyledDialog(
+        accentColor: AppColors.red,
+        icon: Icons.delete_outline,
+        titulo: 'Eliminar Horario',
+        content: [
+          Text('¿Seguro de eliminar la plantilla "${horario.nombre}"?',
+              style: const TextStyle(fontSize: 13)),
+        ],
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.red,
-              foregroundColor: Colors.white,
+          Expanded(
+            child: TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancelar'),
             ),
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              if (_selectedHorario?.id == horario.id) {
-                setState(() => _selectedHorario = null);
-              }
-              _horarioCubit.eliminarHorario(horario.id);
-            },
-            child: const Text('Eliminar'),
+          ),
+          Expanded(
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.red,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                if (_selectedHorario?.id == horario.id) {
+                  setState(() => _selectedHorario = null);
+                }
+                _horarioCubit.eliminarHorario(horario.id);
+              },
+              child: const Text('Eliminar'),
+            ),
           ),
         ],
       ),
