@@ -154,4 +154,18 @@ class PlanillaRepositoryImpl implements PlanillaRepository {
       return _errorHandler.handleException(e, context: 'Planilla');
     }
   }
+
+  @override
+  Future<Resource<BoletaPago>> anularPagoBoleta(
+      String boletaId, Map<String, dynamic> data) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final result = await _remoteDataSource.anularPagoBoleta(boletaId, data);
+      return Success(result.toEntity());
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Planilla');
+    }
+  }
 }

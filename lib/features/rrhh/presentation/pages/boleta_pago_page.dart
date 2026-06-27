@@ -6,6 +6,9 @@ import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/widgets/custom_button.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import 'package:syncronize/core/widgets/snack_bar_helper.dart';
+import 'package:syncronize/core/widgets/styled_dialog.dart';
+import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart'
+    show CustomText;
 
 import '../../domain/entities/boleta_pago.dart';
 import '../bloc/planilla/planilla_cubit.dart';
@@ -157,6 +160,14 @@ class _BoletaPagoPageState extends State<BoletaPagoPage> {
             text: 'Pagar Boleta',
             backgroundColor: Colors.green,
             onPressed: () => _confirmPay(context, boleta),
+          ),
+
+        // Anular pago
+        if (boleta.estaPagada)
+          CustomButton(
+            text: 'Anular pago',
+            backgroundColor: AppColors.red,
+            onPressed: () => _confirmAnularPago(context, boleta),
           ),
 
         const SizedBox(height: 16),
@@ -505,5 +516,56 @@ class _BoletaPagoPageState extends State<BoletaPagoPage> {
     );
     if (res == null) return;
     _cubit.pagarBoleta(boleta.id, res);
+  }
+
+  void _confirmAnularPago(BuildContext context, BoletaPago boleta) {
+    final motivoCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => StyledDialog(
+        accentColor: AppColors.red,
+        icon: Icons.undo,
+        titulo: 'Anular pago',
+        content: [
+          Text(
+            '¿Seguro de anular el pago de la boleta de '
+            '"${boleta.empleadoNombre ?? 'Empleado'}"? '
+            'La boleta volverá a estado Pendiente.',
+            style: const TextStyle(fontSize: 13),
+          ),
+          const SizedBox(height: 12),
+          CustomText(
+            controller: motivoCtrl,
+            label: 'Motivo (opcional)',
+            hintText: 'Ej. Pago duplicado',
+            borderColor: AppColors.red,
+          ),
+        ],
+        actions: [
+          Expanded(
+            child: TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancelar'),
+            ),
+          ),
+          Expanded(
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.red,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                _cubit.anularPagoBoleta(
+                  boleta.id,
+                  {'motivo': motivoCtrl.text.trim()},
+                );
+              },
+              child: const Text('Anular pago'),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

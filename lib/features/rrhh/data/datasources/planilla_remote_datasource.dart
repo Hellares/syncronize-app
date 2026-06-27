@@ -131,4 +131,13 @@ class PlanillaRemoteDataSource {
     );
     return BoletaPagoModel.fromJson(response.data as Map<String, dynamic>);
   }
+
+  Future<BoletaPagoModel> anularPagoBoleta(
+      String boletaId, Map<String, dynamic> data) async {
+    final response = await _dioClient.post(
+      '$_basePath/boletas/$boletaId/anular-pago',
+      data: data,
+    );
+    return BoletaPagoModel.fromJson(response.data as Map<String, dynamic>);
+  }
 }

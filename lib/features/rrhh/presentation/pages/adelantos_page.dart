@@ -6,6 +6,9 @@ import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/utils/date_formatter.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import 'package:syncronize/core/widgets/snack_bar_helper.dart';
+import 'package:syncronize/core/widgets/styled_dialog.dart';
+import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart'
+    show CustomText;
 
 import '../../domain/entities/adelanto.dart';
 import '../../domain/entities/empleado.dart';
@@ -356,6 +359,76 @@ class _AdelantosPageState extends State<AdelantosPage> {
               ),
             ),
           ],
+
+          if (adelanto.estaPagado) ...[
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.undo, size: 16, color: AppColors.red),
+                label: const Text(
+                  'Anular pago',
+                  style: TextStyle(fontSize: 12, color: AppColors.red),
+                ),
+                onPressed: () => _confirmAnularPago(context, adelanto),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: AppColors.red),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  void _confirmAnularPago(BuildContext context, Adelanto adelanto) {
+    final motivoCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => StyledDialog(
+        accentColor: AppColors.red,
+        icon: Icons.undo,
+        titulo: 'Anular pago',
+        content: [
+          Text(
+            '¿Seguro de anular el pago del adelanto de '
+            '"${adelanto.empleadoNombre ?? 'Empleado'}"? '
+            'El adelanto volverá a estado Aprobado.',
+            style: const TextStyle(fontSize: 13),
+          ),
+          const SizedBox(height: 12),
+          CustomText(
+            controller: motivoCtrl,
+            label: 'Motivo (opcional)',
+            hintText: 'Ej. Pago duplicado',
+            borderColor: AppColors.red,
+          ),
+        ],
+        actions: [
+          Expanded(
+            child: TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancelar'),
+            ),
+          ),
+          Expanded(
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.red,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                _cubit.anularPago(
+                  adelanto.id,
+                  {'motivo': motivoCtrl.text.trim()},
+                );
+              },
+              child: const Text('Anular pago'),
+            ),
+          ),
         ],
       ),
     );

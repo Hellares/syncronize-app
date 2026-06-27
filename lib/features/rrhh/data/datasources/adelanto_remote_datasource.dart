@@ -63,4 +63,11 @@ class AdelantoRemoteDataSource {
         await _dioClient.post('$_basePath/$id/pagar', data: data);
     return AdelantoModel.fromJson(response.data as Map<String, dynamic>);
   }
+
+  Future<AdelantoModel> anularPago(
+      String id, Map<String, dynamic> data) async {
+    final response =
+        await _dioClient.post('$_basePath/$id/anular-pago', data: data);
+    return AdelantoModel.fromJson(response.data as Map<String, dynamic>);
+  }
 }

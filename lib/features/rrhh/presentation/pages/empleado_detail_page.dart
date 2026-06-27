@@ -8,6 +8,8 @@ import 'package:syncronize/core/utils/date_formatter.dart';
 import 'package:syncronize/core/widgets/custom_button.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import 'package:syncronize/core/widgets/snack_bar_helper.dart';
+import 'package:syncronize/core/widgets/styled_dialog.dart';
+import 'package:syncronize/core/widgets/date/custom_date.dart' show CustomDate;
 
 import '../../domain/entities/empleado.dart';
 import '../bloc/empleado_detail/empleado_detail_cubit.dart';
@@ -332,33 +334,61 @@ class _EmpleadoDetailPageState extends State<EmpleadoDetailPage> {
   }
 
   void _confirmCesar(BuildContext context, Empleado empleado) {
+    DateTime fechaCese = DateTime.now();
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Cesar Empleado'),
-        content: Text(
-          'Esta seguro de cesar a ${empleado.nombreCompleto}? Esta accion cambiara su estado a Cesado.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.red,
-              foregroundColor: Colors.white,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => StyledDialog(
+          accentColor: AppColors.red,
+          icon: Icons.person_off,
+          titulo: 'Cesar Empleado',
+          content: [
+            Text(
+              '¿Cesar a ${empleado.nombreCompleto}? Su estado pasará a Cesado y se desactivará su acceso.',
+              style: const TextStyle(fontSize: 13),
             ),
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              _formCubit.actualizarEmpleado(empleado.id, {
-                'estado': 'CESADO',
-                'fechaCese': DateTime.now().toIso8601String(),
-              });
-            },
-            child: const Text('Cesar'),
-          ),
-        ],
+            const SizedBox(height: 12),
+            CustomDate(
+              label: 'Fecha de cese',
+              borderColor: AppColors.red,
+              initialDate: fechaCese,
+              firstDate: DateTime(2000),
+              lastDate: DateTime(2100),
+              onDateSelected: (d) {
+                if (d != null) setLocal(() => fechaCese = d);
+              },
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'La planilla del mes de cese se prorratea a los días trabajados.',
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+            ),
+          ],
+          actions: [
+            Expanded(
+              child: TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('Cancelar'),
+              ),
+            ),
+            Expanded(
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.red,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                  _formCubit.actualizarEmpleado(empleado.id, {
+                    'estado': 'CESADO',
+                    'fechaCese': fechaCese.toIso8601String(),
+                  });
+                },
+                child: const Text('Cesar'),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

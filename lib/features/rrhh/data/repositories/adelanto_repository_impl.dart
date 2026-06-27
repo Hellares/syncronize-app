@@ -88,4 +88,18 @@ class AdelantoRepositoryImpl implements AdelantoRepository {
       return _errorHandler.handleException(e, context: 'Adelanto');
     }
   }
+
+  @override
+  Future<Resource<Adelanto>> anularPago(
+      String id, Map<String, dynamic> data) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final result = await _remoteDataSource.anularPago(id, data);
+      return Success(result.toEntity());
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Adelanto');
+    }
+  }
 }

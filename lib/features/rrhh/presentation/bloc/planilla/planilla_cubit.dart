@@ -60,7 +60,10 @@ class PlanillaCubit extends Cubit<PlanillaState> {
     if (isClosed) return;
 
     if (result is Success<PeriodoPlanilla>) {
-      emit(const PlanillaActionSuccess('Planilla calculada exitosamente'));
+      final adv = result.data.advertencias ?? const [];
+      emit(PlanillaActionSuccess(adv.isEmpty
+          ? 'Planilla calculada exitosamente'
+          : 'Planilla calculada. ⚠️ ${adv.length} empleado(s) sin asistencia (pagados mes completo)'));
     } else if (result is Error) {
       emit(PlanillaError((result as Error).message));
     }
@@ -113,6 +116,20 @@ class PlanillaCubit extends Cubit<PlanillaState> {
 
     if (result is Success<BoletaPago>) {
       emit(const PlanillaActionSuccess('Boleta pagada exitosamente'));
+    } else if (result is Error) {
+      emit(PlanillaError((result as Error).message));
+    }
+  }
+
+  Future<void> anularPagoBoleta(
+      String boletaId, Map<String, dynamic> data) async {
+    emit(const PlanillaLoading());
+
+    final result = await _repository.anularPagoBoleta(boletaId, data);
+    if (isClosed) return;
+
+    if (result is Success<BoletaPago>) {
+      emit(const PlanillaActionSuccess('Pago de boleta anulado'));
     } else if (result is Error) {
       emit(PlanillaError((result as Error).message));
     }

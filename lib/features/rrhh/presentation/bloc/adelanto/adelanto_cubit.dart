@@ -83,6 +83,20 @@ class AdelantoCubit extends Cubit<AdelantoState> {
     }
   }
 
+  Future<void> anularPago(String id, Map<String, dynamic> data) async {
+    emit(const AdelantoLoading());
+
+    final result = await _repository.anularPago(id, data);
+    if (isClosed) return;
+
+    if (result is Success<Adelanto>) {
+      emit(const AdelantoActionSuccess('Pago anulado exitosamente'));
+      await loadAdelantos(queryParams: _lastParams);
+    } else if (result is Error) {
+      emit(AdelantoError((result as Error).message));
+    }
+  }
+
   Future<void> refresh() async {
     await loadAdelantos(queryParams: _lastParams);
   }

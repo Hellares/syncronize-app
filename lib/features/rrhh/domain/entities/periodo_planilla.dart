@@ -88,6 +88,9 @@ class PeriodoPlanilla extends Equatable {
   final int? totalBoletas;
   final List<BoletaPago>? boletas;
 
+  /// Avisos del cálculo (ej. empleados sin asistencia). No persiste.
+  final List<String>? advertencias;
+
   const PeriodoPlanilla({
     required this.id,
     required this.empresaId,
@@ -111,6 +114,7 @@ class PeriodoPlanilla extends Equatable {
     this.aprobadoPorNombre,
     this.totalBoletas,
     this.boletas,
+    this.advertencias,
   });
 
   bool get esBorrador => estado == EstadoPeriodoPlanilla.borrador;
@@ -143,5 +147,6 @@ class PeriodoPlanilla extends Equatable {
         aprobadoPorNombre,
         totalBoletas,
         boletas,
+        advertencias,
       ];
 }

@@ -28,4 +28,7 @@ abstract class PlanillaRepository {
 
   Future<Resource<BoletaPago>> pagarBoleta(
       String boletaId, Map<String, dynamic> data);
+
+  Future<Resource<BoletaPago>> anularPagoBoleta(
+      String boletaId, Map<String, dynamic> data);
 }

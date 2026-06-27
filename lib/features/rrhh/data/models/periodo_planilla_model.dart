@@ -26,6 +26,7 @@ class PeriodoPlanillaModel extends PeriodoPlanilla {
     super.aprobadoPorNombre,
     super.totalBoletas,
     super.boletas,
+    super.advertencias,
   });
 
   factory PeriodoPlanillaModel.fromJson(Map<String, dynamic> json) {
@@ -89,6 +90,7 @@ class PeriodoPlanillaModel extends PeriodoPlanilla {
       aprobadoPorNombre: aprobadoPorNombre,
       totalBoletas: count?['boletasPago'] as int?,
       boletas: boletas,
+      advertencias: (json['advertencias'] as List?)?.cast<String>(),
     );
   }
 

@@ -13,4 +13,6 @@ abstract class AdelantoRepository {
   Future<Resource<Adelanto>> rechazar(String id, String motivoRechazo);
 
   Future<Resource<Adelanto>> pagar(String id, Map<String, dynamic> data);
+
+  Future<Resource<Adelanto>> anularPago(String id, Map<String, dynamic> data);
 }
