@@ -192,6 +192,7 @@ class _AdelantosPageState extends State<AdelantosPage> {
 
   Widget _buildAdelantoCard(BuildContext context, Adelanto adelanto) {
     return GradientContainer(
+      borderColor: AppColors.blueborder,
       padding: const EdgeInsets.all(10),
       shadowStyle: ShadowStyle.glow,
       child: Column(
@@ -363,19 +364,22 @@ class _AdelantosPageState extends State<AdelantosPage> {
           ],
 
           if (adelanto.estaPagado) ...[
-            const SizedBox(height: 10),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                icon: const Icon(Icons.undo, size: 16, color: AppColors.red),
+            const SizedBox(height: 4),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                icon: const Icon(Icons.undo, size: 15, color: AppColors.red),
                 label: const Text(
                   'Anular pago',
-                  style: TextStyle(fontSize: 12, color: AppColors.red),
+                  style: TextStyle(fontSize: 11, color: AppColors.red),
                 ),
                 onPressed: () => _confirmAnularPago(context, adelanto),
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: AppColors.red),
+                style: TextButton.styleFrom(
                   visualDensity: VisualDensity.compact,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
               ),
             ),
@@ -440,32 +444,38 @@ class _AdelantosPageState extends State<AdelantosPage> {
     final motivoCtrl = TextEditingController();
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Rechazar Adelanto'),
-        content: TextField(
-          controller: motivoCtrl,
-          maxLines: 3,
-          decoration: const InputDecoration(
-            labelText: 'Motivo del rechazo',
-            border: OutlineInputBorder(),
-            isDense: true,
+      builder: (ctx) => StyledDialog(
+        accentColor: AppColors.red,
+        icon: Icons.cancel_outlined,
+        titulo: 'Rechazar Adelanto',
+        content: [
+          CustomText(
+            controller: motivoCtrl,
+            label: 'Motivo del rechazo',
+            hintText: 'Indica por qué se rechaza',
+            maxLines: 3,
+            borderColor: AppColors.red,
           ),
-        ),
+        ],
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.red,
-              foregroundColor: Colors.white,
+          Expanded(
+            child: TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancelar'),
             ),
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              _cubit.rechazar(adelanto.id, motivoCtrl.text.trim());
-            },
-            child: const Text('Rechazar'),
+          ),
+          Expanded(
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.red,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                _cubit.rechazar(adelanto.id, motivoCtrl.text.trim());
+              },
+              child: const Text('Rechazar'),
+            ),
           ),
         ],
       ),
