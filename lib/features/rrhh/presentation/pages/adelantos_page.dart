@@ -13,6 +13,7 @@ import '../bloc/adelanto/adelanto_cubit.dart';
 import '../bloc/adelanto/adelanto_state.dart';
 import '../bloc/empleado_list/empleado_list_cubit.dart';
 import '../bloc/empleado_list/empleado_list_state.dart';
+import '../widgets/seleccionar_fuente_pago_sheet.dart';
 
 class AdelantosPage extends StatefulWidget {
   const AdelantosPage({super.key});
@@ -396,33 +397,17 @@ class _AdelantosPageState extends State<AdelantosPage> {
     );
   }
 
-  void _confirmPay(BuildContext context, Adelanto adelanto) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Registrar Pago'),
-        content: Text(
-          'Se registrara el pago de S/ ${adelanto.monto.toStringAsFixed(2)} para ${adelanto.empleadoNombre ?? 'el empleado'}.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.teal,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              _cubit.pagar(adelanto.id, {'metodoPago': 'TRANSFERENCIA'});
-            },
-            child: const Text('Confirmar Pago'),
-          ),
-        ],
-      ),
+  Future<void> _confirmPay(BuildContext context, Adelanto adelanto) async {
+    // Sheet para elegir de DÓNDE sale el dinero (Tesorería / Caja / Banco) +
+    // método — evita que el egreso caiga en un método sin saldo (negativo).
+    final res = await SeleccionarFuentePagoSheet.mostrar(
+      context,
+      monto: adelanto.monto,
+      titulo: 'Pagar adelanto',
+      subtitulo: adelanto.empleadoNombre ?? 'Empleado',
     );
+    if (res == null) return;
+    _cubit.pagar(adelanto.id, res);
   }
 
   void _showCreateDialog(BuildContext context) {

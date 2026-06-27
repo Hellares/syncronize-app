@@ -10,6 +10,7 @@ import 'package:syncronize/core/widgets/snack_bar_helper.dart';
 import '../../domain/entities/boleta_pago.dart';
 import '../bloc/planilla/planilla_cubit.dart';
 import '../bloc/planilla/planilla_state.dart';
+import '../widgets/seleccionar_fuente_pago_sheet.dart';
 
 class BoletaPagoPage extends StatefulWidget {
   final String boletaId;
@@ -494,32 +495,15 @@ class _BoletaPagoPageState extends State<BoletaPagoPage> {
     );
   }
 
-  void _confirmPay(BuildContext context, BoletaPago boleta) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Pagar Boleta'),
-        content: Text(
-          'Se registrara el pago de S/ ${boleta.totalNeto.toStringAsFixed(2)} para ${boleta.empleadoNombre ?? 'el empleado'}.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              _cubit.pagarBoleta(boleta.id, {'metodoPago': 'TRANSFERENCIA'});
-            },
-            child: const Text('Confirmar Pago'),
-          ),
-        ],
-      ),
+  Future<void> _confirmPay(BuildContext context, BoletaPago boleta) async {
+    // Elegir de DÓNDE sale el dinero (Tesorería / Caja / Banco) + método.
+    final res = await SeleccionarFuentePagoSheet.mostrar(
+      context,
+      monto: boleta.totalNeto,
+      titulo: 'Pagar boleta',
+      subtitulo: boleta.empleadoNombre ?? 'Empleado',
     );
+    if (res == null) return;
+    _cubit.pagarBoleta(boleta.id, res);
   }
 }

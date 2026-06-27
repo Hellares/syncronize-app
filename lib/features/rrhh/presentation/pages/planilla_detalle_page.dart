@@ -13,6 +13,7 @@ import '../../domain/entities/boleta_pago.dart';
 import '../../domain/entities/periodo_planilla.dart';
 import '../bloc/planilla/planilla_cubit.dart';
 import '../bloc/planilla/planilla_state.dart';
+import '../widgets/seleccionar_fuente_pago_sheet.dart';
 
 class PlanillaDetallePage extends StatefulWidget {
   final String periodoId;
@@ -127,13 +128,7 @@ class _PlanillaDetallePageState extends State<PlanillaDetallePage> {
             CustomButton(
               text: 'Pagar Toda la Planilla',
               backgroundColor: Colors.teal,
-              onPressed: () => _confirmAction(
-                context,
-                'Pagar Planilla',
-                'Se pagara toda la planilla del periodo ${periodo.periodo}.',
-                () => _cubit.pagarPlanilla(
-                    periodo.id, {'metodoPago': 'TRANSFERENCIA'}),
-              ),
+              onPressed: () => _confirmPayPlanilla(context, periodo),
             ),
             const SizedBox(height: 20),
           ],
@@ -447,35 +442,18 @@ class _PlanillaDetallePageState extends State<PlanillaDetallePage> {
     );
   }
 
-  void _confirmAction(
-    BuildContext context,
-    String title,
-    String message,
-    VoidCallback onConfirm,
-  ) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.blue1,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              onConfirm();
-            },
-            child: const Text('Confirmar'),
-          ),
-        ],
-      ),
+  Future<void> _confirmPayPlanilla(
+      BuildContext context, PeriodoPlanilla periodo) async {
+    // Elegir de DÓNDE sale el dinero (Tesorería / Caja / Banco) + método para
+    // TODA la planilla del periodo.
+    final res = await SeleccionarFuentePagoSheet.mostrar(
+      context,
+      monto: periodo.totalNeto ?? 0,
+      titulo: 'Pagar planilla',
+      subtitulo: 'Periodo ${periodo.periodo}',
     );
+    if (res == null) return;
+    _cubit.pagarPlanilla(periodo.id, res);
   }
+
 }
