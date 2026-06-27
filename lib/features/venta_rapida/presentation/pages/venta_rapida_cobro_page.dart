@@ -2057,12 +2057,12 @@ class _CobroViewState extends State<_CobroView> {
   }
 
   Widget _buildCreditoSection(BuildContext context, VentaRapidaState state) {
-    // Las cuotas financian el SALDO: total a cobrar − lo que el cliente paga
-    // HOY (efectivo/yape como cuota inicial). Espeja al backend
-    // (montoCredito = totalACobrarHoy − montoPagadoInmediato). Ej. total 22,
-    // adelanto 5 → financia 17 → 2 cuotas de 8.50 (no 11).
-    final montoCredito =
-        (state.totalACobrar - _calcularTotalRecibido()).clamp(0.0, double.infinity).toDouble();
+    // Las cuotas del comprobante a crédito se calculan sobre el TOTAL (SUNAT
+    // exige que sumen el total). Si el cliente deja un adelanto en efectivo, NO
+    // reduce el monto de las cuotas: se registra como pago y reduce el saldo de
+    // la primera cuota (el backend lo aplica). Ej. total 22 → 2 cuotas de 11;
+    // con adelanto 5 la 1ª queda con saldo 6.
+    final montoCredito = state.totalACobrar;
     final cuotas = CuotaCalculator.calcular(
       montoCredito: montoCredito,
       numeroCuotas: state.numeroCuotas,
