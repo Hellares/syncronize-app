@@ -2057,9 +2057,12 @@ class _CobroViewState extends State<_CobroView> {
   }
 
   Widget _buildCreditoSection(BuildContext context, VentaRapidaState state) {
-    // El crédito es sobre lo que falta pagar HOY (los adelantos de
-    // órdenes ya están pagados).
-    final montoCredito = state.totalACobrar;
+    // Las cuotas financian el SALDO: total a cobrar − lo que el cliente paga
+    // HOY (efectivo/yape como cuota inicial). Espeja al backend
+    // (montoCredito = totalACobrarHoy − montoPagadoInmediato). Ej. total 22,
+    // adelanto 5 → financia 17 → 2 cuotas de 8.50 (no 11).
+    final montoCredito =
+        (state.totalACobrar - _calcularTotalRecibido()).clamp(0.0, double.infinity).toDouble();
     final cuotas = CuotaCalculator.calcular(
       montoCredito: montoCredito,
       numeroCuotas: state.numeroCuotas,
