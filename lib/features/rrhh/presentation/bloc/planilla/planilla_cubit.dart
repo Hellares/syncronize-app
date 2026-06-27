@@ -40,6 +40,19 @@ class PlanillaCubit extends Cubit<PlanillaState> {
     }
   }
 
+  Future<void> crearPeriodo(Map<String, dynamic> data) async {
+    emit(const PlanillaLoading());
+
+    final result = await _repository.createPeriodo(data);
+    if (isClosed) return;
+
+    if (result is Success<PeriodoPlanilla>) {
+      emit(const PlanillaActionSuccess('Período creado exitosamente'));
+    } else if (result is Error) {
+      emit(PlanillaError((result as Error).message));
+    }
+  }
+
   Future<void> calcularPlanilla(String periodoId) async {
     emit(const PlanillaLoading());
 

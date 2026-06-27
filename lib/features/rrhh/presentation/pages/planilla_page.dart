@@ -6,10 +6,15 @@ import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import 'package:syncronize/core/widgets/snack_bar_helper.dart';
+import 'package:syncronize/core/widgets/custom_dropdown.dart';
 
+import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
+import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
+import '../../../empresa/domain/entities/sede.dart';
 import '../../domain/entities/periodo_planilla.dart';
 import '../bloc/planilla/planilla_cubit.dart';
 import '../bloc/planilla/planilla_state.dart';
+import '../widgets/seleccionar_fuente_pago_sheet.dart';
 
 class PlanillaPage extends StatefulWidget {
   const PlanillaPage({super.key});
@@ -43,6 +48,13 @@ class _PlanillaPageState extends State<PlanillaPage> {
           title: 'Planilla',
           backgroundColor: AppColors.blue1,
           foregroundColor: AppColors.white,
+        ),
+        floatingActionButton: FloatingActionButton.extended(
+          backgroundColor: AppColors.blue1,
+          foregroundColor: Colors.white,
+          onPressed: () => _showCreateDialog(context),
+          icon: const Icon(Icons.add),
+          label: const Text('Nuevo período'),
         ),
         body: GradientContainer(
           child: BlocConsumer<PlanillaCubit, PlanillaState>(
@@ -234,6 +246,98 @@ class _PlanillaPageState extends State<PlanillaPage> {
     );
   }
 
+  void _showCreateDialog(BuildContext context) {
+    final ahora = DateTime.now();
+    int mes = ahora.month;
+    int anio = ahora.year;
+    String sedeId = ''; // '' = todas las sedes
+
+    const meses = [
+      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+    ];
+
+    final empresaState = context.read<EmpresaContextCubit>().state;
+    final sedes = empresaState is EmpresaContextLoaded
+        ? empresaState.context.sedes.where((s) => s.isActive).toList()
+        : <Sede>[];
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          title: const Text('Nuevo período de planilla'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CustomDropdown<int>(
+                  label: 'Mes',
+                  value: mes,
+                  borderColor: AppColors.blue1,
+                  items: [
+                    for (var i = 1; i <= 12; i++)
+                      DropdownItem(value: i, label: meses[i - 1]),
+                  ],
+                  onChanged: (v) => setLocal(() => mes = v ?? mes),
+                ),
+                const SizedBox(height: 10),
+                CustomDropdown<int>(
+                  label: 'Año',
+                  value: anio,
+                  borderColor: AppColors.blue1,
+                  items: [
+                    for (var y = ahora.year - 1; y <= ahora.year + 1; y++)
+                      DropdownItem(value: y, label: '$y'),
+                  ],
+                  onChanged: (v) => setLocal(() => anio = v ?? anio),
+                ),
+                const SizedBox(height: 10),
+                CustomDropdown<String>(
+                  label: 'Sede',
+                  value: sedeId,
+                  borderColor: AppColors.blue1,
+                  items: [
+                    const DropdownItem(value: '', label: 'Todas las sedes'),
+                    ...sedes.map((s) =>
+                        DropdownItem(value: s.id, label: s.nombre)),
+                  ],
+                  onChanged: (v) => setLocal(() => sedeId = v ?? ''),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Se generará una boleta por cada empleado activo. Luego: Calcular → Aprobar → Pagar.',
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.blue1,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () {
+                final periodo = '$anio-${mes.toString().padLeft(2, '0')}';
+                Navigator.of(ctx).pop();
+                _cubit.crearPeriodo({
+                  'periodo': periodo,
+                  if (sedeId.isNotEmpty) 'sedeId': sedeId,
+                });
+              },
+              child: const Text('Crear'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildActionButton(BuildContext context, PeriodoPlanilla periodo) {
     switch (periodo.estado) {
       case EstadoPeriodoPlanilla.borrador:
@@ -280,12 +384,7 @@ class _PlanillaPageState extends State<PlanillaPage> {
           child: ElevatedButton.icon(
             icon: const Icon(Icons.payments, size: 16),
             label: const Text('Pagar', style: TextStyle(fontSize: 12)),
-            onPressed: () => _confirmAction(
-              context,
-              'Pagar Planilla',
-              'Se procedera al pago de la planilla del periodo ${periodo.periodo}.',
-              () => _cubit.pagarPlanilla(periodo.id, {'metodoPago': 'TRANSFERENCIA'}),
-            ),
+            onPressed: () => _confirmPayPlanilla(context, periodo),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.teal,
               foregroundColor: Colors.white,
@@ -296,6 +395,18 @@ class _PlanillaPageState extends State<PlanillaPage> {
       default:
         return const SizedBox.shrink();
     }
+  }
+
+  Future<void> _confirmPayPlanilla(
+      BuildContext context, PeriodoPlanilla periodo) async {
+    final res = await SeleccionarFuentePagoSheet.mostrar(
+      context,
+      monto: periodo.totalNeto ?? 0,
+      titulo: 'Pagar planilla',
+      subtitulo: 'Periodo ${periodo.periodo}',
+    );
+    if (res == null) return;
+    _cubit.pagarPlanilla(periodo.id, res);
   }
 
   void _confirmAction(
