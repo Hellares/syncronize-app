@@ -20,9 +20,9 @@ enum TipoIncidencia {
       case licenciaMedica:
         return 'Licencia Médica';
       case permiso:
-        return 'Permiso';
+        return 'Permiso (con goce)';
       case permisoPersonal:
-        return 'Permiso Personal';
+        return 'Permiso Personal (sin goce)';
       case salidaEmergencia:
         return 'Salida de Emergencia';
       case descansoMedico:
