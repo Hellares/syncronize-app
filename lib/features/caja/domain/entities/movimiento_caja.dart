@@ -61,6 +61,9 @@ enum CategoriaMovimientoCaja {
   gastoOperativo,
   otroEgreso,
   reposicionCajaChica,
+  // RRHH: pago de adelanto de sueldo y de boleta de planilla (egresos).
+  adelantoEmpleado,
+  pagoPlanilla,
   // Tesoreria (Caja Central): generadas auto (barrido al cerrar caja y
   // reverso de caja cerrada) o manual desde la pantalla de Tesoreria.
   // NO aparecen en el form de movimiento manual operativo.
@@ -95,6 +98,10 @@ enum CategoriaMovimientoCaja {
         return 'Otro Egreso';
       case CategoriaMovimientoCaja.reposicionCajaChica:
         return 'Reposición Caja Chica';
+      case CategoriaMovimientoCaja.adelantoEmpleado:
+        return 'Adelanto Sueldo';
+      case CategoriaMovimientoCaja.pagoPlanilla:
+        return 'Pago Planilla';
       case CategoriaMovimientoCaja.depositoTesoreria:
         return 'Depósito a Tesorería';
       case CategoriaMovimientoCaja.retiroTesoreria:
@@ -132,6 +139,10 @@ enum CategoriaMovimientoCaja {
         return 'OTRO_EGRESO';
       case CategoriaMovimientoCaja.reposicionCajaChica:
         return 'REPOSICION_CAJA_CHICA';
+      case CategoriaMovimientoCaja.adelantoEmpleado:
+        return 'ADELANTO_EMPLEADO';
+      case CategoriaMovimientoCaja.pagoPlanilla:
+        return 'PAGO_PLANILLA';
       case CategoriaMovimientoCaja.depositoTesoreria:
         return 'DEPOSITO_TESORERIA';
       case CategoriaMovimientoCaja.retiroTesoreria:
@@ -169,6 +180,10 @@ enum CategoriaMovimientoCaja {
         return Icons.remove_circle_rounded;
       case CategoriaMovimientoCaja.reposicionCajaChica:
         return Icons.account_balance_wallet_rounded;
+      case CategoriaMovimientoCaja.adelantoEmpleado:
+        return Icons.badge_rounded;
+      case CategoriaMovimientoCaja.pagoPlanilla:
+        return Icons.groups_rounded;
       case CategoriaMovimientoCaja.depositoTesoreria:
         return Icons.savings_rounded;
       case CategoriaMovimientoCaja.retiroTesoreria:
@@ -197,6 +212,8 @@ enum CategoriaMovimientoCaja {
       case CategoriaMovimientoCaja.gastoOperativo:
       case CategoriaMovimientoCaja.otroEgreso:
       case CategoriaMovimientoCaja.reposicionCajaChica:
+      case CategoriaMovimientoCaja.adelantoEmpleado:
+      case CategoriaMovimientoCaja.pagoPlanilla:
       // Categorias de tesoreria: polaridad ambigua (un mismo concepto
       // aparece como INGRESO en central y EGRESO en operativa, o viceversa).
       // El `tipo` del movimiento es la fuente de verdad real; este getter
@@ -251,6 +268,10 @@ enum CategoriaMovimientoCaja {
         return CategoriaMovimientoCaja.otroEgreso;
       case 'REPOSICION_CAJA_CHICA':
         return CategoriaMovimientoCaja.reposicionCajaChica;
+      case 'ADELANTO_EMPLEADO':
+        return CategoriaMovimientoCaja.adelantoEmpleado;
+      case 'PAGO_PLANILLA':
+        return CategoriaMovimientoCaja.pagoPlanilla;
       case 'DEPOSITO_TESORERIA':
         return CategoriaMovimientoCaja.depositoTesoreria;
       case 'RETIRO_TESORERIA':
