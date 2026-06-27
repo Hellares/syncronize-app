@@ -52,6 +52,7 @@ class _EmpleadoFormPageState extends State<EmpleadoFormPage> {
 
   TipoContrato _tipoContrato = TipoContrato.planilla;
   RegimenPension _regimenPension = RegimenPension.ninguno;
+  bool _aportaEssalud = true;
   DateTime _fechaIngreso = DateTime.now();
 
   // Usuarios cargados
@@ -76,6 +77,7 @@ class _EmpleadoFormPageState extends State<EmpleadoFormPage> {
       _cciController.text = e.cci ?? '';
       _tipoContrato = e.tipoContrato;
       _regimenPension = e.regimenPension;
+      _aportaEssalud = e.aportaEssalud;
       _fechaIngreso = e.fechaIngreso.toLocal();
     }
   }
@@ -159,6 +161,7 @@ class _EmpleadoFormPageState extends State<EmpleadoFormPage> {
       'fechaIngreso': _fechaIngreso.toIso8601String(),
       'tipoContrato': _tipoContrato.apiValue,
       'regimenPension': _regimenPension.apiValue,
+      'aportaEssalud': _aportaEssalud,
       'salarioBase': double.tryParse(_salarioBaseController.text) ?? 0,
     };
 
@@ -335,6 +338,34 @@ class _EmpleadoFormPageState extends State<EmpleadoFormPage> {
                       },
                       borderColor: AppColors.blue1,
                       backgroundColor: Colors.white,
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Aporte EsSalud (costo del empleador, NO descuenta al
+                    // empleado). Apagar para locador / recibo por honorarios.
+                    Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                            color: AppColors.blue1.withValues(alpha: 0.4)),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: SwitchListTile(
+                        value: _aportaEssalud,
+                        onChanged: (v) => setState(() => _aportaEssalud = v),
+                        activeThumbColor: AppColors.blue1,
+                        dense: true,
+                        contentPadding:
+                            const EdgeInsets.symmetric(horizontal: 12),
+                        title: const Text(
+                          'Aporta EsSalud (9%)',
+                          style: TextStyle(
+                              fontSize: 13, fontWeight: FontWeight.w600),
+                        ),
+                        subtitle: const Text(
+                          'Costo del empleador. No descuenta al empleado.',
+                          style: TextStyle(fontSize: 11),
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 14),
 

@@ -162,6 +162,7 @@ class Empleado extends Equatable {
   final TipoContrato tipoContrato;
   final double salarioBase;
   final RegimenPension regimenPension;
+  final bool aportaEssalud;
   final String moneda;
   final String? banco;
   final String? numeroCuenta;
@@ -193,6 +194,7 @@ class Empleado extends Equatable {
     required this.tipoContrato,
     required this.salarioBase,
     this.regimenPension = RegimenPension.ninguno,
+    this.aportaEssalud = true,
     this.moneda = 'PEN',
     this.banco,
     this.numeroCuenta,
@@ -243,6 +245,7 @@ class Empleado extends Equatable {
         tipoContrato,
         salarioBase,
         regimenPension,
+        aportaEssalud,
         moneda,
         banco,
         numeroCuenta,
