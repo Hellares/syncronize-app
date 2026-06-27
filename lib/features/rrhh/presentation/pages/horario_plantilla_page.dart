@@ -202,11 +202,21 @@ class _HorarioPlantillaPageState extends State<HorarioPlantillaPage> {
               // Actions
               IconButton(
                 icon: const Icon(Icons.edit, size: 20, color: AppColors.blue1),
+                tooltip: 'Editar',
                 onPressed: () => _showCreateEditDialog(context, horario),
                 visualDensity: VisualDensity.compact,
               ),
               IconButton(
+                icon: const Icon(Icons.copy_all_outlined,
+                    size: 20, color: AppColors.blue1),
+                tooltip: 'Duplicar',
+                onPressed: () =>
+                    _showCreateEditDialog(context, horario, duplicate: true),
+                visualDensity: VisualDensity.compact,
+              ),
+              IconButton(
                 icon: const Icon(Icons.delete_outline, size: 20, color: AppColors.red),
+                tooltip: 'Eliminar',
                 onPressed: () => _confirmDelete(context, horario),
                 visualDensity: VisualDensity.compact,
               ),
@@ -335,9 +345,13 @@ class _HorarioPlantillaPageState extends State<HorarioPlantillaPage> {
     );
   }
 
-  void _showCreateEditDialog(BuildContext context, HorarioPlantilla? horario) {
-    final isEditing = horario != null;
-    final nombreCtrl = TextEditingController(text: horario?.nombre ?? '');
+  void _showCreateEditDialog(BuildContext context, HorarioPlantilla? horario,
+      {bool duplicate = false}) {
+    // Al duplicar: pre-llena con los datos del origen pero crea uno NUEVO.
+    final isEditing = horario != null && !duplicate;
+    final nombreCtrl = TextEditingController(
+      text: duplicate ? '${horario!.nombre} (copia)' : (horario?.nombre ?? ''),
+    );
     final descripcionCtrl = TextEditingController(text: horario?.descripcion ?? '');
 
     // Day-turno assignments
@@ -359,7 +373,9 @@ class _HorarioPlantillaPageState extends State<HorarioPlantillaPage> {
         return StatefulBuilder(
           builder: (ctx, setDialogState) {
             return AlertDialog(
-              title: Text(isEditing ? 'Editar Horario' : 'Nuevo Horario'),
+              title: Text(isEditing
+                  ? 'Editar Horario'
+                  : (duplicate ? 'Duplicar Horario' : 'Nuevo Horario')),
               content: SizedBox(
                 width: double.maxFinite,
                 child: SingleChildScrollView(
@@ -518,7 +534,9 @@ class _HorarioPlantillaPageState extends State<HorarioPlantillaPage> {
                       _horarioCubit.crearHorario(data);
                     }
                   },
-                  child: Text(isEditing ? 'Actualizar' : 'Crear'),
+                  child: Text(isEditing
+                      ? 'Actualizar'
+                      : (duplicate ? 'Duplicar' : 'Crear')),
                 ),
               ],
             );
