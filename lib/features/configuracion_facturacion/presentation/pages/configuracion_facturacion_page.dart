@@ -10,6 +10,7 @@ import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_dropdown.dart';
 import '../../../../core/widgets/custom_switch_tile.dart';
 import '../../../../core/widgets/smart_appbar.dart';
+import '../../../auth/presentation/widgets/custom_text.dart';
 import '../../domain/entities/configuracion_facturacion.dart';
 import '../bloc/configuracion_facturacion_cubit.dart';
 import '../bloc/configuracion_facturacion_state.dart';
@@ -229,7 +230,6 @@ class _ProveedorSectionState extends State<_ProveedorSection> {
   late final TextEditingController _tokenCtrl;
   late final TextEditingController _companyCtrl;
   late final TextEditingController _branchCtrl;
-  bool _mostrarToken = false;
 
   @override
   void initState() {
@@ -314,74 +314,45 @@ class _ProveedorSectionState extends State<_ProveedorSection> {
               ),
             ],
             const SizedBox(height: 10),
-            TextField(
+            CustomText(
               controller: _urlCtrl,
+              label: 'URL del proveedor',
+              hintText: 'https://api-beta.syncrofact.net.pe/api',
+              keyboardType: TextInputType.url,
+              borderColor: AppColors.blue1,
               onChanged: cubit.cambiarUrl,
-              decoration: const InputDecoration(
-                labelText: 'URL del proveedor',
-                hintText: 'https://api-beta.syncrofact.net.pe/api',
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-              style: const TextStyle(fontSize: 12),
             ),
             const SizedBox(height: 10),
-            TextField(
+            CustomText(
               controller: _tokenCtrl,
+              label: 'Token / credencial',
+              obscureText: true,
+              borderColor: AppColors.blue1,
               onChanged: cubit.cambiarToken,
-              obscureText: !_mostrarToken,
-              decoration: InputDecoration(
-                labelText: 'Token / credencial',
-                border: const OutlineInputBorder(),
-                isDense: true,
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _mostrarToken ? Icons.visibility_off : Icons.visibility,
-                    size: 18,
-                  ),
-                  onPressed: () =>
-                      setState(() => _mostrarToken = !_mostrarToken),
-                ),
-              ),
-              style: const TextStyle(fontSize: 12),
             ),
             if (editada.proveedorActivo.requiereCompanyBranch) ...[
               const SizedBox(height: 10),
               Row(
                 children: [
                   Expanded(
-                    child: TextField(
+                    child: CustomText(
                       controller: _companyCtrl,
+                      label: 'Company ID',
+                      fieldType: FieldType.number,
+                      borderColor: AppColors.blue1,
                       onChanged: (v) =>
                           cubit.cambiarCompanyId(int.tryParse(v)),
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly,
-                      ],
-                      decoration: const InputDecoration(
-                        labelText: 'Company ID',
-                        border: OutlineInputBorder(),
-                        isDense: true,
-                      ),
-                      style: const TextStyle(fontSize: 12),
                     ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: TextField(
+                    child: CustomText(
                       controller: _branchCtrl,
+                      label: 'Branch ID',
+                      fieldType: FieldType.number,
+                      borderColor: AppColors.blue1,
                       onChanged: (v) =>
                           cubit.cambiarBranchId(int.tryParse(v)),
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly,
-                      ],
-                      decoration: const InputDecoration(
-                        labelText: 'Branch ID',
-                        border: OutlineInputBorder(),
-                        isDense: true,
-                      ),
-                      style: const TextStyle(fontSize: 12),
                     ),
                   ),
                 ],
@@ -484,7 +455,7 @@ class _WebhookSection extends StatelessWidget {
   }
 }
 
-class _CampoCopiable extends StatelessWidget {
+class _CampoCopiable extends StatefulWidget {
   final String label;
   final String valor;
   final VoidCallback onCopiar;
@@ -496,22 +467,48 @@ class _CampoCopiable extends StatelessWidget {
   });
 
   @override
+  State<_CampoCopiable> createState() => _CampoCopiableState();
+}
+
+class _CampoCopiableState extends State<_CampoCopiable> {
+  late final TextEditingController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = TextEditingController(text: widget.valor);
+  }
+
+  @override
+  void didUpdateWidget(covariant _CampoCopiable old) {
+    super.didUpdateWidget(old);
+    if (old.valor != widget.valor && _ctrl.text != widget.valor) {
+      _ctrl.text = widget.valor;
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return InputDecorator(
-      decoration: InputDecoration(
-        labelText: label,
-        border: const OutlineInputBorder(),
-        isDense: true,
-        suffixIcon: IconButton(
-          icon: const Icon(Icons.copy, size: 18),
-          onPressed: onCopiar,
-          tooltip: 'Copiar al portapapeles',
-        ),
-      ),
-      child: Text(
-        valor,
-        style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
-        overflow: TextOverflow.ellipsis,
+    // Solo lectura: campo informativo para copiar al panel de Syncrofact.
+    return CustomText(
+      controller: _ctrl,
+      label: widget.label,
+      readOnly: true,
+      borderColor: AppColors.blue1,
+      autovalidateMode: AutovalidateModeX.disabled,
+      showValidationIndicator: false,
+      suffixIcon: IconButton(
+        icon: const Icon(Icons.copy, size: 18),
+        onPressed: widget.onCopiar,
+        tooltip: 'Copiar al portapapeles',
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(),
       ),
     );
   }
@@ -574,31 +571,24 @@ class _DatosEmpresaSectionState extends State<_DatosEmpresaSection> {
           children: [
             _sectionHeader('Datos de facturación', Icons.business_outlined),
             const SizedBox(height: 10),
-            TextField(
+            CustomText(
               controller: _emailCtrl,
+              label: 'Email de facturación',
+              hintText: 'facturacion@miempresa.pe',
+              fieldType: FieldType.email,
+              required: false,
+              borderColor: AppColors.blue1,
               onChanged: (v) =>
                   cubit.cambiarEmailFacturacion(v.trim().isEmpty ? null : v),
-              keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(
-                labelText: 'Email de facturación',
-                hintText: 'facturacion@miempresa.pe',
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-              style: const TextStyle(fontSize: 12),
             ),
             const SizedBox(height: 10),
-            TextField(
+            CustomText(
               controller: _resolucionCtrl,
+              label: 'Resolución SUNAT (opcional)',
+              hintText: 'No.034-005-0005315',
+              borderColor: AppColors.blue1,
               onChanged: (v) =>
                   cubit.cambiarResolucionSunat(v.trim().isEmpty ? null : v),
-              decoration: const InputDecoration(
-                labelText: 'Resolución SUNAT (opcional)',
-                hintText: 'No.034-005-0005315',
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-              style: const TextStyle(fontSize: 12),
             ),
           ],
         ),
@@ -691,8 +681,8 @@ class _Footer extends StatelessWidget {
           Expanded(
             child: CustomButton(
               text: state.probando ? 'Probando...' : 'Probar conexión',
+              textColor: AppColors.blue1,
               icon: const Icon(Icons.wifi_tethering, size: 16),
-              isOutlined: true,
               borderColor: AppColors.blue1,
               isLoading: state.probando,
               onPressed: state.probando ? null : cubit.probarConexion,

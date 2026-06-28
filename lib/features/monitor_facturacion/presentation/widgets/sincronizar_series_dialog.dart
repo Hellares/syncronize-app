@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/custom_switch_tile.dart';
 import '../../domain/entities/sincronizacion_series.dart';
 import '../../domain/usecases/aplicar_sincronizacion_usecase.dart';
 import '../../domain/usecases/preview_sincronizacion_usecase.dart';
@@ -114,7 +115,7 @@ class _Header extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('Sincronizar series',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
                 Text('desde el proveedor de facturación',
                     style: TextStyle(fontSize: 10, color: Colors.grey)),
               ],
@@ -258,7 +259,7 @@ class _PreviewContent extends StatelessWidget {
               ],
             ),
           ),
-        const SizedBox(height: 4),
+        // const SizedBox(height: 4),
         // Selección masiva
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -393,7 +394,7 @@ class _DiffRow extends StatelessWidget {
       },
       borderRadius: BorderRadius.circular(10),
       child: Container(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.fromLTRB(10, 1, 10, 6),
         decoration: BoxDecoration(
           color: seleccionada ? color.withValues(alpha: 0.05) : Colors.white,
           borderRadius: BorderRadius.circular(10),
@@ -407,24 +408,27 @@ class _DiffRow extends StatelessWidget {
           children: [
             Row(
               children: [
-                SizedBox(
-                  width: 36,
-                  height: 22,
-                  child: Switch(
+                Expanded(
+                  child: CustomSwitchTile(
+                    title: diff.tipoDocumentoNombre,
                     value: seleccionada,
                     onChanged: aplicable
                         ? (_) => context
                             .read<SincronizarSeriesCubit>()
-                            .toggleSeleccion(diff.tipoDocumento)
+                            .toggleSeleccion(diff.tipoDocumentoNombre)
                         : null,
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    activeColor: color,
+                    padding: EdgeInsets.zero,
+                    titleStyle: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: aplicable
+                          ? Colors.black87
+                          : Colors.black87.withValues(alpha: 0.4),
+                    ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(diff.tipoDocumentoNombre,
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-                ),
+                const SizedBox(width: 4),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
@@ -437,7 +441,7 @@ class _DiffRow extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 6),
+            // const SizedBox(height: 6),
             Row(
               children: [
                 Expanded(child: _SerieBlock(label: 'Local', serie: diff.serieLocal, correlativo: diff.correlativoLocal, color: Colors.grey.shade700)),
