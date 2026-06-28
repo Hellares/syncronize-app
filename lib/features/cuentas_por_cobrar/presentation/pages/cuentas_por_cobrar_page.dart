@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:syncronize/core/fonts/app_fonts.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/services/export_service.dart';
 import '../../../../core/utils/date_formatter.dart';
@@ -123,7 +124,7 @@ class _CuentasCobrarViewState extends State<_CuentasCobrarView> {
     return GradientContainer(
       borderColor: AppColors.blueborder,
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(10),
         child: Column(
           children: [
             Row(
@@ -151,10 +152,10 @@ class _CuentasCobrarViewState extends State<_CuentasCobrarView> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const AppSubtitle('Total por cobrar', fontSize: 13),
+                const AppSubtitle('Total por cobrar', fontSize: 11),
                 AppSubtitle(
                   'S/ ${resumen.totalPorCobrar.toStringAsFixed(2)}',
-                  fontSize: 16,
+                  fontSize: 12,
                   color: AppColors.blue1,
                 ),
               ],
@@ -164,10 +165,10 @@ class _CuentasCobrarViewState extends State<_CuentasCobrarView> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const AppSubtitle('Total mora', fontSize: 13),
+                  const AppSubtitle('Total mora', fontSize: 11),
                   AppSubtitle(
                     'S/ ${resumen.totalMora.toStringAsFixed(2)}',
-                    fontSize: 14,
+                    fontSize: 12,
                     color: Colors.red,
                   ),
                 ],
@@ -195,8 +196,9 @@ class _CuentasCobrarViewState extends State<_CuentasCobrarView> {
           return Padding(
             padding: const EdgeInsets.only(right: 8),
             child: FilterChip(
-              label: Text(f['label'] as String, style: TextStyle(fontSize: 11, color: isSelected ? Colors.white : AppColors.blue1)),
+              label: Text(f['label'] as String, style: TextStyle(fontSize: 10, color: isSelected ? Colors.white : AppColors.blue1)),
               selected: isSelected,
+              visualDensity: VisualDensity.compact,
               selectedColor: AppColors.blue1,
               backgroundColor: Colors.white,
               checkmarkColor: Colors.white,
@@ -224,7 +226,7 @@ class _ResumenItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(10),
@@ -260,17 +262,17 @@ class _CuentaCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       borderColor: cuenta.estado == 'VENCIDA' ? Colors.red.shade300 : AppColors.blueborder,
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                AppSubtitle(cuenta.codigo, fontSize: 13, color: AppColors.blue1),
+                AppSubtitle(cuenta.codigo, fontSize: 10, color: AppColors.blue1),
                 const Spacer(),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(color: estadoColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
+                  decoration: BoxDecoration(color: estadoColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
                   child: Text(estadoLabel, style: TextStyle(fontSize: 10, color: estadoColor, fontWeight: FontWeight.w600)),
                 ),
               ],
@@ -280,7 +282,7 @@ class _CuentaCard extends StatelessWidget {
               children: [
                 const Icon(Icons.person_outline, size: 14, color: Colors.grey),
                 const SizedBox(width: 4),
-                Expanded(child: AppSubtitle(cuenta.nombreCliente, fontSize: 12)),
+                Expanded(child: AppSubtitle(cuenta.nombreCliente, font: AppFont.amazonEmberMedium ,fontSize: 10)),
               ],
             ),
             const SizedBox(height: 6),
@@ -288,7 +290,7 @@ class _CuentaCard extends StatelessWidget {
               children: [
                 Text('Total: S/ ${cuenta.totalVenta.toStringAsFixed(2)}', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
                 const Spacer(),
-                AppSubtitle('Saldo: S/ ${cuenta.saldoPendiente.toStringAsFixed(2)}', fontSize: 13, color: estadoColor),
+                AppSubtitle('Saldo: S/ ${cuenta.saldoPendiente.toStringAsFixed(2)}', fontSize: 11, color: estadoColor),
               ],
             ),
             if (cuenta.totalMora > 0) ...[
@@ -349,9 +351,10 @@ class _CuentaCard extends StatelessWidget {
                 width: double.infinity,
                 child: CustomButton(
                   text: 'Registrar abono',
-                  height: 36,
-                  backgroundColor: AppColors.blue1,
-                  textColor: Colors.white,
+                  backgroundColor: AppColors.white,
+                  borderColor: AppColors.blueborder,
+                  borderWidth: 0.6,
+                  textColor: AppColors.blue1,
                   onPressed: () => _abonar(context, cuenta),
                 ),
               ),

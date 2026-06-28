@@ -52,12 +52,18 @@ class CuentasCobrarCubit extends Cubit<CuentasCobrarState> {
     required String metodoPago,
     required double monto,
     String? referencia,
+    String? fuente,
+    String? bancoId,
+    String? banco,
   }) async {
     final res = await _registrarAbonoUseCase(
       ventaId,
       metodoPago: metodoPago,
       monto: monto,
       referencia: referencia,
+      fuente: fuente,
+      bancoId: bancoId,
+      banco: banco,
     );
     if (res is Error<void>) return res.message;
     await loadCuentas(estado: _filtroEstado);

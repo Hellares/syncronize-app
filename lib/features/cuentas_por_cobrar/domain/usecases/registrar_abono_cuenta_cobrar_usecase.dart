@@ -12,12 +12,18 @@ class RegistrarAbonoCuentaCobrarUseCase {
     required String metodoPago,
     required double monto,
     String? referencia,
+    String? fuente,
+    String? bancoId,
+    String? banco,
   }) {
     return _repository.registrarAbono(
       ventaId,
       metodoPago: metodoPago,
       monto: monto,
       referencia: referencia,
+      fuente: fuente,
+      bancoId: bancoId,
+      banco: banco,
     );
   }
 }

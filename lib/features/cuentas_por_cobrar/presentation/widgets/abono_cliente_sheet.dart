@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/di/injection_container.dart';
 import '../../../../core/fonts/app_text_widgets.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/resource.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_dropdown.dart';
 import '../../../auth/presentation/widgets/custom_text.dart';
+import '../../../empresa_banco/domain/entities/empresa_banco.dart';
+import '../../../empresa_banco/domain/usecases/get_cuentas_bancarias_usecase.dart';
 import '../../domain/entities/cuenta_por_cobrar.dart';
 import '../bloc/cuentas_cobrar_cubit.dart';
 
@@ -39,13 +43,63 @@ class _AbonoClienteSheetState extends State<AbonoClienteSheet> {
   final _refCtrl = TextEditingController();
   bool _procesando = false;
 
+  // Fuente del dinero que ENTRA (TESORERIA / CAJA / BANCO). CxC en PEN.
+  late String _fuente;
+  String? _bancoId;
+  List<EmpresaBanco> _bancos = [];
+  bool _cargandoBancos = true;
+
   // Total a cobrar incluye la mora (el backend la aplica primero).
   double get _maximo => widget.cuenta.totalConMora;
+
+  bool get _esBancario =>
+      _metodo == 'TRANSFERENCIA' || _metodo == 'YAPE' || _metodo == 'PLIN' || _metodo == 'TARJETA';
+
+  /// Cuentas bancarias en PEN (los abonos de CxC son en soles).
+  List<EmpresaBanco> get _bancosCompatibles =>
+      _bancos.where((b) => (b.moneda ?? 'PEN').toUpperCase() == 'PEN').toList();
+
+  String _defaultFuente(String metodo) => metodo == 'EFECTIVO' ? 'TESORERIA' : 'BANCO';
 
   @override
   void initState() {
     super.initState();
     _montoCtrl = TextEditingController(text: _maximo.toStringAsFixed(2));
+    _fuente = _defaultFuente(_metodo);
+    _cargarBancos();
+  }
+
+  Future<void> _cargarBancos() async {
+    final res = await locator<GetCuentasBancariasUseCase>().call();
+    if (!mounted) return;
+    setState(() {
+      _bancos = res is Success<List<EmpresaBanco>>
+          ? res.data.where((b) => b.isActive).toList()
+          : [];
+      _cargandoBancos = false;
+      if (_fuente == 'BANCO') _bancoId = _bancoPreseleccionado();
+    });
+  }
+
+  String? _bancoPreseleccionado() {
+    final compat = _bancosCompatibles;
+    if (compat.isEmpty) return null;
+    return compat.firstWhere((b) => b.esPrincipal, orElse: () => compat.first).id;
+  }
+
+  void _onMetodoChanged(String metodo) {
+    setState(() {
+      _metodo = metodo;
+      _fuente = _defaultFuente(metodo);
+      _bancoId = _fuente == 'BANCO' ? _bancoPreseleccionado() : null;
+    });
+  }
+
+  void _onFuenteChanged(String fuente) {
+    setState(() {
+      _fuente = fuente;
+      _bancoId = fuente == 'BANCO' ? (_bancoId ?? _bancoPreseleccionado()) : null;
+    });
   }
 
   @override
@@ -65,6 +119,10 @@ class _AbonoClienteSheetState extends State<AbonoClienteSheet> {
       _snack('El monto no puede superar el saldo (S/ ${_maximo.toStringAsFixed(2)})');
       return;
     }
+    if (_fuente == 'BANCO' && (_bancoId == null || _bancoId!.isEmpty)) {
+      _snack('Seleccioná la cuenta bancaria donde entra el abono');
+      return;
+    }
     monto = (monto * 100).round() / 100;
     // En métodos digitales la bancarización (ventas ≥ umbral) exige N° de
     // operación → default 00000 si lo dejan vacío.
@@ -78,6 +136,8 @@ class _AbonoClienteSheetState extends State<AbonoClienteSheet> {
       metodoPago: _metodo,
       monto: monto,
       referencia: referencia,
+      fuente: _fuente,
+      bancoId: _fuente == 'BANCO' ? _bancoId : null,
     );
     if (!mounted) return;
     if (err == null) {
@@ -90,6 +150,71 @@ class _AbonoClienteSheetState extends State<AbonoClienteSheet> {
 
   void _snack(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  /// Selector de fuente: Tesorería / Caja / Banco (a dónde ENTRA el dinero).
+  /// EFECTIVO no permite Banco. Si Banco → dropdown de cuentas bancarias.
+  Widget _buildFuenteSelector() {
+    final opciones = <DropdownItem<String>>[
+      const DropdownItem(value: 'TESORERIA', label: 'Tesorería (Caja Central)'),
+      const DropdownItem(value: 'CAJA', label: 'Caja (mi caja abierta)'),
+      if (_esBancario)
+        const DropdownItem(value: 'BANCO', label: 'Banco (cuenta de la empresa)'),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        CustomDropdown<String>(
+          label: 'Entra a',
+          value: _fuente,
+          borderColor: AppColors.blueborder,
+          items: opciones,
+          onChanged: (v) => _onFuenteChanged(v ?? _fuente),
+        ),
+        if (_fuente == 'BANCO') ...[
+          const SizedBox(height: 12),
+          if (_cargandoBancos)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Center(
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            )
+          else if (_bancosCompatibles.isEmpty)
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.orange.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: Text(
+                'No hay cuentas bancarias en PEN. Creá una en Cuentas bancarias.',
+                style: TextStyle(fontSize: 11, color: Colors.orange.shade900),
+              ),
+            )
+          else
+            CustomDropdown<String>(
+              label: 'Cuenta bancaria',
+              value: _bancoId,
+              borderColor: AppColors.blueborder,
+              items: _bancosCompatibles
+                  .map((b) => DropdownItem(
+                        value: b.id,
+                        label:
+                            '${b.nombreBanco} ·· ${b.numeroCuenta} (${b.moneda ?? 'PEN'} ${b.saldoActual.toStringAsFixed(2)})',
+                      ))
+                  .toList(),
+              onChanged: (v) => setState(() => _bancoId = v),
+            ),
+        ],
+      ],
+    );
   }
 
   @override
@@ -143,8 +268,10 @@ class _AbonoClienteSheetState extends State<AbonoClienteSheet> {
                     DropdownItem(value: 'TRANSFERENCIA', label: 'Transferencia'),
                     DropdownItem(value: 'TARJETA', label: 'Tarjeta'),
                   ],
-                  onChanged: (v) => setState(() => _metodo = v ?? 'EFECTIVO'),
+                  onChanged: (v) => _onMetodoChanged(v ?? 'EFECTIVO'),
                 ),
+                const SizedBox(height: 12),
+                _buildFuenteSelector(),
                 const SizedBox(height: 12),
                 CustomText(
                   label: 'Monto (máx S/ ${_maximo.toStringAsFixed(2)})',

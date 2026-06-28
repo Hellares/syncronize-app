@@ -50,6 +50,9 @@ class CuentasCobrarRepositoryImpl implements CuentasCobrarRepository {
     required String metodoPago,
     required double monto,
     String? referencia,
+    String? fuente,
+    String? bancoId,
+    String? banco,
   }) async {
     if (!await _networkInfo.isConnected) {
       return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
@@ -60,10 +63,26 @@ class CuentasCobrarRepositoryImpl implements CuentasCobrarRepository {
         metodoPago: metodoPago,
         monto: monto,
         referencia: referencia,
+        fuente: fuente,
+        bancoId: bancoId,
+        banco: banco,
       );
       return Success(null);
     } catch (e) {
       return _errorHandler.handleException(e, context: 'CuentasCobrar.registrarAbono');
+    }
+  }
+
+  @override
+  Future<Resource<void>> anularAbono(String pagoId, {String? motivo}) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      await _remoteDataSource.anularAbono(pagoId, motivo: motivo);
+      return Success(null);
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'CuentasCobrar.anularAbono');
     }
   }
 }

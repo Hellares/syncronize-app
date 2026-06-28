@@ -11,5 +11,11 @@ abstract class CuentasCobrarRepository {
     required String metodoPago,
     required double monto,
     String? referencia,
+    String? fuente,
+    String? bancoId,
+    String? banco,
   });
+
+  /// Anula un abono (revierte el ingreso y recomputa las cuotas).
+  Future<Resource<void>> anularAbono(String pagoId, {String? motivo});
 }

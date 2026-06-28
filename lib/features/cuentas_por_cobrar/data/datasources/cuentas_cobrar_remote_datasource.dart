@@ -30,24 +30,43 @@ class CuentasCobrarRemoteDataSource {
     );
   }
 
-  /// Registra un abono del cliente sobre una venta a crédito. El backend
-  /// (procesarPago) lo aplica en cascada a las cuotas (mora→interés→principal)
-  /// y registra el INGRESO en caja. Pasa aceptaRiesgoBancarizacion para no
-  /// bloquear abonos sobre ventas ≥ umbral.
+  /// Registra un abono del cliente sobre una venta a crédito (CxC, simétrico a
+  /// CxP). El backend valida saldo (rechaza sobre-pago), rutea el INGRESO a la
+  /// fuente (Tesorería/Caja/Banco) e imputa en cascada a las cuotas
+  /// (mora→interés→principal).
   Future<void> registrarAbono(
     String ventaId, {
     required String metodoPago,
     required double monto,
     String? referencia,
+    String? fuente,
+    String? bancoId,
+    String? banco,
   }) async {
     await _dioClient.post(
-      '/ventas/$ventaId/pago',
+      '$_basePath/$ventaId/abono',
       data: {
         'metodoPago': metodoPago,
         'monto': monto,
         if (referencia != null && referencia.isNotEmpty) 'referencia': referencia,
-        'aceptaRiesgoBancarizacion': true,
+        if (fuente != null) 'fuente': fuente,
+        if (bancoId != null && bancoId.isNotEmpty) 'bancoId': bancoId,
+        if (banco != null && banco.isNotEmpty) 'banco': banco,
       },
     );
+  }
+
+  /// Anula un abono (revierte el ingreso en caja/banco y recomputa las cuotas).
+  Future<void> anularAbono(String pagoId, {String? motivo}) async {
+    await _dioClient.post(
+      '$_basePath/pagos/$pagoId/anular',
+      data: {if (motivo != null && motivo.isNotEmpty) 'motivo': motivo},
+    );
+  }
+
+  /// Deuda por cobrar agrupada por cliente (vista "Por cliente").
+  Future<List<dynamic>> getPorCliente() async {
+    final response = await _dioClient.get('$_basePath/por-cliente');
+    return response.data as List<dynamic>? ?? [];
   }
 }
