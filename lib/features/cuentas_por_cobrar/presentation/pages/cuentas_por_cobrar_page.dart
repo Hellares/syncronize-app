@@ -15,6 +15,7 @@ import '../../domain/entities/cuenta_por_cobrar.dart';
 import '../bloc/cuentas_cobrar_cubit.dart';
 import '../bloc/cuentas_cobrar_state.dart';
 import '../widgets/abono_cliente_sheet.dart';
+import 'estado_cuenta_cliente_page.dart';
 
 class CuentasPorCobrarPage extends StatelessWidget {
   const CuentasPorCobrarPage({super.key});
@@ -274,6 +275,29 @@ class _CuentaCard extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(color: estadoColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
                   child: Text(estadoLabel, style: TextStyle(fontSize: 10, color: estadoColor, fontWeight: FontWeight.w600)),
+                ),
+                const SizedBox(width: 2),
+                InkWell(
+                  borderRadius: BorderRadius.circular(20),
+                  onTap: () {
+                    if (cuenta.clienteEmpresaId == null && cuenta.clienteId == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Cliente no disponible para esta venta')),
+                      );
+                      return;
+                    }
+                    Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => EstadoCuentaClientePage(
+                        clienteEmpresaId: cuenta.clienteEmpresaId,
+                        clienteId: cuenta.clienteEmpresaId != null ? null : cuenta.clienteId,
+                        nombreCliente: cuenta.nombreCliente,
+                      ),
+                    ));
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.all(3),
+                    child: Icon(Icons.receipt_long_outlined, size: 16, color: AppColors.blue1),
+                  ),
                 ),
               ],
             ),

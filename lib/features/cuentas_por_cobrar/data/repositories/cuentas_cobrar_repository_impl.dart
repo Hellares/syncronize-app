@@ -3,6 +3,7 @@ import '../../../../core/network/network_info.dart';
 import '../../../../core/services/error_handler_service.dart';
 import '../../../../core/utils/resource.dart';
 import '../../domain/entities/cuenta_por_cobrar.dart';
+import '../../domain/entities/estado_cuenta_cliente.dart';
 import '../../domain/repositories/cuentas_cobrar_repository.dart';
 import '../datasources/cuentas_cobrar_remote_datasource.dart';
 
@@ -83,6 +84,25 @@ class CuentasCobrarRepositoryImpl implements CuentasCobrarRepository {
       return Success(null);
     } catch (e) {
       return _errorHandler.handleException(e, context: 'CuentasCobrar.anularAbono');
+    }
+  }
+
+  @override
+  Future<Resource<EstadoCuentaCliente>> getEstadoCuentaCliente({
+    String? clienteId,
+    String? clienteEmpresaId,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final result = await _remoteDataSource.getEstadoCuentaCliente(
+        clienteId: clienteId,
+        clienteEmpresaId: clienteEmpresaId,
+      );
+      return Success(result);
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'CuentasCobrar.estadoCuenta');
     }
   }
 }

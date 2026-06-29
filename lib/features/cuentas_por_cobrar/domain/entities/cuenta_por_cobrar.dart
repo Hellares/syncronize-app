@@ -3,6 +3,8 @@ import 'package:equatable/equatable.dart';
 class CuentaPorCobrar extends Equatable {
   final String id;
   final String codigo;
+  final String? clienteId;
+  final String? clienteEmpresaId;
   final String nombreCliente;
   final double saldoPendiente;
   final double totalVenta;
@@ -17,6 +19,8 @@ class CuentaPorCobrar extends Equatable {
   const CuentaPorCobrar({
     required this.id,
     required this.codigo,
+    this.clienteId,
+    this.clienteEmpresaId,
     required this.nombreCliente,
     required this.saldoPendiente,
     required this.totalVenta,

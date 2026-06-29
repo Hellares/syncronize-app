@@ -1,5 +1,6 @@
 import 'package:injectable/injectable.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../domain/entities/estado_cuenta_cliente.dart';
 import '../models/cuenta_cobrar_model.dart';
 
 @lazySingleton
@@ -68,5 +69,20 @@ class CuentasCobrarRemoteDataSource {
   Future<List<dynamic>> getPorCliente() async {
     final response = await _dioClient.get('$_basePath/por-cliente');
     return response.data as List<dynamic>? ?? [];
+  }
+
+  /// Estado de cuenta de un cliente (ventas a crédito + abonos + saldo).
+  Future<EstadoCuentaCliente> getEstadoCuentaCliente({
+    String? clienteId,
+    String? clienteEmpresaId,
+  }) async {
+    final qp = <String, dynamic>{};
+    if (clienteId != null) qp['clienteId'] = clienteId;
+    if (clienteEmpresaId != null) qp['clienteEmpresaId'] = clienteEmpresaId;
+    final response = await _dioClient.get(
+      '$_basePath/estado-cuenta-cliente',
+      queryParameters: qp.isNotEmpty ? qp : null,
+    );
+    return EstadoCuentaCliente.fromJson(response.data as Map<String, dynamic>);
   }
 }

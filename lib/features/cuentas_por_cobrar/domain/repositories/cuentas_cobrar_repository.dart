@@ -1,5 +1,6 @@
 import '../../../../core/utils/resource.dart';
 import '../entities/cuenta_por_cobrar.dart';
+import '../entities/estado_cuenta_cliente.dart';
 
 abstract class CuentasCobrarRepository {
   Future<Resource<List<CuentaPorCobrar>>> listar({String? estado});
@@ -18,4 +19,10 @@ abstract class CuentasCobrarRepository {
 
   /// Anula un abono (revierte el ingreso y recomputa las cuotas).
   Future<Resource<void>> anularAbono(String pagoId, {String? motivo});
+
+  /// Estado de cuenta de un cliente (ventas a crédito + abonos + saldo).
+  Future<Resource<EstadoCuentaCliente>> getEstadoCuentaCliente({
+    String? clienteId,
+    String? clienteEmpresaId,
+  });
 }

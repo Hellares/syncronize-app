@@ -3,6 +3,8 @@ import '../../domain/entities/cuenta_por_cobrar.dart';
 class CuentaCobrarModel {
   final String id;
   final String codigo;
+  final String? clienteId;
+  final String? clienteEmpresaId;
   final String nombreCliente;
   final double saldoPendiente;
   final double totalVenta;
@@ -17,6 +19,8 @@ class CuentaCobrarModel {
   const CuentaCobrarModel({
     required this.id,
     required this.codigo,
+    this.clienteId,
+    this.clienteEmpresaId,
     required this.nombreCliente,
     required this.saldoPendiente,
     required this.totalVenta,
@@ -57,6 +61,8 @@ class CuentaCobrarModel {
     return CuentaCobrarModel(
       id: json['ventaId'] as String? ?? json['id'] as String? ?? '',
       codigo: json['codigo'] as String? ?? '',
+      clienteId: json['clienteId'] as String?,
+      clienteEmpresaId: json['clienteEmpresaId'] as String?,
       nombreCliente: json['nombreCliente'] as String? ?? '',
       saldoPendiente: _toDouble(json['saldoPendiente']),
       totalVenta: _toDouble(json['totalVenta']),
@@ -76,6 +82,8 @@ class CuentaCobrarModel {
     return CuentaPorCobrar(
       id: id,
       codigo: codigo,
+      clienteId: clienteId,
+      clienteEmpresaId: clienteEmpresaId,
       nombreCliente: nombreCliente,
       saldoPendiente: saldoPendiente,
       totalVenta: totalVenta,
