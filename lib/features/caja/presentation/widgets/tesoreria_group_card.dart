@@ -31,8 +31,14 @@ class TesoreriaGroupCard extends StatelessWidget {
       return _cicloCard();
     }
     // Render como card grupal si hay >1 item, o si es un barrido con
-    // reversos vinculados (necesitamos espacio para el banner).
-    final renderAsCard = group.isGrouped || group.tieneReversosVinculados;
+    // reversos vinculados (necesitamos espacio para el banner). También
+    // cuando el barrido tiene un solo movimiento en la central (la
+    // "Recepción") pero su barridoResumen abarca varios métodos o algún
+    // digital→banco: ahí hay que dibujar los chips, no el tile simple.
+    final resumen0 = _barridoResumen(group.items.first);
+    final tieneResumenRico = resumen0.length > 1 || resumen0.any((r) => r.aBanco);
+    final renderAsCard =
+        group.isGrouped || group.tieneReversosVinculados || tieneResumenRico;
     if (!renderAsCard) {
       return _singleTile(group.items.first);
     }
