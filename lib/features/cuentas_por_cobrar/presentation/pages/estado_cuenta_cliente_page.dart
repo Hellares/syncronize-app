@@ -155,6 +155,8 @@ class _EstadoCuentaClientePageState extends State<EstadoCuentaClientePage> {
   }
 
   Widget _contenido(EstadoCuentaCliente e) {
+    final pendientes = e.ventas.where((v) => v.saldoPendiente > 0.01).toList();
+    final historial = e.ventas.where((v) => v.saldoPendiente <= 0.01).toList();
     return ListView(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
       children: [
@@ -162,12 +164,12 @@ class _EstadoCuentaClientePageState extends State<EstadoCuentaClientePage> {
         const SizedBox(height: 10),
         _ResumenCard(resumen: e.resumen),
         const SizedBox(height: 14),
-        _SeccionHeader('Ventas a crédito', '${e.ventas.length}'),
+        _SeccionHeader('Ventas pendientes', '${pendientes.length}'),
         const SizedBox(height: 6),
-        if (e.ventas.isEmpty)
-          _Vacio('Sin ventas a crédito')
+        if (pendientes.isEmpty)
+          _Vacio('Sin ventas pendientes')
         else
-          ...e.ventas.map((v) => _VentaTile(v: v, fmt: _fmt)),
+          ...pendientes.map((v) => _VentaTile(v: v, fmt: _fmt)),
         const SizedBox(height: 14),
         _SeccionHeader('Abonos', '${e.abonos.length}'),
         const SizedBox(height: 6),
@@ -175,6 +177,12 @@ class _EstadoCuentaClientePageState extends State<EstadoCuentaClientePage> {
           _Vacio('Sin abonos registrados')
         else
           ...e.abonos.map((a) => _AbonoTile(a: a, fmt: _fmt, fuenteLabel: _fuenteLabel)),
+        if (historial.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          _SeccionHeader('Historial (pagadas)', '${historial.length}'),
+          const SizedBox(height: 6),
+          ...historial.map((v) => _VentaTile(v: v, fmt: _fmt)),
+        ],
       ],
     );
   }

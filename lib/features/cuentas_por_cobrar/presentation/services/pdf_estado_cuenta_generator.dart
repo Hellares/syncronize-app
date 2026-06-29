@@ -31,6 +31,10 @@ class PdfEstadoCuentaGenerator {
     final primary = style.colorPrimario;
     final c = estado.cliente;
     final r = estado.resumen;
+    final pendientes =
+        estado.ventas.where((v) => v.saldoPendiente > 0.01).toList();
+    final historial =
+        estado.ventas.where((v) => v.saldoPendiente <= 0.01).toList();
 
     final body = <pw.Widget>[
       PdfHeaderBuilder.build(
@@ -64,9 +68,15 @@ class PdfEstadoCuentaGenerator {
       pw.SizedBox(height: 16),
       _resumen(r),
       pw.SizedBox(height: 18),
-      _ventasTable(estado.ventas, primary),
+      _ventasTable(pendientes, primary,
+          titulo: 'VENTAS PENDIENTES', emptyMsg: 'Sin ventas pendientes'),
       pw.SizedBox(height: 18),
       _abonosTable(estado.abonos, primary),
+      if (historial.isNotEmpty) ...[
+        pw.SizedBox(height: 18),
+        _ventasTable(historial, primary,
+            titulo: 'HISTORIAL (PAGADAS)', emptyMsg: ''),
+      ],
     ];
 
     return PdfDocumentService.build(
@@ -110,15 +120,16 @@ class PdfEstadoCuentaGenerator {
     );
   }
 
-  static pw.Widget _ventasTable(List<VentaCreditoItem> ventas, PdfColor primary) {
+  static pw.Widget _ventasTable(List<VentaCreditoItem> ventas, PdfColor primary,
+      {required String titulo, required String emptyMsg}) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        pw.Text('VENTAS A CREDITO',
+        pw.Text(titulo,
             style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)),
         pw.SizedBox(height: 8),
         if (ventas.isEmpty)
-          pw.Text('Sin ventas a credito',
+          pw.Text(emptyMsg,
               style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey600))
         else
           pw.Table(
