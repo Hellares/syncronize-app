@@ -88,6 +88,25 @@ class CajaChicaRepositoryImpl implements CajaChicaRepository {
   }
 
   @override
+  Future<Resource<void>> adjuntarComprobante({
+    required String gastoId,
+    required String comprobanteUrl,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      await _remoteDataSource.adjuntarComprobante(
+        gastoId: gastoId,
+        comprobanteUrl: comprobanteUrl,
+      );
+      return Success(null);
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'CajaChica.adjuntarComprobante');
+    }
+  }
+
+  @override
   Future<Resource<GastoCajaChica>> registrarGasto({
     required String cajaChicaId,
     required double monto,

@@ -63,6 +63,17 @@ class CajaChicaRemoteDataSource {
     );
   }
 
+  /// Adjunta (o reemplaza) el comprobante de un gasto ya registrado.
+  Future<void> adjuntarComprobante({
+    required String gastoId,
+    required String comprobanteUrl,
+  }) async {
+    await _dioClient.patch(
+      '$_basePath/gastos/$gastoId/comprobante',
+      data: {'comprobanteUrl': comprobanteUrl},
+    );
+  }
+
   Future<GastoCajaChicaModel> registrarGasto({
     required String cajaChicaId,
     required double monto,

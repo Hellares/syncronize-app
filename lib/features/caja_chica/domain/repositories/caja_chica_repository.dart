@@ -21,6 +21,12 @@ abstract class CajaChicaRepository {
     required String estado,
   });
 
+  /// Adjunta (o reemplaza) el comprobante de un gasto ya registrado.
+  Future<Resource<void>> adjuntarComprobante({
+    required String gastoId,
+    required String comprobanteUrl,
+  });
+
   Future<Resource<GastoCajaChica>> registrarGasto({
     required String cajaChicaId,
     required double monto,

@@ -15,6 +15,8 @@ import '../../domain/entities/gasto_caja_chica.dart';
 import '../../domain/repositories/caja_chica_repository.dart';
 import '../bloc/caja_chica_detail_cubit.dart';
 import '../bloc/caja_chica_detail_state.dart';
+import 'package:image_picker/image_picker.dart';
+import '../../../cuentas_por_pagar/domain/usecases/comprobante_pago_usecases.dart';
 import '../bloc/rendicion_cubit.dart';
 import '../bloc/rendicion_state.dart';
 import 'historial_rendiciones_page.dart';
@@ -401,14 +403,14 @@ class _CajaChicaDetailView extends StatelessWidget {
                       children: [
                         const AppSubtitle(
                           'Gastos Pendientes',
-                          fontSize: 14,
+                          fontSize: 10,
                           color: AppColors.blue3,
                         ),
                         if (gastosPendientes.isNotEmpty)
                           Text(
                             '${gastosPendientes.length} gastos',
                             style: const TextStyle(
-                              fontSize: 12,
+                              fontSize: 10,
                               color: AppColors.textSecondary,
                             ),
                           ),
@@ -418,7 +420,7 @@ class _CajaChicaDetailView extends StatelessWidget {
                     if (gastosPendientes.isEmpty)
                       Center(
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          padding: const EdgeInsets.symmetric(vertical: 10),
                           child: Column(
                             children: [
                               Icon(
@@ -431,7 +433,7 @@ class _CajaChicaDetailView extends StatelessWidget {
                               const Text(
                                 'Sin gastos pendientes',
                                 style: TextStyle(
-                                  fontSize: 14,
+                                  fontSize: 12,
                                   color: AppColors.textSecondary,
                                 ),
                               ),
@@ -442,7 +444,7 @@ class _CajaChicaDetailView extends StatelessWidget {
                     else
                       ...gastosPendientes
                           .map((gasto) =>
-                              _buildGastoItem(gasto, currencyFormat))
+                              _buildGastoItem(context, gasto, currencyFormat))
                           ,
                   ],
                 ),
@@ -459,7 +461,6 @@ class _CajaChicaDetailView extends StatelessWidget {
                       return CustomButton(
                         text: 'Crear Rendicion',
                         backgroundColor: const Color(0xFF4CAF50),
-                        height: 48,
                         isLoading: isLoading,
                         onPressed: isLoading
                             ? null
@@ -547,6 +548,7 @@ class _CajaChicaDetailView extends StatelessWidget {
   }
 
   Widget _buildGastoItem(
+    BuildContext context,
     GastoCajaChica gasto,
     NumberFormat currencyFormat,
   ) {
@@ -599,7 +601,119 @@ class _CajaChicaDetailView extends StatelessWidget {
               color: Color(0xFFF54D85),
             ),
           ),
+          const SizedBox(width: 2),
+          gasto.comprobanteUrl == null
+              ? IconButton(
+                  visualDensity: VisualDensity.compact,
+                  constraints: const BoxConstraints(),
+                  padding: const EdgeInsets.all(6),
+                  tooltip: 'Adjuntar comprobante',
+                  icon: const Icon(Icons.add_a_photo_outlined,
+                      size: 18, color: AppColors.blue1),
+                  onPressed: () => _adjuntarComprobante(context, gasto),
+                )
+              : IconButton(
+                  visualDensity: VisualDensity.compact,
+                  constraints: const BoxConstraints(),
+                  padding: const EdgeInsets.all(6),
+                  tooltip: 'Ver comprobante',
+                  icon: Icon(Icons.receipt_long_rounded,
+                      size: 18, color: AppColors.greendark),
+                  onPressed: () =>
+                      _verComprobante(context, gasto.comprobanteUrl!),
+                ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _adjuntarComprobante(
+      BuildContext context, GastoCajaChica gasto) async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt_rounded),
+              title: const Text('Tomar foto'),
+              onTap: () => Navigator.pop(ctx, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_rounded),
+              title: const Text('Elegir de galería'),
+              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null) return;
+    final picked = await ImagePicker()
+        .pickImage(source: source, imageQuality: 70, maxWidth: 1600);
+    if (picked == null || !context.mounted) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    String? error;
+    final up = await locator<SubirComprobantePagoUseCase>().call(picked.path);
+    if (up is Success<String>) {
+      final res = await locator<CajaChicaRepository>()
+          .adjuntarComprobante(gastoId: gasto.id, comprobanteUrl: up.data);
+      if (res is Error<void>) error = res.message;
+    } else {
+      error = 'No se pudo subir el comprobante';
+    }
+
+    if (!context.mounted) return;
+    Navigator.of(context).pop(); // cerrar loading
+
+    if (error == null) {
+      SnackBarHelper.showSuccess(context, 'Comprobante adjuntado');
+      context.read<CajaChicaDetailCubit>().reload();
+    } else {
+      SnackBarHelper.showError(context, error);
+    }
+  }
+
+  void _verComprobante(BuildContext context, String url) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ClipRRect(
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(8)),
+              child: InteractiveViewer(
+                child: Image.network(
+                  url,
+                  fit: BoxFit.contain,
+                  loadingBuilder: (c, child, prog) => prog == null
+                      ? child
+                      : const Padding(
+                          padding: EdgeInsets.all(40),
+                          child: Center(child: CircularProgressIndicator()),
+                        ),
+                  errorBuilder: (c, e, s) => const Padding(
+                    padding: EdgeInsets.all(40),
+                    child: Text('No se pudo cargar el comprobante'),
+                  ),
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cerrar'),
+            ),
+          ],
+        ),
       ),
     );
   }

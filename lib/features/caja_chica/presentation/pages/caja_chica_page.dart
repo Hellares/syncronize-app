@@ -102,7 +102,7 @@ class _CajaChicaView extends StatelessWidget {
                     children: [
                       Icon(
                         Icons.account_balance_wallet_rounded,
-                        size: 56,
+                        size: 45,
                         color: AppColors.textSecondary.withValues(alpha: 0.4),
                       ),
                       const SizedBox(height: 12),
@@ -131,7 +131,7 @@ class _CajaChicaView extends StatelessWidget {
                   await context.read<CajaChicaListCubit>().reload();
                 },
                 child: ListView.separated(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(10),
                   itemCount: state.cajasChicas.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 12),
                   itemBuilder: (context, index) {
@@ -185,7 +185,9 @@ class _CajaChicaView extends StatelessWidget {
       },
       borderRadius: BorderRadius.circular(8),
       child: GradientContainer(
-        padding: const EdgeInsets.all(16),
+        borderColor: AppColors.green,
+        borderWidth: 0.6,
+        padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -201,7 +203,7 @@ class _CajaChicaView extends StatelessWidget {
                   child: const Icon(
                     Icons.account_balance_wallet_rounded,
                     color: AppColors.blue1,
-                    size: 24,
+                    size: 18,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -211,14 +213,14 @@ class _CajaChicaView extends StatelessWidget {
                     children: [
                       AppSubtitle(
                         cajaChica.nombre,
-                        fontSize: 15,
+                        fontSize: 11,
                         color: AppColors.blue3,
                       ),
                       const SizedBox(height: 2),
                       Text(
                         cajaChica.sedeNombre,
                         style: const TextStyle(
-                          fontSize: 13,
+                          fontSize: 10,
                           color: AppColors.textSecondary,
                         ),
                       ),
@@ -228,7 +230,7 @@ class _CajaChicaView extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10,
-                    vertical: 4,
+                    vertical: 2.5,
                   ),
                   decoration: BoxDecoration(
                     color: estadoColor.withValues(alpha: 0.1),
@@ -237,7 +239,7 @@ class _CajaChicaView extends StatelessWidget {
                   child: Text(
                     cajaChica.estado.label,
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: 10,
                       fontWeight: FontWeight.w600,
                       color: estadoColor,
                     ),
@@ -254,7 +256,7 @@ class _CajaChicaView extends StatelessWidget {
                 Text(
                   'Saldo: ${currencyFormat.format(cajaChica.saldoActual)}',
                   style: const TextStyle(
-                    fontSize: 14,
+                    fontSize: 12,
                     fontWeight: FontWeight.w700,
                     color: AppColors.textPrimary,
                   ),
@@ -262,7 +264,7 @@ class _CajaChicaView extends StatelessWidget {
                 Text(
                   'Fondo: ${currencyFormat.format(cajaChica.fondoFijo)}',
                   style: const TextStyle(
-                    fontSize: 13,
+                    fontSize: 11,
                     color: AppColors.textSecondary,
                   ),
                 ),
@@ -306,7 +308,7 @@ class _CajaChicaView extends StatelessWidget {
                       const Text(
                         'Fondo bajo',
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: 10,
                           color: Color(0xFFFFA726),
                           fontWeight: FontWeight.w600,
                         ),
@@ -326,7 +328,7 @@ class _CajaChicaView extends StatelessWidget {
                 Text(
                   cajaChica.responsableNombre,
                   style: const TextStyle(
-                    fontSize: 12,
+                    fontSize: 9,
                     color: AppColors.textSecondary,
                   ),
                 ),
