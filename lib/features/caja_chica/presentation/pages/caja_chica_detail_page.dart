@@ -684,33 +684,46 @@ class _CajaChicaDetailView extends StatelessWidget {
   void _verComprobante(BuildContext context, String url) {
     showDialog(
       context: context,
+      barrierColor: Colors.black87,
       builder: (ctx) => Dialog(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+        insetPadding: const EdgeInsets.all(12),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        child: Stack(
+          alignment: Alignment.center,
           children: [
-            ClipRRect(
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(8)),
+            SizedBox(
+              width: double.infinity,
+              height: MediaQuery.of(ctx).size.height * 0.85,
               child: InteractiveViewer(
+                minScale: 0.5,
+                maxScale: 5,
                 child: Image.network(
                   url,
                   fit: BoxFit.contain,
                   loadingBuilder: (c, child, prog) => prog == null
                       ? child
-                      : const Padding(
-                          padding: EdgeInsets.all(40),
-                          child: Center(child: CircularProgressIndicator()),
-                        ),
-                  errorBuilder: (c, e, s) => const Padding(
-                    padding: EdgeInsets.all(40),
-                    child: Text('No se pudo cargar el comprobante'),
+                      : const Center(child: CircularProgressIndicator()),
+                  errorBuilder: (c, e, s) => const Center(
+                    child: Text(
+                      'No se pudo cargar el comprobante',
+                      style: TextStyle(color: Colors.white),
+                    ),
                   ),
                 ),
               ),
             ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cerrar'),
+            Positioned(
+              top: 4,
+              right: 4,
+              child: Material(
+                color: Colors.black54,
+                shape: const CircleBorder(),
+                child: IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white),
+                  onPressed: () => Navigator.pop(ctx),
+                ),
+              ),
             ),
           ],
         ),
