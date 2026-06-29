@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:printing/printing.dart';
 
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -6,8 +8,11 @@ import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/theme/gradient_container.dart';
 import '../../../../core/utils/resource.dart';
 import '../../../../core/widgets/smart_appbar.dart';
+import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
+import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../domain/entities/estado_cuenta_cliente.dart';
 import '../../domain/repositories/cuentas_cobrar_repository.dart';
+import '../services/pdf_estado_cuenta_generator.dart';
 
 /// Estado de cuenta de un cliente: resumen + ventas a crédito + abonos.
 class EstadoCuentaClientePage extends StatefulWidget {
@@ -30,6 +35,7 @@ class _EstadoCuentaClientePageState extends State<EstadoCuentaClientePage> {
   EstadoCuentaCliente? _data;
   String? _error;
   bool _cargando = true;
+  bool _compartiendo = false;
 
   @override
   void initState() {
@@ -76,12 +82,64 @@ class _EstadoCuentaClientePageState extends State<EstadoCuentaClientePage> {
     }
   }
 
+  Future<void> _compartirPdf() async {
+    final data = _data;
+    if (data == null) return;
+    final empresaState = context.read<EmpresaContextCubit>().state;
+    if (empresaState is! EmpresaContextLoaded) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo obtener la empresa')),
+      );
+      return;
+    }
+    final empresa = empresaState.context.empresa;
+    setState(() => _compartiendo = true);
+    try {
+      final bytes = await PdfEstadoCuentaGenerator.generar(
+        estado: data,
+        empresaNombre: empresa.nombre,
+        empresaRuc: empresa.ruc,
+      );
+      final base = (data.cliente.nombre ?? 'cliente')
+          .replaceAll(RegExp(r'[^a-zA-Z0-9]+'), '_');
+      await Printing.sharePdf(bytes: bytes, filename: 'EstadoCuenta_$base.pdf');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al generar PDF: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _compartiendo = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return GradientBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        appBar: const SmartAppBar(title: 'Estado de cuenta'),
+        appBar: SmartAppBar(
+          title: 'Estado de cuenta',
+          actions: _data == null
+              ? null
+              : [
+                  _compartiendo
+                      ? const Padding(
+                          padding: EdgeInsets.all(14),
+                          child: SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        )
+                      : IconButton(
+                          icon: const Icon(Icons.share),
+                          tooltip: 'Compartir PDF',
+                          onPressed: _compartirPdf,
+                        ),
+                ],
+        ),
         body: _cargando
             ? const Center(child: CircularProgressIndicator())
             : _error != null
