@@ -201,8 +201,6 @@ import '../../features/carrito/domain/usecases/get_contador_usecase.dart'
 import '../../features/carrito/domain/usecases/vaciar_carrito_usecase.dart'
     as _i98;
 import '../../features/carrito/presentation/bloc/carrito_cubit.dart' as _i447;
-import '../../features/catalogo/data/datasources/catalogo_local_datasource.dart'
-    as _i15;
 import '../../features/catalogo/data/datasources/catalogo_remote_datasource.dart'
     as _i27;
 import '../../features/catalogo/data/datasources/catalogos_remote_datasource.dart'
@@ -1614,9 +1612,6 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i744.LocalStorageService>(
       () => _i744.LocalStorageService(gh<_i460.SharedPreferences>()),
-    );
-    gh.lazySingleton<_i15.CatalogoLocalDataSource>(
-      () => _i15.CatalogoLocalDataSource(gh<_i744.LocalStorageService>()),
     );
     gh.lazySingleton<_i936.EmpresaLocalDataSource>(
       () => _i936.EmpresaLocalDataSource(gh<_i744.LocalStorageService>()),
