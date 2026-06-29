@@ -952,8 +952,6 @@ import '../../features/producto/data/datasources/plantilla_remote_datasource.dar
     as _i902;
 import '../../features/producto/data/datasources/precio_nivel_remote_datasource.dart'
     as _i872;
-import '../../features/producto/data/datasources/producto_local_datasource.dart'
-    as _i966;
 import '../../features/producto/data/datasources/producto_remote_datasource.dart'
     as _i1047;
 import '../../features/producto/data/datasources/producto_stock_remote_datasource.dart'
@@ -1615,9 +1613,6 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i936.EmpresaLocalDataSource>(
       () => _i936.EmpresaLocalDataSource(gh<_i744.LocalStorageService>()),
-    );
-    gh.lazySingleton<_i966.ProductoLocalDataSource>(
-      () => _i966.ProductoLocalDataSource(gh<_i744.LocalStorageService>()),
     );
     gh.factory<_i322.RefreshTokenInterceptor>(
       () => _i322.RefreshTokenInterceptor(
