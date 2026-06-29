@@ -233,13 +233,13 @@ class _CajaChicaDetailView extends StatelessWidget {
         },
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Header card
               GradientContainer(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(10),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -254,7 +254,7 @@ class _CajaChicaDetailView extends StatelessWidget {
                           child: const Icon(
                             Icons.account_balance_wallet_rounded,
                             color: AppColors.blue1,
-                            size: 24,
+                            size: 18,
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -264,14 +264,14 @@ class _CajaChicaDetailView extends StatelessWidget {
                             children: [
                               AppSubtitle(
                                 cajaChica.nombre,
-                                fontSize: 16,
+                                fontSize: 12,
                                 color: AppColors.blue3,
                               ),
                               const SizedBox(height: 2),
                               Text(
                                 cajaChica.sedeNombre,
                                 style: const TextStyle(
-                                  fontSize: 13,
+                                  fontSize: 10,
                                   color: AppColors.textSecondary,
                                 ),
                               ),
@@ -290,7 +290,7 @@ class _CajaChicaDetailView extends StatelessWidget {
                           child: Text(
                             cajaChica.estado.label,
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: 10,
                               fontWeight: FontWeight.w600,
                               color: estadoColor,
                             ),
@@ -313,6 +313,7 @@ class _CajaChicaDetailView extends StatelessWidget {
                             'Fondo Fijo',
                             currencyFormat.format(cajaChica.fondoFijo),
                             Icons.savings_rounded,
+                            alignEnd: true,
                           ),
                         ),
                       ],
@@ -332,6 +333,7 @@ class _CajaChicaDetailView extends StatelessWidget {
                             'Umbral Alerta',
                             currencyFormat.format(cajaChica.umbralAlerta),
                             Icons.warning_amber_rounded,
+                            alignEnd: true,
                           ),
                         ),
                       ],
@@ -478,34 +480,37 @@ class _CajaChicaDetailView extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoItem(String label, String value, IconData icon) {
+  Widget _buildInfoItem(String label, String value, IconData icon,
+      {bool alignEnd = false}) {
+    final col = Column(
+      crossAxisAlignment:
+          alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 10,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textPrimary,
+          ),
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    );
     return Row(
+      mainAxisAlignment:
+          alignEnd ? MainAxisAlignment.end : MainAxisAlignment.start,
       children: [
         Icon(icon, size: 16, color: AppColors.textSecondary),
         const SizedBox(width: 6),
-        Flexible(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
-        ),
+        alignEnd ? col : Flexible(child: col),
       ],
     );
   }
@@ -521,16 +526,16 @@ class _CajaChicaDetailView extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: GradientContainer(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
         child: Column(
           children: [
-            Icon(icon, color: color, size: 28),
+            Icon(icon, color: color, size: 20),
             const SizedBox(height: 8),
             Text(
               label,
               style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
                 color: color,
               ),
               textAlign: TextAlign.center,
@@ -569,7 +574,7 @@ class _CajaChicaDetailView extends StatelessWidget {
                 Text(
                   gasto.descripcion,
                   style: const TextStyle(
-                    fontSize: 13,
+                    fontSize: 10,
                     fontWeight: FontWeight.w500,
                     color: AppColors.textPrimary,
                   ),
@@ -579,7 +584,7 @@ class _CajaChicaDetailView extends StatelessWidget {
                 Text(
                   '${gasto.categoriaGastoNombre} - ${DateFormatter.formatDateTime(gasto.fechaGasto)}',
                   style: const TextStyle(
-                    fontSize: 11,
+                    fontSize: 10,
                     color: AppColors.textSecondary,
                   ),
                 ),
@@ -589,8 +594,8 @@ class _CajaChicaDetailView extends StatelessWidget {
           Text(
             '- ${currencyFormat.format(gasto.monto)}',
             style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
               color: Color(0xFFF54D85),
             ),
           ),
