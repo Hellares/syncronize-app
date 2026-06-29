@@ -53,7 +53,7 @@ class PdfEstadoCuentaGenerator {
       PdfPartyBuilder.build(
         title: 'CLIENTE',
         fields: [
-          PdfPartyField('Nombre', c.nombre ?? '—'),
+          PdfPartyField('Nombre', c.nombre ?? '-'),
           if (c.documento != null && c.documento!.isNotEmpty)
             PdfPartyField('RUC/DNI', c.documento!),
           PdfPartyField('Tipo', c.tipo == 'EMPRESA' ? 'Empresa' : 'Persona'),
@@ -114,11 +114,11 @@ class PdfEstadoCuentaGenerator {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        pw.Text('VENTAS A CRÉDITO',
+        pw.Text('VENTAS A CREDITO',
             style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)),
         pw.SizedBox(height: 8),
         if (ventas.isEmpty)
-          pw.Text('Sin ventas a crédito',
+          pw.Text('Sin ventas a credito',
               style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey600))
         else
           pw.Table(
@@ -135,7 +135,7 @@ class PdfEstadoCuentaGenerator {
               pw.TableRow(
                 decoration: pw.BoxDecoration(color: primary),
                 children: [
-                  _cell('Código', header: true),
+                  _cell('Codigo', header: true),
                   _cell('Fecha', header: true, align: pw.TextAlign.center),
                   _cell('Vence', header: true, align: pw.TextAlign.center),
                   _cell('Total', header: true, align: pw.TextAlign.right),
@@ -155,7 +155,7 @@ class PdfEstadoCuentaGenerator {
                         align: pw.TextAlign.center),
                     _cell(v.fechaVencimiento != null
                         ? DateFormatter.formatDate(v.fechaVencimiento!)
-                        : '—',
+                        : '-',
                         align: pw.TextAlign.center),
                     _cell(v.total.toStringAsFixed(2), align: pw.TextAlign.right),
                     _cell(v.saldoPendiente.toStringAsFixed(2), align: pw.TextAlign.right),
@@ -173,13 +173,13 @@ class PdfEstadoCuentaGenerator {
     String fuente(String? f) {
       switch (f) {
         case 'TESORERIA':
-          return 'Tesorería';
+          return 'Tesoreria';
         case 'CAJA':
           return 'Caja';
         case 'BANCO':
           return 'Banco';
         default:
-          return f ?? '—';
+          return f ?? '-';
       }
     }
 
@@ -207,7 +207,7 @@ class PdfEstadoCuentaGenerator {
                 decoration: pw.BoxDecoration(color: primary),
                 children: [
                   _cell('Fecha', header: true, align: pw.TextAlign.center),
-                  _cell('Método', header: true),
+                  _cell('Metodo', header: true),
                   _cell('Fuente', header: true),
                   _cell('Venta', header: true),
                   _cell('Monto', header: true, align: pw.TextAlign.right),
@@ -220,11 +220,11 @@ class PdfEstadoCuentaGenerator {
                     color: e.key % 2 == 0 ? PdfColors.white : PdfColors.grey100,
                   ),
                   children: [
-                    _cell(a.fechaPago != null ? DateFormatter.formatDate(a.fechaPago!) : '—',
+                    _cell(a.fechaPago != null ? DateFormatter.formatDate(a.fechaPago!) : '-',
                         align: pw.TextAlign.center),
                     _cell(a.metodoPago),
                     _cell(fuente(a.fuente)),
-                    _cell(a.ventaCodigo ?? '—'),
+                    _cell(a.ventaCodigo ?? '-'),
                     _cell(a.monto.toStringAsFixed(2), align: pw.TextAlign.right),
                   ],
                 );
