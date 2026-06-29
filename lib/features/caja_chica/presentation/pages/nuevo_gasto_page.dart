@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:syncronize/core/di/injection_container.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
@@ -9,6 +11,7 @@ import 'package:syncronize/core/widgets/snack_bar_helper.dart';
 import '../../../../core/utils/resource.dart';
 import '../../../categoria_gasto/domain/entities/categoria_gasto.dart';
 import '../../../categoria_gasto/domain/usecases/get_categorias_gasto_usecase.dart';
+import '../../../cuentas_por_pagar/domain/usecases/comprobante_pago_usecases.dart';
 import '../../domain/entities/gasto_caja_chica.dart';
 import '../../domain/usecases/registrar_gasto_usecase.dart';
 
@@ -29,6 +32,9 @@ class _NuevoGastoPageState extends State<NuevoGastoPage> {
   CategoriaGasto? _selectedCategoria;
   bool _isLoadingCategorias = true;
   bool _isSubmitting = false;
+
+  File? _comprobante;
+  final _picker = ImagePicker();
 
   @override
   void initState() {
@@ -187,6 +193,16 @@ class _NuevoGastoPageState extends State<NuevoGastoPage> {
                     setState(() => _selectedCategoria = value);
                   },
                 ),
+              const SizedBox(height: 24),
+
+              // Comprobante (foto del recibo, opcional)
+              const AppSubtitle(
+                'Comprobante (opcional)',
+                fontSize: 14,
+                color: AppColors.blue3,
+              ),
+              const SizedBox(height: 10),
+              _buildComprobantePicker(),
               const SizedBox(height: 32),
 
               // Submit button
@@ -205,6 +221,91 @@ class _NuevoGastoPageState extends State<NuevoGastoPage> {
         ),
       ),
     );
+  }
+
+  Widget _buildComprobantePicker() {
+    if (_comprobante == null) {
+      return InkWell(
+        onTap: _isSubmitting ? null : _pickComprobante,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            border: Border.all(color: AppColors.blue1.withValues(alpha: 0.4)),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.add_a_photo_rounded, color: AppColors.blue1),
+              const SizedBox(width: 12),
+              const AppSubtitle('Adjuntar foto del comprobante',
+                  fontSize: 13, color: AppColors.blue1),
+            ],
+          ),
+        ),
+      );
+    }
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        border: Border.all(color: AppColors.greendark.withValues(alpha: 0.4)),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.file(_comprobante!,
+                width: 48, height: 48, fit: BoxFit.cover),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: AppSubtitle('Comprobante adjuntado',
+                fontSize: 13, color: AppColors.greendark),
+          ),
+          IconButton(
+            onPressed: _isSubmitting
+                ? null
+                : () => setState(() => _comprobante = null),
+            icon: const Icon(Icons.close, size: 20),
+          ),
+          IconButton(
+            onPressed: _isSubmitting ? null : _pickComprobante,
+            icon: const Icon(Icons.edit, size: 20),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _pickComprobante() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt_rounded),
+              title: const Text('Tomar foto'),
+              onTap: () => Navigator.pop(ctx, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_rounded),
+              title: const Text('Elegir de galería'),
+              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null) return;
+    final picked = await _picker.pickImage(
+      source: source,
+      imageQuality: 70,
+      maxWidth: 1600,
+    );
+    if (picked != null) setState(() => _comprobante = File(picked.path));
   }
 
   Future<void> _registrarGasto() async {
@@ -227,12 +328,29 @@ class _NuevoGastoPageState extends State<NuevoGastoPage> {
 
     setState(() => _isSubmitting = true);
 
+    // Si adjuntó comprobante, súbelo primero para obtener la URL (S3).
+    String? comprobanteUrl;
+    if (_comprobante != null) {
+      final up =
+          await locator<SubirComprobantePagoUseCase>().call(_comprobante!.path);
+      if (!mounted) return;
+      if (up is Success<String>) {
+        comprobanteUrl = up.data;
+      } else {
+        setState(() => _isSubmitting = false);
+        SnackBarHelper.showError(
+            context, 'No se pudo subir el comprobante. Intenta de nuevo.');
+        return;
+      }
+    }
+
     final useCase = locator<RegistrarGastoUseCase>();
     final result = await useCase(
       cajaChicaId: widget.cajaChicaId,
       monto: monto,
       descripcion: _descripcionController.text.trim(),
       categoriaGastoId: _selectedCategoria!.id,
+      comprobanteUrl: comprobanteUrl,
     );
 
     if (!mounted) return;

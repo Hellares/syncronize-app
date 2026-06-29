@@ -9,8 +9,10 @@ import 'package:syncronize/core/utils/date_formatter.dart';
 import 'package:syncronize/core/widgets/custom_button.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import 'package:syncronize/core/widgets/snack_bar_helper.dart';
+import 'package:syncronize/core/utils/resource.dart';
 import '../../domain/entities/caja_chica.dart';
 import '../../domain/entities/gasto_caja_chica.dart';
+import '../../domain/repositories/caja_chica_repository.dart';
 import '../bloc/caja_chica_detail_cubit.dart';
 import '../bloc/caja_chica_detail_state.dart';
 import '../bloc/rendicion_cubit.dart';
@@ -43,6 +45,57 @@ class _CajaChicaDetailView extends StatelessWidget {
 
   const _CajaChicaDetailView({required this.cajaChicaId});
 
+  Future<void> _toggleEstado(BuildContext context, CajaChica caja) async {
+    final isActiva = caja.estado == EstadoCajaChica.activa;
+    final nuevoEstado =
+        isActiva ? EstadoCajaChica.inactiva : EstadoCajaChica.activa;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          isActiva ? 'Desactivar caja chica' : 'Activar caja chica',
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+        ),
+        content: Text(
+          isActiva
+              ? 'El saldo de S/ ${caja.saldoActual.toStringAsFixed(2)} se devolverá a Tesorería y la caja quedará inactiva.'
+              : 'Se re-fondeará la caja chica con S/ ${caja.fondoFijo.toStringAsFixed(2)} desde Tesorería.',
+          style: const TextStyle(fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isActiva ? AppColors.red : AppColors.greendark,
+              foregroundColor: AppColors.white,
+            ),
+            child: Text(isActiva ? 'Desactivar' : 'Activar'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !context.mounted) return;
+    final res = await locator<CajaChicaRepository>()
+        .actualizarEstado(id: caja.id, estado: nuevoEstado.apiValue);
+    if (!context.mounted) return;
+    if (res is Success<void>) {
+      SnackBarHelper.showSuccess(
+        context,
+        isActiva
+            ? 'Caja chica desactivada (saldo devuelto a Tesorería)'
+            : 'Caja chica activada',
+      );
+      context.read<CajaChicaDetailCubit>().reload();
+    } else if (res is Error<void>) {
+      SnackBarHelper.showError(context, res.message);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -50,6 +103,38 @@ class _CajaChicaDetailView extends StatelessWidget {
         title: 'Detalle Caja Chica',
         backgroundColor: AppColors.blue1,
         foregroundColor: AppColors.white,
+        actions: [
+          BlocBuilder<CajaChicaDetailCubit, CajaChicaDetailState>(
+            builder: (context, state) {
+              if (state is! CajaChicaDetailLoaded) {
+                return const SizedBox.shrink();
+              }
+              final caja = state.cajaChica;
+              final isActiva = caja.estado == EstadoCajaChica.activa;
+              return PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert, color: AppColors.white),
+                onSelected: (v) {
+                  if (v == 'toggle') _toggleEstado(context, caja);
+                },
+                itemBuilder: (_) => [
+                  PopupMenuItem(
+                    value: 'toggle',
+                    child: Row(
+                      children: [
+                        Icon(isActiva ? Icons.block : Icons.check_circle,
+                            size: 18,
+                            color:
+                                isActiva ? AppColors.red : AppColors.greendark),
+                        const SizedBox(width: 8),
+                        Text(isActiva ? 'Desactivar' : 'Activar'),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ],
       ),
       body: GradientContainer(
         child: BlocConsumer<CajaChicaDetailCubit, CajaChicaDetailState>(
