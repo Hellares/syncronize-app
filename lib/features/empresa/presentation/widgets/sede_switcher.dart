@@ -35,11 +35,14 @@ class SedeSwitcher extends StatelessWidget {
               .toList(),
           onChanged: (id) {
             if (id == null || id == activa.id) return;
-            final sede = operables.firstWhere(
-              (x) => x.id == id,
-              orElse: () => activa,
-            );
-            context.read<SedeActivaCubit>().setSede(sede);
+            // Buscar sin `firstWhere(orElse:)` para evitar el choque de
+            // covarianza (operables es List<SedeModel> en runtime).
+            for (final s in operables) {
+              if (s.id == id) {
+                context.read<SedeActivaCubit>().setSede(s);
+                break;
+              }
+            }
           },
         );
       },
