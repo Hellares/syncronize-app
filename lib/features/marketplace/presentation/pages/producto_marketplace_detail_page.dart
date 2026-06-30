@@ -565,8 +565,8 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
     );
   }
 
-  /// Tabla tipo Excel para las características: grilla con bordes, columna de
-  /// nombre sombreada (izquierda) y valor (derecha), filas con alto automático.
+  /// Tabla tipo Excel para las características: grilla con bordes, filas
+  /// alternadas (zebra) y alto de fila automático.
   Widget _buildCaracteristicasTable(List<dynamic> atributos) {
     return Table(
       border: TableBorder.all(color: Colors.grey.shade200, width: 1),
@@ -576,26 +576,28 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
       },
       defaultVerticalAlignment: TableCellVerticalAlignment.middle,
       children: [
-        for (final raw in atributos)
+        for (int i = 0; i < atributos.length; i++)
           TableRow(
+            decoration: BoxDecoration(
+              color: i.isEven ? Colors.white : Colors.grey.shade50,
+            ),
             children: [
-              Container(
-                color: Colors.grey.shade50,
+              Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
                 child: Text(
-                  (raw as Map<String, dynamic>)['nombre'] as String? ?? '',
+                  (atributos[i] as Map<String, dynamic>)['nombre'] as String? ?? '',
                   style: TextStyle(
-                    fontSize: 12.5,
+                    fontSize: 10.5,
                     color: Colors.grey.shade700,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
-              Container(
+              Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
                 child: Text(
-                  raw['valor'] as String? ?? '',
-                  style: const TextStyle(fontSize: 12.5, color: Colors.black87),
+                  (atributos[i] as Map<String, dynamic>)['valor'] as String? ?? '',
+                  style: const TextStyle(fontSize: 10.5, color: Colors.black87),
                 ),
               ),
             ],
