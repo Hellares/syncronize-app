@@ -20,12 +20,12 @@ class CuentasCobrarRepositoryImpl implements CuentasCobrarRepository {
   );
 
   @override
-  Future<Resource<List<CuentaPorCobrar>>> listar({String? estado}) async {
+  Future<Resource<List<CuentaPorCobrar>>> listar({String? estado, String? sedeId}) async {
     if (!await _networkInfo.isConnected) {
       return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
     }
     try {
-      final result = await _remoteDataSource.listar(estado: estado);
+      final result = await _remoteDataSource.listar(estado: estado, sedeId: sedeId);
       return Success(result.map((e) => e.toEntity()).toList());
     } catch (e) {
       return _errorHandler.handleException(e, context: 'CuentasCobrar');

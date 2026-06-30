@@ -3,7 +3,7 @@ import '../entities/cuenta_por_cobrar.dart';
 import '../entities/estado_cuenta_cliente.dart';
 
 abstract class CuentasCobrarRepository {
-  Future<Resource<List<CuentaPorCobrar>>> listar({String? estado});
+  Future<Resource<List<CuentaPorCobrar>>> listar({String? estado, String? sedeId});
   Future<Resource<ResumenCuentasCobrar>> getResumen();
 
   /// Registra un abono del cliente sobre una venta a crédito.

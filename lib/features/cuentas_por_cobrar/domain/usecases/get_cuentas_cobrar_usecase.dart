@@ -8,7 +8,7 @@ class GetCuentasCobrarUseCase {
   final CuentasCobrarRepository _repository;
   GetCuentasCobrarUseCase(this._repository);
 
-  Future<Resource<List<CuentaPorCobrar>>> call({String? estado}) {
-    return _repository.listar(estado: estado);
+  Future<Resource<List<CuentaPorCobrar>>> call({String? estado, String? sedeId}) {
+    return _repository.listar(estado: estado, sedeId: sedeId);
   }
 }

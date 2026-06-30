@@ -15,6 +15,7 @@ class MonitorFacturacionRemoteDatasource {
   Future<({List<ComprobanteItemModel> data, int total, int totalPages})> listar({
     String? tipo,
     String? sunatStatus,
+    String? sedeId,
     String? fechaDesde,
     String? fechaHasta,
     String? busqueda,
@@ -27,6 +28,7 @@ class MonitorFacturacionRemoteDatasource {
     };
     if (tipo != null) params['tipo'] = tipo;
     if (sunatStatus != null) params['sunatStatus'] = sunatStatus;
+    if (sedeId != null) params['sedeId'] = sedeId;
     if (fechaDesde != null) params['fechaDesde'] = fechaDesde;
     if (fechaHasta != null) params['fechaHasta'] = fechaHasta;
     if (busqueda != null && busqueda.isNotEmpty) params['busqueda'] = busqueda;

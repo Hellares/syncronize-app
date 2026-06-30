@@ -12,6 +12,8 @@ import 'package:syncronize/core/widgets/smart_appbar.dart';
 import '../../../../core/theme/gradient_container.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
+import '../../../empresa/presentation/bloc/sede_activa/sede_activa_cubit.dart';
+import '../../../empresa/presentation/bloc/sede_activa/sede_activa_state.dart';
 import '../../domain/entities/devolucion_venta.dart';
 import '../bloc/devolucion_list/devolucion_list_cubit.dart';
 import '../bloc/devolucion_list/devolucion_list_state.dart';
@@ -43,13 +45,21 @@ class _DevolucionesVentaPageState extends State<DevolucionesVentaPage> {
   void _load() {
     final state = context.read<EmpresaContextCubit>().state;
     if (state is EmpresaContextLoaded) {
-      context.read<DevolucionListCubit>().load(empresaId: state.context.empresa.id);
+      // Multi-sede: devoluciones SOLO de la sede activa.
+      final sedeId = context.read<SedeActivaCubit>().state.activa?.id;
+      context.read<DevolucionListCubit>().load(
+            empresaId: state.context.empresa.id,
+            sedeId: sedeId,
+          );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return BlocListener<SedeActivaCubit, SedeActivaState>(
+      listenWhen: (p, c) => p.activa?.id != c.activa?.id,
+      listener: (context, _) => _load(),
+      child: Scaffold(
       appBar: SmartAppBar(
         title: 'Devoluciones',
         backgroundColor: AppColors.blue1,
@@ -152,6 +162,7 @@ class _DevolucionesVentaPageState extends State<DevolucionesVentaPage> {
         icon: Icons.add,
         onPressed: () => context.push('/empresa/devoluciones/nueva'),
       ),
+    ),
     );
   }
 

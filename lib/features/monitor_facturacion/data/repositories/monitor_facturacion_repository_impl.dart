@@ -15,6 +15,7 @@ class MonitorFacturacionRepositoryImpl implements MonitorFacturacionRepository {
   Future<Resource<({List<ComprobanteItem> data, int total, int totalPages})>> listar({
     String? tipo,
     String? sunatStatus,
+    String? sedeId,
     String? fechaDesde,
     String? fechaHasta,
     String? busqueda,
@@ -25,6 +26,7 @@ class MonitorFacturacionRepositoryImpl implements MonitorFacturacionRepository {
       final result = await _datasource.listar(
         tipo: tipo,
         sunatStatus: sunatStatus,
+        sedeId: sedeId,
         fechaDesde: fechaDesde,
         fechaHasta: fechaHasta,
         busqueda: busqueda,

@@ -15,16 +15,24 @@ class DevolucionListCubit extends Cubit<DevolucionListState> {
   String? _currentEmpresaId;
   EstadoDevolucion? _filtroEstado;
   String? _searchQuery;
+  String? _filtroSedeId;
 
-  Future<void> load({required String empresaId, EstadoDevolucion? estado, String? search}) async {
+  Future<void> load({
+    required String empresaId,
+    EstadoDevolucion? estado,
+    String? search,
+    String? sedeId,
+  }) async {
     _currentEmpresaId = empresaId;
     _filtroEstado = estado;
     _searchQuery = search;
+    _filtroSedeId = sedeId;
 
     emit(const DevolucionListLoading());
     final result = await _getDevolucionesUseCase(
       estado: estado?.apiValue,
       search: search,
+      sedeId: sedeId,
     );
     if (isClosed) return;
 
@@ -37,16 +45,31 @@ class DevolucionListCubit extends Cubit<DevolucionListState> {
 
   Future<void> reload() async {
     if (_currentEmpresaId == null) return;
-    await load(empresaId: _currentEmpresaId!, estado: _filtroEstado, search: _searchQuery);
+    await load(
+      empresaId: _currentEmpresaId!,
+      estado: _filtroEstado,
+      search: _searchQuery,
+      sedeId: _filtroSedeId,
+    );
   }
 
   Future<void> filterByEstado(EstadoDevolucion? estado) async {
     if (_currentEmpresaId == null) return;
-    await load(empresaId: _currentEmpresaId!, estado: estado, search: _searchQuery);
+    await load(
+      empresaId: _currentEmpresaId!,
+      estado: estado,
+      search: _searchQuery,
+      sedeId: _filtroSedeId,
+    );
   }
 
   Future<void> search(String query) async {
     if (_currentEmpresaId == null) return;
-    await load(empresaId: _currentEmpresaId!, estado: _filtroEstado, search: query.isEmpty ? null : query);
+    await load(
+      empresaId: _currentEmpresaId!,
+      estado: _filtroEstado,
+      search: query.isEmpty ? null : query,
+      sedeId: _filtroSedeId,
+    );
   }
 }

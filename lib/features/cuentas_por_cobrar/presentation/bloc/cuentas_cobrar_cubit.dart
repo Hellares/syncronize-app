@@ -14,6 +14,7 @@ class CuentasCobrarCubit extends Cubit<CuentasCobrarState> {
   final RegistrarAbonoCuentaCobrarUseCase _registrarAbonoUseCase;
 
   String? _filtroEstado;
+  String? _filtroSedeId;
 
   CuentasCobrarCubit(
     this._getCuentasCobrarUseCase,
@@ -21,12 +22,13 @@ class CuentasCobrarCubit extends Cubit<CuentasCobrarState> {
     this._registrarAbonoUseCase,
   ) : super(const CuentasCobrarInitial());
 
-  Future<void> loadCuentas({String? estado}) async {
+  Future<void> loadCuentas({String? estado, String? sedeId}) async {
     _filtroEstado = estado;
+    _filtroSedeId = sedeId;
     emit(const CuentasCobrarLoading());
 
     final results = await Future.wait([
-      _getCuentasCobrarUseCase(estado: estado),
+      _getCuentasCobrarUseCase(estado: estado, sedeId: sedeId),
       _getResumenUseCase(),
     ]);
     if (isClosed) return;
@@ -66,7 +68,7 @@ class CuentasCobrarCubit extends Cubit<CuentasCobrarState> {
       banco: banco,
     );
     if (res is Error<void>) return res.message;
-    await loadCuentas(estado: _filtroEstado);
+    await loadCuentas(estado: _filtroEstado, sedeId: _filtroSedeId);
     return null;
   }
 }

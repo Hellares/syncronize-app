@@ -9,6 +9,8 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/theme/gradient_container.dart';
 import '../../../../core/widgets/smart_appbar.dart';
+import '../../../empresa/presentation/bloc/sede_activa/sede_activa_cubit.dart';
+import '../../../empresa/presentation/bloc/sede_activa/sede_activa_state.dart';
 import '../../domain/entities/cuenta_por_pagar.dart';
 import '../../domain/usecases/get_deuda_por_proveedor_usecase.dart';
 import '../bloc/cuentas_pagar_cubit.dart';
@@ -21,9 +23,16 @@ class CuentasPorPagarPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Multi-sede: CxP SOLO de la sede activa.
+    final sedeId = context.read<SedeActivaCubit>().state.activa?.id;
     return BlocProvider(
-      create: (_) => locator<CuentasPagarCubit>()..loadCuentas(),
-      child: const _CuentasPagarView(),
+      create: (_) => locator<CuentasPagarCubit>()..loadCuentas(sedeId: sedeId),
+      child: BlocListener<SedeActivaCubit, SedeActivaState>(
+        listenWhen: (p, c) => p.activa?.id != c.activa?.id,
+        listener: (context, state) =>
+            context.read<CuentasPagarCubit>().loadCuentas(sedeId: state.activa?.id),
+        child: const _CuentasPagarView(),
+      ),
     );
   }
 }
@@ -37,6 +46,8 @@ class _CuentasPagarView extends StatefulWidget {
 class _CuentasPagarViewState extends State<_CuentasPagarView> {
   String? _filtroEstado;
   String _vista = 'compra'; // 'compra' | 'proveedor'
+  // Sede activa actual: se incluye en cada recarga para no perder el filtro.
+  String? get _sedeId => context.read<SedeActivaCubit>().state.activa?.id;
 
   Future<void> _exportExcel(BuildContext context) async {
     final now = DateTime.now();
@@ -133,7 +144,7 @@ class _CuentasPagarViewState extends State<_CuentasPagarView> {
         }
         if (state is CuentasPagarLoaded) {
           return RefreshIndicator(
-            onRefresh: () => context.read<CuentasPagarCubit>().loadCuentas(estado: _filtroEstado),
+            onRefresh: () => context.read<CuentasPagarCubit>().loadCuentas(estado: _filtroEstado, sedeId: _sedeId),
             color: AppColors.blue1,
             child: ListView(
               padding: const EdgeInsets.all(12),
@@ -274,7 +285,7 @@ class _CuentasPagarViewState extends State<_CuentasPagarView> {
               side: BorderSide(color: isSelected ? AppColors.blue1 : Colors.grey.shade300),
               onSelected: (_) {
                 setState(() => _filtroEstado = f['value']);
-                context.read<CuentasPagarCubit>().loadCuentas(estado: _filtroEstado);
+                context.read<CuentasPagarCubit>().loadCuentas(estado: _filtroEstado, sedeId: _sedeId);
               },
             ),
           );

@@ -10,9 +10,10 @@ class CuentasCobrarRemoteDataSource {
 
   CuentasCobrarRemoteDataSource(this._dioClient);
 
-  Future<List<CuentaCobrarModel>> listar({String? estado}) async {
+  Future<List<CuentaCobrarModel>> listar({String? estado, String? sedeId}) async {
     final queryParams = <String, dynamic>{};
     if (estado != null) queryParams['estado'] = estado;
+    if (sedeId != null) queryParams['sedeId'] = sedeId;
 
     final response = await _dioClient.get(
       _basePath,

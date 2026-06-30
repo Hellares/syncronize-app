@@ -11,6 +11,8 @@ import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/theme/gradient_container.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../../../core/widgets/custom_button.dart';
+import '../../../empresa/presentation/bloc/sede_activa/sede_activa_cubit.dart';
+import '../../../empresa/presentation/bloc/sede_activa/sede_activa_state.dart';
 import '../../domain/entities/cuenta_por_cobrar.dart';
 import '../bloc/cuentas_cobrar_cubit.dart';
 import '../bloc/cuentas_cobrar_state.dart';
@@ -22,9 +24,16 @@ class CuentasPorCobrarPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Multi-sede: CxC SOLO de la sede activa.
+    final sedeId = context.read<SedeActivaCubit>().state.activa?.id;
     return BlocProvider(
-      create: (_) => locator<CuentasCobrarCubit>()..loadCuentas(),
-      child: const _CuentasCobrarView(),
+      create: (_) => locator<CuentasCobrarCubit>()..loadCuentas(sedeId: sedeId),
+      child: BlocListener<SedeActivaCubit, SedeActivaState>(
+        listenWhen: (p, c) => p.activa?.id != c.activa?.id,
+        listener: (context, state) =>
+            context.read<CuentasCobrarCubit>().loadCuentas(sedeId: state.activa?.id),
+        child: const _CuentasCobrarView(),
+      ),
     );
   }
 }
@@ -37,6 +46,8 @@ class _CuentasCobrarView extends StatefulWidget {
 
 class _CuentasCobrarViewState extends State<_CuentasCobrarView> {
   String? _filtroEstado;
+  // Sede activa actual: se incluye en cada recarga para no perder el filtro.
+  String? get _sedeId => context.read<SedeActivaCubit>().state.activa?.id;
 
   Future<void> _exportExcel(BuildContext context) async {
     final now = DateTime.now();
@@ -78,7 +89,7 @@ class _CuentasCobrarViewState extends State<_CuentasCobrarView> {
             }
             if (state is CuentasCobrarLoaded) {
               return RefreshIndicator(
-                onRefresh: () => context.read<CuentasCobrarCubit>().loadCuentas(estado: _filtroEstado),
+                onRefresh: () => context.read<CuentasCobrarCubit>().loadCuentas(estado: _filtroEstado, sedeId: _sedeId),
                 color: AppColors.blue1,
                 child: ListView(
                   padding: const EdgeInsets.all(12),
@@ -105,7 +116,7 @@ class _CuentasCobrarViewState extends State<_CuentasCobrarView> {
                         onTap: () async {
                           await context.push('/empresa/ventas/${c.id}');
                           if (context.mounted) {
-                            context.read<CuentasCobrarCubit>().loadCuentas(estado: _filtroEstado);
+                            context.read<CuentasCobrarCubit>().loadCuentas(estado: _filtroEstado, sedeId: _sedeId);
                           }
                         },
                         child: _CuentaCard(cuenta: c),
@@ -206,7 +217,7 @@ class _CuentasCobrarViewState extends State<_CuentasCobrarView> {
               side: BorderSide(color: isSelected ? AppColors.blue1 : Colors.grey.shade300),
               onSelected: (_) {
                 setState(() => _filtroEstado = f['value']);
-                context.read<CuentasCobrarCubit>().loadCuentas(estado: _filtroEstado);
+                context.read<CuentasCobrarCubit>().loadCuentas(estado: _filtroEstado, sedeId: _sedeId);
               },
             ),
           );

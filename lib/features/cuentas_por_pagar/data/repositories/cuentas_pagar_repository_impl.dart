@@ -19,12 +19,12 @@ class CuentasPagarRepositoryImpl implements CuentasPagarRepository {
   );
 
   @override
-  Future<Resource<List<CuentaPorPagar>>> listar({String? estado, String? proveedorId}) async {
+  Future<Resource<List<CuentaPorPagar>>> listar({String? estado, String? proveedorId, String? sedeId}) async {
     if (!await _networkInfo.isConnected) {
       return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
     }
     try {
-      final result = await _remoteDataSource.listar(estado: estado, proveedorId: proveedorId);
+      final result = await _remoteDataSource.listar(estado: estado, proveedorId: proveedorId, sedeId: sedeId);
       return Success(result.map((e) => e.toEntity()).toList());
     } catch (e) {
       return _errorHandler.handleException(e, context: 'CuentasPagar');

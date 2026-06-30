@@ -8,6 +8,7 @@ class MonitorFacturacionCubit extends Cubit<MonitorFacturacionState> {
 
   String? _filtroTipo;
   String? _filtroSunatStatus;
+  String? _filtroSedeId;
   String? _fechaDesde;
   String? _fechaHasta;
   String? _busqueda;
@@ -22,6 +23,7 @@ class MonitorFacturacionCubit extends Cubit<MonitorFacturacionState> {
     final result = await _repository.listar(
       tipo: _filtroTipo,
       sunatStatus: _filtroSunatStatus,
+      sedeId: _filtroSedeId,
       fechaDesde: _fechaDesde,
       fechaHasta: _fechaHasta,
       busqueda: _busqueda,
@@ -41,6 +43,13 @@ class MonitorFacturacionCubit extends Cubit<MonitorFacturacionState> {
     } else {
       emit(MonitorFacturacionError((result as Error).message));
     }
+  }
+
+  /// Multi-sede: fija la sede activa y recarga. (La dedup la hace el listenWhen
+  /// del BlocListener en la page; acá siempre recargamos para el load inicial.)
+  void setSede(String? sedeId) {
+    _filtroSedeId = sedeId;
+    cargar();
   }
 
   void setFiltroTipo(String? tipo) {

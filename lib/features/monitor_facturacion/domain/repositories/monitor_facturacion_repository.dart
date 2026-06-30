@@ -7,6 +7,7 @@ abstract class MonitorFacturacionRepository {
   Future<Resource<({List<ComprobanteItem> data, int total, int totalPages})>> listar({
     String? tipo,
     String? sunatStatus,
+    String? sedeId,
     String? fechaDesde,
     String? fechaHasta,
     String? busqueda,
