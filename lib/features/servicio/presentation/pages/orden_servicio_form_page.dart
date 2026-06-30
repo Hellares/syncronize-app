@@ -13,6 +13,7 @@ import '../../../../core/widgets/custom_switch_tile.dart';
 import '../../../../core/widgets/date/custom_date.dart';
 import '../../../auth/presentation/widgets/custom_text.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
+import '../../../empresa/presentation/bloc/sede_activa/sede_activa_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_cubit.dart';
 import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_state.dart';
@@ -107,7 +108,9 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
     // Sede de la orden: necesaria para que los adelantos se registren en la
     // caja correcta y para series/correlativos al cobrar.
     _sedeId = empresaState is EmpresaContextLoaded
-        ? (empresaState.context.sedePrincipal?.id ??
+        // Multi-sede: la OS se crea en la SEDE ACTIVA del usuario.
+        ? (context.read<SedeActivaCubit>().state.activa?.id ??
+            empresaState.context.sedePrincipal?.id ??
             (empresaState.context.sedes.isNotEmpty
                 ? empresaState.context.sedes.first.id
                 : null))

@@ -61,6 +61,7 @@ class OrdenServicioFiltros extends Equatable {
   final String? cursor;
   final String? search;
   final String? estado;
+  final String? sedeId;
   final String? tipoServicio;
   final String? prioridad;
   final String? clienteId;
@@ -73,6 +74,7 @@ class OrdenServicioFiltros extends Equatable {
     this.cursor,
     this.search,
     this.estado,
+    this.sedeId,
     this.tipoServicio,
     this.prioridad,
     this.clienteId,
@@ -87,6 +89,7 @@ class OrdenServicioFiltros extends Equatable {
     String? cursor,
     String? search,
     String? estado,
+    String? sedeId,
     String? tipoServicio,
     String? prioridad,
     String? clienteId,
@@ -108,6 +111,7 @@ class OrdenServicioFiltros extends Equatable {
       cursor: clearCursor ? null : (cursor ?? this.cursor),
       search: clearSearch ? null : (search ?? this.search),
       estado: clearEstado ? null : (estado ?? this.estado),
+      sedeId: sedeId ?? this.sedeId,
       tipoServicio: clearTipoServicio ? null : (tipoServicio ?? this.tipoServicio),
       prioridad: clearPrioridad ? null : (prioridad ?? this.prioridad),
       clienteId: clearClienteId ? null : (clienteId ?? this.clienteId),
@@ -123,6 +127,7 @@ class OrdenServicioFiltros extends Equatable {
       if (cursor != null) 'cursor': cursor!,
       if (search != null && search!.isNotEmpty) 'search': search!,
       if (estado != null) 'estado': estado!,
+      if (sedeId != null) 'sedeId': sedeId!,
       if (tipoServicio != null) 'tipoServicio': tipoServicio!,
       if (prioridad != null) 'prioridad': prioridad!,
       if (clienteId != null) 'clienteId': clienteId!,
@@ -133,5 +138,5 @@ class OrdenServicioFiltros extends Equatable {
   }
 
   @override
-  List<Object?> get props => [limit, cursor, search, estado, tipoServicio, prioridad, clienteId, tecnicoId];
+  List<Object?> get props => [limit, cursor, search, estado, sedeId, tipoServicio, prioridad, clienteId, tecnicoId];
 }

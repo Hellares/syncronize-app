@@ -15,6 +15,8 @@ import '../../../../core/widgets/floating_button_icon.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
+import '../../../empresa/presentation/bloc/sede_activa/sede_activa_cubit.dart';
+import '../../../empresa/presentation/bloc/sede_activa/sede_activa_state.dart';
 import '../../../empresa/presentation/widgets/empresa_drawer.dart';
 import '../bloc/orden_servicio_list/orden_servicio_list_cubit.dart';
 import '../bloc/orden_servicio_list/orden_servicio_list_state.dart';
@@ -35,11 +37,33 @@ class OrdenesServicioPage extends StatelessWidget {
         final empresaId = empresaState is EmpresaContextLoaded
             ? empresaState.context.empresa.id
             : '';
+        // Multi-sede: en modo staff la lista filtra por la SEDE ACTIVA. En modo
+        // cliente NO se filtra (el cliente ve sus órdenes de cualquier sede).
+        final sedeId =
+            asCliente ? null : context.read<SedeActivaCubit>().state.activa?.id;
 
         return BlocProvider(
           create: (_) => locator<OrdenServicioListCubit>()
-            ..loadOrdenes(empresaId: empresaId, asCliente: asCliente),
-          child: _OrdenesContent(empresaId: empresaId, asCliente: asCliente),
+            ..loadOrdenes(
+              empresaId: empresaId,
+              asCliente: asCliente,
+              filtros: OrdenServicioFiltros(sedeId: sedeId),
+            ),
+          // El BlocListener va DENTRO del provider para acceder al cubit.
+          child: asCliente
+              ? _OrdenesContent(empresaId: empresaId, asCliente: asCliente)
+              : BlocListener<SedeActivaCubit, SedeActivaState>(
+                  listenWhen: (p, c) => p.activa?.id != c.activa?.id,
+                  listener: (context, state) =>
+                      context.read<OrdenServicioListCubit>().loadOrdenes(
+                            empresaId: empresaId,
+                            asCliente: asCliente,
+                            filtros:
+                                OrdenServicioFiltros(sedeId: state.activa?.id),
+                          ),
+                  child:
+                      _OrdenesContent(empresaId: empresaId, asCliente: asCliente),
+                ),
         );
       },
     );
