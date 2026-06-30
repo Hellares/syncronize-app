@@ -1,3 +1,5 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -741,30 +743,49 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
       child: Stack(
         children: [
           Positioned.fill(child: Container(color: Colors.white)),
-          // La imagen baja de la barra de estado para mostrarse completa, pero el
-          // fondo blanco sí ocupa detrás de ella (los íconos flotan ahí).
-          Padding(
-            padding: EdgeInsets.only(top: topInset),
-            child: PageView.builder(
-              controller: _pageController,
-              itemCount: imagenes.length,
-              onPageChanged: (i) => setState(() => _currentImageIndex = i),
-              itemBuilder: (context, index) {
-                final img = imagenes[index] as Map<String, dynamic>;
-                return CachedNetworkImage(
-                  imageUrl: img['url'] as String? ?? '',
-                  fit: BoxFit.contain,
-                  // Decodificar al ancho de pantalla, no a resolución completa.
-                  memCacheWidth: (mq.size.width * mq.devicePixelRatio).round(),
-                  placeholder: (_, __) => const Center(
-                    child: CircularProgressIndicator(strokeWidth: 2),
+          PageView.builder(
+            controller: _pageController,
+            itemCount: imagenes.length,
+            onPageChanged: (i) => setState(() => _currentImageIndex = i),
+            itemBuilder: (context, index) {
+              final url = (imagenes[index] as Map<String, dynamic>)['url'] as String? ?? '';
+              return Stack(
+                fit: StackFit.expand,
+                children: [
+                  // Fondo: la misma imagen difuminada llena TODO el área (sin
+                  // barras blancas, estilo Temu), incluso bajo la barra de estado.
+                  ImageFiltered(
+                    imageFilter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+                    child: CachedNetworkImage(
+                      imageUrl: url,
+                      fit: BoxFit.cover,
+                      memCacheWidth: 120, // baja resolución: el blur oculta el detalle
+                      placeholder: (_, __) => Container(color: Colors.white),
+                      errorWidget: (_, __, ___) => Container(color: Colors.white),
+                    ),
                   ),
-                  errorWidget: (_, __, ___) => Center(
-                    child: Icon(Icons.broken_image_outlined, size: 64, color: Colors.grey.shade300),
+                  // Velo suave para que el fondo no compita con el producto.
+                  Container(color: Colors.white.withValues(alpha: 0.18)),
+                  // Primer plano: el producto COMPLETO (contain), bajado de la
+                  // barra de estado para que no lo tape el reloj.
+                  Padding(
+                    padding: EdgeInsets.only(top: topInset),
+                    child: CachedNetworkImage(
+                      imageUrl: url,
+                      fit: BoxFit.contain,
+                      // Decodificar al ancho de pantalla, no a resolución completa.
+                      memCacheWidth: (mq.size.width * mq.devicePixelRatio).round(),
+                      placeholder: (_, __) => const Center(
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      errorWidget: (_, __, ___) => Center(
+                        child: Icon(Icons.broken_image_outlined, size: 64, color: Colors.grey.shade300),
+                      ),
+                    ),
                   ),
-                );
-              },
-            ),
+                ],
+              );
+            },
           ),
           // Contador overlay (un solo indicador, estilo Temu)
           if (imagenes.length > 1)
