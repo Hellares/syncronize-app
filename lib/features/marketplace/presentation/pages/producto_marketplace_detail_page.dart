@@ -293,10 +293,12 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
           children: [
             // Galería full-bleed (estilo Temu)
             _buildImageGallery(imagenes),
-            const SizedBox(height: 10),
 
-            // ── Tarjeta principal ──────────────────────────────────────────
-            _card(
+            // ── Tarjeta principal (full-width, estilo Temu) ────────────────
+            Container(
+              width: double.infinity,
+              color: Colors.white,
+              padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
