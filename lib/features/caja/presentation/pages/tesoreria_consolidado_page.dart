@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/network/dio_client.dart';
@@ -278,7 +279,17 @@ class _TesoreriaConsolidadoPageState extends State<TesoreriaConsolidadoPage> {
     final metodos = (b['metodos'] as List<dynamic>? ?? []).cast<String>();
     final moneda = b['moneda']?.toString() ?? 'PEN';
     final recaudado = (b['recaudadoPorMetodo'] as Map<String, dynamic>? ?? {});
-    return GradientContainer(
+    final bancoId = b['id']?.toString();
+    return GestureDetector(
+      // Tocar la card → estado de cuenta (conciliación) del banco.
+      onTap: bancoId == null
+          ? null
+          : () => context.pushNamed(
+                'empresa-conciliacion',
+                pathParameters: {'id': bancoId},
+                extra: {'nombre': b['nombreBanco']?.toString() ?? 'Cuenta'},
+              ),
+      child: GradientContainer(
       margin: const EdgeInsets.only(bottom: 8),
       borderColor: AppColors.blueborder,
       child: Padding(
@@ -299,6 +310,8 @@ class _TesoreriaConsolidadoPageState extends State<TesoreriaConsolidadoPage> {
                 ),
                 Text('${_sim(moneda)} ${_d(b['saldoActual']).toStringAsFixed(2)}',
                     style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                const SizedBox(width: 2),
+                Icon(Icons.chevron_right, size: 16, color: Colors.grey.shade400),
               ],
             ),
             const SizedBox(height: 2),
@@ -342,6 +355,7 @@ class _TesoreriaConsolidadoPageState extends State<TesoreriaConsolidadoPage> {
             ],
           ],
         ),
+      ),
       ),
     );
   }
