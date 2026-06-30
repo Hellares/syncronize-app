@@ -20,6 +20,7 @@ import '../widgets/favorito_button.dart';
 import '../widgets/preguntas_producto_section.dart';
 import '../widgets/opiniones_producto_section.dart';
 import '../widgets/draggable_video_overlay.dart';
+import '../widgets/oferta_countdown_banner.dart';
 import '../../../../core/widgets/floating_button_text.dart';
 
 class ProductoMarketplaceDetailPage extends StatefulWidget {
@@ -253,6 +254,8 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
     final precio = p['precio'] as num?;
     final precioOferta = p['precioOferta'] as num?;
     final enOferta = p['enOferta'] as bool? ?? false;
+    final ofertaFinStr = p['ofertaFin'] as String?;
+    final ofertaFin = ofertaFinStr != null ? DateTime.tryParse(ofertaFinStr) : null;
     final hayStock = p['hayStock'] as bool? ?? false;
     final stockActual = p['stockActual'] as int? ?? 0;
     final categoria = p['categoria'] as String?;
@@ -420,6 +423,10 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
               ),
             ),
 
+            // ── Oferta con cuenta regresiva (antes de la descripción) ──────
+            if (enOferta && ofertaFin != null)
+              OfertaCountdownBanner(fin: ofertaFin),
+
             // ── Descripción ────────────────────────────────────────────────
             if (descripcion != null && descripcion.isNotEmpty)
               _card(
@@ -430,7 +437,7 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
                     const SizedBox(height: 10),
                     Text(
                       descripcion,
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade700, height: 1.6),
+                      style: TextStyle(fontSize: 11, color: Colors.grey.shade700, height: 1.6),
                     ),
                   ],
                 ),
@@ -471,7 +478,7 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
   Widget _sectionTitle(String text) {
     return Text(
       text,
-      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.black87),
+      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.black87),
     );
   }
 
