@@ -1,7 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
-import 'video_http_headers.dart';
+import 'cached_video_controller.dart';
 
 /// Reproductor de video del producto a pantalla completa, con sonido y
 /// controles (play/pausa, barra de progreso). Se abre desde el mini-player
@@ -62,13 +62,10 @@ class _ProductoVideoFullscreenState extends State<ProductoVideoFullscreen>
       return;
     }
 
-    // Fallback: crear un controlador propio desde la red.
+    // Fallback: crear un controlador propio (cache-first: archivo local si ya
+    // está cacheado, si no red + cachea para la próxima).
     _ownsController = true;
-    final headers = await videoAuthHeaders(widget.videoUrl);
-    final c = VideoPlayerController.networkUrl(
-      Uri.parse(widget.videoUrl),
-      httpHeaders: headers,
-    );
+    final c = await buildCachedVideoController(widget.videoUrl);
     _controller = c;
     try {
       await c.initialize();

@@ -2,7 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'producto_video_fullscreen.dart';
-import 'video_http_headers.dart';
+import 'cached_video_controller.dart';
 
 /// Mini-reproductor flotante (estilo Temu) que auto-reproduce el video del
 /// producto en silencio y en loop. Al tocarlo abre el video a pantalla
@@ -53,11 +53,9 @@ class _ProductoVideoFloatingState extends State<ProductoVideoFloating>
 
   Future<void> _init() async {
     try {
-      final headers = await videoAuthHeaders(widget.videoUrl);
-      final c = VideoPlayerController.networkUrl(
-        Uri.parse(widget.videoUrl),
-        httpHeaders: headers,
-      );
+      // Cache-first: si ya está en disco reproduce local (instantáneo), si no
+      // streamea por red y cachea para la próxima. Ver buildCachedVideoController.
+      final c = await buildCachedVideoController(widget.videoUrl);
       _controller = c;
       await c.initialize();
       await c.setVolume(0); // mini siempre muteado
