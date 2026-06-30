@@ -3,11 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:syncronize/core/fonts/app_fonts.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../domain/entities/producto_marketplace.dart';
 import 'favorito_button.dart';
 
 /// Card de producto estilo MercadoLibre para el marketplace
 class ProductoMarketplaceCard extends StatelessWidget {
-  final Map<String, dynamic> producto;
+  final ProductoMarketplace producto;
   final VoidCallback? onTap;
   final bool compact;
 
@@ -20,30 +21,16 @@ class ProductoMarketplaceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final nombre = producto['nombre'] as String? ?? '';
-    final precio = producto['precio'] as num?;
-    final precioOferta = producto['precioOferta'] as num?;
-    final enOferta = producto['enOferta'] as bool? ?? false;
-    final imagen = producto['imagen'] as String?;
-    final marca = producto['marca'] as String?;
-    final empresa = producto['empresa'] as Map<String, dynamic>? ?? {};
-    final empresaNombre = empresa['nombre'] as String? ?? '';
-    final empresaLogo = empresa['logo'] as String?;
-    final telefono = empresa['telefono'] as String?;
-    final ubicacion = empresa['ubicacion'] as String? ?? '';
-    final hayStock = producto['hayStock'] as bool? ?? false;
-    final creadoEn = producto['creadoEn'] as String?;
-    final calificacion = (producto['calificacion'] as num?)?.toDouble();
-    final totalOpiniones = producto['totalOpiniones'] as int? ?? 0;
-    final distancia = (producto['distancia'] as num?)?.toDouble();
+    final empresa = producto.empresa;
+    final precioFinal = producto.precioFinal;
+    final tieneDescuento = producto.tieneDescuento;
+    final descuentoPct = producto.descuentoPct;
 
-    final precioFinal = enOferta && precioOferta != null ? precioOferta : precio;
-    final tieneDescuento = enOferta && precioOferta != null && precio != null;
-    final esNuevo = creadoEn != null &&
-        DateTime.now().difference(DateTime.parse(creadoEn)).inDays <= 2;
-    final descuentoPct = tieneDescuento && precio > 0
-        ? ((1 - precioOferta / precio) * 100).round()
-        : 0;
+    final mq = MediaQuery.of(context);
+    // Decodificar al ancho real de la card (~mitad de pantalla) en vez de a
+    // resolución completa: menos RAM y decode más rápido en listas largas.
+    final imgCacheW = (mq.size.width / 2 * mq.devicePixelRatio).round();
+    final logoCacheW = (14 * mq.devicePixelRatio).round();
 
     return Container(
       decoration: BoxDecoration(
@@ -71,10 +58,11 @@ class ProductoMarketplaceCard extends StatelessWidget {
                   aspectRatio: 1.2,
                   child: Container(
                     color: Colors.grey.shade50,
-                    child: imagen != null
+                    child: producto.imagen != null
                         ? CachedNetworkImage(
-                            imageUrl: imagen,
+                            imageUrl: producto.imagen!,
                             fit: BoxFit.contain,
+                            memCacheWidth: imgCacheW,
                             fadeInDuration: const Duration(milliseconds: 150),
                             placeholder: (_, __) => _buildPlaceholder(),
                             errorWidget: (_, __, ___) => _buildPlaceholder(),
@@ -104,7 +92,7 @@ class ProductoMarketplaceCard extends StatelessWidget {
                     ),
                   ),
                 // Badge agotado o nuevo
-                if (!hayStock)
+                if (!producto.hayStock)
                   Positioned(
                     top: 6,
                     right: 6,
@@ -124,7 +112,7 @@ class ProductoMarketplaceCard extends StatelessWidget {
                       ),
                     ),
                   )
-                else if (esNuevo)
+                else if (producto.esNuevo)
                   Positioned(
                     top: 6,
                     right: 6,
@@ -145,7 +133,7 @@ class ProductoMarketplaceCard extends StatelessWidget {
                     ),
                   ),
                 // Marca badge
-                if (marca != null)
+                if (producto.marca != null)
                   Positioned(
                     bottom: 6,
                     left: 6,
@@ -156,7 +144,7 @@ class ProductoMarketplaceCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
-                        marca,
+                        producto.marca!,
                         style: const TextStyle(
                           fontSize: 8,
                           color: Colors.white,
@@ -177,7 +165,7 @@ class ProductoMarketplaceCard extends StatelessWidget {
                       ),
                       padding: const EdgeInsets.all(4),
                       child: FavoritoButton(
-                        productoId: producto['id'] as String? ?? '',
+                        productoId: producto.id,
                         size: 16,
                       ),
                     ),
@@ -199,7 +187,7 @@ class ProductoMarketplaceCard extends StatelessWidget {
                     if (precioFinal != null) ...[
                       if (tieneDescuento) ...[
                         Text(
-                          'S/ ${precio.toStringAsFixed(2)}',
+                          'S/ ${producto.precio!.toStringAsFixed(2)}',
                           style: TextStyle(
                             fontSize: 11,
                             color: Colors.grey.shade400,
@@ -230,36 +218,26 @@ class ProductoMarketplaceCard extends StatelessWidget {
 
                     const SizedBox(height: 3),
 
-                    // Envío gratis simulado (para productos con stock)
-                    if (hayStock && precioFinal != null && precioFinal > 100)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 4),
-                        child: Text(
-                          'Envío disponible',
-                          style: TextStyle(
-                            fontSize: 9,
-                            color: Colors.green.shade600,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-
                     // Calificación
-                    if (calificacion != null && totalOpiniones > 0)
+                    if (producto.tieneCalificacion)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 3),
                         child: Row(
                           children: [
                             ...List.generate(5, (i) => Icon(
-                                  i < calificacion.floor()
+                                  i < producto.calificacion!.floor()
                                       ? Icons.star
-                                      : (i < calificacion ? Icons.star_half : Icons.star_border),
+                                      : (i < producto.calificacion!
+                                          ? Icons.star_half
+                                          : Icons.star_border),
                                   size: 11,
-                                  color: i < calificacion ? Colors.amber : Colors.grey.shade300,
+                                  color: i < producto.calificacion!
+                                      ? Colors.amber
+                                      : Colors.grey.shade300,
                                 )),
                             const SizedBox(width: 3),
                             Text(
-                              '($totalOpiniones)',
+                              '(${producto.totalOpiniones})',
                               style: TextStyle(fontSize: 9, color: Colors.grey.shade500),
                             ),
                           ],
@@ -269,7 +247,7 @@ class ProductoMarketplaceCard extends StatelessWidget {
                     // Nombre
                     Expanded(
                       child: Text(
-                        nombre,
+                        producto.nombre,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -286,14 +264,15 @@ class ProductoMarketplaceCard extends StatelessWidget {
                     // Empresa con logo
                     Row(
                       children: [
-                        if (empresaLogo != null)
+                        if (empresa.logo != null)
                           ClipRRect(
                             borderRadius: BorderRadius.circular(3),
                             child: CachedNetworkImage(
-                              imageUrl: empresaLogo,
+                              imageUrl: empresa.logo!,
                               width: 14,
                               height: 14,
                               fit: BoxFit.cover,
+                              memCacheWidth: logoCacheW,
                               errorWidget: (_, __, ___) => Icon(
                                 Icons.storefront,
                                 size: 12,
@@ -306,7 +285,7 @@ class ProductoMarketplaceCard extends StatelessWidget {
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
-                            empresaNombre,
+                            empresa.nombre,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
@@ -319,36 +298,37 @@ class ProductoMarketplaceCard extends StatelessWidget {
                       ],
                     ),
 
-                    if (ubicacion.isNotEmpty || distancia != null) ...[
+                    if (empresa.ubicacion.isNotEmpty || producto.distancia != null) ...[
                       const SizedBox(height: 2),
                       Row(
                         children: [
                           Icon(Icons.location_on, size: 10, color: Colors.grey.shade400),
                           const SizedBox(width: 3),
-                          if (distancia != null) ...[
+                          if (producto.distancia != null) ...[
                             Text(
-                              _formatDistance(distancia),
+                              _formatDistance(producto.distancia!),
                               style: TextStyle(
                                 fontSize: 8,
                                 color: Colors.green.shade600,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
-                            if (ubicacion.isNotEmpty)
+                            if (empresa.ubicacion.isNotEmpty)
                               Text(' · ', style: TextStyle(fontSize: 8, color: Colors.grey.shade400)),
                           ],
                           Expanded(
                             child: Text(
-                              ubicacion,
+                              empresa.ubicacion,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(fontSize: 8, color: Colors.grey.shade500),
                             ),
                           ),
                           // Botón WhatsApp
-                          if (telefono != null && telefono.isNotEmpty)
+                          if (empresa.telefono != null && empresa.telefono!.isNotEmpty)
                             GestureDetector(
-                              onTap: () => _openWhatsApp(telefono, nombre, precioFinal, empresaNombre),
+                              onTap: () => _openWhatsApp(
+                                  empresa.telefono!, producto.nombre, precioFinal, empresa.nombre),
                               child: Container(
                                 padding: const EdgeInsets.all(4),
                                 decoration: BoxDecoration(
@@ -364,12 +344,13 @@ class ProductoMarketplaceCard extends StatelessWidget {
                             ),
                         ],
                       ),
-                    ] else if (telefono != null && telefono.isNotEmpty) ...[
+                    ] else if (empresa.telefono != null && empresa.telefono!.isNotEmpty) ...[
                       const SizedBox(height: 4),
                       Align(
                         alignment: Alignment.centerRight,
                         child: GestureDetector(
-                          onTap: () => _openWhatsApp(telefono, nombre, precioFinal, empresaNombre),
+                          onTap: () => _openWhatsApp(
+                              empresa.telefono!, producto.nombre, precioFinal, empresa.nombre),
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(

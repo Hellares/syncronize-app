@@ -16,13 +16,13 @@ class MarketplaceSearchLoading extends MarketplaceSearchState {
 }
 
 class MarketplaceSearchLoaded extends MarketplaceSearchState {
-  final List<dynamic> productos;
+  final List<ProductoMarketplace> productos;
   final int total;
   final int page;
   final int totalPages;
   final String? search;
   final String? categoriaId;
-  final List<dynamic>? categorias;
+  final List<CategoriaMarketplace>? categorias;
 
   const MarketplaceSearchLoaded({
     required this.productos,
@@ -35,13 +35,13 @@ class MarketplaceSearchLoaded extends MarketplaceSearchState {
   });
 
   MarketplaceSearchLoaded copyWith({
-    List<dynamic>? productos,
+    List<ProductoMarketplace>? productos,
     int? total,
     int? page,
     int? totalPages,
     String? search,
     String? categoriaId,
-    List<dynamic>? categorias,
+    List<CategoriaMarketplace>? categorias,
   }) {
     return MarketplaceSearchLoaded(
       productos: productos ?? this.productos,
@@ -57,7 +57,8 @@ class MarketplaceSearchLoaded extends MarketplaceSearchState {
   bool get hasMore => page < totalPages;
 
   @override
-  List<Object?> get props => [productos, total, page, totalPages, search, categoriaId, categorias];
+  List<Object?> get props =>
+      [productos, total, page, totalPages, search, categoriaId, categorias];
 }
 
 class MarketplaceSearchError extends MarketplaceSearchState {

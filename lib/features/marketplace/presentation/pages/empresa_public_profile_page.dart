@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/widgets/floating_button_text.dart';
 import '../../data/datasources/marketplace_remote_datasource.dart';
+import '../../data/models/producto_marketplace_model.dart';
 import '../widgets/producto_marketplace_card.dart';
 
 class EmpresaPublicProfilePage extends StatefulWidget {
@@ -428,7 +429,9 @@ class _EmpresaPublicProfilePageState extends State<EmpresaPublicProfilePage> {
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   itemCount: destacados.length,
                   itemBuilder: (context, index) {
-                    final producto = destacados[index] as Map<String, dynamic>;
+                    final producto = ProductoMarketplaceModel.fromJson(
+                      destacados[index] as Map<String, dynamic>,
+                    ).toEntity();
                     return SizedBox(
                       width: 160,
                       child: Padding(
@@ -436,10 +439,7 @@ class _EmpresaPublicProfilePageState extends State<EmpresaPublicProfilePage> {
                         child: ProductoMarketplaceCard(
                           producto: producto,
                           compact: true,
-                          onTap: () {
-                            final id = producto['id'] as String?;
-                            if (id != null) context.push('/producto-detalle/$id');
-                          },
+                          onTap: () => context.push('/producto-detalle/${producto.id}'),
                         ),
                       ),
                     );
@@ -604,13 +604,12 @@ class _EmpresaPublicProfilePageState extends State<EmpresaPublicProfilePage> {
                     if (index >= _productos.length) {
                       return const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator(strokeWidth: 2)));
                     }
-                    final producto = _productos[index] as Map<String, dynamic>;
+                    final producto = ProductoMarketplaceModel.fromJson(
+                      _productos[index] as Map<String, dynamic>,
+                    ).toEntity();
                     return ProductoMarketplaceCard(
                       producto: producto,
-                      onTap: () {
-                        final id = producto['id'] as String?;
-                        if (id != null) context.push('/producto-detalle/$id');
-                      },
+                      onTap: () => context.push('/producto-detalle/${producto.id}'),
                     );
                   },
                   childCount: _productos.length + (_page < _totalPages ? 1 : 0),

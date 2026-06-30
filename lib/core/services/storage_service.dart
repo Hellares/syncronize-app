@@ -105,11 +105,12 @@ class StorageService {
 
       // Si el archivo es de PRODUCTO, usamos el endpoint reducido que
       // solo exige VIEW_PRODUCTS (vendedor/cajero pueden subir desde
-      // Venta Rápida). El endpoint genérico /storage/upload sigue
-      // requiriendo MANAGE_SETTINGS y se usa para logos de empresa,
-      // sedes, etc.
+      // Venta Rápida). OJO: ese endpoint valida SOLO imágenes, así que
+      // los videos de producto deben ir por el genérico /storage/upload
+      // (requiere MANAGE_SETTINGS, que el form de producto sí tiene).
+      final esVideo = mimeType.startsWith('video/');
       final String endpoint;
-      if (entidadTipo == 'PRODUCTO') {
+      if (entidadTipo == 'PRODUCTO' && !esVideo) {
         endpoint = '/storage/upload-producto-imagen';
       } else if (entidadTipo == 'SERVICIO_COMPONENTE') {
         // Endpoint con permiso MANAGE_ORDERS (técnicos suben evidencia).

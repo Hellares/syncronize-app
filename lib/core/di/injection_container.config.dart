@@ -816,6 +816,22 @@ import '../../features/libro_contable/presentation/bloc/libro_contable_cubit.dar
     as _i763;
 import '../../features/marketplace/data/datasources/marketplace_remote_datasource.dart'
     as _i221;
+import '../../features/marketplace/data/repositories/marketplace_repository_impl.dart'
+    as _i92;
+import '../../features/marketplace/domain/repositories/marketplace_repository.dart'
+    as _i633;
+import '../../features/marketplace/domain/usecases/get_carrito_contador_usecase.dart'
+    as _i510;
+import '../../features/marketplace/domain/usecases/get_categorias_marketplace_usecase.dart'
+    as _i707;
+import '../../features/marketplace/domain/usecases/get_marketplace_home_usecase.dart'
+    as _i302;
+import '../../features/marketplace/domain/usecases/get_productos_vistos_usecase.dart'
+    as _i150;
+import '../../features/marketplace/domain/usecases/get_recomendados_usecase.dart'
+    as _i132;
+import '../../features/marketplace/domain/usecases/search_productos_usecase.dart'
+    as _i384;
 import '../../features/marketplace/presentation/bloc/marketplace_search_cubit.dart'
     as _i40;
 import '../../features/meta_financiera/data/datasources/meta_financiera_remote_datasource.dart'
@@ -2274,10 +2290,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i490.ErrorHandlerService>(),
       ),
     );
-    gh.factory<_i40.MarketplaceSearchCubit>(
-      () =>
-          _i40.MarketplaceSearchCubit(gh<_i221.MarketplaceRemoteDataSource>()),
-    );
     gh.lazySingleton<_i800.SolicitudCotizacionRepository>(
       () => _i161.SolicitudCotizacionRepositoryImpl(
         gh<_i126.SolicitudCotizacionRemoteDataSource>(),
@@ -3136,6 +3148,13 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i305.HorarioPlantillaCubit>(
       () => _i305.HorarioPlantillaCubit(gh<_i795.HorarioRepository>()),
     );
+    gh.lazySingleton<_i633.MarketplaceRepository>(
+      () => _i92.MarketplaceRepositoryImpl(
+        gh<_i221.MarketplaceRemoteDataSource>(),
+        gh<_i932.NetworkInfo>(),
+        gh<_i490.ErrorHandlerService>(),
+      ),
+    );
     gh.factory<_i59.UsuarioFormCubit>(
       () => _i59.UsuarioFormCubit(gh<_i715.RegistrarUsuarioUseCase>()),
     );
@@ -3748,6 +3767,26 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i77.GetConfiguracionMonedaUseCase>(),
       ),
     );
+    gh.factory<_i510.GetCarritoContadorUseCase>(
+      () => _i510.GetCarritoContadorUseCase(gh<_i633.MarketplaceRepository>()),
+    );
+    gh.factory<_i707.GetCategoriasMarketplaceUseCase>(
+      () => _i707.GetCategoriasMarketplaceUseCase(
+        gh<_i633.MarketplaceRepository>(),
+      ),
+    );
+    gh.factory<_i302.GetMarketplaceHomeUseCase>(
+      () => _i302.GetMarketplaceHomeUseCase(gh<_i633.MarketplaceRepository>()),
+    );
+    gh.factory<_i150.GetProductosVistosUseCase>(
+      () => _i150.GetProductosVistosUseCase(gh<_i633.MarketplaceRepository>()),
+    );
+    gh.factory<_i132.GetRecomendadosUseCase>(
+      () => _i132.GetRecomendadosUseCase(gh<_i633.MarketplaceRepository>()),
+    );
+    gh.factory<_i384.SearchProductosUseCase>(
+      () => _i384.SearchProductosUseCase(gh<_i633.MarketplaceRepository>()),
+    );
     gh.factory<_i724.CrearIncidenciaPosteriorCubit>(
       () => _i724.CrearIncidenciaPosteriorCubit(
         gh<_i374.CrearIncidenciaPosteriorUseCase>(),
@@ -3855,6 +3894,12 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i446.ActivarUnidadUseCase>(),
         gh<_i229.DesactivarUnidadUseCase>(),
         gh<_i836.ActivarUnidadesPopularesUseCase>(),
+      ),
+    );
+    gh.factory<_i40.MarketplaceSearchCubit>(
+      () => _i40.MarketplaceSearchCubit(
+        gh<_i384.SearchProductosUseCase>(),
+        gh<_i707.GetCategoriasMarketplaceUseCase>(),
       ),
     );
     gh.factory<_i91.TercerizacionListCubit>(

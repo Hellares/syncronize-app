@@ -2,15 +2,21 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 import '../../../../core/services/location_service.dart';
-import '../../data/datasources/marketplace_remote_datasource.dart';
+import '../../../../core/utils/resource.dart';
+import '../../domain/entities/categoria_marketplace.dart';
+import '../../domain/entities/producto_marketplace.dart';
+import '../../domain/usecases/get_categorias_marketplace_usecase.dart';
+import '../../domain/usecases/search_productos_usecase.dart';
 
 part 'marketplace_search_state.dart';
 
 @injectable
 class MarketplaceSearchCubit extends Cubit<MarketplaceSearchState> {
-  final MarketplaceRemoteDataSource _dataSource;
+  final SearchProductosUseCase _searchProductos;
+  final GetCategoriasMarketplaceUseCase _getCategorias;
 
-  MarketplaceSearchCubit(this._dataSource) : super(const MarketplaceSearchInitial());
+  MarketplaceSearchCubit(this._searchProductos, this._getCategorias)
+      : super(const MarketplaceSearchInitial());
 
   String? _currentSearch;
   String? _currentCategoriaId;
@@ -22,7 +28,7 @@ class MarketplaceSearchCubit extends Cubit<MarketplaceSearchState> {
   double? _currentLat;
   double? _currentLng;
   int _currentPage = 1;
-  List<dynamic>? _categorias;
+  List<CategoriaMarketplace>? _categorias;
 
   // Getters para pre-cargar el sheet de filtros con lo aplicado.
   String? get ordenActual => _currentOrden;
@@ -45,64 +51,63 @@ class MarketplaceSearchCubit extends Cubit<MarketplaceSearchState> {
       emit(const MarketplaceSearchLoading());
     }
 
-    try {
-      // Usar ubicación manual si la hay, si no última posición GPS conocida
-      double? lat = _currentLat;
-      double? lng = _currentLng;
-      if (lat == null || lng == null) {
-        final lastPos = LocationService.lastPosition;
-        lat = lastPos?.latitude;
-        lng = lastPos?.longitude;
-        // Obtener GPS en background para la próxima búsqueda
-        if (lastPos == null) {
-          LocationService.getCurrentLocation();
-        }
+    // Usar ubicación manual si la hay, si no última posición GPS conocida.
+    double? lat = _currentLat;
+    double? lng = _currentLng;
+    if (lat == null || lng == null) {
+      final lastPos = LocationService.lastPosition;
+      lat = lastPos?.latitude;
+      lng = lastPos?.longitude;
+      // Obtener GPS en background para la próxima búsqueda.
+      if (lastPos == null) {
+        LocationService.getCurrentLocation();
       }
+    }
 
-      final result = await _dataSource.searchProductos(
+    final result = await _searchProductos(
+      search: _currentSearch,
+      categoriaId: _currentCategoriaId,
+      marcaId: _currentMarcaId,
+      precioMin: _currentPrecioMin,
+      precioMax: _currentPrecioMax,
+      departamento: _currentDepartamento,
+      orden: _currentOrden,
+      lat: lat,
+      lng: lng,
+      page: page,
+      limit: 20,
+    );
+
+    if (result is Error) {
+      emit(MarketplaceSearchError((result as Error).message));
+      return;
+    }
+
+    final data = (result as Success).data;
+
+    if (page == 1) {
+      emit(MarketplaceSearchLoaded(
+        productos: data.productos,
+        total: data.total,
+        page: data.page,
+        totalPages: data.totalPages,
         search: _currentSearch,
         categoriaId: _currentCategoriaId,
-        marcaId: _currentMarcaId,
-        precioMin: _currentPrecioMin,
-        precioMax: _currentPrecioMax,
-        departamento: _currentDepartamento,
-        orden: _currentOrden,
-        lat: lat,
-        lng: lng,
-        page: page,
-        limit: 20,
-      );
-
-      final productos = (result['data'] as List<dynamic>?) ?? [];
-      final total = result['total'] as int? ?? 0;
-      final totalPages = result['totalPages'] as int? ?? 1;
-
-      if (page == 1) {
+        categorias: _categorias,
+      ));
+    } else {
+      final currentState = state;
+      if (currentState is MarketplaceSearchLoaded) {
         emit(MarketplaceSearchLoaded(
-          productos: productos,
-          total: total,
-          page: page,
-          totalPages: totalPages,
+          productos: [...currentState.productos, ...data.productos],
+          total: data.total,
+          page: data.page,
+          totalPages: data.totalPages,
           search: _currentSearch,
           categoriaId: _currentCategoriaId,
           categorias: _categorias,
         ));
-      } else {
-        final currentState = state;
-        if (currentState is MarketplaceSearchLoaded) {
-          emit(MarketplaceSearchLoaded(
-            productos: [...currentState.productos, ...productos],
-            total: total,
-            page: page,
-            totalPages: totalPages,
-            search: _currentSearch,
-            categoriaId: _currentCategoriaId,
-            categorias: _categorias,
-          ));
-        }
       }
-    } catch (e) {
-      emit(MarketplaceSearchError(e.toString()));
     }
   }
 
@@ -169,13 +174,12 @@ class MarketplaceSearchCubit extends Cubit<MarketplaceSearchState> {
   }
 
   Future<void> loadCategorias() async {
-    try {
-      final categorias = await _dataSource.getCategorias();
-      _categorias = categorias;
+    final result = await _getCategorias();
+    if (result is! Success<List<CategoriaMarketplace>>) return;
+    _categorias = result.data;
 
-      if (state is MarketplaceSearchLoaded) {
-        emit((state as MarketplaceSearchLoaded).copyWith(categorias: categorias));
-      }
-    } catch (_) {}
+    if (state is MarketplaceSearchLoaded) {
+      emit((state as MarketplaceSearchLoaded).copyWith(categorias: result.data));
+    }
   }
 }

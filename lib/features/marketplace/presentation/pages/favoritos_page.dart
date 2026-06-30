@@ -5,6 +5,7 @@ import '../../../../core/di/injection_container.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/widgets/smart_appbar.dart';
+import '../../data/models/producto_marketplace_model.dart';
 import '../widgets/producto_marketplace_card.dart';
 
 class FavoritosPage extends StatefulWidget {
@@ -79,10 +80,13 @@ class _FavoritosPageState extends State<FavoritosPage> {
                       ),
                       itemCount: _productos.length,
                       itemBuilder: (_, index) {
+                        final producto = ProductoMarketplaceModel.fromJson(
+                          _productos[index] as Map<String, dynamic>,
+                        ).toEntity();
                         return ProductoMarketplaceCard(
-                          producto: _productos[index],
+                          producto: producto,
                           onTap: () async {
-                            await context.push('/producto-detalle/${_productos[index]['id']}');
+                            await context.push('/producto-detalle/${producto.id}');
                             _loadFavoritos();
                           },
                         );

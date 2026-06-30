@@ -1,6 +1,10 @@
 import 'package:injectable/injectable.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/network/dio_client.dart';
+import '../models/categoria_marketplace_model.dart';
+import '../models/marketplace_home_model.dart';
+import '../models/producto_marketplace_model.dart';
+import '../models/productos_paginados_model.dart';
 
 @lazySingleton
 class MarketplaceRemoteDataSource {
@@ -9,7 +13,7 @@ class MarketplaceRemoteDataSource {
   MarketplaceRemoteDataSource(this._dioClient);
 
   /// GET /marketplace/productos
-  Future<Map<String, dynamic>> searchProductos({
+  Future<ProductosPaginadosModel> searchProductos({
     String? search,
     String? categoriaId,
     String? marcaId,
@@ -40,7 +44,53 @@ class MarketplaceRemoteDataSource {
       ApiConstants.marketplaceProductos,
       queryParameters: params,
     );
-    return response.data as Map<String, dynamic>;
+    return ProductosPaginadosModel.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  /// GET /marketplace/categorias
+  Future<List<CategoriaMarketplaceModel>> getCategorias() async {
+    final response = await _dioClient.get(ApiConstants.marketplaceCategorias);
+    final data = response.data as List<dynamic>? ?? const [];
+    return data
+        .map((e) => CategoriaMarketplaceModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// GET /marketplace/home
+  Future<MarketplaceHomeModel> getHome() async {
+    final response = await _dioClient.get('/marketplace/home');
+    return MarketplaceHomeModel.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  /// GET /marketplace/usuario/vistos
+  Future<List<ProductoMarketplaceModel>> getVistos({int limit = 10}) async {
+    final response = await _dioClient.get(
+      '${ApiConstants.marketplaceUsuario}/vistos',
+      queryParameters: {'limit': '$limit'},
+    );
+    final data = response.data as List<dynamic>? ?? const [];
+    return data
+        .map((e) => ProductoMarketplaceModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// GET /marketplace/usuario/recomendados
+  Future<List<ProductoMarketplaceModel>> getRecomendados({int limit = 12}) async {
+    final response = await _dioClient.get(
+      '${ApiConstants.marketplaceUsuario}/recomendados',
+      queryParameters: {'limit': '$limit'},
+    );
+    final data = response.data as Map<String, dynamic>;
+    final recomendados = data['recomendados'] as List<dynamic>? ?? const [];
+    return recomendados
+        .map((e) => ProductoMarketplaceModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// GET /marketplace/carrito/contador
+  Future<int> getCarritoContador() async {
+    final response = await _dioClient.get('/marketplace/carrito/contador');
+    return (response.data['totalCantidad'] as int?) ?? 0;
   }
 
   /// GET /marketplace/productos/:id
@@ -49,12 +99,6 @@ class MarketplaceRemoteDataSource {
       '${ApiConstants.marketplaceProductos}/$id',
     );
     return response.data as Map<String, dynamic>;
-  }
-
-  /// GET /marketplace/categorias
-  Future<List<dynamic>> getCategorias() async {
-    final response = await _dioClient.get(ApiConstants.marketplaceCategorias);
-    return response.data as List<dynamic>;
   }
 
   /// GET /marketplace/empresas/:subdominio

@@ -6,6 +6,7 @@ import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/app_gradients.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/services/storage_service.dart';
+import 'package:syncronize/features/marketplace/presentation/widgets/video_http_headers.dart';
 import 'package:video_player/video_player.dart';
 
 /// Widget para gestionar video de producto
@@ -63,16 +64,31 @@ class _ProductoVideoManagerState extends State<ProductoVideoManager> {
   }
 
   Future<void> _initializeVideoPlayer(String url) async {
-    _videoController?.dispose();
-
-    if (url.startsWith('http')) {
-      _videoController = VideoPlayerController.networkUrl(Uri.parse(url));
-    } else {
+    if (!url.startsWith('http')) {
+      final old = _videoController;
+      _videoController = null;
+      old?.dispose();
       return;
     }
 
+    // Headers (Bearer + tenant) SOLO si el video lo sirve nuestro backend; para
+    // URLs de storage devuelve vacío (Contabo rechaza un Authorization ajeno
+    // con 400). Se calcula ANTES de liberar el controlador viejo para no dejar
+    // `_videoController` apuntando a uno ya disposed durante el await (un
+    // rebuild en esa ventana construiría VideoPlayer con él → crash).
+    final headers = await videoAuthHeaders(url);
+    if (!mounted) return;
+
+    final old = _videoController;
+    final controller = VideoPlayerController.networkUrl(
+      Uri.parse(url),
+      httpHeaders: headers,
+    );
+    _videoController = controller;
+    old?.dispose();
+
     try {
-      await _videoController!.initialize();
+      await controller.initialize();
       if (mounted) {
         setState(() {});
       }
@@ -110,9 +126,11 @@ class _ProductoVideoManagerState extends State<ProductoVideoManager> {
       });
 
       // Inicializar preview del video local
-      _videoController?.dispose();
-      _videoController = VideoPlayerController.file(file);
-      await _videoController!.initialize();
+      final old = _videoController;
+      final controller = VideoPlayerController.file(file);
+      _videoController = controller;
+      old?.dispose();
+      await controller.initialize();
       if (mounted) {
         setState(() {});
       }

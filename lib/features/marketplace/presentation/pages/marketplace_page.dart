@@ -5,12 +5,18 @@ import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/di/injection_container.dart';
-import '../../../../core/network/dio_client.dart';
 import '../../../../core/storage/local_storage_service.dart';
 import '../../../../core/storage/secure_storage_service.dart';
-import '../../../../core/constants/api_constants.dart';
 import '../../../../core/constants/storage_constants.dart';
+import '../../../../core/utils/resource.dart';
 import '../../../../core/widgets/custom_search_field.dart';
+import '../../domain/entities/categoria_marketplace.dart';
+import '../../domain/entities/marketplace_home.dart';
+import '../../domain/entities/producto_marketplace.dart';
+import '../../domain/usecases/get_carrito_contador_usecase.dart';
+import '../../domain/usecases/get_marketplace_home_usecase.dart';
+import '../../domain/usecases/get_productos_vistos_usecase.dart';
+import '../../domain/usecases/get_recomendados_usecase.dart';
 import '../bloc/marketplace_search_cubit.dart';
 import '../widgets/marketplace_drawer.dart';
 import '../widgets/producto_marketplace_card.dart';
@@ -49,16 +55,23 @@ class _MarketplaceView extends StatefulWidget {
 class _MarketplaceViewState extends State<_MarketplaceView> {
   final _searchController = TextEditingController();
   final _scrollController = ScrollController();
+  final _getHome = locator<GetMarketplaceHomeUseCase>();
+  final _getVistos = locator<GetProductosVistosUseCase>();
+  final _getRecomendados = locator<GetRecomendadosUseCase>();
+  final _getCarritoContador = locator<GetCarritoContadorUseCase>();
   String? _selectedCategoriaId;
   double? _ubicacionLat;
   double? _ubicacionLng;
   String? _ubicacionLabel;
-  List<dynamic> _vistos = [];
-  List<dynamic> _recomendados = [];
-  List<dynamic> _ofertas = [];
-  List<dynamic> _masVistos = [];
-  List<dynamic> _masVendidos = [];
+  List<ProductoMarketplace> _vistos = [];
+  List<ProductoMarketplace> _recomendados = [];
+  List<ProductoMarketplace> _ofertas = [];
+  List<ProductoMarketplace> _masVistos = [];
+  List<ProductoMarketplace> _masVendidos = [];
   int _carritoCount = 0;
+
+  /// URLs ya precargadas, para no relanzar precache en cada rebuild de la grilla.
+  final Set<String> _prefetchedImages = {};
 
   @override
   void initState() {
@@ -83,19 +96,39 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
     }
   }
 
-  Future<void> _loadCarritoCount() async {
-    try {
-      final secureStorage = locator<SecureStorageService>();
-      final token = await secureStorage.read(key: StorageConstants.accessToken);
-      if (token == null || token.isEmpty) return;
+  /// Precarga (descarga + decode) las imágenes de las próximas cards para que
+  /// al hacer scroll ya estén en cache y aparezcan al instante. Se llama al
+  /// construir cada card; el [_prefetchedImages] evita relanzarlo por rebuild.
+  void _prefetchUpcoming(
+    BuildContext context,
+    List<ProductoMarketplace> productos,
+    int index,
+  ) {
+    const ahead = 4;
+    final mq = MediaQuery.of(context);
+    final cacheW = (mq.size.width / 2 * mq.devicePixelRatio).round();
+    for (var i = index + 1; i <= index + ahead && i < productos.length; i++) {
+      final url = productos[i].imagen;
+      if (url == null || url.isEmpty || !_prefetchedImages.add(url)) continue;
+      precacheImage(
+        CachedNetworkImageProvider(url, maxWidth: cacheW),
+        context,
+      ).catchError((_) {
+        // Si falla la precarga, la card la reintentará al construirse.
+        _prefetchedImages.remove(url);
+      });
+    }
+  }
 
-      final response = await locator<DioClient>().get('/marketplace/carrito/contador');
-      if (mounted) {
-        setState(() {
-          _carritoCount = (response.data['totalCantidad'] as int?) ?? 0;
-        });
-      }
-    } catch (_) {}
+  Future<void> _loadCarritoCount() async {
+    final secureStorage = locator<SecureStorageService>();
+    final token = await secureStorage.read(key: StorageConstants.accessToken);
+    if (token == null || token.isEmpty) return;
+
+    final result = await _getCarritoContador();
+    if (result is Success<int> && mounted) {
+      setState(() => _carritoCount = result.data);
+    }
   }
 
   void _onSearch(String query) {
@@ -143,16 +176,14 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
 
   /// Carga las secciones del home (ofertas, más vistos). Público, sin auth.
   Future<void> _loadHome() async {
-    try {
-      final response = await locator<DioClient>().get('/marketplace/home');
-      if (!mounted) return;
-      final data = response.data as Map<String, dynamic>;
-      setState(() {
-        _ofertas = (data['ofertas'] as List?) ?? [];
-        _masVendidos = (data['masVendidos'] as List?) ?? [];
-        _masVistos = (data['masVistos'] as List?) ?? [];
-      });
-    } catch (_) {}
+    final result = await _getHome();
+    if (result is! Success<MarketplaceHome> || !mounted) return;
+    final home = result.data;
+    setState(() {
+      _ofertas = home.ofertas;
+      _masVendidos = home.masVendidos;
+      _masVistos = home.masVistos;
+    });
   }
 
   Future<void> _loadUserData() async {
@@ -161,25 +192,16 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
     if (token == null || token.isEmpty) return;
 
     FavoritoButton.loadFavoritos();
-    final dio = locator<DioClient>();
-    try {
-      final response = await dio.get(
-        '${ApiConstants.marketplaceUsuario}/vistos',
-        queryParameters: {'limit': '10'},
-      );
-      if (mounted) setState(() => _vistos = response.data as List);
-    } catch (_) {}
+
+    final vistos = await _getVistos(limit: 10);
+    if (vistos is Success<List<ProductoMarketplace>> && mounted) {
+      setState(() => _vistos = vistos.data);
+    }
     // Recomendados por historial de navegación (sección "Recomendados para ti").
-    try {
-      final response = await dio.get(
-        '${ApiConstants.marketplaceUsuario}/recomendados',
-        queryParameters: {'limit': '12'},
-      );
-      final data = response.data as Map<String, dynamic>;
-      if (mounted) {
-        setState(() => _recomendados = (data['recomendados'] as List?) ?? []);
-      }
-    } catch (_) {}
+    final recomendados = await _getRecomendados(limit: 12);
+    if (recomendados is Success<List<ProductoMarketplace>> && mounted) {
+      setState(() => _recomendados = recomendados.data);
+    }
   }
 
   void _onCategoriaSelected(String? categoriaId) {
@@ -628,16 +650,14 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
                         ),
                         delegate: SliverChildBuilderDelegate(
                           (context, index) {
-                            final producto =
-                                state.productos[index] as Map<String, dynamic>;
+                            final producto = state.productos[index];
+                            // Head-start: precargar imágenes de las próximas cards.
+                            _prefetchUpcoming(context, state.productos, index);
                             return ProductoMarketplaceCard(
                               producto: producto,
                               onTap: () async {
-                                final id = producto['id'] as String?;
-                                if (id != null) {
-                                  await context.push('/producto-detalle/$id');
-                                  _loadCarritoCount();
-                                }
+                                await context.push('/producto-detalle/${producto.id}');
+                                _loadCarritoCount();
                               },
                             );
                           },
@@ -689,7 +709,7 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
                (curr is MarketplaceSearchLoaded ? curr.categoriaId : null);
       },
       builder: (context, state) {
-        List<dynamic> categorias = [];
+        List<CategoriaMarketplace> categorias = [];
         if (state is MarketplaceSearchLoaded && state.categorias != null) {
           categorias = state.categorias!;
         }
@@ -713,10 +733,10 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
                 label = 'Todas';
                 onTap = () => _onCategoriaSelected(null);
               } else {
-                final cat = categorias[index - 1] as Map<String, dynamic>;
-                final catId = cat['id'] as String;
+                final cat = categorias[index - 1];
+                final catId = cat.id;
                 isSelected = _selectedCategoriaId == catId;
-                label = cat['nombre'] as String? ?? '';
+                label = cat.nombre;
                 onTap = () => _onCategoriaSelected(isSelected ? null : catId);
               }
 
@@ -757,7 +777,7 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
   /// (Ofertas, Lo más visto). Reusa el card del carrusel de "vistos".
   Widget _buildSeccionCarrusel(
     String titulo,
-    List<dynamic> items, {
+    List<ProductoMarketplace> items, {
     Color? acento,
   }) {
     return Container(
@@ -795,18 +815,15 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
               itemCount: items.length,
               separatorBuilder: (_, __) => const SizedBox(width: 8),
               itemBuilder: (_, index) {
-                final v = items[index] as Map<String, dynamic>;
-                final nombre = v['nombre'] as String? ?? '';
-                final imagen = v['imagen'] as String?;
-                final precio = v['precio'] as num?;
-                final precioOferta = v['precioOferta'] as num?;
-                final enOferta = v['enOferta'] as bool? ?? false;
-                final precioFinal =
-                    enOferta && precioOferta != null ? precioOferta : precio;
+                final v = items[index];
+                final nombre = v.nombre;
+                final imagen = v.imagen;
+                final enOferta = v.enOferta;
+                final precioFinal = v.precioFinal;
 
                 return GestureDetector(
                   onTap: () async {
-                    await context.push('/producto-detalle/${v['id']}');
+                    await context.push('/producto-detalle/${v.id}');
                     _loadHome();
                     _loadCarritoCount();
                   },
@@ -927,16 +944,14 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
               separatorBuilder: (_, __) => const SizedBox(width: 8),
               itemBuilder: (_, index) {
                 final v = _vistos[index];
-                final nombre = v['nombre'] as String? ?? '';
-                final imagen = v['imagen'] as String?;
-                final precio = v['precio'] as num?;
-                final precioOferta = v['precioOferta'] as num?;
-                final enOferta = v['enOferta'] as bool? ?? false;
-                final precioFinal = enOferta && precioOferta != null ? precioOferta : precio;
+                final nombre = v.nombre;
+                final imagen = v.imagen;
+                final enOferta = v.enOferta;
+                final precioFinal = v.precioFinal;
 
                 return GestureDetector(
                   onTap: () async {
-                    await context.push('/producto-detalle/${v['id']}');
+                    await context.push('/producto-detalle/${v.id}');
                     _loadUserData();
                     _loadCarritoCount();
                   },

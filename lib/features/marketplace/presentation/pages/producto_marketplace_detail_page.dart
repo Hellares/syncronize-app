@@ -16,6 +16,7 @@ import '../../data/datasources/marketplace_remote_datasource.dart';
 import '../widgets/favorito_button.dart';
 import '../widgets/preguntas_producto_section.dart';
 import '../widgets/opiniones_producto_section.dart';
+import '../widgets/draggable_video_overlay.dart';
 import '../../../../core/widgets/floating_button_text.dart';
 
 class ProductoMarketplaceDetailPage extends StatefulWidget {
@@ -33,6 +34,7 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
   bool _isLoading = true;
   String? _error;
   int _currentImageIndex = 0;
+  bool _videoDismissed = false;
   final _pageController = PageController();
 
   @override
@@ -106,7 +108,7 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
           ? CustomLoading.small(message: 'Cargando...')
           : _error != null
               ? _buildError()
-              : _buildContent(),
+              : _buildContentWithVideo(),
       bottomNavigationBar: _producto != null && !_isLoading ? _buildBottomBar() : null,
     );
   }
@@ -127,6 +129,33 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
           ),
         ],
       ),
+    );
+  }
+
+  /// Contenido del producto con el mini-reproductor de video flotante (si el
+  /// producto tiene `videoUrl` y el usuario no lo descartó). El arrastre vive
+  /// en [DraggableVideoOverlay] para no reconstruir toda la página al mover el
+  /// PiP (de ahí que el arrastre sea fluido).
+  Widget _buildContentWithVideo() {
+    final videoUrl = (_producto?['videoUrl'] as String?)?.trim();
+    final mostrarVideo =
+        videoUrl != null && videoUrl.isNotEmpty && !_videoDismissed;
+
+    if (!mostrarVideo) return _buildContent();
+
+    final posterUrl = (_producto?['videoThumbnailUrl'] as String?)?.trim();
+
+    return Stack(
+      children: [
+        _buildContent(),
+        Positioned.fill(
+          child: DraggableVideoOverlay(
+            videoUrl: videoUrl,
+            posterUrl: posterUrl,
+            onClose: () => setState(() => _videoDismissed = true),
+          ),
+        ),
+      ],
     );
   }
 
@@ -508,11 +537,14 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
               onPageChanged: (i) => setState(() => _currentImageIndex = i),
               itemBuilder: (context, index) {
                 final img = imagenes[index] as Map<String, dynamic>;
+                final mq = MediaQuery.of(context);
                 return Padding(
                   padding: const EdgeInsets.all(16),
                   child: CachedNetworkImage(
                     imageUrl: img['url'] as String? ?? '',
                     fit: BoxFit.contain,
+                    // Decodificar al ancho de pantalla, no a resolución completa.
+                    memCacheWidth: (mq.size.width * mq.devicePixelRatio).round(),
                     placeholder: (_, __) => const Center(
                       child: CircularProgressIndicator(),
                     ),
@@ -583,6 +615,8 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
                         child: CachedNetworkImage(
                           imageUrl: (img['thumbnail'] ?? img['url']) as String? ?? '',
                           fit: BoxFit.cover,
+                          // Miniatura 44px → decodificar pequeño, no a tamaño real.
+                          memCacheWidth: (44 * MediaQuery.of(context).devicePixelRatio).round(),
                           placeholder: (_, __) => const SizedBox.shrink(),
                           errorWidget: (_, __, ___) => Icon(Icons.image, size: 16, color: Colors.grey.shade300),
                         ),
