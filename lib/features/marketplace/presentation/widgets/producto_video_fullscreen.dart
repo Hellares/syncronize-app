@@ -50,6 +50,10 @@ class _ProductoVideoFullscreenState extends State<ProductoVideoFullscreen>
   }
 
   Future<void> _init() async {
+    // Abrir fullscreen = intención clara → cachear el video a disco para
+    // revisitas (fire-and-forget, idempotente). Aplica reuse o controlador propio.
+    prefetchVideoToCache(widget.videoUrl);
+
     // Reusar el controlador del mini si vino inicializado.
     final shared = widget.sharedController;
     if (shared != null && shared.value.isInitialized) {

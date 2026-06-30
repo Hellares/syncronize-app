@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
@@ -41,6 +43,10 @@ class _ProductoVideoFloatingState extends State<ProductoVideoFloating>
   /// por el volumen/reproducción al volver de segundo plano.
   bool _inFullscreen = false;
 
+  /// Dispara el cacheo a disco recién tras unos segundos de reproducción real,
+  /// para NO bajar (ni pagar egress de) los videos que el usuario solo scrollea.
+  Timer? _cacheTimer;
+
   static const double _w = ProductoVideoFloating.width;
   static const double _h = ProductoVideoFloating.height;
 
@@ -62,6 +68,12 @@ class _ProductoVideoFloatingState extends State<ProductoVideoFloating>
       await c.setLooping(true);
       await c.play();
       if (mounted) setState(() => _ready = true);
+
+      // Intención: si el mini sigue vivo tras 3s (no fue un scroll de paso),
+      // cacheamos el video a disco para revisitas instantáneas.
+      _cacheTimer = Timer(const Duration(seconds: 3), () {
+        if (mounted) prefetchVideoToCache(widget.videoUrl);
+      });
     } catch (e) {
       if (mounted) setState(() => _failed = true);
     }
@@ -69,6 +81,7 @@ class _ProductoVideoFloatingState extends State<ProductoVideoFloating>
 
   @override
   void dispose() {
+    _cacheTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _controller?.dispose();
     super.dispose();
