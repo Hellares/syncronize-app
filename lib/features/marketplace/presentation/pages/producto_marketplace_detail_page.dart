@@ -715,7 +715,7 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
   Widget _buildImageGallery(List<dynamic> imagenes) {
     final mq = MediaQuery.of(context);
     final topInset = mq.padding.top; // alto de la barra de estado
-    final h = mq.size.height * 0.42; // ~40% de la pantalla
+    final h = mq.size.height * 0.56; // hero grande como Temu (~55-60%)
 
     if (imagenes.isEmpty) {
       return Container(
