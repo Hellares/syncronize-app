@@ -10,6 +10,9 @@ import '../../../../core/widgets/styled_dialog.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/di/injection_container.dart';
+import '../bloc/sede_activa/sede_activa_cubit.dart';
+import '../bloc/sede_activa/sede_activa_state.dart';
+import '../widgets/sede_switcher.dart';
 import '../../../../core/utils/resource.dart';
 import '../../../auth/presentation/bloc/auth/auth_bloc.dart';
 import '../../../tercerizacion/domain/entities/tercerizacion.dart';
@@ -303,6 +306,25 @@ class _EmpresaDashboardPageState extends State<EmpresaDashboardPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Selector de SEDE ACTIVA — solo si el usuario opera >1 sede.
+                BlocBuilder<SedeActivaCubit, SedeActivaState>(
+                  builder: (context, s) {
+                    if (!s.puedeElegir) return const SizedBox.shrink();
+                    return Padding(
+                      padding: const EdgeInsets.only(left: 4, bottom: 8, top: 2),
+                      child: Row(
+                        children: [
+                          Text('Sede:',
+                              style: TextStyle(
+                                  fontSize: 12, color: Colors.grey.shade600)),
+                          const SizedBox(width: 8),
+                          const Flexible(child: SedeSwitcher()),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+
                 // Banner de suscripción vencida (siempre visible)
                 SuscripcionBanner(empresa: empresaContext.empresa),
 

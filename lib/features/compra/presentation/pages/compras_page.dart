@@ -7,6 +7,8 @@ import 'package:syncronize/core/widgets/custom_search_field.dart';
 import 'package:syncronize/core/widgets/floating_button_text.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../empresa/presentation/bloc/sede_activa/sede_activa_cubit.dart';
+import '../../../empresa/presentation/bloc/sede_activa/sede_activa_state.dart';
 import '../bloc/compra_list/compra_list_cubit.dart';
 import '../bloc/compra_list/compra_list_state.dart';
 import '../widgets/compra_list_tile.dart';
@@ -21,11 +23,18 @@ class ComprasPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Multi-sede: compras SOLO de la sede activa.
+    final sedeId = context.read<SedeActivaCubit>().state.activa?.id;
     return BlocProvider(
       create: (_) => locator<CompraListCubit>()
-        ..loadCompras(empresaId: empresaId),
+        ..loadCompras(empresaId: empresaId, sedeId: sedeId),
       child: Builder(
-        builder: (context) => Scaffold(
+        builder: (context) => BlocListener<SedeActivaCubit, SedeActivaState>(
+          listenWhen: (p, c) => p.activa?.id != c.activa?.id,
+          listener: (context, state) => context
+              .read<CompraListCubit>()
+              .loadCompras(empresaId: empresaId, sedeId: state.activa?.id),
+          child: Scaffold(
           appBar: SmartAppBar(
             backgroundColor: AppColors.blue1,
             foregroundColor: AppColors.white,
@@ -156,6 +165,7 @@ class ComprasPage extends StatelessWidget {
             icon: Icons.add,
             label: 'Nueva Compra',
           ),
+        ),
         ),
       ),
     );

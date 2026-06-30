@@ -160,6 +160,13 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     double impuestoPorcentaje = 18.0,
     String moneda = 'PEN',
   }) {
+    // Si cambió la sede activa, el carrito de la sede anterior no aplica (otro
+    // stock/precios) → vaciarlo antes de re-contextualizar. La primera vez
+    // (sedeId aún null) no vacía nada.
+    final cambioSede = state.sedeId != null && state.sedeId != sedeId;
+    if (cambioSede) {
+      vaciarCarrito();
+    }
     emit(state.copyWith(
       empresaId: empresaId,
       sedeId: sedeId,

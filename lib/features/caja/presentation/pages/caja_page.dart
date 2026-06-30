@@ -17,6 +17,8 @@ import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import 'package:syncronize/core/widgets/snack_bar_helper.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
+import '../../../empresa/presentation/bloc/sede_activa/sede_activa_cubit.dart';
+import '../../../empresa/domain/entities/sede.dart';
 import '../../domain/entities/caja.dart';
 import '../bloc/caja_activa_cubit.dart';
 import '../bloc/caja_activa_state.dart';
@@ -89,6 +91,21 @@ class _CajaViewState extends State<_CajaView> {
   void initState() {
     super.initState();
     _cargarEmisores();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Default de la sede a abrir = sede activa global (o la primera operable).
+    if (_selectedSedeId == null) {
+      final activa = context.read<SedeActivaCubit>().state.activa;
+      final empresaState = context.read<EmpresaContextCubit>().state;
+      final operables = empresaState is EmpresaContextLoaded
+          ? empresaState.context.sedesOperables
+          : const <Sede>[];
+      _selectedSedeId =
+          activa?.id ?? (operables.isNotEmpty ? operables.first.id : null);
+    }
   }
 
   Future<void> _cargarEmisores() async {
@@ -329,9 +346,10 @@ class _CajaViewState extends State<_CajaView> {
 
   Widget _buildAbrirCajaView(BuildContext context) {
     final empresaState = context.watch<EmpresaContextCubit>().state;
+    // Solo las sedes que el usuario puede operar (admin = todas).
     final sedes = empresaState is EmpresaContextLoaded
-        ? empresaState.context.sedes
-        : [];
+        ? empresaState.context.sedesOperables
+        : <Sede>[];
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),

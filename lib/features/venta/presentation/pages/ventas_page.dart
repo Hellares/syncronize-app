@@ -13,6 +13,8 @@ import 'package:syncronize/core/widgets/smart_appbar.dart';
 import '../../../../core/theme/gradient_container.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
+import '../../../empresa/presentation/bloc/sede_activa/sede_activa_cubit.dart';
+import '../../../empresa/presentation/bloc/sede_activa/sede_activa_state.dart';
 import '../../domain/entities/venta.dart';
 import '../bloc/venta_list/venta_list_cubit.dart';
 import '../bloc/venta_list/venta_list_state.dart';
@@ -51,8 +53,11 @@ class _VentasPageState extends State<VentasPage> {
       // Si necesita ver más, usa el picker o "Limpiar fechas" para ver todo.
       final hoy = DateTime.now();
       final inicioHoy = DateTime(hoy.year, hoy.month, hoy.day);
+      // Multi-sede: ventas SOLO de la sede activa.
+      final sedeId = context.read<SedeActivaCubit>().state.activa?.id;
       context.read<VentaListCubit>().loadVentas(
             empresaId: _currentEmpresaId!,
+            sedeId: sedeId,
             fechaDesde: inicioHoy,
             fechaHasta: inicioHoy,
           );
@@ -101,16 +106,26 @@ class _VentasPageState extends State<VentasPage> {
       final esAdmin = p.canManageUsers || p.canManageSettings;
       esOperativo = p.canViewVentas && !esAdmin;
     }
-    return BlocListener<EmpresaContextCubit, EmpresaContextState>(
-      listener: (context, empresaState) {
-        if (empresaState is EmpresaContextLoaded) {
-          final newEmpresaId = empresaState.context.empresa.id;
-          if (_currentEmpresaId != null && _currentEmpresaId != newEmpresaId) {
-            _currentEmpresaId = newEmpresaId;
-            _loadVentas();
-          }
-        }
-      },
+    return MultiBlocListener(
+      listeners: [
+        BlocListener<EmpresaContextCubit, EmpresaContextState>(
+          listener: (context, empresaState) {
+            if (empresaState is EmpresaContextLoaded) {
+              final newEmpresaId = empresaState.context.empresa.id;
+              if (_currentEmpresaId != null &&
+                  _currentEmpresaId != newEmpresaId) {
+                _currentEmpresaId = newEmpresaId;
+                _loadVentas();
+              }
+            }
+          },
+        ),
+        // Recargar al cambiar la sede activa.
+        BlocListener<SedeActivaCubit, SedeActivaState>(
+          listenWhen: (p, c) => p.activa?.id != c.activa?.id,
+          listener: (context, _) => _loadVentas(),
+        ),
+      ],
       child: Scaffold(
         appBar: SmartAppBar(
           title: esOperativo ? 'Mis Ventas' : 'Ventas',

@@ -16,6 +16,7 @@ import 'core/services/realtime_sync_service.dart';
 import 'features/auth/presentation/bloc/auth/auth_bloc.dart';
 import 'features/empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import 'features/empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
+import 'features/empresa/presentation/bloc/sede_activa/sede_activa_cubit.dart';
 import 'features/servicio/presentation/widgets/mensajes_orden_widget.dart';
 
 void main() {
@@ -214,19 +215,33 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   /// el `EmpresaContext` (login, switch-tenant). Desuscribe en logout.
   StreamSubscription? _empresaSubscription;
   String? _empresaIdActual;
-  void _listenEmpresaContext(EmpresaContextCubit empresaCubit) {
+  void _listenEmpresaContext(
+    EmpresaContextCubit empresaCubit,
+    SedeActivaCubit sedeActivaCubit,
+  ) {
     _empresaSubscription?.cancel();
     final realtime = locator<RealtimeSyncService>();
+
+    void sincronizarSede(EmpresaContextLoaded s) {
+      // Sede activa global: se sincroniza al cargar/cambiar el contexto de
+      // empresa (login, switch-tenant) con las sedes operables del usuario.
+      sedeActivaCubit.sincronizar(
+        s.context.sedesOperables,
+        principal: s.context.sedePrincipal,
+      );
+    }
 
     // Estado actual si ya está cargado
     final initial = empresaCubit.state;
     if (initial is EmpresaContextLoaded) {
       _empresaIdActual = initial.context.empresa.id;
       realtime.bind(_empresaIdActual!);
+      sincronizarSede(initial);
     }
 
     _empresaSubscription = empresaCubit.stream.listen((state) {
       if (state is EmpresaContextLoaded) {
+        sincronizarSede(state);
         final nuevoId = state.context.empresa.id;
         if (nuevoId != _empresaIdActual) {
           _empresaIdActual = nuevoId;
@@ -253,7 +268,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           final appRouter = AppRouter(authBloc: authBloc);
 
           _listenAuthChanges(authBloc);
-          _listenEmpresaContext(empresaCubit);
+          _listenEmpresaContext(empresaCubit, context.read<SedeActivaCubit>());
           _setupPushDeepLinking(appRouter.router);
 
           return MaterialApp.router(

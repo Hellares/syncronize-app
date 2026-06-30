@@ -54,6 +54,21 @@ class EmpresaContext extends Equatable {
     return sedes.first;
   }
 
+  /// ¿El usuario es admin de la empresa? (opera todas las sedes)
+  bool get esAdminEmpresa => userRoles.any(
+        (r) => r.rol == 'EMPRESA_ADMIN' || r.rol == 'SUPER_ADMIN',
+      );
+
+  /// Sedes sobre las que el usuario puede OPERAR (POS): los admin de empresa ven
+  /// todas; el resto solo las asignadas (UsuarioSedeRol). Si un no-admin no tiene
+  /// ninguna asignada (legacy aún sin migrar), cae a todas — coherente con el
+  /// enforcement progresivo del backend (SedeAccessGuard).
+  List<Sede> get sedesOperables {
+    if (esAdminEmpresa) return sedes;
+    final asignadas = sedes.where((s) => s.asignada).toList();
+    return asignadas.isNotEmpty ? asignadas : sedes;
+  }
+
   /// Indica si el usuario tiene múltiples roles
   bool get hasMultipleRoles => userRoles.length > 1;
 

@@ -94,6 +94,11 @@ class Sede extends Equatable {
   final int? totalProductos;
   final int? totalServicios;
 
+  // Multi-sede: el usuario tiene asignación (UsuarioSedeRol) en esta sede y
+  // puede operarla. Los admin de empresa operan todas (ver EmpresaContext).
+  final bool asignada;
+  final bool puedeAbrirCaja;
+
   const Sede({
     required this.id,
     required this.empresaId,
@@ -144,6 +149,8 @@ class Sede extends Equatable {
     this.totalUsuarios,
     this.totalProductos,
     this.totalServicios,
+    this.asignada = false,
+    this.puedeAbrirCaja = false,
   });
 
   /// Indica si el usuario tiene un rol específico en esta sede
@@ -233,5 +240,7 @@ class Sede extends Equatable {
         totalUsuarios,
         totalProductos,
         totalServicios,
+        asignada,
+        puedeAbrirCaja,
       ];
 }

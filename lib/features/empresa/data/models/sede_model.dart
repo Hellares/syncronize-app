@@ -51,6 +51,8 @@ class SedeModel extends Sede {
     super.totalUsuarios,
     super.totalProductos,
     super.totalServicios,
+    super.asignada,
+    super.puedeAbrirCaja,
   });
 
   factory SedeModel.fromJson(Map<String, dynamic> json) {
@@ -104,6 +106,8 @@ class SedeModel extends Sede {
       totalUsuarios: json['totalUsuarios'] as int?,
       totalProductos: json['totalProductos'] as int?,
       totalServicios: json['totalServicios'] as int?,
+      asignada: json['asignada'] as bool? ?? false,
+      puedeAbrirCaja: json['puedeAbrirCaja'] as bool? ?? false,
     );
   }
 
@@ -151,6 +155,8 @@ class SedeModel extends Sede {
       if (totalUsuarios != null) 'totalUsuarios': totalUsuarios,
       if (totalProductos != null) 'totalProductos': totalProductos,
       if (totalServicios != null) 'totalServicios': totalServicios,
+      'asignada': asignada,
+      'puedeAbrirCaja': puedeAbrirCaja,
     };
   }
 
@@ -200,6 +206,8 @@ class SedeModel extends Sede {
       totalUsuarios: entity.totalUsuarios,
       totalProductos: entity.totalProductos,
       totalServicios: entity.totalServicios,
+      asignada: entity.asignada,
+      puedeAbrirCaja: entity.puedeAbrirCaja,
     );
   }
 

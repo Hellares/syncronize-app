@@ -11,6 +11,8 @@ import 'package:syncronize/core/widgets/smart_appbar.dart';
 import '../../../../core/theme/gradient_container.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
+import '../../../empresa/presentation/bloc/sede_activa/sede_activa_cubit.dart';
+import '../../../empresa/presentation/bloc/sede_activa/sede_activa_state.dart';
 import '../../domain/entities/cotizacion.dart';
 import '../bloc/cotizacion_list/cotizacion_list_cubit.dart';
 import '../bloc/cotizacion_list/cotizacion_list_state.dart';
@@ -44,24 +46,36 @@ class _CotizacionesPageState extends State<CotizacionesPage> {
     final empresaState = context.read<EmpresaContextCubit>().state;
     if (empresaState is EmpresaContextLoaded) {
       _currentEmpresaId = empresaState.context.empresa.id;
+      // Multi-sede: cotizaciones SOLO de la sede activa.
+      final sedeId = context.read<SedeActivaCubit>().state.activa?.id;
       context.read<CotizacionListCubit>().loadCotizaciones(
             empresaId: _currentEmpresaId!,
+            sedeId: sedeId,
           );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return BlocListener<EmpresaContextCubit, EmpresaContextState>(
-      listener: (context, empresaState) {
-        if (empresaState is EmpresaContextLoaded) {
-          final newEmpresaId = empresaState.context.empresa.id;
-          if (_currentEmpresaId != null && _currentEmpresaId != newEmpresaId) {
-            _currentEmpresaId = newEmpresaId;
-            _loadCotizaciones();
-          }
-        }
-      },
+    return MultiBlocListener(
+      listeners: [
+        BlocListener<EmpresaContextCubit, EmpresaContextState>(
+          listener: (context, empresaState) {
+            if (empresaState is EmpresaContextLoaded) {
+              final newEmpresaId = empresaState.context.empresa.id;
+              if (_currentEmpresaId != null &&
+                  _currentEmpresaId != newEmpresaId) {
+                _currentEmpresaId = newEmpresaId;
+                _loadCotizaciones();
+              }
+            }
+          },
+        ),
+        BlocListener<SedeActivaCubit, SedeActivaState>(
+          listenWhen: (p, c) => p.activa?.id != c.activa?.id,
+          listener: (context, _) => _loadCotizaciones(),
+        ),
+      ],
       child: Scaffold(
         appBar: SmartAppBar(
           title: 'Cotizaciones',

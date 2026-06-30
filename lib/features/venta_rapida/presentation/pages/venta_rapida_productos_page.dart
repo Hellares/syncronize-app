@@ -9,6 +9,9 @@ import '../../../caja/domain/entities/caja.dart';
 import '../../../caja/domain/usecases/get_caja_activa_usecase.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
+import '../../../empresa/presentation/bloc/sede_activa/sede_activa_cubit.dart';
+import '../../../empresa/presentation/bloc/sede_activa/sede_activa_state.dart';
+import '../../../empresa/presentation/widgets/sede_switcher.dart';
 import '../../../producto/domain/entities/producto_filtros.dart';
 import '../../../producto/presentation/bloc/producto_list/producto_list_cubit.dart';
 import '../../../producto/presentation/widgets/producto_selector/producto_selector_view.dart';
@@ -17,60 +20,100 @@ import '../bloc/venta_rapida_cubit.dart';
 /// Pantalla de selección de productos para Venta Rápida. Toda la UI vive en
 /// `ProductoSelectorView<VentaRapidaCubit, VentaRapidaState>` — esta page
 /// solo provee los cubits y mapea los callbacks al `VentaRapidaCubit`.
-class VentaRapidaProductosPage extends StatelessWidget {
+class VentaRapidaProductosPage extends StatefulWidget {
   const VentaRapidaProductosPage({super.key});
+
+  @override
+  State<VentaRapidaProductosPage> createState() =>
+      _VentaRapidaProductosPageState();
+}
+
+class _VentaRapidaProductosPageState extends State<VentaRapidaProductosPage> {
+  @override
+  void initState() {
+    super.initState();
+    // Sincroniza la sede activa con las sedes operables del usuario (auto-elige
+    // si hay una sola; restaura la persistida si sigue operable).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final empresaState = context.read<EmpresaContextCubit>().state;
+      if (empresaState is EmpresaContextLoaded) {
+        context.read<SedeActivaCubit>().sincronizar(
+              empresaState.context.sedesOperables,
+              principal: empresaState.context.sedePrincipal,
+            );
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final empresaState = context.read<EmpresaContextCubit>().state;
     final authState = context.read<AuthBloc>().state;
 
-    String? empresaId;
-    String? sedeId;
-    String? vendedorId;
-    if (empresaState is EmpresaContextLoaded) {
-      empresaId = empresaState.context.empresa.id;
-      sedeId = empresaState.context.sedePrincipal?.id ??
-          (empresaState.context.sedes.isNotEmpty
-              ? empresaState.context.sedes.first.id
-              : null);
-    }
-    if (authState is Authenticated) {
-      vendedorId = authState.user.id;
-    }
-
-    if (empresaId == null || sedeId == null || vendedorId == null) {
+    if (empresaState is! EmpresaContextLoaded || authState is! Authenticated) {
       return const Scaffold(
         body: Center(child: Text('Falta contexto de empresa/sede')),
       );
     }
+    final empresaId = empresaState.context.empresa.id;
+    final vendedorId = authState.user.id;
+    final operables = empresaState.context.sedesOperables;
 
-    return MultiBlocProvider(
-      providers: [
-        BlocProvider.value(
-          value: () {
-            final cubit = locator<VentaRapidaCubit>();
-            cubit.setContexto(
-              empresaId: empresaId!,
-              sedeId: sedeId!,
-              vendedorId: vendedorId!,
+    return BlocBuilder<SedeActivaCubit, SedeActivaState>(
+      builder: (context, sedeState) {
+        final activa = sedeState.activa;
+        if (activa == null) {
+          if (operables.isEmpty) {
+            return const Scaffold(
+              body: Center(
+                child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Text(
+                    'No tenés una sede asignada para vender.\nPedí al administrador que te asigne a una sede.',
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
             );
-            return cubit;
-          }(),
-        ),
-        BlocProvider(
-          // Venta Rápida solo debe mostrar productos disponibles para venta
-          // (isActive=true). Productos inactivos o eliminados quedan ocultos
-          // en este flujo de cobro.
-          create: (_) => locator<ProductoListCubit>()
-            ..loadProductos(
-              empresaId: empresaId!,
-              sedeId: sedeId,
-              filtros: const ProductoFiltros(isActive: true, esInsumo: false),
+          }
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        final sedeId = activa.id;
+        // key por sede → al cambiar de sede, se recrean los cubits y se recargan
+        // los productos/stock de la sede activa.
+        return MultiBlocProvider(
+          key: ValueKey('vr-$sedeId'),
+          providers: [
+            BlocProvider.value(
+              value: () {
+                final cubit = locator<VentaRapidaCubit>();
+                cubit.setContexto(
+                  empresaId: empresaId,
+                  sedeId: sedeId,
+                  vendedorId: vendedorId,
+                );
+                return cubit;
+              }(),
             ),
-        ),
-      ],
-      child: _VentaRapidaProductosView(sedeId: sedeId),
+            BlocProvider(
+              // Venta Rápida solo debe mostrar productos disponibles para venta
+              // (isActive=true). Productos inactivos o eliminados quedan ocultos
+              // en este flujo de cobro.
+              create: (_) => locator<ProductoListCubit>()
+                ..loadProductos(
+                  empresaId: empresaId,
+                  sedeId: sedeId,
+                  filtros:
+                      const ProductoFiltros(isActive: true, esInsumo: false),
+                ),
+            ),
+          ],
+          child: _VentaRapidaProductosView(sedeId: sedeId),
+        );
+      },
     );
   }
 }
@@ -137,6 +180,14 @@ class _VentaRapidaProductosView extends StatelessWidget {
       atajoIcono: Icons.request_quote_outlined,
       atajoTooltip: 'Nueva cotización',
       onAtajo: () => context.pushReplacement('/empresa/cotizaciones/nueva'),
+      // Selector de sede activa (solo visible/activo si hay >1 sede operable).
+      topExtraBuilder: (_, __) => const Padding(
+        padding: EdgeInsets.fromLTRB(12, 8, 12, 0),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: SedeSwitcher(),
+        ),
+      ),
     );
   }
 }

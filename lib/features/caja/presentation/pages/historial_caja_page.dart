@@ -15,6 +15,9 @@ import 'package:syncronize/core/widgets/smart_appbar.dart';
 import 'package:syncronize/features/impresoras/domain/services/impresoras_manager.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
+import '../../../empresa/presentation/bloc/sede_activa/sede_activa_cubit.dart';
+import '../../../empresa/presentation/bloc/sede_activa/sede_activa_state.dart';
+import '../../../empresa/domain/entities/sede.dart';
 import '../../domain/entities/caja.dart';
 import '../bloc/caja_historial_cubit.dart';
 import '../bloc/caja_historial_state.dart';
@@ -38,11 +41,23 @@ class _HistorialCajaPageState extends State<HistorialCajaPage> {
   /// fechas para que el server lo incluya.
   String? _selectedUsuarioId;
 
+  bool _inicializado = false;
+
   @override
   void initState() {
     super.initState();
     _historialCubit = locator<CajaHistorialCubit>();
-    _historialCubit.loadHistorial();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Primer load: historial de la SEDE ACTIVA.
+    if (!_inicializado) {
+      _inicializado = true;
+      _selectedSedeId = context.read<SedeActivaCubit>().state.activa?.id;
+      _historialCubit.loadHistorial(sedeId: _selectedSedeId);
+    }
   }
 
   @override
@@ -54,11 +69,18 @@ class _HistorialCajaPageState extends State<HistorialCajaPage> {
   @override
   Widget build(BuildContext context) {
     final empresaState = context.watch<EmpresaContextCubit>().state;
+    // Solo sedes operables del usuario.
     final sedes = empresaState is EmpresaContextLoaded
-        ? empresaState.context.sedes
-        : [];
+        ? empresaState.context.sedesOperables
+        : <Sede>[];
 
-    return BlocProvider.value(
+    return BlocListener<SedeActivaCubit, SedeActivaState>(
+      listenWhen: (p, c) => p.activa?.id != c.activa?.id,
+      listener: (context, state) {
+        setState(() => _selectedSedeId = state.activa?.id);
+        _historialCubit.loadHistorial(sedeId: _selectedSedeId);
+      },
+      child: BlocProvider.value(
       value: _historialCubit,
       child: Scaffold(
         appBar: SmartAppBar(
@@ -85,6 +107,7 @@ class _HistorialCajaPageState extends State<HistorialCajaPage> {
           ),
         ),
       ),
+    ),
     );
   }
 

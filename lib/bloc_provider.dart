@@ -1,5 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:syncronize/core/di/injection_container.dart';
+import 'package:syncronize/features/empresa/presentation/bloc/sede_activa/sede_activa_cubit.dart';
 import 'package:syncronize/core/storage/local_storage_service.dart';
 import 'package:syncronize/core/constants/storage_constants.dart';
 import 'package:syncronize/features/auth/presentation/bloc/auth/auth_bloc.dart';
@@ -139,6 +141,13 @@ List<BlocProvider> blocProviders = [
   BlocProvider<SedeSelectionCubit>(
     create: (context) => locator<SedeSelectionCubit>(),
     lazy: false, // No lazy para cargar la sede guardada al inicio
+  ),
+
+  // Sede Activa Cubit - contexto GLOBAL de sede operativa (POS): Venta Rápida,
+  // Caja, Productos operan sobre la sede activa. Persiste la elección.
+  BlocProvider<SedeActivaCubit>(
+    create: (context) => SedeActivaCubit(locator<SharedPreferences>()),
+    lazy: false,
   ),
 
   // Categorias Empresa Cubit - Maneja las categorías de la empresa
