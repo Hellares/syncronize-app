@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:syncronize/core/fonts/app_fonts.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
@@ -117,32 +118,42 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
 
   @override
   Widget build(BuildContext context) {
+    final showActions = _producto != null && !_isLoading && _error == null;
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
+      // El cuerpo va detrás del AppBar para que la imagen ocupe el tope de la
+      // pantalla y los íconos floten encima (estilo Temu).
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        backgroundColor: AppColors.blue1,
-        foregroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
         elevation: 0,
+        scrolledUnderElevation: 0,
+        systemOverlayStyle: SystemUiOverlayStyle.dark,
         titleSpacing: 0,
-        title: _producto != null
-            ? Text(
-                _producto!['nombre'] as String? ?? '',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w400),
-              )
-            : null,
+        automaticallyImplyLeading: false,
+        leadingWidth: 52,
+        leading: _circleBtn(
+          icon: Icons.arrow_back_ios_new,
+          tooltip: 'Volver',
+          onTap: () {
+            if (context.canPop()) context.pop();
+          },
+        ),
         actions: [
-          if (_producto != null) ...[
-            FavoritoButton(
-              productoId: widget.productoId,
-              size: 22,
+          if (showActions) ...[
+            _circleWrap(
+              FavoritoButton(
+                productoId: widget.productoId,
+                size: 19,
+                inactiveColor: Colors.white,
+              ),
             ),
-            IconButton(
-              icon: const Icon(Icons.shopping_cart_outlined, size: 20),
-              onPressed: () => context.push('/carrito'),
+            _circleBtn(
+              icon: Icons.shopping_cart_outlined,
               tooltip: 'Mi carrito',
+              onTap: () => context.push('/carrito'),
             ),
+            const SizedBox(width: 6),
           ],
         ],
       ),
@@ -152,6 +163,51 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
               ? _buildError()
               : _buildContentWithVideo(),
       bottomNavigationBar: _producto != null && !_isLoading ? _buildBottomBar() : null,
+    );
+  }
+
+  /// Botón circular oscuro semitransparente con ícono blanco, flotando sobre la
+  /// imagen (estilo Temu: no se ve la barra del AppBar, solo estos íconos).
+  Widget _circleBtn({
+    required IconData icon,
+    required VoidCallback onTap,
+    required String tooltip,
+  }) {
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.38),
+          shape: BoxShape.circle,
+        ),
+        child: IconButton(
+          onPressed: onTap,
+          tooltip: tooltip,
+          iconSize: 18,
+          color: Colors.white,
+          padding: EdgeInsets.zero,
+          visualDensity: VisualDensity.compact,
+          constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+          icon: Icon(icon),
+        ),
+      ),
+    );
+  }
+
+  /// Igual que [_circleBtn] pero envolviendo un widget arbitrario (el corazón de
+  /// favoritos) en el mismo círculo oscuro.
+  Widget _circleWrap(Widget child) {
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.38),
+          shape: BoxShape.circle,
+        ),
+        child: Center(child: child),
+      ),
     );
   }
 
@@ -233,8 +289,9 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Galería
+            // Galería full-bleed (estilo Temu)
             _buildImageGallery(imagenes),
+            const SizedBox(height: 10),
 
             // ── Tarjeta principal ──────────────────────────────────────────
             _card(
@@ -654,12 +711,18 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
   }
 
   Widget _buildImageGallery(List<dynamic> imagenes) {
+    final mq = MediaQuery.of(context);
+    final topInset = mq.padding.top; // alto de la barra de estado
+    final h = mq.size.height * 0.42; // ~40% de la pantalla
+
     if (imagenes.isEmpty) {
       return Container(
-        height: 280,
-        margin: const EdgeInsets.fromLTRB(10, 8, 10, 8),
-        decoration: _cardDecoration,
-        child: Center(
+        height: h + topInset,
+        width: double.infinity,
+        color: Colors.white,
+        alignment: Alignment.center,
+        child: Padding(
+          padding: EdgeInsets.only(top: topInset),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -672,102 +735,52 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
       );
     }
 
-    return Container(
-      margin: const EdgeInsets.fromLTRB(10, 8, 10, 8),
-      decoration: _cardDecoration,
-      clipBehavior: Clip.antiAlias,
-      child: Column(
+    return SizedBox(
+      height: h + topInset,
+      width: double.infinity,
+      child: Stack(
         children: [
-          Stack(
-            children: [
-              SizedBox(
-                height: 300,
-                child: PageView.builder(
-                  controller: _pageController,
-                  itemCount: imagenes.length,
-                  onPageChanged: (i) => setState(() => _currentImageIndex = i),
-                  itemBuilder: (context, index) {
-                    final img = imagenes[index] as Map<String, dynamic>;
-                    final mq = MediaQuery.of(context);
-                    return Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: CachedNetworkImage(
-                        imageUrl: img['url'] as String? ?? '',
-                        fit: BoxFit.contain,
-                        // Decodificar al ancho de pantalla, no a resolución completa.
-                        memCacheWidth: (mq.size.width * mq.devicePixelRatio).round(),
-                        placeholder: (_, __) => const Center(
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                        errorWidget: (_, __, ___) => Center(
-                          child: Icon(Icons.broken_image_outlined, size: 64, color: Colors.grey.shade300),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              // Contador overlay (un solo indicador, estilo Temu)
-              if (imagenes.length > 1)
-                Positioned(
-                  right: 12,
-                  bottom: 12,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.55),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      '${_currentImageIndex + 1}/${imagenes.length}',
-                      style: const TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w500),
-                    ),
+          Positioned.fill(child: Container(color: Colors.white)),
+          // La imagen baja de la barra de estado para mostrarse completa, pero el
+          // fondo blanco sí ocupa detrás de ella (los íconos flotan ahí).
+          Padding(
+            padding: EdgeInsets.only(top: topInset),
+            child: PageView.builder(
+              controller: _pageController,
+              itemCount: imagenes.length,
+              onPageChanged: (i) => setState(() => _currentImageIndex = i),
+              itemBuilder: (context, index) {
+                final img = imagenes[index] as Map<String, dynamic>;
+                return CachedNetworkImage(
+                  imageUrl: img['url'] as String? ?? '',
+                  fit: BoxFit.contain,
+                  // Decodificar al ancho de pantalla, no a resolución completa.
+                  memCacheWidth: (mq.size.width * mq.devicePixelRatio).round(),
+                  placeholder: (_, __) => const Center(
+                    child: CircularProgressIndicator(strokeWidth: 2),
                   ),
-                ),
-            ],
+                  errorWidget: (_, __, ___) => Center(
+                    child: Icon(Icons.broken_image_outlined, size: 64, color: Colors.grey.shade300),
+                  ),
+                );
+              },
+            ),
           ),
-          // Tira de miniaturas
+          // Contador overlay (un solo indicador, estilo Temu)
           if (imagenes.length > 1)
-            SizedBox(
-              height: 60,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.fromLTRB(12, 6, 12, 10),
-                itemCount: imagenes.length,
-                itemBuilder: (context, index) {
-                  final img = imagenes[index] as Map<String, dynamic>;
-                  final isSelected = _currentImageIndex == index;
-                  return GestureDetector(
-                    onTap: () {
-                      _pageController.animateToPage(index,
-                          duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
-                    },
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      width: 44,
-                      height: 44,
-                      margin: const EdgeInsets.only(right: 8),
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                          color: isSelected ? AppColors.blue2 : Colors.grey.shade200,
-                          width: isSelected ? 2 : 1,
-                        ),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(6),
-                        child: CachedNetworkImage(
-                          imageUrl: (img['thumbnail'] ?? img['url']) as String? ?? '',
-                          fit: BoxFit.cover,
-                          // Miniatura 44px → decodificar pequeño, no a tamaño real.
-                          memCacheWidth: (44 * MediaQuery.of(context).devicePixelRatio).round(),
-                          placeholder: (_, __) => const SizedBox.shrink(),
-                          errorWidget: (_, __, ___) => Icon(Icons.image, size: 16, color: Colors.grey.shade300),
-                        ),
-                      ),
-                    ),
-                  );
-                },
+            Positioned(
+              right: 12,
+              bottom: 12,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.55),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '${_currentImageIndex + 1}/${imagenes.length}',
+                  style: const TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w500),
+                ),
               ),
             ),
         ],

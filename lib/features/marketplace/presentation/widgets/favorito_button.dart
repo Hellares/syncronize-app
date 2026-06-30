@@ -8,11 +8,16 @@ class FavoritoButton extends StatefulWidget {
   final bool initialFavorito;
   final double size;
 
+  /// Color del corazón cuando NO es favorito (default gris). Útil para mostrarlo
+  /// blanco sobre fondos oscuros (p. ej. botón flotante sobre la imagen).
+  final Color? inactiveColor;
+
   const FavoritoButton({
     super.key,
     required this.productoId,
     this.initialFavorito = false,
     this.size = 22,
+    this.inactiveColor,
   });
 
   /// IDs de productos favoritos del usuario (cargados una vez)
@@ -83,7 +88,7 @@ class _FavoritoButtonState extends State<FavoritoButton> {
           _esFavorito ? Icons.favorite : Icons.favorite_border,
           key: ValueKey(_esFavorito),
           size: widget.size,
-          color: _esFavorito ? Colors.red : Colors.grey[400],
+          color: _esFavorito ? Colors.red : (widget.inactiveColor ?? Colors.grey[400]),
         ),
       ),
     );
