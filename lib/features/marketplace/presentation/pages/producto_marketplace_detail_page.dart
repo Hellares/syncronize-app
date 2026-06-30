@@ -43,41 +43,28 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
   // ── Estilo compartido (Temu-like sobre la marca azul) ──────────────────────
   static const Color _star = Color(0xFFFFB300);
 
-  static final BoxDecoration _cardDecoration = BoxDecoration(
-    color: Colors.white,
-    borderRadius: BorderRadius.circular(14),
-    boxShadow: [
-      BoxShadow(
-        color: Colors.black.withValues(alpha: 0.045),
-        blurRadius: 10,
-        offset: const Offset(0, 2),
-      ),
-    ],
-  );
-
-  /// Tarjeta blanca redondeada con sombra suave (reemplaza los bloques de borde
-  /// duro que se veían toscos).
+  /// Sección blanca full-width separada por 2px del resto (el gris del fondo se
+  /// ve como una línea fina entre secciones, estilo Temu/Mercado Libre).
   Widget _card({
     required Widget child,
     EdgeInsetsGeometry padding = const EdgeInsets.all(14),
-    EdgeInsetsGeometry margin = const EdgeInsets.fromLTRB(10, 0, 10, 8),
   }) {
     return Container(
-      margin: margin,
+      width: double.infinity,
+      color: Colors.white,
       padding: padding,
-      decoration: _cardDecoration,
+      margin: const EdgeInsets.only(bottom: 2),
       child: child,
     );
   }
 
-  /// Envuelve un widget (que ya trae su propio fondo/padding) en la tarjeta
-  /// redondeada, recortando las esquinas. Para las secciones de Opiniones y
-  /// Preguntas, que son `Container(color: white)` planos.
+  /// Igual que [_card] pero para widgets que ya traen su propio fondo/padding
+  /// (las secciones de Opiniones y Preguntas).
   Widget _cardWrap(Widget child) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(10, 0, 10, 8),
-      decoration: _cardDecoration,
-      clipBehavior: Clip.antiAlias,
+      width: double.infinity,
+      color: Colors.white,
+      margin: const EdgeInsets.only(bottom: 2),
       child: child,
     );
   }
@@ -298,6 +285,7 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
             Container(
               width: double.infinity,
               color: Colors.white,
+              margin: const EdgeInsets.only(bottom: 2),
               padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
