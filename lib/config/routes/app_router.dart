@@ -135,6 +135,7 @@ import '../../features/usuario/presentation/pages/usuario_form_page.dart';
 import '../../features/descuento/presentation/pages/pages.dart';
 import '../../features/configuracion_codigos/presentation/pages/configuracion_codigos_page.dart';
 import '../../features/sede/presentation/pages/sedes_page.dart';
+import '../../features/sede/presentation/pages/sede_activacion_page.dart';
 import '../../features/sede/presentation/pages/sede_form_page.dart';
 import '../../features/reporte_incidencia/presentation/pages/reportes_incidencia_page.dart';
 import '../../features/reporte_incidencia/presentation/pages/crear_reporte_incidencia_page.dart';
@@ -485,6 +486,14 @@ class AppRouter {
         builder: (context, state) {
           final sedeId = state.pathParameters['id']!;
           return SedeFormPage(sedeId: sedeId);
+        },
+      ),
+      GoRoute(
+        path: '/empresa/sedes/:id/activacion',
+        name: 'empresa-sedes-activacion',
+        builder: (context, state) {
+          final sedeId = state.pathParameters['id']!;
+          return SedeActivacionPage(sedeId: sedeId);
         },
       ),
       // Rutas de productos

@@ -9,6 +9,7 @@ class SedeListTile extends StatelessWidget {
   final bool canManage;
   final VoidCallback? onTap;
   final VoidCallback? onDelete;
+  final VoidCallback? onActivar;
 
   const SedeListTile({
     super.key,
@@ -16,6 +17,7 @@ class SedeListTile extends StatelessWidget {
     required this.canManage,
     this.onTap,
     this.onDelete,
+    this.onActivar,
   });
 
   @override
@@ -125,6 +127,13 @@ class SedeListTile extends StatelessWidget {
                       ],
                     ),
                   ),
+                  if (canManage && onActivar != null)
+                    IconButton(
+                      icon: const Icon(Icons.checklist_rtl),
+                      color: AppColors.blue1,
+                      onPressed: onActivar,
+                      tooltip: 'Activar sede (usuarios, precios, stock)',
+                    ),
                   if (canManage && onDelete != null)
                     IconButton(
                       icon: const Icon(Icons.delete_outline),

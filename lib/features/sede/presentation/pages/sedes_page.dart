@@ -196,6 +196,10 @@ class _SedesPageState extends State<SedesPage> {
                               ? () => _showDeleteConfirmation(
                                   sede.id, sede.nombre)
                               : null,
+                          onActivar: _canManageSedes
+                              ? () => context
+                                  .push('/empresa/sedes/${sede.id}/activacion')
+                              : null,
                         );
                       },
                     ),
