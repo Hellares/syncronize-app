@@ -303,7 +303,7 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
                         child: Text(
                           hayStock ? 'Nuevo' : 'Sin stock',
                           style: TextStyle(
-                            fontSize: 10.5,
+                            fontSize: 10,
                             fontWeight: FontWeight.w600,
                             color: hayStock ? AppColors.blue2 : AppColors.red,
                           ),
@@ -339,17 +339,17 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
                   Text(
                     nombre,
                     style: const TextStyle(
-                      fontSize: 17,
+                      fontSize: 15,
                       fontWeight: FontWeight.w600,
                       height: 1.35,
-                      color: Colors.black87,
+                      color: AppColors.blue1,
                     ),
                   ),
 
                   // Rating + vendidos (prueba social honesta)
                   _buildRatingRow(calificacion, totalOpiniones, vendidos),
 
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
 
                   // Precio (protagonista)
                   if (precioFinal != null) ...[
@@ -360,7 +360,7 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
                         Text(
                           'S/ ${precioFinal.toStringAsFixed(2)}',
                           style: TextStyle(
-                            fontSize: 30,
+                            fontSize: 25,
                             fontWeight: FontWeight.w400,
                             fontFamily: AppFonts.getFontFamily(AppFont.oxygenBold),
                             color: AppColors.blue1,
@@ -430,25 +430,21 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
                     const SizedBox(height: 10),
                     Text(
                       descripcion,
-                      style: TextStyle(fontSize: 14, color: Colors.grey.shade700, height: 1.6),
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade700, height: 1.6),
                     ),
                   ],
                 ),
               ),
 
-            // ── Características ─────────────────────────────────────────────
+            // ── Características (tabla tipo Excel) ──────────────────────────
             if (atributos.isNotEmpty)
               _card(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _sectionTitle('Características'),
-                    const SizedBox(height: 6),
-                    for (int i = 0; i < atributos.length; i++) ...[
-                      if (i > 0)
-                        Divider(height: 1, thickness: 1, color: Colors.grey.shade100),
-                      _buildAtributoRow(atributos[i] as Map<String, dynamic>),
-                    ],
+                    const SizedBox(height: 12),
+                    _buildCaracteristicasTable(atributos),
                   ],
                 ),
               ),
@@ -569,27 +565,42 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
     );
   }
 
-  Widget _buildAtributoRow(Map<String, dynamic> a) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 9),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 120,
-            child: Text(
-              a['nombre'] as String? ?? '',
-              style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
-            ),
+  /// Tabla tipo Excel para las características: grilla con bordes, columna de
+  /// nombre sombreada (izquierda) y valor (derecha), filas con alto automático.
+  Widget _buildCaracteristicasTable(List<dynamic> atributos) {
+    return Table(
+      border: TableBorder.all(color: Colors.grey.shade200, width: 1),
+      columnWidths: const {
+        0: FlexColumnWidth(1),
+        1: FlexColumnWidth(1.4),
+      },
+      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+      children: [
+        for (final raw in atributos)
+          TableRow(
+            children: [
+              Container(
+                color: Colors.grey.shade50,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+                child: Text(
+                  (raw as Map<String, dynamic>)['nombre'] as String? ?? '',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    color: Colors.grey.shade700,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+                child: Text(
+                  raw['valor'] as String? ?? '',
+                  style: const TextStyle(fontSize: 12.5, color: Colors.black87),
+                ),
+              ),
+            ],
           ),
-          Expanded(
-            child: Text(
-              a['valor'] as String? ?? '',
-              style: const TextStyle(fontSize: 13, color: Colors.black87, fontWeight: FontWeight.w500),
-            ),
-          ),
-        ],
-      ),
+      ],
     );
   }
 
