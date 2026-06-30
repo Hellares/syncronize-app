@@ -2,13 +2,15 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-/// Banner de oferta por tiempo limitado con cuenta regresiva en vivo (días /
-/// horas / min / seg) hasta [fin]. Full-width con degradé verde, estilo Temu
-/// pero con la paleta de ofertas de la app.
+/// Banner de oferta full-width con degradé verde (estilo Temu sobre la paleta de
+/// ofertas de la app). Si la oferta tiene fecha de fin [fin], muestra una cuenta
+/// regresiva en vivo (días/hrs/min/seg); si no, muestra una versión simple sin
+/// reloj. Pensado para mostrarse cuando el producto está en oferta.
 class OfertaCountdownBanner extends StatefulWidget {
-  final DateTime fin;
+  /// Fecha de fin de la oferta. Si es null, no hay cuenta regresiva.
+  final DateTime? fin;
 
-  const OfertaCountdownBanner({super.key, required this.fin});
+  const OfertaCountdownBanner({super.key, this.fin});
 
   @override
   State<OfertaCountdownBanner> createState() => _OfertaCountdownBannerState();
@@ -18,22 +20,24 @@ class _OfertaCountdownBannerState extends State<OfertaCountdownBanner> {
   static const Color _verde = Color(0xFF0E8A3C);
 
   Timer? _timer;
-  late Duration _restante;
+  Duration _restante = Duration.zero;
 
   @override
   void initState() {
     super.initState();
-    _restante = _calc();
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted) return;
-      final r = _calc();
-      setState(() => _restante = r);
-      if (r == Duration.zero) _timer?.cancel(); // se acabó: dejamos de tickear
-    });
+    if (widget.fin != null) {
+      _restante = _calc();
+      _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (!mounted) return;
+        final r = _calc();
+        setState(() => _restante = r);
+        if (r == Duration.zero) _timer?.cancel(); // se acabó: dejamos de tickear
+      });
+    }
   }
 
   Duration _calc() {
-    final d = widget.fin.difference(DateTime.now());
+    final d = widget.fin!.difference(DateTime.now());
     return d.isNegative ? Duration.zero : d;
   }
 
@@ -59,7 +63,7 @@ class _OfertaCountdownBannerState extends State<OfertaCountdownBanner> {
 
   @override
   Widget build(BuildContext context) {
-    final terminada = _restante == Duration.zero;
+    final tieneCountdown = widget.fin != null && _restante > Duration.zero;
     final dias = _restante.inDays;
     final horas = _restante.inHours % 24;
     final mins = _restante.inMinutes % 60;
@@ -79,23 +83,18 @@ class _OfertaCountdownBannerState extends State<OfertaCountdownBanner> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.local_fire_department_rounded, color: Colors.white, size: 18),
-              SizedBox(width: 6),
+              const Icon(Icons.local_fire_department_rounded, color: Colors.white, size: 18),
+              const SizedBox(width: 6),
               Text(
-                'Oferta por tiempo limitado',
-                style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700),
+                tieneCountdown ? 'Oferta por tiempo limitado' : 'Oferta especial',
+                style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          if (terminada)
-            const Text(
-              'La oferta ha finalizado',
-              style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
-            )
-          else
+          if (tieneCountdown) ...[
+            const SizedBox(height: 10),
             Row(
               children: [
                 const Text('Termina en', style: TextStyle(color: Colors.white, fontSize: 11)),
@@ -109,17 +108,24 @@ class _OfertaCountdownBannerState extends State<OfertaCountdownBanner> {
                 _box(_dd(segs), 'seg'),
               ],
             ),
-          const SizedBox(height: 9),
-          Row(
-            children: [
-              const Icon(Icons.event_outlined, color: Colors.white70, size: 13),
-              const SizedBox(width: 4),
-              Text(
-                'Válida hasta el ${_fmtFecha(widget.fin)}',
-                style: const TextStyle(color: Colors.white70, fontSize: 10.5),
-              ),
-            ],
-          ),
+            const SizedBox(height: 9),
+            Row(
+              children: [
+                const Icon(Icons.event_outlined, color: Colors.white70, size: 13),
+                const SizedBox(width: 4),
+                Text(
+                  'Válida hasta el ${_fmtFecha(widget.fin!)}',
+                  style: const TextStyle(color: Colors.white70, fontSize: 10.5),
+                ),
+              ],
+            ),
+          ] else ...[
+            const SizedBox(height: 4),
+            const Text(
+              '¡Aprovecha el precio rebajado!',
+              style: TextStyle(color: Colors.white70, fontSize: 11),
+            ),
+          ],
         ],
       ),
     );

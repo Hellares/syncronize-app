@@ -423,9 +423,8 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
               ),
             ),
 
-            // ── Oferta con cuenta regresiva (antes de la descripción) ──────
-            if (enOferta && ofertaFin != null)
-              OfertaCountdownBanner(fin: ofertaFin),
+            // ── Oferta (banner + cuenta regresiva si hay fecha de fin) ─────
+            if (enOferta) OfertaCountdownBanner(fin: ofertaFin),
 
             // ── Descripción ────────────────────────────────────────────────
             if (descripcion != null && descripcion.isNotEmpty)
@@ -434,7 +433,7 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _sectionTitle('Descripción'),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 8),
                     Text(
                       descripcion,
                       style: TextStyle(fontSize: 11, color: Colors.grey.shade700, height: 1.6),
@@ -450,7 +449,7 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _sectionTitle('Características'),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
                     _buildCaracteristicasTable(atributos),
                   ],
                 ),
@@ -478,7 +477,7 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
   Widget _sectionTitle(String text) {
     return Text(
       text,
-      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.black87),
+      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.black87),
     );
   }
 
@@ -507,7 +506,7 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
           if (vendidos > 0)
             Text(
               '${_fmtVendidos(vendidos)} vendidos',
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.w500),
+              style: TextStyle(fontSize: 10, color: Colors.grey.shade600, fontWeight: FontWeight.w500),
             ),
         ],
       ),
@@ -559,14 +558,14 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 13, color: color),
           const SizedBox(width: 5),
-          Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color)),
+          Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: color)),
         ],
       ),
     );
@@ -594,7 +593,7 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
                 child: Text(
                   (atributos[i] as Map<String, dynamic>)['nombre'] as String? ?? '',
                   style: TextStyle(
-                    fontSize: 10.5,
+                    fontSize: 10,
                     color: Colors.grey.shade700,
                     fontWeight: FontWeight.w500,
                   ),
@@ -604,7 +603,7 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
                 child: Text(
                   (atributos[i] as Map<String, dynamic>)['valor'] as String? ?? '',
-                  style: const TextStyle(fontSize: 10.5, color: Colors.black87),
+                  style: const TextStyle(fontSize: 10, color: Colors.black87),
                 ),
               ),
             ],
