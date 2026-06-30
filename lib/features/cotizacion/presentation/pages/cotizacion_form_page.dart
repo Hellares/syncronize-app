@@ -13,6 +13,7 @@ import '../../../../core/widgets/date/custom_date.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../../auth/presentation/bloc/auth/auth_bloc.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
+import '../../../empresa/presentation/bloc/sede_activa/sede_activa_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_cubit.dart';
 import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_state.dart';
@@ -85,7 +86,10 @@ class _CotizacionFormPageState extends State<CotizacionFormPage> {
     if (empresaState is EmpresaContextLoaded) {
       final sedes = empresaState.context.sedes;
       if (sedes.isNotEmpty) {
-        _sedeId = empresaState.context.sedePrincipal?.id ?? sedes.first.id;
+        // Default: sede ACTIVA del usuario (no la principal).
+        _sedeId = context.read<SedeActivaCubit>().state.activa?.id ??
+            empresaState.context.sedePrincipal?.id ??
+            sedes.first.id;
       }
       // Cargar configuración fiscal
       context.read<ConfiguracionEmpresaCubit>().cargar(

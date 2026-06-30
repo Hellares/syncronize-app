@@ -11,6 +11,7 @@ import '../../../../core/utils/resource.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../../../core/widgets/producto_sede_selector/producto_sede_selector.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
+import '../../../empresa/presentation/bloc/sede_activa/sede_activa_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../../producto/domain/entities/producto_list_item.dart';
 import '../../../producto/domain/entities/producto_variante.dart';
@@ -92,7 +93,10 @@ class _DevolucionVentaFormPageState extends State<DevolucionVentaFormPage> {
     super.initState();
     final empresaState = context.read<EmpresaContextCubit>().state;
     if (empresaState is EmpresaContextLoaded) {
-      _sedeId = empresaState.context.sedePrincipal?.id ?? empresaState.context.sedes.first.id;
+      // Default: sede ACTIVA del usuario (no la principal).
+      _sedeId = context.read<SedeActivaCubit>().state.activa?.id ??
+          empresaState.context.sedePrincipal?.id ??
+          empresaState.context.sedes.first.id;
       _empresaId = empresaState.context.empresa.id;
     }
     if (widget.ventaId != null) {

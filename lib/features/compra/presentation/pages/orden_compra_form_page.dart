@@ -11,6 +11,7 @@ import 'package:syncronize/core/widgets/custom_dropdown.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
+import '../../../empresa/presentation/bloc/sede_activa/sede_activa_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../../empresa/domain/entities/sede.dart';
 import '../../domain/entities/orden_compra.dart';
@@ -105,13 +106,11 @@ class _OrdenCompraFormViewState extends State<_OrdenCompraFormView> {
         }
       }
     } else {
-      // Para nueva orden, pre-seleccionar la sede principal
+      // Para nueva orden, pre-seleccionar la SEDE ACTIVA (no la principal).
       final empresaState = context.read<EmpresaContextCubit>().state;
       if (empresaState is EmpresaContextLoaded) {
-        final sedePrincipal = empresaState.context.sedePrincipal;
-        if (sedePrincipal != null) {
-          _sedeId = sedePrincipal.id;
-        }
+        _sedeId = context.read<SedeActivaCubit>().state.activa?.id ??
+            empresaState.context.sedePrincipal?.id;
       }
     }
   }
