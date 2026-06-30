@@ -180,13 +180,10 @@ class _VentaRapidaProductosView extends StatelessWidget {
       atajoIcono: Icons.request_quote_outlined,
       atajoTooltip: 'Nueva cotización',
       onAtajo: () => context.pushReplacement('/empresa/cotizaciones/nueva'),
-      // Selector de sede activa (solo visible/activo si hay >1 sede operable).
+      // Selector de sede activa (solo visible si hay >1 sede operable).
       topExtraBuilder: (_, __) => const Padding(
         padding: EdgeInsets.fromLTRB(12, 8, 12, 0),
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: SedeSwitcher(),
-        ),
+        child: SedeSwitcher(),
       ),
     );
   }
