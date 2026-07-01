@@ -296,7 +296,7 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
               width: double.infinity,
               color: Colors.white,
               margin: const EdgeInsets.only(bottom: 2),
-              padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
+              padding: const EdgeInsets.fromLTRB(14, 14, 14, 5),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -423,22 +423,11 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
                       ],
                     ),
                   ] else
-                    AppTitle('Consultar precio', fontSize: 18, color: AppColors.blue2),
+                    AppTitle('Consultar precio', fontSize: 15, color: AppColors.blue2),
 
                   // Trust badges (señales reales)
                   const SizedBox(height: 12),
                   _buildTrustBadges(hayStock, stockActual),
-
-                  // Marca
-                  if (marca != null) ...[
-                    const SizedBox(height: 14),
-                    Row(
-                      children: [
-                        Text('Marca: ', style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
-                        Text(marca, style: const TextStyle(fontSize: 13, color: AppColors.blue2, fontWeight: FontWeight.w600)),
-                      ],
-                    ),
-                  ],
                 ],
               ),
             ),
@@ -449,6 +438,17 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
                 fin: ofertaFin,
                 sedeNombre: ofertaSede,
                 sedeDireccion: ofertaSedeDir,
+              ),
+
+            // ── Marca (después de la oferta) ───────────────────────────────
+            if (marca != null)
+              _card(
+                child: Row(
+                  children: [
+                    Text('Marca: ', style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
+                    Text(marca, style: const TextStyle(fontSize: 13, color: AppColors.blue2, fontWeight: FontWeight.w600)),
+                  ],
+                ),
               ),
 
             // ── Descripción ────────────────────────────────────────────────
