@@ -88,14 +88,14 @@ class _DraggableVideoOverlayState extends State<DraggableVideoOverlay>
         _maxY =
             (constraints.maxHeight - _h - _margin).clamp(0.0, double.infinity);
 
-        // Posición inicial: CENTRO de la pantalla. Se fija una sola vez, en el
-        // primer build, antes de que el ValueListenableBuilder se suscriba
-        // (sin listeners aún → seguro mutar el notifier aquí). Al arrastrarlo se
-        // ancla al borde lateral como siempre.
+        // Posición inicial: pegado a la DERECHA y centrado verticalmente. Se
+        // fija una sola vez, en el primer build, antes de que el
+        // ValueListenableBuilder se suscriba (sin listeners aún → seguro mutar
+        // el notifier aquí). Al arrastrarlo se ancla al borde lateral como siempre.
         if (!_didInit) {
           _didInit = true;
           _pos.value = Offset(
-            ((constraints.maxWidth - _w) / 2).clamp(_margin, _maxX),
+            _maxX,
             ((constraints.maxHeight - _h) / 2).clamp(_margin, _maxY),
           );
         }
