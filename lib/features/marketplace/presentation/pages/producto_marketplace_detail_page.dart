@@ -298,10 +298,15 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
     final atributos = (p['atributos'] as List<dynamic>?) ?? [];
     final empresa = p['empresa'] as Map<String, dynamic>? ?? {};
 
-    final precioFinal = enOferta && precioOferta != null ? precioOferta : precio;
-    final tieneDescuento = enOferta && precioOferta != null && precio != null;
+    // Precios por nivel/volumen (por mayor). El precio efectivo baja si la
+    // cantidad elegida alcanza un nivel.
+    final niveles = (vSel != null ? vSel['niveles'] : p['niveles']) as List<dynamic>? ?? [];
+    final precioBaseOferta = enOferta && precioOferta != null ? precioOferta : precio;
+    final precioFinal = _precioConNivel(precio, precioBaseOferta, niveles, _cantidad);
+    // Descuento = ahorro vs precio original (por oferta o por nivel).
+    final tieneDescuento = precioFinal != null && precio != null && precioFinal < precio;
     final descuentoPct = tieneDescuento && precio > 0
-        ? ((1 - precioOferta / precio) * 100).round()
+        ? ((1 - precioFinal / precio) * 100).round()
         : 0;
 
     return RefreshIndicator(
@@ -435,7 +440,7 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
-                              '$descuentoPct% OFF · Ahorras S/ ${(precio - precioOferta).toStringAsFixed(2)}',
+                              '$descuentoPct% OFF · Ahorras S/ ${(precio - precioFinal).toStringAsFixed(2)}',
                               style: const TextStyle(
                                 fontSize: 10.5,
                                 fontWeight: FontWeight.w700,
@@ -478,6 +483,10 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
             // ── Cantidad ───────────────────────────────────────────────────
             if (hayStock && stockActual > 0 && (!tieneVariantes || vSel != null))
               _card(child: _buildCantidadSelector(stockActual)),
+
+            // ── Precios por mayor (informativo) ────────────────────────────
+            if (niveles.isNotEmpty)
+              _card(child: _buildNivelesSection(niveles, precio)),
 
             // ── Oferta (banner + cuenta regresiva si hay fecha de fin) ─────
             if (enOferta)
@@ -599,6 +608,101 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
         ),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         child: Icon(icon, size: 16, color: enabled ? AppColors.blue1 : Colors.grey.shade300),
+      ),
+    );
+  }
+
+  /// Precio unitario efectivo aplicando el nivel por mayor si la cantidad lo
+  /// alcanza (toma el menor entre el precio actual y el del nivel).
+  double? _precioConNivel(num? precioBase, num? precioActual, List<dynamic> niveles, int cantidad) {
+    if (precioActual == null) return null;
+    double efectivo = precioActual.toDouble();
+    final ap = _nivelAplicable(niveles, cantidad);
+    if (ap != null && precioBase != null && precioBase > 0) {
+      final np = _nivelPrecio(ap, precioBase);
+      if (np != null && np < efectivo) efectivo = np;
+    }
+    return efectivo;
+  }
+
+  /// Nivel aplicable a [cantidad] (el más específico: mayor cantidadMinima ≤ cant).
+  Map<String, dynamic>? _nivelAplicable(List<dynamic> niveles, int cantidad) {
+    Map<String, dynamic>? ap;
+    for (final raw in niveles) {
+      final n = raw as Map<String, dynamic>;
+      final minQ = (n['cantidadMinima'] as int?) ?? 1;
+      final maxQ = n['cantidadMaxima'] as int?;
+      if (cantidad >= minQ && (maxQ == null || cantidad <= maxQ)) {
+        if (ap == null || minQ > ((ap['cantidadMinima'] as int?) ?? 0)) ap = n;
+      }
+    }
+    return ap;
+  }
+
+  double? _nivelPrecio(Map<String, dynamic> n, num precioBase) {
+    if (n['tipoPrecio'] == 'PRECIO_FIJO' && n['precio'] != null) {
+      return (n['precio'] as num).toDouble();
+    }
+    if (n['tipoPrecio'] == 'PORCENTAJE_DESCUENTO' && n['porcentajeDesc'] != null) {
+      return precioBase.toDouble() * (1 - (n['porcentajeDesc'] as num) / 100);
+    }
+    return null;
+  }
+
+  /// Sección informativa "Precios por mayor" (resalta el nivel aplicable a la
+  /// cantidad actual).
+  Widget _buildNivelesSection(List<dynamic> niveles, num? precioBase) {
+    final aplicable = _nivelAplicable(niveles, _cantidad);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionTitle('Precios por mayor'),
+        const SizedBox(height: 8),
+        for (final raw in niveles) _nivelRow(raw as Map<String, dynamic>, precioBase, aplicable),
+      ],
+    );
+  }
+
+  Widget _nivelRow(Map<String, dynamic> n, num? precioBase, Map<String, dynamic>? aplicable) {
+    final minQ = (n['cantidadMinima'] as int?) ?? 1;
+    final maxQ = n['cantidadMaxima'] as int?;
+    final rango = maxQ != null ? '$minQ–$maxQ u.' : '$minQ+ u.';
+    final np = precioBase != null ? _nivelPrecio(n, precioBase) : null;
+    final activo = aplicable != null && n['cantidadMinima'] == aplicable['cantidadMinima'];
+    return Container(
+      margin: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: activo ? AppColors.greenContainer : Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(6),
+        border: activo ? Border.all(color: AppColors.greenBorder) : null,
+      ),
+      child: Row(
+        children: [
+          if (activo) ...[
+            const Icon(Icons.check_circle, size: 14, color: AppColors.greendark),
+            const SizedBox(width: 5),
+          ],
+          Expanded(
+            child: Text(
+              '${n['nombre'] ?? 'Nivel'} · $rango',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: activo ? FontWeight.w700 : FontWeight.w500,
+                color: activo ? AppColors.greendark : Colors.grey.shade700,
+              ),
+            ),
+          ),
+          if (np != null)
+            Text(
+              'S/ ${np.toStringAsFixed(2)}',
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                color: activo ? AppColors.greendark : AppColors.blue1,
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -1163,9 +1267,12 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
     final precioOferta = (vSel != null ? vSel['precioOferta'] : p['precioOferta']) as num?;
     final enOferta = (vSel != null ? vSel['enOferta'] : p['enOferta']) as bool? ?? false;
     final hayStock = (vSel != null ? vSel['hayStock'] : p['hayStock']) as bool? ?? false;
-    final precioFinal = enOferta && precioOferta != null ? precioOferta : precio;
     final stockActual = (vSel != null ? vSel['stockActual'] : p['stockActual']) as int? ?? 0;
     final cant = _cantidad.clamp(1, stockActual > 0 ? stockActual : 1);
+    // Precio unitario efectivo: oferta y/o nivel por mayor según la cantidad.
+    final niveles = (vSel != null ? vSel['niveles'] : p['niveles']) as List<dynamic>? ?? [];
+    final precioBaseOferta = enOferta && precioOferta != null ? precioOferta : precio;
+    final precioFinal = _precioConNivel(precio, precioBaseOferta, niveles, cant);
     final total = precioFinal != null ? precioFinal * cant : null;
     final tieneWhats = telefono != null && telefono.isNotEmpty;
 
