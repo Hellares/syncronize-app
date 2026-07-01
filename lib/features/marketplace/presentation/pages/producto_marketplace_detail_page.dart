@@ -1164,6 +1164,9 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
     final enOferta = (vSel != null ? vSel['enOferta'] : p['enOferta']) as bool? ?? false;
     final hayStock = (vSel != null ? vSel['hayStock'] : p['hayStock']) as bool? ?? false;
     final precioFinal = enOferta && precioOferta != null ? precioOferta : precio;
+    final stockActual = (vSel != null ? vSel['stockActual'] : p['stockActual']) as int? ?? 0;
+    final cant = _cantidad.clamp(1, stockActual > 0 ? stockActual : 1);
+    final total = precioFinal != null ? precioFinal * cant : null;
     final tieneWhats = telefono != null && telefono.isNotEmpty;
 
     return Container(
@@ -1181,9 +1184,10 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Precio', style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+                  Text(cant > 1 ? 'Total ($cant)' : 'Precio',
+                      style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
                   Text(
-                    '${debeElegirVariante ? 'Desde ' : ''}S/ ${precioFinal.toStringAsFixed(2)}',
+                    '${debeElegirVariante ? 'Desde ' : ''}S/ ${(total ?? precioFinal).toStringAsFixed(2)}',
                     style: TextStyle(
                       fontSize: 19,
                       fontWeight: FontWeight.bold,
