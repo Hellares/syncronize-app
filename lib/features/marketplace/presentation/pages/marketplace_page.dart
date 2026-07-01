@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:go_router/go_router.dart';
@@ -640,29 +641,25 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
 
                     return SliverPadding(
                       padding: const EdgeInsets.all(8),
-                      sliver: SliverGrid(
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          childAspectRatio: 0.62,
-                          crossAxisSpacing: 6,
-                          mainAxisSpacing: 6,
-                        ),
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) {
-                            final producto = state.productos[index];
-                            // Head-start: precargar imágenes de las próximas cards.
-                            _prefetchUpcoming(context, state.productos, index);
-                            return ProductoMarketplaceCard(
-                              producto: producto,
-                              onTap: () async {
-                                await context.push('/producto-detalle/${producto.id}');
-                                _loadCarritoCount();
-                              },
-                            );
-                          },
-                          childCount: state.productos.length,
-                        ),
+                      // Masonry/staggered: cada card se ajusta a su alto y las
+                      // columnas fluyen independientes (cards escalonadas, tipo Temu).
+                      sliver: SliverMasonryGrid.count(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 6,
+                        mainAxisSpacing: 6,
+                        childCount: state.productos.length,
+                        itemBuilder: (context, index) {
+                          final producto = state.productos[index];
+                          // Head-start: precargar imágenes de las próximas cards.
+                          _prefetchUpcoming(context, state.productos, index);
+                          return ProductoMarketplaceCard(
+                            producto: producto,
+                            onTap: () async {
+                              await context.push('/producto-detalle/${producto.id}');
+                              _loadCarritoCount();
+                            },
+                          );
+                        },
                       ),
                     );
                   }

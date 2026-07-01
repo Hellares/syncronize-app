@@ -203,11 +203,11 @@ class ProductoMarketplaceCard extends StatelessWidget {
             // Separador sutil
             Container(height: 0.5, color: Colors.grey.shade100),
 
-            // Info del producto
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
-                child: Column(
+            // Info del producto (sin Expanded → la card se ajusta a su
+            // contenido para el masonry/staggered grid).
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+              child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Precio (protagonista, azul de marca) + tachado si hay oferta
@@ -416,7 +416,6 @@ class ProductoMarketplaceCard extends StatelessWidget {
                   ],
                 ),
               ),
-            ),
           ],
         ),
       ),
