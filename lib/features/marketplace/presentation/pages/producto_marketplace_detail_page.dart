@@ -501,7 +501,15 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
             if (niveles.isNotEmpty)
               _buildMejoresPreciosCard(niveles, precio, nivelesSede, nivelesSedeDir),
 
-            // ── Marca ──────────────────────────────────────────────────────
+            // ── Oferta (banner + cuenta regresiva si hay fecha de fin) ─────
+            if (enOferta)
+              OfertaCountdownBanner(
+                fin: ofertaFin,
+                sedeNombre: ofertaSede,
+                sedeDireccion: ofertaSedeDir,
+              ),
+
+            // ── Marca (después de la oferta) ───────────────────────────────
             if (marca != null)
               _card(
                 child: Row(
@@ -510,14 +518,6 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
                     Text(marca, style: const TextStyle(fontSize: 13, color: AppColors.blue2, fontWeight: FontWeight.w600)),
                   ],
                 ),
-              ),
-
-            // ── Oferta (banner + cuenta regresiva) — debajo de la marca ────
-            if (enOferta)
-              OfertaCountdownBanner(
-                fin: ofertaFin,
-                sedeNombre: ofertaSede,
-                sedeDireccion: ofertaSedeDir,
               ),
 
             // ── Descripción ────────────────────────────────────────────────

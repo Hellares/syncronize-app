@@ -158,10 +158,11 @@ class ProductoMarketplaceCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                // Marca badge
+                // Marca badge (se sube si hay barra de countdown de oferta abajo,
+                // para no quedar tapada por ella).
                 if (producto.marca != null)
                   Positioned(
-                    bottom: 10,
+                    bottom: (producto.enOferta && producto.ofertaFin != null) ? 30 : 10,
                     left: 10,
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
