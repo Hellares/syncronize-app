@@ -61,6 +61,7 @@ class ProductoMarketplaceModel {
   final double? precio;
   final double? precioOferta;
   final bool enOferta;
+  final DateTime? ofertaFin;
   final bool hayStock;
   final String? imagen;
   final double? calificacion;
@@ -81,6 +82,7 @@ class ProductoMarketplaceModel {
     this.precio,
     this.precioOferta,
     this.enOferta = false,
+    this.ofertaFin,
     this.hayStock = false,
     this.imagen,
     this.calificacion,
@@ -104,6 +106,7 @@ class ProductoMarketplaceModel {
       precio: _toDoubleOrNull(json['precio']),
       precioOferta: _toDoubleOrNull(json['precioOferta']),
       enOferta: json['enOferta'] as bool? ?? false,
+      ofertaFin: _toDateOrNull(json['ofertaFin']),
       hayStock: json['hayStock'] as bool? ?? false,
       imagen: json['imagen'] as String?,
       calificacion: _toDoubleOrNull(json['calificacion']),
@@ -126,6 +129,7 @@ class ProductoMarketplaceModel {
         precio: precio,
         precioOferta: precioOferta,
         enOferta: enOferta,
+        ofertaFin: ofertaFin,
         hayStock: hayStock,
         imagen: imagen,
         calificacion: calificacion,

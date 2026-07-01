@@ -35,6 +35,7 @@ class ProductoMarketplace extends Equatable {
   final double? precio;
   final double? precioOferta;
   final bool enOferta;
+  final DateTime? ofertaFin;
   final bool hayStock;
   final String? imagen;
   final double? calificacion;
@@ -55,6 +56,7 @@ class ProductoMarketplace extends Equatable {
     this.precio,
     this.precioOferta,
     this.enOferta = false,
+    this.ofertaFin,
     this.hayStock = false,
     this.imagen,
     this.calificacion,
@@ -97,6 +99,7 @@ class ProductoMarketplace extends Equatable {
         precio,
         precioOferta,
         enOferta,
+        ofertaFin,
         hayStock,
         imagen,
         calificacion,

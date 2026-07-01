@@ -5,6 +5,7 @@ import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../domain/entities/producto_marketplace.dart';
 import 'favorito_button.dart';
+import 'mini_countdown_bar.dart';
 
 /// Card de producto estilo MercadoLibre para el marketplace
 class ProductoMarketplaceCard extends StatelessWidget {
@@ -63,16 +64,29 @@ class ProductoMarketplaceCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8),
                       child: Container(
                         color: Colors.grey.shade50,
-                        child: producto.imagen != null
-                            ? CachedNetworkImage(
-                                imageUrl: producto.imagen!,
-                                fit: BoxFit.contain,
-                                memCacheWidth: imgCacheW,
-                                fadeInDuration: const Duration(milliseconds: 150),
-                                placeholder: (_, __) => _buildPlaceholder(),
-                                errorWidget: (_, __, ___) => _buildPlaceholder(),
-                              )
-                            : _buildPlaceholder(),
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            producto.imagen != null
+                                ? CachedNetworkImage(
+                                    imageUrl: producto.imagen!,
+                                    fit: BoxFit.contain,
+                                    memCacheWidth: imgCacheW,
+                                    fadeInDuration: const Duration(milliseconds: 150),
+                                    placeholder: (_, __) => _buildPlaceholder(),
+                                    errorWidget: (_, __, ___) => _buildPlaceholder(),
+                                  )
+                                : _buildPlaceholder(),
+                            // Countdown de oferta (estilo Temu) al pie de la imagen.
+                            if (producto.enOferta && producto.ofertaFin != null)
+                              Positioned(
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                child: MiniCountdownBar(fin: producto.ofertaFin!),
+                              ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
