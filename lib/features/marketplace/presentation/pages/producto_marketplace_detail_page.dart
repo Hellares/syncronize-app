@@ -301,6 +301,7 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
     // Precios por nivel/volumen (por mayor). El precio efectivo baja si la
     // cantidad elegida alcanza un nivel.
     final niveles = (vSel != null ? vSel['niveles'] : p['niveles']) as List<dynamic>? ?? [];
+    final nivelesSede = (vSel != null ? vSel['sede'] : sedeMap?['nombre']) as String?;
     final precioBaseOferta = enOferta && precioOferta != null ? precioOferta : precio;
     final precioFinal = _precioConNivel(precio, precioBaseOferta, niveles, _cantidad);
     // Descuento = ahorro vs precio original (por oferta o por nivel).
@@ -484,9 +485,9 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
             if (hayStock && stockActual > 0 && (!tieneVariantes || vSel != null))
               _card(child: _buildCantidadSelector(stockActual)),
 
-            // ── Precios por mayor (informativo) ────────────────────────────
+            // ── Mejores precios (niveles por mayor, estilo container oferta) ─
             if (niveles.isNotEmpty)
-              _card(child: _buildNivelesSection(niveles, precio)),
+              _buildMejoresPreciosCard(niveles, precio, nivelesSede),
 
             // ── Oferta (banner + cuenta regresiva si hay fecha de fin) ─────
             if (enOferta)
@@ -649,17 +650,66 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
     return null;
   }
 
-  /// Sección informativa "Precios por mayor" (resalta el nivel aplicable a la
-  /// cantidad actual).
-  Widget _buildNivelesSection(List<dynamic> niveles, num? precioBase) {
+  /// Container "Mejores precios" con estilo del banner de ofertas: header verde
+  /// con el título + la sede que ofrece el mejor precio, y body con los niveles
+  /// (resaltando el aplicable a la cantidad actual).
+  Widget _buildMejoresPreciosCard(List<dynamic> niveles, num? precioBase, String? sedeNombre) {
     final aplicable = _nivelAplicable(niveles, _cantidad);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _sectionTitle('Precios por mayor'),
-        const SizedBox(height: 8),
-        for (final raw in niveles) _nivelRow(raw as Map<String, dynamic>, precioBase, aplicable),
-      ],
+    return Container(
+      margin: const EdgeInsets.fromLTRB(8, 4, 8, 6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF0E8A3C), width: 1),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header verde con título + sede
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF0E8A3C), Color(0xFF16B24A)],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              ),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.sell_outlined, color: Colors.white, size: 15),
+                const SizedBox(width: 5),
+                const Expanded(
+                  child: Text('Mejores precios',
+                      style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+                ),
+                if (sedeNombre != null && sedeNombre.isNotEmpty) ...[
+                  const Icon(Icons.storefront_outlined, color: Colors.white70, size: 12),
+                  const SizedBox(width: 3),
+                  Flexible(
+                    child: Text(sedeNombre,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.w600)),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          // Body: niveles
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (final raw in niveles) _nivelRow(raw as Map<String, dynamic>, precioBase, aplicable),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
