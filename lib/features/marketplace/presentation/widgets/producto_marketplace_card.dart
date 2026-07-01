@@ -58,6 +58,8 @@ class ProductoMarketplaceCard extends StatelessWidget {
                   aspectRatio: 1.2,
                   child: Container(
                     color: Colors.grey.shade50,
+                    // Padding para que la imagen no quede pegada al borde de la card.
+                    padding: const EdgeInsets.all(10),
                     child: producto.imagen != null
                         ? CachedNetworkImage(
                             imageUrl: producto.imagen!,
