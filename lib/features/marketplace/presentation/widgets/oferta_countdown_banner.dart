@@ -1,15 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:syncronize/core/fonts/app_fonts.dart';
-import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
-import 'package:syncronize/core/theme/gradient_container.dart';
 
-/// Banner de oferta en tarjeta blanca (GradientContainer) con borde verde y
-/// acentos verdes. Si la oferta tiene fecha de fin [fin], muestra una cuenta
-/// regresiva en vivo (días/hrs/min/seg) en cajitas con borde verde; si no,
-/// muestra una versión simple sin reloj.
+/// Banner de oferta estilo Temu: **header de color** con el título + la cuenta
+/// regresiva adentro (a la derecha), y **body blanco** con la sede de la promo.
+/// Si no hay fecha de fin, el header muestra solo "Oferta especial".
 class OfertaCountdownBanner extends StatefulWidget {
   /// Fecha de fin de la oferta. Si es null, no hay cuenta regresiva.
   final DateTime? fin;
@@ -41,7 +37,7 @@ class _OfertaCountdownBannerState extends State<OfertaCountdownBanner> {
         if (!mounted) return;
         final r = _calc();
         setState(() => _restante = r);
-        if (r == Duration.zero) _timer?.cancel(); // se acabó: dejamos de tickear
+        if (r == Duration.zero) _timer?.cancel();
       });
     }
   }
@@ -75,119 +71,113 @@ class _OfertaCountdownBannerState extends State<OfertaCountdownBanner> {
   Widget build(BuildContext context) {
     final tieneCountdown = widget.fin != null && _restante > Duration.zero;
     final dias = _restante.inDays;
-    final horas = _restante.inHours % 24;
-    final mins = _restante.inMinutes % 60;
-    final segs = _restante.inSeconds % 60;
+    final hh = _restante.inHours % 24;
+    final mm = _restante.inMinutes % 60;
+    final ss = _restante.inSeconds % 60;
+    final countdown = '${_dd(dias)}:${_dd(hh)}:${_dd(mm)}:${_dd(ss)}';
 
-    return GradientContainer(
+    final tieneSede = widget.sedeNombre != null && widget.sedeNombre!.isNotEmpty;
+
+    return Container(
       margin: const EdgeInsets.fromLTRB(8, 4, 8, 6),
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-      borderRadius: BorderRadius.circular(12),
-      borderColor: _verde,
-      borderWidth: 1.2,
-      // Fondo blanco (por defecto GradientContainer usa un degradé azul).
-      gradient: const LinearGradient(colors: [Colors.white, Colors.white]),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _verde, width: 1),
+      ),
+      clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Icon(Icons.local_fire_department_rounded, color: _verde, size: 18),
-              const SizedBox(width: 6),
-              Text(
-                tieneCountdown ? 'Oferta por tiempo limitado' : 'Oferta especial',
-                style: const TextStyle(color: _verde, fontSize: 13, fontWeight: FontWeight.w700),
+          // ── Header de color con título + countdown ─────────────────────────
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [_verde, Color(0xFF16B24A)],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
               ),
-            ],
-          ),
-          if (widget.sedeNombre != null && widget.sedeNombre!.isNotEmpty) ...[
-            const SizedBox(height: 5),
-            Row(
+            ),
+            child: Row(
               children: [
-                const Icon(Icons.storefront_outlined, color: _verde, size: 13),
-                const SizedBox(width: 4),
-                Flexible(
+                const Icon(Icons.local_fire_department_rounded, color: Colors.white, size: 16),
+                const SizedBox(width: 5),
+                Expanded(
                   child: Text(
-                    'Oferta válida en ${widget.sedeNombre}',
+                    tieneCountdown ? 'Oferta por tiempo limitado' : 'Oferta especial',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: AppColors.greendark, fontSize: 11, fontWeight: FontWeight.w600),
+                    style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700),
                   ),
                 ),
+                if (tieneCountdown) ...[
+                  const SizedBox(width: 8),
+                  const Text('Termina en ', style: TextStyle(color: Colors.white70, fontSize: 10.5)),
+                  Text(
+                    countdown,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.4,
+                    ),
+                  ),
+                ],
               ],
             ),
-            if (widget.sedeDireccion != null && widget.sedeDireccion!.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(left: 17, top: 1),
-                child: AppSubtitle(
-                  widget.sedeDireccion!,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  fontSize: 8,
-                  font: AppFont.amazonEmberMedium,
-                  color: AppColors.grey,
-                ),
-              ),
-          ],
-          if (tieneCountdown) ...[
-            const SizedBox(height: 10),
-            Row(
+          ),
+          // ── Body blanco: sede + dirección + validez ────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Termina en', style: TextStyle(color: Colors.grey.shade700, fontSize: 11)),
-                const SizedBox(width: 10),
-                _box(_dd(dias), 'días'),
-                const SizedBox(width: 6),
-                _box(_dd(horas), 'hrs'),
-                const SizedBox(width: 6),
-                _box(_dd(mins), 'min'),
-                const SizedBox(width: 6),
-                _box(_dd(segs), 'seg'),
+                if (tieneSede) ...[
+                  Row(
+                    children: [
+                      const Icon(Icons.storefront_outlined, color: _verde, size: 13),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          'Oferta válida en: ${widget.sedeNombre}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(color: AppColors.greendark, fontSize: 11, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (widget.sedeDireccion != null && widget.sedeDireccion!.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 17, top: 1),
+                      child: Text(
+                        widget.sedeDireccion!,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: Colors.grey.shade500, fontSize: 9),
+                      ),
+                    ),
+                ] else
+                  Text('¡Aprovecha el precio rebajado!',
+                      style: TextStyle(color: Colors.grey.shade600, fontSize: 11)),
+                if (widget.fin != null) ...[
+                  const SizedBox(height: 5),
+                  Row(
+                    children: [
+                      Icon(Icons.event_outlined, color: Colors.grey.shade400, size: 12),
+                      const SizedBox(width: 4),
+                      Text('Válida hasta el ${_fmtFecha(widget.fin!)}',
+                          style: TextStyle(color: Colors.grey.shade500, fontSize: 9.5)),
+                    ],
+                  ),
+                ],
               ],
             ),
-            const SizedBox(height: 9),
-            Row(
-              children: [
-                Icon(Icons.event_outlined, color: Colors.grey.shade500, size: 13),
-                const SizedBox(width: 4),
-                Text(
-                  'Válida hasta el ${_fmtFecha(widget.fin!)}',
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 10.5),
-                ),
-              ],
-            ),
-          ] else ...[
-            const SizedBox(height: 4),
-            Text(
-              '¡Aprovecha el precio rebajado!',
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
-            ),
-          ],
+          ),
         ],
       ),
-    );
-  }
-
-  Widget _box(String value, String label) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 32,
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: _verde, width: 1.2),
-          ),
-          child: Text(
-            value,
-            style: const TextStyle(color: _verde, fontSize: 15, fontWeight: FontWeight.w800),
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(label, style: TextStyle(color: Colors.grey.shade600, fontSize: 8.5)),
-      ],
     );
   }
 }

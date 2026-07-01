@@ -46,6 +46,9 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
   /// Variante elegida en el selector (null = ninguna aún, o producto sin variantes).
   Map<String, dynamic>? _selectedVariante;
 
+  /// Cantidad a agregar al carrito (1..stock disponible).
+  int _cantidad = 1;
+
   // ── Estilo compartido (Temu-like sobre la marca azul) ──────────────────────
   static const Color _star = Color(0xFFFFB300);
 
@@ -463,6 +466,7 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
                     setState(() {
                       _selectedVariante = v;
                       _currentImageIndex = 0; // la galería cambia a las imágenes de la variante
+                      _cantidad = 1; // reseteamos la cantidad al cambiar de variante
                     });
                     WidgetsBinding.instance.addPostFrameCallback((_) {
                       if (_pageController.hasClients) _pageController.jumpToPage(0);
@@ -470,6 +474,10 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
                   },
                 ),
               ),
+
+            // ── Cantidad ───────────────────────────────────────────────────
+            if (hayStock && stockActual > 0 && (!tieneVariantes || vSel != null))
+              _card(child: _buildCantidadSelector(stockActual)),
 
             // ── Oferta (banner + cuenta regresiva si hay fecha de fin) ─────
             if (enOferta)
@@ -542,6 +550,48 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
     return Text(
       text,
       style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.black87),
+    );
+  }
+
+  /// Selector "Cantidad  [-] N [+]" (estilo Temu). Limita entre 1 y [maxQty].
+  Widget _buildCantidadSelector(int maxQty) {
+    final cantidad = _cantidad.clamp(1, maxQty);
+    return Row(
+      children: [
+        const Text('Cantidad',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black87)),
+        const Spacer(),
+        Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey.shade300),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _qtyBtn(Icons.remove, cantidad > 1, () => setState(() => _cantidad = cantidad - 1)),
+              Container(
+                width: 42,
+                alignment: Alignment.center,
+                child: Text('$cantidad',
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.black87)),
+              ),
+              _qtyBtn(Icons.add, cantidad < maxQty, () => setState(() => _cantidad = cantidad + 1)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _qtyBtn(IconData icon, bool enabled, VoidCallback onTap) {
+    return InkWell(
+      onTap: enabled ? onTap : null,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: Icon(icon, size: 18, color: enabled ? AppColors.blue1 : Colors.grey.shade300),
+      ),
     );
   }
 
@@ -1066,7 +1116,7 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
         '/marketplace/carrito',
         data: {
           'productoId': widget.productoId,
-          'cantidad': 1,
+          'cantidad': _cantidad < 1 ? 1 : _cantidad,
           if (_selectedVariante != null) 'varianteId': _selectedVariante!['id'],
         },
       );
