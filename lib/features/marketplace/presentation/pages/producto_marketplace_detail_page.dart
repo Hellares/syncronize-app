@@ -570,14 +570,14 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _qtyBtn(Icons.remove, cantidad > 1, () => setState(() => _cantidad = cantidad - 1)),
+              _qtyBtn(Icons.remove, cantidad > 1, () => setState(() => _cantidad = cantidad - 1), left: true),
               Container(
                 width: 35,
                 alignment: Alignment.center,
                 child: Text('$cantidad',
                     style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.blue1)),
               ),
-              _qtyBtn(Icons.add, cantidad < maxQty, () => setState(() => _cantidad = cantidad + 1)),
+              _qtyBtn(Icons.add, cantidad < maxQty, () => setState(() => _cantidad = cantidad + 1), left: false),
             ],
           ),
         ),
@@ -585,11 +585,18 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
     );
   }
 
-  Widget _qtyBtn(IconData icon, bool enabled, VoidCallback onTap) {
+  Widget _qtyBtn(IconData icon, bool enabled, VoidCallback onTap, {required bool left}) {
     return InkWell(
       onTap: enabled ? onTap : null,
       child: Container(
-        color: Colors.grey.shade100, // fondo gris tenue → contrasta con el número blanco
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100, // fondo gris tenue → contrasta con el número blanco
+          // Esquina externa redondeada para matchear el borde del contenedor
+          // (evita que el gris tape las esquinas del borde).
+          borderRadius: left
+              ? const BorderRadius.horizontal(left: Radius.circular(3.5))
+              : const BorderRadius.horizontal(right: Radius.circular(3.5)),
+        ),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         child: Icon(icon, size: 16, color: enabled ? AppColors.blue1 : Colors.grey.shade300),
       ),
