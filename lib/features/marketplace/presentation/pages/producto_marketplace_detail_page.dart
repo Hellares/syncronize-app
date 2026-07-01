@@ -36,6 +36,7 @@ class ProductoMarketplaceDetailPage extends StatefulWidget {
 
 class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetailPage> {
   final _dataSource = locator<MarketplaceRemoteDataSource>();
+  static const Color _verde = Color(0xFF0E8A3C);
   Map<String, dynamic>? _producto;
   bool _isLoading = true;
   String? _error;
@@ -488,6 +489,10 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
                 ),
               ),
 
+            // ── Sede de la variante elegida ────────────────────────────────
+            if (tieneVariantes && vSel != null && ((vSel['sede'] as String?)?.isNotEmpty ?? false))
+              _buildVarianteSedeCard(vSel['sede'] as String?, vSel['sedeDireccion'] as String?),
+
             // ── Cantidad ───────────────────────────────────────────────────
             if (hayStock && stockActual > 0 && (!tieneVariantes || vSel != null))
               _card(child: _buildCantidadSelector(stockActual)),
@@ -620,6 +625,52 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
     );
   }
 
+  /// Contenedor con la sede (y dirección) donde está la variante elegida a ese
+  /// precio.
+  Widget _buildVarianteSedeCard(String? sedeNombre, String? sedeDireccion) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(8, 4, 8, 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.blueborder, width: 0.6),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: AppColors.blue1.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(Icons.storefront_outlined, color: AppColors.blue1, size: 16),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Disponible en: $sedeNombre',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.blue2)),
+                if (sedeDireccion != null && sedeDireccion.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 1),
+                    child: Text(sedeDireccion,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 9.5, color: Colors.grey.shade500)),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// Precio unitario efectivo aplicando el nivel por mayor si la cantidad lo
   /// alcanza (toma el menor entre el precio actual y el del nivel).
   double? _precioConNivel(num? precioBase, num? precioActual, List<dynamic> niveles, int cantidad) {
@@ -667,8 +718,8 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
       margin: const EdgeInsets.fromLTRB(8, 4, 8, 6),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF0E8A3C), width: 1),
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(color: _verde, width: 0.6),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -677,10 +728,10 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
           // Header verde con el título
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
             decoration: const BoxDecoration(
               gradient: LinearGradient(
-                colors: [Color(0xFF0E8A3C), Color(0xFF16B24A)],
+                colors: [_verde, _verde],
                 begin: Alignment.centerLeft,
                 end: Alignment.centerRight,
               ),
@@ -690,7 +741,7 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
                 Icon(Icons.sell_outlined, color: Colors.white, size: 15),
                 SizedBox(width: 5),
                 Text('Mejores precios',
-                    style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+                    style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600)),
               ],
             ),
           ),
@@ -718,10 +769,18 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
                   if (sedeDireccion != null && sedeDireccion.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(left: 17, top: 1),
-                      child: Text(sedeDireccion,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(color: Colors.grey.shade500, fontSize: 9)),
+                      // child: Text(sedeDireccion,
+                      //     maxLines: 2,
+                      //     overflow: TextOverflow.ellipsis,
+                      //     style: TextStyle(color: Colors.grey.shade500, fontSize: 9)),
+                      child: AppSubtitle(
+                        sedeDireccion,
+                        font: AppFont.amazonEmberMediumItalic,
+                        color: Colors.grey.shade500,
+                        fontSize: 8,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                 ],
               ],
@@ -740,11 +799,11 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
     final activo = aplicable != null && n['cantidadMinima'] == aplicable['cantidadMinima'];
     return Container(
       margin: const EdgeInsets.only(bottom: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: activo ? AppColors.greenContainer : Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(6),
-        border: activo ? Border.all(color: AppColors.greenBorder) : null,
+        borderRadius: BorderRadius.circular(4),
+        border: activo ? Border.all(color: AppColors.greenBorder, width: 0.6) : null,
       ),
       child: Row(
         children: [
@@ -766,8 +825,8 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
             Text(
               'S/ ${np.toStringAsFixed(2)}',
               style: TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w700,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
                 color: activo ? AppColors.greendark : AppColors.blue1,
               ),
             ),
