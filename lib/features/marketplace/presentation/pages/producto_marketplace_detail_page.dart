@@ -364,51 +364,64 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
                   // Precio (protagonista)
                   if (precioFinal != null) ...[
                     Row(
-                      crossAxisAlignment: CrossAxisAlignment.baseline,
-                      textBaseline: TextBaseline.alphabetic,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Text(
-                          'S/ ${precioFinal.toStringAsFixed(2)}',
-                          style: TextStyle(
-                            fontSize: 25,
-                            fontWeight: FontWeight.w400,
-                            fontFamily: AppFonts.getFontFamily(AppFont.oxygenBold),
-                            color: AppColors.blue1,
-                            letterSpacing: -0.5,
+                        // Precio + tachado (izquierda)
+                        Expanded(
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.baseline,
+                            textBaseline: TextBaseline.alphabetic,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  'S/ ${precioFinal.toStringAsFixed(2)}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 25,
+                                    fontWeight: FontWeight.w400,
+                                    fontFamily: AppFonts.getFontFamily(AppFont.oxygenBold),
+                                    color: AppColors.blue1,
+                                    letterSpacing: -0.5,
+                                  ),
+                                ),
+                              ),
+                              if (tieneDescuento) ...[
+                                const SizedBox(width: 8),
+                                Text(
+                                  'S/ ${precio.toStringAsFixed(2)}',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.grey.shade400,
+                                    decoration: TextDecoration.lineThrough,
+                                    decorationColor: Colors.grey.shade400,
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                         ),
+                        // Chip de descuento, pegado a la derecha
                         if (tieneDescuento) ...[
-                          const SizedBox(width: 10),
-                          Text(
-                            'S/ ${precio.toStringAsFixed(2)}',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey.shade400,
-                              decoration: TextDecoration.lineThrough,
-                              decorationColor: Colors.grey.shade400,
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppColors.greenContainer,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              '$descuentoPct% OFF · Ahorras S/ ${(precio - precioOferta).toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.greendark,
+                              ),
                             ),
                           ),
                         ],
                       ],
                     ),
-                    if (tieneDescuento) ...[
-                      const SizedBox(height: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: AppColors.greenContainer,
-                          borderRadius: BorderRadius.circular(5),
-                        ),
-                        child: Text(
-                          '$descuentoPct% OFF · Ahorras S/ ${(precio - precioOferta).toStringAsFixed(2)}',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.greendark,
-                          ),
-                        ),
-                      ),
-                    ],
                   ] else
                     AppTitle('Consultar precio', fontSize: 18, color: AppColors.blue2),
 
