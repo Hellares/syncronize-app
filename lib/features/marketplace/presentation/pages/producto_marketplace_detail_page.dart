@@ -22,6 +22,7 @@ import '../widgets/opiniones_producto_section.dart';
 import '../widgets/draggable_video_overlay.dart';
 import '../widgets/oferta_countdown_banner.dart';
 import '../../../../core/widgets/floating_button_text.dart';
+import '../../../../core/widgets/custom_button.dart';
 
 class ProductoMarketplaceDetailPage extends StatefulWidget {
   final String productoId;
@@ -48,7 +49,7 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
   /// ve como una línea fina entre secciones, estilo Temu/Mercado Libre).
   Widget _card({
     required Widget child,
-    EdgeInsetsGeometry padding = const EdgeInsets.all(14),
+    EdgeInsetsGeometry padding = const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
   }) {
     return Container(
       width: double.infinity,
@@ -445,7 +446,7 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
               _card(
                 child: Row(
                   children: [
-                    Text('Marca: ', style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
+                    Text('Marca: ', style: TextStyle(fontSize: 13, color: Colors.black87,fontWeight: FontWeight.w500)),
                     Text(marca, style: const TextStyle(fontSize: 13, color: AppColors.blue2, fontWeight: FontWeight.w600)),
                   ],
                 ),
@@ -1079,18 +1080,17 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
               child: SizedBox(
                 height: 46,
                 child: hayStock
-                    ? ElevatedButton.icon(
+                    ? CustomButton(
+                        text: 'Agregar al carrito',
+                        backgroundColor: AppColors.blue1,
+                        textColor: Colors.white,
+                        isLoading: _addingToCart,
                         onPressed: _addingToCart ? null : _agregarAlCarrito,
-                        icon: _addingToCart
-                            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                            : const Icon(Icons.add_shopping_cart, size: 19),
-                        label: const Text('Agregar al carrito', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.blue1,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          elevation: 0,
-                        ),
+                        icon: const Icon(Icons.add_shopping_cart, size: 19, color: Colors.white),
+                        width: double.infinity,
+                        borderRadius: 12,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
                       )
                     : Container(
                         alignment: Alignment.center,
