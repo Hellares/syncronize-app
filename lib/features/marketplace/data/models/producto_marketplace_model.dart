@@ -65,6 +65,8 @@ class ProductoMarketplaceModel {
   final String? imagen;
   final double? calificacion;
   final int totalOpiniones;
+  final int vendidos;
+  final bool tieneVariantes;
   final double? distancia;
   final bool destacado;
   final DateTime? creadoEn;
@@ -83,6 +85,8 @@ class ProductoMarketplaceModel {
     this.imagen,
     this.calificacion,
     this.totalOpiniones = 0,
+    this.vendidos = 0,
+    this.tieneVariantes = false,
     this.distancia,
     this.destacado = false,
     this.creadoEn,
@@ -104,6 +108,8 @@ class ProductoMarketplaceModel {
       imagen: json['imagen'] as String?,
       calificacion: _toDoubleOrNull(json['calificacion']),
       totalOpiniones: json['totalOpiniones'] as int? ?? 0,
+      vendidos: json['vendidos'] as int? ?? 0,
+      tieneVariantes: json['tieneVariantes'] as bool? ?? false,
       distancia: _toDoubleOrNull(json['distancia']),
       destacado: json['destacado'] as bool? ?? false,
       creadoEn: _toDateOrNull(json['creadoEn']),
@@ -124,6 +130,8 @@ class ProductoMarketplaceModel {
         imagen: imagen,
         calificacion: calificacion,
         totalOpiniones: totalOpiniones,
+        vendidos: vendidos,
+        tieneVariantes: tieneVariantes,
         distancia: distancia,
         destacado: destacado,
         creadoEn: creadoEn,

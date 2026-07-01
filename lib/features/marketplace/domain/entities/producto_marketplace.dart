@@ -39,6 +39,8 @@ class ProductoMarketplace extends Equatable {
   final String? imagen;
   final double? calificacion;
   final int totalOpiniones;
+  final int vendidos;
+  final bool tieneVariantes;
   final double? distancia;
   final bool destacado;
   final DateTime? creadoEn;
@@ -57,6 +59,8 @@ class ProductoMarketplace extends Equatable {
     this.imagen,
     this.calificacion,
     this.totalOpiniones = 0,
+    this.vendidos = 0,
+    this.tieneVariantes = false,
     this.distancia,
     this.destacado = false,
     this.creadoEn,
@@ -97,6 +101,8 @@ class ProductoMarketplace extends Equatable {
         imagen,
         calificacion,
         totalOpiniones,
+        vendidos,
+        tieneVariantes,
         distancia,
         destacado,
         creadoEn,

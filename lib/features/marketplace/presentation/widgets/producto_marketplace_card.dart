@@ -35,12 +35,12 @@ class ProductoMarketplaceCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey.shade200, width: 0.5),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
             offset: const Offset(0, 2),
           ),
         ],
@@ -183,28 +183,41 @@ class ProductoMarketplaceCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Precio
+                    // Precio (protagonista, azul de marca) + tachado si hay oferta
                     if (precioFinal != null) ...[
-                      if (tieneDescuento) ...[
-                        Text(
-                          'S/ ${producto.precio!.toStringAsFixed(2)}',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey.shade400,
-                            decoration: TextDecoration.lineThrough,
-                            decorationColor: Colors.grey.shade400,
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              '${producto.tieneVariantes ? 'Desde ' : ''}S/ ${precioFinal.toStringAsFixed(2)}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w700,
+                                fontFamily: AppFonts.getFontFamily(AppFont.oxygenBold),
+                                color: AppColors.blue1,
+                                height: 1.0,
+                              ),
+                            ),
                           ),
-                        ),
-                      ],
-                      Text(
-                        'S/ ${precioFinal.toStringAsFixed(2)}',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          fontFamily: AppFonts.getFontFamily(AppFont.oxygenBold),
-                          color: tieneDescuento ? Colors.green.shade600 : Colors.black87,
-                          height: 1.1,
-                        ),
+                          if (tieneDescuento) ...[
+                            const SizedBox(width: 5),
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 1),
+                              child: Text(
+                                'S/ ${producto.precio!.toStringAsFixed(2)}',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.grey.shade400,
+                                  decoration: TextDecoration.lineThrough,
+                                  decorationColor: Colors.grey.shade400,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ] else
                       Text(
@@ -218,28 +231,28 @@ class ProductoMarketplaceCard extends StatelessWidget {
 
                     const SizedBox(height: 3),
 
-                    // Calificación
-                    if (producto.tieneCalificacion)
+                    // Rating compacto + vendidos (prueba social)
+                    if (producto.tieneCalificacion || producto.vendidos > 0)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 3),
                         child: Row(
                           children: [
-                            ...List.generate(5, (i) => Icon(
-                                  i < producto.calificacion!.floor()
-                                      ? Icons.star
-                                      : (i < producto.calificacion!
-                                          ? Icons.star_half
-                                          : Icons.star_border),
-                                  size: 11,
-                                  color: i < producto.calificacion!
-                                      ? Colors.amber
-                                      : Colors.grey.shade300,
-                                )),
-                            const SizedBox(width: 3),
-                            Text(
-                              '(${producto.totalOpiniones})',
-                              style: TextStyle(fontSize: 9, color: Colors.grey.shade500),
-                            ),
+                            if (producto.tieneCalificacion) ...[
+                              const Icon(Icons.star_rounded, size: 12, color: Color(0xFFFFB300)),
+                              const SizedBox(width: 2),
+                              Text(
+                                producto.calificacion!.toStringAsFixed(1),
+                                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.grey.shade700),
+                              ),
+                              const SizedBox(width: 2),
+                              Text('(${producto.totalOpiniones})',
+                                  style: TextStyle(fontSize: 9, color: Colors.grey.shade400)),
+                            ],
+                            if (producto.tieneCalificacion && producto.vendidos > 0)
+                              Text('  ·  ', style: TextStyle(fontSize: 9, color: Colors.grey.shade300)),
+                            if (producto.vendidos > 0)
+                              Text('${_fmtVendidos(producto.vendidos)} vendidos',
+                                  style: TextStyle(fontSize: 9, color: Colors.grey.shade500, fontWeight: FontWeight.w500)),
                           ],
                         ),
                       ),
@@ -250,10 +263,11 @@ class ProductoMarketplaceCard extends StatelessWidget {
                         producto.nombre,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 11,
-                          height: 1.0,
-                          color: Colors.grey.shade800,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          height: 1.15,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.black87,
                         ),
                       ),
                     ),
@@ -401,6 +415,14 @@ class ProductoMarketplaceCard extends StatelessWidget {
 
     final url = Uri.parse('https://wa.me/$numero?text=$mensaje');
     launchUrl(url, mode: LaunchMode.externalApplication);
+  }
+
+  String _fmtVendidos(int n) {
+    if (n >= 1000) {
+      final k = n / 1000;
+      return '${k.toStringAsFixed(n % 1000 == 0 ? 0 : 1)}k';
+    }
+    return '$n';
   }
 
   String _formatDistance(double km) {
