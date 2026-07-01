@@ -257,6 +257,12 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
     final ofertaFinStr = p['ofertaFin'] as String?;
     final ofertaFin = ofertaFinStr != null ? DateTime.tryParse(ofertaFinStr) : null;
     final ofertaSede = p['ofertaSede'] as String?;
+    final sedeMap = p['sede'] as Map<String, dynamic>?;
+    final ofertaSedeDir = sedeMap == null
+        ? null
+        : [sedeMap['direccion'], sedeMap['distrito'], sedeMap['provincia']]
+            .where((e) => e != null && e.toString().trim().isNotEmpty)
+            .join(', ');
     final hayStock = p['hayStock'] as bool? ?? false;
     final stockActual = p['stockActual'] as int? ?? 0;
     final categoria = p['categoria'] as String?;
@@ -425,7 +431,12 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
             ),
 
             // ── Oferta (banner + cuenta regresiva si hay fecha de fin) ─────
-            if (enOferta) OfertaCountdownBanner(fin: ofertaFin, sedeNombre: ofertaSede),
+            if (enOferta)
+              OfertaCountdownBanner(
+                fin: ofertaFin,
+                sedeNombre: ofertaSede,
+                sedeDireccion: ofertaSedeDir,
+              ),
 
             // ── Descripción ────────────────────────────────────────────────
             if (descripcion != null && descripcion.isNotEmpty)

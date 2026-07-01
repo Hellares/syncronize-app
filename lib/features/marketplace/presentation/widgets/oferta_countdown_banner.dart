@@ -13,7 +13,10 @@ class OfertaCountdownBanner extends StatefulWidget {
   /// Sede que ofrece la promoción (para "Oferta válida en [sede]").
   final String? sedeNombre;
 
-  const OfertaCountdownBanner({super.key, this.fin, this.sedeNombre});
+  /// Dirección de la sede que ofrece la promoción.
+  final String? sedeDireccion;
+
+  const OfertaCountdownBanner({super.key, this.fin, this.sedeNombre, this.sedeDireccion});
 
   @override
   State<OfertaCountdownBanner> createState() => _OfertaCountdownBannerState();
@@ -112,6 +115,16 @@ class _OfertaCountdownBannerState extends State<OfertaCountdownBanner> {
                 ),
               ],
             ),
+            if (widget.sedeDireccion != null && widget.sedeDireccion!.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(left: 17, top: 1),
+                child: Text(
+                  widget.sedeDireccion!,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.white70, fontSize: 10),
+                ),
+              ),
           ],
           if (tieneCountdown) ...[
             const SizedBox(height: 10),
