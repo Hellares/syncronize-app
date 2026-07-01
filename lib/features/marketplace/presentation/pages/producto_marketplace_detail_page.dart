@@ -21,6 +21,7 @@ import '../widgets/preguntas_producto_section.dart';
 import '../widgets/opiniones_producto_section.dart';
 import '../widgets/draggable_video_overlay.dart';
 import '../widgets/oferta_countdown_banner.dart';
+import '../widgets/variante_selector.dart';
 import '../../../../core/widgets/floating_button_text.dart';
 import '../../../../core/widgets/custom_button.dart';
 
@@ -41,6 +42,9 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
   int _currentImageIndex = 0;
   bool _videoDismissed = false;
   final _pageController = PageController();
+
+  /// Variante elegida en el selector (null = ninguna aún, o producto sin variantes).
+  Map<String, dynamic>? _selectedVariante;
 
   // ── Estilo compartido (Temu-like sobre la marca azul) ──────────────────────
   static const Color _star = Color(0xFFFFB300);
@@ -252,20 +256,26 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
     final p = _producto!;
     final nombre = p['nombre'] as String? ?? '';
     final descripcion = p['descripcion'] as String?;
-    final precio = p['precio'] as num?;
-    final precioOferta = p['precioOferta'] as num?;
-    final enOferta = p['enOferta'] as bool? ?? false;
-    final ofertaFinStr = p['ofertaFin'] as String?;
+    // Variantes: si el producto tiene y hay una elegida, precio/stock/oferta
+    // salen de ELLA; si no, del "desde" del producto.
+    final tieneVariantes = p['tieneVariantes'] as bool? ?? false;
+    final variantes = (p['variantes'] as List<dynamic>?) ?? [];
+    final vSel = _selectedVariante;
+
+    final precio = (vSel != null ? vSel['precio'] : p['precio']) as num?;
+    final precioOferta = (vSel != null ? vSel['precioOferta'] : p['precioOferta']) as num?;
+    final enOferta = (vSel != null ? vSel['enOferta'] : p['enOferta']) as bool? ?? false;
+    final ofertaFinStr = (vSel != null ? vSel['ofertaFin'] : p['ofertaFin']) as String?;
     final ofertaFin = ofertaFinStr != null ? DateTime.tryParse(ofertaFinStr) : null;
-    final ofertaSede = p['ofertaSede'] as String?;
+    final ofertaSede = (vSel != null ? vSel['ofertaSede'] : p['ofertaSede']) as String?;
     final sedeMap = p['sede'] as Map<String, dynamic>?;
-    final ofertaSedeDir = sedeMap == null
+    final ofertaSedeDir = (vSel != null || sedeMap == null)
         ? null
         : [sedeMap['direccion'], sedeMap['distrito'], sedeMap['provincia']]
             .where((e) => e != null && e.toString().trim().isNotEmpty)
             .join(', ');
-    final hayStock = p['hayStock'] as bool? ?? false;
-    final stockActual = p['stockActual'] as int? ?? 0;
+    final hayStock = (vSel != null ? vSel['hayStock'] : p['hayStock']) as bool? ?? false;
+    final stockActual = (vSel != null ? vSel['stockActual'] : p['stockActual']) as int? ?? 0;
     final categoria = p['categoria'] as String?;
     final marca = p['marca'] as String?;
     final calificacion = p['calificacion'] as num?;
@@ -375,7 +385,7 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
                             children: [
                               Flexible(
                                 child: Text(
-                                  'S/ ${precioFinal.toStringAsFixed(2)}',
+                                  '${tieneVariantes && vSel == null ? 'Desde ' : ''}S/ ${precioFinal.toStringAsFixed(2)}',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
@@ -432,6 +442,16 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
                 ],
               ),
             ),
+
+            // ── Selector de variantes (si el producto tiene) ───────────────
+            if (tieneVariantes && variantes.isNotEmpty)
+              _card(
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 6),
+                child: VarianteSelector(
+                  variantes: variantes,
+                  onChanged: (v) => setState(() => _selectedVariante = v),
+                ),
+              ),
 
             // ── Oferta (banner + cuenta regresiva si hay fecha de fin) ─────
             if (enOferta)
@@ -1009,7 +1029,11 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
     try {
       await locator<DioClient>().post(
         '/marketplace/carrito',
-        data: {'productoId': widget.productoId, 'cantidad': 1},
+        data: {
+          'productoId': widget.productoId,
+          'cantidad': 1,
+          if (_selectedVariante != null) 'varianteId': _selectedVariante!['id'],
+        },
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1039,10 +1063,13 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
     final telefono = empresa['telefono'] as String?;
     final empresaNombre = empresa['nombre'] as String? ?? '';
     final nombre = p['nombre'] as String? ?? '';
-    final precio = p['precio'] as num?;
-    final precioOferta = p['precioOferta'] as num?;
-    final enOferta = p['enOferta'] as bool? ?? false;
-    final hayStock = p['hayStock'] as bool? ?? false;
+    final vSel = _selectedVariante;
+    final tieneVariantes = p['tieneVariantes'] as bool? ?? false;
+    final debeElegirVariante = tieneVariantes && vSel == null;
+    final precio = (vSel != null ? vSel['precio'] : p['precio']) as num?;
+    final precioOferta = (vSel != null ? vSel['precioOferta'] : p['precioOferta']) as num?;
+    final enOferta = (vSel != null ? vSel['enOferta'] : p['enOferta']) as bool? ?? false;
+    final hayStock = (vSel != null ? vSel['hayStock'] : p['hayStock']) as bool? ?? false;
     final precioFinal = enOferta && precioOferta != null ? precioOferta : precio;
     final tieneWhats = telefono != null && telefono.isNotEmpty;
 
@@ -1063,7 +1090,7 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
                 children: [
                   Text('Precio', style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
                   Text(
-                    'S/ ${precioFinal.toStringAsFixed(2)}',
+                    '${debeElegirVariante ? 'Desde ' : ''}S/ ${precioFinal.toStringAsFixed(2)}',
                     style: TextStyle(
                       fontSize: 19,
                       fontWeight: FontWeight.bold,
@@ -1078,8 +1105,18 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
             // CTA principal (prominente)
             Expanded(
               child: SizedBox(
-                height: 46,
-                child: hayStock
+                height: 45,
+                child: debeElegirVariante
+                    ? Container(
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text('Elegí una opción',
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade600)),
+                      )
+                    : hayStock
                     ? CustomButton(
                         text: 'Agregar al carrito',
                         backgroundColor: AppColors.blue1,
@@ -1088,9 +1125,9 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
                         onPressed: _addingToCart ? null : _agregarAlCarrito,
                         icon: const Icon(Icons.add_shopping_cart, size: 19, color: Colors.white),
                         width: double.infinity,
-                        borderRadius: 12,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
+                        borderRadius: 8,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
                       )
                     : Container(
                         alignment: Alignment.center,
@@ -1106,14 +1143,14 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
             if (tieneWhats) ...[
               const SizedBox(width: 10),
               SizedBox(
-                width: 46,
-                height: 46,
+                width: 45,
+                height: 45,
                 child: OutlinedButton(
                   onPressed: () => _openWhatsApp(telefono, nombre, precioFinal, empresaNombre),
                   style: OutlinedButton.styleFrom(
                     padding: EdgeInsets.zero,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    side: const BorderSide(color: Color(0xFF25D366), width: 1.4),
+                    side: const BorderSide(color: Color(0xFF25D366), width: 1),
                   ),
                   child: const Icon(Icons.chat, color: Color(0xFF25D366), size: 22),
                 ),
