@@ -256,6 +256,7 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
     final enOferta = p['enOferta'] as bool? ?? false;
     final ofertaFinStr = p['ofertaFin'] as String?;
     final ofertaFin = ofertaFinStr != null ? DateTime.tryParse(ofertaFinStr) : null;
+    final ofertaSede = p['ofertaSede'] as String?;
     final hayStock = p['hayStock'] as bool? ?? false;
     final stockActual = p['stockActual'] as int? ?? 0;
     final categoria = p['categoria'] as String?;
@@ -424,7 +425,7 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
             ),
 
             // ── Oferta (banner + cuenta regresiva si hay fecha de fin) ─────
-            if (enOferta) OfertaCountdownBanner(fin: ofertaFin),
+            if (enOferta) OfertaCountdownBanner(fin: ofertaFin, sedeNombre: ofertaSede),
 
             // ── Descripción ────────────────────────────────────────────────
             if (descripcion != null && descripcion.isNotEmpty)

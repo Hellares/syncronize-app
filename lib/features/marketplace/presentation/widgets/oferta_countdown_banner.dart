@@ -10,7 +10,10 @@ class OfertaCountdownBanner extends StatefulWidget {
   /// Fecha de fin de la oferta. Si es null, no hay cuenta regresiva.
   final DateTime? fin;
 
-  const OfertaCountdownBanner({super.key, this.fin});
+  /// Sede que ofrece la promoción (para "Oferta válida en [sede]").
+  final String? sedeNombre;
+
+  const OfertaCountdownBanner({super.key, this.fin, this.sedeNombre});
 
   @override
   State<OfertaCountdownBanner> createState() => _OfertaCountdownBannerState();
@@ -93,6 +96,23 @@ class _OfertaCountdownBannerState extends State<OfertaCountdownBanner> {
               ),
             ],
           ),
+          if (widget.sedeNombre != null && widget.sedeNombre!.isNotEmpty) ...[
+            const SizedBox(height: 5),
+            Row(
+              children: [
+                const Icon(Icons.storefront_outlined, color: Colors.white, size: 13),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    'Oferta válida en ${widget.sedeNombre}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+          ],
           if (tieneCountdown) ...[
             const SizedBox(height: 10),
             Row(
