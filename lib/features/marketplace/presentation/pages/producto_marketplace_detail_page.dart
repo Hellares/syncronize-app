@@ -281,7 +281,17 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
     final calificacion = p['calificacion'] as num?;
     final totalOpiniones = p['totalOpiniones'] as int? ?? 0;
     final vendidos = p['vendidos'] as int? ?? 0;
-    final imagenes = (p['imagenes'] as List<dynamic>?) ?? [];
+    // Imágenes efectivas: si hay variante elegida con imágenes → las de ella; si
+    // no → las del base; si el base no tiene → la 1ª variante que tenga imágenes
+    // (en productos con variantes las imágenes suelen vivir en las variantes).
+    List<dynamic> imagenes = (vSel?['imagenes'] as List<dynamic>?) ?? [];
+    if (imagenes.isEmpty) imagenes = (p['imagenes'] as List<dynamic>?) ?? [];
+    if (imagenes.isEmpty) {
+      for (final v in variantes) {
+        final vi = (v['imagenes'] as List<dynamic>?) ?? [];
+        if (vi.isNotEmpty) { imagenes = vi; break; }
+      }
+    }
     final atributos = (p['atributos'] as List<dynamic>?) ?? [];
     final empresa = p['empresa'] as Map<String, dynamic>? ?? {};
 
@@ -449,7 +459,15 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
                 padding: const EdgeInsets.fromLTRB(14, 12, 14, 6),
                 child: VarianteSelector(
                   variantes: variantes,
-                  onChanged: (v) => setState(() => _selectedVariante = v),
+                  onChanged: (v) {
+                    setState(() {
+                      _selectedVariante = v;
+                      _currentImageIndex = 0; // la galería cambia a las imágenes de la variante
+                    });
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (_pageController.hasClients) _pageController.jumpToPage(0);
+                    });
+                  },
                 ),
               ),
 
