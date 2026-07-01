@@ -56,7 +56,7 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
   /// ve como una línea fina entre secciones, estilo Temu/Mercado Libre).
   Widget _card({
     required Widget child,
-    EdgeInsetsGeometry padding = const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+    EdgeInsetsGeometry padding = const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
   }) {
     return Container(
       width: double.infinity,
@@ -558,23 +558,23 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
     final cantidad = _cantidad.clamp(1, maxQty);
     return Row(
       children: [
-        const Text('Cantidad',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black87)),
-        const Spacer(),
+        const Text('Cant.',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.black87)),
+        SizedBox(width: 6,),
         Container(
           decoration: BoxDecoration(
             border: Border.all(color: Colors.grey.shade300),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(6),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               _qtyBtn(Icons.remove, cantidad > 1, () => setState(() => _cantidad = cantidad - 1)),
               Container(
-                width: 42,
+                width: 40,
                 alignment: Alignment.center,
                 child: Text('$cantidad',
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.black87)),
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87)),
               ),
               _qtyBtn(Icons.add, cantidad < maxQty, () => setState(() => _cantidad = cantidad + 1)),
             ],
@@ -587,10 +587,10 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
   Widget _qtyBtn(IconData icon, bool enabled, VoidCallback onTap) {
     return InkWell(
       onTap: enabled ? onTap : null,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(6),
       child: Padding(
-        padding: const EdgeInsets.all(8),
-        child: Icon(icon, size: 18, color: enabled ? AppColors.blue1 : Colors.grey.shade300),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        child: Icon(icon, size: 16, color: enabled ? AppColors.blue1 : Colors.grey.shade300),
       ),
     );
   }
