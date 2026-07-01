@@ -614,7 +614,24 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
     }
     badges.add(_trustBadge(Icons.chat_outlined, 'Consulta al vendedor', Colors.grey.shade600));
 
-    return Wrap(spacing: 8, runSpacing: 8, children: badges);
+    // Una sola fila; si no entran, FittedBox achica levemente (sin overflow ni
+    // cortar texto) manteniendo los 3 chips visibles.
+    return SizedBox(
+      width: double.infinity,
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.centerLeft,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (int i = 0; i < badges.length; i++) ...[
+              if (i > 0) const SizedBox(width: 8),
+              badges[i],
+            ],
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _trustBadge(IconData icon, String label, Color color) {
