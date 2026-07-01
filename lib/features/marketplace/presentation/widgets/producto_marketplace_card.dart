@@ -40,9 +40,14 @@ class ProductoMarketplaceCard extends StatelessWidget {
         border: Border.all(color: Colors.grey.shade200, width: 0.5),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
+            color: Colors.black.withValues(alpha: 0.10),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 3,
+            offset: const Offset(0, 1),
           ),
         ],
       ),
@@ -278,18 +283,17 @@ class ProductoMarketplaceCard extends StatelessWidget {
                         ),
                       ),
 
-                    // Nombre
-                    Expanded(
-                      child: Text(
-                        producto.nombre,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          height: 1.15,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.black87,
-                        ),
+                    // Nombre (sin Expanded → la tienda queda justo debajo, sin
+                    // el hueco que dejaba el Expanded).
+                    Text(
+                      producto.nombre,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        height: 1.15,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.black87,
                       ),
                     ),
 

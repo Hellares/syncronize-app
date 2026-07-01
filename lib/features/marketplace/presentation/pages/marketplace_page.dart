@@ -644,7 +644,7 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
                         gridDelegate:
                             const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 2,
-                          childAspectRatio: 0.58,
+                          childAspectRatio: 0.62,
                           crossAxisSpacing: 6,
                           mainAxisSpacing: 6,
                         ),
