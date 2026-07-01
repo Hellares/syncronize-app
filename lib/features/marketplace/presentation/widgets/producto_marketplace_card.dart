@@ -56,27 +56,32 @@ class ProductoMarketplaceCard extends StatelessWidget {
               children: [
                 AspectRatio(
                   aspectRatio: 1.2,
-                  child: Container(
-                    color: Colors.grey.shade50,
-                    // Padding para que la imagen no quede pegada al borde de la card.
-                    padding: const EdgeInsets.all(10),
-                    child: producto.imagen != null
-                        ? CachedNetworkImage(
-                            imageUrl: producto.imagen!,
-                            fit: BoxFit.contain,
-                            memCacheWidth: imgCacheW,
-                            fadeInDuration: const Duration(milliseconds: 150),
-                            placeholder: (_, __) => _buildPlaceholder(),
-                            errorWidget: (_, __, ___) => _buildPlaceholder(),
-                          )
-                        : _buildPlaceholder(),
+                  child: Padding(
+                    // Margen para que la imagen no quede pegada al borde de la card.
+                    padding: const EdgeInsets.all(6),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        color: Colors.grey.shade50,
+                        child: producto.imagen != null
+                            ? CachedNetworkImage(
+                                imageUrl: producto.imagen!,
+                                fit: BoxFit.contain,
+                                memCacheWidth: imgCacheW,
+                                fadeInDuration: const Duration(milliseconds: 150),
+                                placeholder: (_, __) => _buildPlaceholder(),
+                                errorWidget: (_, __, ___) => _buildPlaceholder(),
+                              )
+                            : _buildPlaceholder(),
+                      ),
+                    ),
                   ),
                 ),
                 // Badge de descuento
                 if (tieneDescuento && descuentoPct > 0)
                   Positioned(
-                    top: 6,
-                    left: 6,
+                    top: 10,
+                    left: 10,
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                       decoration: BoxDecoration(
@@ -96,8 +101,8 @@ class ProductoMarketplaceCard extends StatelessWidget {
                 // Badge agotado o nuevo
                 if (!producto.hayStock)
                   Positioned(
-                    top: 6,
-                    right: 6,
+                    top: 10,
+                    right: 10,
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                       decoration: BoxDecoration(
@@ -116,8 +121,8 @@ class ProductoMarketplaceCard extends StatelessWidget {
                   )
                 else if (producto.esNuevo)
                   Positioned(
-                    top: 6,
-                    right: 6,
+                    top: 10,
+                    right: 10,
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                       decoration: BoxDecoration(
@@ -137,8 +142,8 @@ class ProductoMarketplaceCard extends StatelessWidget {
                 // Marca badge
                 if (producto.marca != null)
                   Positioned(
-                    bottom: 6,
-                    left: 6,
+                    bottom: 10,
+                    left: 10,
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
@@ -158,8 +163,8 @@ class ProductoMarketplaceCard extends StatelessWidget {
                 // Favorito
                 if (FavoritoButton.isLoaded)
                   Positioned(
-                    top: 4,
-                    right: 4,
+                    top: 8,
+                    right: 8,
                     child: Container(
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.85),
