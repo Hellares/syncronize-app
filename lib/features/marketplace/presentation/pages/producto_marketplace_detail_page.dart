@@ -563,18 +563,19 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
         SizedBox(width: 6,),
         Container(
           decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey.shade300),
-            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: AppColors.blue1, width: 0.3),
+            borderRadius: BorderRadius.circular(4),
+            
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               _qtyBtn(Icons.remove, cantidad > 1, () => setState(() => _cantidad = cantidad - 1)),
               Container(
-                width: 40,
+                width: 35,
                 alignment: Alignment.center,
                 child: Text('$cantidad',
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87)),
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.blue1)),
               ),
               _qtyBtn(Icons.add, cantidad < maxQty, () => setState(() => _cantidad = cantidad + 1)),
             ],
@@ -587,9 +588,9 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
   Widget _qtyBtn(IconData icon, bool enabled, VoidCallback onTap) {
     return InkWell(
       onTap: enabled ? onTap : null,
-      borderRadius: BorderRadius.circular(6),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      child: Container(
+        color: Colors.grey.shade100, // fondo gris tenue → contrasta con el número blanco
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         child: Icon(icon, size: 16, color: enabled ? AppColors.blue1 : Colors.grey.shade300),
       ),
     );
