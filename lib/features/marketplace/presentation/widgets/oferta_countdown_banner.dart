@@ -1,11 +1,15 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:syncronize/core/fonts/app_fonts.dart';
+import 'package:syncronize/core/fonts/app_text_widgets.dart';
+import 'package:syncronize/core/theme/app_colors.dart';
+import 'package:syncronize/core/theme/gradient_container.dart';
 
-/// Banner de oferta full-width con degradé verde (estilo Temu sobre la paleta de
-/// ofertas de la app). Si la oferta tiene fecha de fin [fin], muestra una cuenta
-/// regresiva en vivo (días/hrs/min/seg); si no, muestra una versión simple sin
-/// reloj. Pensado para mostrarse cuando el producto está en oferta.
+/// Banner de oferta en tarjeta blanca (GradientContainer) con borde verde y
+/// acentos verdes. Si la oferta tiene fecha de fin [fin], muestra una cuenta
+/// regresiva en vivo (días/hrs/min/seg) en cajitas con borde verde; si no,
+/// muestra una versión simple sin reloj.
 class OfertaCountdownBanner extends StatefulWidget {
   /// Fecha de fin de la oferta. Si es null, no hay cuenta regresiva.
   final DateTime? fin;
@@ -75,27 +79,24 @@ class _OfertaCountdownBannerState extends State<OfertaCountdownBanner> {
     final mins = _restante.inMinutes % 60;
     final segs = _restante.inSeconds % 60;
 
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 2),
+    return GradientContainer(
+      margin: const EdgeInsets.fromLTRB(8, 4, 8, 6),
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [_verde, Color(0xFF16B24A)],
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-        ),
-      ),
+      borderRadius: BorderRadius.circular(12),
+      borderColor: _verde,
+      borderWidth: 1.2,
+      // Fondo blanco (por defecto GradientContainer usa un degradé azul).
+      gradient: const LinearGradient(colors: [Colors.white, Colors.white]),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.local_fire_department_rounded, color: Colors.white, size: 18),
+              const Icon(Icons.local_fire_department_rounded, color: _verde, size: 18),
               const SizedBox(width: 6),
               Text(
                 tieneCountdown ? 'Oferta por tiempo limitado' : 'Oferta especial',
-                style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700),
+                style: const TextStyle(color: _verde, fontSize: 13, fontWeight: FontWeight.w700),
               ),
             ],
           ),
@@ -103,14 +104,14 @@ class _OfertaCountdownBannerState extends State<OfertaCountdownBanner> {
             const SizedBox(height: 5),
             Row(
               children: [
-                const Icon(Icons.storefront_outlined, color: Colors.white, size: 13),
+                const Icon(Icons.storefront_outlined, color: _verde, size: 13),
                 const SizedBox(width: 4),
                 Flexible(
                   child: Text(
                     'Oferta válida en ${widget.sedeNombre}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+                    style: const TextStyle(color: AppColors.greendark, fontSize: 11, fontWeight: FontWeight.w600),
                   ),
                 ),
               ],
@@ -118,11 +119,13 @@ class _OfertaCountdownBannerState extends State<OfertaCountdownBanner> {
             if (widget.sedeDireccion != null && widget.sedeDireccion!.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(left: 17, top: 1),
-                child: Text(
+                child: AppSubtitle(
                   widget.sedeDireccion!,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Colors.white70, fontSize: 10),
+                  fontSize: 8,
+                  font: AppFont.amazonEmberMedium,
+                  color: AppColors.grey,
                 ),
               ),
           ],
@@ -130,7 +133,7 @@ class _OfertaCountdownBannerState extends State<OfertaCountdownBanner> {
             const SizedBox(height: 10),
             Row(
               children: [
-                const Text('Termina en', style: TextStyle(color: Colors.white, fontSize: 11)),
+                Text('Termina en', style: TextStyle(color: Colors.grey.shade700, fontSize: 11)),
                 const SizedBox(width: 10),
                 _box(_dd(dias), 'días'),
                 const SizedBox(width: 6),
@@ -144,19 +147,19 @@ class _OfertaCountdownBannerState extends State<OfertaCountdownBanner> {
             const SizedBox(height: 9),
             Row(
               children: [
-                const Icon(Icons.event_outlined, color: Colors.white70, size: 13),
+                Icon(Icons.event_outlined, color: Colors.grey.shade500, size: 13),
                 const SizedBox(width: 4),
                 Text(
                   'Válida hasta el ${_fmtFecha(widget.fin!)}',
-                  style: const TextStyle(color: Colors.white70, fontSize: 10.5),
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 10.5),
                 ),
               ],
             ),
           ] else ...[
             const SizedBox(height: 4),
-            const Text(
+            Text(
               '¡Aprovecha el precio rebajado!',
-              style: TextStyle(color: Colors.white70, fontSize: 11),
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
             ),
           ],
         ],
@@ -175,6 +178,7 @@ class _OfertaCountdownBannerState extends State<OfertaCountdownBanner> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: _verde, width: 1.2),
           ),
           child: Text(
             value,
@@ -182,7 +186,7 @@ class _OfertaCountdownBannerState extends State<OfertaCountdownBanner> {
           ),
         ),
         const SizedBox(height: 2),
-        Text(label, style: const TextStyle(color: Colors.white70, fontSize: 8.5)),
+        Text(label, style: TextStyle(color: Colors.grey.shade600, fontSize: 8.5)),
       ],
     );
   }
