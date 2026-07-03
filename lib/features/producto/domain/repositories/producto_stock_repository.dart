@@ -30,6 +30,7 @@ abstract class ProductoStockRepository {
     required String empresaId,
     int page = 1,
     int limit = 50,
+    String? search,
   });
 
   /// Obtiene el stock de un producto en una sede específica

@@ -182,6 +182,10 @@ class ProductoStock extends Equatable {
     return 'Producto desconocido';
   }
 
+  /// Marca y categoría del producto (cuando el backend las incluye).
+  String? get marca => producto?.marcaNombre;
+  String? get categoria => producto?.categoriaNombre;
+
   // ========== CÁLCULOS DE STOCK ==========
 
   /// Stock disponible para TRANSFERIR (ignora dañados y en garantía)
@@ -300,6 +304,8 @@ class ProductoStockInfo extends Equatable {
   final String? codigoEmpresa;
   final String? sku;
   final bool esInsumo;
+  final String? marcaNombre;
+  final String? categoriaNombre;
 
   const ProductoStockInfo({
     required this.id,
@@ -307,10 +313,13 @@ class ProductoStockInfo extends Equatable {
     this.codigoEmpresa,
     this.sku,
     this.esInsumo = false,
+    this.marcaNombre,
+    this.categoriaNombre,
   });
 
   @override
-  List<Object?> get props => [id, nombre, codigoEmpresa, sku, esInsumo];
+  List<Object?> get props =>
+      [id, nombre, codigoEmpresa, sku, esInsumo, marcaNombre, categoriaNombre];
 }
 
 /// Info básica de variante para stock

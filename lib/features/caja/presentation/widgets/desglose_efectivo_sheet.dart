@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
+import 'package:syncronize/core/widgets/custom_button.dart';
 import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 
 /// Denominaciones de soles peruanos: billetes (200, 100, 50, 20, 10) y
@@ -39,6 +40,7 @@ class DesgloseEfectivoResult {
 Future<DesgloseEfectivoResult?> showDesgloseEfectivoSheet(
   BuildContext context, {
   Map<double, int>? initial,
+  double? esperado,
 }) async {
   return showModalBottomSheet<DesgloseEfectivoResult>(
     context: context,
@@ -47,14 +49,18 @@ Future<DesgloseEfectivoResult?> showDesgloseEfectivoSheet(
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),
-    builder: (_) => _DesgloseEfectivoSheet(initial: initial),
+    builder: (_) => _DesgloseEfectivoSheet(initial: initial, esperado: esperado),
   );
 }
 
 class _DesgloseEfectivoSheet extends StatefulWidget {
   final Map<double, int>? initial;
 
-  const _DesgloseEfectivoSheet({this.initial});
+  /// Monto esperado en EFECTIVO (opcional). Si se pasa, la cabecera muestra
+  /// el esperado y un indicador en vivo de falta/sobra/cuadra.
+  final double? esperado;
+
+  const _DesgloseEfectivoSheet({this.initial, this.esperado});
 
   @override
   State<_DesgloseEfectivoSheet> createState() => _DesgloseEfectivoSheetState();
@@ -109,18 +115,24 @@ class _DesgloseEfectivoSheetState extends State<_DesgloseEfectivoSheet> {
     final currency =
         NumberFormat.currency(locale: 'es_PE', symbol: 'S/ ', decimalDigits: 2);
 
-    return Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-      ),
-      child: SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+    // Tocar cualquier zona vacía del sheet quita el foco de los CustomText
+    // y oculta el teclado. behavior: opaque para capturar taps sobre áreas
+    // sin otro gesture (los taps en los campos siguen enfocándolos).
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
             // Drag handle
             Padding(
-              padding: const EdgeInsets.only(top: 10, bottom: 4),
+              padding: const EdgeInsets.only(top: 5, bottom: 0),
               child: Container(
                 width: 40,
                 height: 4,
@@ -132,16 +144,16 @@ class _DesgloseEfectivoSheetState extends State<_DesgloseEfectivoSheet> {
             ),
             // Header
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+              padding: const EdgeInsets.fromLTRB(16, 1, 16, 1),
               child: Row(
                 children: [
                   const Icon(Icons.payments_rounded,
-                      color: AppColors.blue3, size: 22),
+                      color: AppColors.blue3, size: 18),
                   const SizedBox(width: 8),
                   const Expanded(
                     child: AppSubtitle(
                       'Desglose de Efectivo',
-                      fontSize: 15,
+                      fontSize: 11,
                       color: AppColors.blue3,
                     ),
                   ),
@@ -154,13 +166,20 @@ class _DesgloseEfectivoSheetState extends State<_DesgloseEfectivoSheet> {
                     },
                     child: const Text(
                       'Limpiar',
-                      style: TextStyle(fontSize: 12),
+                      style: TextStyle(fontSize: 10, color: AppColors.green),
                     ),
                   ),
                 ],
               ),
             ),
-            const Divider(height: 1),
+            Divider(height: 1, thickness: 0.5, color: Colors.grey.withValues(alpha: 0.18)),
+            // Esperado + estado del conteo (solo texto + chip, sin caja),
+            // separado de la lista de conteo por un divider.
+            if (widget.esperado != null) ...[
+              _buildEsperadoBanner(currency),
+              const SizedBox(height: 8),
+              Divider(height: 1, thickness: 0.5, color: Colors.grey.withValues(alpha: 0.18)),
+            ],
             // Grid de denominaciones
             Flexible(
               child: ListView.separated(
@@ -177,28 +196,34 @@ class _DesgloseEfectivoSheetState extends State<_DesgloseEfectivoSheet> {
                 },
               ),
             ),
-            const Divider(height: 1),
+            Divider(height: 1, thickness: 0.5, color: Colors.grey.withValues(alpha: 0.18)),
             // Total
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+              padding: const EdgeInsets.fromLTRB(16, 5, 16, 10),
               child: Row(
                 children: [
                   const Expanded(
                     child: Text(
                       'TOTAL',
                       style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
                         color: AppColors.textPrimary,
                       ),
                     ),
                   ),
                   Text(
                     currency.format(_total),
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.green,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      // Si hay esperado: verde al cuadrar, rojo si no. Sin
+                      // esperado: verde neutro (comportamiento anterior).
+                      color: widget.esperado == null
+                          ? AppColors.green
+                          : ((_total - widget.esperado!).abs() < 0.005
+                              ? AppColors.green
+                              : AppColors.red),
                     ),
                   ),
                 ],
@@ -209,35 +234,105 @@ class _DesgloseEfectivoSheetState extends State<_DesgloseEfectivoSheet> {
               child: Row(
                 children: [
                   Expanded(
-                    child: OutlinedButton(
+                    child: CustomButton(
                       onPressed: () => Navigator.pop(context),
-                      child: const Text('Cancelar'),
+                      text: 'Cancelar',
+                      textColor: AppColors.red,
+                      borderColor: AppColors.red,
+                      borderWidth: 0.6,
                     ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.blue1,
-                        foregroundColor: AppColors.white,
-                      ),
-                      onPressed: () {
-                        Navigator.pop(
-                          context,
-                          DesgloseEfectivoResult(
-                            cantidades: _cantidadesNoCero(),
-                            total: _total,
-                          ),
-                        );
+
+                    child: CustomButton(
+                      onPressed: (){
+                        Navigator.pop(context, DesgloseEfectivoResult(cantidades: _cantidadesNoCero(), total: _total));
                       },
-                      child: const Text('Aplicar'),
+                      text: 'Aplicar',
+                      borderColor: AppColors.green,
+                      borderWidth: 0.6,
+                      textColor: AppColors.green,
                     ),
                   ),
                 ],
               ),
             ),
-          ],
+              ],
+            ),
+          ),
         ),
+      );
+  }
+
+  /// Cabecera con el monto esperado y el estado del conteo en vivo:
+  /// "Falta S/ X" (azul), "Sobra S/ X" (rojo) o "Cuadra" (verde).
+  Widget _buildEsperadoBanner(NumberFormat currency) {
+    final esperado = widget.esperado!;
+    final restante = esperado - _total; // >0 falta, <0 sobra, ~0 cuadra
+    final cuadra = restante.abs() < 0.005;
+    final falta = restante > 0;
+    final color =
+        cuadra ? AppColors.green : (falta ? AppColors.blue3 : AppColors.red);
+    final label = cuadra
+        ? 'Cuadra con lo esperado'
+        : (falta
+            ? 'Falta ${currency.format(restante.abs())}'
+            : 'Sobra ${currency.format(restante.abs())}');
+    final icon = cuadra
+        ? Icons.check_circle_rounded
+        : (falta ? Icons.south_rounded : Icons.north_rounded);
+
+    // Sin caja contenedora: solo el texto "Esperado" + valor y el chip de
+    // estado, con un padding mínimo para alinearse con la lista.
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 3, 16, 0),
+      child: Row(
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Esperado',
+                style: TextStyle(
+                    fontSize: 10, color: AppColors.textSecondary),
+              ),
+              Text(
+                currency.format(esperado),
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.blue3,
+                ),
+              ),
+            ],
+          ),
+          const Spacer(),
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 15, color: color),
+                const SizedBox(width: 5),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: color,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -252,7 +347,7 @@ class _DesgloseEfectivoSheetState extends State<_DesgloseEfectivoSheet> {
       children: [
         Container(
           width: 64,
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.symmetric(vertical: 4),
           decoration: BoxDecoration(
             color: (esBillete ? AppColors.green : AppColors.blue2)
                 .withValues(alpha: 0.1),
@@ -265,7 +360,7 @@ class _DesgloseEfectivoSheetState extends State<_DesgloseEfectivoSheet> {
               Text(
                 label,
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: 12,
                   fontWeight: FontWeight.w700,
                   color: esBillete ? AppColors.green : AppColors.blue2,
                 ),
@@ -287,25 +382,84 @@ class _DesgloseEfectivoSheetState extends State<_DesgloseEfectivoSheet> {
             controller: _controllers[denom],
             fieldType: FieldType.number,
             hintText: '0',
+            textStyle: TextStyle(fontSize: 13, color: AppColors.blue1, fontWeight: FontWeight.w600),
             height: 38,
             onChanged: (_) => setState(() {}),
           ),
         ),
         const SizedBox(width: 8),
+        // Flecha conectora LARGA: línea + punta dibujadas como UNA sola
+        // figura (CustomPaint) para que la punta quede pegada a la línea.
+        // Se estira hasta casi el monto y se enciende con el color de la
+        // denominación cuando hay cantidad; tenue cuando está en cero.
         Expanded(
-          child: Text(
-            currency.format(subtotal),
-            textAlign: TextAlign.right,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: subtotal > 0
-                  ? AppColors.textPrimary
-                  : AppColors.textSecondary,
-            ),
+          child: Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 12,
+                  child: CustomPaint(
+                    painter: _ArrowLinePainter(
+                      subtotal > 0
+                          ? (esBillete ? AppColors.green : AppColors.blue2)
+                          : AppColors.textSecondary.withValues(alpha: 0.30),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                currency.format(subtotal),
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: subtotal > 0
+                      ? AppColors.textPrimary
+                      : AppColors.textSecondary,
+                ),
+              ),
+            ],
           ),
         ),
       ],
     );
   }
+}
+
+/// Dibuja una línea horizontal centrada que termina en una punta de flecha
+/// rellena, ambas pegadas (sin separación). Apunta hacia la derecha (al monto).
+class _ArrowLinePainter extends CustomPainter {
+  final Color color;
+
+  _ArrowLinePainter(this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cy = size.height / 2;
+    const head = 7.0; // largo de la punta
+    const halfH = 4.0; // media altura de la punta
+
+    final linePaint = Paint()
+      ..color = color
+      ..strokeWidth = 0.6
+      ..strokeCap = StrokeCap.round;
+    // Línea desde el inicio hasta la base de la punta.
+    canvas.drawLine(
+        Offset(0, cy), Offset(size.width - head, cy), linePaint);
+
+    // Punta triangular rellena, con la base justo donde acaba la línea.
+    final headPaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+    final path = Path()
+      ..moveTo(size.width, cy)
+      ..lineTo(size.width - head, cy - halfH)
+      ..lineTo(size.width - head, cy + halfH)
+      ..close();
+    canvas.drawPath(path, headPaint);
+  }
+
+  @override
+  bool shouldRepaint(_ArrowLinePainter oldDelegate) =>
+      oldDelegate.color != color;
 }

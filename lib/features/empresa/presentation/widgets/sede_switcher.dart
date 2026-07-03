@@ -24,9 +24,9 @@ class SedeSwitcher extends StatelessWidget {
         }
         return CustomDropdown<String>(
           value: activa.id,
-          borderColor: AppColors.blue1,
+          borderColor: AppColors.green,
           prefixIcon: const Icon(Icons.store_mall_directory_outlined,
-              size: 16, color: AppColors.blue1),
+              size: 16, color: AppColors.green),
           items: operables
               .map((s) => DropdownItem<String>(
                     value: s.id,
@@ -40,6 +40,7 @@ class SedeSwitcher extends StatelessWidget {
             for (final s in operables) {
               if (s.id == id) {
                 context.read<SedeActivaCubit>().setSede(s);
+                
                 break;
               }
             }

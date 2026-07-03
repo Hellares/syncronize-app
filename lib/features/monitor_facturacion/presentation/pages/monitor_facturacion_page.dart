@@ -12,6 +12,8 @@ import '../../../../core/widgets/smart_appbar.dart';
 import '../../../empresa/domain/entities/sede.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
+import '../../../empresa/presentation/bloc/sede_activa/sede_activa_cubit.dart';
+import '../../../empresa/presentation/bloc/sede_activa/sede_activa_state.dart';
 import '../../domain/entities/comprobante_item.dart';
 import '../../domain/repositories/monitor_facturacion_repository.dart';
 import '../bloc/monitor_facturacion_cubit.dart';
@@ -26,9 +28,17 @@ class MonitorFacturacionPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Multi-sede: comprobantes SOLO de la sede activa.
+    final sedeId = context.read<SedeActivaCubit>().state.activa?.id;
     return BlocProvider(
-      create: (_) => MonitorFacturacionCubit(locator<MonitorFacturacionRepository>())..cargar(),
-      child: const _MonitorView(),
+      create: (_) => MonitorFacturacionCubit(locator<MonitorFacturacionRepository>())
+        ..setSede(sedeId),
+      child: BlocListener<SedeActivaCubit, SedeActivaState>(
+        listenWhen: (p, c) => p.activa?.id != c.activa?.id,
+        listener: (context, state) =>
+            context.read<MonitorFacturacionCubit>().setSede(state.activa?.id),
+        child: const _MonitorView(),
+      ),
     );
   }
 }
@@ -510,9 +520,10 @@ class _ComprobanteCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GradientContainer(
+      margin: EdgeInsets.only(bottom: 7),
       borderColor: _borderColor,
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -523,7 +534,7 @@ class _ComprobanteCard extends StatelessWidget {
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(item.codigoGenerado,
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
                 ),
                 if (item.proveedorLabel != null) ...[
                   _proveedorChip(),
@@ -538,7 +549,7 @@ class _ComprobanteCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(item.nombreCliente,
-                      style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+                      style: TextStyle(fontSize: 10, color: Colors.grey.shade700),
                       overflow: TextOverflow.ellipsis),
                 ),
                 if (item.numeroDocumento != null)
@@ -556,7 +567,7 @@ class _ComprobanteCard extends StatelessWidget {
                     style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
                 const Spacer(),
                 Text('${item.simboloMoneda} ${item.total.toStringAsFixed(2)}',
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
               ],
             ),
             // Error: se muestra el mensaje EXACTO de SUNAT/proveedor (con su

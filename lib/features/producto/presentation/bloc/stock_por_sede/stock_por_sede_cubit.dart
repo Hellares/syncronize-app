@@ -16,8 +16,11 @@ class StockPorSedeCubit extends Cubit<StockPorSedeState> {
 
   String? _currentSedeId;
   String? _currentEmpresaId;
+  String? _currentSearch;
   List<ProductoStock> _allStocks = [];
   int _currentPage = 1;
+
+  String? get currentSearch => _currentSearch;
 
   /// Convierte un valor dinámico a int de forma segura
   int _safeToInt(dynamic value, {int defaultValue = 0}) {
@@ -36,15 +39,17 @@ class StockPorSedeCubit extends Cubit<StockPorSedeState> {
     required String sedeId,
     required String empresaId,
     int page = 1,
+    String? search,
   }) async {
     _currentSedeId = sedeId;
     _currentEmpresaId = empresaId;
     _currentPage = page;
+    _currentSearch = search;
 
     if (page == 1) {
       _allStocks = [];
       emit(const StockPorSedeLoading());
-      
+
     }
 
     final result = await _getStockPorSedeUseCase(
@@ -52,6 +57,7 @@ class StockPorSedeCubit extends Cubit<StockPorSedeState> {
       empresaId: empresaId,
       page: page,
       limit: 50,
+      search: search,
     );
 
     if (isClosed) return;
@@ -115,16 +121,36 @@ class StockPorSedeCubit extends Cubit<StockPorSedeState> {
       sedeId: _currentSedeId!,
       empresaId: _currentEmpresaId!,
       page: _currentPage + 1,
+      search: _currentSearch,
     );
   }
 
-  /// Recarga la lista actual
+  /// Aplica (o limpia) un término de búsqueda y recarga desde la página 1.
+  /// `query` vacío/null = sin filtro.
+  Future<void> search(String? query) async {
+    final q =
+        (query == null || query.trim().isEmpty) ? null : query.trim();
+    if (q == _currentSearch) return; // sin cambios → evita query redundante
+    if (_currentSedeId == null || _currentEmpresaId == null) {
+      _currentSearch = q;
+      return;
+    }
+    await loadStockPorSede(
+      sedeId: _currentSedeId!,
+      empresaId: _currentEmpresaId!,
+      page: 1,
+      search: q,
+    );
+  }
+
+  /// Recarga la lista actual (preservando el término de búsqueda).
   Future<void> reload() async {
     if (_currentSedeId == null || _currentEmpresaId == null) return;
     await loadStockPorSede(
       sedeId: _currentSedeId!,
       empresaId: _currentEmpresaId!,
       page: 1,
+      search: _currentSearch,
     );
   }
 

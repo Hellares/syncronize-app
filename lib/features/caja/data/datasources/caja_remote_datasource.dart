@@ -98,12 +98,16 @@ class CajaRemoteDataSource {
     required String cajaId,
     required List<Map<String, dynamic>> conteos,
     String? observaciones,
+    Map<String, int>? desgloseEfectivo,
   }) async {
     final data = <String, dynamic>{
       'conteos': conteos,
     };
     if (observaciones != null && observaciones.isNotEmpty) {
       data['observaciones'] = observaciones;
+    }
+    if (desgloseEfectivo != null && desgloseEfectivo.isNotEmpty) {
+      data['desgloseEfectivo'] = desgloseEfectivo;
     }
 
     final response =

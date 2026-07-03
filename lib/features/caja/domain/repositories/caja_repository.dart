@@ -42,6 +42,7 @@ abstract class CajaRepository {
     required String cajaId,
     required List<Map<String, dynamic>> conteos,
     String? observaciones,
+    Map<String, int>? desgloseEfectivo,
   });
 
   Future<Resource<List<Caja>>> getHistorial({

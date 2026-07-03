@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/widgets/custom_button.dart';
+import '../../../../core/widgets/styled_dialog.dart';
+import '../../../auth/presentation/widgets/custom_text.dart';
 import '../../domain/entities/crear_nota_item.dart';
 import '../../domain/entities/nota_emitida.dart';
 import '../../domain/entities/tipo_nota.dart';
@@ -72,7 +75,7 @@ class CrearNotaDialog extends StatelessWidget {
   }
 }
 
-class _CrearNotaContent extends StatelessWidget {
+class _CrearNotaContent extends StatefulWidget {
   final TipoNota tipoNota;
   final String comprobanteOrigenId;
   final String sedeId;
@@ -89,8 +92,27 @@ class _CrearNotaContent extends StatelessWidget {
     required this.moneda,
   });
 
-  Color get _color => tipoNota == TipoNota.notaCredito ? Colors.orange : Colors.purple;
-  String get _simboloMoneda => moneda == 'USD' ? '\$' : 'S/';
+  @override
+  State<_CrearNotaContent> createState() => _CrearNotaContentState();
+}
+
+class _CrearNotaContentState extends State<_CrearNotaContent> {
+  // CustomText dispara onChanged a través del listener del controller, por eso
+  // necesita uno propio (a diferencia del TextField anterior).
+  final _motivoController = TextEditingController();
+
+  Color get _color =>
+      widget.tipoNota == TipoNota.notaCredito ? Colors.orange : Colors.purple;
+  String get _simboloMoneda => widget.moneda == 'USD' ? '\$' : 'S/';
+  IconData get _icon => widget.tipoNota == TipoNota.notaCredito
+      ? Icons.note_add_outlined
+      : Icons.add_circle_outline;
+
+  @override
+  void dispose() {
+    _motivoController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -100,98 +122,93 @@ class _CrearNotaContent extends StatelessWidget {
           Navigator.of(ctx).pop(state.resultado);
           ScaffoldMessenger.of(ctx).showSnackBar(
             SnackBar(
-              content: Text('${tipoNota.label} ${state.resultado!.codigoGenerado} emitida'),
+              content: Text(
+                  '${widget.tipoNota.label} ${state.resultado!.codigoGenerado} emitida'),
               backgroundColor: Colors.green,
             ),
           );
         }
       },
       builder: (ctx, state) {
-        return AlertDialog(
-          title: Text(tipoNota.label, style: const TextStyle(fontSize: 16)),
-          content: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: 480,
-              maxHeight: MediaQuery.of(ctx).size.height * 0.7,
-            ),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildHeader(),
-                  const SizedBox(height: 12),
-                  if (state.status == CrearNotaStatus.loadingMotivos)
-                    const Padding(
-                      padding: EdgeInsets.all(20),
-                      child: Center(child: CircularProgressIndicator()),
-                    )
-                  else if (state.motivos.isNotEmpty) ...[
-                    MotivoSelectorWidget(
-                      motivos: state.motivos,
-                      seleccionado: state.motivoSeleccionado,
-                      onChanged: (codigo) =>
-                          ctx.read<CrearNotaCubit>().seleccionarMotivo(codigo),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      maxLines: 2,
-                      maxLength: 250,
-                      decoration: const InputDecoration(
-                        labelText: 'Motivo (descripción libre)',
-                        hintText: 'Mín. 3 caracteres',
-                        border: OutlineInputBorder(),
-                        isDense: true,
-                      ),
-                      style: const TextStyle(fontSize: 12),
-                      onChanged: (v) =>
-                          ctx.read<CrearNotaCubit>().cambiarMotivoTexto(v),
-                    ),
-                    const SizedBox(height: 8),
-                    _buildItemsSection(ctx, state),
-                  ],
-                  if (state.errorMessage != null) ...[
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.red.shade50,
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: Colors.red.shade200),
-                      ),
-                      child: Text(
-                        state.errorMessage!,
-                        style: TextStyle(fontSize: 11, color: Colors.red.shade800),
-                      ),
-                    ),
-                  ],
-                ],
+        final submitting = state.status == CrearNotaStatus.submitting;
+        return StyledDialog(
+          accentColor: _color,
+          icon: _icon,
+          titulo: widget.tipoNota.label,
+          barrierDismissible: false,
+          backgroundColor: Colors.white,
+          content: [
+            _buildHeader(),
+            const SizedBox(height: 12),
+            if (state.status == CrearNotaStatus.loadingMotivos)
+              const Padding(
+                padding: EdgeInsets.all(20),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (state.motivos.isNotEmpty) ...[
+              MotivoSelectorWidget(
+                motivos: state.motivos,
+                seleccionado: state.motivoSeleccionado,
+                onChanged: (codigo) =>
+                    ctx.read<CrearNotaCubit>().seleccionarMotivo(codigo),
+              ),
+              const SizedBox(height: 12),
+              CustomText(
+                controller: _motivoController,
+                maxLines: 2,
+                maxLength: 250,
+                borderColor: _color.withValues(alpha: 0.4),
+                label: 'Motivo (descripción libre)',
+                hintText: 'Mín. 3 caracteres',
+                onChanged: (v) =>
+                    ctx.read<CrearNotaCubit>().cambiarMotivoTexto(v),
+              ),
+              const SizedBox(height: 8),
+              _buildItemsSection(ctx, state),
+            ],
+            if (state.errorMessage != null) ...[
+              const SizedBox(height: 8),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red.shade200),
+                ),
+                child: Text(
+                  state.errorMessage!,
+                  style: TextStyle(fontSize: 11, color: Colors.red.shade800),
+                ),
+              ),
+            ],
+          ],
+          actions: [
+            Expanded(
+              child: CustomButton(
+                text: 'Cancelar',
+                isOutlined: true,
+                borderColor: Colors.grey.shade400,
+                textColor: Colors.grey.shade700,
+                enabled: !submitting,
+                onPressed: submitting ? null : () => Navigator.of(ctx).pop(),
               ),
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: state.status == CrearNotaStatus.submitting
-                  ? null
-                  : () => Navigator.of(ctx).pop(),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: _color),
-              onPressed: (state.status == CrearNotaStatus.submitting || !state.formValido)
-                  ? null
-                  : () => ctx.read<CrearNotaCubit>().emitir(
-                        comprobanteOrigenId: comprobanteOrigenId,
-                        sedeId: sedeId,
-                      ),
-              child: state.status == CrearNotaStatus.submitting
-                  ? const SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                    )
-                  : Text('Emitir ${tipoNota.label}',
-                      style: const TextStyle(color: Colors.white, fontSize: 12)),
+            Expanded(
+              child: CustomButton(
+                text: 'Emitir ${widget.tipoNota.label}',
+                backgroundColor: _color,
+                borderColor: _color,
+                textColor: Colors.white,
+                isLoading: submitting,
+                enabled: submitting || state.formValido,
+                onPressed: (submitting || !state.formValido)
+                    ? null
+                    : () => ctx.read<CrearNotaCubit>().emitir(
+                          comprobanteOrigenId: widget.comprobanteOrigenId,
+                          sedeId: widget.sedeId,
+                        ),
+              ),
             ),
           ],
         );
@@ -201,17 +218,21 @@ class _CrearNotaContent extends StatelessWidget {
 
   Widget _buildHeader() {
     return Container(
-      padding: const EdgeInsets.all(8),
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: _color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: _color.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Comprobante origen: $comprobanteCodigo',
+          Text('Comprobante origen: ${widget.comprobanteCodigo}',
               style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-          Text('Total: $_simboloMoneda ${comprobanteTotal.toStringAsFixed(2)}',
+          const SizedBox(height: 2),
+          Text(
+              'Total: $_simboloMoneda ${widget.comprobanteTotal.toStringAsFixed(2)}',
               style: TextStyle(fontSize: 11, color: Colors.grey.shade700)),
         ],
       ),
@@ -267,7 +288,7 @@ class _CrearNotaContent extends StatelessWidget {
           const SizedBox(height: 6),
           ItemsAdicionalesWidget(
             items: state.itemsAdicionales,
-            moneda: moneda,
+            moneda: widget.moneda,
             onAgregar: () =>
                 ctx.read<CrearNotaCubit>().agregarItemAdicional(),
             onEditar: (i, it) =>

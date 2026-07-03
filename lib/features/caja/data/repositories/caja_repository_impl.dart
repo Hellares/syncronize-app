@@ -125,6 +125,7 @@ class CajaRepositoryImpl implements CajaRepository {
     required String cajaId,
     required List<Map<String, dynamic>> conteos,
     String? observaciones,
+    Map<String, int>? desgloseEfectivo,
   }) async {
     if (!await _networkInfo.isConnected) {
       return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
@@ -134,6 +135,7 @@ class CajaRepositoryImpl implements CajaRepository {
         cajaId: cajaId,
         conteos: conteos,
         observaciones: observaciones,
+        desgloseEfectivo: desgloseEfectivo,
       );
       return Success(caja.toEntity());
     } catch (e) {

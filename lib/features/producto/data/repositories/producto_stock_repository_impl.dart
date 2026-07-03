@@ -76,6 +76,7 @@ class ProductoStockRepositoryImpl implements ProductoStockRepository {
     required String empresaId,
     int page = 1,
     int limit = 50,
+    String? search,
   }) async {
     if (!await _networkInfo.isConnected) {
       return Error(
@@ -90,6 +91,7 @@ class ProductoStockRepositoryImpl implements ProductoStockRepository {
         empresaId: empresaId,
         page: page,
         limit: limit,
+        search: search,
       );
       return Success(resultado);
     } catch (e) {

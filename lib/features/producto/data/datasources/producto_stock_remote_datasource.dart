@@ -62,12 +62,14 @@ class ProductoStockRemoteDataSource {
     required String empresaId,
     int page = 1,
     int limit = 50,
+    String? search,
   }) async {
     final response = await _dioClient.get(
       '/producto-stock/sede/$sedeId',
       queryParameters: {
         'page': page,
         'limit': limit,
+        if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
       },
     );
 

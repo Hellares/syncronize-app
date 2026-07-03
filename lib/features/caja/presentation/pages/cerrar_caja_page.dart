@@ -21,6 +21,7 @@ import '../bloc/cerrar_caja_cubit.dart';
 import '../bloc/cerrar_caja_state.dart';
 import '../services/caja_ticket_data.dart';
 import '../services/cierre_caja_esc_pos_generator.dart';
+import '../widgets/desglose_efectivo_sheet.dart';
 
 class CerrarCajaPage extends StatefulWidget {
   final String cajaId;
@@ -46,6 +47,10 @@ class _CerrarCajaPageState extends State<CerrarCajaPage> {
   final _observacionesController = TextEditingController();
   final Map<MetodoPago, TextEditingController> _conteoControllers = {};
   bool _isClosing = false;
+
+  /// Desglose de billetes/monedas contado físicamente para EFECTIVO.
+  /// Se llena desde el contador de billetes (mismo sheet que el arqueo).
+  Map<double, int>? _desgloseEfectivo;
 
   @override
   void initState() {
@@ -562,6 +567,7 @@ class _CerrarCajaPageState extends State<CerrarCajaPage> {
     final diferencia = conteoValue - esperado;
     final hasDiferencia =
         controller.text.isNotEmpty && diferencia.abs() >= 0.005;
+    final esEfectivo = metodo == MetodoPago.efectivo;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -579,8 +585,34 @@ class _CerrarCajaPageState extends State<CerrarCajaPage> {
                   fontSize: 12,
                   color: AppColors.blue3,
                 ),
+                // Para EFECTIVO: contador de billetes (mismo sheet que el
+                // arqueo). Autocompleta el conteo físico con el total.
+                if (esEfectivo) ...[
+                  const Spacer(),
+                  TextButton.icon(
+                    onPressed: () => _abrirDesgloseSheet(controller, esperado),
+                    icon: const Icon(Icons.payments_rounded, size: 14),
+                    label: Text(
+                      _desgloseEfectivo == null
+                          ? 'Contar billetes'
+                          : 'Editar desglose',
+                      style: const TextStyle(fontSize: 11),
+                    ),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.blue1,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 0),
+                      minimumSize: const Size(0, 28),
+                    ),
+                  ),
+                ],
               ],
             ),
+            if (esEfectivo && _desgloseEfectivo != null) ...[
+              const SizedBox(height: 4),
+              _buildResumenDesglose(),
+              const SizedBox(height: 4),
+            ],
             Row(
               children: [
                 Expanded(
@@ -656,6 +688,59 @@ class _CerrarCajaPageState extends State<CerrarCajaPage> {
           ],
         ),
       ),
+    );
+  }
+
+  /// Abre el contador de billetes/monedas y, al confirmar, autocompleta el
+  /// conteo físico de EFECTIVO con el total contado.
+  Future<void> _abrirDesgloseSheet(
+      TextEditingController conteoEfectivo, double esperado) async {
+    final result = await showDesgloseEfectivoSheet(
+      context,
+      initial: _desgloseEfectivo,
+      esperado: esperado,
+    );
+    if (result == null) return;
+    setState(() {
+      if (result.cantidades.isEmpty) {
+        _desgloseEfectivo = null;
+        return;
+      }
+      _desgloseEfectivo = result.cantidades;
+      conteoEfectivo.text = result.total.toStringAsFixed(2);
+    });
+  }
+
+  /// Chips compactos con el desglose contado (S/200 x3, S/100 x5, …).
+  Widget _buildResumenDesglose() {
+    if (_desgloseEfectivo == null || _desgloseEfectivo!.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    final entries = _desgloseEfectivo!.entries.toList()
+      ..sort((a, b) => b.key.compareTo(a.key));
+    return Wrap(
+      spacing: 6,
+      runSpacing: 4,
+      children: entries.map((e) {
+        final label = e.key >= 1
+            ? 'S/${e.key.toInt()} x${e.value}'
+            : 'S/${e.key.toStringAsFixed(2)} x${e.value}';
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: AppColors.bluechip,
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: AppColors.blue3,
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 
@@ -1044,12 +1129,22 @@ class _CerrarCajaPageState extends State<CerrarCajaPage> {
       }
     }
 
+    // Serializamos el desglose de billetes: Map<double,int> → Map<String,int>
+    // (las keys JSON deben ser strings). Mismo formato que el arqueo.
+    final desgloseSerializado = _desgloseEfectivo?.map(
+      (k, v) => MapEntry(
+        k >= 1 ? k.toInt().toString() : k.toStringAsFixed(2),
+        v,
+      ),
+    );
+
     context.read<CerrarCajaCubit>().cerrarCaja(
           cajaId: widget.cajaId,
           conteos: conteos,
           observaciones: _observacionesController.text.isNotEmpty
               ? _observacionesController.text
               : null,
+          desgloseEfectivo: desgloseSerializado,
         );
   }
 }

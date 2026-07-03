@@ -518,7 +518,7 @@ class _RealizarArqueoPageState extends State<RealizarArqueoPage> {
                 if (esEfectivo) ...[
                   const Spacer(),
                   TextButton.icon(
-                    onPressed: () => _abrirDesgloseSheet(controller),
+                    onPressed: () => _abrirDesgloseSheet(controller, esperado),
                     icon: const Icon(Icons.payments_rounded, size: 14),
                     label: Text(
                       _desgloseEfectivo == null
@@ -620,10 +620,12 @@ class _RealizarArqueoPageState extends State<RealizarArqueoPage> {
     );
   }
 
-  Future<void> _abrirDesgloseSheet(TextEditingController conteoEfectivo) async {
+  Future<void> _abrirDesgloseSheet(
+      TextEditingController conteoEfectivo, double esperado) async {
     final result = await showDesgloseEfectivoSheet(
       context,
       initial: _desgloseEfectivo,
+      esperado: esperado,
     );
     if (result == null) return;
     setState(() {

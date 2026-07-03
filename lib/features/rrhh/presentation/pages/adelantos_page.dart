@@ -200,6 +200,7 @@ class _AdelantosPageState extends State<AdelantosPage> {
         children: [
           // Header
           Row(
+            
             children: [
               CircleAvatar(
                 radius: 18,

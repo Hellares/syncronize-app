@@ -14,12 +14,14 @@ class GetStockPorSedeUseCase {
     required String empresaId,
     int page = 1,
     int limit = 50,
+    String? search,
   }) async {
     return await _repository.getStockPorSede(
       sedeId: sedeId,
       empresaId: empresaId,
       page: page,
       limit: limit,
+      search: search,
     );
   }
 }

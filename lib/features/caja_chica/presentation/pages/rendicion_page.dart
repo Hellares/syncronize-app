@@ -122,13 +122,13 @@ class _RendicionView extends StatelessWidget {
     }
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header card
           GradientContainer(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -143,7 +143,7 @@ class _RendicionView extends StatelessWidget {
                       child: Icon(
                         Icons.receipt_long_rounded,
                         color: estadoColor,
-                        size: 24,
+                        size: 18,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -153,14 +153,14 @@ class _RendicionView extends StatelessWidget {
                         children: [
                           AppSubtitle(
                             rendicion.codigo,
-                            fontSize: 16,
+                            fontSize: 11,
                             color: AppColors.blue3,
                           ),
                           const SizedBox(height: 2),
                           Text(
                             rendicion.cajaChicaNombre,
                             style: const TextStyle(
-                              fontSize: 13,
+                              fontSize: 10,
                               color: AppColors.textSecondary,
                             ),
                           ),
@@ -179,7 +179,7 @@ class _RendicionView extends StatelessWidget {
                       child: Text(
                         rendicion.estado.label,
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 10,
                           fontWeight: FontWeight.w600,
                           color: estadoColor,
                         ),
@@ -248,7 +248,7 @@ class _RendicionView extends StatelessWidget {
               children: [
                 AppSubtitle(
                   'Gastos (${rendicion.gastos.length})',
-                  fontSize: 14,
+                  fontSize: 10,
                   color: AppColors.blue3,
                 ),
                 const SizedBox(height: 12),
@@ -259,7 +259,7 @@ class _RendicionView extends StatelessWidget {
                       child: Text(
                         'Sin gastos asociados',
                         style: TextStyle(
-                          fontSize: 14,
+                          fontSize: 12,
                           color: AppColors.textSecondary,
                         ),
                       ),
@@ -319,15 +319,15 @@ class _RendicionView extends StatelessWidget {
               Text(
                 label,
                 style: const TextStyle(
-                  fontSize: 11,
+                  fontSize: 10,
                   color: AppColors.textSecondary,
                 ),
               ),
               Text(
                 value,
                 style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w500,
                   color: AppColors.textPrimary,
                 ),
                 overflow: TextOverflow.ellipsis,
@@ -355,7 +355,7 @@ class _RendicionView extends StatelessWidget {
             ),
             child: const Icon(
               Icons.receipt_rounded,
-              size: 18,
+              size: 16,
               color: Color(0xFFF54D85),
             ),
           ),
@@ -367,7 +367,7 @@ class _RendicionView extends StatelessWidget {
                 Text(
                   gasto.descripcion,
                   style: const TextStyle(
-                    fontSize: 13,
+                    fontSize: 10,
                     fontWeight: FontWeight.w500,
                     color: AppColors.textPrimary,
                   ),
@@ -377,7 +377,7 @@ class _RendicionView extends StatelessWidget {
                 Text(
                   '${gasto.categoriaGastoNombre} - ${DateFormatter.formatDateTime(gasto.fechaGasto)}',
                   style: const TextStyle(
-                    fontSize: 11,
+                    fontSize: 10,
                     color: AppColors.textSecondary,
                   ),
                 ),
@@ -388,7 +388,7 @@ class _RendicionView extends StatelessWidget {
             currencyFormat.format(gasto.monto),
             style: const TextStyle(
               fontSize: 13,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w600,
               color: Color(0xFFF54D85),
             ),
           ),

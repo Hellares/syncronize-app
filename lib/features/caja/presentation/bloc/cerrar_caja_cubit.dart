@@ -21,6 +21,7 @@ class CerrarCajaCubit extends Cubit<CerrarCajaState> {
     required String cajaId,
     required List<Map<String, dynamic>> conteos,
     String? observaciones,
+    Map<String, int>? desgloseEfectivo,
   }) async {
     emit(const CerrarCajaSubmitting());
 
@@ -28,6 +29,7 @@ class CerrarCajaCubit extends Cubit<CerrarCajaState> {
       cajaId: cajaId,
       conteos: conteos,
       observaciones: observaciones,
+      desgloseEfectivo: desgloseEfectivo,
     );
     if (isClosed) return;
 

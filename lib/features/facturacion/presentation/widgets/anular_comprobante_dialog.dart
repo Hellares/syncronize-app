@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/utils/resource.dart';
+import '../../../../core/widgets/custom_button.dart';
+import '../../../../core/widgets/styled_dialog.dart';
+import '../../../auth/presentation/widgets/custom_text.dart';
 import '../../domain/entities/comunicacion_baja.dart';
 import '../../domain/entities/crear_comunicacion_baja_request.dart';
 import '../../domain/entities/crear_resumen_diario_request.dart';
@@ -201,148 +204,131 @@ class _AnularComprobanteDialogState extends State<AnularComprobanteDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Row(
-        children: [
-          Icon(Icons.cancel_outlined, color: Colors.red.shade700, size: 18),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(_tituloDialog,
-                style: const TextStyle(fontSize: 16, color: Colors.red)),
+    return StyledDialog(
+      accentColor: Colors.red,
+      icon: Icons.cancel_outlined,
+      titulo: _tituloDialog,
+      barrierDismissible: false,
+      backgroundColor: Colors.white,
+      content: [
+        // Header con info del comprobante
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: Colors.red.shade50,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.red.shade100),
           ),
-        ],
-      ),
-      content: SingleChildScrollView(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 480),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header con info del comprobante
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade50,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                        '${_tipoLabel(widget.tipoComprobante)} ${widget.comprobanteCodigo}',
-                        style: const TextStyle(
-                            fontSize: 13, fontWeight: FontWeight.w700)),
-                    Text(
-                        'Total: $_simboloMoneda ${widget.total.toStringAsFixed(2)}',
-                        style: TextStyle(
-                            fontSize: 11, color: Colors.grey.shade700)),
-                    Text(
-                      'Emitido: ${_fechaEmisionLocal.day}/${_fechaEmisionLocal.month}/${_fechaEmisionLocal.year}'
-                      ' ($_diasTranscurridos días)',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: _fueraDePlazo
-                            ? Colors.red
-                            : Colors.grey.shade700,
-                        fontWeight: _fueraDePlazo ? FontWeight.bold : null,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-              if (_fueraDePlazo) ...[
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.shade50,
-                    border: Border.all(color: Colors.orange.shade300),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    _esBoleta
-                        ? 'Fuera del plazo SUNAT ($_plazoDias días). Pasado este plazo no se puede anular oficialmente.'
-                        : 'Fuera del plazo SUNAT ($_plazoDias días). Para revertir este comprobante usa Nota de Crédito.',
-                    style: TextStyle(
-                        fontSize: 11, color: Colors.orange.shade900),
-                  ),
-                ),
-                const SizedBox(height: 12),
-              ],
               Text(
-                _esBoleta
-                    ? 'El Resumen Diario anula oficialmente la boleta ante SUNAT. Plazo: $_plazoDias días desde la emisión. Esta acción NO se puede revertir.'
-                    : 'La Comunicación de Baja anula oficialmente el comprobante ante SUNAT. Plazo: $_plazoDias días desde la emisión. Esta acción NO se puede revertir.',
-                style: const TextStyle(fontSize: 11, color: Colors.black87),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _motivoGeneralController,
-                enabled: !_fueraDePlazo && !_submitting,
-                maxLines: 2,
-                maxLength: 500,
-                onChanged: (_) => setState(() {}),
-                decoration: InputDecoration(
-                  labelText: _esBoleta
-                      ? 'Motivo general de la anulación'
-                      : 'Motivo general de la baja',
-                  hintText: 'Ej: Anulación por error administrativo',
-                  border: const OutlineInputBorder(),
-                  isDense: true,
+                  '${_tipoLabel(widget.tipoComprobante)} ${widget.comprobanteCodigo}',
+                  style: const TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 2),
+              Text('Total: $_simboloMoneda ${widget.total.toStringAsFixed(2)}',
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade700)),
+              Text(
+                'Emitido: ${_fechaEmisionLocal.day}/${_fechaEmisionLocal.month}/${_fechaEmisionLocal.year}'
+                ' ($_diasTranscurridos días)',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: _fueraDePlazo ? Colors.red : Colors.grey.shade700,
+                  fontWeight: _fueraDePlazo ? FontWeight.bold : null,
                 ),
-                style: const TextStyle(fontSize: 12),
               ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _motivoEspecificoController,
-                enabled: !_fueraDePlazo && !_submitting,
-                maxLines: 2,
-                maxLength: 250,
-                onChanged: (_) => setState(() {}),
-                decoration: const InputDecoration(
-                  labelText: 'Motivo específico del documento',
-                  hintText: 'Ej: Cliente canceló la operación antes de la entrega',
-                  border: OutlineInputBorder(),
-                  isDense: true,
-                ),
-                style: const TextStyle(fontSize: 12),
-              ),
-              if (_error != null) ...[
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.red.shade50,
-                    border: Border.all(color: Colors.red.shade200),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(_error!,
-                      style: TextStyle(
-                          fontSize: 11, color: Colors.red.shade800)),
-                ),
-              ],
             ],
           ),
         ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: _submitting ? null : () => Navigator.of(context).pop(),
-          child: const Text('Cancelar'),
+        const SizedBox(height: 12),
+        if (_fueraDePlazo) ...[
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.orange.shade50,
+              border: Border.all(color: Colors.orange.shade300),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              _esBoleta
+                  ? 'Fuera del plazo SUNAT ($_plazoDias días). Pasado este plazo no se puede anular oficialmente.'
+                  : 'Fuera del plazo SUNAT ($_plazoDias días). Para revertir este comprobante usa Nota de Crédito.',
+              style: TextStyle(fontSize: 11, color: Colors.orange.shade900),
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
+        Text(
+          _esBoleta
+              ? 'El Resumen Diario anula oficialmente la boleta ante SUNAT. Plazo: $_plazoDias días desde la emisión. Esta acción NO se puede revertir.'
+              : 'La Comunicación de Baja anula oficialmente el comprobante ante SUNAT. Plazo: $_plazoDias días desde la emisión. Esta acción NO se puede revertir.',
+          style: const TextStyle(fontSize: 11, color: Colors.black87),
         ),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-          onPressed: _formValido ? _emitir : null,
-          child: _submitting
-              ? const SizedBox(
-                  width: 14,
-                  height: 14,
-                  child: CircularProgressIndicator(
-                      strokeWidth: 2, color: Colors.white),
-                )
-              : Text('Emitir $_mecanismoNombre',
-                  style: const TextStyle(color: Colors.white, fontSize: 12)),
+        const SizedBox(height: 12),
+        CustomText(
+          controller: _motivoGeneralController,
+          enabled: !_fueraDePlazo && !_submitting,
+          maxLines: 2,
+          maxLength: 500,
+          borderColor: Colors.red.shade200,
+          label: _esBoleta
+              ? 'Motivo general de la anulación'
+              : 'Motivo general de la baja',
+          hintText: 'Ej: Anulación por error administrativo',
+          onChanged: (_) => setState(() {}),
+        ),
+        const SizedBox(height: 8),
+        CustomText(
+          controller: _motivoEspecificoController,
+          enabled: !_fueraDePlazo && !_submitting,
+          maxLines: 2,
+          maxLength: 250,
+          borderColor: Colors.red.shade200,
+          label: 'Motivo específico del documento',
+          hintText: 'Ej: Cliente canceló la operación antes de la entrega',
+          onChanged: (_) => setState(() {}),
+        ),
+        if (_error != null) ...[
+          const SizedBox(height: 8),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.red.shade50,
+              border: Border.all(color: Colors.red.shade200),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(_error!,
+                style: TextStyle(fontSize: 11, color: Colors.red.shade800)),
+          ),
+        ],
+      ],
+      actions: [
+        Expanded(
+          child: CustomButton(
+            text: 'Cancelar',
+            // isOutlined: true,
+            borderColor: Colors.grey.shade400,
+            textColor: Colors.grey.shade700,
+            enabled: !_submitting,
+            onPressed:
+                _submitting ? null : () => Navigator.of(context).pop(),
+          ),
+        ),
+        Expanded(
+          child: CustomButton(
+            text: 'Emitir $_mecanismoNombre',
+            backgroundColor: Colors.red,
+            borderWidth: 0.6,
+            borderColor: Colors.red,
+            textColor: Colors.white,
+            isLoading: _submitting,
+            enabled: _submitting || _formValido,
+            onPressed: _formValido ? _emitir : null,
+          ),
         ),
       ],
     );

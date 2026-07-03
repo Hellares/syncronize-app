@@ -113,7 +113,7 @@ class _HistorialRendicionesPageState extends State<HistorialRendicionesPage> {
                     await _rendicionesCubit.reload();
                   },
                   child: ListView.separated(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(10),
                     itemCount: state.rendiciones.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 12),
                     itemBuilder: (context, index) {
@@ -168,7 +168,7 @@ class _HistorialRendicionesPageState extends State<HistorialRendicionesPage> {
       },
       borderRadius: BorderRadius.circular(8),
       child: GradientContainer(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -180,14 +180,14 @@ class _HistorialRendicionesPageState extends State<HistorialRendicionesPage> {
                     children: [
                       AppSubtitle(
                         rendicion.codigo,
-                        fontSize: 15,
+                        fontSize: 11,
                         color: AppColors.blue3,
                       ),
                       const SizedBox(height: 2),
                       Text(
                         rendicion.cajaChicaNombre,
                         style: const TextStyle(
-                          fontSize: 13,
+                          fontSize: 10,
                           color: AppColors.textSecondary,
                         ),
                       ),
@@ -206,8 +206,8 @@ class _HistorialRendicionesPageState extends State<HistorialRendicionesPage> {
                   child: Text(
                     rendicion.estado.label,
                     style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
                       color: estadoColor,
                     ),
                   ),
@@ -259,15 +259,15 @@ class _HistorialRendicionesPageState extends State<HistorialRendicionesPage> {
               Text(
                 label,
                 style: const TextStyle(
-                  fontSize: 11,
+                  fontSize: 10,
                   color: AppColors.textSecondary,
                 ),
               ),
               Text(
                 value,
                 style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w500,
                   color: AppColors.textPrimary,
                 ),
                 overflow: TextOverflow.ellipsis,

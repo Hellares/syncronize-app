@@ -13,11 +13,13 @@ class CerrarCajaUseCase {
     required String cajaId,
     required List<Map<String, dynamic>> conteos,
     String? observaciones,
+    Map<String, int>? desgloseEfectivo,
   }) {
     return _repository.cerrarCaja(
       cajaId: cajaId,
       conteos: conteos,
       observaciones: observaciones,
+      desgloseEfectivo: desgloseEfectivo,
     );
   }
 }

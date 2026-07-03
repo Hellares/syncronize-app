@@ -172,6 +172,8 @@ class ProductoStockInfoModel extends ProductoStockInfo {
     super.codigoEmpresa,
     super.sku,
     super.esInsumo,
+    super.marcaNombre,
+    super.categoriaNombre,
   });
 
   factory ProductoStockInfoModel.fromJson(Map<String, dynamic> json) {
@@ -181,6 +183,11 @@ class ProductoStockInfoModel extends ProductoStockInfo {
       codigoEmpresa: json['codigoEmpresa'] as String?,
       sku: json['sku'] as String?,
       esInsumo: json['esInsumo'] as bool? ?? false,
+      // El backend incluye las relaciones empresaMarca / empresaCategoria.
+      marcaNombre:
+          (json['empresaMarca'] as Map<String, dynamic>?)?['nombre'] as String?,
+      categoriaNombre: (json['empresaCategoria'] as Map<String, dynamic>?)?[
+          'nombre'] as String?,
     );
   }
 
