@@ -34,6 +34,7 @@ import '../widgets/alertas_activas_card.dart';
 import '../widgets/ventas_sparkline_card.dart';
 import '../widgets/suscripcion_vencida_screen.dart';
 import '../widgets/suscripcion_banner.dart';
+import '../widgets/pedidos_marketplace_alert_popup.dart';
 import '../../../resumen_financiero/presentation/bloc/resumen_financiero_cubit.dart';
 import '../../../../core/widgets/notification_bell.dart';
 
@@ -98,6 +99,19 @@ class _EmpresaDashboardPageState extends State<EmpresaDashboardPage> {
       if (esAdmin) {
         _loadPendientes();
       }
+
+      // Aviso estilo Temu: pedidos del marketplace por revisar (validar
+      // comprobante / preparar pagados). Sale ~2s después de abrir el
+      // dashboard, 1 vez por sesión y empresa; si el rol no tiene permiso
+      // sobre pedidos, el popup se auto-omite (silencioso).
+      final empresaId = empresaContext.empresa.id;
+      Future.delayed(const Duration(seconds: 2), () {
+        if (!mounted) return;
+        PedidosMarketplaceAlertPopup.mostrarSiHayPendientes(
+          context,
+          empresaId: empresaId,
+        );
+      });
     });
   }
 
@@ -316,7 +330,7 @@ class _EmpresaDashboardPageState extends State<EmpresaDashboardPage> {
                         children: [
                           Text('Sede:',
                               style: TextStyle(
-                                  fontSize: 12, color: Colors.grey.shade600)),
+                                  fontSize: 10, color: AppColors.green)),
                           const SizedBox(width: 8),
                           const Flexible(child: SedeSwitcher()),
                         ],

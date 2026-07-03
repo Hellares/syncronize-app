@@ -193,8 +193,14 @@ class PedidoMarketplace extends Equatable {
       estado == EstadoPedidoMarketplace.pendientePago ||
       estado == EstadoPedidoMarketplace.pagoRechazado;
 
-  /// Si puede cancelar el pedido
-  bool get puedeCancelar => estado == EstadoPedidoMarketplace.pendientePago;
+  /// Es un pedido contraentrega (paga al recibir).
+  bool get esContraentrega => metodoPago == 'CONTRAENTREGA';
+
+  /// Si puede cancelar el pedido. Contraentrega nace PAGO_VALIDADO sin dinero
+  /// de por medio → cancelable mientras la empresa no empiece a preparar.
+  bool get puedeCancelar =>
+      estado == EstadoPedidoMarketplace.pendientePago ||
+      (esContraentrega && estado == EstadoPedidoMarketplace.pagoValidado);
 
   /// Si puede confirmar recepcion del pedido
   bool get puedeConfirmarRecepcion => estado == EstadoPedidoMarketplace.enviado;

@@ -13,6 +13,7 @@ import '../../domain/entities/pedido_marketplace.dart';
 import '../../domain/usecases/get_pedido_detalle_usecase.dart';
 import '../bloc/pedido_action_cubit.dart';
 import '../widgets/comprobante_upload_widget.dart';
+import '../widgets/pagar_yape_sheet.dart';
 
 class PedidoDetailPage extends StatefulWidget {
   final String pedidoId;
@@ -447,6 +448,29 @@ class _PedidoDetailPageState extends State<PedidoDetailPage> {
     );
   }
 
+  Future<void> _pagarConYape(PedidoMarketplace pedido) async {
+    final pagado = await PagarYapeSheet.show(
+      context,
+      cobroPath: '/marketplace/mis-pedidos/${pedido.id}/cobro-yape',
+      pollPath: '/marketplace/mis-pedidos/${pedido.id}',
+      esPagado: (d) {
+        final estado = d['estado'] as String?;
+        const pendientes = ['PENDIENTE_PAGO', 'PAGO_ENVIADO', 'PAGO_RECHAZADO'];
+        return estado != null && !pendientes.contains(estado);
+      },
+    );
+    if (!mounted) return;
+    if (pagado == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('¡Pago confirmado! Tu pedido está en proceso.'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      _loadDetalle();
+    }
+  }
+
   Widget _buildActions(PedidoMarketplace pedido) {
     return BlocBuilder<PedidoActionCubit, PedidoActionState>(
       builder: (context, actionState) {
@@ -455,6 +479,21 @@ class _PedidoDetailPageState extends State<PedidoDetailPage> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // Pagar con Yape automático (api-yape): QR + monto exacto +
+            // confirmación automática. Si la empresa no lo tiene habilitado,
+            // el sheet se cierra solo y queda el flujo manual de abajo.
+            if (pedido.puedeSubirComprobante) ...[
+              CustomButton(
+                text: 'Pagar con Yape',
+                onPressed: isActionLoading ? null : () => _pagarConYape(pedido),
+                height: 48,
+                borderRadius: 14,
+                backgroundColor: const Color(0xFF742284),
+                icon: const Icon(Icons.qr_code_2_rounded, color: AppColors.white, size: 20),
+              ),
+              const SizedBox(height: 12),
+            ],
+
             // Subir comprobante
             if (pedido.puedeSubirComprobante) ...[
               ComprobanteUploadWidget(
@@ -493,6 +532,9 @@ class _PedidoDetailPageState extends State<PedidoDetailPage> {
             if (pedido.puedeConfirmarRecepcion) ...[
               CustomButton(
                 text: 'Confirmar Recepcion',
+                borderColor: AppColors.green,
+                textColor: AppColors.green
+                ,
                 onPressed: isActionLoading
                     ? null
                     : () => _showConfirmDialog(
@@ -506,8 +548,6 @@ class _PedidoDetailPageState extends State<PedidoDetailPage> {
                           },
                         ),
                 isLoading: isActionLoading,
-                height: 48,
-                borderRadius: 14,
                 icon: const Icon(Icons.check_circle_outline, color: AppColors.white, size: 20),
               ),
             ],

@@ -160,14 +160,30 @@ class _CheckoutViewState extends State<_CheckoutView> {
         body: BlocConsumer<CheckoutCubit, CheckoutState>(
           listener: (context, state) {
             if (state is CheckoutExito) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Pedido(s) creado(s) exitosamente'), backgroundColor: AppColors.green),
-              );
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(builder: (_) => CheckoutConfirmacionPage(codigos: state.codigos)),
-              );
+              // BUG FIX: si el comprador es también admin de la empresa (mismo
+              // device), el push FCM "Nuevo pedido" llega DURANTE el checkout y
+              // el rebuild del badge desactiva momentáneamente este widget. El
+              // snackbar sobre el context desactivado lanzaba una excepción que
+              // abortaba el listener ANTES de navegar → spinner eterno (aunque
+              // el pedido SÍ se creó). Fix: navegar post-frame (el elemento ya
+              // se reactivó) con guard mounted, y sin snackbar previo (la página
+              // de confirmación ya comunica el éxito).
+              final codigos = state.codigos;
+              final pedidoIds = state.pedidoIds;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!context.mounted) return;
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(
+                    builder: (_) => CheckoutConfirmacionPage(
+                      codigos: codigos,
+                      pedidoIds: pedidoIds,
+                    ),
+                  ),
+                );
+              });
             }
             if (state is CheckoutError) {
+              if (!context.mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text(state.message), backgroundColor: AppColors.red),
               );
@@ -224,13 +240,43 @@ class _CheckoutViewState extends State<_CheckoutView> {
 
                   const AppSubtitle('Metodo de Pago'),
                   const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      _buildMetodoPagoChip('YAPE', Icons.phone_android, const Color(0xFF6C2C91)),
-                      const SizedBox(width: 12),
-                      _buildMetodoPagoChip('PLIN', Icons.phone_android, const Color(0xFF00BCD4)),
-                    ],
-                  ),
+                  Builder(builder: (context) {
+                    // Contraentrega solo si TODAS las empresas del carrito la
+                    // permiten (el método de pago aplica a todo el checkout).
+                    final contraentregaOk = widget.carritoData.isNotEmpty &&
+                        widget.carritoData.every((g) =>
+                            opciones[g['empresaId']]?.contraentregaDisponible ??
+                            false);
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            _buildMetodoPagoChip('YAPE', Icons.phone_android, const Color(0xFF6C2C91)),
+                            const SizedBox(width: 12),
+                            _buildMetodoPagoChip('PLIN', Icons.phone_android, const Color(0xFF00BCD4)),
+                          ],
+                        ),
+                        if (contraentregaOk) ...[
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              _buildMetodoPagoChip(
+                                'CONTRAENTREGA', Icons.local_shipping_outlined, AppColors.green),
+                            ],
+                          ),
+                          if (_metodoPago == 'CONTRAENTREGA')
+                            Padding(
+                              padding: const EdgeInsets.only(top: 6, left: 4),
+                              child: Text(
+                                'Pagas en efectivo o Yape al recibir tu pedido',
+                                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                              ),
+                            ),
+                        ],
+                      ],
+                    );
+                  }),
 
                   const SizedBox(height: 24),
 
@@ -527,6 +573,8 @@ class _CheckoutViewState extends State<_CheckoutView> {
 
   Widget _buildMetodoPagoChip(String metodo, IconData icon, Color color) {
     final isSelected = _metodoPago == metodo;
+    // Etiqueta legible (el valor interno es el enum del backend).
+    final label = metodo == 'CONTRAENTREGA' ? 'Contraentrega (paga al recibir)' : metodo;
     return Expanded(
       child: GestureDetector(
         onTap: () => setState(() => _metodoPago = metodo),
@@ -543,8 +591,13 @@ class _CheckoutViewState extends State<_CheckoutView> {
             children: [
               Icon(icon, color: isSelected ? color : AppColors.grey, size: 20),
               const SizedBox(width: 8),
-              Text(metodo, style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? color : Colors.grey.shade600, fontSize: 14)),
+              Flexible(
+                child: Text(label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    color: isSelected ? color : Colors.grey.shade600, fontSize: 14)),
+              ),
             ],
           ),
         ),

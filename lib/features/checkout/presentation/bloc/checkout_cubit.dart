@@ -51,7 +51,10 @@ class CheckoutCubit extends Cubit<CheckoutState> {
     if (isClosed) return;
 
     if (result is Success<CheckoutResult>) {
-      emit(CheckoutExito(codigos: result.data.codigos));
+      emit(CheckoutExito(
+        codigos: result.data.codigos,
+        pedidoIds: result.data.pedidoIds,
+      ));
     } else if (result is Error<CheckoutResult>) {
       emit(CheckoutError(result.message, opcionesPorEmpresa: Map.from(_opcionesPorEmpresa)));
     }

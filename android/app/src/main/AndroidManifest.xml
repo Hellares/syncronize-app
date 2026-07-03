@@ -81,5 +81,12 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
+        <!-- Abrir la app Yape desde el flujo de pago del marketplace
+             (package visibility, Android 11+). -->
+        <package android:name="com.bcp.innovacxion.yapeapp"/>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="yape"/>
+        </intent>
     </queries>
 </manifest>

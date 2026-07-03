@@ -35,11 +35,12 @@ class CheckoutConfirmando extends CheckoutState {
 
 class CheckoutExito extends CheckoutState {
   final List<String> codigos;
+  final List<String> pedidoIds;
 
-  const CheckoutExito({required this.codigos});
+  const CheckoutExito({required this.codigos, this.pedidoIds = const []});
 
   @override
-  List<Object?> get props => [codigos];
+  List<Object?> get props => [codigos, pedidoIds];
 }
 
 class CheckoutError extends CheckoutState {

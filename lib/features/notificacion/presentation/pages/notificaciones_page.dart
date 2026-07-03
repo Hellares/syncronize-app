@@ -195,7 +195,7 @@ class _NotificacionesPageState extends State<NotificacionesPage> {
                 onPressed: _marcarTodasLeidas,
                 child: const Text(
                   'Leer todas',
-                  style: TextStyle(color: Colors.white, fontSize: 10),
+                  style: TextStyle(color: Colors.white, fontSize: 9),
                 ),
               ),
             IconButton(
@@ -212,7 +212,7 @@ class _NotificacionesPageState extends State<NotificacionesPage> {
 
   Widget _buildBody() {
     if (_loading) {
-      return CustomLoading.small(message: 'Cargando notificaciones...');
+      return CustomLoading.small(message: 'Cargando...');
     }
 
     if (_error != null) {

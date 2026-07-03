@@ -3,8 +3,9 @@ import '../../domain/entities/checkout.dart';
 class OpcionesEnvioModel {
   final Map<String, dynamic>? envio;
   final RetiroTiendaConfigModel? retiroTienda;
+  final Map<String, dynamic>? contraentrega;
 
-  const OpcionesEnvioModel({this.envio, this.retiroTienda});
+  const OpcionesEnvioModel({this.envio, this.retiroTienda, this.contraentrega});
 
   factory OpcionesEnvioModel.fromJson(Map<String, dynamic> json) {
     return OpcionesEnvioModel(
@@ -12,6 +13,7 @@ class OpcionesEnvioModel {
       retiroTienda: json['retiroTienda'] != null
           ? RetiroTiendaConfigModel.fromJson(json['retiroTienda'] as Map<String, dynamic>)
           : null,
+      contraentrega: json['contraentrega'] as Map<String, dynamic>?,
     );
   }
 
@@ -19,6 +21,7 @@ class OpcionesEnvioModel {
     return OpcionesEnvio(
       envio: envio,
       retiroTienda: retiroTienda?.toEntity(),
+      contraentrega: contraentrega,
     );
   }
 }
@@ -71,20 +74,26 @@ class SedeRetiroModel {
 
 class CheckoutResultModel {
   final List<String> codigos;
+  final List<String> pedidoIds;
 
-  const CheckoutResultModel({required this.codigos});
+  const CheckoutResultModel({required this.codigos, required this.pedidoIds});
 
   factory CheckoutResultModel.fromJson(Map<String, dynamic> json) {
     final pedidos = json['pedidos'] as List<dynamic>? ?? [];
-    final codigos = pedidos
-        .whereType<Map<String, dynamic>>()
-        .map((p) => p['codigo'] as String? ?? '')
-        .where((c) => c.isNotEmpty)
-        .toList();
-    return CheckoutResultModel(codigos: codigos);
+    final mapas = pedidos.whereType<Map<String, dynamic>>().toList();
+    return CheckoutResultModel(
+      codigos: mapas
+          .map((p) => p['codigo'] as String? ?? '')
+          .where((c) => c.isNotEmpty)
+          .toList(),
+      pedidoIds: mapas
+          .map((p) => p['id'] as String? ?? '')
+          .where((i) => i.isNotEmpty)
+          .toList(),
+    );
   }
 
   CheckoutResult toEntity() {
-    return CheckoutResult(codigos: codigos);
+    return CheckoutResult(codigos: codigos, pedidoIds: pedidoIds);
   }
 }
