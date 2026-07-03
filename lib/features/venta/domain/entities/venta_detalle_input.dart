@@ -96,6 +96,17 @@ class VentaDetalleInput {
   /// Permite mostrar badge naranja y omitir el guard de autorización.
   final bool enLiquidacion;
 
+  /// True si el precio de la línea proviene de una OFERTA pública vigente
+  /// en la sede. Solo informativo (badge "OFERTA" en el carrito de
+  /// cotización + aviso al aplicar descuento encima): el precio de oferta
+  /// ya viene aplicado en `precioUnitario`/`precioBase`.
+  final bool enOferta;
+
+  /// Precio NORMAL de la sede antes de la oferta (solo cuando [enOferta]).
+  /// Informativo: tachado en el carrito/finalizar para ver cuánto ahorra
+  /// el cliente por la oferta pública.
+  final double? precioAntesOferta;
+
   /// Intenciones de precio especial VIP aplicables a esta línea (el cliente
   /// puede estar en varias políticas). Vacío = sin VIP. recalcularPrecioPorNiveles
   /// elige el menor entre ellas.
@@ -131,6 +142,8 @@ class VentaDetalleInput {
     this.comboModificado = false,
     this.precioCostoSnapshot,
     this.enLiquidacion = false,
+    this.enOferta = false,
+    this.precioAntesOferta,
     this.vipIntents = const [],
   });
 
@@ -231,6 +244,8 @@ class VentaDetalleInput {
     bool? comboModificado,
     double? precioCostoSnapshot,
     bool? enLiquidacion,
+    bool? enOferta,
+    double? precioAntesOferta,
     List<VipPrecioIntent>? vipIntents,
     bool clearNivelAplicado = false,
     bool clearPrecioBase = false,
@@ -268,6 +283,8 @@ class VentaDetalleInput {
       comboModificado: comboModificado ?? this.comboModificado,
       precioCostoSnapshot: precioCostoSnapshot ?? this.precioCostoSnapshot,
       enLiquidacion: enLiquidacion ?? this.enLiquidacion,
+      enOferta: enOferta ?? this.enOferta,
+      precioAntesOferta: precioAntesOferta ?? this.precioAntesOferta,
       vipIntents: vipIntents ?? this.vipIntents,
     );
   }

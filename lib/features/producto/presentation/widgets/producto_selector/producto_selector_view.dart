@@ -601,7 +601,7 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
                       // Sin debounce: el filtro local es instantáneo. El server
                       // solo se consulta vía auto-fallback con debounce propio.
                       debounceDelay: Duration.zero,
-                      height: 40,
+                      height: 37,
                       onChanged: (value) {
                         // Si el cajero edita manualmente, ya no es un código
                         // escaneado — desactivamos el auto-add.
@@ -1317,7 +1317,7 @@ class _ProductoCard<TCubit extends Cubit<TState>, TState>
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
                         color: AppColors.blue1.withValues(alpha: 0.05),
-                        width: 0.8,
+                        width: 0.6,
                       ),
                     ),
                     child: Column(
@@ -1332,7 +1332,7 @@ class _ProductoCard<TCubit extends Cubit<TState>, TState>
                               bottom: BorderSide(
                                 color: AppColors.blue1
                                     .withValues(alpha: 0.05),
-                                width: 0.8,
+                                width: 0.6,
                               ),
                             ),
                           ),

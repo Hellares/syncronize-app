@@ -96,12 +96,16 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
   ) async {
     if (isClosed) return;
     final key = clienteId ?? clienteEmpresaId;
-    if (key == _vipClienteKey) return;
+    // Mismo cliente Y resolver ya cargado → nada que hacer. Si el resolver
+    // quedó null (fetch fallido / singleton con estado a medias), reintentar
+    // aunque la key coincida.
+    if (key == _vipClienteKey && _vipResolver != null) return;
     _vipClienteKey = key;
 
     if (clienteId == null && clienteEmpresaId == null) {
       _vipResolver = null;
-      _reaplicarVipItems();
+      // Cliente quitado explícitamente → SÍ despojar el VIP de los items.
+      _reaplicarVipItems(stripSinResolver: true);
       return;
     }
 
@@ -113,17 +117,28 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     // El cliente pudo cambiar mientras esperábamos la respuesta.
     if ((clienteId ?? clienteEmpresaId) != _vipClienteKey) return;
 
-    _vipResolver = result is Success<List<Map<String, dynamic>>>
-        ? VipResolver.fromVigentes(result.data)
-        : null;
-    _reaplicarVipItems();
+    if (result is Success<List<Map<String, dynamic>>>) {
+      _vipResolver = VipResolver.fromVigentes(result.data);
+      _reaplicarVipItems();
+    } else {
+      // Fetch fallido → CONSERVADOR: resolver queda null pero NO se tocan
+      // los items (un strip acá revertiría precios VIP ya aplicados).
+      _vipResolver = null;
+      debugPrint(
+          '[VentaRapidaVIP] fetch de políticas FALLÓ para $key — se conservan los precios actuales');
+    }
   }
 
   /// Re-resuelve y reaplica el precio VIP a todas las líneas del carrito.
   /// Combos, componentes de combo y órdenes de servicio quedan exentos
   /// (paridad con el backend).
-  void _reaplicarVipItems() {
+  ///
+  /// Sin resolver cargado NO se toca nada (resolver null = "aún no sé",
+  /// no "sin VIP") — salvo [stripSinResolver], usado cuando el cajero
+  /// quita al cliente explícitamente.
+  void _reaplicarVipItems({bool stripSinResolver = false}) {
     if (state.items.isEmpty) return;
+    if (_vipResolver == null && !stripSinResolver) return;
     var cambio = false;
     final nuevos = state.items.map((item) {
       final exento = item.origenComboId != null ||
@@ -1738,8 +1753,16 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
         .map((d) => d['productoId'] as String?)
         .whereType<String>()
         .toSet();
+    // Variantes: tienen sus PROPIOS niveles (no los del producto base).
+    final variantesAfectadas = divergencias
+        .map((d) => d['varianteId'] as String?)
+        .whereType<String>()
+        .toSet();
     for (final pid in productosAfectados) {
       _nivelCacheService.invalidate(pid);
+    }
+    for (final vid in variantesAfectadas) {
+      _nivelCacheService.invalidateVariante(vid);
     }
     final fetched = await Future.wait(
       productosAfectados.map(
@@ -1747,8 +1770,18 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
             _nivelCacheService.getNiveles(pid).then((n) => MapEntry(pid, n)),
       ),
     );
+    final fetchedVar = await Future.wait(
+      variantesAfectadas.map(
+        (vid) => _nivelCacheService
+            .getNivelesVariante(vid)
+            .then((n) => MapEntry(vid, n)),
+      ),
+    );
     final nivelesPorProducto = Map<String, List<PrecioNivel>>.fromEntries(
       fetched,
+    );
+    final nivelesPorVariante = Map<String, List<PrecioNivel>>.fromEntries(
+      fetchedVar,
     );
 
     // 2b. Refrescar el estado de liquidación (y costo) de los items afectados.
@@ -1791,9 +1824,11 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       final k = keyFor(item.productoId, item.varianteId, null);
       final precioNuevo = mapaPrecios[k];
       if (precioNuevo == null) return item;
-      final nivelesNuevos = item.productoId != null
-          ? (nivelesPorProducto[item.productoId!] ?? item.niveles)
-          : item.niveles;
+      final nivelesNuevos = item.varianteId != null
+          ? (nivelesPorVariante[item.varianteId!] ?? item.niveles)
+          : item.productoId != null
+              ? (nivelesPorProducto[item.productoId!] ?? item.niveles)
+              : item.niveles;
       return item
           .copyWith(
             precioBase: precioNuevo,
@@ -1845,13 +1880,20 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
 
     // Re-fetch niveles de los productos afectados (defensive — el admin
     // pudo haber cambiado niveles también; el recalculo del precio
-    // necesita la config actual).
+    // necesita la config actual). Variantes: sus propios niveles.
     final productosAfectados = divergencias
         .map((d) => d['productoId'] as String?)
         .whereType<String>()
         .toSet();
+    final variantesAfectadas = divergencias
+        .map((d) => d['varianteId'] as String?)
+        .whereType<String>()
+        .toSet();
     for (final pid in productosAfectados) {
       _nivelCacheService.invalidate(pid);
+    }
+    for (final vid in variantesAfectadas) {
+      _nivelCacheService.invalidateVariante(vid);
     }
     final fetched = await Future.wait(
       productosAfectados.map(
@@ -1859,8 +1901,18 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
             _nivelCacheService.getNiveles(pid).then((n) => MapEntry(pid, n)),
       ),
     );
+    final fetchedVar = await Future.wait(
+      variantesAfectadas.map(
+        (vid) => _nivelCacheService
+            .getNivelesVariante(vid)
+            .then((n) => MapEntry(vid, n)),
+      ),
+    );
     final nivelesPorProducto = Map<String, List<PrecioNivel>>.fromEntries(
       fetched,
+    );
+    final nivelesPorVariante = Map<String, List<PrecioNivel>>.fromEntries(
+      fetchedVar,
     );
 
     // Refrescar estado de liquidación (y costo) de los afectados, por si el
@@ -1909,9 +1961,11 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
         // Cero stock → quitar del carrito.
         continue;
       }
-      final nivelesNuevos = item.productoId != null
-          ? (nivelesPorProducto[item.productoId!] ?? item.niveles)
-          : item.niveles;
+      final nivelesNuevos = item.varianteId != null
+          ? (nivelesPorVariante[item.varianteId!] ?? item.niveles)
+          : item.productoId != null
+              ? (nivelesPorProducto[item.productoId!] ?? item.niveles)
+              : item.niveles;
       nuevos.add(
         item
             .copyWith(
@@ -2061,6 +2115,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     // Items afectados: filtramos por productoId (excluyendo combos).
     final afectados = <int>[];
     final productosAfectados = <String>{};
+    final variantesAfectadas = <String>{};
     for (var i = 0; i < items.length; i++) {
       final item = items[i];
       final pid = item.productoId;
@@ -2069,15 +2124,21 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       if (syncAll || productoIds.contains(pid)) {
         afectados.add(i);
         productosAfectados.add(pid);
+        if (item.varianteId != null) variantesAfectadas.add(item.varianteId!);
       }
     }
     if (afectados.isEmpty) return;
 
     // 1. Invalidar y refetch niveles (el RealtimeSyncService ya invalidó
     //    para el productoId del evento, pero acá cubrimos también el caso
-    //    syncAll y somos idempotentes).
+    //    syncAll y somos idempotentes). Las VARIANTES tienen sus propios
+    //    niveles: refrescarlas con los del producto base los pisaba con []
+    //    y el item perdía el precio por mayor / VIP.
     for (final pid in productosAfectados) {
       _nivelCacheService.invalidate(pid);
+    }
+    for (final vid in variantesAfectadas) {
+      _nivelCacheService.invalidateVariante(vid);
     }
     final nivelesEntries = await Future.wait(
       productosAfectados.map(
@@ -2086,9 +2147,19 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
             .then((n) => MapEntry(pid, n)),
       ),
     );
+    final nivelesVarEntries = await Future.wait(
+      variantesAfectadas.map(
+        (vid) => _nivelCacheService
+            .getNivelesVariante(vid)
+            .then((n) => MapEntry(vid, n)),
+      ),
+    );
     if (isClosed || mySeq != _syncSeq) return;
     final nivelesPorProducto = Map<String, List<PrecioNivel>>.fromEntries(
       nivelesEntries,
+    );
+    final nivelesPorVariante = Map<String, List<PrecioNivel>>.fromEntries(
+      nivelesVarEntries,
     );
 
     // 2. Refetch precio + stock por sede para cada item afectado.
@@ -2146,7 +2217,9 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       final item = nuevos[idx];
       final pid = item.productoId;
       if (pid == null) continue;
-      final nivelesNuevos = nivelesPorProducto[pid] ?? item.niveles;
+      final nivelesNuevos = item.varianteId != null
+          ? (nivelesPorVariante[item.varianteId!] ?? item.niveles)
+          : (nivelesPorProducto[pid] ?? item.niveles);
       final precioNuevo =
           preciosNuevos[idx] ?? item.precioBase ?? item.precioUnitario;
       final stockNvo = stockNuevo[idx] ?? item.stockDisponible;

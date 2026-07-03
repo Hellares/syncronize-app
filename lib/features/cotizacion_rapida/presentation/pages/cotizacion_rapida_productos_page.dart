@@ -28,8 +28,39 @@ class CotizacionRapidaProductosPage extends StatelessWidget {
   /// editar); el widget no los reinicializa.
   final bool embebida;
 
-  const CotizacionRapidaProductosPage({super.key}) : embebida = false;
-  const CotizacionRapidaProductosPage.embebida({super.key}) : embebida = true;
+  /// Solicitud del marketplace que origina esta cotización (null = flujo
+  /// normal). Al crearla se vincula automáticamente (solicitud → COTIZADA)
+  /// y los datos del solicitante prellenan el cliente.
+  final String? solicitudId;
+  final String? solicitudNombreCliente;
+  final String? solicitudEmailCliente;
+  final String? solicitudTelefonoCliente;
+
+  /// DNI del solicitante (si su cuenta marketplace lo tiene). Permite
+  /// resolver el cliente real → aplica sus políticas de precio VIP.
+  final String? solicitudDniCliente;
+
+  /// Items de la solicitud (descripcion/cantidad/productoId?/varianteId?) —
+  /// se precargan en el carrito (catálogo con precio real; manuales en 0).
+  final List<Map<String, dynamic>>? solicitudItems;
+
+  const CotizacionRapidaProductosPage({
+    super.key,
+    this.solicitudId,
+    this.solicitudNombreCliente,
+    this.solicitudEmailCliente,
+    this.solicitudTelefonoCliente,
+    this.solicitudDniCliente,
+    this.solicitudItems,
+  }) : embebida = false;
+  const CotizacionRapidaProductosPage.embebida({super.key})
+      : embebida = true,
+        solicitudId = null,
+        solicitudNombreCliente = null,
+        solicitudEmailCliente = null,
+        solicitudTelefonoCliente = null,
+        solicitudDniCliente = null,
+        solicitudItems = null;
 
   @override
   Widget build(BuildContext context) {
@@ -72,6 +103,36 @@ class CotizacionRapidaProductosPage extends StatelessWidget {
               sedeId: sedeId!,
               vendedorId: vendedorId!,
             );
+            // Siempre (aunque sea null): el cubit es singleton y el vínculo
+            // de una solicitud previa no debe filtrarse a un flujo normal.
+            cubit.vincularSolicitud(
+              solicitudId: solicitudId,
+              nombreCliente: solicitudNombreCliente,
+              emailCliente: solicitudEmailCliente,
+              telefonoCliente: solicitudTelefonoCliente,
+            );
+            // Prellenar el cliente visible en el paso Finalizar con los
+            // datos del solicitante (sin documento; editable por el vendedor).
+            if (solicitudId != null &&
+                (solicitudNombreCliente ?? '').isNotEmpty) {
+              cubit.aplicarClienteResuelto(
+                tipoDocCliente: '',
+                numeroDocCliente: '',
+                nombreResuelto: solicitudNombreCliente!,
+              );
+            }
+            // Si el solicitante tiene DNI, resolver el cliente REAL: setea
+            // clienteId y dispara la detección de políticas de precio VIP
+            // (ej. "por mayor desde 1 unidad"), igual que en Venta Rápida.
+            if (solicitudId != null &&
+                (solicitudDniCliente ?? '').length == 8) {
+              cubit.buscarClientePorDni(solicitudDniCliente!);
+            }
+            // Precargar los items de la solicitud en el carrito (guard
+            // interno por solicitudId: los rebuilds no duplican).
+            if (solicitudId != null && (solicitudItems ?? []).isNotEmpty) {
+              cubit.precargarItemsDeSolicitud(solicitudId!, solicitudItems!);
+            }
             return cubit;
           }(),
         ),

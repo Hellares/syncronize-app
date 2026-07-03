@@ -12,6 +12,7 @@ import '../../../../core/widgets/custom_switch.dart';
 import '../../../../core/widgets/date/custom_date.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../../../core/widgets/snack_bar_helper.dart';
+import '../../../../core/widgets/styled_dialog.dart';
 import '../../../auth/presentation/widgets/custom_text.dart';
 import '../../../caja/presentation/bloc/caja_activa_cubit.dart';
 import '../../../caja/presentation/bloc/caja_activa_state.dart';
@@ -102,8 +103,77 @@ class _FinalizarViewState extends State<_FinalizarView> {
     }
   }
 
-  void _crear() {
+  Future<void> _crear() async {
     final cubit = context.read<CotizacionRapidaCubit>();
+
+    // Aviso NO bloqueante: cotizar no exige stock (es promesa de precio,
+    // no de mercadería — cotizar mercadería por llegar es válido), pero el
+    // vendedor debe decidir consciente si algún item supera el disponible.
+    final sinStock = cubit.state.items.where((i) {
+      final esManual =
+          i.productoId == null && i.varianteId == null && i.servicioId == null;
+      if (esManual || i.servicioId != null) return false;
+      return i.cantidad > (i.stockDisponible ?? 0);
+    }).toList();
+    if (sinStock.isNotEmpty) {
+      final continuar = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => StyledDialog(
+          accentColor: Colors.orange.shade800,
+          icon: Icons.inventory_2_outlined,
+          titulo: 'Stock insuficiente',
+          content: [
+            Text(
+              sinStock.length == 1
+                  ? '1 item supera el stock disponible:'
+                  : '${sinStock.length} items superan el stock disponible:',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+            ),
+            const SizedBox(height: 6),
+            ...sinStock.take(5).map((i) => Padding(
+                  padding: const EdgeInsets.only(bottom: 2),
+                  child: Text(
+                    '• ${i.descripcion}: pides ${i.cantidad.toStringAsFixed(i.cantidad % 1 == 0 ? 0 : 2)}, hay ${i.stockDisponible ?? 0}',
+                    style: const TextStyle(
+                        fontSize: 11, fontWeight: FontWeight.w600),
+                  ),
+                )),
+            if (sinStock.length > 5)
+              Text('… y ${sinStock.length - 5} más',
+                  style:
+                      TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+            const SizedBox(height: 6),
+            Text(
+              'Puedes cotizar igual (ej. mercadería por llegar) — el stock '
+              'se exigirá recién al convertir en venta.',
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+            ),
+          ],
+          actions: [
+            Expanded(
+              child: CustomButton(
+                text: 'Revisar',
+                isOutlined: true,
+                borderColor: Colors.grey.shade400,
+                textColor: Colors.grey.shade700,
+                enableShadows: false,
+                onPressed: () => Navigator.of(ctx).pop(false),
+              ),
+            ),
+            Expanded(
+              child: CustomButton(
+                text: 'Cotizar igual',
+                backgroundColor: Colors.orange.shade800,
+                textColor: Colors.white,
+                onPressed: () => Navigator.of(ctx).pop(true),
+              ),
+            ),
+          ],
+        ),
+      );
+      if (continuar != true || !mounted) return;
+    }
+
     cubit.setNombreCotizacion(_nombreCtrl.text);
     cubit.setObservaciones(_obsCtrl.text);
     cubit.setCondiciones(_condCtrl.text);
@@ -184,7 +254,7 @@ class _FinalizarViewState extends State<_FinalizarView> {
               children: [
                 Expanded(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -193,6 +263,73 @@ class _FinalizarViewState extends State<_FinalizarView> {
                           title: 'Resumen',
                           child: Column(
                             children: [
+                              // Detalle de items — tabla tipo Excel (mismo
+                              // patrón de cobrar cotización): header bluechip
+                              // + zebra striping, con el descuento por línea.
+                              Container(
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                    color: AppColors.blueborder
+                                        .withValues(alpha: 0.5),
+                                    width: 0.6,
+                                  ),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                clipBehavior: Clip.antiAlias,
+                                child: Column(
+                                  children: [
+                                    Container(
+                                      color: AppColors.bluechip,
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 5, horizontal: 8),
+                                      child: const Row(
+                                        children: [
+                                          SizedBox(
+                                              width: 20,
+                                              child: Center(
+                                                  child: _ThDetalle('#'))),
+                                          Expanded(
+                                              flex: 6,
+                                              child:
+                                                  _ThDetalle('PRODUCTO')),
+                                          Expanded(
+                                              flex: 2,
+                                              child: Center(
+                                                  child:
+                                                      _ThDetalle('CANT.'))),
+                                          Expanded(
+                                              flex: 3,
+                                              child: Align(
+                                                  alignment: Alignment
+                                                      .centerRight,
+                                                  child: _ThDetalle(
+                                                      'P. UNIT.'))),
+                                          Expanded(
+                                              flex: 3,
+                                              child: Align(
+                                                  alignment: Alignment
+                                                      .centerRight,
+                                                  child:
+                                                      _ThDetalle('DESC.'))),
+                                          Expanded(
+                                              flex: 3,
+                                              child: Align(
+                                                  alignment: Alignment
+                                                      .centerRight,
+                                                  child:
+                                                      _ThDetalle('TOTAL'))),
+                                        ],
+                                      ),
+                                    ),
+                                    for (var i = 0;
+                                        i < state.items.length;
+                                        i++)
+                                      _DetalleTablaRow(
+                                          index: i, item: state.items[i]),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 6),
                               _ResumenRow(
                                 label: 'Items',
                                 value: '${state.cantidadItems}',
@@ -405,20 +542,20 @@ class _SectionCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.grey.shade200),
       ),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title.toUpperCase(),
             style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
               color: Colors.grey.shade700,
               letterSpacing: 0.5,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           child,
         ],
       ),
@@ -439,7 +576,7 @@ class _ResumenRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final style = TextStyle(
-      fontSize: bold ? 14 : 12,
+      fontSize: bold ? 12 : 10,
       fontWeight: bold ? FontWeight.w700 : FontWeight.normal,
       color: bold ? AppColors.blue1 : Colors.black87,
     );
@@ -617,6 +754,203 @@ class _ReservaStockSectionState extends State<_ReservaStockSection> {
           ),
         );
       },
+    );
+  }
+}
+
+/// Header de columna de la tabla de items del resumen (mismo estilo que la
+/// tabla de cobrar cotización: uppercase compacto sobre fondo bluechip).
+class _ThDetalle extends StatelessWidget {
+  final String text;
+  const _ThDetalle(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: TextStyle(
+        fontSize: 9,
+        fontWeight: FontWeight.w700,
+        color: Colors.grey.shade800,
+        letterSpacing: 0.3,
+      ),
+    );
+  }
+}
+
+/// Fila de la tabla de items del resumen con zebra striping: nombre,
+/// cantidad, precio unitario, descuento de la línea y total.
+class _DetalleTablaRow extends StatelessWidget {
+  final int index;
+  final dynamic item; // VentaDetalleInput
+
+  const _DetalleTablaRow({required this.index, required this.item});
+
+  static String _fmtCantidad(double n) {
+    if (n.truncateToDouble() == n) return n.toStringAsFixed(0);
+    return n.toStringAsFixed(2);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final double descuentoManual = (item.descuento as num).toDouble();
+    final double cantidad = (item.cantidad as num).toDouble();
+    final double precio = (item.precioUnitario as num).toDouble();
+    final double? precioBase = (item.precioBase as num?)?.toDouble();
+    // Rebaja del nivel por mayor / VIP: viene "escondida" en el precio
+    // unitario (precioBase → precioUnitario). La columna DESC. muestra el
+    // ahorro TOTAL de la línea: nivel + descuento manual.
+    final bool tieneNivel = item.nivelAplicado != null &&
+        precioBase != null &&
+        precioBase > precio;
+    final double descuentoNivel =
+        tieneNivel ? (precioBase - precio) * cantidad : 0;
+    final double descuentoTotal = descuentoManual + descuentoNivel;
+    return Container(
+      color: index.isEven ? Colors.white : Colors.grey.shade50,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 22,
+            child: Center(
+              child: Text(
+                '${index + 1}',
+                style: TextStyle(
+                  fontSize: 9,
+                  height: 1.1,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey.shade700,
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            // Debe coincidir con el flex del header PRODUCTO para que
+            // CANT./P.UNIT./DESC./TOTAL queden alineadas con sus cabeceras.
+            flex: 6,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.descripcion as String,
+                  style: const TextStyle(
+                    fontSize: 9,
+                    height: 1.1,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (tieneNivel)
+                  Text(
+                    '${item.nivelAplicado}',
+                    style: TextStyle(
+                      fontSize: 8,
+                      height: 1.1,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.green.shade700,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                // Precio de OFERTA pública: informativo (no cuenta como
+                // descuento de la cotización — es el precio vigente). Se
+                // muestra el precio normal para ver el ahorro de la oferta.
+                if (item.enOferta == true)
+                  Text(
+                    (item.precioAntesOferta as num?) != null &&
+                            (item.precioAntesOferta as num) > precio
+                        ? 'En oferta — antes S/ ${(item.precioAntesOferta as num).toStringAsFixed(2)}'
+                        : 'En oferta',
+                    style: TextStyle(
+                      fontSize: 8,
+                      height: 1.1,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.orange.shade800,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Center(
+              child: Text(
+                _fmtCantidad(cantidad),
+                style: const TextStyle(fontSize: 9, height: 1.1),
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 3,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                // Precio regular tachado cuando hay nivel/VIP aplicado.
+                if (tieneNivel)
+                  Text(
+                    precioBase.toStringAsFixed(2),
+                    style: TextStyle(
+                      fontSize: 8,
+                      height: 1.1,
+                      color: Colors.grey.shade400,
+                      decoration: TextDecoration.lineThrough,
+                      decorationColor: Colors.grey.shade400,
+                    ),
+                  ),
+                Text(
+                  precio.toStringAsFixed(2),
+                  style: TextStyle(
+                    fontSize: 9,
+                    height: 1.1,
+                    fontWeight:
+                        tieneNivel ? FontWeight.w600 : FontWeight.w400,
+                    color: tieneNivel ? Colors.green.shade700 : null,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            flex: 3,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Text(
+                descuentoTotal > 0.005
+                    ? '−${descuentoTotal.toStringAsFixed(2)}'
+                    : '—',
+                style: TextStyle(
+                  fontSize: 9,
+                  height: 1.1,
+                  fontWeight: descuentoTotal > 0.005
+                      ? FontWeight.w600
+                      : FontWeight.w400,
+                  color: descuentoTotal > 0.005
+                      ? Colors.red.shade600
+                      : Colors.grey.shade400,
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 3,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Text(
+                (item.total as num).toStringAsFixed(2),
+                style: const TextStyle(
+                  fontSize: 9,
+                  height: 1.1,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.blue1,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

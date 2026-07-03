@@ -1,17 +1,24 @@
 import 'dart:async';
 
 import 'package:equatable/equatable.dart';
+import 'package:flutter/foundation.dart' show debugPrint, listEquals;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
+import '../../../../core/di/injection_container.dart';
+import '../../../../core/network/dio_client.dart';
 import '../../../../core/services/realtime_sync_service.dart';
 import '../../../../core/utils/resource.dart';
 import '../../../combo/domain/entities/combo.dart';
+import '../../../descuento/domain/entities/vip_precio.dart';
+import '../../../descuento/domain/usecases/obtener_politicas_vigentes_cliente.dart';
 import '../../../combo/domain/repositories/combo_repository.dart';
 import '../../../cotizacion/domain/entities/cotizacion.dart';
 import '../../../cotizacion/domain/entities/cotizacion_detalle.dart';
 import '../../../producto/domain/entities/precio_nivel.dart';
+import '../../../producto/domain/entities/producto.dart';
 import '../../../producto/domain/entities/producto_list_item.dart';
+import '../../../producto/domain/repositories/producto_repository.dart';
 import '../../../producto/domain/entities/producto_variante.dart';
 import '../../../producto/domain/entities/producto_stock.dart';
 import '../../../producto/domain/repositories/producto_stock_repository.dart';
@@ -59,6 +66,281 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
 
   /// Token de búsqueda de cliente para descartar respuestas obsoletas.
   int _searchSeq = 0;
+
+  // ── Precio especial VIP del cliente (paridad con Venta Rápida) ──
+  // Si el cliente resuelto (DNI/RUC) tiene políticas de precio especial
+  // (ej. "por mayor desde la 1ª unidad"), se aplican a los items del
+  // carrito de la cotización igual que en VR.
+
+  /// Resolver de precio VIP del cliente actual (null = sin VIP).
+  VipResolver? _vipResolver;
+
+  /// Clave del cliente para el que se cargó el VIP (evita recargas).
+  String? _vipClienteKey;
+
+  /// Detecta cambios de cliente (cualquier path) y recarga el precio VIP.
+  @override
+  void onChange(Change<CotizacionRapidaState> change) {
+    super.onChange(change);
+    final prev = change.currentState;
+    final next = change.nextState;
+    if (prev.clienteId != next.clienteId ||
+        prev.clienteEmpresaId != next.clienteEmpresaId) {
+      // Microtask: el caso "cliente → null" reaplica VIP de forma síncrona
+      // y emitiría reentrante dentro de este onChange (mismo patrón que VR).
+      final cid = next.clienteId;
+      final ceid = next.clienteEmpresaId;
+      Future.microtask(() => _onClienteCambiadoVip(cid, ceid));
+    }
+  }
+
+  Future<void> _onClienteCambiadoVip(
+    String? clienteId,
+    String? clienteEmpresaId,
+  ) async {
+    if (isClosed) return;
+    final key = clienteId ?? clienteEmpresaId;
+    // Mismo cliente Y resolver ya cargado → nada que hacer. Si el resolver
+    // quedó null (fetch fallido / singleton con estado a medias), reintentar
+    // aunque la key coincida.
+    if (key == _vipClienteKey && _vipResolver != null) return;
+    _vipClienteKey = key;
+
+    if (clienteId == null && clienteEmpresaId == null) {
+      _vipResolver = null;
+      // Cliente quitado explícitamente → SÍ despojar el VIP de los items.
+      _reaplicarVipItems(stripSinResolver: true);
+      return;
+    }
+
+    final result = await locator<ObtenerPoliticasVigentesCliente>()(
+      clienteId: clienteId,
+      clienteEmpresaId: clienteEmpresaId,
+    );
+    if (isClosed) return;
+    // El cliente pudo cambiar mientras esperábamos la respuesta.
+    if ((clienteId ?? clienteEmpresaId) != _vipClienteKey) return;
+
+    if (result is Success<List<Map<String, dynamic>>>) {
+      _vipResolver = VipResolver.fromVigentes(result.data);
+      debugPrint(
+          '[CotizacionVIP] políticas cargadas para $key: ${result.data.length}');
+      _reaplicarVipItems();
+    } else {
+      // Fetch fallido → CONSERVADOR: resolver queda null pero NO se tocan
+      // los items (un strip acá revertía los precios VIP ya aplicados,
+      // p.ej. justo antes de crear la cotización).
+      _vipResolver = null;
+      debugPrint(
+          '[CotizacionVIP] fetch de políticas FALLÓ para $key — se conservan los precios actuales');
+    }
+  }
+
+  /// Re-resuelve y reaplica el precio VIP a todas las líneas. Combos,
+  /// componentes de combo y servicios quedan exentos (paridad con backend).
+  ///
+  /// Sin resolver cargado NO se toca nada (resolver null = "aún no sé",
+  /// no "sin VIP") — salvo [stripSinResolver], usado cuando el cajero
+  /// quita al cliente explícitamente.
+  void _reaplicarVipItems({bool stripSinResolver = false}) {
+    if (isClosed || state.items.isEmpty) return;
+    if (_vipResolver == null && !stripSinResolver) return;
+    var cambio = false;
+    final nuevos = state.items.map((item) {
+      final exento = item.origenComboId != null ||
+          item.comboId != null ||
+          item.servicioId != null;
+      final intents =
+          exento ? const <VipPrecioIntent>[] : _vipParaNuevoProducto(item.productoId);
+      if (listEquals(intents, item.vipIntents)) return item;
+      cambio = true;
+      return item
+          .copyWith(vipIntents: intents)
+          .recalcularPrecioPorNiveles(item.cantidad);
+    }).toList();
+    if (cambio) {
+      debugPrint('[CotizacionVIP] reaplicado VIP a items del carrito');
+      emit(state.copyWith(items: nuevos));
+    }
+  }
+
+  /// Intenciones VIP para un producto (vacío si no aplica ninguna política).
+  List<VipPrecioIntent> _vipParaNuevoProducto(String? productoId) =>
+      _vipResolver?.intentsParaProducto(productoId) ?? const [];
+
+  /// Map del detalle para el backend de COTIZACIÓN: `toMap()` + el precio
+  /// REGULAR (antes del nivel por mayor / VIP) cuando difiere del cobrado,
+  /// para que el cliente vea su ahorro completo. No se agrega en `toMap()`
+  /// porque ese map es compartido con VENTAS (su DTO no acepta el campo).
+  Map<String, dynamic> _detalleCotizacionMap(VentaDetalleInput item) {
+    final map = item.toMap();
+    final base = item.precioBase;
+    if (item.nivelAplicado != null &&
+        base != null &&
+        base > item.precioUnitario) {
+      map['precioRegular'] = base;
+    }
+    return map;
+  }
+
+  /// Solicitud del marketplace a la que responde esta cotización (null =
+  /// cotización normal). Al crear con éxito se llama al endpoint `cotizar`
+  /// para vincularla → la solicitud pasa a COTIZADA y el cliente la ve en
+  /// su app (con aceptar/rechazar/separar con adelanto).
+  String? _solicitudVinculadaId;
+  String? _solicitudNombreCliente;
+  String? _solicitudEmailCliente;
+  String? _solicitudTelefonoCliente;
+
+  /// Vincula (o limpia, con null) la solicitud del marketplace que origina
+  /// este flujo. Llamar SIEMPRE al iniciar (el cubit es singleton y el
+  /// vínculo no debe filtrarse a una cotización normal posterior).
+  void vincularSolicitud({
+    String? solicitudId,
+    String? nombreCliente,
+    String? emailCliente,
+    String? telefonoCliente,
+  }) {
+    _solicitudVinculadaId = solicitudId;
+    _solicitudNombreCliente = nombreCliente;
+    _solicitudEmailCliente = emailCliente;
+    _solicitudTelefonoCliente = telefonoCliente;
+    if (solicitudId == null) _solicitudItemsPrecargadosId = null;
+  }
+
+  /// Solicitud cuyos items ya se precargaron (guard contra rebuilds del
+  /// provider, que re-ejecutan el closure de inicialización).
+  String? _solicitudItemsPrecargadosId;
+
+  /// Precarga los items de la solicitud del marketplace en el carrito:
+  /// - Items del CATÁLOGO (productoId): se resuelve el producto para tomar
+  ///   su precio vigente en la sede y conservar `productoId`/`varianteId`
+  ///   (necesarios para la reserva de stock al separar). Si la consulta
+  ///   falla, el item entra igual con precio 0 (el backend recalcula el
+  ///   precio real de items de catálogo al crear).
+  /// - Items MANUALES (texto libre): entran con precio 0 para que el
+  ///   vendedor los cotice.
+  Future<void> precargarItemsDeSolicitud(
+    String solicitudId,
+    List<Map<String, dynamic>> items,
+  ) async {
+    if (_solicitudItemsPrecargadosId == solicitudId) return;
+    _solicitudItemsPrecargadosId = solicitudId;
+
+    final igvPorc = state.impuestoPorcentaje;
+    final sedeId = state.sedeId ?? '';
+    final empresaId = state.empresaId;
+    final nuevos = <VentaDetalleInput>[];
+
+    for (final item in items) {
+      final descripcion = (item['descripcion'] as String? ?? '').trim();
+      final cantidad = (item['cantidad'] as num?)?.toDouble() ?? 1;
+      final productoId = item['productoId'] as String?;
+      final varianteId = item['varianteId'] as String?;
+      if (descripcion.isEmpty || cantidad <= 0) continue;
+
+      double precio = 0;
+      int? stockDisp;
+      var incluyeIgv = true;
+      var enLiquidacion = false;
+      var enOferta = false;
+      double? precioAntesOferta;
+      if (productoId != null && empresaId != null) {
+        try {
+          final res = await locator<ProductoRepository>().getProducto(
+            productoId: productoId,
+            empresaId: empresaId,
+          );
+          if (res is Success<Producto>) {
+            final p = res.data;
+            // Item de VARIANTE: precio/stock viven en la variante, no en el
+            // base (en productos con variantes el base no tiene stock por
+            // sede → salía precio 0 y "stock 0" en el carrito).
+            ProductoVariante? variante;
+            if (varianteId != null) {
+              for (final v in p.variantes ?? const <ProductoVariante>[]) {
+                if (v.id == varianteId) {
+                  variante = v;
+                  break;
+                }
+              }
+            }
+            if (variante != null) {
+              precio = variante.precioEfectivoEnSede(sedeId) ??
+                  variante.precioEnSede(sedeId) ??
+                  0;
+              stockDisp = variante.stockEnSede(sedeId);
+              incluyeIgv = variante.precioIncluyeIgvEnSede(sedeId);
+              enLiquidacion = variante.enLiquidacionEnSede(sedeId);
+              enOferta = variante.enOfertaEnSede(sedeId);
+              precioAntesOferta =
+                  enOferta ? variante.precioEnSede(sedeId) : null;
+            } else {
+              precio = p.precioEfectivoEnSede(sedeId) ??
+                  p.precioEnSede(sedeId) ??
+                  0;
+              stockDisp = p.stockEnSede(sedeId);
+              incluyeIgv = p.precioIncluyeIgvEnSede(sedeId);
+              enLiquidacion = p.enLiquidacionEnSede(sedeId);
+              enOferta = p.enOfertaEnSede(sedeId);
+              precioAntesOferta = enOferta ? p.precioEnSede(sedeId) : null;
+            }
+          }
+        } catch (_) {}
+      }
+
+      // Niveles de precio (por mayor): los items del selector los cargan;
+      // la precarga también debe hacerlo, si no `recalcularPrecioPorNiveles`
+      // no aplica el precio especial al cambiar la cantidad.
+      var niveles = const <PrecioNivel>[];
+      if (productoId != null) {
+        try {
+          niveles = varianteId != null
+              ? await _nivelCacheService.getNivelesVariante(varianteId)
+              : await _nivelCacheService.getNiveles(productoId);
+        } catch (_) {}
+      }
+
+      final vipIntents = _vipParaNuevoProducto(productoId);
+      final nuevo = VentaDetalleInput(
+        productoId: productoId,
+        varianteId: varianteId,
+        descripcion: descripcion,
+        cantidad: cantidad,
+        precioUnitario: precio,
+        precioBase: precio,
+        porcentajeIGV: igvPorc,
+        precioIncluyeIgv: incluyeIgv,
+        tipoAfectacion: '10',
+        icbper: 0,
+        // El carrito muestra/limita por este stock (los items del selector
+        // lo traen; la precarga también debe hidratarlo).
+        stockDisponible: stockDisp,
+        niveles: niveles,
+        vipIntents: vipIntents,
+        // En liquidación los niveles por mayor se ignoran (la liquidación gana).
+        enLiquidacion: enLiquidacion,
+        // Informativo: badge "OFERTA" + precio normal tachado + aviso.
+        enOferta: enOferta,
+        precioAntesOferta: precioAntesOferta,
+      );
+      // Aplica de una el nivel/VIP que corresponda a la cantidad solicitada.
+      nuevos.add(
+        (niveles.isNotEmpty || vipIntents.isNotEmpty)
+            ? nuevo.recalcularPrecioPorNiveles(cantidad)
+            : nuevo,
+      );
+    }
+
+    if (nuevos.isEmpty || isClosed) return;
+    emit(state.copyWith(items: [...state.items, ...nuevos], clearError: true));
+    // La precarga corre en PARALELO con la resolución del cliente (DNI →
+    // políticas VIP). Si las políticas cargaron antes de este emit, el
+    // reaplicado que disparó `_onClienteCambiadoVip` corrió sobre un carrito
+    // vacío y estos items quedarían a precio base. Reaplicar acá cubre
+    // ambos órdenes de llegada (es idempotente).
+    _reaplicarVipItems();
+  }
 
   // ── Contexto ──
 
@@ -182,6 +464,7 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
     }
 
     final nivelesEnCache = _nivelCacheService.peek(producto.id);
+    final vipIntents = _vipParaNuevoProducto(producto.id);
     final item = VentaDetalleInput(
       productoId: producto.id,
       descripcion: producto.nombre,
@@ -194,10 +477,16 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
       icbper: icbperUnit,
       stockDisponible: stockDisp,
       niveles: nivelesEnCache ?? const [],
+      vipIntents: vipIntents,
       // En liquidación los niveles por mayor se ignoran (la liquidación gana).
       enLiquidacion: producto.enLiquidacionEnSede(sedeId),
+      // Informativo: badge "OFERTA" + precio normal tachado + aviso.
+      enOferta: producto.enOfertaEnSede(sedeId),
+      precioAntesOferta: producto.enOfertaEnSede(sedeId)
+          ? producto.precioEnSede(sedeId)
+          : null,
     );
-    final itemConNivel = nivelesEnCache != null
+    final itemConNivel = (nivelesEnCache != null || vipIntents.isNotEmpty)
         ? item.recalcularPrecioPorNiveles(1)
         : item;
     emit(state.copyWith(
@@ -243,6 +532,7 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
 
     final descripcion = '${producto.nombre} - ${variante.nombre}';
     final nivelesEnCache = _nivelCacheService.peekVariante(variante.id);
+    final vipIntents = _vipParaNuevoProducto(producto.id);
     final item = VentaDetalleInput(
       productoId: producto.id,
       varianteId: variante.id,
@@ -256,10 +546,16 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
       icbper: icbperUnit,
       stockDisponible: stockDisp,
       niveles: nivelesEnCache ?? const [],
+      vipIntents: vipIntents,
       // En liquidación los niveles por mayor se ignoran (la liquidación gana).
       enLiquidacion: variante.enLiquidacionEnSede(sedeId),
+      // Informativo: badge "OFERTA" + precio normal tachado + aviso.
+      enOferta: variante.enOfertaEnSede(sedeId),
+      precioAntesOferta: variante.enOfertaEnSede(sedeId)
+          ? variante.precioEnSede(sedeId)
+          : null,
     );
-    final itemConNivel = nivelesEnCache != null
+    final itemConNivel = (nivelesEnCache != null || vipIntents.isNotEmpty)
         ? item.recalcularPrecioPorNiveles(1)
         : item;
     emit(state.copyWith(
@@ -545,13 +841,63 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
     emit(state.copyWith(items: lista, clearError: true));
   }
 
-  void actualizarDescuento(int index, double porcentaje) {
+  /// Descuento manual de una línea, en MONTO (S/ total de la línea). El
+  /// dialog del carrito maneja la conversión S/ ↔ %. Se clampa a [0, bruto].
+  void actualizarDescuentoItem(int index, double monto) {
     if (index < 0 || index >= state.items.length) return;
     final actual = state.items[index];
-    final descuentoCalc =
-        (actual.cantidad * actual.precioUnitario) * (porcentaje / 100);
+    final bruto = actual.cantidad * actual.precioUnitario;
+    final desc = monto.clamp(0, bruto).toDouble();
     final lista = [...state.items];
-    lista[index] = actual.copyWith(descuento: descuentoCalc);
+    lista[index] = actual.copyWith(descuento: desc);
+    emit(state.copyWith(items: lista, clearError: true));
+  }
+
+  /// Suma de brutos (cantidad × precio) de las líneas donde aplica el
+  /// descuento global (excluye componentes de combo, que ya llevan su
+  /// propio prorrateo del ahorro del combo).
+  double get brutoDescontable => state.items
+      .where((i) => i.origenComboId == null)
+      .fold<double>(0, (s, i) => s + i.cantidad * i.precioUnitario);
+
+  /// Descuento GLOBAL de la cotización: se prorratea entre las líneas
+  /// (proporcional a su importe bruto) porque el backend persiste el
+  /// descuento de la cotización como Σ de descuentos de línea. REEMPLAZA
+  /// los descuentos por item existentes. `monto <= 0` los limpia todos.
+  /// Las líneas de combo no se tocan.
+  void aplicarDescuentoGlobal(double monto) {
+    final items = state.items;
+    if (items.isEmpty) return;
+    final brutoTotal = brutoDescontable;
+    if (brutoTotal <= 0) return;
+    final objetivo = monto.clamp(0, brutoTotal).toDouble();
+
+    // Índice de la última línea aplicable (absorbe el residuo de redondeo).
+    var ultimaAplicable = -1;
+    for (var i = 0; i < items.length; i++) {
+      if (items[i].origenComboId == null) ultimaAplicable = i;
+    }
+
+    final lista = <VentaDetalleInput>[];
+    double acumulado = 0;
+    for (var i = 0; i < items.length; i++) {
+      final item = items[i];
+      if (item.origenComboId != null) {
+        lista.add(item);
+        continue;
+      }
+      final bruto = item.cantidad * item.precioUnitario;
+      double desc;
+      if (i == ultimaAplicable) {
+        desc = ((objetivo - acumulado) * 100).round() / 100.0;
+      } else {
+        desc = ((objetivo * (bruto / brutoTotal)) * 100).round() / 100.0;
+      }
+      if (desc > bruto) desc = bruto;
+      if (desc < 0) desc = 0;
+      acumulado += desc;
+      lista.add(item.copyWith(descuento: desc));
+    }
     emit(state.copyWith(items: lista, clearError: true));
   }
 
@@ -786,6 +1132,12 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
       return;
     }
 
+    // Red de seguridad: re-aplicar el precio VIP del cliente ANTES de armar
+    // el payload. Cubre carritos que quedaron con precios revertidos por
+    // estados intermedios (sync viejo, hot reload, singleton con sesión
+    // previa). Idempotente: sin resolver o sin cambios, no toca nada.
+    _reaplicarVipItems();
+
     emit(state.copyWith(procesando: true, clearError: true));
 
     final docTipeado = state.numeroDocCliente.trim();
@@ -801,7 +1153,9 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
         (state.clienteGenerico || docTipeado.isEmpty);
 
     final nombreCliente = esGenerico
-        ? 'CLIENTES VARIOS'
+        // Si la cotización responde a una solicitud del marketplace, usar el
+        // nombre del solicitante en vez del genérico.
+        ? (_solicitudNombreCliente ?? 'CLIENTES VARIOS')
         : ((tieneClienteRucResuelto || tieneClienteDniResuelto)
             ? state.nombreClienteResuelto
             : docTipeado);
@@ -816,6 +1170,12 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
         'clienteId': state.clienteId,
       'nombreCliente': nombreCliente,
       if (docTipeado.isNotEmpty) 'documentoCliente': docTipeado,
+      // Contacto del solicitante (si la cotización responde a una solicitud
+      // del marketplace) → snapshot en la cotización.
+      if ((_solicitudEmailCliente ?? '').isNotEmpty)
+        'emailCliente': _solicitudEmailCliente,
+      if ((_solicitudTelefonoCliente ?? '').isNotEmpty)
+        'telefonoCliente': _solicitudTelefonoCliente,
       'moneda': state.moneda,
       if (state.fechaVencimiento != null)
         'fechaVencimiento': state.fechaVencimiento!.toIso8601String(),
@@ -825,7 +1185,7 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
         'observaciones': state.observaciones.trim(),
       if (state.condiciones.trim().isNotEmpty)
         'condiciones': state.condiciones.trim(),
-      'detalles': state.items.map((item) => item.toMap()).toList(),
+      'detalles': state.items.map(_detalleCotizacionMap).toList(),
       // Reserva de stock + adelanto. Solo aplica en modo PARA_VENTA;
       // el setter `setTipoCotizacion('SIMPLE')` ya limpió estos flags
       // si el usuario cambió de modo.
@@ -839,6 +1199,22 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
     if (isClosed) return;
 
     if (result is Success<Cotizacion>) {
+      // Vincular a la solicitud del marketplace que originó el flujo: la
+      // solicitud pasa a COTIZADA y el cliente la ve en su app (con
+      // aceptar/rechazar/separar). Best-effort: si falla, la cotización
+      // igual existe (se puede vincular luego vía POST .../cotizar).
+      if (_solicitudVinculadaId != null) {
+        try {
+          await locator<DioClient>().post(
+            '/solicitudes-cotizacion/$_solicitudVinculadaId/cotizar',
+            data: {'cotizacionId': result.data.id},
+          );
+        } catch (_) {}
+        _solicitudVinculadaId = null;
+        _solicitudNombreCliente = null;
+        _solicitudEmailCliente = null;
+        _solicitudTelefonoCliente = null;
+      }
       emit(state.copyWith(
         procesando: false,
         cotizacionCompletadaId: result.data.id,
@@ -866,6 +1242,12 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
       final subtotalBruto = d.cantidad * d.precioUnitario - d.descuento;
       final totalSinIcbper = d.total - d.icbper;
       final incluyeIgv = (subtotalBruto - totalSinIcbper).abs() < 0.5;
+      // Precio especial persistido (nivel/VIP): restaurar precioBase +
+      // etiqueta para que al guardar la edición `_detalleCotizacionMap`
+      // vuelva a enviar `precioRegular` (sin esto se perdería el ahorro
+      // visible del cliente al editar).
+      final tieneEspecial =
+          d.precioRegular != null && d.precioRegular! > d.precioUnitario;
       return VentaDetalleInput(
         productoId: d.productoId,
         varianteId: d.varianteId,
@@ -873,7 +1255,8 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
         descripcion: d.descripcion,
         cantidad: d.cantidad,
         precioUnitario: d.precioUnitario,
-        precioBase: d.precioUnitario,
+        precioBase: tieneEspecial ? d.precioRegular : d.precioUnitario,
+        nivelAplicado: tieneEspecial ? 'Precio especial' : null,
         descuento: d.descuento,
         porcentajeIGV: d.porcentajeIGV,
         precioIncluyeIgv: incluyeIgv,
@@ -933,7 +1316,7 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
     emit(state.copyWith(procesando: true, clearError: true));
 
     final data = <String, dynamic>{
-      'detalles': state.items.map((it) => it.toMap()).toList(),
+      'detalles': state.items.map(_detalleCotizacionMap).toList(),
     };
 
     final result = await _actualizarCotizacionUseCase(
@@ -1081,6 +1464,7 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
     // items manuales sin productoId).
     final afectados = <int>[];
     final productosAfectados = <String>{};
+    final variantesAfectadas = <String>{};
     for (var i = 0; i < items.length; i++) {
       final item = items[i];
       final pid = item.productoId;
@@ -1089,13 +1473,19 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
       if (syncAll || productoIds.contains(pid)) {
         afectados.add(i);
         productosAfectados.add(pid);
+        if (item.varianteId != null) variantesAfectadas.add(item.varianteId!);
       }
     }
     if (afectados.isEmpty) return;
 
-    // 1. Invalidar y refetch niveles (idempotente).
+    // 1. Invalidar y refetch niveles (idempotente). Las VARIANTES tienen
+    //    sus propios niveles: refrescarlas con los del producto base los
+    //    pisaba con [] y el item perdía el precio por mayor / VIP.
     for (final pid in productosAfectados) {
       _nivelCacheService.invalidate(pid);
+    }
+    for (final vid in variantesAfectadas) {
+      _nivelCacheService.invalidateVariante(vid);
     }
     final nivelesEntries = await Future.wait(
       productosAfectados.map(
@@ -1104,9 +1494,19 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
             .then((n) => MapEntry(pid, n)),
       ),
     );
+    final nivelesVarEntries = await Future.wait(
+      variantesAfectadas.map(
+        (vid) => _nivelCacheService
+            .getNivelesVariante(vid)
+            .then((n) => MapEntry(vid, n)),
+      ),
+    );
     if (isClosed || mySeq != _syncSeq) return;
     final nivelesPorProducto = Map<String, List<PrecioNivel>>.fromEntries(
       nivelesEntries,
+    );
+    final nivelesPorVariante = Map<String, List<PrecioNivel>>.fromEntries(
+      nivelesVarEntries,
     );
 
     // 2. Refetch precio + stock por sede para cada item afectado.
@@ -1114,6 +1514,8 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
     final preciosNuevos = <int, double>{};
     final stockNuevo = <int, int>{};
     final liquidacionNueva = <int, bool>{};
+    final ofertaNueva = <int, bool>{};
+    final antesOfertaNueva = <int, double?>{};
     final costoNuevo = <int, double?>{};
     if (sedeId != null) {
       final stockEntries = await Future.wait(
@@ -1144,6 +1546,8 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
         if (precioEf != null) preciosNuevos[entry.key] = precioEf;
         stockNuevo[entry.key] = s.stockActual;
         liquidacionNueva[entry.key] = s.isLiquidacionActiva;
+        ofertaNueva[entry.key] = s.isOfertaActiva;
+        antesOfertaNueva[entry.key] = s.isOfertaActiva ? s.precio : null;
         costoNuevo[entry.key] = s.precioCosto;
       }
     }
@@ -1156,7 +1560,9 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
       final item = nuevos[idx];
       final pid = item.productoId;
       if (pid == null) continue;
-      final nivelesNuevos = nivelesPorProducto[pid] ?? item.niveles;
+      final nivelesNuevos = item.varianteId != null
+          ? (nivelesPorVariante[item.varianteId!] ?? item.niveles)
+          : (nivelesPorProducto[pid] ?? item.niveles);
       final precioNuevo =
           preciosNuevos[idx] ?? item.precioBase ?? item.precioUnitario;
       final stockNvo = stockNuevo[idx] ?? item.stockDisponible;
@@ -1167,6 +1573,9 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
             niveles: nivelesNuevos,
             stockDisponible: stockNvo,
             enLiquidacion: liquidacionNueva[idx] ?? item.enLiquidacion,
+            enOferta: ofertaNueva[idx] ?? item.enOferta,
+            precioAntesOferta:
+                antesOfertaNueva[idx] ?? item.precioAntesOferta,
             precioCostoSnapshot: costoNuevo[idx] ?? item.precioCostoSnapshot,
           )
           .recalcularPrecioPorNiveles(item.cantidad);

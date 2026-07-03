@@ -4,7 +4,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/snack_bar_helper.dart';
+import '../../../../core/widgets/styled_dialog.dart';
 import '../../../auth/presentation/widgets/custom_text.dart';
 import '../bloc/cotizacion_rapida_cubit.dart';
 
@@ -237,27 +239,98 @@ class _CarritoView extends StatelessWidget {
                   },
                 ),
               ),
+              // Totales: botón de descuento global + IGV + ahorro visible
+              // (precio regular tachado) para que el vendedor arme la oferta
+              // "por mayor" y el cliente vea cuánto ahorra.
               Container(
                 color: Colors.grey.shade100,
                 padding: const EdgeInsets.symmetric(
-                    vertical: 12, horizontal: 16),
-                child: Center(
-                  child: Column(
+                    vertical: 8, horizontal: 16),
+                child: Builder(builder: (context) {
+                  // Precio regular = SIN descuento manual y al precio BASE
+                  // (antes del nivel/VIP). Así el ahorro mostrado suma ambos
+                  // efectos: nivel por mayor + descuento del vendedor.
+                  final regular = state.items.fold<double>(
+                      0,
+                      (s, i) => s +
+                          i
+                              .copyWith(
+                                precioUnitario:
+                                    i.precioBase ?? i.precioUnitario,
+                                descuento: 0,
+                              )
+                              .total);
+                  final ahorro = regular - state.total;
+                  return Column(
                     children: [
-                      Text(
-                        'IGV (${state.impuestoPorcentaje.toStringAsFixed(0)}%)',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.blue1,
-                        ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          TextButton.icon(
+                            onPressed: () =>
+                                _dialogDescuentoGlobal(context),
+                            icon: const Icon(Icons.percent,
+                                size: 14, color: AppColors.blue1),
+                            label: const Text(
+                              'Descuento global',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.blue1,
+                              ),
+                            ),
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6),
+                              minimumSize: Size.zero,
+                              tapTargetSize:
+                                  MaterialTapTargetSize.shrinkWrap,
+                            ),
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                'IGV (${state.impuestoPorcentaje.toStringAsFixed(0)}%)',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.blue1,
+                                ),
+                              ),
+                              Text('S/ ${state.igv.toStringAsFixed(2)}',
+                                  style: const TextStyle(fontSize: 12)),
+                            ],
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 4),
-                      Text('S/ ${state.igv.toStringAsFixed(2)}',
-                          style: const TextStyle(fontSize: 13)),
+                      if (ahorro > 0.005) ...[
+                        Divider(height: 10, color: Colors.grey.shade300),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Precio regular: S/ ${regular.toStringAsFixed(2)}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey.shade500,
+                                decoration: TextDecoration.lineThrough,
+                              ),
+                            ),
+                            Text(
+                              'Cliente ahorra S/ ${ahorro.toStringAsFixed(2)}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.green.shade700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ],
-                  ),
-                ),
+                  );
+                }),
               ),
               SafeArea(
                 top: false,
@@ -335,6 +408,192 @@ class _CarritoView extends StatelessWidget {
         },
       ),
     );
+  }
+
+  /// Descuento GLOBAL (S/ o %) prorrateado entre las líneas. Reemplaza los
+  /// descuentos por item existentes (se avisa en el dialog).
+  Future<void> _dialogDescuentoGlobal(BuildContext context) async {
+    final cubit = context.read<CotizacionRapidaCubit>();
+    final bruto = cubit.brutoDescontable;
+    if (bruto <= 0) return;
+    final descActual = cubit.state.items
+        .where((i) => i.origenComboId == null)
+        .fold<double>(0, (s, i) => s + i.descuento);
+    // Cuántas líneas ya llevan un beneficio de precio (nivel/VIP u OFERTA
+    // pública) — aviso opción C antes de descontar encima.
+    final conNivel = cubit.state.items
+        .where((i) =>
+            i.origenComboId == null &&
+            (i.nivelAplicado != null || i.enOferta == true))
+        .length;
+
+    var esPorcentaje = false;
+    final controller = TextEditingController(
+      text: descActual > 0 ? descActual.toStringAsFixed(2) : '',
+    );
+
+    final monto = await showDialog<double>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => StyledDialog(
+          accentColor: AppColors.blue1,
+          icon: Icons.percent,
+          titulo: 'Descuento global',
+          content: [
+            Text(
+              'Importe de los items: S/ ${bruto.toStringAsFixed(2)}\n'
+              'Se prorratea entre los items (reemplaza los descuentos por item).',
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+            ),
+            if (conNivel > 0) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.orange.shade200),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.info_outline,
+                        size: 14, color: Colors.orange.shade800),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        conNivel == 1
+                            ? '1 item ya tiene precio rebajado (por mayor/VIP u oferta). El descuento se aplicará ENCIMA de ese precio.'
+                            : '$conNivel items ya tienen precio rebajado (por mayor/VIP u oferta). El descuento se aplicará ENCIMA de esos precios.',
+                        style: TextStyle(
+                          fontSize: 10,
+                          height: 1.3,
+                          color: Colors.orange.shade800,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => setSheet(() => esPorcentaje = false),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        color: !esPorcentaje
+                            ? AppColors.blue1
+                            : Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Center(
+                        child: Text('S/',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: !esPorcentaje
+                                  ? Colors.white
+                                  : Colors.grey.shade600,
+                            )),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => setSheet(() => esPorcentaje = true),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        color: esPorcentaje
+                            ? AppColors.blue1
+                            : Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Center(
+                        child: Text('%',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: esPorcentaje
+                                  ? Colors.white
+                                  : Colors.grey.shade600,
+                            )),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            CustomText(
+              controller: controller,
+              label: esPorcentaje ? 'Descuento %' : 'Descuento S/',
+              hintText: esPorcentaje ? '0' : '0.00',
+              borderColor: AppColors.blue1,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+            ),
+          ],
+          actions: [
+            if (descActual > 0)
+              Expanded(
+                child: CustomButton(
+                  text: 'Quitar',
+                  isOutlined: true,
+                  borderColor: Colors.red.shade300,
+                  textColor: Colors.red.shade700,
+                  enableShadows: false,
+                  // 0.0 (double): pop(0) con int crashea el navigator
+                  // (showDialog<double> castea el result) y congela la app.
+                  onPressed: () => Navigator.of(ctx).pop(0.0),
+                ),
+              ),
+            Expanded(
+              child: CustomButton(
+                text: 'Cancelar',
+                isOutlined: true,
+                borderColor: Colors.grey.shade400,
+                textColor: Colors.grey.shade700,
+                enableShadows: false,
+                onPressed: () => Navigator.of(ctx).pop(),
+              ),
+            ),
+            Expanded(
+              child: CustomButton(
+                text: 'Aplicar',
+                backgroundColor: AppColors.blue1,
+                textColor: Colors.white,
+                onPressed: () {
+                  final v = double.tryParse(
+                          controller.text.replaceAll(',', '.')) ??
+                      0;
+                  final calculado =
+                      esPorcentaje ? bruto * (v / 100) : v;
+                  if (esPorcentaje && v > 100) {
+                    SnackBarHelper.showError(
+                        ctx, 'El porcentaje no puede superar 100%');
+                    return;
+                  }
+                  if (calculado >= bruto) {
+                    SnackBarHelper.showError(ctx,
+                        'El descuento no puede ser igual o mayor al importe');
+                    return;
+                  }
+                  Navigator.of(ctx).pop(calculado);
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (monto == null) return;
+    cubit.aplicarDescuentoGlobal(monto);
   }
 
   Future<void> _confirmarVaciar(BuildContext context) async {
@@ -445,8 +704,21 @@ class _ItemRowState extends State<_ItemRow> {
         item.servicioId == null;
     final stock = item.stockDisponible ?? 0;
     final excedeStock = !esManual && item.cantidad > stock;
+    // Ahorro por unidad de la OFERTA pública (precio normal − precio oferta):
+    // el precio de oferta vive en precioBase/precioUnitario.
+    final double? antesOferta = (item.precioAntesOferta as num?)?.toDouble();
+    final double precioOfertado =
+        ((item.precioBase ?? item.precioUnitario) as num).toDouble();
+    final double ahorroOfertaUnit =
+        (item.enOferta == true && antesOferta != null && antesOferta > precioOfertado)
+            ? antesOferta - precioOfertado
+            : 0;
 
-    return Padding(
+    return InkWell(
+      // Tap en la fila = descuento de la línea (mismo gesto que la tabla
+      // de cobrar cotización). Las filas readonly (combos) no aplican.
+      onTap: widget.readonly ? null : () => _dialogDescuentoItem(context),
+      child: Padding(
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -506,6 +778,43 @@ class _ItemRowState extends State<_ItemRow> {
                     ),
                   ),
                 ],
+                // El precio ya viene rebajado por una OFERTA pública de la
+                // sede — el vendedor debe saberlo antes de descontar encima.
+                // Muestra el ahorro por unidad (precio normal − oferta).
+                if (item.enOferta == true) ...[
+                  const SizedBox(height: 2),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 5, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade50,
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(
+                          color: Colors.orange.shade300, width: 0.5),
+                    ),
+                    child: Text(
+                      ahorroOfertaUnit > 0.005
+                          ? 'OFERTA −S/ ${ahorroOfertaUnit.toStringAsFixed(2)} c/u'
+                          : 'OFERTA',
+                      style: TextStyle(
+                        fontSize: 9,
+                        color: Colors.orange.shade800,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+                if (!widget.readonly && item.descuento > 0) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    'Desc. −S/ ${item.descuento.toStringAsFixed(2)}',
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.red.shade600,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -514,7 +823,19 @@ class _ItemRowState extends State<_ItemRow> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (item.nivelAplicado != null && item.precioBase != null)
+                  // Referencia tachada: el precio NORMAL (antes de la
+                  // oferta) si hay oferta, o el precio base si hay nivel.
+                  if (ahorroOfertaUnit > 0.005)
+                    Text(
+                      antesOferta!.toStringAsFixed(2),
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey.shade500,
+                        decoration: TextDecoration.lineThrough,
+                      ),
+                    )
+                  else if (item.nivelAplicado != null &&
+                      item.precioBase != null)
                     Text(
                       item.precioBase!.toStringAsFixed(2),
                       style: TextStyle(
@@ -527,12 +848,15 @@ class _ItemRowState extends State<_ItemRow> {
                     item.precioUnitario.toStringAsFixed(2),
                     style: TextStyle(
                       fontSize: 12,
-                      fontWeight: item.nivelAplicado != null
-                          ? FontWeight.w600
-                          : FontWeight.normal,
+                      fontWeight:
+                          (item.nivelAplicado != null || ahorroOfertaUnit > 0.005)
+                              ? FontWeight.w600
+                              : FontWeight.normal,
                       color: item.nivelAplicado != null
                           ? Colors.green.shade700
-                          : null,
+                          : (ahorroOfertaUnit > 0.005
+                              ? Colors.orange.shade800
+                              : null),
                     ),
                   ),
                 ],
@@ -604,7 +928,201 @@ class _ItemRowState extends State<_ItemRow> {
           ),
         ],
       ),
+      ),
     );
+  }
+
+  /// Descuento de la línea (S/ o %) — mismo patrón del dialog de descuento
+  /// de la tabla de cobrar cotización.
+  Future<void> _dialogDescuentoItem(BuildContext context) async {
+    final cubit = context.read<CotizacionRapidaCubit>();
+    final item = widget.item;
+    final bruto = (item.cantidad as double) * (item.precioUnitario as double);
+    if (bruto <= 0) return;
+    final double actual = item.descuento as double;
+    // Ahorro unitario de la OFERTA pública (para el aviso con montos).
+    final double? antesOferta = (item.precioAntesOferta as num?)?.toDouble();
+    final double precioOfertado =
+        ((item.precioBase ?? item.precioUnitario) as num).toDouble();
+    final double ahorroOfertaUnit = (item.enOferta == true &&
+            antesOferta != null &&
+            antesOferta > precioOfertado)
+        ? antesOferta - precioOfertado
+        : 0;
+
+    var esPorcentaje = false;
+    final controller = TextEditingController(
+      text: actual > 0 ? actual.toStringAsFixed(2) : '',
+    );
+
+    final monto = await showDialog<double>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => StyledDialog(
+          accentColor: AppColors.blue1,
+          icon: Icons.discount_outlined,
+          titulo: 'Descuento — ${item.descripcion}',
+          content: [
+            Text(
+              'Importe de la línea: S/ ${bruto.toStringAsFixed(2)}',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
+            // Opción C: se permite descontar sobre precio por mayor/VIP u
+            // OFERTA, pero avisando — el cliente ya está beneficiado.
+            if (item.nivelAplicado != null || item.enOferta == true) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.orange.shade200),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.info_outline,
+                        size: 14, color: Colors.orange.shade800),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        item.nivelAplicado != null
+                            ? 'Esta línea ya tiene precio por mayor '
+                                '(${item.nivelAplicado} −${(item.descuentoNivelPct ?? 0).toStringAsFixed(0)}%). '
+                                'El descuento se aplicará ENCIMA de ese precio.'
+                            : 'Este producto está EN OFERTA'
+                                '${ahorroOfertaUnit > 0.005 ? ' (normal S/ ${antesOferta!.toStringAsFixed(2)} → oferta S/ ${precioOfertado.toStringAsFixed(2)})' : ''}: '
+                                'su precio ya viene rebajado. El descuento '
+                                'se aplicará ENCIMA del precio de oferta.',
+                        style: TextStyle(
+                          fontSize: 10,
+                          height: 1.3,
+                          color: Colors.orange.shade800,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => setSheet(() => esPorcentaje = false),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        color: !esPorcentaje
+                            ? AppColors.blue1
+                            : Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Center(
+                        child: Text('S/',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: !esPorcentaje
+                                  ? Colors.white
+                                  : Colors.grey.shade600,
+                            )),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => setSheet(() => esPorcentaje = true),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        color: esPorcentaje
+                            ? AppColors.blue1
+                            : Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Center(
+                        child: Text('%',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: esPorcentaje
+                                  ? Colors.white
+                                  : Colors.grey.shade600,
+                            )),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            CustomText(
+              controller: controller,
+              label: esPorcentaje ? 'Descuento %' : 'Descuento S/',
+              hintText: esPorcentaje ? '0' : '0.00',
+              borderColor: AppColors.blue1,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+            ),
+          ],
+          actions: [
+            if (actual > 0)
+              Expanded(
+                child: CustomButton(
+                  text: 'Quitar',
+                  isOutlined: true,
+                  borderColor: Colors.red.shade300,
+                  textColor: Colors.red.shade700,
+                  enableShadows: false,
+                  // 0.0 (double): pop(0) con int crashea el navigator
+                  // (showDialog<double> castea el result) y congela la app.
+                  onPressed: () => Navigator.of(ctx).pop(0.0),
+                ),
+              ),
+            Expanded(
+              child: CustomButton(
+                text: 'Cancelar',
+                isOutlined: true,
+                borderColor: Colors.grey.shade400,
+                textColor: Colors.grey.shade700,
+                enableShadows: false,
+                onPressed: () => Navigator.of(ctx).pop(),
+              ),
+            ),
+            Expanded(
+              child: CustomButton(
+                text: 'Aplicar',
+                backgroundColor: AppColors.blue1,
+                textColor: Colors.white,
+                onPressed: () {
+                  final v = double.tryParse(
+                          controller.text.replaceAll(',', '.')) ??
+                      0;
+                  final calculado =
+                      esPorcentaje ? bruto * (v / 100) : v;
+                  if (esPorcentaje && v > 100) {
+                    SnackBarHelper.showError(
+                        ctx, 'El porcentaje no puede superar 100%');
+                    return;
+                  }
+                  if (calculado > bruto) {
+                    SnackBarHelper.showError(ctx,
+                        'El descuento supera el importe de la línea');
+                    return;
+                  }
+                  Navigator.of(ctx).pop(calculado);
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (monto == null || !context.mounted) return;
+    cubit.actualizarDescuentoItem(widget.index, monto);
   }
 }
 
