@@ -1,10 +1,20 @@
+import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_search_field.dart';
+import '../../../../core/widgets/styled_dialog.dart';
+import '../../../auth/presentation/widgets/custom_text.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../../empresa/presentation/bloc/sede_activa/sede_activa_cubit.dart';
@@ -254,92 +264,249 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
     return b.toString();
   }
 
-  /// Compartir la lista por WhatsApp: pide el celular del cliente y el
-  /// modo (con o sin precios por item) y abre el chat con el texto listo.
+  /// PDF de la lista (A5 vertical): tabla con o sin precios + total.
+  Future<Uint8List> _generarPdf(bool conPrecios) async {
+    final sede = context.read<SedeActivaCubit>().state.activa;
+    final now = DateTime.now();
+    final fecha =
+        '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year} '
+        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+    final doc = pw.Document();
+
+    pw.Widget celda(String t,
+        {bool bold = false, pw.TextAlign align = pw.TextAlign.left}) {
+      return pw.Padding(
+        padding: const pw.EdgeInsets.symmetric(vertical: 3, horizontal: 4),
+        child: pw.Text(t,
+            textAlign: align,
+            style: pw.TextStyle(
+              fontSize: 9,
+              fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
+            )),
+      );
+    }
+
+    doc.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a5,
+        margin: const pw.EdgeInsets.all(24),
+        build: (_) => pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Center(
+              child: pw.Text('COTIZACIÓN DE PRECIOS',
+                  style: pw.TextStyle(
+                      fontSize: 13, fontWeight: pw.FontWeight.bold)),
+            ),
+            pw.Center(
+              child: pw.Text(
+                '${sede != null ? '${sede.nombre} — ' : ''}$fecha',
+                style: const pw.TextStyle(
+                    fontSize: 8.5, color: PdfColors.grey700),
+              ),
+            ),
+            pw.SizedBox(height: 12),
+            pw.Table(
+              border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
+              columnWidths: conPrecios
+                  ? {
+                      0: const pw.FlexColumnWidth(5),
+                      1: const pw.FlexColumnWidth(1.2),
+                      2: const pw.FlexColumnWidth(1.6),
+                      3: const pw.FlexColumnWidth(1.8),
+                    }
+                  : {
+                      0: const pw.FlexColumnWidth(6),
+                      1: const pw.FlexColumnWidth(1.2),
+                    },
+              children: [
+                pw.TableRow(
+                  decoration:
+                      const pw.BoxDecoration(color: PdfColors.grey200),
+                  children: [
+                    celda('PRODUCTO', bold: true),
+                    celda('CANT.', bold: true, align: pw.TextAlign.center),
+                    if (conPrecios)
+                      celda('PRECIO', bold: true, align: pw.TextAlign.right),
+                    if (conPrecios)
+                      celda('TOTAL', bold: true, align: pw.TextAlign.right),
+                  ],
+                ),
+                ...List.generate(_items.length, (i) {
+                  final item = _items[i];
+                  final cant = item.cantidad % 1 == 0
+                      ? item.cantidad.toStringAsFixed(0)
+                      : item.cantidad.toStringAsFixed(2);
+                  final etiquetas = <String>[
+                    if (item.enLiquidacion) 'LIQUIDACIÓN',
+                    if (item.enOferta) 'OFERTA',
+                    if (item.nivelAplicado != null) 'X MAYOR',
+                  ];
+                  return pw.TableRow(children: [
+                    celda(
+                        '${i + 1}. ${item.descripcion}'
+                        '${conPrecios && etiquetas.isNotEmpty ? '  (${etiquetas.join('/')})' : ''}'),
+                    celda(cant, align: pw.TextAlign.center),
+                    if (conPrecios)
+                      celda(item.precioUnitario.toStringAsFixed(2),
+                          align: pw.TextAlign.right),
+                    if (conPrecios)
+                      celda(item.total.toStringAsFixed(2),
+                          align: pw.TextAlign.right),
+                  ]);
+                }),
+              ],
+            ),
+            pw.SizedBox(height: 10),
+            pw.Align(
+              alignment: pw.Alignment.centerRight,
+              child: pw.Text('TOTAL: S/ ${_total.toStringAsFixed(2)}',
+                  style: pw.TextStyle(
+                      fontSize: 12, fontWeight: pw.FontWeight.bold)),
+            ),
+            pw.SizedBox(height: 14),
+            pw.Center(
+              child: pw.Text(
+                'Precios referenciales del día. NO es comprobante de pago.',
+                style: const pw.TextStyle(
+                    fontSize: 8, color: PdfColors.grey700),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    return doc.save();
+  }
+
+  /// Compartir la lista: como TEXTO directo al WhatsApp del cliente
+  /// (celular +51) o como PDF (hoja de compartir del sistema — ahí se
+  /// elige WhatsApp y el contacto; wa.me no permite adjuntar archivos).
   Future<void> _compartirWhatsApp() async {
     final telCtrl = TextEditingController();
     var conPrecios = true;
+    var comoPdf = true;
+    const verde = Color(0xFF25D366);
     final enviar = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setLocal) => AlertDialog(
-          title: const Text('Enviar por WhatsApp',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: telCtrl,
-                autofocus: true,
-                keyboardType: TextInputType.phone,
-                maxLength: 9,
-                decoration: const InputDecoration(
-                  labelText: 'Celular del cliente',
-                  hintText: '9XXXXXXXX',
-                  prefixText: '+51 ',
-                  counterText: '',
-                  border: OutlineInputBorder(),
-                  isDense: true,
+        builder: (ctx, setLocal) => StyledDialog(
+          accentColor: verde,
+          icon: Icons.share,
+          titulo: 'Compartir lista',
+          content: [
+            // Formato: PDF (share sheet) o texto directo al número.
+            Row(
+              children: [
+                Expanded(
+                  child: ChoiceChip(
+                    label:
+                        const Text('PDF', style: TextStyle(fontSize: 11)),
+                    selected: comoPdf,
+                    selectedColor: verde.withValues(alpha: 0.15),
+                    onSelected: (_) => setLocal(() => comoPdf = true),
+                  ),
                 ),
-                style: const TextStyle(fontSize: 13),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: ChoiceChip(
-                      label: const Text('Con precios',
-                          style: TextStyle(fontSize: 11)),
-                      selected: conPrecios,
-                      onSelected: (_) => setLocal(() => conPrecios = true),
-                    ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ChoiceChip(
+                    label: const Text('Texto al número',
+                        style: TextStyle(fontSize: 11)),
+                    selected: !comoPdf,
+                    selectedColor: verde.withValues(alpha: 0.15),
+                    onSelected: (_) => setLocal(() => comoPdf = false),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: ChoiceChip(
-                      label: const Text('Solo productos',
-                          style: TextStyle(fontSize: 11)),
-                      selected: !conPrecios,
-                      onSelected: (_) => setLocal(() => conPrecios = false),
-                    ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: ChoiceChip(
+                    label: const Text('Con precios',
+                        style: TextStyle(fontSize: 11)),
+                    selected: conPrecios,
+                    selectedColor: verde.withValues(alpha: 0.15),
+                    onSelected: (_) => setLocal(() => conPrecios = true),
                   ),
-                ],
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ChoiceChip(
+                    label: const Text('Solo productos',
+                        style: TextStyle(fontSize: 11)),
+                    selected: !conPrecios,
+                    selectedColor: verde.withValues(alpha: 0.15),
+                    onSelected: (_) => setLocal(() => conPrecios = false),
+                  ),
+                ),
+              ],
+            ),
+            if (!comoPdf) ...[
+              const SizedBox(height: 10),
+              CustomText(
+                controller: telCtrl,
+                label: 'Celular del cliente (+51)',
+                hintText: '9XXXXXXXX',
+                borderColor: verde,
+                keyboardType: TextInputType.phone,
               ),
             ],
-          ),
+          ],
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF25D366),
-                foregroundColor: Colors.white,
+            Expanded(
+              child: CustomButton(
+                text: 'Cancelar',
+                isOutlined: true,
+                borderColor: Colors.grey.shade400,
+                textColor: Colors.grey.shade700,
+                enableShadows: false,
+                onPressed: () => Navigator.of(ctx).pop(false),
               ),
-              onPressed: () {
-                final digits =
-                    telCtrl.text.replaceAll(RegExp(r'[^0-9]'), '');
-                if (digits.length != 9) return;
-                Navigator.pop(ctx, true);
-              },
-              icon: const Icon(Icons.send, size: 15),
-              label: const Text('Enviar', style: TextStyle(fontSize: 12)),
+            ),
+            Expanded(
+              child: CustomButton(
+                text: 'Enviar',
+                backgroundColor: verde,
+                textColor: Colors.white,
+                onPressed: () {
+                  if (!comoPdf) {
+                    final digits =
+                        telCtrl.text.replaceAll(RegExp(r'[^0-9]'), '');
+                    if (digits.length != 9) return;
+                  }
+                  Navigator.of(ctx).pop(true);
+                },
+              ),
             ),
           ],
         ),
       ),
     );
     if (enviar != true || !mounted) return;
-    final digits = telCtrl.text.replaceAll(RegExp(r'[^0-9]'), '');
-    final texto = Uri.encodeComponent(_textoLista(conPrecios));
+
     try {
-      await launchUrl(
-        Uri.parse('https://wa.me/51$digits?text=$texto'),
-        mode: LaunchMode.externalApplication,
-      );
+      if (comoPdf) {
+        final bytes = await _generarPdf(conPrecios);
+        final dir = await getTemporaryDirectory();
+        final file = File(
+            '${dir.path}/cotizacion_precios_${DateTime.now().millisecondsSinceEpoch}.pdf');
+        await file.writeAsBytes(bytes);
+        await Share.shareXFiles(
+          [XFile(file.path)],
+          text: 'Cotización de precios',
+        );
+      } else {
+        final digits = telCtrl.text.replaceAll(RegExp(r'[^0-9]'), '');
+        final texto = Uri.encodeComponent(_textoLista(conPrecios));
+        await launchUrl(
+          Uri.parse('https://wa.me/51$digits?text=$texto'),
+          mode: LaunchMode.externalApplication,
+        );
+      }
     } catch (_) {
-      if (mounted) _feedback('No se pudo abrir WhatsApp', ok: false);
+      if (mounted) _feedback('No se pudo compartir la lista', ok: false);
     }
   }
 
