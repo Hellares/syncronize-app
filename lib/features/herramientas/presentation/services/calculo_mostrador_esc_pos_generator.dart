@@ -61,7 +61,26 @@ class CalculoMostradorEscPosGenerator {
     bytes += generator.text('-' * chars,
         styles: const PosStyles(fontType: PosFontType.fontB));
 
-    // ── Items: "cant x descripcion" + precio unit y total a la derecha ──
+    // ── Tabla: PRODUCTO | CANT | PRECIO | TOTAL ──
+    // Anchos fijos por caracteres (fontB): numéricos a la derecha.
+    const wCant = 5;
+    const wPrecio = 8;
+    const wTotal = 9;
+    final wNombre = chars - wCant - wPrecio - wTotal;
+    String fila(String nombre, String cant, String precio, String tot) {
+      final n = nombre.length > wNombre
+          ? nombre.substring(0, wNombre)
+          : nombre.padRight(wNombre);
+      return '$n${cant.padLeft(wCant)}${precio.padLeft(wPrecio)}${tot.padLeft(wTotal)}';
+    }
+
+    bytes += generator.text(
+      fila('PRODUCTO', 'CANT', 'PRECIO', 'TOTAL'),
+      styles: const PosStyles(bold: true, fontType: PosFontType.fontB),
+    );
+    bytes += generator.text('-' * chars,
+        styles: const PosStyles(fontType: PosFontType.fontB));
+
     var i = 0;
     double total = 0;
     for (final item in items) {
@@ -71,23 +90,26 @@ class CalculoMostradorEscPosGenerator {
           ? item.cantidad.toStringAsFixed(0)
           : item.cantidad.toStringAsFixed(2);
       bytes += generator.text(
-        '$i. ${item.descripcion}',
-        styles: const PosStyles(bold: true, fontType: PosFontType.fontB),
+        fila(
+          '$i.${item.descripcion}',
+          cant,
+          item.precioUnitario.toStringAsFixed(2),
+          item.total.toStringAsFixed(2),
+        ),
+        styles: const PosStyles(fontType: PosFontType.fontB),
       );
-      // Sub-línea: cantidad x precio (con etiqueta si es precio especial)
+      // Etiqueta de precio especial como sub-línea (solo si aplica).
       final etiquetas = <String>[
         if (item.enLiquidacion) 'LIQUIDACION',
         if (item.enOferta == true) 'OFERTA',
         if (item.nivelAplicado != null) 'X MAYOR',
       ];
-      final izq =
-          '   $cant x S/ ${item.precioUnitario.toStringAsFixed(2)}${etiquetas.isNotEmpty ? ' (${etiquetas.join('/')})' : ''}';
-      final der = 'S/ ${item.total.toStringAsFixed(2)}';
-      final espacio = chars - izq.length - der.length;
-      bytes += generator.text(
-        espacio > 0 ? '$izq${' ' * espacio}$der' : '$izq $der',
-        styles: const PosStyles(fontType: PosFontType.fontB),
-      );
+      if (etiquetas.isNotEmpty) {
+        bytes += generator.text(
+          '  (${etiquetas.join('/')})',
+          styles: const PosStyles(fontType: PosFontType.fontB),
+        );
+      }
     }
 
     bytes += generator.text('-' * chars,
