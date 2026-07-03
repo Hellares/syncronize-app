@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/fonts/app_text_widgets.dart';
@@ -289,137 +290,47 @@ class _SolicitudDetailPageState extends State<SolicitudDetailPage> {
   }
 
   Widget _buildItemsSection(SolicitudCotizacion solicitud) {
+    final items = solicitud.items;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         AppSubtitle(
-          'Items (${solicitud.items.length})',
+          'Items (${items.length})',
           fontSize: 12,
         ),
         const SizedBox(height: 8),
-        ListView.separated(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: solicitud.items.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 8),
-          itemBuilder: (context, index) {
-            final item = solicitud.items[index];
-            return _buildDetailItemCard(item);
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDetailItemCard(SolicitudItem item) {
-    return GradientContainer(
-      padding: const EdgeInsets.all(10),
-      child: Row(
-        children: [
-          ClipRRect(
+        // Tabla tipo Excel (mismo patrón que el detalle de la empresa):
+        // header bluechip + zebra striping + thumbnail por fila.
+        Container(
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: AppColors.blueborder.withValues(alpha: 0.5),
+              width: 0.6,
+            ),
             borderRadius: BorderRadius.circular(6),
-            child: item.imagenUrl != null
-                ? CachedNetworkImage(
-                    imageUrl: item.imagenUrl!,
-                    width: 48,
-                    height: 48,
-                    fit: BoxFit.cover,
-                    placeholder: (_, __) => Container(
-                      width: 48,
-                      height: 48,
-                      color: AppColors.greyLight,
-                    ),
-                    errorWidget: (_, __, ___) => Container(
-                      width: 48,
-                      height: 48,
-                      color: AppColors.greyLight,
-                      child: const Icon(Icons.image, size: 20),
-                    ),
-                  )
-                : Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: item.esManual
-                          ? AppColors.orange.withValues(alpha: 0.1)
-                          : AppColors.blue3.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Icon(
-                      item.esManual
-                          ? Icons.edit_note
-                          : Icons.inventory_2_outlined,
-                      size: 22,
-                      color:
-                          item.esManual ? AppColors.orange : AppColors.blue3,
-                    ),
-                  ),
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              Container(
+                color: AppColors.bluechip,
+                padding:
+                    const EdgeInsets.symmetric(vertical: 5, horizontal: 8),
+                child: const Row(
                   children: [
-                    Expanded(
-                      child: Text(
-                        item.descripcion,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (item.esManual)
-                      Container(
-                        margin: const EdgeInsets.only(left: 6),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: AppColors.orange.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          'Manual',
-                          style: TextStyle(
-                            fontSize: 8,
-                            color: AppColors.orange,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
+                    SizedBox(width: 26, child: Center(child: _ThItem('#'))),
+                    Expanded(child: _ThItem('PRODUCTO')),
+                    SizedBox(
+                        width: 52, child: Center(child: _ThItem('CANT.'))),
                   ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'Cantidad: ${item.cantidad}',
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: AppColors.blueGrey,
-                  ),
-                ),
-                if (item.notasItem != null &&
-                    item.notasItem!.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    'Nota: ${item.notasItem}',
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: AppColors.blueGrey,
-                      fontStyle: FontStyle.italic,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ],
-            ),
+              ),
+              for (var i = 0; i < items.length; i++)
+                _ItemTablaRow(index: i, item: items[i]),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -494,19 +405,16 @@ class _SolicitudDetailPageState extends State<SolicitudDetailPage> {
               width: double.infinity,
               child: CustomButton(
                 text: 'Ver Cotizacion',
-                isOutlined: true,
                 borderColor: AppColors.green,
                 textColor: AppColors.green,
-                fontSize: 10,
-                height: 34,
-                onPressed: () {
-                  // TODO: Navegar al detalle de la cotizacion
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                          'Cotizacion ID: ${solicitud.cotizacionId}'),
-                    ),
+                fontSize: 11,
+                onPressed: () async {
+                  // Ver la cotización formal (precios, aceptar/rechazar,
+                  // separar con adelanto Yape).
+                  await context.push(
+                    '/mis-solicitudes-cotizacion/${widget.solicitudId}/cotizacion',
                   );
+                  _loadDetalle();
                 },
               ),
             ),
@@ -529,7 +437,7 @@ class _SolicitudDetailPageState extends State<SolicitudDetailPage> {
               const SizedBox(width: 6),
               AppSubtitle(
                 'Solicitud rechazada',
-                fontSize: 12,
+                fontSize: 11,
                 color: AppColors.red,
               ),
             ],
@@ -583,8 +491,6 @@ class _SolicitudDetailPageState extends State<SolicitudDetailPage> {
             borderColor: AppColors.red,
             textColor: AppColors.red,
             fontSize: 11,
-            height: 40,
-            isOutlined: true,
             onPressed: _isCancelling ? null : _cancelarSolicitud,
           ),
         ),
@@ -650,5 +556,167 @@ class _SolicitudDetailPageState extends State<SolicitudDetailPage> {
 
   String _formatDate(DateTime date) {
     return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+  }
+}
+
+/// Header de columna de la tabla de items (uppercase compacto, mismo estilo
+/// que las tablas de cotización).
+class _ThItem extends StatelessWidget {
+  final String text;
+  const _ThItem(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: TextStyle(
+        fontSize: 10,
+        fontWeight: FontWeight.w700,
+        color: Colors.grey.shade800,
+        letterSpacing: 0.3,
+      ),
+    );
+  }
+}
+
+/// Fila de la tabla de items con zebra striping + thumbnail 18px. La nota
+/// y el badge "Manual" van como sub-línea bajo la descripción.
+class _ItemTablaRow extends StatelessWidget {
+  final int index;
+  final SolicitudItem item;
+
+  const _ItemTablaRow({required this.index, required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: index.isEven ? Colors.white : Colors.grey.shade50,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 26,
+            child: Center(
+              child: Text(
+                '${index + 1}',
+                style: TextStyle(
+                  fontSize: 9,
+                  height: 1.1,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey.shade700,
+                ),
+              ),
+            ),
+          ),
+          // Thumbnail 18px (o ícono si no hay imagen)
+          ClipRRect(
+            borderRadius: BorderRadius.circular(3),
+            child: item.imagenUrl != null
+                ? CachedNetworkImage(
+                    imageUrl: item.imagenUrl!,
+                    width: 18,
+                    height: 18,
+                    fit: BoxFit.cover,
+                    placeholder: (_, __) => Container(
+                        width: 18, height: 18, color: Colors.grey.shade100),
+                    errorWidget: (_, __, ___) => Container(
+                      width: 18,
+                      height: 18,
+                      color: Colors.grey.shade100,
+                      child: Icon(Icons.image,
+                          size: 10, color: Colors.grey.shade400),
+                    ),
+                  )
+                : Container(
+                    width: 18,
+                    height: 18,
+                    color: item.esManual
+                        ? Colors.orange.shade50
+                        : Colors.grey.shade100,
+                    child: Icon(
+                      item.esManual
+                          ? Icons.edit_note
+                          : Icons.inventory_2_outlined,
+                      size: 11,
+                      color: item.esManual
+                          ? Colors.orange
+                          : Colors.grey.shade400,
+                    ),
+                  ),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        item.descripcion,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          height: 1.1,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (item.esManual) ...[
+                      const SizedBox(width: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 4, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.shade50,
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                        child: Text(
+                          'Manual',
+                          style: TextStyle(
+                            fontSize: 8,
+                            height: 1.1,
+                            color: Colors.orange.shade700,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                if (item.notasItem != null && item.notasItem!.isNotEmpty)
+                  Text(
+                    'Nota: ${item.notasItem}',
+                    style: TextStyle(
+                      fontSize: 8,
+                      height: 1.1,
+                      color: Colors.grey.shade500,
+                      fontStyle: FontStyle.italic,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+              ],
+            ),
+          ),
+          SizedBox(
+            width: 52,
+            child: Center(
+              child: Text(
+                '${item.cantidad}',
+                style: const TextStyle(
+                  fontSize: 10,
+                  height: 1.1,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.blue1,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

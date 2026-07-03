@@ -31,7 +31,9 @@ class SolicitudFormCubit extends Cubit<SolicitudFormState> {
     return null;
   }
 
-  /// Agrega un item del catalogo
+  /// Agrega un item del catalogo. Si el producto ya esta en la lista
+  /// (mismo productoId+varianteId), incrementa su cantidad en vez de
+  /// duplicar la linea — permite el patron "tap en la card = +1".
   void agregarItemCatalogo({
     required String productoId,
     String? varianteId,
@@ -40,14 +42,30 @@ class SolicitudFormCubit extends Cubit<SolicitudFormState> {
     String? imagenUrl,
   }) {
     final items = List<SolicitudItem>.from(_currentItems);
-    items.add(SolicitudItem(
-      productoId: productoId,
-      varianteId: varianteId,
-      descripcion: descripcion,
-      cantidad: cantidad,
-      imagenUrl: imagenUrl,
-      esManual: false,
-    ));
+    final idx = items.indexWhere((i) =>
+        !i.esManual && i.productoId == productoId && i.varianteId == varianteId);
+    if (idx >= 0) {
+      final existente = items[idx];
+      items[idx] = SolicitudItem(
+        id: existente.id,
+        productoId: existente.productoId,
+        varianteId: existente.varianteId,
+        descripcion: existente.descripcion,
+        cantidad: existente.cantidad + cantidad,
+        imagenUrl: existente.imagenUrl,
+        notasItem: existente.notasItem,
+        esManual: false,
+      );
+    } else {
+      items.add(SolicitudItem(
+        productoId: productoId,
+        varianteId: varianteId,
+        descripcion: descripcion,
+        cantidad: cantidad,
+        imagenUrl: imagenUrl,
+        esManual: false,
+      ));
+    }
     emit(SolicitudFormEditing(
       items: items,
       observaciones: _currentObservaciones,

@@ -10,6 +10,12 @@ class SolicitudItem extends Equatable {
   final bool esManual;
   final String? imagenUrl;
 
+  /// Producto/variante del catálogo (null si el item es texto libre). Se
+  /// usan para precargar la cotización con el precio real y conservar la
+  /// referencia (necesaria para la reserva de stock al separar).
+  final String? productoId;
+  final String? varianteId;
+
   const SolicitudItem({
     this.id,
     required this.descripcion,
@@ -18,6 +24,8 @@ class SolicitudItem extends Equatable {
     this.notasItem,
     this.esManual = false,
     this.imagenUrl,
+    this.productoId,
+    this.varianteId,
   });
 
   @override
@@ -29,6 +37,8 @@ class SolicitudItem extends Equatable {
         notasItem,
         esManual,
         imagenUrl,
+        productoId,
+        varianteId,
       ];
 }
 

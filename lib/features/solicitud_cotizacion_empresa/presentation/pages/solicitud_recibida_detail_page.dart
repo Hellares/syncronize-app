@@ -122,7 +122,8 @@ class _DetailView extends StatelessWidget {
         ),
         const SizedBox(height: 12),
 
-        // Items
+        // Items — tabla tipo Excel (mismo patrón que cobrar cotización:
+        // header bluechip + zebra striping, filas compactas).
         GradientContainer(
           borderColor: AppColors.blueborder,
           child: Padding(
@@ -132,7 +133,40 @@ class _DetailView extends StatelessWidget {
               children: [
                 AppSubtitle('ITEMS SOLICITADOS (${items.length})', fontSize: 11, color: AppColors.blue1),
                 const SizedBox(height: 8),
-                ...items.map((item) => _buildItemRow(item)),
+                Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: AppColors.blueborder.withValues(alpha: 0.5),
+                      width: 0.6,
+                    ),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Column(
+                    children: [
+                      // Header
+                      Container(
+                        color: AppColors.bluechip,
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 5, horizontal: 8),
+                        child: const Row(
+                          children: [
+                            SizedBox(
+                                width: 26,
+                                child: Center(child: _ThItem('#'))),
+                            Expanded(child: _ThItem('PRODUCTO')),
+                            SizedBox(
+                                width: 52,
+                                child: Center(child: _ThItem('CANT.'))),
+                          ],
+                        ),
+                      ),
+                      // Body
+                      for (var i = 0; i < items.length; i++)
+                        _ItemTablaRow(index: i, item: items[i]),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
@@ -184,58 +218,6 @@ class _DetailView extends StatelessWidget {
     );
   }
 
-  Widget _buildItemRow(SolicitudItem item) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          if (item.imagenUrl != null) ...[
-            ClipRRect(
-              borderRadius: BorderRadius.circular(6),
-              child: CachedNetworkImage(imageUrl: item.imagenUrl!, width: 40, height: 40, fit: BoxFit.cover,
-                placeholder: (_, __) => Container(width: 40, height: 40, color: Colors.grey.shade200),
-                errorWidget: (_, __, ___) => Container(width: 40, height: 40, color: Colors.grey.shade200,
-                  child: const Icon(Icons.image, size: 16, color: Colors.grey))),
-            ),
-            const SizedBox(width: 10),
-          ] else ...[
-            Container(
-              width: 40, height: 40,
-              decoration: BoxDecoration(
-                color: item.esManual ? Colors.orange.shade50 : Colors.grey.shade200,
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Icon(item.esManual ? Icons.edit : Icons.inventory_2, size: 18,
-                color: item.esManual ? Colors.orange : Colors.grey),
-            ),
-            const SizedBox(width: 10),
-          ],
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(child: AppSubtitle(item.descripcion, fontSize: 12)),
-                    if (item.esManual)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                        decoration: BoxDecoration(color: Colors.orange.shade50, borderRadius: BorderRadius.circular(4)),
-                        child: Text('Manual', style: TextStyle(fontSize: 9, color: Colors.orange.shade700, fontWeight: FontWeight.w600)),
-                      ),
-                  ],
-                ),
-                Text('Cantidad: ${item.cantidad}', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
-                if (item.notasItem != null && item.notasItem!.isNotEmpty)
-                  Text('Nota: ${item.notasItem}', style: TextStyle(fontSize: 10, color: Colors.grey.shade500, fontStyle: FontStyle.italic)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget? _buildActions(BuildContext context, SolicitudRecibida sol, bool isLoading) {
     if (!sol.permiteAcciones) return null;
 
@@ -265,10 +247,18 @@ class _DetailView extends StatelessWidget {
                     'descripcion': i.descripcion,
                     'cantidad': i.cantidad,
                     'esManual': i.esManual,
+                    if (i.productoId != null) 'productoId': i.productoId,
+                    if (i.varianteId != null) 'varianteId': i.varianteId,
                     if (i.imagenUrl != null) 'imagenUrl': i.imagenUrl,
                     if (i.notasItem != null) 'notasItem': i.notasItem,
                   }).toList(),
+                  // Datos del solicitante → la cotización nace con el cliente.
                   'nombreCliente': sol.nombreSolicitante,
+                  'emailCliente': sol.emailSolicitante,
+                  'telefonoCliente': sol.telefonoSolicitante,
+                  // DNI → resuelve el cliente real y aplica sus políticas
+                  // de precio VIP (por mayor desde 1 unidad, etc.).
+                  'dniCliente': sol.solicitante?.dni,
                 });
               },
               icon: const Icon(Icons.receipt_long, size: 18),
@@ -333,6 +323,169 @@ class _DetailView extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
       child: Text(label, style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w600)),
+    );
+  }
+}
+
+/// Header de columna de la tabla de items (uppercase compacto, mismo estilo
+/// que la tabla de cobrar cotización).
+class _ThItem extends StatelessWidget {
+  final String text;
+  const _ThItem(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: TextStyle(
+        fontSize: 10,
+        fontWeight: FontWeight.w700,
+        color: Colors.grey.shade800,
+        letterSpacing: 0.3,
+      ),
+    );
+  }
+}
+
+/// Fila de la tabla de items con zebra striping. La nota del cliente y el
+/// badge "Manual" van como sub-línea bajo la descripción.
+class _ItemTablaRow extends StatelessWidget {
+  final int index;
+  final SolicitudItem item;
+
+  const _ItemTablaRow({required this.index, required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: index.isEven ? Colors.white : Colors.grey.shade50,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          SizedBox(
+            height: 22,
+            width: 26,
+            child: Center(
+              child: Text(
+                '${index + 1}',
+                style: TextStyle(
+                  fontSize: 9,
+                  height: 1.1,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey.shade700,
+                ),
+              ),
+            ),
+          ),
+          // Thumbnail 18px (o ícono si no hay imagen)
+          ClipRRect(
+            borderRadius: BorderRadius.circular(3),
+            child: item.imagenUrl != null
+                ? CachedNetworkImage(
+                    imageUrl: item.imagenUrl!,
+                    width: 18,
+                    height: 18,
+                    fit: BoxFit.cover,
+                    placeholder: (_, __) => Container(
+                        width: 18, height: 18, color: Colors.grey.shade100),
+                    errorWidget: (_, __, ___) => Container(
+                      width: 18,
+                      height: 18,
+                      color: Colors.grey.shade100,
+                      child: Icon(Icons.image,
+                          size: 10, color: Colors.grey.shade400),
+                    ),
+                  )
+                : Container(
+                    width: 18,
+                    height: 18,
+                    color: item.esManual
+                        ? Colors.orange.shade50
+                        : Colors.grey.shade100,
+                    child: Icon(
+                      item.esManual
+                          ? Icons.edit_note
+                          : Icons.inventory_2_outlined,
+                      size: 11,
+                      color: item.esManual
+                          ? Colors.orange
+                          : Colors.grey.shade400,
+                    ),
+                  ),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        item.descripcion,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          height: 1.1,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (item.esManual) ...[
+                      const SizedBox(width: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 4, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.shade50,
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                        child: Text(
+                          'Manual',
+                          style: TextStyle(
+                            fontSize: 8,
+                            height: 1.1,
+                            color: Colors.orange.shade700,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                if (item.notasItem != null && item.notasItem!.isNotEmpty)
+                  Text(
+                    'Nota: ${item.notasItem}',
+                    style: TextStyle(
+                      fontSize: 8,
+                      height: 1.1,
+                      color: Colors.grey.shade500,
+                      fontStyle: FontStyle.italic,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+              ],
+            ),
+          ),
+          SizedBox(
+            width: 52,
+            child: Center(
+              child: Text(
+                '${item.cantidad}',
+                style: const TextStyle(
+                  fontSize: 10,
+                  height: 1.1,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.blue1,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -26,6 +26,10 @@ class CustomSearchField extends StatefulWidget {
   final FocusNode? focusNode;
   final double? height;
   final double? borderWidth;
+
+  /// Sombra neumórfica alrededor del campo. Ponlo en false para un look plano
+  /// (sin difuminado), p. ej. dentro de un AppBar.
+  final bool showShadow;
   
   // Iconos y acciones personalizadas
   final IconData searchIcon;
@@ -59,6 +63,7 @@ class CustomSearchField extends StatefulWidget {
     this.focusNode,
     this.height = 35.0,
     this.borderWidth = 0.5,
+    this.showShadow = true,
     this.searchIcon = Icons.search_rounded,
     this.clearIcon = Icons.close_rounded,
     this.showClearButton = true,
@@ -478,7 +483,7 @@ class _CustomSearchFieldState extends State<CustomSearchField>
         decoration: BoxDecoration(
           color: widget.filled ? widget.backgroundColor : Colors.transparent,
           borderRadius: borderRadius,
-          boxShadow: widget.filled ? _getCachedShadows() : null,
+          boxShadow: (widget.filled && widget.showShadow) ? _getCachedShadows() : null,
           border: Border.all(
             color: _getCachedBorderColor(),
             width: widget.borderWidth ?? 0.5,

@@ -9,6 +9,8 @@ class SolicitudItemModel {
   final String? notasItem;
   final bool esManual;
   final String? imagenUrl;
+  final String? productoId;
+  final String? varianteId;
 
   const SolicitudItemModel({
     this.id,
@@ -18,6 +20,8 @@ class SolicitudItemModel {
     this.notasItem,
     this.esManual = false,
     this.imagenUrl,
+    this.productoId,
+    this.varianteId,
   });
 
   factory SolicitudItemModel.fromJson(Map<String, dynamic> json) {
@@ -29,6 +33,8 @@ class SolicitudItemModel {
       notasItem: json['notasItem'] as String?,
       esManual: json['esManual'] as bool? ?? false,
       imagenUrl: json['imagenUrl'] as String?,
+      productoId: json['productoId'] as String?,
+      varianteId: json['varianteId'] as String?,
     );
   }
 
@@ -41,6 +47,8 @@ class SolicitudItemModel {
       notasItem: notasItem,
       esManual: esManual,
       imagenUrl: imagenUrl,
+      productoId: productoId,
+      varianteId: varianteId,
     );
   }
 

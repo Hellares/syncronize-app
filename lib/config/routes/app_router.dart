@@ -41,6 +41,7 @@ import '../../features/pedido_marketplace_empresa/presentation/pages/pedido_mark
 import '../../features/solicitud_cotizacion/presentation/pages/solicitud_form_page.dart';
 import '../../features/solicitud_cotizacion/presentation/pages/mis_solicitudes_page.dart';
 import '../../features/solicitud_cotizacion/presentation/pages/solicitud_detail_page.dart';
+import '../../features/solicitud_cotizacion/presentation/pages/cotizacion_cliente_page.dart';
 import '../../features/solicitud_cotizacion_empresa/presentation/pages/solicitudes_recibidas_page.dart';
 import '../../features/caja/presentation/pages/caja_page.dart';
 import '../../features/caja_chica/presentation/pages/caja_chica_page.dart';
@@ -1034,7 +1035,21 @@ class AppRouter {
       GoRoute(
         path: '/empresa/cotizaciones/nueva',
         name: 'empresa-cotizaciones-nueva',
-        builder: (context, state) => const CotizacionRapidaProductosPage(),
+        builder: (context, state) {
+          // Puede venir desde una solicitud del marketplace (extra con
+          // solicitudId + nombreCliente) → la cotización creada se vincula.
+          final extra = state.extra as Map<String, dynamic>?;
+          return CotizacionRapidaProductosPage(
+            solicitudId: extra?['solicitudId'] as String?,
+            solicitudNombreCliente: extra?['nombreCliente'] as String?,
+            solicitudEmailCliente: extra?['emailCliente'] as String?,
+            solicitudTelefonoCliente: extra?['telefonoCliente'] as String?,
+            solicitudDniCliente: extra?['dniCliente'] as String?,
+            solicitudItems: (extra?['items'] as List<dynamic>?)
+                ?.whereType<Map<String, dynamic>>()
+                .toList(),
+          );
+        },
       ),
       GoRoute(
         path: '/empresa/cotizaciones/nueva/carrito',
@@ -1849,8 +1864,22 @@ class AppRouter {
       GoRoute(
         path: '/marketplace/buscar',
         name: 'marketplace-buscar',
-        builder: (context, state) => MarketplaceBuscarPage(
-          queryInicial: state.extra as String?,
+        // Transición suave: crossfade puro (sin slide ni zoom) para que —al
+        // tener ambos AppBars el mismo tamaño— parezca que el buscador se queda
+        // en su lugar. Sin desplazamiento no hay sensación de estirar/encoger.
+        pageBuilder: (context, state) => CustomTransitionPage<void>(
+          key: state.pageKey,
+          child: MarketplaceBuscarPage(
+            queryInicial: state.extra as String?,
+          ),
+          transitionDuration: const Duration(milliseconds: 220),
+          reverseTransitionDuration: const Duration(milliseconds: 180),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return FadeTransition(
+              opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
+              child: child,
+            );
+          },
         ),
       ),
       GoRoute(
@@ -1879,6 +1908,14 @@ class AppRouter {
         builder: (context, state) {
           final id = state.pathParameters['id']!;
           return SolicitudDetailPage(solicitudId: id);
+        },
+      ),
+      GoRoute(
+        path: '/mis-solicitudes-cotizacion/:id/cotizacion',
+        name: 'mis-solicitudes-cotizacion-cotizacion',
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return CotizacionClientePage(solicitudId: id);
         },
       ),
       GoRoute(
