@@ -34,7 +34,6 @@ class CalculoMostradorEscPosGenerator {
 
   static Future<List<int>> generate({
     required List<VentaDetalleInput> items,
-    required String empresaNombre,
     String? sedeNombre,
     int paperWidth = 80,
   }) async {
@@ -47,25 +46,8 @@ class CalculoMostradorEscPosGenerator {
     bytes += generator.reset();
     bytes += generator.setStyles(const PosStyles(fontType: PosFontType.fontB));
 
-    if (empresaNombre.isNotEmpty) {
-      bytes += generator.text(
-        _sanitize(empresaNombre.toUpperCase()),
-        styles: const PosStyles(
-          align: PosAlign.center,
-          bold: true,
-          height: PosTextSize.size2,
-          fontType: PosFontType.fontB,
-        ),
-      );
-    }
-    if (sedeNombre != null && sedeNombre.isNotEmpty) {
-      bytes += generator.text(
-        _sanitize(sedeNombre),
-        styles: const PosStyles(
-            align: PosAlign.center, fontType: PosFontType.fontB),
-      );
-    }
-    bytes += generator.feed(1);
+    // Título único (sin nombre de empresa; sin size2 — el doble alto de
+    // fontB se ve pixeleado en térmicas).
     bytes += generator.text(
       'COTIZACION DE PRECIOS',
       styles: const PosStyles(
@@ -74,6 +56,13 @@ class CalculoMostradorEscPosGenerator {
         fontType: PosFontType.fontB,
       ),
     );
+    if (sedeNombre != null && sedeNombre.isNotEmpty) {
+      bytes += generator.text(
+        _sanitize(sedeNombre),
+        styles: const PosStyles(
+            align: PosAlign.center, fontType: PosFontType.fontB),
+      );
+    }
     final now = DateTime.now();
     final fecha =
         '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year} '
@@ -92,15 +81,36 @@ class CalculoMostradorEscPosGenerator {
     const wPrecio = 8;
     const wTotal = 9;
     final wNombre = chars - wCant - wPrecio - wTotal;
-    String fila(String nombre, String cant, String precio, String tot) {
-      final n = nombre.length > wNombre
-          ? nombre.substring(0, wNombre)
-          : nombre.padRight(wNombre);
-      return '$n${cant.padLeft(wCant)}${precio.padLeft(wPrecio)}${tot.padLeft(wTotal)}';
+
+    /// Corta [texto] en el último espacio que quepa en [ancho] (o corte
+    /// duro si es una sola palabra). Devuelve (línea, resto).
+    (String, String) cortar(String texto, int ancho) {
+      if (texto.length <= ancho) return (texto, '');
+      var corte = texto.lastIndexOf(' ', ancho);
+      if (corte <= 0) corte = ancho;
+      return (texto.substring(0, corte).trimRight(),
+          texto.substring(corte).trimLeft());
+    }
+
+    /// Fila de la tabla: nombres largos se envuelven en líneas adicionales
+    /// (ancho completo, con sangría) para que se lean COMPLETOS.
+    List<String> fila(String nombre, String cant, String precio, String tot) {
+      final (linea1, restoInicial) = cortar(nombre, wNombre);
+      final lineas = [
+        '${linea1.padRight(wNombre)}${cant.padLeft(wCant)}'
+            '${precio.padLeft(wPrecio)}${tot.padLeft(wTotal)}',
+      ];
+      var resto = restoInicial;
+      while (resto.isNotEmpty) {
+        final (linea, siguiente) = cortar(resto, chars - 2);
+        lineas.add('  $linea');
+        resto = siguiente;
+      }
+      return lineas;
     }
 
     bytes += generator.text(
-      fila('PRODUCTO', 'CANT', 'PRECIO', 'TOTAL'),
+      fila('PRODUCTO', 'CANT', 'PRECIO', 'TOTAL').first,
       styles: const PosStyles(bold: true, fontType: PosFontType.fontB),
     );
     bytes += generator.text('-' * chars,
@@ -114,15 +124,17 @@ class CalculoMostradorEscPosGenerator {
       final cant = item.cantidad % 1 == 0
           ? item.cantidad.toStringAsFixed(0)
           : item.cantidad.toStringAsFixed(2);
-      bytes += generator.text(
-        fila(
-          _sanitize('$i.${item.descripcion}'),
-          cant,
-          item.precioUnitario.toStringAsFixed(2),
-          item.total.toStringAsFixed(2),
-        ),
-        styles: const PosStyles(fontType: PosFontType.fontB),
-      );
+      for (final linea in fila(
+        _sanitize('$i.${item.descripcion}'),
+        cant,
+        item.precioUnitario.toStringAsFixed(2),
+        item.total.toStringAsFixed(2),
+      )) {
+        bytes += generator.text(
+          linea,
+          styles: const PosStyles(fontType: PosFontType.fontB),
+        );
+      }
       // Etiqueta de precio especial como sub-línea (solo si aplica).
       final etiquetas = <String>[
         if (item.enLiquidacion) 'LIQUIDACION',
@@ -151,7 +163,6 @@ class CalculoMostradorEscPosGenerator {
         styles: const PosStyles(
           align: PosAlign.right,
           bold: true,
-          height: PosTextSize.size2,
           fontType: PosFontType.fontB,
         ),
       ),

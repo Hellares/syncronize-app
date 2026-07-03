@@ -179,7 +179,7 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
               padding: const EdgeInsets.all(12),
               child: Text(p.nombre,
                   style: const TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.w700)),
+                      fontSize: 9, fontWeight: FontWeight.w600)),
             ),
             Flexible(
               child: ListView.separated(
@@ -196,13 +196,13 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
                   return ListTile(
                     dense: true,
                     title: Text(v.nombre,
-                        style: const TextStyle(fontSize: 12.5)),
+                        style: const TextStyle(fontSize: 11)),
                     subtitle: Text('Stock: $stock',
                         style: TextStyle(
-                            fontSize: 10.5, color: Colors.grey.shade600)),
+                            fontSize: 10, color: Colors.grey.shade600)),
                     trailing: Text('S/ ${precio.toStringAsFixed(2)}',
                         style: const TextStyle(
-                            fontSize: 13, fontWeight: FontWeight.w700)),
+                            fontSize: 10, fontWeight: FontWeight.w600)),
                     onTap: () => Navigator.pop(ctx, v),
                   );
                 },
@@ -230,13 +230,9 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
         _feedback('No hay impresora principal configurada', ok: false);
         return;
       }
-      final ctxState = context.read<EmpresaContextCubit>().state;
       final sede = context.read<SedeActivaCubit>().state.activa;
       final bytes = await CalculoMostradorEscPosGenerator.generate(
         items: _items,
-        empresaNombre: ctxState is EmpresaContextLoaded
-            ? ctxState.context.empresa.nombre
-            : '',
         sedeNombre: sede?.nombre,
         paperWidth: principal.anchoPapel.mm,
       );
@@ -305,16 +301,16 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
       padding: const EdgeInsets.fromLTRB(16, 12, 8, 10),
       decoration: BoxDecoration(
         color: AppColors.blue1.withValues(alpha: 0.06),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
       ),
       child: Row(
         children: [
-          Icon(Icons.calculate_outlined, color: AppColors.blue1, size: 22),
+          Icon(Icons.calculate_outlined, color: AppColors.blue1, size: 20),
           const SizedBox(width: 8),
           const Expanded(
             child: Text(
               'Calculadora de precios',
-              style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800),
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
             ),
           ),
           IconButton(
@@ -373,16 +369,16 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
               contentPadding: EdgeInsets.zero,
               title: Text(p.nombre,
                   style: const TextStyle(
-                      fontSize: 12.5, fontWeight: FontWeight.w600)),
+                      fontSize: 10, fontWeight: FontWeight.w500)),
               subtitle: Text(
                 '${p.codigoEmpresa} · Stock: $stock'
                 '${p.tieneVariantes ? ' · ${p.variantes?.length ?? 0} variantes' : ''}',
-                style: TextStyle(fontSize: 10.5, color: Colors.grey.shade600),
+                style: TextStyle(fontSize: 9, color: Colors.grey.shade500),
               ),
               trailing: precio != null
                   ? Text('S/ ${precio.toStringAsFixed(2)}',
                       style: const TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w700))
+                          fontSize: 12, fontWeight: FontWeight.w600))
                   : const Icon(Icons.chevron_right, size: 18),
               onTap: () => _seleccionar(p),
             );
@@ -445,7 +441,7 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
               children: [
                 Text(item.descripcion,
                     style: const TextStyle(
-                        fontSize: 11.5, fontWeight: FontWeight.w600),
+                        fontSize: 10, fontWeight: FontWeight.w500),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis),
                 const SizedBox(height: 2),
@@ -486,8 +482,8 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
                     )),
               Text('S/ ${item.precioUnitario.toStringAsFixed(2)}',
                   style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
                     color: tieneEspecial
                         ? Colors.green.shade700
                         : (item.enOferta || item.enLiquidacion)
@@ -519,12 +515,12 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
           ),
           const SizedBox(width: 8),
           SizedBox(
-            width: 58,
+            width: 55,
             child: Text('S/ ${item.total.toStringAsFixed(2)}',
                 textAlign: TextAlign.right,
                 style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
                     color: AppColors.blue1)),
           ),
         ],
