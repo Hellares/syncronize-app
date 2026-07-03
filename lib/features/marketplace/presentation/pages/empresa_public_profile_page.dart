@@ -1,9 +1,11 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:go_router/go_router.dart';
 import 'package:syncronize/core/fonts/app_fonts.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
+import 'package:syncronize/core/widgets/custom_button.dart';
 import 'package:syncronize/core/widgets/custom_loading.dart';
 import 'package:syncronize/core/widgets/custom_search_field.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -243,35 +245,43 @@ class _EmpresaPublicProfilePageState extends State<EmpresaPublicProfilePage> {
                   // Contenido
                   SafeArea(
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 50, 20, 16),
+                      padding: const EdgeInsets.fromLTRB(20, 40, 20, 10),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                           Row(
                             children: [
-                              // Logo
+                              // Logo (compacto; la imagen llena el círculo)
                               CircleAvatar(
-                                radius: 32,
+                                radius: 22,
                                 backgroundColor: Colors.white,
                                 child: logo != null
-                                    ? ClipOval(child: CachedNetworkImage(imageUrl: logo, width: 58, height: 58, fit: BoxFit.cover,
+                                    ? ClipOval(child: CachedNetworkImage(imageUrl: logo, width: 40, height: 40, fit: BoxFit.cover,
                                         placeholder: (_, __) => _initial(nombre),
                                         errorWidget: (_, __, ___) => _initial(nombre)))
                                     : _initial(nombre),
                               ),
-                              const SizedBox(width: 16),
+                              const SizedBox(width: 12),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Text(nombre, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
-                                    const SizedBox(height: 4),
+                                    Text(nombre,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white)),
+                                    const SizedBox(height: 3),
                                     if (rubro.isNotEmpty)
-                                      Text(rubro, style: const TextStyle(fontSize: 12, color: Colors.white70)),
+                                      Text(rubro,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(fontSize: 12, color: Colors.white70)),
                                     if (ubicacion.isNotEmpty)
                                       Row(
                                         children: [
-                                          const Icon(Icons.location_on, size: 13, color: Colors.white54),
+                                          const Icon(Icons.location_on, size: 12, color: Colors.white54),
                                           const SizedBox(width: 3),
                                           Expanded(child: Text(ubicacion, style: const TextStyle(fontSize: 11, color: Colors.white60), maxLines: 1, overflow: TextOverflow.ellipsis)),
                                         ],
@@ -281,7 +291,7 @@ class _EmpresaPublicProfilePageState extends State<EmpresaPublicProfilePage> {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 14),
+                          const SizedBox(height: 10),
                           // Stats
                           SingleChildScrollView(
                             scrollDirection: Axis.horizontal,
@@ -311,45 +321,57 @@ class _EmpresaPublicProfilePageState extends State<EmpresaPublicProfilePage> {
             ),
           ),
 
-          // Botones de contacto
+          // Contacto + cotización en UNA sola fila (CustomButton con su tamaño
+          // por defecto; cotización con el doble de ancho).
           SliverToBoxAdapter(
             child: Container(
               color: Colors.white,
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
               child: Row(
                 children: [
-                  if (telefono != null && telefono.isNotEmpty)
+                  if (telefono != null && telefono.isNotEmpty) ...[
                     Expanded(
-                      child: ElevatedButton.icon(
+                      child: CustomButton(
+                        text: 'WhatsApp',
                         onPressed: () => _openWhatsApp(telefono, nombre),
-                        icon: const Icon(Icons.chat, size: 16),
-                        label: const Text('WhatsApp', style: TextStyle(fontSize: 12)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF25D366),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          elevation: 0,
-                        ),
+                        backgroundColor: const Color(0xFF25D366),
+                        borderColor: const Color(0xFF25D366),
+                        icon: const Icon(Icons.chat, size: 14, color: Colors.white),
                       ),
                     ),
-                  if (telefono != null && email != null) const SizedBox(width: 8),
-                  if (email != null && email.isNotEmpty)
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => launchUrl(Uri.parse('mailto:$email')),
-                        icon: const Icon(Icons.email_outlined, size: 16),
-                        label: const Text('Email', style: TextStyle(fontSize: 12)),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.blue2,
-                          side: const BorderSide(color: AppColors.blue2),
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                      ),
-                    ),
-                  if (web != null && web.isNotEmpty) ...[
                     const SizedBox(width: 8),
+                  ],
+                  if (email != null && email.isNotEmpty) ...[
+                    Expanded(
+                      child: CustomButton(
+                        text: 'Email',
+                        onPressed: () => launchUrl(Uri.parse('mailto:$email')),
+                        // isOutlined: true,
+                        borderColor: AppColors.blue2,
+                        textColor: AppColors.blue2,
+                        icon: const Icon(Icons.email_outlined, size: 14, color: AppColors.blue2),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  Expanded(
+                    flex: 2,
+                    child: CustomButton(
+                      text: 'Solicitar Cotización',
+                      onPressed: () {
+                        context.push('/solicitar-cotizacion', extra: {
+                          'empresaId': _empresa!['id'],
+                          'empresaNombre': nombre,
+                          'subdominio': widget.subdominio,
+                        });
+                      },
+                      backgroundColor: Colors.deepPurple,
+                      borderColor: Colors.deepPurple,
+                      icon: const Icon(Icons.request_quote, size: 14, color: Colors.white),
+                    ),
+                  ),
+                  if (web != null && web.isNotEmpty) ...[
+                    const SizedBox(width: 4),
                     IconButton(
                       onPressed: () => launchUrl(Uri.parse(web.startsWith('http') ? web : 'https://$web'), mode: LaunchMode.externalApplication),
                       icon: const Icon(Icons.language, color: AppColors.blue2),
@@ -361,53 +383,9 @@ class _EmpresaPublicProfilePageState extends State<EmpresaPublicProfilePage> {
             ),
           ),
 
-          // Botón solicitar cotización
-          SliverToBoxAdapter(
-            child: Container(
-              color: Colors.white,
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  context.push('/solicitar-cotizacion', extra: {
-                    'empresaId': _empresa!['id'],
-                    'empresaNombre': nombre,
-                    'subdominio': widget.subdominio,
-                  });
-                },
-                icon: const Icon(Icons.request_quote, size: 16),
-                label: const Text('Solicitar Cotización', style: TextStyle(fontSize: 12)),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.deepPurple,
-                  side: const BorderSide(color: Colors.deepPurple),
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  minimumSize: const Size(double.infinity, 40),
-                ),
-              ),
-            ),
-          ),
-
-          // Descripción
-          if (descripcion != null && descripcion.isNotEmpty)
-            SliverToBoxAdapter(
-              child: Container(
-                color: Colors.white,
-                margin: const EdgeInsets.only(top: 8),
-                padding: const EdgeInsets.all(16),
-                width: double.infinity,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Sobre nosotros', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
-                    const SizedBox(height: 8),
-                    Text(descripcion, style: TextStyle(fontSize: 13, color: Colors.grey.shade700, height: 1.5)),
-                  ],
-                ),
-              ),
-            ),
-
-          // Sedes / Ubicaciones
-          ..._buildSedesSection(),
+          // ── Orden tipo tienda (ML/Temu): primero lo VENDIBLE (destacados,
+          // servicios, catálogo); la info institucional (sobre nosotros,
+          // sedes) va al final, para quien la busque. ──
 
           // Productos destacados (scroll horizontal)
           if (destacados.isNotEmpty) ...[
@@ -415,14 +393,14 @@ class _EmpresaPublicProfilePageState extends State<EmpresaPublicProfilePage> {
               child: Container(
                 color: Colors.white,
                 margin: const EdgeInsets.only(top: 8),
-                padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
-                child: const Text('Productos destacados', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+                child: const Text('Productos destacados', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500)),
               ),
             ),
             SliverToBoxAdapter(
               child: Container(
                 color: Colors.white,
-                height: 250,
+                height: 195,
                 padding: const EdgeInsets.only(bottom: 12),
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
@@ -455,14 +433,14 @@ class _EmpresaPublicProfilePageState extends State<EmpresaPublicProfilePage> {
               child: Container(
                 color: Colors.white,
                 margin: const EdgeInsets.only(top: 8),
-                padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
-                child: const Text('Servicios', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                child: const Text('Servicios', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500)),
               ),
             ),
             SliverToBoxAdapter(
               child: Container(
                 color: Colors.white,
-                height: 100,
+                height: 70,
                 padding: const EdgeInsets.only(bottom: 12),
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
@@ -478,9 +456,9 @@ class _EmpresaPublicProfilePageState extends State<EmpresaPublicProfilePage> {
                     final sPrecioFinal = sEnOferta && sPrecioOferta != null ? sPrecioOferta : sPrecio;
 
                     return Container(
-                      width: 150,
+                      width: 130,
                       margin: const EdgeInsets.symmetric(horizontal: 4),
-                      padding: const EdgeInsets.all(10),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
                         border: Border.all(color: Colors.grey.shade200),
                         borderRadius: BorderRadius.circular(10),
@@ -498,7 +476,7 @@ class _EmpresaPublicProfilePageState extends State<EmpresaPublicProfilePage> {
                                   sNombre,
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, height: 1.2),
+                                  style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w500, height: 1.2),
                                 ),
                               ),
                             ],
@@ -515,7 +493,7 @@ class _EmpresaPublicProfilePageState extends State<EmpresaPublicProfilePage> {
                               ),
                             )
                           else
-                            Text('Consultar', style: TextStyle(fontSize: 10, color: AppColors.blue2)),
+                            Text('Consultar', style: TextStyle(fontSize: 9, color: AppColors.blue2)),
                           if (sDuracion != null) ...[
                             const SizedBox(height: 4),
                             Row(
@@ -543,21 +521,22 @@ class _EmpresaPublicProfilePageState extends State<EmpresaPublicProfilePage> {
             child: Container(
               color: Colors.white,
               margin: const EdgeInsets.only(top: 8),
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+              padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      const Text('Todos los productos', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+                      const Text('Todos los productos', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500)),
                       const Spacer(),
                       Text('$totalProductos', style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
                     ],
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 5),
                   CustomSearchField(
                     controller: _searchController,
                     hintText: 'Buscar en esta tienda...',
+                    borderColor: AppColors.blue1,
                     borderRadius: 20,
                     height: 38,
                     showClearButton: true,
@@ -597,31 +576,53 @@ class _EmpresaPublicProfilePageState extends State<EmpresaPublicProfilePage> {
             )
           else
             SliverPadding(
-              padding: const EdgeInsets.all(8),
-              sliver: SliverGrid(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    if (index >= _productos.length) {
-                      return const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator(strokeWidth: 2)));
-                    }
-                    final producto = ProductoMarketplaceModel.fromJson(
-                      _productos[index] as Map<String, dynamic>,
-                    ).toEntity();
-                    return ProductoMarketplaceCard(
-                      producto: producto,
-                      onTap: () => context.push('/producto-detalle/${producto.id}'),
-                    );
-                  },
-                  childCount: _productos.length + (_page < _totalPages ? 1 : 0),
-                ),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  childAspectRatio: 0.58,
-                  crossAxisSpacing: 6,
-                  mainAxisSpacing: 6,
+              // Edge-to-edge con gaps de 2px, igual que el grid principal del
+              // marketplace (masonry: cada card toma el alto de su contenido).
+              padding: EdgeInsets.zero,
+              sliver: SliverMasonryGrid.count(
+                crossAxisCount: 2,
+                crossAxisSpacing: 2,
+                mainAxisSpacing: 2,
+                childCount: _productos.length + (_page < _totalPages ? 1 : 0),
+                itemBuilder: (context, index) {
+                  if (index >= _productos.length) {
+                    return const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator(strokeWidth: 2)));
+                  }
+                  final producto = ProductoMarketplaceModel.fromJson(
+                    _productos[index] as Map<String, dynamic>,
+                  ).toEntity();
+                  return ProductoMarketplaceCard(
+                    producto: producto,
+                    staggered: true,
+                    onTap: () => context.push('/producto-detalle/${producto.id}'),
+                  );
+                },
+              ),
+            ),
+
+          // ── Info institucional (al final) ──
+
+          // Descripción
+          if (descripcion != null && descripcion.isNotEmpty)
+            SliverToBoxAdapter(
+              child: Container(
+                color: Colors.white,
+                margin: const EdgeInsets.only(top: 8),
+                padding: const EdgeInsets.all(16),
+                width: double.infinity,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Sobre nosotros', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 8),
+                    Text(descripcion, style: TextStyle(fontSize: 13, color: Colors.grey.shade700, height: 1.5)),
+                  ],
                 ),
               ),
             ),
+
+          // Sedes / Ubicaciones
+          ..._buildSedesSection(),
 
           // Espacio final
           const SliverToBoxAdapter(child: SizedBox(height: 24)),

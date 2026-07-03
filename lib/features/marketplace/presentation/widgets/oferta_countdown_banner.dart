@@ -82,8 +82,8 @@ class _OfertaCountdownBannerState extends State<OfertaCountdownBanner> {
       margin: const EdgeInsets.fromLTRB(8, 4, 8, 6),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _verde, width: 1),
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(color: _verde, width: 0.6),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -92,10 +92,11 @@ class _OfertaCountdownBannerState extends State<OfertaCountdownBanner> {
           // ── Header de color con título + countdown ─────────────────────────
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
             decoration: const BoxDecoration(
               gradient: LinearGradient(
-                colors: [_verde, Color(0xFF16B24A)],
+                // colors: [_verde, Color(0xFF16B24A)],
+                colors: [_verde, _verde],
                 begin: Alignment.centerLeft,
                 end: Alignment.centerRight,
               ),
@@ -109,7 +110,7 @@ class _OfertaCountdownBannerState extends State<OfertaCountdownBanner> {
                     tieneCountdown ? 'Oferta por tiempo limitado' : 'Oferta especial',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700),
+                    style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600),
                   ),
                 ),
                 if (tieneCountdown) ...[
@@ -119,8 +120,8 @@ class _OfertaCountdownBannerState extends State<OfertaCountdownBanner> {
                     countdown,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w800,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
                       letterSpacing: 0.4,
                     ),
                   ),

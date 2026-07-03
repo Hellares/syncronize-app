@@ -55,7 +55,7 @@ class _OpinionesProductoSectionState extends State<OpinionesProductoSection> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(10),
       color: Colors.white,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -63,9 +63,9 @@ class _OpinionesProductoSectionState extends State<OpinionesProductoSection> {
           // Header
           const Text(
             'Opiniones del producto',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
           ),
-          const SizedBox(height: 12),
+          // const SizedBox(height: 8),
 
           // Resumen compacto
           if (total > 0) ...[
@@ -73,7 +73,7 @@ class _OpinionesProductoSectionState extends State<OpinionesProductoSection> {
               children: [
                 Text(
                   promedio.toStringAsFixed(1),
-                  style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w700),
+                  style: const TextStyle(fontSize: 25, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(width: 8),
                 Column(
@@ -83,13 +83,13 @@ class _OpinionesProductoSectionState extends State<OpinionesProductoSection> {
                     const SizedBox(height: 2),
                     Text(
                       '$total opinión${total > 1 ? 'es' : ''}',
-                      style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                      style: TextStyle(fontSize: 10, color: Colors.grey[500]),
                     ),
                   ],
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            // const SizedBox(height: 8),
           ],
 
           // Últimas 2 opiniones
@@ -98,7 +98,7 @@ class _OpinionesProductoSectionState extends State<OpinionesProductoSection> {
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: Text(
                 'Sé el primero en opinar',
-                style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+                style: TextStyle(fontSize: 11, color: Colors.grey[500]),
               ),
             )
           else
@@ -188,7 +188,7 @@ class _OpinionCompacta extends StatelessWidget {
                     color: i < calificacion ? Colors.amber : Colors.grey[300],
                   )),
               const SizedBox(width: 8),
-              Text(nombre, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+              Text(nombre, style: TextStyle(fontSize: 10, color: Colors.grey[600])),
               if (verificada) ...[
                 const SizedBox(width: 4),
                 Icon(Icons.verified, size: 14, color: Colors.green[600]),
@@ -199,7 +199,7 @@ class _OpinionCompacta extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               comentario,
-              style: const TextStyle(fontSize: 14),
+              style: const TextStyle(fontSize: 12),
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
             ),

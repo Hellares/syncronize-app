@@ -135,7 +135,7 @@ class _PreguntasProductoSectionState extends State<PreguntasProductoSection> {
               const Expanded(
                 child: Text(
                   'Preguntas y respuestas',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
                 ),
               ),
               if (_total > 3)

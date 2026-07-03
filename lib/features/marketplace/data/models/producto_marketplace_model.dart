@@ -64,6 +64,8 @@ class ProductoMarketplaceModel {
   final DateTime? ofertaFin;
   final bool hayStock;
   final String? imagen;
+  final double? imagenAncho;
+  final double? imagenAlto;
   final double? calificacion;
   final int totalOpiniones;
   final int vendidos;
@@ -85,6 +87,8 @@ class ProductoMarketplaceModel {
     this.ofertaFin,
     this.hayStock = false,
     this.imagen,
+    this.imagenAncho,
+    this.imagenAlto,
     this.calificacion,
     this.totalOpiniones = 0,
     this.vendidos = 0,
@@ -109,6 +113,8 @@ class ProductoMarketplaceModel {
       ofertaFin: _toDateOrNull(json['ofertaFin']),
       hayStock: json['hayStock'] as bool? ?? false,
       imagen: json['imagen'] as String?,
+      imagenAncho: _toDoubleOrNull(json['imagenAncho']),
+      imagenAlto: _toDoubleOrNull(json['imagenAlto']),
       calificacion: _toDoubleOrNull(json['calificacion']),
       totalOpiniones: json['totalOpiniones'] as int? ?? 0,
       vendidos: json['vendidos'] as int? ?? 0,
@@ -132,6 +138,8 @@ class ProductoMarketplaceModel {
         ofertaFin: ofertaFin,
         hayStock: hayStock,
         imagen: imagen,
+        imagenAncho: imagenAncho,
+        imagenAlto: imagenAlto,
         calificacion: calificacion,
         totalOpiniones: totalOpiniones,
         vendidos: vendidos,

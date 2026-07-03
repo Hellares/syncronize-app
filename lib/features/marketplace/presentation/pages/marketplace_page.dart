@@ -10,7 +10,6 @@ import '../../../../core/storage/local_storage_service.dart';
 import '../../../../core/storage/secure_storage_service.dart';
 import '../../../../core/constants/storage_constants.dart';
 import '../../../../core/utils/resource.dart';
-import '../../../../core/widgets/custom_search_field.dart';
 import '../../domain/entities/categoria_marketplace.dart';
 import '../../domain/entities/marketplace_home.dart';
 import '../../domain/entities/producto_marketplace.dart';
@@ -19,9 +18,12 @@ import '../../domain/usecases/get_marketplace_home_usecase.dart';
 import '../../domain/usecases/get_productos_vistos_usecase.dart';
 import '../../domain/usecases/get_recomendados_usecase.dart';
 import '../bloc/marketplace_search_cubit.dart';
+import '../widgets/animated_search_bar.dart';
 import '../widgets/marketplace_drawer.dart';
+import '../widgets/promo_popup.dart';
 import '../widgets/producto_marketplace_card.dart';
 import '../widgets/favorito_button.dart';
+// ignore: unused_import  (UbicacionSelector oculto temporalmente para pruebas)
 import '../widgets/ubicacion_selector.dart';
 
 /// Departamentos del Perú para el filtro de ubicación del marketplace.
@@ -61,13 +63,17 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
   final _getRecomendados = locator<GetRecomendadosUseCase>();
   final _getCarritoContador = locator<GetCarritoContadorUseCase>();
   String? _selectedCategoriaId;
+  // ignore: unused_field  (ubicación oculta temporalmente para pruebas)
   double? _ubicacionLat;
+  // ignore: unused_field
   double? _ubicacionLng;
+  // ignore: unused_field
   String? _ubicacionLabel;
   List<ProductoMarketplace> _vistos = [];
   List<ProductoMarketplace> _recomendados = [];
   List<ProductoMarketplace> _ofertas = [];
   List<ProductoMarketplace> _masVistos = [];
+  // ignore: unused_field  ("Lo más vendido" oculto temporalmente para pruebas)
   List<ProductoMarketplace> _masVendidos = [];
   int _carritoCount = 0;
 
@@ -81,6 +87,10 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
     _loadUserData();
     _loadCarritoCount();
     _loadHome();
+    // Popup de publicidad ~3s después de entrar (máx 1-2 veces/día).
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) PromoPopup.mostrarSiCorresponde(context);
+    });
   }
 
   @override
@@ -130,13 +140,6 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
     if (result is Success<int> && mounted) {
       setState(() => _carritoCount = result.data);
     }
-  }
-
-  void _onSearch(String query) {
-    context.read<MarketplaceSearchCubit>().searchProductos(
-          search: query.isEmpty ? null : query,
-          categoriaId: _selectedCategoriaId,
-        );
   }
 
   void _clearBusqueda() {
@@ -428,21 +431,15 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
             snap: true,
             backgroundColor: AppColors.blue1,
             foregroundColor: Colors.white,
-            toolbarHeight: 60,
-            title: GestureDetector(
+            toolbarHeight: 50,
+            // Menos espacio a los lados del título → el search ocupa ~10px más
+            // de ancho horizontal (default titleSpacing es 16).
+            titleSpacing: 6,
+            title: AnimatedSearchBar(
               onTap: _openBuscar,
-              behavior: HitTestBehavior.opaque,
-              child: AbsorbPointer(
-                child: CustomSearchField(
-                  controller: _searchController,
-                  hintText: 'Buscar productos, marcas y más...',
-                  backgroundColor: Colors.white,
-                  borderRadius: 24,
-                  height: 35,
-                  showClearButton: false,
-                  onSubmitted: _onSearch,
-                ),
-              ),
+              query: _searchController.text,
+              height: 33,
+              borderRadius: 24,
             ),
             actions: [
               if (_searchController.text.isNotEmpty ||
@@ -465,6 +462,10 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
                     ),
                     onPressed: _mostrarFiltros,
                     tooltip: 'Filtros',
+                    // Íconos bien juntos → el search gana ancho a la derecha.
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 2),
+                    constraints: const BoxConstraints(minWidth: 34, minHeight: 40),
                   );
                 },
               ),
@@ -477,6 +478,9 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
                       _loadCarritoCount();
                     },
                     tooltip: 'Mi carrito',
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 2),
+                    constraints: const BoxConstraints(minWidth: 34, minHeight: 40),
                   ),
                   if (_carritoCount > 0)
                     Positioned(
@@ -498,7 +502,7 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
                     ),
                 ],
               ),
-              const SizedBox(width: 4),
+              const SizedBox(width: 2),
             ],
           ),
         ],
@@ -513,26 +517,36 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
             controller: _scrollController,
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
-              SliverToBoxAdapter(
-                child: UbicacionSelector(
-                  lat: _ubicacionLat,
-                  lng: _ubicacionLng,
-                  label: _ubicacionLabel,
-                  onChanged: (result) {
-                    setState(() {
-                      _ubicacionLat = result.lat;
-                      _ubicacionLng = result.lng;
-                      _ubicacionLabel = result.label;
-                    });
-                    context.read<MarketplaceSearchCubit>().setUbicacion(
-                          result.lat,
-                          result.lng,
-                        );
-                  },
+              // Ocultos temporalmente para pruebas (widget de ubicación +
+              // slider de banners). Reactivar descomentando.
+              // SliverToBoxAdapter(
+              //   child: UbicacionSelector(
+              //     lat: _ubicacionLat,
+              //     lng: _ubicacionLng,
+              //     label: _ubicacionLabel,
+              //     onChanged: (result) {
+              //       setState(() {
+              //         _ubicacionLat = result.lat;
+              //         _ubicacionLng = result.lng;
+              //         _ubicacionLabel = result.label;
+              //       });
+              //       context.read<MarketplaceSearchCubit>().setUbicacion(
+              //             result.lat,
+              //             result.lng,
+              //           );
+              //     },
+              //   ),
+              // ),
+              // SliverToBoxAdapter(child: _buildBannerCarousel()),
+              // Chips de categoría fijos (tipo Temu): quedan pinneados arriba
+              // mientras se hace scroll del grid filtrado.
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: _PinnedChipsDelegate(
+                  height: 30,
+                  child: _buildCategoriaChips(),
                 ),
               ),
-              SliverToBoxAdapter(child: _buildBannerCarousel()),
-              SliverToBoxAdapter(child: _buildCategoriaChips()),
               // Secciones del home: solo cuando no hay búsqueda/categoría/filtros.
               SliverToBoxAdapter(
                 child: BlocBuilder<MarketplaceSearchCubit,
@@ -551,10 +565,11 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
                               'Recomendados para ti', _recomendados),
                         if (_ofertas.isNotEmpty)
                           _buildSeccionCarrusel('Ofertas', _ofertas,
-                              acento: Colors.red),
-                        if (_masVendidos.isNotEmpty)
-                          _buildSeccionCarrusel(
-                              'Lo más vendido', _masVendidos),
+                              acento: AppColors.blue1),
+                        // Oculto temporalmente para pruebas (Lo más vendido).
+                        // if (_masVendidos.isNotEmpty)
+                        //   _buildSeccionCarrusel(
+                        //       'Lo más vendido', _masVendidos),
                         if (_masVistos.isNotEmpty)
                           _buildSeccionCarrusel('Lo más visto', _masVistos),
                       ],
@@ -640,13 +655,15 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
                     }
 
                     return SliverPadding(
-                      padding: const EdgeInsets.all(8),
+                      // Sin padding horizontal: el grid queda pegado a los
+                      // bordes izq/der de la pantalla (edge-to-edge tipo Temu).
+                      padding: EdgeInsets.zero,
                       // Masonry/staggered: cada card se ajusta a su alto y las
                       // columnas fluyen independientes (cards escalonadas, tipo Temu).
                       sliver: SliverMasonryGrid.count(
                         crossAxisCount: 2,
-                        crossAxisSpacing: 6,
-                        mainAxisSpacing: 6,
+                        crossAxisSpacing: 2,
+                        mainAxisSpacing: 2,
                         childCount: state.productos.length,
                         itemBuilder: (context, index) {
                           final producto = state.productos[index];
@@ -654,6 +671,7 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
                           _prefetchUpcoming(context, state.productos, index);
                           return ProductoMarketplaceCard(
                             producto: producto,
+                            staggered: true,
                             onTap: () async {
                               await context.push('/producto-detalle/${producto.id}');
                               _loadCarritoCount();
@@ -690,6 +708,7 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
     );
   }
 
+  // ignore: unused_element  (oculto temporalmente para pruebas; ver sliver arriba)
   Widget _buildBannerCarousel() {
     // Banner siempre muestra imágenes estáticas (publicidad)
     // Más adelante: ofertas, productos top, publicidad pagada
@@ -715,10 +734,10 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
 
         return Container(
           color: Colors.white,
-          height: 42,
+          height: 38,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
             itemCount: categorias.length + 1,
             itemBuilder: (context, index) {
               final bool isSelected;
@@ -727,7 +746,7 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
 
               if (index == 0) {
                 isSelected = _selectedCategoriaId == null;
-                label = 'Todas';
+                label = 'Todos';
                 onTap = () => _onCategoriaSelected(null);
               } else {
                 final cat = categorias[index - 1];
@@ -737,29 +756,37 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
                 onTap = () => _onCategoriaSelected(isSelected ? null : catId);
               }
 
-              return Padding(
-                padding: const EdgeInsets.only(right: 6),
-                child: GestureDetector(
-                  onTap: onTap,
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: isSelected ? AppColors.blue2 : Colors.transparent,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: isSelected ? AppColors.blue2 : Colors.grey.shade300,
-                        width: 1,
+              // Tab de texto estilo Temu: seleccionado en negro/negrita con un
+              // subrayado corto; el resto en gris. Sin píldora ni borde.
+              return GestureDetector(
+                onTap: onTap,
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: isSelected ? FontWeight.w500 : FontWeight.w600,
+                          color: isSelected ? Colors.black : Colors.grey.shade600,
+                        ),
                       ),
-                    ),
-                    child: Text(
-                      label,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                        color: isSelected ? Colors.white : Colors.grey.shade700,
+                      // const SizedBox(height: 2),
+                      // Subrayado indicador (solo el seleccionado).
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        height: 3,
+                        width: isSelected ? 20 : 0,
+                        decoration: BoxDecoration(
+                          color: AppColors.blue2,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
                 ),
               );
@@ -779,8 +806,8 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
   }) {
     return Container(
       color: Colors.white,
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.only(top: 12, bottom: 12),
+      // margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(top: 12, bottom: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -795,7 +822,7 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
                 Text(
                   titulo,
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 12,
                     fontWeight: FontWeight.w600,
                     color: acento ?? Colors.grey[700],
                   ),
@@ -803,9 +830,11 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
               ],
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           SizedBox(
-            height: 140,
+            // Alto para la card compacta (imagen + precio + rating/vendidos +
+            // nombre). Mismo patrón que el perfil público de tienda.
+            height: 158,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -813,101 +842,19 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
               separatorBuilder: (_, __) => const SizedBox(width: 8),
               itemBuilder: (_, index) {
                 final v = items[index];
-                final nombre = v.nombre;
-                final imagen = v.imagen;
-                final enOferta = v.enOferta;
-                final precioFinal = v.precioFinal;
-
-                return GestureDetector(
-                  onTap: () async {
-                    await context.push('/producto-detalle/${v.id}');
-                    _loadHome();
-                    _loadCarritoCount();
-                  },
-                  child: Container(
-                    width: 105,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey.shade200),
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Stack(
-                          children: [
-                            Container(
-                              height: 80,
-                              width: double.infinity,
-                              color: Colors.grey.shade50,
-                              child: imagen != null
-                                  ? CachedNetworkImage(
-                                      imageUrl: imagen,
-                                      fit: BoxFit.contain,
-                                      placeholder: (_, __) =>
-                                          const SizedBox.shrink(),
-                                      errorWidget: (_, __, ___) => const Icon(
-                                          Icons.inventory_2_outlined,
-                                          color: Colors.grey),
-                                    )
-                                  : const Icon(Icons.inventory_2_outlined,
-                                      color: Colors.grey),
-                            ),
-                            if (enOferta)
-                              Positioned(
-                                top: 4,
-                                left: 4,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 5, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: Colors.red,
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: const Text(
-                                    'OFERTA',
-                                    style: TextStyle(
-                                      fontSize: 7,
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.all(6),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (precioFinal != null)
-                                Text(
-                                  'S/ ${precioFinal.toStringAsFixed(2)}',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: enOferta
-                                        ? Colors.green.shade600
-                                        : Colors.black87,
-                                  ),
-                                ),
-                              Text(
-                                nombre,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 9,
-                                  color: Colors.grey.shade700,
-                                  height: 1.2,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+                // Reutiliza la card profesional (rating, N vendidos, precio con
+                // tachado, badges) en modo compacto, en vez de la mini-card
+                // plana anterior.
+                return SizedBox(
+                  width: 126,
+                  child: ProductoMarketplaceCard(
+                    producto: v,
+                    compact: true,
+                    onTap: () async {
+                      await context.push('/producto-detalle/${v.id}');
+                      _loadHome();
+                      _loadCarritoCount();
+                    },
                   ),
                 );
               },
@@ -1001,6 +948,29 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
       ),
     );
   }
+}
+
+/// Delegate para pinnear los chips de categoría arriba del scroll (tipo Temu).
+class _PinnedChipsDelegate extends SliverPersistentHeaderDelegate {
+  final Widget child;
+  final double height;
+
+  const _PinnedChipsDelegate({required this.child, required this.height});
+
+  @override
+  double get minExtent => height;
+
+  @override
+  double get maxExtent => height;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return SizedBox.expand(child: child);
+  }
+
+  @override
+  bool shouldRebuild(covariant _PinnedChipsDelegate oldDelegate) =>
+      oldDelegate.child != child || oldDelegate.height != height;
 }
 
 /// Carrusel de banners estáticos (imágenes locales)

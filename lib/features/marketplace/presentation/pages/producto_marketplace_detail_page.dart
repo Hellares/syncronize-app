@@ -1201,7 +1201,7 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _sectionTitle('Información del vendedor'),
-          const SizedBox(height: 14),
+          const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
@@ -1214,7 +1214,7 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
                   radius: 26,
                   backgroundColor: AppColors.blue2.withValues(alpha: 0.08),
                   child: logo != null
-                      ? ClipOval(child: CachedNetworkImage(imageUrl: logo, width: 48, height: 48, fit: BoxFit.cover,
+                      ? ClipOval(child: CachedNetworkImage(imageUrl: logo, width: 40, height: 40, fit: BoxFit.cover,
                           placeholder: (_, __) => _empresaInitial(nombre),
                           errorWidget: (_, __, ___) => _empresaInitial(nombre)))
                       : _empresaInitial(nombre),
@@ -1224,10 +1224,10 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(nombre, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.blue2)),
+                      Text(nombre, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.blue2)),
                       const SizedBox(height: 2),
                       if (rubro.isNotEmpty)
-                        Text(rubro, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                        Text(rubro, style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
                       if (ubicacion.isNotEmpty) ...[
                         const SizedBox(height: 2),
                         Row(
@@ -1235,7 +1235,7 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
                             Icon(Icons.location_on, size: 13, color: Colors.grey.shade400),
                             const SizedBox(width: 3),
                             Expanded(
-                              child: Text(ubicacion, style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                              child: Text(ubicacion, style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
                                   maxLines: 1, overflow: TextOverflow.ellipsis),
                             ),
                           ],
@@ -1403,6 +1403,8 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
     final precioFinal = _precioConNivel(precio, precioBaseOferta, niveles, cant);
     final total = precioFinal != null ? precioFinal * cant : null;
     final tieneWhats = telefono != null && telefono.isNotEmpty;
+    final subdominio = empresa['subdominio'] as String?;
+    final tieneTienda = subdominio != null && subdominio.isNotEmpty;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
@@ -1472,6 +1474,24 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
                       ),
               ),
             ),
+            // Ir al perfil/tienda de la empresa (mismo estilo que el botón
+            // de WhatsApp, en azul de marca).
+            if (tieneTienda) ...[
+              const SizedBox(width: 10),
+              SizedBox(
+                width: 45,
+                height: 45,
+                child: OutlinedButton(
+                  onPressed: () => context.push('/vendedor/$subdominio'),
+                  style: OutlinedButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    side: const BorderSide(color: AppColors.blue2, width: 1),
+                  ),
+                  child: const Icon(Icons.storefront_rounded, color: AppColors.blue2, size: 22),
+                ),
+              ),
+            ],
             if (tieneWhats) ...[
               const SizedBox(width: 10),
               SizedBox(

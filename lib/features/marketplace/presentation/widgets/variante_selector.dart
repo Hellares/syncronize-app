@@ -133,11 +133,11 @@ class _VarianteSelectorState extends State<VarianteSelector> {
             padding: const EdgeInsets.only(bottom: 8, top: 4),
             child: RichText(
               text: TextSpan(
-                style: const TextStyle(fontSize: 13, color: Colors.black87, fontWeight: FontWeight.w600),
+                style: const TextStyle(fontSize: 11, color: Colors.black87, fontWeight: FontWeight.w600),
                 children: [
                   TextSpan(text: '$eje: '),
                   TextSpan(
-                    text: _sel[eje] ?? 'Elegí una opción',
+                    text: _sel[eje] ?? 'Elige una opción',
                     style: TextStyle(
                       color: _sel[eje] != null ? AppColors.blue2 : Colors.grey.shade500,
                       fontWeight: _sel[eje] != null ? FontWeight.w700 : FontWeight.w400,
@@ -174,7 +174,7 @@ class _VarianteSelectorState extends State<VarianteSelector> {
         const Padding(
           padding: EdgeInsets.only(bottom: 8, top: 4),
           child: Text('Elegí una opción',
-              style: TextStyle(fontSize: 13, color: Colors.black87, fontWeight: FontWeight.w600)),
+              style: TextStyle(fontSize: 11, color: Colors.black87, fontWeight: FontWeight.w600)),
         ),
         Wrap(
           spacing: 8,
@@ -218,18 +218,18 @@ class _VarianteSelectorState extends State<VarianteSelector> {
     return GestureDetector(
       onTap: disabled ? null : onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
           color: bg,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: border, width: selected ? 1.5 : 1),
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: border, width: selected ? 1 : 0.5),
         ),
         child: Text(
           label,
           style: TextStyle(
-            fontSize: 12.5,
+            fontSize: 9,
             color: fg,
-            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
             decoration: disabled ? TextDecoration.lineThrough : null,
             decorationColor: Colors.grey.shade400,
           ),

@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:syncronize/core/fonts/app_fonts.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../../core/constants/storage_constants.dart';
+import '../../../../core/di/injection_container.dart';
+import '../../../../core/network/dio_client.dart';
+import '../../../../core/storage/secure_storage_service.dart';
 import '../../domain/entities/producto_marketplace.dart';
 import 'favorito_button.dart';
 import 'mini_countdown_bar.dart';
@@ -13,11 +17,24 @@ class ProductoMarketplaceCard extends StatelessWidget {
   final VoidCallback? onTap;
   final bool compact;
 
+  /// En el grid masonry (alto variable) la imagen toma su proporción real para
+  /// que las cards se escalonen tipo Temu. En grids de celda fija (favoritos,
+  /// perfil de tienda) debe quedar en false para no exceder la celda y romper
+  /// el layout (overflow).
+  final bool staggered;
+
+  /// Botón pequeño de "agregar" a la derecha del precio (solo se renderiza si
+  /// se provee). Lo usa Solicitar Cotización: tap en la card = ver detalle,
+  /// este botón = agregar al carrito de la solicitud.
+  final VoidCallback? onAgregarTap;
+
   const ProductoMarketplaceCard({
     super.key,
     required this.producto,
     this.onTap,
     this.compact = false,
+    this.staggered = false,
+    this.onAgregarTap,
   });
 
   @override
@@ -33,23 +50,24 @@ class ProductoMarketplaceCard extends StatelessWidget {
     final imgCacheW = (mq.size.width / 2 * mq.devicePixelRatio).round();
     final logoCacheW = (14 * mq.devicePixelRatio).round();
 
+    // Tipografías más pequeñas en modo compacto (carruseles).
+    final double fsPrecio = compact ? 10 : 14;
+    final double fsPrecioTachado = compact ? 8 : 10;
+    final double fsRating = compact ? 8.5 : 10;
+    final double fsMeta = compact ? 7.5 : 9;
+    final double fsNombre = compact ? 7.5 : 10;
+    final double starSize = compact ? 9 : 12;
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200, width: 0.5),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.10),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 3,
-            offset: const Offset(0, 1),
-          ),
-        ],
+        // Cards totalmente cuadradas y pegadas (grid tipo Temu edge-to-edge),
+        // sin sombra. Borde sutil SOLO en el grid principal (staggered) como
+        // separador; en carruseles/otros van completamente blancas.
+        borderRadius: BorderRadius.zero,
+        border: staggered
+            ? Border.all(color: Colors.grey.shade200, width: 0.5)
+            : null,
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -61,10 +79,14 @@ class ProductoMarketplaceCard extends StatelessWidget {
             Stack(
               children: [
                 AspectRatio(
-                  aspectRatio: 1.2,
+                  // Solo en el grid masonry usamos la proporción real de la
+                  // imagen (escalonado tipo Temu); en carruseles y grids de
+                  // celda fija mantenemos el alto fijo para no romper el layout.
+                  aspectRatio: staggered ? producto.aspectRatioImagen : 1.2,
                   child: Padding(
-                    // Margen para que la imagen no quede pegada al borde de la card.
-                    padding: const EdgeInsets.all(6),
+                    // Margen para que la imagen no quede pegada al borde de la card
+                    // (más ajustado en modo compacto).
+                    padding: EdgeInsets.all(compact ? 3 : 6),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(8),
                       child: Container(
@@ -82,14 +104,6 @@ class ProductoMarketplaceCard extends StatelessWidget {
                                     errorWidget: (_, __, ___) => _buildPlaceholder(),
                                   )
                                 : _buildPlaceholder(),
-                            // Countdown de oferta (estilo Temu) al pie de la imagen.
-                            if (producto.enOferta && producto.ofertaFin != null)
-                              Positioned(
-                                left: 0,
-                                right: 0,
-                                bottom: 0,
-                                child: MiniCountdownBar(fin: producto.ofertaFin!),
-                              ),
                           ],
                         ),
                       ),
@@ -99,18 +113,20 @@ class ProductoMarketplaceCard extends StatelessWidget {
                 // Badge de descuento
                 if (tieneDescuento && descuentoPct > 0)
                   Positioned(
-                    top: 10,
-                    left: 10,
+                    top: compact ? 6 : 10,
+                    left: compact ? 6 : 10,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                      padding: compact
+                          ? const EdgeInsets.symmetric(horizontal: 4, vertical: 1.5)
+                          : const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                       decoration: BoxDecoration(
                         color: Colors.green.shade600,
-                        borderRadius: BorderRadius.circular(4),
+                        borderRadius: BorderRadius.circular(compact ? 3 : 4),
                       ),
                       child: Text(
                         '$descuentoPct% OFF',
-                        style: const TextStyle(
-                          fontSize: 9,
+                        style: TextStyle(
+                          fontSize: compact ? 7 : 8,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
                         ),
@@ -158,11 +174,11 @@ class ProductoMarketplaceCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                // Marca badge (se sube si hay barra de countdown de oferta abajo,
-                // para no quedar tapada por ella).
+                // Marca badge (el countdown ya no se superpone a la imagen, va
+                // debajo, así que queda en su posición fija).
                 if (producto.marca != null)
                   Positioned(
-                    bottom: (producto.enOferta && producto.ofertaFin != null) ? 30 : 10,
+                    bottom: 10,
                     left: 10,
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -200,13 +216,27 @@ class ProductoMarketplaceCard extends StatelessWidget {
               ],
             ),
 
+            // Countdown de oferta (estilo Temu): "EXPIRA EN:" + dígitos en
+            // cajitas verdes + botón agregar al carrito, justo debajo de la
+            // imagen. Solo en cards grandes (no en carruseles compact) y si hay
+            // stock para el botón.
+            if (!compact && producto.enOferta && producto.ofertaFin != null)
+              MiniCountdownBar(
+                fin: producto.ofertaFin!,
+                onAddToCart: producto.hayStock
+                    ? () => _agregarAlCarrito(context)
+                    : null,
+              ),
+
             // Separador sutil
             Container(height: 0.5, color: Colors.grey.shade100),
 
             // Info del producto (sin Expanded → la card se ajusta a su
             // contenido para el masonry/staggered grid).
             Padding(
-              padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+              padding: compact
+                  ? const EdgeInsets.fromLTRB(6, 4, 6, 4)
+                  : const EdgeInsets.fromLTRB(10, 8, 10, 8),
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -221,7 +251,7 @@ class ProductoMarketplaceCard extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                fontSize: 17,
+                                fontSize: fsPrecio,
                                 fontWeight: FontWeight.w700,
                                 fontFamily: AppFonts.getFontFamily(AppFont.oxygenBold),
                                 color: AppColors.blue1,
@@ -236,7 +266,7 @@ class ProductoMarketplaceCard extends StatelessWidget {
                               child: Text(
                                 'S/ ${producto.precio!.toStringAsFixed(2)}',
                                 style: TextStyle(
-                                  fontSize: 10,
+                                  fontSize: fsPrecioTachado,
                                   color: Colors.grey.shade400,
                                   decoration: TextDecoration.lineThrough,
                                   decorationColor: Colors.grey.shade400,
@@ -244,16 +274,28 @@ class ProductoMarketplaceCard extends StatelessWidget {
                               ),
                             ),
                           ],
+                          if (onAgregarTap != null) ...[
+                            const Spacer(),
+                            _buildAgregarBtn(),
+                          ],
                         ],
                       ),
                     ] else
-                      Text(
-                        'Consultar',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: AppColors.blue2,
-                          fontWeight: FontWeight.w600,
-                        ),
+                      Row(
+                        children: [
+                          Text(
+                            'Consultar',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: AppColors.blue2,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          if (onAgregarTap != null) ...[
+                            const Spacer(),
+                            _buildAgregarBtn(),
+                          ],
+                        ],
                       ),
 
                     const SizedBox(height: 3),
@@ -265,21 +307,21 @@ class ProductoMarketplaceCard extends StatelessWidget {
                         child: Row(
                           children: [
                             if (producto.tieneCalificacion) ...[
-                              const Icon(Icons.star_rounded, size: 12, color: Color(0xFFFFB300)),
+                              Icon(Icons.star_rounded, size: starSize, color: const Color(0xFFFFB300)),
                               const SizedBox(width: 2),
                               Text(
                                 producto.calificacion!.toStringAsFixed(1),
-                                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.grey.shade700),
+                                style: TextStyle(fontSize: fsRating, fontWeight: FontWeight.w700, color: Colors.grey.shade700),
                               ),
                               const SizedBox(width: 2),
                               Text('(${producto.totalOpiniones})',
-                                  style: TextStyle(fontSize: 9, color: Colors.grey.shade400)),
+                                  style: TextStyle(fontSize: fsMeta, color: Colors.grey.shade400)),
                             ],
                             if (producto.tieneCalificacion && producto.vendidos > 0)
-                              Text('  ·  ', style: TextStyle(fontSize: 9, color: Colors.grey.shade300)),
+                              Text('  ·  ', style: TextStyle(fontSize: fsMeta, color: Colors.grey.shade300)),
                             if (producto.vendidos > 0)
                               Text('${_fmtVendidos(producto.vendidos)} vendidos',
-                                  style: TextStyle(fontSize: 9, color: Colors.grey.shade500, fontWeight: FontWeight.w500)),
+                                  style: TextStyle(fontSize: fsMeta, color: Colors.grey.shade500, fontWeight: FontWeight.w500)),
                           ],
                         ),
                       ),
@@ -290,13 +332,31 @@ class ProductoMarketplaceCard extends StatelessWidget {
                       producto.nombre,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 12,
+                      style: TextStyle(
+                        fontSize: fsNombre,
                         height: 1.15,
                         fontWeight: FontWeight.w500,
                         color: Colors.black87,
                       ),
                     ),
+
+                    // Descripción (si hay), debajo del nombre — solo cards
+                    // grandes; máx 2 líneas, letra 8.
+                    if (!compact &&
+                        producto.descripcion != null &&
+                        producto.descripcion!.trim().isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        producto.descripcion!.trim(),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 8,
+                          height: 1.2,
+                          color: Colors.grey.shade500,
+                        ),
+                      ),
+                    ],
 
                     if (!compact) ...[
                     const SizedBox(height: 6),
@@ -422,6 +482,44 @@ class ProductoMarketplaceCard extends StatelessWidget {
     );
   }
 
+  /// Agrega el producto directamente al carrito desde la card. Los productos
+  /// con variantes requieren elegir una en el detalle, así que ahí navegamos
+  /// en vez de agregar a ciegas.
+  Future<void> _agregarAlCarrito(BuildContext context) async {
+    if (producto.tieneVariantes) {
+      onTap?.call();
+      return;
+    }
+    final messenger = ScaffoldMessenger.of(context);
+    final token = await locator<SecureStorageService>()
+        .read(key: StorageConstants.accessToken);
+    if (token == null || token.isEmpty) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Inicia sesión para agregar al carrito')),
+      );
+      return;
+    }
+    try {
+      await locator<DioClient>().post(
+        '/marketplace/carrito',
+        data: {'productoId': producto.id, 'cantidad': 1},
+      );
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Producto agregado al carrito'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      final msg = e.toString().contains('stock')
+          ? 'Stock insuficiente'
+          : 'Error al agregar al carrito';
+      messenger.showSnackBar(
+        SnackBar(content: Text(msg), backgroundColor: Colors.red),
+      );
+    }
+  }
+
   void _openWhatsApp(String telefono, String producto, num? precio, String empresa) {
     // Formatear número para WhatsApp (Perú: +51)
     String numero = telefono.replaceAll(RegExp(r'[^0-9]'), '');
@@ -440,6 +538,22 @@ class ProductoMarketplaceCard extends StatelessWidget {
 
     final url = Uri.parse('https://wa.me/$numero?text=$mensaje');
     launchUrl(url, mode: LaunchMode.externalApplication);
+  }
+
+  /// Botón compacto de agregar (a la derecha del precio).
+  Widget _buildAgregarBtn() {
+    return GestureDetector(
+      onTap: onAgregarTap,
+      child: Container(
+        padding: const EdgeInsets.all(5),
+        decoration: const BoxDecoration(
+          color: AppColors.blue1,
+          shape: BoxShape.circle,
+        ),
+        child: const Icon(Icons.add_shopping_cart,
+            size: 13, color: Colors.white),
+      ),
+    );
   }
 
   String _fmtVendidos(int n) {

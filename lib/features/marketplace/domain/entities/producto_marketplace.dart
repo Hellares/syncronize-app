@@ -38,6 +38,8 @@ class ProductoMarketplace extends Equatable {
   final DateTime? ofertaFin;
   final bool hayStock;
   final String? imagen;
+  final double? imagenAncho;
+  final double? imagenAlto;
   final double? calificacion;
   final int totalOpiniones;
   final int vendidos;
@@ -59,6 +61,8 @@ class ProductoMarketplace extends Equatable {
     this.ofertaFin,
     this.hayStock = false,
     this.imagen,
+    this.imagenAncho,
+    this.imagenAlto,
     this.calificacion,
     this.totalOpiniones = 0,
     this.vendidos = 0,
@@ -89,6 +93,20 @@ class ProductoMarketplace extends Equatable {
   /// Tiene opiniones suficientes para mostrar calificación.
   bool get tieneCalificacion => calificacion != null && totalOpiniones > 0;
 
+  /// Aspect ratio (ancho/alto) real de la imagen principal para el masonry
+  /// tipo Temu, clampeado a un rango sano (0.75 muy vertical → 1.4 apaisado)
+  /// para que ninguna card quede absurdamente alta o baja. Si el backend no
+  /// mandó dimensiones, cae a un cuadrado ligeramente apaisado (1.2).
+  double get aspectRatioImagen {
+    if (imagenAncho != null &&
+        imagenAlto != null &&
+        imagenAncho! > 0 &&
+        imagenAlto! > 0) {
+      return (imagenAncho! / imagenAlto!).clamp(0.75, 1.4);
+    }
+    return 1.2;
+  }
+
   @override
   List<Object?> get props => [
         id,
@@ -102,6 +120,8 @@ class ProductoMarketplace extends Equatable {
         ofertaFin,
         hayStock,
         imagen,
+        imagenAncho,
+        imagenAlto,
         calificacion,
         totalOpiniones,
         vendidos,
