@@ -283,6 +283,21 @@ class _AuthenticatedDrawerContent extends StatelessWidget {
                 },
               ),
               _DrawerItem(
+                icon: Icons.help_outline,
+                title: 'Mis Solicitudes',
+                textStyle: TextStyle(
+                  fontFamily: AppFonts.getFontFamily(AppFont.oxygenBold),
+                  fontSize: 10,
+                  color: AppColors.blue,
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  context.push('/mis-solicitudes-cotizacion');
+                },
+              ),
+              // Cotizaciones dirigidas al cliente: respuestas a sus
+              // solicitudes + las que una tienda le creó con su DNI.
+              _DrawerItem(
                 icon: Icons.request_quote_outlined,
                 title: 'Mis Cotizaciones',
                 textStyle: TextStyle(
@@ -292,7 +307,7 @@ class _AuthenticatedDrawerContent extends StatelessWidget {
                 ),
                 onTap: () {
                   Navigator.pop(context);
-                  context.push('/mis-solicitudes-cotizacion');
+                  context.push('/mis-cotizaciones');
                 },
               ),
               _DrawerItem(

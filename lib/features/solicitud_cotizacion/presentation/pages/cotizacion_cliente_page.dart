@@ -15,10 +15,17 @@ import '../../../mis_pedidos/presentation/widgets/pagar_yape_sheet.dart';
 /// marketplace: items con precios, totales, vigencia y — si la empresa pidió
 /// un adelanto — el botón "Separar con Yape" (pago automático api-yape; el
 /// webhook aprueba la cotización y reserva el stock solo).
+///
+/// Dos formas de llegar:
+/// - Vía SU solicitud ([solicitudId]): flujo original del marketplace.
+/// - DIRECTA ([cotizacionId]): la empresa le creó la cotización asignándolo
+///   como cliente (match por Persona/DNI) — llega desde "Mis cotizaciones".
 class CotizacionClientePage extends StatefulWidget {
-  final String solicitudId;
+  final String? solicitudId;
+  final String? cotizacionId;
 
-  const CotizacionClientePage({super.key, required this.solicitudId});
+  const CotizacionClientePage({super.key, this.solicitudId, this.cotizacionId})
+      : assert(solicitudId != null || cotizacionId != null);
 
   @override
   State<CotizacionClientePage> createState() => _CotizacionClientePageState();
@@ -32,8 +39,11 @@ class _CotizacionClientePageState extends State<CotizacionClientePage> {
   bool _accionando = false;
   String? _error;
 
-  String get _basePath =>
-      '/marketplace/solicitudes-cotizacion/${widget.solicitudId}/cotizacion';
+  /// Ambas bases exponen los mismos sub-endpoints (GET, aceptar, rechazar,
+  /// cobro-yape), así que el resto de la página no distingue el origen.
+  String get _basePath => widget.cotizacionId != null
+      ? '/marketplace/cotizaciones/${widget.cotizacionId}'
+      : '/marketplace/solicitudes-cotizacion/${widget.solicitudId}/cotizacion';
 
   @override
   void initState() {

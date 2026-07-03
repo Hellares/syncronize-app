@@ -42,6 +42,7 @@ import '../../features/solicitud_cotizacion/presentation/pages/solicitud_form_pa
 import '../../features/solicitud_cotizacion/presentation/pages/mis_solicitudes_page.dart';
 import '../../features/solicitud_cotizacion/presentation/pages/solicitud_detail_page.dart';
 import '../../features/solicitud_cotizacion/presentation/pages/cotizacion_cliente_page.dart';
+import '../../features/solicitud_cotizacion/presentation/pages/mis_cotizaciones_page.dart';
 import '../../features/solicitud_cotizacion_empresa/presentation/pages/solicitudes_recibidas_page.dart';
 import '../../features/caja/presentation/pages/caja_page.dart';
 import '../../features/caja_chica/presentation/pages/caja_chica_page.dart';
@@ -1916,6 +1917,21 @@ class AppRouter {
         builder: (context, state) {
           final id = state.pathParameters['id']!;
           return CotizacionClientePage(solicitudId: id);
+        },
+      ),
+      // TODAS las cotizaciones dirigidas al cliente (respuestas a sus
+      // solicitudes + directas de empresas que lo cotizaron con su DNI).
+      GoRoute(
+        path: '/mis-cotizaciones',
+        name: 'mis-cotizaciones',
+        builder: (context, state) => const MisCotizacionesPage(),
+      ),
+      GoRoute(
+        path: '/mis-cotizaciones/:id',
+        name: 'mis-cotizaciones-detail',
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return CotizacionClientePage(cotizacionId: id);
         },
       ),
       GoRoute(

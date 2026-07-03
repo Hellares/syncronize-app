@@ -192,8 +192,13 @@ class Cotizacion extends Equatable {
           ? vendedorAlias
           : vendedorNombre;
 
-  /// Si la cotizacion es editable (solo BORRADOR)
-  bool get esEditable => estado == EstadoCotizacion.borrador;
+  /// Si la cotización es editable: BORRADOR siempre, y PENDIENTE mientras
+  /// el cliente no haya pagado adelanto (las cotizaciones con cliente
+  /// asignado nacen PENDIENTE para ser visibles en su cuenta del
+  /// marketplace — espejo del guard del backend).
+  bool get esEditable =>
+      estado == EstadoCotizacion.borrador ||
+      (estado == EstadoCotizacion.pendiente && (adelantoMonto ?? 0) <= 0);
 
   /// Si la cotizacion esta vencida
   bool get estaVencida {
