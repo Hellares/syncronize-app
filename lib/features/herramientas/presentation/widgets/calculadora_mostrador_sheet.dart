@@ -300,7 +300,8 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
             ),
             pw.Center(
               child: pw.Text(
-                '${sede != null ? '${sede.nombre} — ' : ''}$fecha',
+                CalculoMostradorEscPosGenerator.sanitize(
+                    '${sede != null ? '${sede.nombre} - ' : ''}$fecha'),
                 style: const pw.TextStyle(
                     fontSize: 8.5, color: PdfColors.grey700),
               ),
@@ -344,8 +345,9 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
                   ];
                   return pw.TableRow(children: [
                     celda(
-                        '${i + 1}. ${item.descripcion}'
-                        '${conPrecios && etiquetas.isNotEmpty ? '  (${etiquetas.join('/')})' : ''}'),
+                        CalculoMostradorEscPosGenerator.sanitize(
+                            '${i + 1}. ${item.descripcion}'
+                            '${conPrecios && etiquetas.isNotEmpty ? '  (${etiquetas.join('/')})' : ''}')),
                     celda(cant, align: pw.TextAlign.center),
                     if (conPrecios)
                       celda(item.precioUnitario.toStringAsFixed(2),

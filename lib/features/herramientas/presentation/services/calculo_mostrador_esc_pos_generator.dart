@@ -10,8 +10,10 @@ class CalculoMostradorEscPosGenerator {
   /// La impresora codifica latin1: caracteres unicode fuera de ese rango
   /// (— – ’ “ ” … etc., típicos en nombres de variante) hacen tirar al
   /// encoder con "contains invalid character". Se mapean a su equivalente
-  /// ASCII y cualquier otro fuera de latin1 se descarta.
-  static String _sanitize(String s) {
+  /// ASCII y cualquier otro fuera de latin1 se descarta. Público: el PDF
+  /// de la calculadora lo reutiliza (la Helvetica embebida tampoco tiene
+  /// esos glifos — se ven como ▯).
+  static String sanitize(String s) {
     const mapa = {
       '—': '-', '–': '-', '−': '-',
       '’': "'", '‘': "'",
@@ -61,7 +63,7 @@ class CalculoMostradorEscPosGenerator {
     );
     if (sedeNombre != null && sedeNombre.isNotEmpty) {
       bytes += generator.text(
-        _sanitize(sedeNombre),
+        sanitize(sedeNombre),
         styles: const PosStyles(
             align: PosAlign.center, fontType: PosFontType.fontB),
       );
@@ -128,7 +130,7 @@ class CalculoMostradorEscPosGenerator {
           ? item.cantidad.toStringAsFixed(0)
           : item.cantidad.toStringAsFixed(2);
       for (final linea in fila(
-        _sanitize('$i.${item.descripcion}'),
+        sanitize('$i.${item.descripcion}'),
         cant,
         item.precioUnitario.toStringAsFixed(2),
         item.total.toStringAsFixed(2),
