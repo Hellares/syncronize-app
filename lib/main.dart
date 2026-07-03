@@ -17,6 +17,7 @@ import 'features/auth/presentation/bloc/auth/auth_bloc.dart';
 import 'features/empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import 'features/empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import 'features/empresa/presentation/bloc/sede_activa/sede_activa_cubit.dart';
+import 'features/herramientas/presentation/widgets/herramientas_flotantes_overlay.dart';
 import 'features/servicio/presentation/widgets/mensajes_orden_widget.dart';
 
 void main() {
@@ -279,6 +280,12 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             themeMode: ThemeMode.light,
             scaffoldMessengerKey: _scaffoldMessengerKey,
             routerConfig: appRouter.router,
+            // Botón flotante de herramientas (calculadora de mostrador),
+            // visible en todas las pantallas de empresa (/empresa*).
+            builder: (context, child) => HerramientasFlotantesOverlay(
+              router: appRouter.router,
+              child: child ?? const SizedBox.shrink(),
+            ),
           );
         },
       ),
