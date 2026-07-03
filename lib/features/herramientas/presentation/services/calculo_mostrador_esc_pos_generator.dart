@@ -7,6 +7,31 @@ import '../../../venta/domain/entities/venta_detalle_input.dart';
 /// vendedor le entrega al cliente (sin correlativo, sin stock, sin IGV
 /// desglosado — los precios ya son finales de vitrina).
 class CalculoMostradorEscPosGenerator {
+  /// La impresora codifica latin1: caracteres unicode fuera de ese rango
+  /// (— – ’ “ ” … etc., típicos en nombres de variante) hacen tirar al
+  /// encoder con "contains invalid character". Se mapean a su equivalente
+  /// ASCII y cualquier otro fuera de latin1 se descarta.
+  static String _sanitize(String s) {
+    const mapa = {
+      '—': '-', '–': '-', '−': '-',
+      '’': "'", '‘': "'",
+      '“': '"', '”': '"',
+      '…': '...',
+      ' ': ' ',
+      '→': '>', '•': '-', '·': '-',
+    };
+    final sb = StringBuffer();
+    for (final ch in s.split('')) {
+      if (mapa.containsKey(ch)) {
+        sb.write(mapa[ch]);
+      } else if (ch.codeUnitAt(0) <= 0xFF) {
+        sb.write(ch);
+      }
+      // Fuera de latin1 y sin mapeo → se omite.
+    }
+    return sb.toString();
+  }
+
   static Future<List<int>> generate({
     required List<VentaDetalleInput> items,
     required String empresaNombre,
@@ -24,7 +49,7 @@ class CalculoMostradorEscPosGenerator {
 
     if (empresaNombre.isNotEmpty) {
       bytes += generator.text(
-        empresaNombre.toUpperCase(),
+        _sanitize(empresaNombre.toUpperCase()),
         styles: const PosStyles(
           align: PosAlign.center,
           bold: true,
@@ -35,7 +60,7 @@ class CalculoMostradorEscPosGenerator {
     }
     if (sedeNombre != null && sedeNombre.isNotEmpty) {
       bytes += generator.text(
-        sedeNombre,
+        _sanitize(sedeNombre),
         styles: const PosStyles(
             align: PosAlign.center, fontType: PosFontType.fontB),
       );
@@ -91,7 +116,7 @@ class CalculoMostradorEscPosGenerator {
           : item.cantidad.toStringAsFixed(2);
       bytes += generator.text(
         fila(
-          '$i.${item.descripcion}',
+          _sanitize('$i.${item.descripcion}'),
           cant,
           item.precioUnitario.toStringAsFixed(2),
           item.total.toStringAsFixed(2),
