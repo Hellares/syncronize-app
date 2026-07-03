@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -62,10 +63,17 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
   String? _sedeId;
   String _query = '';
 
-  /// Código recién escaneado: la búsqueda pasa al SERVIDOR (matchea
-  /// codigoBarras/sku/codigoEmpresa) y si devuelve 1 producto se agrega
-  /// solo. Null = búsqueda local normal por nombre.
-  String? _scanCode;
+  /// Query resuelta en el SERVIDOR (matchea codigoBarras/sku/
+  /// codigoEmpresa exactos — el catálogo local no trae codigoBarras del
+  /// producto base). Se activa al escanear o al tipear algo "tipo
+  /// código". Null = búsqueda local normal por nombre.
+  String? _serverQuery;
+
+  /// true = la búsqueda server vino del ESCÁNER: si devuelve 1 producto
+  /// se agrega solo. Tipeado manual solo muestra resultados.
+  bool _autoAgregarDeScan = false;
+
+  Timer? _serverDebounce;
   final List<VentaDetalleInput> _items = [];
   bool _imprimiendo = false;
 
@@ -92,6 +100,7 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
 
   @override
   void dispose() {
+    _serverDebounce?.cancel();
     _searchCtrl.dispose();
     _productosCubit.close();
     super.dispose();
@@ -155,13 +164,15 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
   }
 
   void _limpiarBusqueda() {
+    _serverDebounce?.cancel();
     _searchCtrl.clear();
-    final habiaScan = _scanCode != null;
+    final habiaServer = _serverQuery != null;
     setState(() {
       _query = '';
-      _scanCode = null;
+      _serverQuery = null;
+      _autoAgregarDeScan = false;
     });
-    if (habiaScan) _restaurarCatalogo();
+    if (habiaServer) _restaurarCatalogo();
   }
 
   /// Vuelve al catálogo completo tras una búsqueda por código (el filtro
@@ -172,33 +183,47 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
     );
   }
 
-  /// Código de barras escaneado: búsqueda SERVER-side (el catálogo local
-  /// no trae codigoBarras del producto base) — el backend matchea
-  /// codigoBarras/sku/codigoEmpresa exacto.
+  /// Heurística "esto parece un código, no un nombre": sin espacios y
+  /// con al menos un dígito (barras/sku/código interno).
+  bool _pareceCodigo(String q) =>
+      q.length >= 4 && !q.contains(' ') && RegExp(r'[0-9]').hasMatch(q);
+
+  /// Lanza la búsqueda por código en el SERVIDOR.
+  void _buscarServer(String code, {required bool autoAgregar}) {
+    setState(() {
+      _serverQuery = code;
+      _autoAgregarDeScan = autoAgregar;
+    });
+    _productosCubit.applyFiltros(
+      ProductoFiltros(search: code, isActive: true, esInsumo: false),
+    );
+  }
+
+  /// Código de barras escaneado con la cámara.
   void _onCodigoEscaneado(String code) {
     final codeTrim = code.trim();
     if (codeTrim.isEmpty) return;
+    _serverDebounce?.cancel();
     _searchCtrl.text = codeTrim;
-    setState(() {
-      _query = codeTrim;
-      _scanCode = codeTrim;
-    });
-    _productosCubit.applyFiltros(
-      ProductoFiltros(search: codeTrim, isActive: true, esInsumo: false),
-    );
+    setState(() => _query = codeTrim);
+    _buscarServer(codeTrim, autoAgregar: true);
   }
 
   /// Si el scan devolvió EXACTAMENTE 1 producto, agregarlo solo (con la
   /// variante que matchea el código, si aplica). 0 o >1 → el vendedor
   /// elige de la lista.
-  void _autoAgregarScan(ProductoListLoaded state) {
-    final code = _scanCode;
+  void _autoAgregarSiUnico(ProductoListLoaded state) {
+    if (!_autoAgregarDeScan) return;
+    final code = _serverQuery;
     if (code == null) return;
     if (state.isFiltering) return; // esperar la respuesta final
     if (state.filtros.search != code) return; // respuesta de otro filtro
     if (state.productos.length != 1) return; // ambiguo → elegir manual
     final p = state.productos.first;
-    _scanCode = null;
+    _serverQuery = null;
+    _autoAgregarDeScan = false;
+    _searchCtrl.clear();
+    _query = '';
     if (p.tieneVariantes && (p.variantes ?? []).isNotEmpty) {
       final match = p.variantes!.cast<ProductoVariante?>().firstWhere(
             (v) =>
@@ -688,12 +713,26 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
                 hintText: 'Buscar por nombre, código o escanear…',
                 debounceDelay: const Duration(milliseconds: 200),
                 onChanged: (v) {
-                  final habiaScan = _scanCode != null;
+                  _serverDebounce?.cancel();
+                  final q = v.trim();
+                  final habiaServer = _serverQuery != null;
                   setState(() {
-                    _query = v.trim();
-                    _scanCode = null; // tipeo manual = búsqueda local
+                    _query = q;
+                    _serverQuery = null;
+                    _autoAgregarDeScan = false;
                   });
-                  if (habiaScan) _restaurarCatalogo();
+                  if (_pareceCodigo(q)) {
+                    // Tipear un código a mano también busca en el server
+                    // (codigoBarras no vive en el catálogo local).
+                    _serverDebounce =
+                        Timer(const Duration(milliseconds: 350), () {
+                      if (mounted && _query == q) {
+                        _buscarServer(q, autoAgregar: false);
+                      }
+                    });
+                  } else if (habiaServer) {
+                    _restaurarCatalogo();
+                  }
                 },
                 onClear: _limpiarBusqueda,
                 actionButtons: [
@@ -752,15 +791,15 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
                   height: 24,
                   child: CircularProgressIndicator(strokeWidth: 2)));
         }
-        // Escaneo: el server ya filtró por código exacto — mostrar tal
-        // cual (el filtro local por nombre descartaría el match) y
-        // auto-agregar si es único.
-        if (_scanCode != null) {
+        // Búsqueda por código (escaneada o tipeada): el server ya filtró
+        // exacto — mostrar tal cual (el filtro local por nombre
+        // descartaría el match) y auto-agregar solo si vino del escáner.
+        if (_serverQuery != null) {
           WidgetsBinding.instance
-              .addPostFrameCallback((_) => _autoAgregarScan(state));
+              .addPostFrameCallback((_) => _autoAgregarSiUnico(state));
         }
         final q = _query.toLowerCase();
-        final matches = _scanCode != null
+        final matches = _serverQuery != null
             ? state.productos.where((p) => !p.esCombo).take(15).toList()
             : state.productos
                 .where((p) =>
