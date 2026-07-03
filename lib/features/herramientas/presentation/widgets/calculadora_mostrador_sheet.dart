@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/custom_search_field.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../../empresa/presentation/bloc/sede_activa/sede_activa_cubit.dart';
@@ -50,6 +51,9 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
   String _query = '';
   final List<VentaDetalleInput> _items = [];
   bool _imprimiendo = false;
+
+  /// Resultado de la última impresión (mensaje, éxito) — banner en el sheet.
+  (String, bool)? _msgImpresion;
 
   @override
   void initState() {
@@ -214,13 +218,16 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
 
   Future<void> _imprimir() async {
     if (_items.isEmpty || _imprimiendo) return;
-    setState(() => _imprimiendo = true);
+    setState(() {
+      _imprimiendo = true;
+      _msgImpresion = null;
+    });
     try {
       final manager = locator<ImpresorasManager>();
       final principal = await manager.getPrincipal();
       if (!mounted) return;
       if (principal == null) {
-        _snack('No hay impresora principal configurada', warn: true);
+        _feedback('No hay impresora principal configurada', ok: false);
         return;
       }
       final ctxState = context.read<EmpresaContextCubit>().state;
@@ -235,20 +242,28 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
       );
       final ok = await manager.imprimirEnPrincipal(bytes);
       if (!mounted) return;
-      _snack(ok ? 'Lista impresa' : 'No se pudo imprimir', warn: !ok);
+      _feedback(
+        ok
+            ? 'Lista impresa'
+            : 'No se pudo conectar a "${principal.nombre}" — verifica que esté encendida y cerca',
+        ok: ok,
+      );
     } catch (e) {
-      if (mounted) _snack('Error al imprimir', warn: true);
+      if (mounted) _feedback('Error al imprimir: $e', ok: false);
     } finally {
       if (mounted) setState(() => _imprimiendo = false);
     }
   }
 
-  void _snack(String msg, {bool warn = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg),
-      backgroundColor: warn ? Colors.orange.shade700 : Colors.green.shade600,
-      duration: const Duration(seconds: 2),
-    ));
+  /// Feedback DENTRO del sheet: un snackbar del root queda tapado por el
+  /// modal (parecía que "no hacía nada"). Banner sobre el footer.
+  void _feedback(String msg, {required bool ok}) {
+    setState(() => _msgImpresion = (msg, ok));
+    Future.delayed(const Duration(seconds: 4), () {
+      if (mounted && _msgImpresion?.$1 == msg) {
+        setState(() => _msgImpresion = null);
+      }
+    });
   }
 
   // ── UI ─────────────────────────────────────────────────────────────
@@ -267,34 +282,12 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
             _header(),
             Padding(
               padding: const EdgeInsets.fromLTRB(14, 10, 14, 6),
-              child: TextField(
+              child: CustomSearchField(
                 controller: _searchCtrl,
-                autofocus: true,
+                hintText: 'Buscar producto por nombre o código…',
+                debounceDelay: const Duration(milliseconds: 200),
                 onChanged: (v) => setState(() => _query = v.trim()),
-                decoration: InputDecoration(
-                  hintText: 'Buscar producto por nombre o código…',
-                  hintStyle:
-                      TextStyle(fontSize: 12.5, color: Colors.grey.shade500),
-                  prefixIcon: const Icon(Icons.search, size: 20),
-                  suffixIcon: _query.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.close, size: 18),
-                          onPressed: _limpiarBusqueda,
-                        )
-                      : null,
-                  isDense: true,
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide(color: AppColors.blueborder),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide(color: AppColors.blueborder),
-                  ),
-                ),
-                style: const TextStyle(fontSize: 13),
+                onClear: _limpiarBusqueda,
               ),
             ),
             Expanded(
@@ -573,7 +566,7 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
   Widget _footer() {
     return Container(
       padding: EdgeInsets.fromLTRB(
-          14, 10, 14, 10 + MediaQuery.of(context).viewPadding.bottom),
+          14, 8, 14, 10 + MediaQuery.of(context).viewPadding.bottom),
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border(top: BorderSide(color: Colors.grey.shade200)),
@@ -581,6 +574,35 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (_msgImpresion != null)
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 8),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: _msgImpresion!.$2
+                    ? Colors.green.shade50
+                    : Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: _msgImpresion!.$2
+                      ? Colors.green.shade300
+                      : Colors.orange.shade300,
+                  width: 0.6,
+                ),
+              ),
+              child: Text(
+                _msgImpresion!.$1,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: _msgImpresion!.$2
+                      ? Colors.green.shade800
+                      : Colors.orange.shade900,
+                ),
+              ),
+            ),
           Row(
             children: [
               Text(
