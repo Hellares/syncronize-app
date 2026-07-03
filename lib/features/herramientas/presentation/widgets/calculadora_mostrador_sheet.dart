@@ -108,6 +108,16 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
 
   double get _total => _items.fold(0, (s, i) => s + i.total);
 
+  /// Nombre de la sede SELECCIONADA en la calculadora (puede diferir de
+  /// la sede activa global) — para el ticket/PDF/WhatsApp.
+  String? get _sedeNombre {
+    final st = context.read<SedeActivaCubit>().state;
+    for (final s in st.operables) {
+      if (s.id == _sedeId) return s.nombre;
+    }
+    return st.activa?.nombre;
+  }
+
   // ── Agregar / quitar / cantidades ──────────────────────────────────
 
   Future<void> _agregar(ProductoListItem p, {ProductoVariante? v}) async {
@@ -318,13 +328,13 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
 
   /// Texto de la lista para WhatsApp (mismo contenido que el ticket).
   String _textoLista(bool conPrecios) {
-    final sede = context.read<SedeActivaCubit>().state.activa;
+    final sedeNombre = _sedeNombre;
     final now = DateTime.now();
     final fecha =
         '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}';
     final b = StringBuffer();
     b.writeln('*COTIZACION DE PRECIOS*');
-    if (sede != null) b.writeln('${sede.nombre} - $fecha');
+    if (sedeNombre != null) b.writeln('$sedeNombre - $fecha');
     b.writeln();
     var i = 0;
     for (final item in _items) {
@@ -355,7 +365,7 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
 
   /// PDF de la lista (A5 vertical): tabla con o sin precios + total.
   Future<Uint8List> _generarPdf(bool conPrecios) async {
-    final sede = context.read<SedeActivaCubit>().state.activa;
+    final sedeNombre = _sedeNombre;
     final now = DateTime.now();
     final fecha =
         '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year} '
@@ -390,7 +400,7 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
             pw.Center(
               child: pw.Text(
                 CalculoMostradorEscPosGenerator.sanitize(
-                    '${sede != null ? '${sede.nombre} - ' : ''}$fecha'),
+                    '${sedeNombre != null ? '$sedeNombre - ' : ''}$fecha'),
                 style: const pw.TextStyle(
                     fontSize: 8.5, color: PdfColors.grey700),
               ),
@@ -658,10 +668,9 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
         _feedback('No hay impresora principal configurada', ok: false);
         return;
       }
-      final sede = context.read<SedeActivaCubit>().state.activa;
       final bytes = await CalculoMostradorEscPosGenerator.generate(
         items: _items,
-        sedeNombre: sede?.nombre,
+        sedeNombre: _sedeNombre,
         paperWidth: principal.anchoPapel.mm,
         conPrecios: conPrecios,
       );
@@ -754,6 +763,14 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
   }
 
   Widget _header() {
+    final sedeState = context.watch<SedeActivaCubit>().state;
+    final sedeNombre = sedeState.operables
+            .where((s) => s.id == _sedeId)
+            .map((s) => s.nombre)
+            .firstOrNull ??
+        sedeState.activa?.nombre ??
+        '';
+    final puedeElegir = sedeState.operables.length > 1;
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 8, 10),
       decoration: BoxDecoration(
@@ -764,10 +781,43 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
         children: [
           Icon(Icons.calculate_outlined, color: AppColors.blue1, size: 20),
           const SizedBox(width: 8),
-          const Expanded(
-            child: Text(
-              'Calculadora de precios',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Calculadora de precios',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                ),
+                // Sede de donde salen precios y stock. Cambiarla aquí es
+                // LOCAL a la calculadora (no toca la sede activa global).
+                InkWell(
+                  onTap: puedeElegir ? _elegirSede : null,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.storefront_outlined,
+                          size: 11, color: Colors.grey.shade600),
+                      const SizedBox(width: 3),
+                      Flexible(
+                        child: Text(
+                          sedeNombre,
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade700,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (puedeElegir)
+                        Icon(Icons.keyboard_arrow_down,
+                            size: 13, color: Colors.grey.shade600),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
           IconButton(
@@ -777,6 +827,100 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
         ],
       ),
     );
+  }
+
+  /// Cambiar la sede de la calculadora: precios/stock pasan a ser de esa
+  /// sede. Si ya hay items en la lista se limpia (fueron cotizados con
+  /// los precios de la sede anterior).
+  Future<void> _elegirSede() async {
+    final operables = context.read<SedeActivaCubit>().state.operables;
+    final elegida = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(12),
+              child: Text('Sede de precios y stock',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+            ),
+            ...operables.map((s) => ListTile(
+                  dense: true,
+                  leading: Icon(
+                    s.id == _sedeId
+                        ? Icons.radio_button_checked
+                        : Icons.radio_button_off,
+                    size: 18,
+                    color: s.id == _sedeId ? AppColors.blue1 : Colors.grey,
+                  ),
+                  title: Text(s.nombre,
+                      style: const TextStyle(fontSize: 12.5)),
+                  onTap: () => Navigator.pop(ctx, s.id),
+                )),
+            const SizedBox(height: 6),
+          ],
+        ),
+      ),
+    );
+    if (elegida == null || elegida == _sedeId || !mounted) return;
+
+    if (_items.isNotEmpty) {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => StyledDialog(
+          accentColor: Colors.orange.shade800,
+          icon: Icons.storefront_outlined,
+          titulo: 'Cambiar de sede',
+          content: [
+            Text(
+              'La lista actual se cotizó con los precios de la otra sede '
+              'y se limpiará. ¿Continuar?',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+            ),
+          ],
+          actions: [
+            Expanded(
+              child: CustomButton(
+                text: 'Cancelar',
+                isOutlined: true,
+                borderColor: Colors.grey.shade400,
+                textColor: Colors.grey.shade700,
+                enableShadows: false,
+                onPressed: () => Navigator.of(ctx).pop(false),
+              ),
+            ),
+            Expanded(
+              child: CustomButton(
+                text: 'Cambiar',
+                backgroundColor: Colors.orange.shade800,
+                textColor: Colors.white,
+                onPressed: () => Navigator.of(ctx).pop(true),
+              ),
+            ),
+          ],
+        ),
+      );
+      if (ok != true || !mounted) return;
+    }
+
+    setState(() {
+      _sedeId = elegida;
+      _items.clear();
+      _query = '';
+      _serverQuery = null;
+      _autoAgregarDeScan = false;
+    });
+    _searchCtrl.clear();
+    // Recargar el catálogo de la nueva sede (precios/stock por sede).
+    final ctxState = context.read<EmpresaContextCubit>().state;
+    if (ctxState is EmpresaContextLoaded) {
+      _productosCubit.loadProductos(
+        empresaId: ctxState.context.empresa.id,
+        sedeId: elegida,
+        filtros: const ProductoFiltros(isActive: true, esInsumo: false),
+      );
+    }
   }
 
   /// Resultados de búsqueda sobre el catálogo LOCAL ya cargado.
@@ -898,7 +1042,7 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
             child: Text('${i + 1}',
                 style: TextStyle(
                     fontSize: 10,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                     color: Colors.grey.shade600)),
           ),
           Expanded(
