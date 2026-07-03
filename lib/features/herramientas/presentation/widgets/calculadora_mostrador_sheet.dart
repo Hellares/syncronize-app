@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -215,6 +216,132 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
   }
 
   // ── Imprimir ───────────────────────────────────────────────────────
+
+  /// Texto de la lista para WhatsApp (mismo contenido que el ticket).
+  String _textoLista(bool conPrecios) {
+    final sede = context.read<SedeActivaCubit>().state.activa;
+    final now = DateTime.now();
+    final fecha =
+        '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}';
+    final b = StringBuffer();
+    b.writeln('*COTIZACION DE PRECIOS*');
+    if (sede != null) b.writeln('${sede.nombre} - $fecha');
+    b.writeln();
+    var i = 0;
+    for (final item in _items) {
+      i++;
+      final cant = item.cantidad % 1 == 0
+          ? item.cantidad.toStringAsFixed(0)
+          : item.cantidad.toStringAsFixed(2);
+      if (conPrecios) {
+        final etiquetas = <String>[
+          if (item.enLiquidacion) 'LIQUIDACION',
+          if (item.enOferta) 'OFERTA',
+          if (item.nivelAplicado != null) 'X MAYOR',
+        ];
+        b.writeln('$i. ${item.descripcion}');
+        b.writeln(
+            '    $cant x S/ ${item.precioUnitario.toStringAsFixed(2)} = S/ ${item.total.toStringAsFixed(2)}'
+            '${etiquetas.isNotEmpty ? ' (${etiquetas.join('/')})' : ''}');
+      } else {
+        b.writeln('$i. ${item.descripcion} - $cant und');
+      }
+    }
+    b.writeln();
+    b.writeln('*TOTAL: S/ ${_total.toStringAsFixed(2)}*');
+    b.writeln();
+    b.write('Precios referenciales del dia. No es comprobante de pago.');
+    return b.toString();
+  }
+
+  /// Compartir la lista por WhatsApp: pide el celular del cliente y el
+  /// modo (con o sin precios por item) y abre el chat con el texto listo.
+  Future<void> _compartirWhatsApp() async {
+    final telCtrl = TextEditingController();
+    var conPrecios = true;
+    final enviar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          title: const Text('Enviar por WhatsApp',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: telCtrl,
+                autofocus: true,
+                keyboardType: TextInputType.phone,
+                maxLength: 9,
+                decoration: const InputDecoration(
+                  labelText: 'Celular del cliente',
+                  hintText: '9XXXXXXXX',
+                  prefixText: '+51 ',
+                  counterText: '',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+                style: const TextStyle(fontSize: 13),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: ChoiceChip(
+                      label: const Text('Con precios',
+                          style: TextStyle(fontSize: 11)),
+                      selected: conPrecios,
+                      onSelected: (_) => setLocal(() => conPrecios = true),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: ChoiceChip(
+                      label: const Text('Solo productos',
+                          style: TextStyle(fontSize: 11)),
+                      selected: !conPrecios,
+                      onSelected: (_) => setLocal(() => conPrecios = false),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF25D366),
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () {
+                final digits =
+                    telCtrl.text.replaceAll(RegExp(r'[^0-9]'), '');
+                if (digits.length != 9) return;
+                Navigator.pop(ctx, true);
+              },
+              icon: const Icon(Icons.send, size: 15),
+              label: const Text('Enviar', style: TextStyle(fontSize: 12)),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (enviar != true || !mounted) return;
+    final digits = telCtrl.text.replaceAll(RegExp(r'[^0-9]'), '');
+    final texto = Uri.encodeComponent(_textoLista(conPrecios));
+    try {
+      await launchUrl(
+        Uri.parse('https://wa.me/51$digits?text=$texto'),
+        mode: LaunchMode.externalApplication,
+      );
+    } catch (_) {
+      if (mounted) _feedback('No se pudo abrir WhatsApp', ok: false);
+    }
+  }
 
   /// Elegir qué imprimir: lista completa (con precios por item) o "muda"
   /// (solo productos + cantidad y el total general).
@@ -679,7 +806,21 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
+              // Compartir por WhatsApp (celular del cliente)
+              SizedBox(
+                width: 46,
+                child: OutlinedButton(
+                  onPressed: _items.isEmpty ? null : _compartirWhatsApp,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF25D366),
+                    side: const BorderSide(color: Color(0xFF25D366)),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                  ),
+                  child: const Icon(Icons.share, size: 16),
+                ),
+              ),
+              const SizedBox(width: 8),
               Expanded(
                 flex: 2,
                 child: ElevatedButton.icon(
