@@ -11,6 +11,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/barcode_scanner_button.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_search_field.dart';
 import '../../../../core/widgets/styled_dialog.dart';
@@ -60,6 +61,11 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
 
   String? _sedeId;
   String _query = '';
+
+  /// Código recién escaneado: la búsqueda pasa al SERVIDOR (matchea
+  /// codigoBarras/sku/codigoEmpresa) y si devuelve 1 producto se agrega
+  /// solo. Null = búsqueda local normal por nombre.
+  String? _scanCode;
   final List<VentaDetalleInput> _items = [];
   bool _imprimiendo = false;
 
@@ -150,7 +156,65 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
 
   void _limpiarBusqueda() {
     _searchCtrl.clear();
-    setState(() => _query = '');
+    final habiaScan = _scanCode != null;
+    setState(() {
+      _query = '';
+      _scanCode = null;
+    });
+    if (habiaScan) _restaurarCatalogo();
+  }
+
+  /// Vuelve al catálogo completo tras una búsqueda por código (el filtro
+  /// server-side quedaría pegado y la búsqueda local operaría sobre él).
+  void _restaurarCatalogo() {
+    _productosCubit.applyFiltros(
+      const ProductoFiltros(isActive: true, esInsumo: false),
+    );
+  }
+
+  /// Código de barras escaneado: búsqueda SERVER-side (el catálogo local
+  /// no trae codigoBarras del producto base) — el backend matchea
+  /// codigoBarras/sku/codigoEmpresa exacto.
+  void _onCodigoEscaneado(String code) {
+    final codeTrim = code.trim();
+    if (codeTrim.isEmpty) return;
+    _searchCtrl.text = codeTrim;
+    setState(() {
+      _query = codeTrim;
+      _scanCode = codeTrim;
+    });
+    _productosCubit.applyFiltros(
+      ProductoFiltros(search: codeTrim, isActive: true, esInsumo: false),
+    );
+  }
+
+  /// Si el scan devolvió EXACTAMENTE 1 producto, agregarlo solo (con la
+  /// variante que matchea el código, si aplica). 0 o >1 → el vendedor
+  /// elige de la lista.
+  void _autoAgregarScan(ProductoListLoaded state) {
+    final code = _scanCode;
+    if (code == null) return;
+    if (state.isFiltering) return; // esperar la respuesta final
+    if (state.filtros.search != code) return; // respuesta de otro filtro
+    if (state.productos.length != 1) return; // ambiguo → elegir manual
+    final p = state.productos.first;
+    _scanCode = null;
+    if (p.tieneVariantes && (p.variantes ?? []).isNotEmpty) {
+      final match = p.variantes!.cast<ProductoVariante?>().firstWhere(
+            (v) =>
+                v!.codigoBarras != null &&
+                v.codigoBarras!.toLowerCase() == code.toLowerCase(),
+            orElse: () => null,
+          );
+      if (match != null) {
+        _agregar(p, v: match);
+      } else {
+        _seleccionar(p); // abre el selector de variantes
+      }
+    } else {
+      _agregar(p);
+    }
+    _restaurarCatalogo();
   }
 
   void _cambiarCantidad(int index, double delta) {
@@ -620,10 +684,24 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
               padding: const EdgeInsets.fromLTRB(14, 10, 14, 6),
               child: CustomSearchField(
                 controller: _searchCtrl,
-                hintText: 'Buscar producto por nombre o código…',
+                borderColor: AppColors.blue1,
+                hintText: 'Buscar por nombre, código o escanear…',
                 debounceDelay: const Duration(milliseconds: 200),
-                onChanged: (v) => setState(() => _query = v.trim()),
+                onChanged: (v) {
+                  final habiaScan = _scanCode != null;
+                  setState(() {
+                    _query = v.trim();
+                    _scanCode = null; // tipeo manual = búsqueda local
+                  });
+                  if (habiaScan) _restaurarCatalogo();
+                },
                 onClear: _limpiarBusqueda,
+                actionButtons: [
+                  BarcodeScannerButton(
+                    onScanned: _onCodigoEscaneado,
+                    iconSize: 20,
+                  ),
+                ],
               ),
             ),
             Expanded(
@@ -650,7 +728,7 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
           const Expanded(
             child: Text(
               'Calculadora de precios',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
             ),
           ),
           IconButton(
@@ -674,16 +752,25 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
                   height: 24,
                   child: CircularProgressIndicator(strokeWidth: 2)));
         }
+        // Escaneo: el server ya filtró por código exacto — mostrar tal
+        // cual (el filtro local por nombre descartaría el match) y
+        // auto-agregar si es único.
+        if (_scanCode != null) {
+          WidgetsBinding.instance
+              .addPostFrameCallback((_) => _autoAgregarScan(state));
+        }
         final q = _query.toLowerCase();
-        final matches = state.productos
-            .where((p) =>
-                !p.esCombo &&
-                (p.nombre.toLowerCase().contains(q) ||
-                    p.codigoEmpresa.toLowerCase().contains(q) ||
-                    (p.variantes ?? [])
-                        .any((v) => v.nombre.toLowerCase().contains(q))))
-            .take(15)
-            .toList();
+        final matches = _scanCode != null
+            ? state.productos.where((p) => !p.esCombo).take(15).toList()
+            : state.productos
+                .where((p) =>
+                    !p.esCombo &&
+                    (p.nombre.toLowerCase().contains(q) ||
+                        p.codigoEmpresa.toLowerCase().contains(q) ||
+                        (p.variantes ?? [])
+                            .any((v) => v.nombre.toLowerCase().contains(q))))
+                .take(15)
+                .toList();
         if (matches.isEmpty) {
           return Center(
             child: Text('Sin resultados para "$_query"',
