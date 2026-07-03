@@ -216,7 +216,50 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
 
   // ── Imprimir ───────────────────────────────────────────────────────
 
-  Future<void> _imprimir() async {
+  /// Elegir qué imprimir: lista completa (con precios por item) o "muda"
+  /// (solo productos + cantidad y el total general).
+  Future<void> _elegirImpresion() async {
+    final conPrecios = await showModalBottomSheet<bool>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(12),
+              child: Text('¿Qué imprimir?',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+            ),
+            ListTile(
+              dense: true,
+              leading: Icon(Icons.receipt_long, color: AppColors.blue1),
+              title: const Text('Lista completa',
+                  style: TextStyle(fontSize: 12.5)),
+              subtitle: Text('Precio y total por producto',
+                  style:
+                      TextStyle(fontSize: 10.5, color: Colors.grey.shade600)),
+              onTap: () => Navigator.pop(ctx, true),
+            ),
+            ListTile(
+              dense: true,
+              leading: Icon(Icons.checklist, color: AppColors.blue1),
+              title: const Text('Solo productos y total',
+                  style: TextStyle(fontSize: 12.5)),
+              subtitle: Text('Sin precios por item — solo el total general',
+                  style:
+                      TextStyle(fontSize: 10.5, color: Colors.grey.shade600)),
+              onTap: () => Navigator.pop(ctx, false),
+            ),
+            const SizedBox(height: 6),
+          ],
+        ),
+      ),
+    );
+    if (conPrecios == null || !mounted) return;
+    await _imprimir(conPrecios: conPrecios);
+  }
+
+  Future<void> _imprimir({required bool conPrecios}) async {
     if (_items.isEmpty || _imprimiendo) return;
     setState(() {
       _imprimiendo = true;
@@ -235,6 +278,7 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
         items: _items,
         sedeNombre: sede?.nombre,
         paperWidth: principal.anchoPapel.mm,
+        conPrecios: conPrecios,
       );
       final ok = await manager.imprimirEnPrincipal(bytes);
       if (!mounted) return;
@@ -639,8 +683,9 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
               Expanded(
                 flex: 2,
                 child: ElevatedButton.icon(
-                  onPressed:
-                      _items.isEmpty || _imprimiendo ? null : _imprimir,
+                  onPressed: _items.isEmpty || _imprimiendo
+                      ? null
+                      : _elegirImpresion,
                   icon: _imprimiendo
                       ? const SizedBox(
                           width: 14,

@@ -36,6 +36,9 @@ class CalculoMostradorEscPosGenerator {
     required List<VentaDetalleInput> items,
     String? sedeNombre,
     int paperWidth = 80,
+    /// false = lista "muda": solo producto + cantidad y el TOTAL general
+    /// al pie (sin precios por item) — para entregar como lista de compra.
+    bool conPrecios = true,
   }) async {
     final profile = await CapabilityProfile.load();
     final paperSize = paperWidth == 58 ? PaperSize.mm58 : PaperSize.mm80;
@@ -78,8 +81,8 @@ class CalculoMostradorEscPosGenerator {
     // ── Tabla: PRODUCTO | CANT | PRECIO | TOTAL ──
     // Anchos fijos por caracteres (fontB): numéricos a la derecha.
     const wCant = 5;
-    const wPrecio = 8;
-    const wTotal = 9;
+    final wPrecio = conPrecios ? 8 : 0;
+    final wTotal = conPrecios ? 9 : 0;
     final wNombre = chars - wCant - wPrecio - wTotal;
 
     /// Corta [texto] en el último espacio que quepa en [ancho] (o corte
@@ -96,10 +99,10 @@ class CalculoMostradorEscPosGenerator {
     /// (ancho completo, con sangría) para que se lean COMPLETOS.
     List<String> fila(String nombre, String cant, String precio, String tot) {
       final (linea1, restoInicial) = cortar(nombre, wNombre);
-      final lineas = [
-        '${linea1.padRight(wNombre)}${cant.padLeft(wCant)}'
-            '${precio.padLeft(wPrecio)}${tot.padLeft(wTotal)}',
-      ];
+      final numeros = conPrecios
+          ? '${cant.padLeft(wCant)}${precio.padLeft(wPrecio)}${tot.padLeft(wTotal)}'
+          : cant.padLeft(wCant);
+      final lineas = ['${linea1.padRight(wNombre)}$numeros'];
       var resto = restoInicial;
       while (resto.isNotEmpty) {
         final (linea, siguiente) = cortar(resto, chars - 2);
@@ -135,13 +138,14 @@ class CalculoMostradorEscPosGenerator {
           styles: const PosStyles(fontType: PosFontType.fontB),
         );
       }
-      // Etiqueta de precio especial como sub-línea (solo si aplica).
+      // Etiqueta de precio especial como sub-línea (solo en el modo con
+      // precios — la lista muda no revela nada de pricing).
       final etiquetas = <String>[
         if (item.enLiquidacion) 'LIQUIDACION',
         if (item.enOferta == true) 'OFERTA',
         if (item.nivelAplicado != null) 'X MAYOR',
       ];
-      if (etiquetas.isNotEmpty) {
+      if (conPrecios && etiquetas.isNotEmpty) {
         bytes += generator.text(
           '  (${etiquetas.join('/')})',
           styles: const PosStyles(fontType: PosFontType.fontB),
