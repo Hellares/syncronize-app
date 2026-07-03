@@ -117,6 +117,9 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
       cantidad: 1,
       precioUnitario: precio,
       precioBase: precio,
+      // El precio de vitrina YA incluye IGV según la config de la sede —
+      // sin esto el total sumaba 18% encima (30 → 35.40).
+      precioIncluyeIgv: fuente.precioIncluyeIgvEnSede(sedeId),
       stockDisponible: fuente.stockEnSede(sedeId),
       niveles: niveles,
       enOferta: enOferta,
