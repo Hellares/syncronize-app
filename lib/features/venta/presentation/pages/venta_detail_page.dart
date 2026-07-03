@@ -11,6 +11,7 @@ import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/theme/gradient_container.dart';
 import '../../../../core/fonts/app_text_widgets.dart';
 import '../../../../core/widgets/autorizacion_dialog.dart';
+import '../../../../core/widgets/custom_navigation_menu.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../../../core/widgets/producto_sede_selector/producto_sede_search_cubit.dart';
 import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_cubit.dart';
@@ -304,8 +305,6 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
         children: [
           _buildHeaderSection(v),
           const SizedBox(height: 12),
-          _buildClienteSection(v),
-          const SizedBox(height: 12),
           _buildItemsSection(v),
           const SizedBox(height: 12),
           _buildPagoSection(v),
@@ -326,6 +325,7 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
   }
 
   Widget _buildHeaderSection(Venta v) {
+    
     return GradientContainer(
       borderColor: AppColors.blueborder,
       child: Padding(
@@ -349,15 +349,50 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                   child: AppSubtitle(v.codigo, fontSize: 11),
                 ),
                 VentaEstadoChip(estado: v.estado),
+                // Menú de acciones del comprobante (NC/ND/Anular/Guía).
+                // Se ubica junto al chip de estado para mantener limpia la
+                // tarjeta: en el cuerpo solo quedan los chips de SUNAT.
+                Builder(
+                  builder: (context) {
+                    final items = _buildComprobanteMenuItems(context, v);
+                    if (items.isEmpty) return const SizedBox.shrink();
+                    return Padding(
+                      padding: const EdgeInsets.only(left: 2),
+                      child: CustomNavigationMenu(
+                        items: items,
+                        triggerIcon: Icons.more_vert,
+                        triggerIconSize: 18,
+                        triggerIconColor: AppColors.blue1,
+                        tooltip: 'Acciones del comprobante',
+                        menuWidth: 200,
+                      ),
+                    );
+                  },
+                ),
               ],
             ),
-            const SizedBox(height: 12),
-            _buildDetailRow(
-                Icons.calendar_today, 'Fecha', DateFormatter.formatDateTime(v.fechaVenta)),
-            // _buildDetailRow(
-            //     Icons.monetization_on_outlined, 'Moneda', v.moneda),
-            if (v.sedeNombre != null)
-              _buildDetailRow(Icons.store_outlined, 'Sede', v.sedeNombre!),
+            const SizedBox(height: 8),
+            // Fecha y Sede en una sola fila, a extremos opuestos del header:
+            // fecha a la izquierda, sede a la derecha.
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Flexible(
+                  child: _buildDetailRowCompact(Icons.calendar_today,
+                      DateFormatter.formatDateTime(v.fechaVenta)),
+                ),
+                if (v.sedeNombre != null) ...[
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: _buildDetailRowCompact(
+                        Icons.store_outlined, v.sedeNombre!,
+                        alignEnd: true),
+                  ),
+                ],
+              ],
+            ),
+            const SizedBox(height: 6),
             if (v.vendedorNombre != null)
               _buildDetailRow(
                   Icons.person_outline, 'Vendedor', v.vendedorNombre!),
@@ -370,73 +405,38 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
               _buildReversionBanner(_reversion!),
             ],
             // Comprobante
-            const SizedBox(height: 6),
+            const SizedBox(height: 2),
             if (v.codigoComprobante != null) ...[
               _buildDetailRow(
-                  Icons.receipt_long, 'Comprobante',
-                  '${v.tipoComprobante} ${v.codigoComprobante}'),
-              if (v.comprobanteAnulado == true)
-                Container(
-                  margin: const EdgeInsets.only(top: 4),
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(4)),
-                  child: const Text('ANULADO', style: TextStyle(fontSize: 10, color: Colors.red, fontWeight: FontWeight.w700)),
-                ),
+                Icons.receipt_long,
+                'Comprobante',
+                '${v.tipoComprobante} ${v.codigoComprobante}',
+                // Cuando está anulado: texto tachado en rojo + chip ANULADO,
+                // para dejar claro de un vistazo que la boleta/factura se anuló.
+                valueColor: v.comprobanteAnulado == true ? Colors.red : null,
+                strikethrough: v.comprobanteAnulado == true,
+                trailing: v.comprobanteAnulado == true
+                    ? Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text('ANULADO',
+                            style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.red,
+                                fontWeight: FontWeight.w700)),
+                      )
+                    : null,
+              ),
               const SizedBox(height: 4),
+              // Estado SUNAT + accesos (Ver PDF SUNAT / Ver comprobante) van
+              // juntos en una sola fila dentro de _buildSunatStatusRow.
               _buildSunatStatusRow(v),
-              if (v.comprobanteSunatPdfUrl != null || v.comprobanteEnlaceProveedor != null) ...[
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    if (v.comprobanteSunatPdfUrl != null)
-                      GestureDetector(
-                        onTap: () => _abrirUrl(v.comprobanteSunatPdfUrl!),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: Colors.blue.shade50,
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(color: Colors.blue.shade200),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.picture_as_pdf, size: 11, color: Colors.blue.shade700),
-                              const SizedBox(width: 4),
-                              Text('Ver PDF SUNAT', style: TextStyle(fontSize: 9, color: Colors.blue.shade700, fontWeight: FontWeight.w600)),
-                            ],
-                          ),
-                        ),
-                      ),
-                    if (v.comprobanteEnlaceProveedor != null) ...[
-                      const SizedBox(width: 6),
-                      GestureDetector(
-                        onTap: () => _abrirUrl(v.comprobanteEnlaceProveedor!),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade100,
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(color: Colors.grey.shade300),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.open_in_new, size: 11, color: Colors.grey.shade700),
-                              const SizedBox(width: 4),
-                              Text('Ver comprobante', style: TextStyle(fontSize: 9, color: Colors.grey.shade700, fontWeight: FontWeight.w600)),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ],
-              if (v.comprobanteSunatStatus == 'ACEPTADO' && v.comprobanteAnulado != true) ...[
-                const SizedBox(height: 8),
-                _buildComprobanteActions(context, v),
-              ],
+              // Acciones del comprobante (NC/ND/Anular/Guía) ahora viven en
+              // el menú ⋮ junto al chip de estado (ver _buildHeaderSection).
               // Acción "Devolución Total" cuando el comprobante ya está anulado.
               // Se renderiza fuera de _buildComprobanteActions porque ese bloque
               // se oculta al estar anulado.
@@ -481,22 +481,13 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                 onTap: () => context.push('/empresa/guias-remision/desde-venta/${v.id}'),
               ),
             ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildClienteSection(Venta v) {
-    return GradientContainer(
-      borderColor: AppColors.blueborder,
-      child: Padding(
-        padding: const EdgeInsets.all(10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildSectionHeader(Icons.person_outline, 'CLIENTE'),
+            // ── CLIENTE (fusionado en la misma card que el header) ──
+            const SizedBox(height: 10),
+            Divider(
+                height: 1, color: AppColors.blueborder.withValues(alpha: 0.5)),
             const SizedBox(height: 8),
+            _buildSectionHeader(Icons.person_outline, 'CLIENTE'),
+            // const SizedBox(height: 8),
             _buildDetailRow(Icons.person, 'Nombre', v.nombreCliente),
             if (v.documentoCliente != null)
               _buildDetailRow(
@@ -812,6 +803,13 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
         .where((p) => !(p.referencia?.startsWith('Adelanto ') ?? false))
         .toList();
     final tieneHistorial = pagosHoy.isNotEmpty;
+    // Adelantos de COTIZACIÓN: el cliente los pagó ONLINE (Yape/Plin desde
+    // el marketplace) antes de esta venta — el dinero entró a Tesorería en
+    // su momento. Se muestran como pagos previos con su contexto (quedan
+    // fuera del historial de hoy, igual que los adelantos de OS).
+    final adelantosCotizacion = (v.pagos ?? [])
+        .where((p) => p.referencia?.startsWith('Adelanto cotización') ?? false)
+        .toList();
     // Adelantos previos de órdenes de servicio cobradas en esta venta.
     // NO son PagoVenta (entraron a caja con su propio movimiento
     // ADELANTO_SERVICIO cuando se recibieron), pero sin mostrarlos aquí
@@ -850,6 +848,64 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
             if (v.saldoPendiente > 0)
               _buildDetailRow(Icons.warning_amber, 'Pendiente',
                   '${v.moneda} ${v.saldoPendiente.toStringAsFixed(2)}'),
+            // Pagos previos de COTIZACIÓN: el cliente pagó online (Yape/
+            // Plin) desde su cotización del marketplace; el dinero ya está
+            // en Tesorería desde esa fecha.
+            if (adelantosCotizacion.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Divider(
+                  height: 1,
+                  color: AppColors.blueborder.withValues(alpha: 0.5)),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Icon(Icons.phone_android, size: 14, color: AppColors.blue1),
+                  const SizedBox(width: 6),
+                  Text(
+                    'PAGOS PREVIOS (COTIZACIÓN)',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.blue1,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              ...adelantosCotizacion.map((pago) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${pago.metodoPago.label} (online) · ${pago.referencia}',
+                              style: const TextStyle(
+                                  fontSize: 10, fontWeight: FontWeight.w500),
+                            ),
+                            Text(
+                              'Pagado por el cliente desde su cotización — '
+                              '${DateFormatter.formatDateTime(pago.fechaPago)} · en Tesorería',
+                              style: TextStyle(
+                                  fontSize: 10, color: Colors.grey.shade600),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Text(
+                        '${v.moneda} ${pago.monto.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w500, fontSize: 12, color: AppColors.green),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            ],
             // Pagos previos de órdenes de servicio: el adelanto entró a
             // caja antes de esta venta; aquí se muestra para cerrar la
             // trazabilidad (adelanto + total venta = costo del servicio).
@@ -948,7 +1004,7 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                   Text(
                     'HISTORIAL',
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 10,
                       fontWeight: FontWeight.w800,
                       color: AppColors.blue1,
                       letterSpacing: 0.5,
@@ -1138,7 +1194,16 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                           Text(
                             'Vence: ${DateFormatter.formatDate(cuota.fechaVencimiento)}'
                             '${cuota.montoPagado > 0 ? ' | Pagado: S/ ${cuota.montoPagado.toStringAsFixed(2)}' : ''}',
-                            style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                            style: TextStyle(
+                              fontSize: 10,
+                              // Naranja cuando la cuota está pagada parcialmente.
+                              color: cuota.estado == 'PAGADA_PARCIAL'
+                                  ? Colors.orange.shade700
+                                  : Colors.grey[600],
+                              fontWeight: cuota.estado == 'PAGADA_PARCIAL'
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
+                            ),
                           ),
                           if (cuota.tieneMora)
                             Text(
@@ -1269,7 +1334,7 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
       children: [
         Icon(icon, size: 16, color: AppColors.blue1),
         const SizedBox(width: 8),
-        AppSubtitle(title, fontSize: 11),
+        AppSubtitle(title, fontSize: 9),
       ],
     );
   }
@@ -1704,7 +1769,17 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
     }
   }
 
-  Widget _buildComprobanteActions(BuildContext context, Venta v) {
+  /// Acciones del comprobante (NC/ND/Anular/Guía) que alimentan el menú ⋮
+  /// ubicado junto al chip de estado. Devuelve lista vacía si el comprobante
+  /// no está ACEPTADO o ya fue anulado — en ese caso no se muestra el menú.
+  List<NavigationMenuItem> _buildComprobanteMenuItems(
+      BuildContext context, Venta v) {
+    if (v.codigoComprobante == null) return const [];
+    if (v.comprobanteSunatStatus != 'ACEPTADO' ||
+        v.comprobanteAnulado == true) {
+      return const [];
+    }
+
     // Notas activas = ACEPTADAS y no anuladas
     final notasActivas = (v.notasRelacionadas ?? const [])
         .where((n) => (n.sunatStatus == 'ACEPTADO') && !n.anulado)
@@ -1720,41 +1795,39 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
     // Anular vía CDB/RC requiere que NO haya NCs aceptadas asociadas (regla SUNAT).
     final puedeAnular = ncs.isEmpty;
 
-    return Wrap(
-      spacing: 8,
-      runSpacing: 6,
-      children: [
-        if (puedeEmitirNC)
-          _actionChip(
-            icon: Icons.note_add_outlined,
-            label: 'Nota Crédito',
-            color: Colors.orange,
-            badge: ncs.isNotEmpty ? '${ncs.length}' : null,
-            onTap: () => _abrirDialogNota(context, v, TipoNota.notaCredito),
-          ),
-        // ND siempre disponible — múltiples válidas (intereses por períodos, etc.)
-        _actionChip(
-          icon: Icons.add_circle_outline,
-          label: 'Nota Débito',
-          color: Colors.purple,
-          badge: nds.isNotEmpty ? '${nds.length}' : null,
-          onTap: () => _abrirDialogNota(context, v, TipoNota.notaDebito),
+    return [
+      if (puedeEmitirNC)
+        NavigationMenuItem(
+          id: 'nota_credito',
+          label: 'Nota Crédito${ncs.isNotEmpty ? ' (${ncs.length})' : ''}',
+          icon: Icons.note_add_outlined,
+          iconColor: Colors.orange,
+          onTap: () => _abrirDialogNota(context, v, TipoNota.notaCredito),
         ),
-        if (puedeAnular)
-          _actionChip(
-            icon: Icons.cancel_outlined,
-            label: 'Anular',
-            color: Colors.red,
-            onTap: () => _abrirDialogAnulacion(context, v),
-          ),
-        _actionChip(
-          icon: Icons.local_shipping,
-          label: 'Guía Remisión',
-          color: Colors.indigo,
-          onTap: () => context.push('/empresa/guias-remision/desde-venta/${v.id}'),
+      // ND siempre disponible — múltiples válidas (intereses por períodos, etc.)
+      NavigationMenuItem(
+        id: 'nota_debito',
+        label: 'Nota Débito${nds.isNotEmpty ? ' (${nds.length})' : ''}',
+        icon: Icons.add_circle_outline,
+        iconColor: Colors.purple,
+        onTap: () => _abrirDialogNota(context, v, TipoNota.notaDebito),
+      ),
+      if (puedeAnular)
+        NavigationMenuItem(
+          id: 'anular',
+          label: 'Anular',
+          icon: Icons.cancel_outlined,
+          iconColor: Colors.red,
+          onTap: () => _abrirDialogAnulacion(context, v),
         ),
-      ],
-    );
+      NavigationMenuItem(
+        id: 'guia_remision',
+        label: 'Guía Remisión',
+        icon: Icons.local_shipping,
+        iconColor: Colors.indigo,
+        onTap: () => context.push('/empresa/guias-remision/desde-venta/${v.id}'),
+      ),
+    ];
   }
 
   /// Renderiza el chip "Devolución Total" cuando el comprobante (y todas sus
@@ -2136,29 +2209,41 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
+        // Chip de estado SUNAT + accesos (Ver PDF SUNAT / Ver comprobante)
+        // en una sola fila. Wrap para que baje de línea en pantallas chicas.
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
                 color: chipColor.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(4),
               ),
-              child: Text(label, style: TextStyle(fontSize: 10, color: chipColor, fontWeight: FontWeight.w600)),
+              child: Text(label, style: TextStyle(fontSize: 9, color: chipColor, fontWeight: FontWeight.w500)),
             ),
-            const Spacer(),
+            if (v.comprobanteSunatPdfUrl != null)
+              _sunatLinkChip(
+                icon: Icons.picture_as_pdf,
+                label: 'Ver PDF SUNAT',
+                color: Colors.blue,
+                onTap: () => _abrirUrl(v.comprobanteSunatPdfUrl!),
+              ),
+            if (v.comprobanteEnlaceProveedor != null)
+              _sunatLinkChip(
+                icon: Icons.open_in_new,
+                label: 'Ver comprobante',
+                color: Colors.grey,
+                onTap: () => _abrirUrl(v.comprobanteEnlaceProveedor!),
+              ),
             if (status == 'PENDIENTE' || status == 'ERROR_COMUNICACION')
-              GestureDetector(
+              _sunatLinkChip(
+                icon: Icons.refresh,
+                label: 'Reintentar',
+                color: Colors.blue,
                 onTap: () => _reenviarASunat(v.comprobanteId!),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(color: Colors.blue.shade200),
-                  ),
-                  child: Text('Reintentar', style: TextStyle(fontSize: 10, color: Colors.blue.shade700, fontWeight: FontWeight.w600)),
-                ),
               ),
           ],
         ),
@@ -2171,6 +2256,41 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
           _buildDetailRow(Icons.tag, 'Hash', v.comprobanteSunatHash!),
         ],
       ],
+    );
+  }
+
+  /// Chip-enlace compacto usado en la fila de estado SUNAT
+  /// (Ver PDF SUNAT, Ver comprobante, Reintentar).
+  Widget _sunatLinkChip({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    final shade700 = color is MaterialColor ? color.shade700 : color;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(4),
+          // b
+          //order: Border.all(color: color.withValues(alpha: 0.30), width: 0.6),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 11, color: shade700),
+            const SizedBox(width: 4),
+            Text(label,
+                style: TextStyle(
+                    fontSize: 9,
+                    color: shade700,
+                    fontWeight: FontWeight.w600)),
+          ],
+        ),
+      ),
     );
   }
 
@@ -2197,9 +2317,36 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
     }
   }
 
-  Widget _buildDetailRow(IconData icon, String label, String value) {
+  /// Versión compacta (ícono + valor, sin label) para colocar varios datos
+  /// en una misma fila. El ícono ya comunica el campo (calendario, sede…).
+  Widget _buildDetailRowCompact(IconData icon, String value,
+      {bool alignEnd = false}) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment:
+          alignEnd ? MainAxisAlignment.end : MainAxisAlignment.start,
+      children: [
+        Icon(icon, size: 14, color: Colors.grey.shade500),
+        const SizedBox(width: 6),
+        Flexible(
+          child: Text(
+            value,
+            textAlign: alignEnd ? TextAlign.right : TextAlign.left,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDetailRow(IconData icon, String label, String value,
+      {Widget? trailing, Color? valueColor, bool strikethrough = false}) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.only(bottom: 2),
       child: Row(
         children: [
           Icon(icon, size: 14, color: Colors.grey.shade500),
@@ -2208,19 +2355,27 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
             width: 90,
             child: Text(
               label,
-              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+              style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(
-                fontSize: 11,
+              style: TextStyle(
+                fontSize: 10,
                 fontWeight: FontWeight.w500,
+                color: valueColor,
+                decoration:
+                    strikethrough ? TextDecoration.lineThrough : null,
+                decorationColor: valueColor,
               ),
               overflow: TextOverflow.ellipsis,
             ),
           ),
+          if (trailing != null) ...[
+            const SizedBox(width: 8),
+            trailing,
+          ],
         ],
       ),
     );

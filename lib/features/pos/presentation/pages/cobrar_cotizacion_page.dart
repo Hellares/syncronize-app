@@ -1,8 +1,10 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:syncronize/core/fonts/app_fonts.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import '../../../../core/di/injection_container.dart';
@@ -22,10 +24,19 @@ import '../../../../core/widgets/numpad/numpad_controller.dart';
 import '../../../../core/widgets/numpad/pos_numpad.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../../../core/widgets/snack_bar_helper.dart';
+import '../../../../core/widgets/autorizacion_dialog.dart';
+import '../../../../core/widgets/custom_button.dart';
+import '../../../../core/widgets/styled_dialog.dart';
+import '../../../auth/presentation/bloc/auth/auth_bloc.dart';
+import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
+import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../../cotizacion/domain/entities/cotizacion.dart';
 import '../../../cotizacion/domain/entities/cotizacion_detalle_input.dart';
 import '../../../cotizacion/presentation/widgets/cotizacion_item_selector.dart';
 import '../../../servicio/presentation/widgets/firma_digital_sheet.dart';
+import '../../../venta_rapida/domain/repositories/venta_rapida_repository.dart';
+import '../../../venta_rapida/domain/usecases/buscar_cliente_por_dni_usecase.dart';
+import '../../../venta_rapida/domain/usecases/buscar_cliente_por_ruc_usecase.dart';
 
 class CobrarCotizacionPage extends StatefulWidget {
   final String cotizacionId;
@@ -43,6 +54,33 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
   List<String> _excluirDetalleIds = [];
   Map<String, double> _ajustarCantidades = {};
   final List<CotizacionDetalleInput> _itemsAgregados = [];
+
+  /// Descuentos aplicados al cobrar: por línea (detalleId → monto de la
+  /// línea) y global (se resta del total final). Van al backend en el DTO.
+  final Map<String, double> _ajustarDescuentos = {};
+  double _descuentoGlobal = 0;
+  double? _descuentoGlobalPct; // informativo, si se ingresó como %
+
+  /// Cliente override: el cajero puede cambiar el cliente al cobrar
+  /// (ej. cotización a CLIENTES VARIOS que al pagar pide FACTURA con RUC).
+  /// Si quedan en null, la venta hereda el cliente de la cotización.
+  String? _clienteIdOverride; // EmpresaPersona (resuelto por DNI)
+  String? _clienteEmpresaIdOverride; // ClienteEmpresa (resuelto por RUC)
+  String? _nombreClienteOverride;
+  String? _documentoClienteOverride;
+  String? _direccionClienteOverride;
+  bool get _clienteCambiado => _nombreClienteOverride != null;
+
+  /// Autorizador de VENTA BAJO COSTO (guard del backend cuando un descuento
+  /// deja margen negativo sin liquidación). Se llena tras el rechazo
+  /// `VENTA_BAJO_COSTO_NO_AUTORIZADA` y el reintento lo adjunta.
+  String? _ventaBajoCostoAutorizadaPorId;
+
+  /// Quién autorizó los descuentos de este cobro. Un ADMIN de empresa se
+  /// auto-autoriza (sin credenciales); cualquier otro rol dispara el dialog
+  /// de autorización (DNI + contraseña de un admin). Se pide UNA sola vez
+  /// por cobro y viaja al backend como `descuentoAutorizadoPorId`.
+  String? _descuentoAutorizadoPorId;
   bool _isLoading = true;
   bool _isProcessing = false;
   String? _error;
@@ -187,47 +225,32 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            Icon(Icons.warning_amber_rounded, color: Colors.orange[700], size: 24),
-            const SizedBox(width: 8),
-            const Expanded(
-              child: Text('Stock insuficiente',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-            ),
+      builder: (ctx) => StyledDialog(
+        accentColor: Colors.orange.shade700,
+        icon: Icons.warning_amber_rounded,
+        titulo: 'Stock insuficiente',
+        content: [
+          // Items sin stock
+          if (sinNada.isNotEmpty) ...[
+            Text('Sin stock:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.red[700])),
+            const SizedBox(height: 6),
+            ...sinNada.map((item) => _buildStockItemRow(item, Colors.red)),
           ],
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Items sin stock
-              if (sinNada.isNotEmpty) ...[
-                Text('Sin stock:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.red[700])),
-                const SizedBox(height: 6),
-                ...sinNada.map((item) => _buildStockItemRow(item, Colors.red)),
-              ],
-              // Items con stock parcial
-              if (parcial.isNotEmpty) ...[
-                if (sinNada.isNotEmpty) const SizedBox(height: 10),
-                Text('Stock parcial:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.orange[700])),
-                const SizedBox(height: 6),
-                ...parcial.map((item) => _buildStockItemRow(item, Colors.orange)),
-              ],
-              const SizedBox(height: 10),
-              Text(
-                'Elige como proceder:',
-                style: TextStyle(fontSize: 11, color: Colors.grey[500], fontStyle: FontStyle.italic),
-              ),
-            ],
+          // Items con stock parcial
+          if (parcial.isNotEmpty) ...[
+            if (sinNada.isNotEmpty) const SizedBox(height: 10),
+            Text('Stock parcial:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.orange[700])),
+            const SizedBox(height: 6),
+            ...parcial.map((item) => _buildStockItemRow(item, Colors.orange)),
+          ],
+          const SizedBox(height: 10),
+          Text(
+            'Elige como proceder:',
+            style: TextStyle(fontSize: 11, color: Colors.grey[500], fontStyle: FontStyle.italic),
           ),
-        ),
-        actionsAlignment: MainAxisAlignment.center,
-        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        actions: [
+          const SizedBox(height: 12),
+          // Botones apilados full-width (van en el content: la fila de
+          // actions del StyledDialog no acomoda labels largos).
           // Volver
           SizedBox(
             width: double.infinity,
@@ -245,7 +268,7 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
           ),
           const SizedBox(height: 6),
           // Continuar con stock disponible (solo si hay parcial)
-          if (hayParcial)
+          if (hayParcial) ...[
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
@@ -260,7 +283,8 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
                 ),
               ),
             ),
-          if (hayParcial) const SizedBox(height: 6),
+            const SizedBox(height: 6),
+          ],
           // Continuar sin estos items
           SizedBox(
             width: double.infinity,
@@ -364,6 +388,364 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
     });
   }
 
+  /// Aplica (o quita, con 0) un descuento de línea: muta el item para que
+  /// los totales de la página se recalculen y lo registra para el DTO.
+  void _aplicarDescuentoItem(int index, double monto) {
+    final item = _items[index];
+    final id = item['id']?.toString();
+    if (id == null) return;
+    final cantidad = _toDouble(item['cantidad']);
+    final precio = _toDouble(item['precioUnitario']);
+    final bruto = cantidad * precio;
+    final desc = monto.clamp(0, bruto).toDouble();
+    final igvPct = _toDouble(item['porcentajeIGV']) / 100;
+    final subtotal = bruto - desc;
+    final igv = double.parse((subtotal * igvPct).toStringAsFixed(2));
+
+    setState(() {
+      item['descuento'] = desc;
+      item['subtotal'] = subtotal;
+      item['igv'] = igv;
+      item['total'] = subtotal + igv;
+      if (desc > 0) {
+        _ajustarDescuentos[id] = desc;
+      } else {
+        _ajustarDescuentos.remove(id);
+      }
+    });
+  }
+
+  /// Garantiza que haya un autorizador para aplicar descuentos. Un ADMIN
+  /// de empresa (EMPRESA_ADMIN/SUPER_ADMIN) se auto-autoriza con su propio
+  /// id, sin pedir credenciales. Cualquier otro rol abre el dialog de
+  /// autorización (DNI + contraseña, validado por el backend). Devuelve
+  /// `true` si se puede continuar.
+  /// Autorización gerencial para VENTA BAJO COSTO: el backend rechazó con
+  /// `VENTA_BAJO_COSTO_NO_AUTORIZADA` (un descuento dejó margen negativo y
+  /// el producto no está en liquidación). Mismo criterio que el descuento:
+  /// admin auto-autoriza; otro rol → credenciales de un autorizador.
+  Future<bool> _autorizarVentaBajoCosto(String motivoBackend) async {
+    final ctxState = context.read<EmpresaContextCubit>().state;
+    final authState = context.read<AuthBloc>().state;
+    if (ctxState is EmpresaContextLoaded &&
+        ctxState.context.esAdminEmpresa &&
+        authState is Authenticated) {
+      // Admin: confirma explícitamente (vender bajo costo es pérdida real).
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => StyledDialog(
+          accentColor: Colors.orange.shade800,
+          icon: Icons.warning_amber_rounded,
+          titulo: 'Venta bajo costo',
+          content: [
+            Text(
+              motivoBackend,
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '¿Autorizar esta venta con pérdida?',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: Colors.orange.shade800,
+              ),
+            ),
+          ],
+          actions: [
+            Expanded(
+              child: CustomButton(
+                text: 'Cancelar',
+                isOutlined: true,
+                borderColor: Colors.grey.shade400,
+                textColor: Colors.grey.shade700,
+                enableShadows: false,
+                onPressed: () => Navigator.of(ctx).pop(false),
+              ),
+            ),
+            Expanded(
+              child: CustomButton(
+                text: 'Autorizar',
+                backgroundColor: Colors.orange.shade800,
+                textColor: Colors.white,
+                onPressed: () => Navigator.of(ctx).pop(true),
+              ),
+            ),
+          ],
+        ),
+      );
+      if (ok != true) return false;
+      _ventaBajoCostoAutorizadaPorId = authState.user.id;
+      return true;
+    }
+
+    final auth = await showAutorizacionDialog(
+      context,
+      operacion: 'VENTA_BAJO_COSTO',
+      titulo: 'Autorizar venta bajo costo',
+      descripcion: motivoBackend,
+    );
+    if (auth == null || !auth.authorized) return false;
+    _ventaBajoCostoAutorizadaPorId = auth.autorizadoPorId;
+    return true;
+  }
+
+  Future<bool> _asegurarAutorizacionDescuento() async {
+    if (_descuentoAutorizadoPorId != null) return true;
+
+    final ctxState = context.read<EmpresaContextCubit>().state;
+    final authState = context.read<AuthBloc>().state;
+    if (ctxState is EmpresaContextLoaded &&
+        ctxState.context.esAdminEmpresa &&
+        authState is Authenticated) {
+      _descuentoAutorizadoPorId = authState.user.id;
+      return true;
+    }
+
+    final auth = await showAutorizacionDialog(
+      context,
+      operacion: 'APLICAR_DESCUENTO',
+      titulo: 'Autorizar descuento',
+      descripcion:
+          'Un administrador debe autorizar los descuentos de esta venta',
+    );
+    if (auth == null || !auth.authorized) return false;
+    _descuentoAutorizadoPorId = auth.autorizadoPorId;
+    return true;
+  }
+
+  /// Dialog de descuento para una línea (monto en S/, tope = importe bruto).
+  Future<void> _dialogDescuentoItem(int index) async {
+    if (!await _asegurarAutorizacionDescuento()) return;
+    if (!mounted) return;
+
+    final item = _items[index];
+    final nombre = item['descripcion']?.toString() ?? 'Item';
+    final cantidad = _toDouble(item['cantidad']);
+    final precio = _toDouble(item['precioUnitario']);
+    final bruto = cantidad * precio;
+    final actual = _toDouble(item['descuento']);
+    final controller = TextEditingController(
+      text: actual > 0 ? actual.toStringAsFixed(2) : '',
+    );
+
+    final aplicado = await showDialog<double>(
+      context: context,
+      builder: (ctx) => StyledDialog(
+        accentColor: AppColors.blue1,
+        icon: Icons.discount_outlined,
+        titulo: 'Descuento — $nombre',
+        content: [
+          Text('Importe de la línea: S/ ${bruto.toStringAsFixed(2)}',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+          const SizedBox(height: 10),
+          CustomText(
+            controller: controller,
+            label: 'Descuento S/',
+            hintText: '0.00',
+            borderColor: AppColors.blue1,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          ),
+        ],
+        actions: [
+          if (actual > 0)
+            Expanded(
+              child: CustomButton(
+                text: 'Quitar',
+                isOutlined: true,
+                borderColor: Colors.red.shade300,
+                textColor: Colors.red.shade700,
+                enableShadows: false,
+                // OJO: 0.0 (double) — pop(0) con int crasheaba el navigator
+                // (showDialog<double> hace cast del result) y congelaba la app.
+                onPressed: () => Navigator.of(ctx).pop(0.0),
+              ),
+            ),
+          Expanded(
+            child: CustomButton(
+              text: 'Cancelar',
+              isOutlined: true,
+              borderColor: Colors.grey.shade400,
+              textColor: Colors.grey.shade700,
+              enableShadows: false,
+              onPressed: () => Navigator.of(ctx).pop(),
+            ),
+          ),
+          Expanded(
+            child: CustomButton(
+              text: 'Aplicar',
+              backgroundColor: AppColors.blue1,
+              textColor: Colors.white,
+              onPressed: () {
+                final v =
+                    double.tryParse(controller.text.replaceAll(',', '.')) ?? 0;
+                if (v > bruto) {
+                  SnackBarHelper.showError(
+                      ctx, 'El descuento supera el importe de la línea');
+                  return;
+                }
+                Navigator.of(ctx).pop(v);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (aplicado != null) _aplicarDescuentoItem(index, aplicado);
+  }
+
+  /// Dialog del descuento GLOBAL (S/ o %). Valida que no deje el total por
+  /// debajo del adelanto ya pagado ni en cero.
+  Future<void> _dialogDescuentoGlobal() async {
+    if (!await _asegurarAutorizacionDescuento()) return;
+    if (!mounted) return;
+
+    var esPorcentaje = _descuentoGlobalPct != null;
+    final controller = TextEditingController(
+      text: _descuentoGlobal > 0
+          ? (esPorcentaje
+              ? _descuentoGlobalPct!.toStringAsFixed(0)
+              : _descuentoGlobal.toStringAsFixed(2))
+          : '',
+    );
+
+    final result = await showDialog<({double monto, double? pct})>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => StyledDialog(
+          accentColor: AppColors.blue1,
+          icon: Icons.percent,
+          titulo: 'Descuento global',
+          content: [
+            Text('Total actual: S/ ${_total.toStringAsFixed(2)}',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+            const SizedBox(height: 10),
+            // Toggle S/ / % — mismo patrón que el dialog de descuento del
+            // carrito de venta rápida (segmento sólido = seleccionado).
+            Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => setSheet(() => esPorcentaje = false),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        color: !esPorcentaje
+                            ? AppColors.blue1
+                            : Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Center(
+                        child: Text('S/',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: !esPorcentaje
+                                  ? Colors.white
+                                  : Colors.grey.shade600,
+                            )),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => setSheet(() => esPorcentaje = true),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        color: esPorcentaje
+                            ? AppColors.blue1
+                            : Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Center(
+                        child: Text('%',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: esPorcentaje
+                                  ? Colors.white
+                                  : Colors.grey.shade600,
+                            )),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            CustomText(
+              controller: controller,
+              label: esPorcentaje ? 'Descuento %' : 'Descuento S/',
+              hintText: esPorcentaje ? '0' : '0.00',
+              borderColor: AppColors.blue1,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            ),
+          ],
+          actions: [
+            if (_descuentoGlobal > 0)
+              Expanded(
+                child: CustomButton(
+                  text: 'Quitar',
+                  isOutlined: true,
+                  borderColor: Colors.red.shade300,
+                  textColor: Colors.red.shade700,
+                  enableShadows: false,
+                  onPressed: () =>
+                      Navigator.of(ctx).pop((monto: 0.0, pct: null)),
+                ),
+              ),
+            Expanded(
+              child: CustomButton(
+                text: 'Cancelar',
+                isOutlined: true,
+                borderColor: Colors.grey.shade400,
+                textColor: Colors.grey.shade700,
+                enableShadows: false,
+                onPressed: () => Navigator.of(ctx).pop(),
+              ),
+            ),
+            Expanded(
+              child: CustomButton(
+                text: 'Aplicar',
+                backgroundColor: AppColors.blue1,
+                textColor: Colors.white,
+                onPressed: () {
+                  final v =
+                      double.tryParse(controller.text.replaceAll(',', '.')) ??
+                          0;
+                  final monto = esPorcentaje
+                      ? double.parse((_total * v / 100).toStringAsFixed(2))
+                      : v;
+                  if (monto >= _total) {
+                    SnackBarHelper.showError(ctx,
+                        'El descuento no puede igualar o superar el total');
+                    return;
+                  }
+                  if (_total - monto < _adelanto) {
+                    SnackBarHelper.showError(ctx,
+                        'El total con descuento no puede ser menor al adelanto ya pagado (S/ ${_adelanto.toStringAsFixed(2)})');
+                    return;
+                  }
+                  Navigator.of(ctx)
+                      .pop((monto: monto, pct: esPorcentaje ? v : null));
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (result != null) {
+      setState(() {
+        _descuentoGlobal = result.monto;
+        _descuentoGlobalPct = result.pct;
+      });
+    }
+  }
+
   /// Quitar todos los items sin stock suficiente
   void _removerItemsSinStock() {
     final sinStockIds = _itemsSinStock
@@ -400,10 +782,16 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
   /// El backend lo aplica como PagoVenta adicional al convertir a venta.
   double get _adelanto => _cotizacion?.adelantoMonto ?? 0;
 
-  /// Total que el cajero debe cobrar HOY al cliente = total - adelanto.
-  /// Sin adelanto, equivale a `_total`.
+  /// Total tras aplicar el descuento GLOBAL del cajero.
+  double get _totalConDescuentoGlobal {
+    final v = _total - _descuentoGlobal;
+    return v > 0 ? v : 0;
+  }
+
+  /// Total que el cajero debe cobrar HOY al cliente = total con descuento
+  /// global − adelanto. Sin descuento ni adelanto, equivale a `_total`.
   double get _totalACobrar {
-    final v = _total - _adelanto;
+    final v = _totalConDescuentoGlobal - _adelanto;
     return v > 0 ? v : 0;
   }
 
@@ -515,8 +903,10 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
                     Navigator.pop(context);
                     setState(() {
                       _itemsAgregados.add(item);
-                      // Agregar a la lista visual
+                      // Agregar a la lista visual (guardando la referencia
+                      // al input para poder quitarlo del payload con el ✕).
                       _items.add({
+                        '_input': item,
                         'id': 'nuevo_${DateTime.now().millisecondsSinceEpoch}',
                         'descripcion': item.descripcion,
                         'cantidad': item.cantidad,
@@ -543,17 +933,248 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
     );
   }
 
+  /// Quita un item de la venta. No basta con sacarlo de la lista visual:
+  /// el backend arma la venta desde los DETALLES DE LA COTIZACIÓN, así que
+  /// hay que registrar la exclusión (`excluirDetalleIds`) — sin esto el
+  /// item "quitado" igual se vendía (y reventaba por stock si no había).
   void _removeItem(int index) {
-    setState(() => _items.removeAt(index));
+    setState(() {
+      final item = _items[index];
+      if (item['_esNuevo'] == true) {
+        // Item agregado por el cajero en esta pantalla → quitarlo del
+        // payload de adicionales.
+        final input = item['_input'];
+        if (input != null) _itemsAgregados.remove(input);
+      } else {
+        final detalleId = item['id']?.toString();
+        if (detalleId != null && detalleId.isNotEmpty) {
+          if (!_excluirDetalleIds.contains(detalleId)) {
+            _excluirDetalleIds.add(detalleId);
+          }
+          // Limpiar ajustes/descuentos que apuntaban a esta línea.
+          _ajustarCantidades.remove(detalleId);
+          _ajustarDescuentos.remove(detalleId);
+          // Y el aviso de stock insuficiente si era por este item.
+          _itemsSinStock.removeWhere(
+            (s) => s['detalleId']?.toString() == detalleId,
+          );
+        }
+      }
+      _items.removeAt(index);
+    });
+  }
+
+  /// Cambiar el cliente al cobrar: busca por DNI (RENIEC) o RUC (SUNAT),
+  /// reutilizando los usecases de venta rápida (registran el cliente si no
+  /// existía, idempotente). El resultado reemplaza al cliente de la
+  /// cotización en la venta y el comprobante.
+  Future<void> _dialogCambiarCliente() async {
+    // Si el comprobante elegido es FACTURA, arrancar en RUC.
+    var esRuc = _tipoComprobante == 'FACTURA';
+    final controller = TextEditingController();
+    var buscando = false;
+
+    final result = await showDialog<
+        ({
+          String? clienteId,
+          String? clienteEmpresaId,
+          String nombre,
+          String documento,
+          String? direccion,
+        })>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => StyledDialog(
+          accentColor: AppColors.blue1,
+          icon: Icons.person_search,
+          titulo: 'Cambiar cliente',
+          content: [
+            // Toggle DNI / RUC — mismo patrón segmentado del descuento S/ ↔ %.
+            Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: buscando
+                        ? null
+                        : () => setSheet(() => esRuc = false),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        color:
+                            !esRuc ? AppColors.blue1 : Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Center(
+                        child: Text('DNI',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: !esRuc
+                                  ? Colors.white
+                                  : Colors.grey.shade600,
+                            )),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: GestureDetector(
+                    onTap:
+                        buscando ? null : () => setSheet(() => esRuc = true),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        color: esRuc ? AppColors.blue1 : Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Center(
+                        child: Text('RUC',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: esRuc
+                                  ? Colors.white
+                                  : Colors.grey.shade600,
+                            )),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            CustomText(
+              controller: controller,
+              label: esRuc ? 'RUC (11 dígitos)' : 'DNI (8 dígitos)',
+              hintText: esRuc ? '20...' : '12345678',
+              borderColor: AppColors.blue1,
+              keyboardType: TextInputType.number,
+            ),
+          ],
+          actions: [
+            Expanded(
+              child: CustomButton(
+                text: 'Cancelar',
+                isOutlined: true,
+                borderColor: Colors.grey.shade400,
+                textColor: Colors.grey.shade700,
+                enableShadows: false,
+                onPressed:
+                    buscando ? null : () => Navigator.of(ctx).pop(),
+              ),
+            ),
+            Expanded(
+              child: CustomButton(
+                text: buscando ? 'Buscando...' : 'Buscar',
+                backgroundColor: AppColors.blue1,
+                textColor: Colors.white,
+                onPressed: buscando
+                    ? null
+                    : () async {
+                        final doc = controller.text.trim();
+                        final largoOk =
+                            esRuc ? doc.length == 11 : doc.length == 8;
+                        if (!largoOk) {
+                          SnackBarHelper.showError(
+                              ctx,
+                              esRuc
+                                  ? 'El RUC debe tener 11 dígitos'
+                                  : 'El DNI debe tener 8 dígitos');
+                          return;
+                        }
+                        setSheet(() => buscando = true);
+                        if (esRuc) {
+                          final r =
+                              await locator<BuscarClientePorRucUseCase>()(doc);
+                          if (!ctx.mounted) return;
+                          if (r is Success<ClienteResueltoRuc>) {
+                            final c = r.data;
+                            Navigator.of(ctx).pop((
+                              clienteId: null,
+                              clienteEmpresaId: c.clienteEmpresaId,
+                              nombre: c.razonSocial,
+                              documento: c.ruc,
+                              direccion: c.direccion,
+                            ));
+                          } else {
+                            setSheet(() => buscando = false);
+                            SnackBarHelper.showError(
+                                ctx, (r as Error).message);
+                          }
+                        } else {
+                          final r =
+                              await locator<BuscarClientePorDniUseCase>()(doc);
+                          if (!ctx.mounted) return;
+                          if (r is Success<ClienteResueltoDni>) {
+                            final c = r.data;
+                            Navigator.of(ctx).pop((
+                              // El usecase de DNI resuelve una persona: su
+                              // id viaja como clienteId (EmpresaPersona),
+                              // igual que en venta rápida.
+                              clienteId: c.clienteEmpresaId,
+                              clienteEmpresaId: null,
+                              nombre: c.nombreCompleto,
+                              documento: c.dni,
+                              direccion: c.direccion,
+                            ));
+                          } else {
+                            setSheet(() => buscando = false);
+                            SnackBarHelper.showError(
+                                ctx, (r as Error).message);
+                          }
+                        }
+                      },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (result == null || !mounted) return;
+    setState(() {
+      _clienteIdOverride = result.clienteId;
+      _clienteEmpresaIdOverride = result.clienteEmpresaId;
+      _nombreClienteOverride = result.nombre;
+      _documentoClienteOverride = result.documento;
+      _direccionClienteOverride = result.direccion;
+    });
+  }
+
+  /// Vuelve al cliente original de la cotización.
+  void _restaurarClienteOriginal() {
+    setState(() {
+      _clienteIdOverride = null;
+      _clienteEmpresaIdOverride = null;
+      _nombreClienteOverride = null;
+      _documentoClienteOverride = null;
+      _direccionClienteOverride = null;
+    });
   }
 
   Future<void> _procesarVenta() async {
     if (_isProcessing) return;
 
     final esCredito = _condicionPago == 'CREDITO';
-    if (!esCredito && _pagos.isEmpty) {
+    // Cotización YA PAGADA por completo (adelantos digitales acumulados =
+    // total): se convierte a venta SIN pagos nuevos — solo emite el
+    // comprobante y descuenta el stock reservado. El dinero ya está en
+    // Tesorería (Caja Central), no debe tocar la caja del cajero.
+    final yaPagada = _totalACobrar <= 0.005;
+    if (!esCredito && _pagos.isEmpty && !yaPagada) {
       SnackBarHelper.showError(context, 'Agrega al menos un pago');
       return;
+    }
+
+    // FACTURA exige RUC (11 dígitos) del cliente efectivo. Guiar al cajero
+    // antes de que el backend lo rechace.
+    if (_tipoComprobante == 'FACTURA') {
+      final docEfectivo =
+          _documentoClienteOverride ?? _cotizacion?.documentoCliente ?? '';
+      if (docEfectivo.length != 11) {
+        SnackBarHelper.showError(context,
+            'FACTURA requiere un cliente con RUC. Usa "Cambiar" en la sección Cliente.');
+        return;
+      }
     }
 
     setState(() => _isProcessing = true);
@@ -608,6 +1229,41 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
       if (_itemsAgregados.isNotEmpty) {
         data['itemsAdicionales'] = _itemsAgregados.map((item) => item.toMap()).toList();
       }
+      // Descuentos del cajero (por línea y/o global).
+      if (_ajustarDescuentos.isNotEmpty) {
+        data['ajustarDescuentos'] = _ajustarDescuentos;
+      }
+      if (_descuentoGlobal > 0) {
+        data['descuentoGlobal'] = _descuentoGlobal;
+        if (_descuentoGlobalPct != null) {
+          data['descuentoGlobalPorcentaje'] = _descuentoGlobalPct;
+        }
+      }
+      // Quién autorizó los descuentos (admin auto-autorizado o el
+      // autorizador validado por credenciales).
+      if ((_ajustarDescuentos.isNotEmpty || _descuentoGlobal > 0) &&
+          _descuentoAutorizadoPorId != null) {
+        data['descuentoAutorizadoPorId'] = _descuentoAutorizadoPorId;
+      }
+      // Autorización de venta bajo costo (reintento tras el rechazo del guard).
+      if (_ventaBajoCostoAutorizadaPorId != null) {
+        data['ventaBajoCostoAutorizadaPorId'] = _ventaBajoCostoAutorizadaPorId;
+      }
+      // Cliente cambiado al cobrar (reemplaza al de la cotización en la
+      // venta y el comprobante).
+      if (_clienteCambiado) {
+        if (_clienteIdOverride != null) {
+          data['clienteId'] = _clienteIdOverride;
+        }
+        if (_clienteEmpresaIdOverride != null) {
+          data['clienteEmpresaId'] = _clienteEmpresaIdOverride;
+        }
+        data['nombreCliente'] = _nombreClienteOverride;
+        data['documentoCliente'] = _documentoClienteOverride;
+        if (_direccionClienteOverride != null) {
+          data['direccionCliente'] = _direccionClienteOverride;
+        }
+      }
 
       final result = await locator<CobrarCotizacionUseCase>()(
         cotizacionId: widget.cotizacionId,
@@ -618,6 +1274,16 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
 
       if (result is Error<Venta>) {
         setState(() => _isProcessing = false);
+        // Venta BAJO COSTO (descuento dejó margen negativo sin liquidación):
+        // pedir autorización gerencial y reintentar — mismo flujo que VR.
+        if (result.errorCode == 'VENTA_BAJO_COSTO_NO_AUTORIZADA' &&
+            _ventaBajoCostoAutorizadaPorId == null) {
+          final autorizado = await _autorizarVentaBajoCosto(result.message);
+          if (autorizado && mounted) {
+            await _procesarVenta(); // reintenta con la autorización adjunta
+          }
+          return;
+        }
         SnackBarHelper.showError(context, result.message);
         return;
       }
@@ -701,7 +1367,7 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
             : _error != null
                 ? Center(child: Text(_error!))
                 : ListView(
-                    padding: const EdgeInsets.all(10),
+                    padding: const EdgeInsets.all(6),
                     children: [
                       if (esPendiente) ...[
                         Container(
@@ -722,8 +1388,8 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
                                 child: Text(
                                   'Cotización pendiente — se aprobará al cobrar.',
                                   style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w500,
                                     color: Colors.amber.shade900,
                                   ),
                                 ),
@@ -731,7 +1397,7 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
                             ],
                           ),
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 8),
                       ],
 
                       // Cliente + Productos en una sola card unificada
@@ -739,11 +1405,13 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
                       // abajo). Reduce ruido visual al cobrar.
                       GradientContainer(
                         borderColor: AppColors.blueborder,
-                        padding: const EdgeInsets.all(10),
+                        padding: const EdgeInsets.all(8),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             // ── Cliente ──
+                            // El cajero puede cambiarlo al cobrar (ej.
+                            // cotización a CLIENTES VARIOS que pide FACTURA).
                             Row(
                               children: [
                                 Icon(Icons.person,
@@ -751,18 +1419,67 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
                                 const SizedBox(width: 6),
                                 AppSubtitle('Cliente',
                                     color: AppColors.blue1),
+                                const Spacer(),
+                                if (_clienteCambiado) ...[
+                                  GestureDetector(
+                                    onTap: _restaurarClienteOriginal,
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 6),
+                                      child: Icon(Icons.undo,
+                                          size: 16,
+                                          color: Colors.grey.shade600),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                ],
+                                GestureDetector(
+                                  onTap: _dialogCambiarCliente,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      // color: AppColors.green,
+                                      border: Border.all(
+                                          color: AppColors.green, width: 0.6),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.edit,
+                                            size: 12, color: AppColors.green,),
+                                        SizedBox(width: 4),
+                                        Text('Cambiar',
+                                            style: TextStyle(
+                                                fontSize: 10,
+                                                color: AppColors.green,
+                                                fontWeight:
+                                                    FontWeight.w500)),
+                                      ],
+                                    ),
+                                  ),
+                                ),
                               ],
                             ),
-                            const SizedBox(height: 8),
-                            _infoRow('Nombre',
-                                _cotizacion?.nombreCliente ?? 'Sin cliente'),
-                            if (_cotizacion?.documentoCliente != null)
+                            const SizedBox(height: 4),
+                            _infoRow(
+                                'Nombre',
+                                _nombreClienteOverride ??
+                                    _cotizacion?.nombreCliente ??
+                                    'Sin cliente'),
+                            if ((_documentoClienteOverride ??
+                                    _cotizacion?.documentoCliente) !=
+                                null)
                               _infoRow(
-                                  'Documento', _cotizacion!.documentoCliente!),
-                            if (_cotizacion?.telefonoCliente != null)
+                                  'Documento',
+                                  _documentoClienteOverride ??
+                                      _cotizacion!.documentoCliente!),
+                            if (!_clienteCambiado &&
+                                _cotizacion?.telefonoCliente != null)
                               _infoRow(
                                   'Teléfono', _cotizacion!.telefonoCliente!),
-                            const Divider(height: 18),
+                            const Divider(height: 10),
                             // ── Productos ──
                             Row(
                               children: [
@@ -770,29 +1487,29 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
                                 const SizedBox(width: 6),
                                 Expanded(
                                   child: Text('Productos (${_items.length})',
-                                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.blue1)),
                                 ),
                                 GestureDetector(
                                   onTap: _agregarProducto,
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                                     decoration: BoxDecoration(
                                       color: AppColors.blue1,
-                                      borderRadius: BorderRadius.circular(6),
+                                      borderRadius: BorderRadius.circular(4),
                                     ),
                                     child: const Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Icon(Icons.add, size: 14, color: Colors.white),
                                         SizedBox(width: 4),
-                                        Text('Agregar', style: TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w600)),
+                                        Text('Agregar', style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w500)),
                                       ],
                                     ),
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 4),
                             // Tabla tipo Excel (mismo patrón que el detalle
                             // de cotización): header bluechip + zebra
                             // striping en el body. Última columna es la
@@ -813,7 +1530,7 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
                                   Container(
                                     color: AppColors.bluechip,
                                     padding: const EdgeInsets.symmetric(
-                                        vertical: 8, horizontal: 8),
+                                        vertical: 5, horizontal: 8),
                                     child: const Row(
                                       children: [
                                         SizedBox(
@@ -821,7 +1538,7 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
                                             child:
                                                 Center(child: _ThItem('#'))),
                                         Expanded(
-                                            flex: 5,
+                                            flex: 6,
                                             child: _ThItem('PRODUCTO')),
                                         Expanded(
                                             flex: 2,
@@ -844,12 +1561,13 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
                                       ],
                                     ),
                                   ),
-                                  // Body
+                                  // Body (tap en la fila = descuento de línea)
                                   for (var i = 0; i < _items.length; i++)
                                     _ItemTablaRow(
                                       index: i,
                                       item: _items[i],
                                       onRemove: () => _removeItem(i),
+                                      onTap: () => _dialogDescuentoItem(i),
                                     ),
                                 ],
                               ),
@@ -867,11 +1585,63 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text('Total', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                                const Text('Total', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                                 Text('S/ ${_total.toStringAsFixed(2)}',
-                                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.blue1)),
+                                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.blue1)),
                               ],
                             ),
+                            // Descuento GLOBAL del cajero (además del de línea,
+                            // que se aplica tocando cada item de la tabla).
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: TextButton.icon(
+                                onPressed: _dialogDescuentoGlobal,
+                                icon: const Icon(Icons.percent, size: 14),
+                                label: AppSubtitle(
+                                  font: AppFont.amazonEmberMediumItalic,
+                                  _descuentoGlobal > 0
+                                      ? 'Editar descuento global'
+                                      : 'Aplicar descuento global',
+                                  color: AppColors.blue2,
+                                  fontSize: 11,
+                                ),
+                                style: TextButton.styleFrom(
+                                  foregroundColor: AppColors.blue2,
+                                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                                  minimumSize: const Size(0, 28),
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                ),
+                              ),
+                            ),
+                            if (_descuentoGlobal > 0) ...[
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    'Descuento global${_descuentoGlobalPct != null ? ' (${_descuentoGlobalPct!.toStringAsFixed(0)}%)' : ''}',
+                                    style: TextStyle(fontSize: 11, color: Colors.red.shade700),
+                                  ),
+                                  Text('- S/ ${_descuentoGlobal.toStringAsFixed(2)}',
+                                      style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                          color: Colors.red.shade700)),
+                                ],
+                              ),
+                              const SizedBox(height: 2),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text('Total a pagar',
+                                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                                  Text('S/ ${_totalConDescuentoGlobal.toStringAsFixed(2)}',
+                                      style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w800,
+                                          color: AppColors.blue1)),
+                                ],
+                              ),
+                            ],
                             // Adelanto + saldo a cobrar hoy (solo si hubo adelanto).
                             // El cajero cobra solo el saldo; el adelanto ya se
                             // registró en caja al crear la cotización.
@@ -883,14 +1653,14 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
                                 children: [
                                   Text('Adelanto',
                                       style: TextStyle(
-                                          fontSize: 13,
-                                          color: Colors.green[800])),
+                                          fontSize: 12,
+                                          color: Colors.green[700])),
                                   Text(
                                       '- S/ ${_adelanto.toStringAsFixed(2)}',
                                       style: TextStyle(
-                                          fontSize: 13,
+                                          fontSize: 12,
                                           fontWeight: FontWeight.w700,
-                                          color: Colors.green[800])),
+                                          color: Colors.green[700])),
                                 ],
                               ),
                               const SizedBox(height: 2),
@@ -928,21 +1698,23 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
                       ),
                       const SizedBox(height: 12),
 
-                      ComprobanteCondicionCard(
-                        tipoComprobante: _tipoComprobante,
-                        onComprobanteChanged: (v) =>
-                            setState(() => _tipoComprobante = v),
-                        condicionPago: _condicionPago,
-                        // En el cobro de cotización-a-venta siempre es CONTADO,
-                        // así que ocultamos el selector. El crédito se gestiona
-                        // desde otra pantalla (factura con plazo).
-                        onCondicionChanged: (_) {},
-                        showMixto: false,
-                        showCondicionPago: false,
-                      ),
-                      const SizedBox(height: 12),
-
                       _PagoMetodoCard(
+                        // Comprobante y método de pago comparten un solo
+                        // card (antes eran dos separados).
+                        header: ComprobanteCondicionCard(
+                          embedded: true,
+                          tipoComprobante: _tipoComprobante,
+                          onComprobanteChanged: (v) =>
+                              setState(() => _tipoComprobante = v),
+                          condicionPago: _condicionPago,
+                          // En el cobro de cotización-a-venta siempre es
+                          // CONTADO, así que ocultamos el selector. El crédito
+                          // se gestiona desde otra pantalla (factura con
+                          // plazo).
+                          onCondicionChanged: (_) {},
+                          showMixto: false,
+                          showCondicionPago: false,
+                        ),
                         // Saldo a cobrar (descuenta adelanto si existe).
                         // El total bruto se ve arriba con desglose.
                         total: _totalACobrar,
@@ -958,7 +1730,7 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
                         pagos: _pagos,
                         onRemoverPago: _removerPago,
                         numpadController: _numpadController,
-                        montoController: _montoAgregarController,
+                        tipoComprobante: _tipoComprobante,
                         referenciaController: _referenciaAgregarController,
                         onAgregarPago: () {
                           _agregarPago();
@@ -1111,7 +1883,7 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
       padding: const EdgeInsets.only(bottom: 4),
       child: Row(
         children: [
-          SizedBox(width: 80, child: Text('$label: ', style: TextStyle(fontSize: 12, color: Colors.grey[500]))),
+          SizedBox(width: 80, child: Text('$label: ', style: TextStyle(fontSize: 10, color: Colors.grey[500]))),
           Expanded(child: Text(value, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w500))),
         ],
       ),
@@ -1124,7 +1896,7 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+          Text(label, style: TextStyle(fontSize: 10, color: Colors.grey[600])),
           Text('S/ ${monto.toStringAsFixed(2)}',
               style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: color)),
         ],
@@ -1141,6 +1913,9 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
 /// El numpad real (digit grid + acciones) vive en `_NumpadCobrarBar` y
 /// está pegado al fondo de la pantalla.
 class _PagoMetodoCard extends StatelessWidget {
+  /// Contenido opcional arriba del método de pago (selector de comprobante),
+  /// para que ambos vivan en un solo card.
+  final Widget? header;
   final double total;
   final double totalPagado;
   final String metodoActual;
@@ -1148,11 +1923,15 @@ class _PagoMetodoCard extends StatelessWidget {
   final List<Map<String, dynamic>> pagos;
   final ValueChanged<int> onRemoverPago;
   final NumpadController numpadController;
-  final TextEditingController montoController;
   final TextEditingController referenciaController;
   final VoidCallback onAgregarPago;
 
+  /// Tipo de comprobante elegido (BOLETA/FACTURA/TICKET) — se muestra en el
+  /// display del monto para que el cajero vea qué documento va a emitir.
+  final String tipoComprobante;
+
   const _PagoMetodoCard({
+    this.header,
     required this.total,
     required this.totalPagado,
     required this.metodoActual,
@@ -1160,8 +1939,8 @@ class _PagoMetodoCard extends StatelessWidget {
     required this.pagos,
     required this.onRemoverPago,
     required this.numpadController,
-    required this.montoController,
     required this.referenciaController,
+    required this.tipoComprobante,
     required this.onAgregarPago,
   });
 
@@ -1192,64 +1971,14 @@ class _PagoMetodoCard extends StatelessWidget {
 
         return GradientContainer(
           borderColor: AppColors.blueborder,
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+          padding: const EdgeInsets.fromLTRB(12, 5, 12, 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              AppSubtitle('Método de Pago', color: AppColors.blue1),
-              const SizedBox(height: 8),
-              SizedBox(
-                height: 36,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _metodos.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 6),
-                  itemBuilder: (_, i) {
-                    final (value, label, icon) = _metodos[i];
-                    final selected = metodoActual == value;
-                    return GestureDetector(
-                      onTap: () => onMetodoChanged(value),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: selected ? AppColors.blue1 : Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: selected
-                                ? AppColors.blue1
-                                : Colors.grey.shade300,
-                            width: selected ? 1.5 : 0.6,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(icon,
-                                size: 14,
-                                color: selected
-                                    ? Colors.white
-                                    : Colors.grey.shade700),
-                            const SizedBox(width: 6),
-                            Text(
-                              label,
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: selected
-                                    ? Colors.white
-                                    : Colors.grey.shade800,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 12),
-
+              if (header != null) ...[
+                header!,
+                const Divider(height: 20),
+              ],
               // Display recibido / vuelto / faltante
               Container(
                 padding: const EdgeInsets.symmetric(
@@ -1292,6 +2021,62 @@ class _PagoMetodoCard extends StatelessWidget {
                 ),
               ),
 
+              // Chips de método de pago: entre el resumen y el monto a
+              // agregar, para elegir el medio antes de tipear el monto.
+              const SizedBox(height: 10),
+              AppSubtitle('Método de Pago', color: AppColors.blue1),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 30,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _metodos.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 6),
+                  itemBuilder: (_, i) {
+                    final (value, label, icon) = _metodos[i];
+                    final selected = metodoActual == value;
+                    return GestureDetector(
+                      onTap: () => onMetodoChanged(value),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: selected ? AppColors.green : Colors.white,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: selected
+                                ? AppColors.green
+                                : Colors.grey.shade300,
+                            width: selected ? 1.5 : 0.6,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(icon,
+                                size: 14,
+                                color: selected
+                                    ? Colors.white
+                                    : Colors.grey.shade700),
+                            const SizedBox(width: 6),
+                            Text(
+                              label,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: selected
+                                    ? Colors.white
+                                    : Colors.grey.shade800,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+
               // ── Inputs de Monto y Referencia + botón Agregar ──
               // Mostramos los inputs solo cuando todavía falta monto por
               // cubrir, contando también lo que está tipeado en el numpad.
@@ -1300,61 +2085,108 @@ class _PagoMetodoCard extends StatelessWidget {
               // quita un pago, vuelve a faltar y reaparecen.
               if ((total - recibidoTotal) > 0.005) ...[
                 const SizedBox(height: 10),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                // Display estilo POS del monto tipeado en el numpad
+                // (reemplaza al CustomText readOnly: parecía un input
+                // editable pero el monto se tipea abajo) + botón Agregar
+                // en la misma fila. IntrinsicHeight: permite stretch (botón
+                // = altura del display) dentro de un scroll sin altura
+                // acotada.
+                IntrinsicHeight(
+                  child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Expanded(
-                      flex: _requiereReferencia(metodoActual) ? 5 : 11,
-                      child: CustomText(
-                        controller: montoController,
-                        label: 'Monto',
-                        hintText: '0.00',
-                        borderColor: AppColors.blue1,
-                        readOnly: true,
-                        fieldType: FieldType.text,
-                        prefixText: 'S/ ',
-                      ),
-                    ),
-                    if (_requiereReferencia(metodoActual)) ...[
-                      const SizedBox(width: 8),
-                      Expanded(
-                        flex: 6,
-                        child: CustomText(
-                          controller: referenciaController,
-                          label: 'Referencia / N° op.',
-                          hintText: 'Ej. 8XYZ12',
-                          borderColor: AppColors.blue1,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: montoActual > 0
+                                ? AppColors.blue1
+                                : AppColors.blueborder,
+                            width: montoActual > 0 ? 1.2 : 0.6,
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text.rich(
+                              // Comprobante visible al momento de pagar:
+                              // "MONTO A PAGAR - BOLETA/FACTURA/TICKET"
+                              // (el tipo resaltado en azul).
+                              TextSpan(
+                                text: 'MONTO A PAGAR - ',
+                                children: [
+                                  TextSpan(
+                                    text: tipoComprobante,
+                                    style: TextStyle(color: AppColors.blue1),
+                                  ),
+                                ],
+                              ),
+                              style: TextStyle(
+                                fontSize: 8,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.5,
+                                color: Colors.grey.shade500,
+                              ),
+                            ),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: Text(
+                                'S/ ${montoActual.toStringAsFixed(2)}',
+                                style: TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w800,
+                                  height: 1.2,
+                                  color: montoActual > 0
+                                      ? AppColors.blue1
+                                      : Colors.grey.shade400,
+                                  fontFeatures: const [
+                                    FontFeature.tabularFigures()
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: montoActual > 0 ? onAgregarPago : null,
-                    icon: const Icon(Icons.add_card, size: 16),
-                    label: Text(
-                      pagos.isEmpty
-                          ? 'Agregar pago'
-                          : 'Agregar otro pago',
-                      style: const TextStyle(
-                          fontSize: 12, fontWeight: FontWeight.w600),
                     ),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.blue1,
-                      side: BorderSide(
-                          color: montoActual > 0
-                              ? AppColors.blue1
-                              : Colors.grey.shade300),
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(6),
+                    const SizedBox(width: 8),
+                    OutlinedButton.icon(
+                      onPressed: montoActual > 0 ? onAgregarPago : null,
+                      icon: const Icon(Icons.add_card, size: 16),
+                      label: Text(
+                        pagos.isEmpty ? 'Agregar' : 'Otro pago',
+                        style: const TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w600),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.blue1,
+                        side: BorderSide(
+                            color: montoActual > 0
+                                ? AppColors.blue1
+                                : Colors.grey.shade300),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
                     ),
+                  ],
                   ),
                 ),
+                if (_requiereReferencia(metodoActual)) ...[
+                  const SizedBox(height: 8),
+                  CustomText(
+                    controller: referenciaController,
+                    label: 'Referencia / N° op.',
+                    hintText: 'Ej. 8XYZ12',
+                    borderColor: AppColors.blue1,
+                  ),
+                ],
               ] else ...[
                 const SizedBox(height: 10),
                 Row(
@@ -1552,10 +2384,14 @@ class _ItemTablaRow extends StatelessWidget {
   final Map<String, dynamic> item;
   final VoidCallback onRemove;
 
+  /// Tap en la fila → descuento de la línea.
+  final VoidCallback? onTap;
+
   const _ItemTablaRow({
     required this.index,
     required this.item,
     required this.onRemove,
+    this.onTap,
   });
 
   static String _fmtCantidad(double n) {
@@ -1572,11 +2408,17 @@ class _ItemTablaRow extends StatelessWidget {
         _CobrarCotizacionPageState._toDouble(item['cantidad']);
     final precio = _CobrarCotizacionPageState._toDouble(
         item['precioUnitario']);
-    final total = cantidad * precio;
+    final descuento =
+        _CobrarCotizacionPageState._toDouble(item['descuento']);
+    final total = cantidad * precio - descuento;
 
-    return Container(
+    return InkWell(
+      onTap: onTap,
+      child: Container(
       color: index.isEven ? Colors.white : Colors.grey.shade50,
-      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+      // Sin padding vertical: la altura la marca el texto (~11px); el botón
+      // ✕ se mantiene por debajo para no estirar la fila.
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -1586,7 +2428,8 @@ class _ItemTablaRow extends StatelessWidget {
               child: Text(
                 '${index + 1}',
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 9,
+                  height: 1.1,
                   fontWeight: FontWeight.w600,
                   color: Colors.grey.shade700,
                 ),
@@ -1594,15 +2437,33 @@ class _ItemTablaRow extends StatelessWidget {
             ),
           ),
           Expanded(
-            flex: 5,
-            child: Text(
-              nombre,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+            // Debe coincidir con el flex del header PRODUCTO para que
+            // CANT./P.UNIT./TOTAL queden alineadas con sus cabeceras.
+            flex: 6,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  nombre,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    height: 1.1,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (descuento > 0)
+                  Text(
+                    'Desc. -S/ ${descuento.toStringAsFixed(2)}',
+                    style: TextStyle(
+                      fontSize: 8,
+                      height: 1.1,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.red.shade600,
+                    ),
+                  ),
+              ],
             ),
           ),
           Expanded(
@@ -1610,7 +2471,7 @@ class _ItemTablaRow extends StatelessWidget {
             child: Center(
               child: Text(
                 _fmtCantidad(cantidad),
-                style: const TextStyle(fontSize: 12),
+                style: const TextStyle(fontSize: 10, height: 1.1),
               ),
             ),
           ),
@@ -1620,7 +2481,7 @@ class _ItemTablaRow extends StatelessWidget {
               alignment: Alignment.centerRight,
               child: Text(
                 precio.toStringAsFixed(2),
-                style: const TextStyle(fontSize: 12),
+                style: const TextStyle(fontSize: 10, height: 1.1),
               ),
             ),
           ),
@@ -1631,7 +2492,8 @@ class _ItemTablaRow extends StatelessWidget {
               child: Text(
                 total.toStringAsFixed(2),
                 style: const TextStyle(
-                  fontSize: 12,
+                  fontSize: 10,
+                  height: 1.1,
                   fontWeight: FontWeight.w700,
                   color: AppColors.blue1,
                 ),
@@ -1640,18 +2502,16 @@ class _ItemTablaRow extends StatelessWidget {
           ),
           SizedBox(
             width: 28,
-            child: IconButton(
-              onPressed: onRemove,
-              icon: Icon(Icons.close,
-                  size: 14, color: Colors.red.shade400),
-              tooltip: 'Quitar',
-              padding: EdgeInsets.zero,
-              visualDensity: VisualDensity.compact,
-              constraints: const BoxConstraints(
-                  minWidth: 24, minHeight: 24),
+            child: InkWell(
+              onTap: onRemove,
+              child: Center(
+                child: Icon(Icons.close,
+                    size: 11, color: Colors.red.shade400),
+              ),
             ),
           ),
         ],
+      ),
       ),
     );
   }

@@ -12,6 +12,9 @@ class CotizacionDetalleModel extends CotizacionDetalle {
     required super.cantidad,
     required super.precioUnitario,
     super.descuento,
+    super.precioRegular,
+    super.precioAntesOferta,
+    super.reservaEstado,
     super.tipoAfectacion,
     super.porcentajeIGV,
     super.igv,
@@ -42,6 +45,13 @@ class CotizacionDetalleModel extends CotizacionDetalle {
       cantidad: _toDouble(json['cantidad']),
       precioUnitario: _toDouble(json['precioUnitario']),
       descuento: _toDouble(json['descuento'] ?? 0),
+      precioRegular: json['precioRegular'] != null
+          ? _toDouble(json['precioRegular'])
+          : null,
+      precioAntesOferta: json['precioAntesOferta'] != null
+          ? _toDouble(json['precioAntesOferta'])
+          : null,
+      reservaEstado: json['reservaEstado'] as String?,
       tipoAfectacion: json['tipoAfectacion'] as String? ?? '10',
       porcentajeIGV: _toDouble(json['porcentajeIGV'] ?? 18),
       igv: _toDouble(json['igv'] ?? 0),

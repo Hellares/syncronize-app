@@ -382,6 +382,61 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
                 CotizacionEstadoChip(estado: cot.estado),
               ],
             ),
+            // Origen: solicitud del cliente en el marketplace. Tap → detalle
+            // de la solicitud.
+            if (cot.solicitudOrigenId != null) ...[
+              const SizedBox(height: 8),
+              GestureDetector(
+                onTap: () => context.push(
+                    '/empresa/solicitudes-cotizacion/${cot.solicitudOrigenId}'),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.deepPurple.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.deepPurple.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.storefront_outlined,
+                          size: 16, color: Colors.deepPurple.shade700),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Responde a la solicitud '
+                              '${cot.solicitudOrigenCodigo ?? ''} del marketplace',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.deepPurple.shade700,
+                              ),
+                            ),
+                            if ((cot.solicitudOrigenSolicitante ?? '')
+                                .isNotEmpty)
+                              Text(
+                                'Solicitada por ${cot.solicitudOrigenSolicitante}',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  color: Colors.deepPurple.shade400,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                          ],
+                        ),
+                      ),
+                      Icon(Icons.chevron_right,
+                          size: 16, color: Colors.deepPurple.shade300),
+                    ],
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
             _buildDetailRow(Icons.calendar_today, 'Emision',
                 DateFormatter.formatDateTime(cot.fechaEmision)),
@@ -405,12 +460,12 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
     return GradientContainer(
       borderColor: AppColors.blueborder,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildSectionHeader(Icons.person_outline, 'CLIENTE'),
-            const SizedBox(height: 12),
+            const SizedBox(height: 4),
             _buildDetailRow(Icons.person, 'Nombre', cot.nombreCliente),
             if (cot.documentoCliente != null)
               _buildDetailRow(
@@ -441,7 +496,7 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
       children: [
         _buildSectionHeader(
             Icons.shopping_cart_outlined, 'ITEMS (${detalles.length})'),
-        const SizedBox(height: 10),
+        const SizedBox(height: 5),
         Container(
           decoration: BoxDecoration(
             border: Border.all(
@@ -457,7 +512,7 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
               Container(
                 color: AppColors.bluechip,
                 padding: const EdgeInsets.symmetric(
-                    vertical: 8, horizontal: 8),
+                    vertical: 5, horizontal: 8),
                 child: Row(
                   children: [
                     const SizedBox(
@@ -476,6 +531,11 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
                         flex: 3,
                         child: Align(
                             alignment: Alignment.centerRight,
+                            child: _Th('DESC.'))),
+                    const Expanded(
+                        flex: 3,
+                        child: Align(
+                            alignment: Alignment.centerRight,
                             child: _Th('TOTAL'))),
                     if (mostrarAcciones)
                       const SizedBox(width: 32),
@@ -487,8 +547,33 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
                 Container(
                   color: i.isEven ? Colors.white : Colors.grey.shade50,
                   padding: const EdgeInsets.symmetric(
-                      vertical: 4, horizontal: 8),
-                  child: Row(
+                      vertical: 2, horizontal: 8),
+                  child: Builder(builder: (context) {
+                    final d = detalles[i];
+                    // Rebaja del nivel por mayor / VIP: precioRegular →
+                    // precioUnitario. DESC. = ahorro TOTAL de la línea
+                    // (nivel + descuento manual), igual que en Finalizar.
+                    final tieneNivel = d.precioRegular != null &&
+                        d.precioRegular! > d.precioUnitario;
+                    final descuentoNivel = tieneNivel
+                        ? (d.precioRegular! - d.precioUnitario) * d.cantidad
+                        : 0.0;
+                    final descuentoTotal = d.descuento + descuentoNivel;
+                    // OFERTA pública al cotizar: informativa (no suma a
+                    // DESC.). El tachado usa la referencia más alta.
+                    final enOferta = d.precioAntesOferta != null &&
+                        d.precioAntesOferta! > d.precioUnitario;
+                    final tachadoRef = enOferta
+                        ? d.precioAntesOferta
+                        : (tieneNivel ? d.precioRegular : null);
+                    // Cotización CONVERTIDA + reserva LIBERADA = el item se
+                    // EXCLUYÓ al convertir (ej. sin stock): no se vendió.
+                    final noIncluido =
+                        cot.estado == EstadoCotizacion.convertida &&
+                            d.reservaEstado == 'LIBERADA';
+                    return Opacity(
+                    opacity: noIncluido ? 0.45 : 1,
+                    child: Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       SizedBox(
@@ -497,7 +582,7 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
                           child: Text(
                             '${i + 1}',
                             style: TextStyle(
-                              fontSize: 11,
+                              fontSize: 10,
                               fontWeight: FontWeight.w600,
                               color: Colors.grey.shade700,
                             ),
@@ -506,20 +591,112 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
                       ),
                       Expanded(
                         flex: 5,
-                        child: Text(
-                          detalles[i].descripcion,
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w500,
-                          ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              d.descripcion,
+                              style: const TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            if (noIncluido)
+                              Text(
+                                'NO INCLUIDO EN LA VENTA',
+                                style: TextStyle(
+                                  fontSize: 8,
+                                  height: 1.1,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.grey.shade700,
+                                ),
+                              ),
+                            if (tieneNivel)
+                              Text(
+                                'Precio especial',
+                                style: TextStyle(
+                                  fontSize: 8,
+                                  height: 1.1,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.green.shade700,
+                                ),
+                              ),
+                            // OFERTA pública al cotizar: informativa, con
+                            // el precio normal para ver el ahorro.
+                            if (enOferta)
+                              Text(
+                                'En oferta — antes S/ ${d.precioAntesOferta!.toStringAsFixed(2)}',
+                                style: TextStyle(
+                                  fontSize: 8,
+                                  height: 1.1,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.orange.shade800,
+                                ),
+                              ),
+                          ],
                         ),
                       ),
                       Expanded(
                         flex: 2,
                         child: Center(
                           child: Text(
-                            _fmtCantidad(detalles[i].cantidad),
+                            _fmtCantidad(d.cantidad),
                             style: const TextStyle(fontSize: 10),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        flex: 3,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            // Referencia tachada: precio pre-oferta si hubo
+                            // oferta (la más alta), o el regular del nivel.
+                            if (tachadoRef != null)
+                              Text(
+                                tachadoRef.toStringAsFixed(2),
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  height: 1.1,
+                                  color: Colors.grey.shade400,
+                                  decoration: TextDecoration.lineThrough,
+                                  decorationColor: Colors.grey.shade400,
+                                ),
+                              ),
+                            Text(
+                              d.precioUnitario.toStringAsFixed(2),
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: tachadoRef != null
+                                    ? FontWeight.w600
+                                    : FontWeight.w400,
+                                color: tieneNivel
+                                    ? Colors.green.shade700
+                                    : (enOferta
+                                        ? Colors.orange.shade800
+                                        : null),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        flex: 3,
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            descuentoTotal > 0.005
+                                ? '−${descuentoTotal.toStringAsFixed(2)}'
+                                : '—',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: descuentoTotal > 0.005
+                                  ? FontWeight.w600
+                                  : FontWeight.w400,
+                              color: descuentoTotal > 0.005
+                                  ? Colors.red.shade600
+                                  : Colors.grey.shade400,
+                            ),
                           ),
                         ),
                       ),
@@ -528,17 +705,7 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
                         child: Align(
                           alignment: Alignment.centerRight,
                           child: Text(
-                            detalles[i].precioUnitario.toStringAsFixed(2),
-                            style: const TextStyle(fontSize: 10),
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        flex: 3,
-                        child: Align(
-                          alignment: Alignment.centerRight,
-                          child: Text(
-                            detalles[i].total.toStringAsFixed(2),
+                            d.total.toStringAsFixed(2),
                             style: const TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
@@ -575,6 +742,8 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
                         ),
                     ],
                   ),
+                  );
+                  }),
                 ),
               // ── Footer: subtotal / descuento / IGV / TOTAL ──
               // Cierra la tabla como factura, dentro del mismo Container.
@@ -589,24 +758,47 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
                   ),
                 ),
                 padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
-                child: Column(
-                  children: [
-                    _buildFooterRow(
-                      'Subtotal',
-                      '${cot.moneda} ${cot.subtotal.toStringAsFixed(2)}',
-                    ),
-                    if (cot.descuento > 0)
+                child: Builder(builder: (context) {
+                  // Ahorro por niveles/VIP (vive en el precio, no en el campo
+                  // `descuento`): Σ (precioRegular − precioUnitario) × cant.
+                  final ahorroNivel = detalles.fold<double>(
+                    0,
+                    (s, d) => s +
+                        ((d.precioRegular != null &&
+                                d.precioRegular! > d.precioUnitario)
+                            ? (d.precioRegular! - d.precioUnitario) *
+                                d.cantidad
+                            : 0),
+                  );
+                  final ahorroTotal = ahorroNivel + cot.descuento;
+                  return Column(
+                    children: [
                       _buildFooterRow(
-                        'Descuento',
-                        '-${cot.moneda} ${cot.descuento.toStringAsFixed(2)}',
-                        color: Colors.red.shade600,
+                        'Subtotal',
+                        '${cot.moneda} ${cot.subtotal.toStringAsFixed(2)}',
                       ),
-                    _buildFooterRow(
-                      _getNombreImpuesto(),
-                      '${cot.moneda} ${cot.impuestos.toStringAsFixed(2)}',
-                    ),
-                  ],
-                ),
+                      if (cot.descuento > 0)
+                        _buildFooterRow(
+                          'Descuento',
+                          '-${cot.moneda} ${cot.descuento.toStringAsFixed(2)}',
+                          color: Colors.red.shade600,
+                        ),
+                      _buildFooterRow(
+                        _getNombreImpuesto(),
+                        '${cot.moneda} ${cot.impuestos.toStringAsFixed(2)}',
+                      ),
+                      // Ahorro COMPLETO del cliente: niveles/VIP + descuentos
+                      // manuales (el "Descuento" de arriba solo suma los
+                      // manuales; la rebaja del nivel vive en el precio).
+                      if (ahorroNivel > 0.005)
+                        _buildFooterRow(
+                          'Cliente ahorra',
+                          '${cot.moneda} ${ahorroTotal.toStringAsFixed(2)}',
+                          color: Colors.green.shade700,
+                        ),
+                    ],
+                  );
+                }),
               ),
               // Total destacado — barra propia con fondo bluechip.
               Container(
@@ -647,7 +839,10 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
               // Adelanto + saldo pendiente. Solo se muestra si la cotización
               // tiene un adelanto registrado (al crearla con reserva). Se
               // aplica como pago previo cuando se convierte a venta.
-              if (cot.tieneAdelanto)
+              // CONVERTIDA: ya no hay saldo — se muestra la VENTA real (su
+              // total puede diferir del cotizado si se excluyeron items).
+              if (cot.tieneAdelanto ||
+                  cot.estado == EstadoCotizacion.convertida)
                 Container(
                   decoration: BoxDecoration(
                     color: AppColors.greenContainer,
@@ -661,34 +856,66 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
                   padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
                   child: Column(
                     children: [
-                      _buildFooterRow(
-                        'Adelanto',
-                        '-${cot.moneda} ${cot.adelantoMonto!.toStringAsFixed(2)}',
-                        color: AppColors.greendark,
-                      ),
+                      if (cot.tieneAdelanto)
+                        _buildFooterRow(
+                          'Adelanto',
+                          '-${cot.moneda} ${cot.adelantoMonto!.toStringAsFixed(2)}',
+                          color: AppColors.greendark,
+                        ),
                       const SizedBox(height: 2),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'SALDO PENDIENTE',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.greendark,
-                              letterSpacing: 0.5,
+                      if (cot.estado == EstadoCotizacion.convertida)
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                cot.ventaCodigo != null
+                                    ? 'VENDIDO — ${cot.ventaCodigo}'
+                                    : 'VENDIDO',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.greendark,
+                                  letterSpacing: 0.5,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
-                          ),
-                          Text(
-                            '${cot.moneda} ${cot.saldoPendiente.toStringAsFixed(2)}',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.greendark,
+                            Text(
+                              cot.ventaTotal != null
+                                  ? '${cot.moneda} ${cot.ventaTotal!.toStringAsFixed(2)}'
+                                  : '',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.greendark,
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
+                          ],
+                        )
+                      else
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'SALDO PENDIENTE',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.greendark,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                            Text(
+                              '${cot.moneda} ${cot.saldoPendiente.toStringAsFixed(2)}',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.greendark,
+                              ),
+                            ),
+                          ],
+                        ),
                     ],
                   ),
                 ),
@@ -722,7 +949,7 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
               value,
               textAlign: TextAlign.right,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: FontWeight.w600,
                 color: color ?? Colors.grey.shade800,
               ),
@@ -960,14 +1187,14 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
       children: [
         Icon(icon, size: 16, color: AppColors.blue1),
         const SizedBox(width: 8),
-        AppSubtitle(title, fontSize: 12),
+        AppSubtitle(title, fontSize: 10),
       ],
     );
   }
 
   Widget _buildDetailRow(IconData icon, String label, String value) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.only(bottom: 4),
       child: Row(
         children: [
           Icon(icon, size: 14, color: Colors.grey.shade500),
@@ -983,7 +1210,7 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
             child: Text(
               value,
               style: const TextStyle(
-                fontSize: 12,
+                fontSize: 10,
                 fontWeight: FontWeight.w500,
               ),
               overflow: TextOverflow.ellipsis,

@@ -11,6 +11,20 @@ class CotizacionDetalle extends Equatable {
   final double cantidad;
   final double precioUnitario;
   final double descuento;
+
+  /// Precio unitario REGULAR (antes del nivel por mayor / precio VIP).
+  /// Null cuando la línea se cotizó a precio normal.
+  final double? precioRegular;
+
+  /// Precio normal de sede antes de la OFERTA pública vigente al cotizar.
+  /// Informativo (chip "En oferta — antes S/X"): la oferta es precio
+  /// público y NO cuenta como descuento de la cotización.
+  final double? precioAntesOferta;
+
+  /// Estado de la reserva de stock del item: ACTIVA (apartado), LIBERADA
+  /// (anulada/vencida o EXCLUIDO al convertir a venta), CONVERTIDA (vendido).
+  /// Null = el item nunca reservó stock.
+  final String? reservaEstado;
   final String tipoAfectacion;
   final double porcentajeIGV;
   final double igv;
@@ -37,6 +51,9 @@ class CotizacionDetalle extends Equatable {
     required this.cantidad,
     required this.precioUnitario,
     this.descuento = 0,
+    this.precioRegular,
+    this.precioAntesOferta,
+    this.reservaEstado,
     this.tipoAfectacion = '10',
     this.porcentajeIGV = 18,
     this.igv = 0,
@@ -71,6 +88,7 @@ class CotizacionDetalle extends Equatable {
         cantidad,
         precioUnitario,
         descuento,
+        precioRegular,
         tipoAfectacion,
         porcentajeIGV,
         igv,

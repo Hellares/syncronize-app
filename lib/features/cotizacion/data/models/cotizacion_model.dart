@@ -41,6 +41,12 @@ class CotizacionModel extends Cotizacion {
     super.tieneReservaActiva,
     super.adelantoMonto,
     super.movimientoCajaId,
+    super.solicitudOrigenId,
+    super.solicitudOrigenCodigo,
+    super.solicitudOrigenSolicitante,
+    super.ventaId,
+    super.ventaCodigo,
+    super.ventaTotal,
   });
 
   factory CotizacionModel.fromJson(Map<String, dynamic> json) {
@@ -49,6 +55,26 @@ class CotizacionModel extends Cotizacion {
     final vendedor = json['vendedor'] as Map<String, dynamic>?;
     final cliente = json['cliente'] as Map<String, dynamic>?;
     final count = json['_count'] as Map<String, dynamic>?;
+
+    // Solicitud del marketplace que la originó (lista con take:1 en backend)
+    Map<String, dynamic>? solicitudOrigen;
+    final solicitudes = json['solicitudOrigen'] as List<dynamic>?;
+    if (solicitudes != null && solicitudes.isNotEmpty) {
+      solicitudOrigen = solicitudes.first as Map<String, dynamic>;
+    }
+    String? solicitanteNombre;
+    final solicitante =
+        solicitudOrigen?['solicitante'] as Map<String, dynamic>?;
+    if (solicitante != null) {
+      final persona = solicitante['persona'] as Map<String, dynamic>?;
+      if (persona != null) {
+        solicitanteNombre =
+            '${persona['nombres'] ?? ''} ${persona['apellidos'] ?? ''}'.trim();
+      }
+      if (solicitanteNombre == null || solicitanteNombre.isEmpty) {
+        solicitanteNombre = solicitante['email'] as String?;
+      }
+    }
 
     // Extraer nombre del vendedor + alias opcional (para PDF/ticket)
     String? vendedorNombre;
@@ -122,6 +148,16 @@ class CotizacionModel extends Cotizacion {
       tieneReservaActiva: json['tieneReservaActiva'] as bool? ?? false,
       adelantoMonto: _toDoubleNullable(json['adelantoMonto']),
       movimientoCajaId: json['movimientoCajaId'] as String?,
+      solicitudOrigenId: solicitudOrigen?['id'] as String?,
+      solicitudOrigenCodigo: solicitudOrigen?['codigo'] as String?,
+      solicitudOrigenSolicitante: solicitanteNombre,
+      // Venta resultante (cotización CONVERTIDA)
+      ventaId: (json['venta'] as Map<String, dynamic>?)?['id'] as String? ??
+          json['ventaId'] as String?,
+      ventaCodigo:
+          (json['venta'] as Map<String, dynamic>?)?['codigo'] as String?,
+      ventaTotal:
+          _toDoubleNullable((json['venta'] as Map<String, dynamic>?)?['total']),
     );
   }
 

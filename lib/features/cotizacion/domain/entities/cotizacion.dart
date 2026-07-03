@@ -118,6 +118,18 @@ class Cotizacion extends Equatable {
   /// ADELANTO_COTIZACION). Sirve para trazar al detalle de caja.
   final String? movimientoCajaId;
 
+  /// Solicitud del marketplace que originó esta cotización (null si nació
+  /// del flujo normal). Permite mostrar el vínculo y navegar a la solicitud.
+  final String? solicitudOrigenId;
+  final String? solicitudOrigenCodigo;
+  final String? solicitudOrigenSolicitante;
+
+  /// Venta resultante (cotización CONVERTIDA). El total de la venta puede
+  /// diferir del cotizado si se excluyeron items al convertir.
+  final String? ventaId;
+  final String? ventaCodigo;
+  final double? ventaTotal;
+
   const Cotizacion({
     required this.id,
     required this.empresaId,
@@ -154,6 +166,12 @@ class Cotizacion extends Equatable {
     this.tieneReservaActiva = false,
     this.adelantoMonto,
     this.movimientoCajaId,
+    this.solicitudOrigenId,
+    this.solicitudOrigenCodigo,
+    this.solicitudOrigenSolicitante,
+    this.ventaId,
+    this.ventaCodigo,
+    this.ventaTotal,
   });
 
   /// Saldo pendiente a cobrar al convertir a venta (total - adelanto).

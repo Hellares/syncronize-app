@@ -41,6 +41,9 @@ class ComprobanteCondicionCard extends StatelessWidget {
   /// Si false, oculta la sección "Condición de Pago" entera. Útil cuando
   /// el flujo siempre es CONTADO (ej. cobro de cotización-a-venta).
   final bool showCondicionPago;
+  /// Si true, renderiza solo el contenido (sin GradientContainer propio),
+  /// para embeberlo dentro de otro card.
+  final bool embedded;
   // Emisor (multi-RUC)
   final List<EmisorItem>? emisores;
   final EmisorItem? emisorSeleccionado;
@@ -54,6 +57,7 @@ class ComprobanteCondicionCard extends StatelessWidget {
     required this.onCondicionChanged,
     this.showMixto = true,
     this.showCondicionPago = true,
+    this.embedded = false,
     this.emisores,
     this.emisorSeleccionado,
     this.onEmisorChanged,
@@ -66,28 +70,35 @@ class ComprobanteCondicionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GradientContainer(
-      borderColor: AppColors.blueborder,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
             AppSubtitle('Tipo de Comprobante', color: AppColors.blue1),
             const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
+            Row(
               children: [
                 _comprobanteChip('TICKET', 'Ticket'),
+                const SizedBox(width: 8),
                 _comprobanteChip('BOLETA', 'Boleta'),
+                const SizedBox(width: 8),
                 _comprobanteChip('FACTURA', 'Factura'),
+                // Aviso en la misma fila, a la derecha del chip Factura.
+                if (tipoComprobante == 'FACTURA') ...[
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Se requiere RUC del cliente',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.orange[700],
+                          fontStyle: FontStyle.italic),
+                    ),
+                  ),
+                ],
               ],
             ),
-            if (tipoComprobante == 'FACTURA') ...[
-              const SizedBox(height: 6),
-              Text('Se requiere RUC del cliente',
-                  style: TextStyle(fontSize: 11, color: Colors.orange[700], fontStyle: FontStyle.italic)),
-            ],
             // Selector de emisor (solo si hay 2+ RUCs y no es TICKET)
             if (_mostrarEmisor) ...[
               const SizedBox(height: 10),
@@ -109,7 +120,15 @@ class ComprobanteCondicionCard extends StatelessWidget {
               ),
             ],
           ],
-        ),
+        );
+
+    if (embedded) return content;
+
+    return GradientContainer(
+      borderColor: AppColors.blueborder,
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: content,
       ),
     );
   }
@@ -161,13 +180,14 @@ class ComprobanteCondicionCard extends StatelessWidget {
     return GestureDetector(
       onTap: () => onComprobanteChanged(value),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
           color: selected ? AppColors.blue1 : Colors.white,
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(4
+          ),
           border: Border.all(color: selected ? AppColors.blue1 : Colors.grey[300]!, width: 0.6),
         ),
-        child: Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
+        child: Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600,
             color: selected ? Colors.white : Colors.grey[700])),
       ),
     );
