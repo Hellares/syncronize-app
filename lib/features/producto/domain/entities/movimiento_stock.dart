@@ -388,6 +388,15 @@ class MovimientoStock extends Equatable {
   // 20260521000000 — la UI muestra "—" en ese caso).
   final double? precioCostoUnitario;
   final double? valorMovimiento;
+  // Enriquecimiento de VENTA (solo movs con ventaId): quién vendió, a
+  // quién, por qué canal y a qué precio (línea de la venta de este stock).
+  final String? vendedorNombre;
+  final String? clienteNombre;
+  final String? canalVenta; // POS | ONLINE | COTIZACION
+  final double? precioVentaUnitario;
+  final double? margenVenta;
+  // Enriquecimiento de COMPRA (solo movs con compraId).
+  final String? proveedorNombre;
 
   const MovimientoStock({
     required this.id,
@@ -412,6 +421,12 @@ class MovimientoStock extends Equatable {
     this.devolucionCodigo,
     this.precioCostoUnitario,
     this.valorMovimiento,
+    this.vendedorNombre,
+    this.clienteNombre,
+    this.canalVenta,
+    this.precioVentaUnitario,
+    this.margenVenta,
+    this.proveedorNombre,
   });
 
   @override
@@ -438,6 +453,12 @@ class MovimientoStock extends Equatable {
         devolucionCodigo,
         precioCostoUnitario,
         valorMovimiento,
+        vendedorNombre,
+        clienteNombre,
+        canalVenta,
+        precioVentaUnitario,
+        margenVenta,
+        proveedorNombre,
       ];
 
   /// Verifica si es un movimiento de entrada

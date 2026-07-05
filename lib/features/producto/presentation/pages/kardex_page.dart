@@ -517,9 +517,9 @@ class _KardexPageState extends State<KardexPage> {
     final visibles = _kardexData!.movimientos.length;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 1),
       child: GradientContainer(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -531,7 +531,7 @@ class _KardexPageState extends State<KardexPage> {
                 color: AppColors.blue3,
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 6),
             Row(
               children: [
                 Expanded(
@@ -604,14 +604,19 @@ class _KardexPageState extends State<KardexPage> {
 
   // Anchos fijos por columna (libro mayor de inventario). Header y filas usan
   // EXACTAMENTE los mismos. Suma ≈ 648 → scroll horizontal si no entra.
-  static const double _wFecha = 88;
-  static const double _wTipo = 104;
-  static const double _wDoc = 104;
+  static const double _wFecha = 100;
+  static const double _wTipo = 130;
+  static const double _wDoc = 125;
   static const double _wEntrada = 64;
-  static const double _wSalida = 64;
-  static const double _wSaldo = 66;
+  static const double _wSalida = 60;
+  static const double _wSaldo = 60;
   static const double _wCUnit = 74;
   static const double _wValorMov = 84;
+  // Enriquecimiento: precio de venta de la línea (solo movs de venta),
+  // cliente/proveedor según el documento, y usuario responsable.
+  static const double _wPVenta = 74;
+  static const double _wTercero = 250;
+  static const double _wUsuario = 230;
   static const double _rowH = 34;
 
   // Franjas de color por columna (tipo Excel): entrada verde, salida roja,
@@ -631,7 +636,10 @@ class _KardexPageState extends State<KardexPage> {
       _wSalida +
       _wSaldo +
       _wCUnit +
-      _wValorMov;
+      _wValorMov +
+      _wPVenta +
+      _wTercero +
+      _wUsuario;
 
   Widget _buildMovimientosTable() {
     final movs = _kardexData?.movimientos ?? [];
@@ -721,6 +729,10 @@ class _KardexPageState extends State<KardexPage> {
           _hCellK('Saldo', _wSaldo, s, alignRight: true, bgColor: _bgSaldoH),
           _hCellK('C.Unit', _wCUnit, s, alignRight: true),
           _hCellK('Valor', _wValorMov, s, alignRight: true),
+          _hCellK('P.Venta', _wPVenta, s,
+              alignRight: true, bgColor: Colors.teal.shade100),
+          _hCellK('Cliente / Proveedor', _wTercero, s),
+          _hCellK('Usuario', _wUsuario, s),
         ],
       ),
     );
@@ -818,6 +830,34 @@ class _KardexPageState extends State<KardexPage> {
               ts,
               alignRight: true,
             ),
+            // Precio de venta unitario de la línea (solo movs de venta).
+            _dCellK(
+              m.precioVentaUnitario != null
+                  ? 'S/ ${m.precioVentaUnitario!.toStringAsFixed(2)}'
+                  : '—',
+              _wPVenta,
+              TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.teal.shade800),
+              alignRight: true,
+              bgColor: Colors.teal.shade50,
+            ),
+            // Cliente (ventas, teal si vino del marketplace) o proveedor
+            // (compras).
+            _dCellK(
+              m.clienteNombre ?? m.proveedorNombre ?? '—',
+              _wTercero,
+              m.canalVenta == 'ONLINE'
+                  ? TextStyle(fontSize: 10, color: Colors.teal.shade700)
+                  : ts.copyWith(fontSize: 9),
+            ),
+            // Vendedor de la venta; si no, usuario que registró el mov.
+            _dCellK(
+              m.vendedorNombre ?? m.usuarioNombre ?? '—',
+              _wUsuario,
+              ts.copyWith(fontSize: 9),
+            ),
           ],
         ),
       ),
@@ -905,12 +945,12 @@ class _KardexPageState extends State<KardexPage> {
           SizedBox(
             width: 120,
             child: Text(label,
-                style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
           ),
           Expanded(
             child: Text(value,
                 style:
-                    const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                    const TextStyle(fontSize: 10, fontWeight: FontWeight.w600)),
           ),
         ],
       ),

@@ -30,6 +30,7 @@ import '../../../producto/domain/services/precio_nivel_cache_service.dart';
 import '../../../producto/presentation/bloc/producto_list/producto_list_cubit.dart';
 import '../../../producto/presentation/bloc/producto_list/producto_list_state.dart';
 import '../../../venta/domain/entities/venta_detalle_input.dart';
+import '../../../venta_rapida/presentation/widgets/variante_selector_sheet.dart';
 import '../services/calculo_mostrador_esc_pos_generator.dart';
 
 /// Calculadora de MOSTRADOR: el cliente pregunta precios de varios
@@ -120,7 +121,8 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
 
   // ── Agregar / quitar / cantidades ──────────────────────────────────
 
-  Future<void> _agregar(ProductoListItem p, {ProductoVariante? v}) async {
+  Future<void> _agregar(ProductoListItem p,
+      {ProductoVariante? v, double cantidad = 1}) async {
     final sedeId = _sedeId!;
     // Ambos mezclan StockPorSedeMixin (precio/oferta/stock por sede).
     final StockPorSedeMixin fuente = v ?? p;
@@ -128,13 +130,13 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
         fuente.precioEfectivoEnSede(sedeId) ?? fuente.precioEnSede(sedeId) ?? 0;
     if (precio <= 0) return;
 
-    // Dedupe: mismo producto/variante → +1 cantidad.
+    // Dedupe: mismo producto/variante → suma la cantidad.
     final idx = _items.indexWhere(
         (i) => i.productoId == p.id && i.varianteId == (v?.id));
     if (idx >= 0) {
       setState(() {
-        _items[idx] =
-            _items[idx].recalcularPrecioPorNiveles(_items[idx].cantidad + 1);
+        _items[idx] = _items[idx]
+            .recalcularPrecioPorNiveles(_items[idx].cantidad + cantidad);
       });
       _limpiarBusqueda();
       return;
@@ -166,7 +168,7 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
       enLiquidacion: enLiquidacion,
       precioAntesOferta:
           (enOferta || enLiquidacion) ? fuente.precioEnSede(sedeId) : null,
-    ).recalcularPrecioPorNiveles(1);
+    ).recalcularPrecioPorNiveles(cantidad);
 
     if (!mounted) return;
     setState(() => _items.add(item));
@@ -269,59 +271,26 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
         .where((v) => v.isActive != false)
         .toList();
     if (p.tieneVariantes && variantes.isNotEmpty) {
-      final v = await _elegirVariante(p, variantes);
-      if (v != null) await _agregar(p, v: v);
+      // Mismo selector por ATRIBUTOS que Venta Rápida: chips por Talla/
+      // Color/…, imagen, precio con niveles, stock por sede y stepper de
+      // cantidad. Se le pasa lo ya sumado en la lista para que el stock
+      // disponible descuente lo que el cliente ya pidió.
+      final cantidadesEnLista = <String, int>{
+        for (final i in _items)
+          if (i.productoId == p.id && i.varianteId != null)
+            i.varianteId!: i.cantidad.toInt(),
+      };
+      await showVarianteSelectorSheet(
+        context: context,
+        producto: p,
+        sedeId: _sedeId!,
+        cantidadesEnCarrito: cantidadesEnLista,
+        onAgregar: (v, cantidad) =>
+            _agregar(p, v: v, cantidad: cantidad.toDouble()),
+      );
     } else {
       await _agregar(p);
     }
-  }
-
-  Future<ProductoVariante?> _elegirVariante(
-      ProductoListItem p, List<ProductoVariante> variantes) {
-    final sedeId = _sedeId!;
-    return showModalBottomSheet<ProductoVariante>(
-      context: context,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Text(p.nombre,
-                  style: const TextStyle(
-                      fontSize: 9, fontWeight: FontWeight.w600)),
-            ),
-            Flexible(
-              child: ListView.separated(
-                shrinkWrap: true,
-                itemCount: variantes.length,
-                separatorBuilder: (_, __) =>
-                    Divider(height: 1, color: Colors.grey.shade100),
-                itemBuilder: (_, i) {
-                  final v = variantes[i];
-                  final precio = v.precioEfectivoEnSede(sedeId) ??
-                      v.precioEnSede(sedeId) ??
-                      0;
-                  final stock = v.stockEnSede(sedeId) ?? 0;
-                  return ListTile(
-                    dense: true,
-                    title: Text(v.nombre,
-                        style: const TextStyle(fontSize: 11)),
-                    subtitle: Text('Stock: $stock',
-                        style: TextStyle(
-                            fontSize: 10, color: Colors.grey.shade600)),
-                    trailing: Text('S/ ${precio.toStringAsFixed(2)}',
-                        style: const TextStyle(
-                            fontSize: 10, fontWeight: FontWeight.w600)),
-                    onTap: () => Navigator.pop(ctx, v),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   // ── Imprimir ───────────────────────────────────────────────────────
@@ -739,6 +708,17 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
                         _buscarServer(q, autoAgregar: false);
                       }
                     });
+                  } else if (q.length >= 3) {
+                    // Búsqueda HÍBRIDA por nombre: lo local pinta al
+                    // instante, pero el catálogo local se llena en
+                    // background (prefetch por lotes) y puede no tener
+                    // aún todos los productos — el server completa.
+                    _serverDebounce =
+                        Timer(const Duration(milliseconds: 450), () {
+                      if (mounted && _query == q) {
+                        _buscarServer(q, autoAgregar: false);
+                      }
+                    });
                   } else if (habiaServer) {
                     _restaurarCatalogo();
                   }
@@ -943,7 +923,14 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
               .addPostFrameCallback((_) => _autoAgregarSiUnico(state));
         }
         final q = _query.toLowerCase();
-        final matches = _serverQuery != null
+        // ¿La respuesta del SERVER para esta búsqueda ya llegó? Mientras
+        // está en vuelo, state.productos sigue siendo el catálogo previo →
+        // se filtra LOCAL (respuesta instantánea) y se marca "buscando…".
+        final serverListo = _serverQuery != null &&
+            state.filtros.search == _serverQuery &&
+            !state.isFiltering;
+        final esperandoServer = _serverQuery != null && !serverListo;
+        final matches = serverListo
             ? state.productos.where((p) => !p.esCombo).take(15).toList()
             : state.productos
                 .where((p) =>
@@ -955,18 +942,45 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
                 .take(15)
                 .toList();
         if (matches.isEmpty) {
+          // Con el server aún buscando no se afirma "sin resultados":
+          // el catálogo local puede no tener el producto todavía.
           return Center(
-            child: Text('Sin resultados para "$_query"',
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+            child: esperandoServer
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : Text('Sin resultados para "$_query"',
+                    style:
+                        TextStyle(fontSize: 12, color: Colors.grey.shade600)),
           );
         }
         final sedeId = _sedeId!;
         return ListView.separated(
           padding: const EdgeInsets.symmetric(horizontal: 14),
-          itemCount: matches.length,
+          itemCount: matches.length + (esperandoServer ? 1 : 0),
           separatorBuilder: (_, __) =>
               Divider(height: 1, color: Colors.grey.shade100),
           itemBuilder: (_, i) {
+            // Fila extra al final mientras el server completa la búsqueda.
+            if (i >= matches.length) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const SizedBox(
+                        width: 12,
+                        height: 12,
+                        child: CircularProgressIndicator(strokeWidth: 1.5)),
+                    const SizedBox(width: 8),
+                    Text('Buscando más resultados…',
+                        style: TextStyle(
+                            fontSize: 10, color: Colors.grey.shade500)),
+                  ],
+                ),
+              );
+            }
             final p = matches[i];
             final precio = p.tieneVariantes
                 ? null
@@ -1151,6 +1165,7 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
               fontSize: 8.5, fontWeight: FontWeight.w700, color: color)),
     );
   }
+
 
   Widget _stepBtn(IconData icon, VoidCallback onTap) {
     return InkWell(

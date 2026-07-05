@@ -25,13 +25,20 @@ class MovimientoStockModel extends MovimientoStock {
     super.devolucionCodigo,
     super.precioCostoUnitario,
     super.valorMovimiento,
+    super.vendedorNombre,
+    super.clienteNombre,
+    super.canalVenta,
+    super.precioVentaUnitario,
+    super.margenVenta,
+    super.proveedorNombre,
   });
 
   factory MovimientoStockModel.fromJson(Map<String, dynamic> json) {
-    // Parsear nombre del usuario desde la relacion anidada
-    String? usuarioNombre;
+    // Nombre del usuario: el backend ahora lo manda plano (usuarioNombre,
+    // lookup batch). Fallback a la relación anidada por compat.
+    String? usuarioNombre = json['usuarioNombre'] as String?;
     final usuario = json['usuario'] as Map<String, dynamic>?;
-    if (usuario != null) {
+    if (usuarioNombre == null && usuario != null) {
       final persona = usuario['persona'] as Map<String, dynamic>?;
       if (persona != null) {
         final nombres = persona['nombres'] as String? ?? '';
@@ -46,6 +53,22 @@ class MovimientoStockModel extends MovimientoStock {
     final compra = json['compra'] as Map<String, dynamic>?;
     final transferencia = json['transferencia'] as Map<String, dynamic>?;
     final devolucion = json['devolucion'] as Map<String, dynamic>?;
+
+    // Enriquecimiento de VENTA: vendedor, cliente, canal y la línea de la
+    // venta de ESTE stock (precio de venta + margen snapshot).
+    String? vendedorNombre;
+    final personaVendedor = (venta?['vendedor']
+        as Map<String, dynamic>?)?['persona'] as Map<String, dynamic>?;
+    if (personaVendedor != null) {
+      final nombre =
+          '${personaVendedor['nombres'] ?? ''} ${personaVendedor['apellidos'] ?? ''}'
+              .trim();
+      vendedorNombre = nombre.isEmpty ? null : nombre;
+    }
+    final detallesVenta = venta?['detalles'] as List<dynamic>?;
+    final lineaVenta = (detallesVenta != null && detallesVenta.isNotEmpty)
+        ? detallesVenta.first as Map<String, dynamic>
+        : null;
 
     return MovimientoStockModel(
       id: json['id'] as String,
@@ -70,6 +93,14 @@ class MovimientoStockModel extends MovimientoStock {
       devolucionCodigo: devolucion?['codigo'] as String?,
       precioCostoUnitario: _parseNullableDouble(json['precioCostoUnitario']),
       valorMovimiento: _parseNullableDouble(json['valorMovimiento']),
+      vendedorNombre: vendedorNombre,
+      clienteNombre: venta?['nombreCliente'] as String?,
+      canalVenta: venta?['canalVenta'] as String?,
+      precioVentaUnitario: _parseNullableDouble(lineaVenta?['precioUnitario']),
+      margenVenta: _parseNullableDouble(lineaVenta?['margenSnapshot']),
+      proveedorNombre:
+          (compra?['proveedor'] as Map<String, dynamic>?)?['nombre']
+              as String?,
     );
   }
 
