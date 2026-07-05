@@ -60,6 +60,51 @@ class VentaRemoteDataSource {
         .toList();
   }
 
+  /// GET /ventas con paginación por CURSOR (patrón estándar — ver
+  /// cotizaciones). Con `limit` el backend responde
+  /// `{ data, hasMore, nextCursor, resumen }` donde `resumen` agrega TODO
+  /// el set filtrado por estado (para el chip del total).
+  Future<
+      ({
+        List<VentaModel> items,
+        bool hasMore,
+        String? nextCursor,
+        List<Map<String, dynamic>> resumen,
+      })> getVentasPaginadas({
+    String? sedeId,
+    String? estado,
+    String? fechaDesde,
+    String? fechaHasta,
+    String? search,
+    String? canalVenta,
+    required int limit,
+    String? cursor,
+  }) async {
+    final queryParams = <String, dynamic>{'limit': limit};
+    if (sedeId != null) queryParams['sedeId'] = sedeId;
+    if (estado != null) queryParams['estado'] = estado;
+    if (fechaDesde != null) queryParams['fechaDesde'] = fechaDesde;
+    if (fechaHasta != null) queryParams['fechaHasta'] = fechaHasta;
+    if (search != null && search.isNotEmpty) queryParams['search'] = search;
+    if (canalVenta != null) queryParams['canalVenta'] = canalVenta;
+    if (cursor != null) queryParams['cursor'] = cursor;
+
+    final response = await _dioClient.get(
+      _basePath,
+      queryParameters: queryParams,
+    );
+    final body = response.data as Map<String, dynamic>;
+    return (
+      items: (body['data'] as List)
+          .map((e) => VentaModel.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      hasMore: body['hasMore'] as bool? ?? false,
+      nextCursor: body['nextCursor'] as String?,
+      resumen: ((body['resumen'] as List?) ?? const [])
+          .cast<Map<String, dynamic>>(),
+    );
+  }
+
   Future<VentaModel> getVenta(String id) async {
     final response = await _dioClient.get('$_basePath/$id');
     return VentaModel.fromJson(response.data as Map<String, dynamic>);
@@ -100,10 +145,12 @@ class VentaRemoteDataSource {
   Future<VentaModel> generarComprobante(String id, {
     required String tipoComprobante,
     String? tipoDocumentoCliente,
+    String? documentoCliente,
   }) async {
     final response = await _dioClient.post('$_basePath/$id/generar-comprobante', data: {
       'tipoComprobante': tipoComprobante,
       if (tipoDocumentoCliente != null) 'tipoDocumentoCliente': tipoDocumentoCliente,
+      if (documentoCliente != null) 'documentoCliente': documentoCliente,
     });
     return VentaModel.fromJson(response.data as Map<String, dynamic>);
   }

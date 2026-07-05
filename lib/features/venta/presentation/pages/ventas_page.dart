@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:syncronize/core/fonts/app_fonts.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/widgets/custom_loading.dart';
 import '../../../../core/utils/date_formatter.dart';
@@ -29,8 +30,19 @@ class VentasPage extends StatefulWidget {
 
 class _VentasPageState extends State<VentasPage> {
   EstadoVenta? _filtroEstado;
+
+  /// Canal de venta (null = todos): POS (mostrador), ONLINE (marketplace),
+  /// COTIZACION. Filtro SERVER-side: con paginación por cursor, filtrar
+  /// localmente dejaría totales/conteos inconsistentes.
+  String? _filtroCanal;
   final _searchController = TextEditingController();
   String? _currentEmpresaId;
+
+  static const _canales = {
+    'POS': 'Mostrador (POS)',
+    'ONLINE': 'Marketplace',
+    'COTIZACION': 'Cotización',
+  };
 
   @override
   void initState() {
@@ -72,7 +84,7 @@ class _VentasPageState extends State<VentasPage> {
     return Container(
       width: double.infinity,
       color: AppColors.blue1.withValues(alpha: 0.08),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       child: Row(
         children: [
           Icon(Icons.person_outline, size: 16, color: AppColors.blue1),
@@ -81,7 +93,7 @@ class _VentasPageState extends State<VentasPage> {
             child: Text(
               'Mostrando solo tus ventas',
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 10,
                 color: AppColors.blue1,
                 fontWeight: FontWeight.w500,
               ),
@@ -142,7 +154,7 @@ class _VentasPageState extends State<VentasPage> {
                   icon: const Icon(Icons.filter_list_rounded, size: 22),
                   onPressed: _mostrarFiltroEstados,
                 ),
-                if (_filtroEstado != null)
+                if (_filtroEstado != null || _filtroCanal != null)
                   Positioned(
                     right: 8,
                     top: 8,
@@ -163,8 +175,9 @@ class _VentasPageState extends State<VentasPage> {
           child: Column(
             children: [
               if (esOperativo) _buildBannerOperativo(),
+              _buildTabsEstado(),
               Padding(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
                 child: Row(
                   children: [
                     Expanded(
@@ -172,6 +185,9 @@ class _VentasPageState extends State<VentasPage> {
                         controller: _searchController,
                         borderColor: AppColors.blue1,
                         hintText: 'Buscar por codigo, cliente...',
+                        // Server-side (índices trigram) → debounce para no
+                        // disparar un request por tecla.
+                        debounceDelay: const Duration(milliseconds: 400),
                         onChanged: (query) {
                           context.read<VentaListCubit>().search(query);
                         },
@@ -233,13 +249,35 @@ class _VentasPageState extends State<VentasPage> {
                 builder: (context, state) {
                   if (state is! VentaListLoaded) return const SizedBox.shrink();
 
-                  // Sumatoria cliente-side: el endpoint devuelve la lista
-                  // completa (sin paginación), así que `state.ventas` ya
-                  // refleja todo lo que cae bajo los filtros vigentes.
-                  final total = state.ventas.fold<double>(
-                    0,
-                    (sum, v) => sum + v.total,
-                  );
+                  // Con paginación por cursor, el total/conteos vienen del
+                  // RESUMEN agregado del server (todo el set filtrado, no
+                  // solo las páginas cargadas). Reglas de siempre: el total
+                  // es DINERO VENDIDO (excluye ANULADA/BORRADOR) salvo que
+                  // haya filtro de estado explícito.
+                  double total = 0;
+                  int cantidadTotal = 0;
+                  int numAnuladas = 0;
+                  int numBorradores = 0;
+                  for (final r in state.resumen) {
+                    cantidadTotal += r.cantidad;
+                    if (_filtroEstado != null) {
+                      total += r.total;
+                    } else {
+                      if (r.estado == 'ANULADA') {
+                        numAnuladas = r.cantidad;
+                      } else if (r.estado == 'BORRADOR') {
+                        numBorradores = r.cantidad;
+                      } else {
+                        total += r.total;
+                      }
+                    }
+                  }
+                  final excluidas = <String>[
+                    if (numAnuladas > 0)
+                      '$numAnuladas anulada${numAnuladas != 1 ? 's' : ''}',
+                    if (numBorradores > 0)
+                      '$numBorradores borrador${numBorradores != 1 ? 'es' : ''}',
+                  ];
                   // Para empresas peruanas todo es PEN. Si hay mezcla de
                   // monedas, mostrar el símbolo de la primera (degradación
                   // gradual aceptable — caso muy raro).
@@ -252,18 +290,23 @@ class _VentasPageState extends State<VentasPage> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        AppText(
-                          '${state.ventas.length} venta${state.ventas.length != 1 ? 's' : ''}',
-                          fontWeight: FontWeight.w400,
-                          color: Colors.grey.shade600,
+                        Flexible(
+                          child: AppText(
+                            '$cantidadTotal venta${cantidadTotal != 1 ? 's' : ''}'
+                            '${_filtroCanal != null ? ' (${_canales[_filtroCanal] ?? _filtroCanal})' : ''}'
+                            '${excluidas.isNotEmpty ? ' · ${excluidas.join(', ')} (no suma${numAnuladas + numBorradores != 1 ? 'n' : ''})' : ''}',
+                            fontWeight: FontWeight.w400,
+                            color: Colors.grey.shade600,
+                            size: 10,
+                          ),
                         ),
-                        if (state.ventas.isNotEmpty)
+                        if (cantidadTotal > 0)
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 3),
+                                horizontal: 5, vertical: 2),
                             decoration: BoxDecoration(
                               color: AppColors.blue1.withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(4),
                               border: Border.all(
                                 color: AppColors.blue1.withValues(alpha: 0.3),
                                 width: 0.5,
@@ -278,8 +321,8 @@ class _VentasPageState extends State<VentasPage> {
                                 Text(
                                   'Total: $moneda ${total.toStringAsFixed(2)}',
                                   style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
                                     color: AppColors.blue1,
                                   ),
                                 ),
@@ -332,7 +375,9 @@ class _VentasPageState extends State<VentasPage> {
                                   size: 64, color: Colors.grey.shade400),
                               const SizedBox(height: 16),
                               Text(
-                                'No hay ventas',
+                                _filtroCanal != null
+                                    ? 'No hay ventas de ${_canales[_filtroCanal] ?? _filtroCanal}'
+                                    : 'No hay ventas',
                                 style: TextStyle(
                                   fontSize: 16,
                                   color: Colors.grey.shade600,
@@ -349,10 +394,36 @@ class _VentasPageState extends State<VentasPage> {
                         child: ListView.separated(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 12, vertical: 4),
-                          itemCount: state.ventas.length,
+                          // +1 = footer de paginación cuando hay más páginas.
+                          itemCount: state.ventas.length +
+                              (state.hasMore ? 1 : 0),
                           separatorBuilder: (_, __) =>
                               const SizedBox(height: 6),
                           itemBuilder: (context, index) {
+                            // Footer: construirse = scroll llegó al final →
+                            // dispara la siguiente página (el cubit ignora
+                            // llamadas repetidas mientras hay una en vuelo).
+                            if (index >= state.ventas.length) {
+                              WidgetsBinding.instance
+                                  .addPostFrameCallback((_) {
+                                if (context.mounted) {
+                                  context
+                                      .read<VentaListCubit>()
+                                      .loadMore();
+                                }
+                              });
+                              return const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 14),
+                                child: Center(
+                                  child: SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2),
+                                  ),
+                                ),
+                              );
+                            }
                             final venta = state.ventas[index];
                             return _VentaListTile(
                               venta: venta,
@@ -382,6 +453,91 @@ class _VentasPageState extends State<VentasPage> {
     context.read<VentaListCubit>().filterByEstado(estado);
   }
 
+  /// Tabs "Ventas | Anuladas" siempre visibles: acceso de un tap a las
+  /// anuladas (el sheet de estados sigue existiendo para los demás estados).
+  /// Se combinan con los filtros de fecha vigentes (Hoy/Ayer/rango).
+  Widget _buildTabsEstado() {
+    final enAnuladas = _filtroEstado == EstadoVenta.anulada;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade200,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        children: [
+          _tabEstadoItem(
+            label: 'Ventas',
+            icon: Icons.point_of_sale,
+            selected: !enAnuladas,
+            color: AppColors.blue1,
+            onTap: () {
+              if (enAnuladas) _filterByEstado(null);
+            },
+          ),
+          _tabEstadoItem(
+            label: 'Anuladas',
+            icon: Icons.block,
+            selected: enAnuladas,
+            color: AppColors.red,
+            onTap: () {
+              if (!enAnuladas) _filterByEstado(EstadoVenta.anulada);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _tabEstadoItem({
+    required String label,
+    required IconData icon,
+    required bool selected,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(vertical: 7),
+          decoration: BoxDecoration(
+            color: selected ? Colors.white : Colors.transparent,
+            borderRadius: BorderRadius.circular(6),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon,
+                  size: 14,
+                  color: selected ? color : Colors.grey.shade500),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                  color: selected ? color : Colors.grey.shade600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   /// Bottom sheet con los chips de estado. Reemplaza la fila inline que
   /// vivía bajo el search — libera espacio vertical en pantallas chicas
   /// y deja el cuerpo del listado más limpio.
@@ -396,7 +552,7 @@ class _VentasPageState extends State<VentasPage> {
       builder: (sheetCtx) {
         return SafeArea(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+            padding: const EdgeInsets.fromLTRB(10, 12, 10, 20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -455,6 +611,52 @@ class _VentasPageState extends State<VentasPage> {
                         )),
                   ],
                 ),
+                const SizedBox(height: 14),
+                // ── Canal de venta (mostrador / marketplace / cotización) ──
+                Row(
+                  children: [
+                    Icon(Icons.storefront_outlined,
+                        size: 18, color: AppColors.blue1),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Canal de venta',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.blue1,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    CustomFilterChip(
+                      label: 'Todos',
+                      selected: _filtroCanal == null,
+                      showCheckmark: true,
+                      onSelected: () {
+                        Navigator.pop(sheetCtx);
+                        setState(() => _filtroCanal = null);
+                        context.read<VentaListCubit>().filterByCanal(null);
+                      },
+                    ),
+                    ..._canales.entries.map((c) => CustomFilterChip(
+                          showCheckmark: true,
+                          label: c.value,
+                          selected: _filtroCanal == c.key,
+                          onSelected: () {
+                            Navigator.pop(sheetCtx);
+                            setState(() => _filtroCanal = c.key);
+                            context
+                                .read<VentaListCubit>()
+                                .filterByCanal(c.key);
+                          },
+                        )),
+                  ],
+                ),
               ],
             ),
           ),
@@ -468,14 +670,19 @@ class _VentasPageState extends State<VentasPage> {
   /// para ahorrar taps en el picker.
   Widget _buildAtajosFecha() {
     return BlocBuilder<VentaListCubit, VentaListState>(
+      // Rebuild también en la transición Loading→Loaded: sin eso, el estado
+      // "seleccionado" del atajo inicial (Hoy) no se pintaría al cargar.
       buildWhen: (a, b) =>
-          a is VentaListLoaded && b is VentaListLoaded &&
-          (a.filtroFechaDesde != b.filtroFechaDesde ||
-              a.filtroFechaHasta != b.filtroFechaHasta),
+          a.runtimeType != b.runtimeType ||
+          (a is VentaListLoaded && b is VentaListLoaded &&
+              (a.filtroFechaDesde != b.filtroFechaDesde ||
+                  a.filtroFechaHasta != b.filtroFechaHasta)),
       builder: (context, state) {
-        final hayFiltro = state is VentaListLoaded &&
-            (state.filtroFechaDesde != null ||
-                state.filtroFechaHasta != null);
+        final filtroDesde =
+            state is VentaListLoaded ? state.filtroFechaDesde : null;
+        final filtroHasta =
+            state is VentaListLoaded ? state.filtroFechaHasta : null;
+        final hayFiltro = filtroDesde != null || filtroHasta != null;
 
         return SizedBox(
           height: 28,
@@ -483,48 +690,28 @@ class _VentasPageState extends State<VentasPage> {
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 12),
             children: [
-              _atajoChip('Hoy', _rangoHoy),
+              _atajoChip('Hoy', _rangoHoy, filtroDesde, filtroHasta),
               const SizedBox(width: 6),
-              _atajoChip('Ayer', _rangoAyer),
+              _atajoChip('Ayer', _rangoAyer, filtroDesde, filtroHasta),
               const SizedBox(width: 6),
-              _atajoChip('Esta semana', _rangoEstaSemana),
+              _atajoChip('Esta semana', _rangoEstaSemana, filtroDesde, filtroHasta),
               const SizedBox(width: 6),
-              _atajoChip('Este mes', _rangoEsteMes),
+              _atajoChip('Este mes', _rangoEsteMes, filtroDesde, filtroHasta),
               if (hayFiltro) ...[
                 const SizedBox(width: 10),
-                InkWell(
-                  onTap: () => context
+                CustomFilterChip(
+                  label: 'Limpiar fechas',
+                  icon: Icons.close,
+                  iconSize: 12,
+                  backgroundColor: Colors.red.shade50,
+                  textColor: Colors.red.shade700,
+                  borderColor: Colors.red.shade300,
+                  fontWeight: FontWeight.w600,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  onSelected: () => context
                       .read<VentaListCubit>()
                       .filterByFechas(null, null),
-                  borderRadius: BorderRadius.circular(14),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.red.shade50,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: Colors.red.shade300,
-                        width: 0.6,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.close,
-                            size: 12, color: Colors.red.shade600),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Limpiar fechas',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.red.shade700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
                 ),
               ],
             ],
@@ -534,32 +721,22 @@ class _VentasPageState extends State<VentasPage> {
     );
   }
 
-  Widget _atajoChip(String label, ({DateTime desde, DateTime hasta}) Function() compute) {
-    return InkWell(
-      onTap: () {
-        final r = compute();
-        context.read<VentaListCubit>().filterByFechas(r.desde, r.hasta);
-      },
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: Colors.grey.withValues(alpha: 0.4),
-            width: 0.5,
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.w500,
-            color: Colors.grey.shade700,
-          ),
-        ),
-      ),
+  /// Atajo de rango con estado: se pinta seleccionado cuando el filtro
+  /// vigente coincide exactamente con su rango (ej. al entrar, "Hoy").
+  Widget _atajoChip(
+    String label,
+    ({DateTime desde, DateTime hasta}) Function() compute,
+    DateTime? filtroDesde,
+    DateTime? filtroHasta,
+  ) {
+    final r = compute();
+    final selected = filtroDesde == r.desde && filtroHasta == r.hasta;
+    return CustomFilterChip(
+      label: label,
+      selected: selected,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      onSelected: () =>
+          context.read<VentaListCubit>().filterByFechas(r.desde, r.hasta),
     );
   }
 
@@ -612,7 +789,7 @@ class _VentaListTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding:
-              const EdgeInsets.only(left: 10, right: 10, top: 8, bottom: 8),
+              const EdgeInsets.only(left: 10, right: 10, top: 5, bottom: 5),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -621,6 +798,39 @@ class _VentaListTile extends StatelessWidget {
                   AppSubtitle(venta.codigo),
                   const SizedBox(width: 8),
                   VentaEstadoChip(estado: venta.estado),
+                  // Badge de canal: distinguir a simple vista lo que llegó
+                  // por el marketplace de lo vendido en mostrador.
+                  if (venta.canalVenta == 'ONLINE')
+                    Padding(
+                      padding: const EdgeInsets.only(left: 6),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 5, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: Colors.teal.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(3),
+                          border: Border.all(
+                              color: Colors.teal.withValues(alpha: 0.40),
+                              width: 0.6),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.storefront,
+                                size: 9, color: Colors.teal.shade700),
+                            const SizedBox(width: 3),
+                            Text(
+                              'Marketplace',
+                              style: TextStyle(
+                                fontSize: 8,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.teal.shade700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   // Badge OS-XXXXX: la venta cobró una orden de servicio.
                   ...venta.ordenesServicioCodigos.map(
                     (cod) => Padding(
@@ -661,7 +871,7 @@ class _VentaListTile extends StatelessWidget {
                   Text(
                     DateFormatter.formatDateTime(venta.fechaVenta),
                     style: TextStyle(
-                      fontSize: 10,
+                      fontSize: 9,
                       color: Colors.grey.shade600,
                     ),
                   ),
@@ -670,20 +880,18 @@ class _VentaListTile extends StatelessWidget {
               const SizedBox(height: 4),
               Row(
                 children: [
-                  SizedBox(width: 70, child: AppText('Cliente:')),
+                  SizedBox(width: 70, child: AppSubtitle('Cliente:' , fontSize: 10, color: Colors.grey.shade600)),
                   Expanded(
-                      child: AppText(venta.nombreCliente,
-                          fontWeight: FontWeight.w500, size: 10,)),
+                      child: AppSubtitle(venta.nombreCliente,font: AppFont.amazonEmberMedium, fontSize: 10)),
                 ],
               ),
               if (venta.telefonoCliente != null) ...[
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    SizedBox(width: 70, child: AppText('Telefono:')),
+                    SizedBox(width: 70, child: AppSubtitle('Telefono:', fontSize: 10, color: Colors.grey.shade600)),
                     Expanded(
-                        child: AppText(venta.telefonoCliente!,
-                            fontWeight: FontWeight.w400)),
+                        child: AppSubtitle(venta.telefonoCliente!,font: AppFont.amazonEmberMedium, fontSize: 10)),
                   ],
                 ),
               ],
@@ -691,10 +899,9 @@ class _VentaListTile extends StatelessWidget {
                 const SizedBox(height: 2),
                 Row(
                   children: [
-                    SizedBox(width: 70, child: AppText('Sede:')),
+                    SizedBox(width: 70, child: AppSubtitle('Sede:', fontSize: 10, color: Colors.grey.shade600)),
                     Expanded(
-                        child: AppText(venta.sedeNombre!,
-                            fontWeight: FontWeight.w400, size: 10)),
+                        child: AppSubtitle(venta.sedeNombre!,font: AppFont.amazonEmberMedium, fontSize: 10)),
                   ],
                 ),
               ],
@@ -707,28 +914,27 @@ class _VentaListTile extends StatelessWidget {
                     Text(
                       'Desde: ${venta.cotizacionCodigo}',
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: 10,
                         color: Colors.blue.shade400,
                       ),
                     ),
                   ],
                 ),
               ],
-              const SizedBox(height: 6),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   if (venta.vendedorNombre != null)
                     Text(
-                      'Vendedor: ${venta.vendedorNombre}',
+                      'Vendedor:          ${venta.vendedorNombre}',
                       style: TextStyle(
-                          fontSize: 9, color: Colors.grey.shade600),
+                          fontSize: 8, color: Colors.grey.shade600),
                     ),
                   Text(
                     '${venta.moneda} ${venta.total.toStringAsFixed(2)}',
                     style: const TextStyle(
                       fontWeight: FontWeight.w500,
-                      fontSize: 12,
+                      fontSize: 10,
                     ),
                   ),
                 ],

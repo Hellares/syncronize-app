@@ -3,14 +3,22 @@ import 'package:injectable/injectable.dart';
 import '../../../../../core/utils/resource.dart';
 import '../../../../../core/utils/date_formatter.dart';
 import '../../../domain/entities/venta.dart';
+import '../../../domain/entities/ventas_page.dart';
 import '../../../domain/usecases/get_ventas_usecase.dart';
 import 'venta_list_state.dart';
 
+/// Lista de ventas con paginación por CURSOR + resumen agregado server-side
+/// (patrón estándar de listas transaccionales — ver cotizaciones). Todos los
+/// filtros (estado, sede, fechas, canal, search) van al server y resetean el
+/// cursor; el chip del total se alimenta del `resumen` (exacto aunque haya
+/// páginas sin cargar).
 @injectable
 class VentaListCubit extends Cubit<VentaListState> {
   final GetVentasUseCase _getVentasUseCase;
 
   VentaListCubit(this._getVentasUseCase) : super(const VentaListInitial());
+
+  static const int _pageSize = 30;
 
   String? _currentEmpresaId;
   EstadoVenta? _filtroEstado;
@@ -18,6 +26,12 @@ class VentaListCubit extends Cubit<VentaListState> {
   String? _searchQuery;
   DateTime? _filtroFechaDesde;
   DateTime? _filtroFechaHasta;
+  String? _filtroCanal;
+  String? _nextCursor;
+
+  /// Token monotónico: descarta respuestas en vuelo de cargas viejas
+  /// cuando el usuario cambia filtros/búsqueda en el medio.
+  int _loadId = 0;
 
   Future<void> loadVentas({
     required String empresaId,
@@ -26,40 +40,86 @@ class VentaListCubit extends Cubit<VentaListState> {
     String? search,
     DateTime? fechaDesde,
     DateTime? fechaHasta,
+    String? canalVenta,
   }) async {
     if (empresaId.isEmpty) {
       emit(const VentaListError('ID de empresa no valido'));
       return;
     }
 
+    final myId = ++_loadId;
     _currentEmpresaId = empresaId;
     _filtroEstado = estado;
     _filtroSedeId = sedeId;
     _searchQuery = search;
     _filtroFechaDesde = fechaDesde;
     _filtroFechaHasta = fechaHasta;
+    _filtroCanal = canalVenta;
+    _nextCursor = null;
 
     emit(const VentaListLoading());
 
-    final result = await _getVentasUseCase(
+    final result = await _getVentasUseCase.paginado(
       sedeId: sedeId,
       estado: estado?.apiValue,
       search: search,
       fechaDesde: _toUtcIsoDayStart(fechaDesde),
       fechaHasta: _toUtcIsoDayEnd(fechaHasta),
+      canalVenta: canalVenta,
+      limit: _pageSize,
     );
-    if (isClosed) return;
+    if (isClosed || myId != _loadId) return;
 
-    if (result is Success<List<Venta>>) {
+    if (result is Success<VentasPage>) {
+      _nextCursor = result.data.nextCursor;
       emit(VentaListLoaded(
-        ventas: result.data,
+        ventas: result.data.ventas,
         filtroEstado: estado,
         filtroSedeId: sedeId,
         filtroFechaDesde: fechaDesde,
         filtroFechaHasta: fechaHasta,
+        filtroCanal: canalVenta,
+        hasMore: result.data.hasMore,
+        resumen: result.data.resumen,
       ));
-    } else if (result is Error<List<Venta>>) {
+    } else if (result is Error<VentasPage>) {
       emit(VentaListError(result.message));
+    }
+  }
+
+  /// Trae la siguiente página y la appendea (scroll infinito).
+  Future<void> loadMore() async {
+    final actual = state;
+    if (actual is! VentaListLoaded) return;
+    if (!actual.hasMore || actual.isLoadingMore) return;
+    if (_nextCursor == null) return;
+
+    final myId = _loadId;
+    emit(actual.copyWith(isLoadingMore: true));
+
+    final result = await _getVentasUseCase.paginado(
+      sedeId: _filtroSedeId,
+      estado: _filtroEstado?.apiValue,
+      search: _searchQuery,
+      fechaDesde: _toUtcIsoDayStart(_filtroFechaDesde),
+      fechaHasta: _toUtcIsoDayEnd(_filtroFechaHasta),
+      canalVenta: _filtroCanal,
+      limit: _pageSize,
+      cursor: _nextCursor,
+    );
+    if (isClosed || myId != _loadId) return;
+
+    if (result is Success<VentasPage>) {
+      _nextCursor = result.data.nextCursor;
+      emit(actual.copyWith(
+        ventas: [...actual.ventas, ...result.data.ventas],
+        hasMore: result.data.hasMore,
+        isLoadingMore: false,
+        resumen: result.data.resumen,
+      ));
+    } else {
+      // Falla al paginar: conserva lo cargado y re-habilita el footer.
+      emit(actual.copyWith(isLoadingMore: false));
     }
   }
 
@@ -72,6 +132,7 @@ class VentaListCubit extends Cubit<VentaListState> {
       search: _searchQuery,
       fechaDesde: _filtroFechaDesde,
       fechaHasta: _filtroFechaHasta,
+      canalVenta: _filtroCanal,
     );
   }
 
@@ -84,6 +145,7 @@ class VentaListCubit extends Cubit<VentaListState> {
       search: query.isEmpty ? null : query,
       fechaDesde: _filtroFechaDesde,
       fechaHasta: _filtroFechaHasta,
+      canalVenta: _filtroCanal,
     );
   }
 
@@ -96,6 +158,7 @@ class VentaListCubit extends Cubit<VentaListState> {
       search: _searchQuery,
       fechaDesde: _filtroFechaDesde,
       fechaHasta: _filtroFechaHasta,
+      canalVenta: _filtroCanal,
     );
   }
 
@@ -108,6 +171,22 @@ class VentaListCubit extends Cubit<VentaListState> {
       search: _searchQuery,
       fechaDesde: _filtroFechaDesde,
       fechaHasta: _filtroFechaHasta,
+      canalVenta: _filtroCanal,
+    );
+  }
+
+  /// Filtra por canal (Mostrador/Marketplace/Cotización) — SERVER-side:
+  /// con paginación el filtro local dejaría totales inconsistentes.
+  Future<void> filterByCanal(String? canalVenta) async {
+    if (_currentEmpresaId == null) return;
+    await loadVentas(
+      empresaId: _currentEmpresaId!,
+      estado: _filtroEstado,
+      sedeId: _filtroSedeId,
+      search: _searchQuery,
+      fechaDesde: _filtroFechaDesde,
+      fechaHasta: _filtroFechaHasta,
+      canalVenta: canalVenta,
     );
   }
 
@@ -123,6 +202,7 @@ class VentaListCubit extends Cubit<VentaListState> {
       search: _searchQuery,
       fechaDesde: desde,
       fechaHasta: hasta,
+      canalVenta: _filtroCanal,
     );
   }
 

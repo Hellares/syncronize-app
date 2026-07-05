@@ -1,6 +1,7 @@
 import '../../../../core/utils/resource.dart';
 import '../entities/reversion_total.dart';
 import '../entities/venta.dart';
+import '../entities/ventas_page.dart';
 
 /// Repository interface para operaciones de ventas
 abstract class VentaRepository {
@@ -20,6 +21,18 @@ abstract class VentaRepository {
     String? fechaHasta,
     String? clienteId,
     String? search,
+  });
+
+  /// Página de ventas por cursor (scroll infinito) + resumen agregado.
+  Future<Resource<VentasPage>> getVentasPaginadas({
+    String? sedeId,
+    String? estado,
+    String? fechaDesde,
+    String? fechaHasta,
+    String? search,
+    String? canalVenta,
+    required int limit,
+    String? cursor,
   });
 
   Future<Resource<Venta>> getVenta({required String ventaId});
@@ -46,6 +59,7 @@ abstract class VentaRepository {
     required String ventaId,
     required String tipoComprobante,
     String? tipoDocumentoCliente,
+    String? documentoCliente,
   });
 
   Future<Resource<Map<String, dynamic>>> getResumen({String? sedeId});

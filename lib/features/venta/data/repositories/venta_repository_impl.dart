@@ -6,6 +6,7 @@ import '../../../../core/services/error_handler_service.dart';
 import '../../../../core/utils/resource.dart';
 import '../../domain/entities/reversion_total.dart';
 import '../../domain/entities/venta.dart';
+import '../../domain/entities/ventas_page.dart';
 import '../../domain/repositories/venta_repository.dart';
 import '../datasources/venta_remote_datasource.dart';
 
@@ -150,6 +151,48 @@ class VentaRepositoryImpl implements VentaRepository {
   }
 
   @override
+  Future<Resource<VentasPage>> getVentasPaginadas({
+    String? sedeId,
+    String? estado,
+    String? fechaDesde,
+    String? fechaHasta,
+    String? search,
+    String? canalVenta,
+    required int limit,
+    String? cursor,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final page = await _remoteDataSource.getVentasPaginadas(
+        sedeId: sedeId,
+        estado: estado,
+        fechaDesde: fechaDesde,
+        fechaHasta: fechaHasta,
+        search: search,
+        canalVenta: canalVenta,
+        limit: limit,
+        cursor: cursor,
+      );
+      return Success(VentasPage(
+        ventas: page.items.map((m) => m.toEntity()).toList(),
+        hasMore: page.hasMore,
+        nextCursor: page.nextCursor,
+        resumen: page.resumen
+            .map((r) => VentasResumenEstado(
+                  estado: r['estado'] as String? ?? '',
+                  cantidad: (r['cantidad'] as num?)?.toInt() ?? 0,
+                  total: (r['total'] as num?)?.toDouble() ?? 0,
+                ))
+            .toList(),
+      ));
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Venta');
+    }
+  }
+
+  @override
   Future<Resource<Venta>> getVenta({required String ventaId}) async {
     if (!await _networkInfo.isConnected) {
       return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
@@ -233,6 +276,7 @@ class VentaRepositoryImpl implements VentaRepository {
     required String ventaId,
     required String tipoComprobante,
     String? tipoDocumentoCliente,
+    String? documentoCliente,
   }) async {
     if (!await _networkInfo.isConnected) {
       return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
@@ -242,6 +286,7 @@ class VentaRepositoryImpl implements VentaRepository {
         ventaId,
         tipoComprobante: tipoComprobante,
         tipoDocumentoCliente: tipoDocumentoCliente,
+        documentoCliente: documentoCliente,
       );
       return Success(venta.toEntity());
     } catch (e) {

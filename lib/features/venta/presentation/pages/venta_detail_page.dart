@@ -11,8 +11,13 @@ import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/theme/gradient_container.dart';
 import '../../../../core/fonts/app_text_widgets.dart';
 import '../../../../core/widgets/autorizacion_dialog.dart';
+import '../../../../core/widgets/custom_button.dart';
+import '../../../../core/widgets/custom_filter_chip.dart';
 import '../../../../core/widgets/custom_navigation_menu.dart';
 import '../../../../core/widgets/smart_appbar.dart';
+import '../../../../core/widgets/styled_dialog.dart';
+import '../../../auth/presentation/widgets/custom_text.dart'
+    show CustomText, FieldType;
 import '../../../../core/widgets/producto_sede_selector/producto_sede_search_cubit.dart';
 import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_cubit.dart';
 import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_state.dart';
@@ -2412,45 +2417,124 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
   }
 
   void _showGenerarComprobanteDialog(BuildContext context, Venta v) {
+    final docCtrl = TextEditingController(text: v.documentoCliente ?? '');
+    String tipo = 'BOLETA';
+    String? errorDoc;
+
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Generar Comprobante', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Venta: ${v.codigo}', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-            Text('Total: S/ ${v.total.toStringAsFixed(2)}', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-            const SizedBox(height: 16),
-            const Text('Selecciona el tipo de comprobante:', style: TextStyle(fontSize: 13)),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton.icon(
-            onPressed: () { Navigator.pop(ctx); _generarComprobante(v.id, 'BOLETA'); },
-            icon: const Icon(Icons.receipt, size: 16),
-            label: const Text('Boleta'),
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.blue1, foregroundColor: Colors.white),
-          ),
-          ElevatedButton.icon(
-            onPressed: () { Navigator.pop(ctx); _generarComprobante(v.id, 'FACTURA'); },
-            icon: const Icon(Icons.description, size: 16),
-            label: const Text('Factura'),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade700, foregroundColor: Colors.white),
-          ),
-        ],
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          void generar() {
+            final doc = docCtrl.text.trim();
+            // Validación local: FACTURA exige RUC (11 dígitos); BOLETA
+            // acepta DNI (8) o RUC (11). El backend re-valida igual.
+            if (tipo == 'FACTURA' && !(doc.length == 11 && int.tryParse(doc) != null)) {
+              setDialogState(() => errorDoc = 'Factura requiere RUC de 11 dígitos');
+              return;
+            }
+            if (tipo == 'BOLETA' &&
+                !((doc.length == 8 || doc.length == 11) && int.tryParse(doc) != null)) {
+              setDialogState(() => errorDoc = 'Boleta requiere DNI (8) o RUC (11 dígitos)');
+              return;
+            }
+            Navigator.pop(ctx);
+            _generarComprobante(
+              v.id,
+              tipo,
+              documentoCliente: doc,
+              tipoDocumentoCliente: doc.length == 11 ? '6' : '1',
+            );
+          }
+
+          return StyledDialog(
+            accentColor: AppColors.blue1,
+            backgroundColor: Colors.white,
+            icon: Icons.receipt_long,
+            titulo: 'Generar Comprobante',
+            content: [
+              Text('Venta ${v.codigo} · Total S/ ${v.total.toStringAsFixed(2)}',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  CustomFilterChip(
+                    label: 'Boleta',
+                    icon: Icons.receipt,
+                    selected: tipo == 'BOLETA',
+                    onSelected: () => setDialogState(() {
+                      tipo = 'BOLETA';
+                      errorDoc = null;
+                    }),
+                  ),
+                  const SizedBox(width: 8),
+                  CustomFilterChip(
+                    label: 'Factura',
+                    icon: Icons.description,
+                    selected: tipo == 'FACTURA',
+                    onSelected: () => setDialogState(() {
+                      tipo = 'FACTURA';
+                      errorDoc = null;
+                    }),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              // Documento del cliente: las ventas ONLINE del marketplace
+              // llegan sin DNI/RUC — se captura aquí y el backend lo
+              // persiste en la venta al emitir.
+              CustomText(
+                controller: docCtrl,
+                label: tipo == 'FACTURA' ? 'RUC del cliente' : 'DNI o RUC del cliente',
+                hintText: tipo == 'FACTURA' ? '20XXXXXXXXX' : 'XXXXXXXX',
+                borderColor: AppColors.blue1,
+                fieldType: FieldType.number,
+              ),
+              if (errorDoc != null) ...[
+                const SizedBox(height: 4),
+                Text(errorDoc!,
+                    style: TextStyle(fontSize: 10.5, color: Colors.red.shade700)),
+              ],
+            ],
+            actions: [
+              Expanded(
+                child: TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text('Cancelar',
+                      style: TextStyle(color: Colors.grey.shade600)),
+                ),
+              ),
+              Expanded(
+                child: CustomButton(
+                  text: 'Generar',
+                  icon: const Icon(Icons.receipt_long,
+                      size: 14, color: Colors.white),
+                  backgroundColor: AppColors.blue1,
+                  textColor: Colors.white,
+                  onPressed: generar,
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 
-  Future<void> _generarComprobante(String ventaId, String tipo) async {
+  Future<void> _generarComprobante(
+    String ventaId,
+    String tipo, {
+    String? documentoCliente,
+    String? tipoDocumentoCliente,
+  }) async {
     setState(() => _loading = true);
     final repo = locator<VentaRepository>();
-    final result = await repo.generarComprobante(ventaId: ventaId, tipoComprobante: tipo);
+    final result = await repo.generarComprobante(
+      ventaId: ventaId,
+      tipoComprobante: tipo,
+      documentoCliente: documentoCliente,
+      tipoDocumentoCliente: tipoDocumentoCliente,
+    );
     if (!mounted) return;
     setState(() => _loading = false);
     if (result is Success<Venta>) {
