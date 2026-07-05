@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -39,29 +41,51 @@ class _AppInitializerState extends State<AppInitializer> {
 
   /// Inicializa la aplicación de forma asíncrona
   Future<void> _initializeApp() async {
+    // Cronómetro de arranque: cada fase loguea su tiempo acumulado para
+    // poder medir en dispositivos reales (adb logcat | grep BOOT).
+    final boot = Stopwatch()..start();
+    void marca(String fase) =>
+        debugPrint('[BOOT] $fase: +${boot.elapsedMilliseconds}ms');
     try {
       // Iniciar temporizador para splash mínimo
       final splashStartTime = DateTime.now();
-      const minSplashDuration = Duration(milliseconds: 1500); // 1.5 segundos
+      // 700ms: suficiente para que el splash no "parpadee" sin castigar a
+      // los equipos rápidos (antes 1500ms fijos para todos).
+      const minSplashDuration = Duration(milliseconds: 700);
 
-      // Inicializar Firebase
-      await Firebase.initializeApp();
-
-      // Configurar inyección de dependencias
-      await configureDependencies();
+      // Firebase y DI en PARALELO: son independientes (el DI registra
+      // lazy singletons, nada toca Firebase durante la configuración).
+      await Future.wait([
+        Firebase.initializeApp(),
+        configureDependencies(),
+      ]);
+      marca('firebase+di');
 
       // Configurar observador inteligente de BLoC
       final loggerService = locator<LoggerService>();
       Bloc.observer = SmartBlocObserver(loggerService.talker);
 
-      // Inicializar push notifications
-      await PushNotificationService().initialize();
+      // Push notifications DIFERIDO (fire-and-forget): pedir permisos y el
+      // token FCM son llamadas lentas (red, diálogo del sistema) que NO se
+      // necesitan para pintar el login — bloqueaban el splash 1-3s. El
+      // token se registra en el backend recién al autenticarse, y
+      // registerTokenWithBackend lo obtiene si aún no llegó. Bonus: el
+      // deep-link de arranque (tap en notificación con app cerrada,
+      // getInitialMessage) ahora se procesa con el router YA montado —
+      // antes corría con el callback de navegación todavía null.
+      unawaited(
+        PushNotificationService().initialize().then(
+              (_) => marca('push listo (diferido, no bloqueó el splash)'),
+              onError: (Object e) => debugPrint('[BOOT] push diferido: $e'),
+            ),
+      );
 
       // Asegurar que el splash se muestre por el tiempo mínimo
       final elapsedTime = DateTime.now().difference(splashStartTime);
       if (elapsedTime < minSplashDuration) {
         await Future.delayed(minSplashDuration - elapsedTime);
       }
+      marca('listo — splash total');
 
       // Marcar como inicializado
       if (mounted) {

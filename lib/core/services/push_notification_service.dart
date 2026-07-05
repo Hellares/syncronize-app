@@ -247,6 +247,14 @@ class PushNotificationService {
 
   /// Registrar el token FCM en el backend (llamar después del login)
   Future<void> registerTokenWithBackend() async {
+    // La init de push es DIFERIDA (no bloquea el splash): al autenticarse
+    // el token puede no existir todavía — se obtiene aquí mismo (getToken
+    // cachea, no repite la llamada de red si ya hay token).
+    if (_fcmToken == null) {
+      try {
+        _fcmToken = await _messaging.getToken();
+      } catch (_) {}
+    }
     if (_fcmToken == null) return;
     try {
       final dio = locator<DioClient>();

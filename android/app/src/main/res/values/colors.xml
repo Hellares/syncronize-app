@@ -2,4 +2,9 @@
 <resources>
     <color name="notification_color">#1565C0</color>
 	<color name="ic_launcher_background">#FFFFFF</color>
+    <!-- Fondo del splash NATIVO (mientras arranca el engine de Flutter).
+         Mismo azul que el SplashScreen de Flutter (AppColors.blue2) para
+         una transición sin salto: antes era blanco puro y en equipos
+         lentos se veía una pantalla blanca por varios segundos. -->
+    <color name="splash_background">#075DB3</color>
 </resources>
