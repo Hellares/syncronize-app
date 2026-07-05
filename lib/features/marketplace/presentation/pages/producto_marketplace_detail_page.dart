@@ -16,6 +16,8 @@ import '../../../../core/network/dio_client.dart';
 import '../../../../core/storage/local_storage_service.dart';
 import '../../../../core/storage/secure_storage_service.dart';
 import '../../data/datasources/marketplace_remote_datasource.dart';
+import '../../../carrito/presentation/widgets/carrito_badge.dart';
+import '../../../carrito/presentation/widgets/fly_to_cart.dart';
 import '../widgets/favorito_button.dart';
 import '../widgets/preguntas_producto_section.dart';
 import '../widgets/opiniones_producto_section.dart';
@@ -49,6 +51,10 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
 
   /// Cantidad a agregar al carrito (1..stock disponible).
   int _cantidad = 1;
+
+  /// Anclas de la animación "vuela al carrito": del CTA al ícono del AppBar.
+  final _cartIconKey = GlobalKey();
+  final _addToCartBtnKey = GlobalKey();
 
   // ── Estilo compartido (Temu-like sobre la marca azul) ──────────────────────
   static const Color _star = Color(0xFFFFB300);
@@ -84,6 +90,7 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
     super.initState();
     _loadProducto();
     _registrarVisto();
+    CarritoBadgeController.sync();
   }
 
   void _registrarVisto() {
@@ -147,11 +154,7 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
                 inactiveColor: Colors.white,
               ),
             ),
-            _circleBtn(
-              icon: Icons.shopping_cart_outlined,
-              tooltip: 'Mi carrito',
-              onTap: () => context.push('/carrito'),
-            ),
+            _cartCircleBtn(),
             const SizedBox(width: 6),
           ],
         ],
@@ -188,6 +191,36 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
           visualDensity: VisualDensity.compact,
           constraints: const BoxConstraints.tightFor(width: 36, height: 36),
           icon: Icon(icon),
+        ),
+      ),
+    );
+  }
+
+  /// Botón del carrito con badge contador (pop al agregar). El [GlobalKey] es
+  /// el destino de la animación "vuela al carrito".
+  Widget _cartCircleBtn() {
+    return Center(
+      child: CarritoBadge(
+        child: Container(
+          key: _cartIconKey,
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.38),
+            shape: BoxShape.circle,
+          ),
+          child: IconButton(
+            onPressed: () async {
+              await context.push('/carrito');
+              CarritoBadgeController.sync();
+            },
+            tooltip: 'Mi carrito',
+            iconSize: 18,
+            color: Colors.white,
+            padding: EdgeInsets.zero,
+            visualDensity: VisualDensity.compact,
+            constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+            icon: const Icon(Icons.shopping_cart_outlined),
+          ),
         ),
       ),
     );
@@ -1350,23 +1383,36 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
       return;
     }
 
+    final cantidad = _cantidad < 1 ? 1 : _cantidad;
     setState(() => _addingToCart = true);
     try {
       await locator<DioClient>().post(
         '/marketplace/carrito',
         data: {
           'productoId': widget.productoId,
-          'cantidad': _cantidad < 1 ? 1 : _cantidad,
+          'cantidad': cantidad,
           if (_selectedVariante != null) 'varianteId': _selectedVariante!['id'],
         },
       );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Producto agregado al carrito'),
-            backgroundColor: Colors.green,
-          ),
+        // Feedback estilo Temu: miniatura que vuela al carrito + badge que
+        // suma con "pop". El snackbar queda solo como fallback si la
+        // animación no pudo correr (p.ej. botón/ícono ya desmontados).
+        final flyOk = await flyToCart(
+          context: context,
+          fromKey: _addToCartBtnKey,
+          toKey: _cartIconKey,
+          imageUrl: _imagenParaAnimacion(),
         );
+        CarritoBadgeController.add(cantidad);
+        if (!flyOk && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Producto agregado al carrito'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -1380,6 +1426,26 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
     } finally {
       if (mounted) setState(() => _addingToCart = false);
     }
+  }
+
+  /// Imagen para la miniatura que vuela al carrito: misma prioridad que la
+  /// galería (variante elegida → base → 1ª variante con imágenes).
+  String? _imagenParaAnimacion() {
+    final p = _producto;
+    if (p == null) return null;
+    List<dynamic> imagenes = (_selectedVariante?['imagenes'] as List<dynamic>?) ?? [];
+    if (imagenes.isEmpty) imagenes = (p['imagenes'] as List<dynamic>?) ?? [];
+    if (imagenes.isEmpty) {
+      for (final v in (p['variantes'] as List<dynamic>?) ?? []) {
+        final vi = (v['imagenes'] as List<dynamic>?) ?? [];
+        if (vi.isNotEmpty) {
+          imagenes = vi;
+          break;
+        }
+      }
+    }
+    if (imagenes.isEmpty) return null;
+    return (imagenes.first as Map<String, dynamic>)['url'] as String?;
   }
 
   Widget _buildBottomBar() {
@@ -1452,6 +1518,7 @@ class _ProductoMarketplaceDetailPageState extends State<ProductoMarketplaceDetai
                       )
                     : hayStock
                     ? CustomButton(
+                        key: _addToCartBtnKey,
                         text: 'Agregar al carrito',
                         backgroundColor: AppColors.blue1,
                         textColor: Colors.white,

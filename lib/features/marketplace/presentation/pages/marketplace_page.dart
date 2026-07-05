@@ -7,13 +7,12 @@ import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/storage/local_storage_service.dart';
-import '../../../../core/storage/secure_storage_service.dart';
 import '../../../../core/constants/storage_constants.dart';
 import '../../../../core/utils/resource.dart';
 import '../../domain/entities/categoria_marketplace.dart';
 import '../../domain/entities/marketplace_home.dart';
 import '../../domain/entities/producto_marketplace.dart';
-import '../../domain/usecases/get_carrito_contador_usecase.dart';
+import '../../../carrito/presentation/widgets/carrito_badge.dart';
 import '../../domain/usecases/get_marketplace_home_usecase.dart';
 import '../../domain/usecases/get_productos_vistos_usecase.dart';
 import '../../domain/usecases/get_recomendados_usecase.dart';
@@ -61,7 +60,9 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
   final _getHome = locator<GetMarketplaceHomeUseCase>();
   final _getVistos = locator<GetProductosVistosUseCase>();
   final _getRecomendados = locator<GetRecomendadosUseCase>();
-  final _getCarritoContador = locator<GetCarritoContadorUseCase>();
+
+  /// Destino de la animación "vuela al carrito" desde las cards del grid.
+  final _cartIconKey = GlobalKey();
   String? _selectedCategoriaId;
   // ignore: unused_field  (ubicación oculta temporalmente para pruebas)
   double? _ubicacionLat;
@@ -75,7 +76,6 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
   List<ProductoMarketplace> _masVistos = [];
   // ignore: unused_field  ("Lo más vendido" oculto temporalmente para pruebas)
   List<ProductoMarketplace> _masVendidos = [];
-  int _carritoCount = 0;
 
   /// URLs ya precargadas, para no relanzar precache en cada rebuild de la grilla.
   final Set<String> _prefetchedImages = {};
@@ -131,15 +131,10 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
     }
   }
 
-  Future<void> _loadCarritoCount() async {
-    final secureStorage = locator<SecureStorageService>();
-    final token = await secureStorage.read(key: StorageConstants.accessToken);
-    if (token == null || token.isEmpty) return;
-
-    final result = await _getCarritoContador();
-    if (result is Success<int> && mounted) {
-      setState(() => _carritoCount = result.data);
-    }
+  /// El contador vive en [CarritoBadgeController] (badge global compartido con
+  /// el detalle de producto); aquí solo se pide un refresh desde el server.
+  void _loadCarritoCount() {
+    CarritoBadgeController.sync();
   }
 
   void _clearBusqueda() {
@@ -469,9 +464,10 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
                   );
                 },
               ),
-              Stack(
-                children: [
-                  IconButton(
+              Center(
+                child: CarritoBadge(
+                  child: IconButton(
+                    key: _cartIconKey,
                     icon: const Icon(Icons.shopping_cart_outlined, size: 22),
                     onPressed: () async {
                       await context.push('/carrito');
@@ -482,25 +478,7 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
                     padding: const EdgeInsets.symmetric(horizontal: 2),
                     constraints: const BoxConstraints(minWidth: 34, minHeight: 40),
                   ),
-                  if (_carritoCount > 0)
-                    Positioned(
-                      right: 4,
-                      top: 4,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
-                          color: Colors.red,
-                          shape: BoxShape.circle,
-                        ),
-                        constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
-                        child: Text(
-                          _carritoCount > 99 ? '99+' : '$_carritoCount',
-                          style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ),
-                ],
+                ),
               ),
               const SizedBox(width: 2),
             ],
@@ -672,6 +650,7 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
                           return ProductoMarketplaceCard(
                             producto: producto,
                             staggered: true,
+                            cartIconKey: _cartIconKey,
                             onTap: () async {
                               await context.push('/producto-detalle/${producto.id}');
                               _loadCarritoCount();

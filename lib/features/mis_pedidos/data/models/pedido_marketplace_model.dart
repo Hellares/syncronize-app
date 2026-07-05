@@ -89,6 +89,12 @@ class PedidoMarketplaceModel {
   final String? comprobantePagoUrl;
   final String? motivoRechazo;
   final DateTime creadoEn;
+  // Fechas de hitos del pedido (timeline de seguimiento).
+  final DateTime? pagoValidadoEn;
+  final DateTime? enviadoEn;
+  final DateTime? entregadoEn;
+  final DateTime? actualizadoEn;
+  final bool yapeAutomaticoDisponible;
   final EmpresaInfoModel empresa;
   final List<PedidoDetalleModel> detalles;
 
@@ -109,6 +115,11 @@ class PedidoMarketplaceModel {
     this.comprobantePagoUrl,
     this.motivoRechazo,
     required this.creadoEn,
+    this.pagoValidadoEn,
+    this.enviadoEn,
+    this.entregadoEn,
+    this.actualizadoEn,
+    this.yapeAutomaticoDisponible = false,
     required this.empresa,
     required this.detalles,
   });
@@ -136,6 +147,15 @@ class PedidoMarketplaceModel {
       creadoEn: json['creadoEn'] != null
           ? DateTime.parse(json['creadoEn'] as String)
           : DateTime.now(),
+      pagoValidadoEn: _toDate(json['pagoValidadoEn']),
+      enviadoEn: _toDate(json['enviadoEn']),
+      entregadoEn: _toDate(json['entregadoEn']),
+      actualizadoEn: _toDate(json['actualizadoEn']),
+      // Compat: si el backend aún no manda el flag (listados), se asume
+      // true para conservar el comportamiento previo (el sheet se cierra
+      // solo si no está habilitado).
+      yapeAutomaticoDisponible:
+          json['yapeAutomaticoDisponible'] as bool? ?? true,
       empresa: EmpresaInfoModel.fromJson(empresaJson),
       detalles: detallesJson
           .map((e) => PedidoDetalleModel.fromJson(e as Map<String, dynamic>))
@@ -161,10 +181,20 @@ class PedidoMarketplaceModel {
       comprobantePagoUrl: comprobantePagoUrl,
       motivoRechazo: motivoRechazo,
       creadoEn: creadoEn,
+      pagoValidadoEn: pagoValidadoEn,
+      enviadoEn: enviadoEn,
+      entregadoEn: entregadoEn,
+      actualizadoEn: actualizadoEn,
+      yapeAutomaticoDisponible: yapeAutomaticoDisponible,
       empresa: empresa.toEntity(),
       detalles: detalles.map((d) => d.toEntity()).toList(),
     );
   }
+}
+
+DateTime? _toDate(dynamic value) {
+  if (value is! String || value.isEmpty) return null;
+  return DateTime.tryParse(value);
 }
 
 double _toDouble(dynamic value) {

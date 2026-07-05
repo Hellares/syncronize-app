@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/utils/resource.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -282,19 +283,26 @@ class _CheckoutViewState extends State<_CheckoutView> {
 
                   const AppSubtitle('Notas (opcional)'),
                   const SizedBox(height: 8),
-                  TextField(
+                  // TextField(
+                  //   controller: _notasController,
+                  //   decoration: InputDecoration(
+                  //     hintText: 'Instrucciones especiales, referencias, etc.',
+                  //     prefixIcon: const Icon(Icons.note_outlined, color: AppColors.blue1),
+                  //     filled: true, fillColor: AppColors.white,
+                  //     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.greyLight)),
+                  //     enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.greyLight)),
+                  //     focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.blue1, width: 1.5)),
+                  //   ),
+                  //   maxLines: 3,
+                  // ),
+                  CustomText(
                     controller: _notasController,
-                    decoration: InputDecoration(
-                      hintText: 'Instrucciones especiales, referencias, etc.',
-                      prefixIcon: const Icon(Icons.note_outlined, color: AppColors.blue1),
-                      filled: true, fillColor: AppColors.white,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.greyLight)),
-                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.greyLight)),
-                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.blue1, width: 1.5)),
-                    ),
+                    borderColor: AppColors.blue1,
+                    textCase: TextCase.upper,
+                    hintText: 'Instrucciones especiales, referencias, etc.',
+                    prefixIcon: const Icon(Icons.note_outlined, color: AppColors.blue1),
                     maxLines: 3,
                   ),
-
                   const SizedBox(height: 32),
 
                   SizedBox(
@@ -505,7 +513,7 @@ class _CheckoutViewState extends State<_CheckoutView> {
 
   Widget _buildDireccionSelector() {
     if (_isLoadingDirecciones) {
-      return const Padding(padding: EdgeInsets.all(16), child: Center(child: CircularProgressIndicator(strokeWidth: 2)));
+      return const Padding(padding: EdgeInsets.all(16), child: Center(child: CircularProgressIndicator(strokeWidth: 1)));
     }
 
     if (_direcciones.isEmpty) {
@@ -536,7 +544,7 @@ class _CheckoutViewState extends State<_CheckoutView> {
             decoration: BoxDecoration(
               color: isSelected ? AppColors.blue1.withValues(alpha: 0.05) : Colors.white,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: isSelected ? AppColors.blue1 : Colors.grey.shade300, width: isSelected ? 2 : 1),
+              border: Border.all(color: isSelected ? AppColors.blue1 : Colors.grey.shade300, width: isSelected ? 1.5 : 0.6),
             ),
             child: Row(
               children: [
@@ -547,7 +555,7 @@ class _CheckoutViewState extends State<_CheckoutView> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(children: [
-                        AppSubtitle(dir.displayName, fontSize: 13),
+                        AppSubtitle(dir.displayName, fontSize: 12),
                         if (dir.esPredeterminada) ...[
                           const SizedBox(width: 6),
                           Container(
@@ -584,7 +592,7 @@ class _CheckoutViewState extends State<_CheckoutView> {
           decoration: BoxDecoration(
             color: isSelected ? color.withValues(alpha: 0.1) : AppColors.white,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: isSelected ? color : AppColors.greyLight, width: isSelected ? 2 : 1),
+            border: Border.all(color: isSelected ? color : AppColors.greyLight, width: isSelected ? 1.5 : 0.6),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -596,7 +604,7 @@ class _CheckoutViewState extends State<_CheckoutView> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                    color: isSelected ? color : Colors.grey.shade600, fontSize: 14)),
+                    color: isSelected ? color : Colors.grey.shade600, fontSize: 11)),
               ),
             ],
           ),

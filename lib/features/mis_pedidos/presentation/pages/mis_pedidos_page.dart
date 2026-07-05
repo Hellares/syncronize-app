@@ -107,56 +107,109 @@ class _MisPedidosViewState extends State<_MisPedidosView> {
     );
   }
 
+  // Tabs segmentados (mismo patrón que Ventas|Anuladas en la página de
+  // ventas): contenedor gris + píldora blanca animada con ícono.
   Widget _buildFilterChips() {
     final filters = _esCompras
         ? <_FilterOption>[
-            const _FilterOption(label: 'Todos', estado: null),
-            const _FilterOption(label: 'Enviado', estado: EstadoPedidoMarketplace.enviado),
-            const _FilterOption(label: 'Entregado', estado: EstadoPedidoMarketplace.entregado),
+            const _FilterOption(
+                label: 'Todos', estado: null, icon: Icons.list_alt_rounded),
+            const _FilterOption(
+                label: 'Enviado',
+                estado: EstadoPedidoMarketplace.enviado,
+                icon: Icons.local_shipping_outlined),
+            const _FilterOption(
+                label: 'Entregado',
+                estado: EstadoPedidoMarketplace.entregado,
+                icon: Icons.home_outlined),
           ]
         : <_FilterOption>[
-            const _FilterOption(label: 'Todos', estado: null),
-            const _FilterOption(label: 'Pendiente', estado: EstadoPedidoMarketplace.pendientePago),
-            const _FilterOption(label: 'Pago enviado', estado: EstadoPedidoMarketplace.pagoEnviado),
-            const _FilterOption(label: 'En preparación', estado: EstadoPedidoMarketplace.enPreparacion),
+            const _FilterOption(
+                label: 'Todos', estado: null, icon: Icons.list_alt_rounded),
+            const _FilterOption(
+                label: 'Pendiente',
+                estado: EstadoPedidoMarketplace.pendientePago,
+                icon: Icons.schedule),
+            const _FilterOption(
+                label: 'Pago enviado',
+                estado: EstadoPedidoMarketplace.pagoEnviado,
+                icon: Icons.receipt_long_outlined),
+            const _FilterOption(
+                label: 'En preparación',
+                estado: EstadoPedidoMarketplace.enPreparacion,
+                icon: Icons.inventory_2_outlined),
           ];
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        children: filters.map((filter) {
-          final isSelected = _selectedFilter == filter.estado;
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: FilterChip(
-              label: AppText(
-                filter.label,
-                size: 12,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? AppColors.white : AppColors.blue3,
-              ),
-              selected: isSelected,
-              onSelected: (_) {
-                setState(() => _selectedFilter = filter.estado);
-                context
-                    .read<MisPedidosCubit>()
-                    .filterByEstado(filter.estado);
-              },
-              selectedColor: AppColors.blue1,
-              backgroundColor: AppColors.white,
-              checkmarkColor: AppColors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-                side: BorderSide(
-                  color: isSelected ? AppColors.blue1 : AppColors.greyLight,
-                ),
+    // ≤3 opciones → tabs Expanded a lo ancho; más → fila scrolleable.
+    final compacto = filters.length <= 3;
+    final items = filters
+        .map((f) => _tabFiltroItem(f, expandido: compacto))
+        .toList();
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade200,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: compacto
+          ? Row(children: items)
+          : SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(children: items),
+            ),
+    );
+  }
+
+  Widget _tabFiltroItem(_FilterOption filter, {required bool expandido}) {
+    final selected = _selectedFilter == filter.estado;
+    final color = filter.estado?.color ?? AppColors.blue1;
+
+    final tab = GestureDetector(
+      onTap: () {
+        if (selected) return;
+        setState(() => _selectedFilter = filter.estado);
+        context.read<MisPedidosCubit>().filterByEstado(filter.estado);
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: EdgeInsets.symmetric(
+            vertical: 7, horizontal: expandido ? 0 : 14),
+        decoration: BoxDecoration(
+          color: selected ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 4,
+                    offset: const Offset(0, 1),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisSize: expandido ? MainAxisSize.max : MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(filter.icon,
+                size: 14, color: selected ? color : Colors.grey.shade500),
+            const SizedBox(width: 6),
+            Text(
+              filter.label,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                color: selected ? color : Colors.grey.shade600,
               ),
             ),
-          );
-        }).toList(),
+          ],
+        ),
       ),
     );
+
+    return expandido ? Expanded(child: tab) : tab;
   }
 
   Widget _buildPedidoCard(BuildContext context, PedidoMarketplace pedido) {
@@ -174,7 +227,7 @@ class _MisPedidosViewState extends State<_MisPedidosView> {
           }
         },
         child: GradientContainer(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -206,11 +259,11 @@ class _MisPedidosViewState extends State<_MisPedidosView> {
                         AppText(
                           pedido.empresa.nombre,
                           fontWeight: FontWeight.w600,
-                          size: 13,
+                          size: 11,
                         ),
                         AppText(
                           pedido.codigo,
-                          size: 11,
+                          size: 10,
                           color: AppColors.textSecondary,
                         ),
                       ],
@@ -235,7 +288,7 @@ class _MisPedidosViewState extends State<_MisPedidosView> {
                   ),
                 ],
               ),
-              const Divider(height: 16),
+              const Divider(height: 10),
               // Items resumen
               ...pedido.detalles.take(3).map(
                     (detalle) => Padding(
@@ -245,7 +298,7 @@ class _MisPedidosViewState extends State<_MisPedidosView> {
                           Expanded(
                             child: AppText(
                               '${detalle.descripcion} x${detalle.cantidad}',
-                              size: 12,
+                              size: 10,
                               color: AppColors.textSecondary,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -253,7 +306,7 @@ class _MisPedidosViewState extends State<_MisPedidosView> {
                           ),
                           AppText(
                             'S/ ${detalle.subtotal.toStringAsFixed(2)}',
-                            size: 12,
+                            size: 11,
                             color: AppColors.textSecondary,
                           ),
                         ],
@@ -265,7 +318,7 @@ class _MisPedidosViewState extends State<_MisPedidosView> {
                   padding: const EdgeInsets.only(top: 2),
                   child: AppText(
                     '+${pedido.detalles.length - 3} producto(s) mas',
-                    size: 11,
+                    size: 10,
                     color: AppColors.blue1,
                   ),
                 ),
@@ -282,7 +335,7 @@ class _MisPedidosViewState extends State<_MisPedidosView> {
                   AppText(
                     'S/ ${pedido.total.toStringAsFixed(2)}',
                     fontWeight: FontWeight.bold,
-                    size: 15,
+                    size: 13,
                     color: AppColors.blue1,
                   ),
                 ],
@@ -363,6 +416,11 @@ class _MisPedidosViewState extends State<_MisPedidosView> {
 class _FilterOption {
   final String label;
   final EstadoPedidoMarketplace? estado;
+  final IconData icon;
 
-  const _FilterOption({required this.label, required this.estado});
+  const _FilterOption({
+    required this.label,
+    required this.estado,
+    required this.icon,
+  });
 }

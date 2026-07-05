@@ -7,10 +7,16 @@ import 'package:syncronize/core/theme/gradient_background.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/widgets/custom_button.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
+import 'package:syncronize/core/widgets/styled_dialog.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/utils/resource.dart';
 import '../../../auth/presentation/bloc/auth/auth_bloc.dart';
 import '../../../auth/presentation/pages/complete_profile_page.dart';
 import '../../../checkout/presentation/pages/checkout_page.dart';
+import '../../../mis_pedidos/domain/entities/pedido_marketplace.dart';
+import '../../../mis_pedidos/domain/usecases/get_mis_pedidos_usecase.dart';
+import '../../../mis_pedidos/presentation/pages/mis_pedidos_page.dart';
+import '../../../mis_pedidos/presentation/pages/pedido_detail_page.dart';
 import '../../domain/entities/carrito.dart';
 import '../bloc/carrito_cubit.dart';
 
@@ -73,17 +79,65 @@ class _CarritoView extends StatelessWidget {
 // Empty State
 // ============================================================================
 
-class _EmptyCartView extends StatelessWidget {
+class _EmptyCartView extends StatefulWidget {
   const _EmptyCartView();
+
+  @override
+  State<_EmptyCartView> createState() => _EmptyCartViewState();
+}
+
+class _EmptyCartViewState extends State<_EmptyCartView> {
+  /// Pedidos ya creados que siguen sin pagar: el caso típico es confirmar el
+  /// checkout (el carrito se vacía) y retroceder sin pagar — este banner le da
+  /// al comprador el camino de vuelta al pago.
+  List<PedidoMarketplace> _pendientesPago = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPendientesPago();
+  }
+
+  Future<void> _loadPendientesPago() async {
+    final result = await locator<GetMisPedidosUseCase>()();
+    if (!mounted || result is! Success<List<PedidoMarketplace>>) return;
+    setState(() {
+      _pendientesPago = result.data
+          .where((p) =>
+              p.estado == EstadoPedidoMarketplace.pendientePago ||
+              p.estado == EstadoPedidoMarketplace.pagoRechazado)
+          .toList();
+    });
+  }
+
+  Future<void> _irAPagar() async {
+    if (_pendientesPago.length == 1) {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => PedidoDetailPage(pedidoId: _pendientesPago.first.id),
+        ),
+      );
+    } else {
+      await Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const MisPedidosPage()),
+      );
+    }
+    // Al volver, el pedido puede ya estar pagado → refrescar el banner.
+    _loadPendientesPago();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            if (_pendientesPago.isNotEmpty) ...[
+              _buildPendientesBanner(),
+              const SizedBox(height: 28),
+            ],
             Icon(
               Icons.shopping_cart_outlined,
               size: 80,
@@ -103,6 +157,58 @@ class _EmptyCartView extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildPendientesBanner() {
+    final n = _pendientesPago.length;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.orange.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.orange.withValues(alpha: 0.45)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.schedule, size: 18, color: AppColors.orange),
+              const SizedBox(width: 8),
+              Expanded(
+                child: AppSubtitle(
+                  n == 1
+                      ? 'Tienes un pedido pendiente de pago'
+                      : 'Tienes $n pedidos pendientes de pago',
+                  fontSize: 13,
+                  color: Colors.grey.shade800,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            _pendientesPago.map((p) => p.codigo).take(3).join(' · ') +
+                (n > 3 ? ' …' : ''),
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: CustomButton(
+              text: 'Pagar ahora',
+              backgroundColor: const Color(0xFF742284),
+              textColor: Colors.white,
+              height: 40,
+              icon: const Icon(Icons.qr_code_2_rounded,
+                  color: Colors.white, size: 18),
+              onPressed: _irAPagar,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -483,31 +589,43 @@ class _DeleteButton extends StatelessWidget {
     );
   }
 
-  void _confirmarEliminar(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Eliminar producto'),
-        content:
-            const Text('¿Estas seguro de eliminar este producto del carrito?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.of(dialogContext).pop();
-              context.read<CarritoCubit>().eliminarItem(itemId: itemId);
-            },
-            child: const Text(
-              'Eliminar',
-              style: TextStyle(color: AppColors.red),
+  Future<void> _confirmarEliminar(BuildContext context) async {
+    final eliminar = await StyledDialog.show<bool>(
+      context,
+      accentColor: AppColors.red,
+      backgroundColor: Colors.white,
+      icon: Icons.remove_shopping_cart_outlined,
+      titulo: 'Eliminar producto',
+      content: [
+        const Text(
+          '¿Estás seguro de eliminar este producto del carrito?',
+          style: TextStyle(fontSize: 13),
+        ),
+      ],
+      actions: [
+        Expanded(
+          child: TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(
+              'Cancelar',
+              style: TextStyle(color: Colors.grey.shade600),
             ),
           ),
-        ],
-      ),
+        ),
+        Expanded(
+          child: CustomButton(
+            text: 'Eliminar',
+            icon: const Icon(Icons.delete_outline, size: 14, color: Colors.white),
+            backgroundColor: AppColors.red,
+            textColor: Colors.white,
+            onPressed: () => Navigator.pop(context, true),
+          ),
+        ),
+      ],
     );
+    if (eliminar == true && context.mounted) {
+      context.read<CarritoCubit>().eliminarItem(itemId: itemId);
+    }
   }
 }
 
@@ -561,7 +679,7 @@ class _BottomCheckoutBar extends StatelessWidget {
             Expanded(
               child: CustomButton(
                 text: 'Ir a pagar',
-                onPressed: () {
+                onPressed: () async {
                   // Verificar perfil completo antes de checkout
                   final authState = context.read<AuthBloc>().state;
                   if (authState is Authenticated && !authState.user.perfilCompleto) {
@@ -577,7 +695,8 @@ class _BottomCheckoutBar extends StatelessWidget {
                     return;
                   }
 
-                  Navigator.of(context).push(
+                  final cubit = context.read<CarritoCubit>();
+                  await Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (_) => CheckoutPage(
                         carritoData: carrito.empresas.map((g) => <String, dynamic>{
@@ -597,6 +716,13 @@ class _BottomCheckoutBar extends StatelessWidget {
                       ),
                     ),
                   );
+                  // El future se completa cuando el checkout sale del stack:
+                  // por back sin confirmar (carrito intacto) o al ser
+                  // REEMPLAZADO por la página de confirmación (pedido creado →
+                  // el server ya vació el carrito). Recargar deja la página
+                  // consistente en ambos casos: nunca más un "Ir a pagar" con
+                  // items fantasma que revienta con "carrito vacío".
+                  cubit.loadCarrito();
                 },
                 backgroundColor: AppColors.green,
                 height: 44,

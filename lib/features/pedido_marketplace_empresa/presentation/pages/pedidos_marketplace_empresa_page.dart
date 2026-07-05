@@ -161,23 +161,23 @@ class _PedidoCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  AppSubtitle(pedido.codigo, fontSize: 13, color: AppColors.blue1),
+                  AppSubtitle(pedido.codigo, fontSize: 10, color: AppColors.blue1),
                   const Spacer(),
                   _EstadoChip(estado: pedido.estado),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 2),
               Row(
                 children: [
                   const Icon(Icons.person_outline, size: 14, color: Colors.grey),
                   const SizedBox(width: 4),
-                  Expanded(child: AppSubtitle(pedido.nombreComprador, fontSize: 12)),
+                  Expanded(child: AppSubtitle(pedido.nombreComprador, fontSize: 10)),
                 ],
               ),
               const SizedBox(height: 4),
@@ -188,7 +188,7 @@ class _PedidoCard extends StatelessWidget {
                   Text('${pedido.detalles.length} item${pedido.detalles.length != 1 ? 's' : ''}',
                       style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
                   const Spacer(),
-                  AppSubtitle('S/ ${pedido.total.toStringAsFixed(2)}', fontSize: 14, color: AppColors.blue1),
+                  AppSubtitle('S/ ${pedido.total.toStringAsFixed(2)}', fontSize: 12, color: AppColors.blue1),
                 ],
               ),
               if (pedido.creadoEn != null) ...[

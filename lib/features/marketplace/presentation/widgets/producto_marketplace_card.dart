@@ -7,6 +7,8 @@ import '../../../../core/constants/storage_constants.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/storage/secure_storage_service.dart';
+import '../../../carrito/presentation/widgets/carrito_badge.dart';
+import '../../../carrito/presentation/widgets/fly_to_cart.dart';
 import '../../domain/entities/producto_marketplace.dart';
 import 'favorito_button.dart';
 import 'mini_countdown_bar.dart';
@@ -28,6 +30,11 @@ class ProductoMarketplaceCard extends StatelessWidget {
   /// este botón = agregar al carrito de la solicitud.
   final VoidCallback? onAgregarTap;
 
+  /// Ícono de carrito de la página (destino de la animación "vuela al
+  /// carrito"). Si la página no tiene uno, la miniatura vuela a la esquina
+  /// superior derecha, donde suele estar.
+  final GlobalKey? cartIconKey;
+
   const ProductoMarketplaceCard({
     super.key,
     required this.producto,
@@ -35,6 +42,7 @@ class ProductoMarketplaceCard extends StatelessWidget {
     this.compact = false,
     this.staggered = false,
     this.onAgregarTap,
+    this.cartIconKey,
   });
 
   @override
@@ -491,6 +499,14 @@ class ProductoMarketplaceCard extends StatelessWidget {
       return;
     }
     final messenger = ScaffoldMessenger.of(context);
+    // Capturar los anclajes de la animación ANTES de los awaits (después el
+    // contexto de la card puede ya no estar montado).
+    final cardBox = context.findRenderObject() as RenderBox?;
+    final start = cardBox != null && cardBox.attached
+        ? cardBox.localToGlobal(cardBox.size.center(Offset.zero))
+        : null;
+    final mq = MediaQuery.of(context);
+    final fallbackEnd = Offset(mq.size.width - 40, mq.padding.top + 32);
     final token = await locator<SecureStorageService>()
         .read(key: StorageConstants.accessToken);
     if (token == null || token.isEmpty) {
@@ -504,12 +520,25 @@ class ProductoMarketplaceCard extends StatelessWidget {
         '/marketplace/carrito',
         data: {'productoId': producto.id, 'cantidad': 1},
       );
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Producto agregado al carrito'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      var flyOk = false;
+      if (context.mounted) {
+        flyOk = await flyToCart(
+          context: context,
+          from: start,
+          toKey: cartIconKey,
+          to: fallbackEnd,
+          imageUrl: producto.imagen,
+        );
+      }
+      CarritoBadgeController.add(1);
+      if (!flyOk) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Producto agregado al carrito'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     } catch (e) {
       final msg = e.toString().contains('stock')
           ? 'Stock insuficiente'

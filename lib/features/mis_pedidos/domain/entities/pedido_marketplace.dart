@@ -158,6 +158,16 @@ class PedidoMarketplace extends Equatable {
   final String? comprobantePagoUrl;
   final String? motivoRechazo;
   final DateTime creadoEn;
+  // Fechas de hitos (timeline): null si el hito aún no ocurrió.
+  final DateTime? pagoValidadoEn;
+  final DateTime? enviadoEn;
+  final DateTime? entregadoEn;
+  final DateTime? actualizadoEn;
+
+  /// La empresa tiene el cobro Yape AUTOMÁTICO disponible para este pedido
+  /// (feature YAPE_QR + api-yape habilitado + monto dentro del límite).
+  /// false → solo se ofrece el flujo manual (subir captura del pago).
+  final bool yapeAutomaticoDisponible;
   final EmpresaInfo empresa;
   final List<PedidoDetalle> detalles;
 
@@ -178,6 +188,11 @@ class PedidoMarketplace extends Equatable {
     this.comprobantePagoUrl,
     this.motivoRechazo,
     required this.creadoEn,
+    this.pagoValidadoEn,
+    this.enviadoEn,
+    this.entregadoEn,
+    this.actualizadoEn,
+    this.yapeAutomaticoDisponible = false,
     required this.empresa,
     required this.detalles,
   });

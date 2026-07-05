@@ -10,6 +10,7 @@ import '../../domain/usecases/actualizar_cantidad_usecase.dart';
 import '../../domain/usecases/eliminar_item_usecase.dart';
 import '../../domain/usecases/vaciar_carrito_usecase.dart';
 import '../../domain/usecases/get_contador_usecase.dart';
+import '../widgets/carrito_badge.dart';
 
 part 'carrito_state.dart';
 
@@ -40,6 +41,7 @@ class CarritoCubit extends Cubit<CarritoState> {
     final result = await _getCarritoUseCase();
     if (result is Success<Carrito>) {
       emit(CarritoLoaded(result.data));
+      _actualizarContadorDesdeCarrito(result.data);
     } else if (result is Error<Carrito>) {
       emit(CarritoError(result.message));
     }
@@ -103,6 +105,7 @@ class CarritoCubit extends Cubit<CarritoState> {
     final result = await _getContadorUseCase();
     if (result is Success<CarritoContador>) {
       _contador = result.data;
+      CarritoBadgeController.set(result.data.totalCantidad);
     }
   }
 
@@ -111,5 +114,6 @@ class CarritoCubit extends Cubit<CarritoState> {
       totalItems: carrito.totalItems,
       totalCantidad: carrito.totalCantidad,
     );
+    CarritoBadgeController.set(carrito.totalCantidad);
   }
 }

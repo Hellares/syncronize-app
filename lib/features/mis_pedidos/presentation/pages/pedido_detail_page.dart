@@ -118,49 +118,92 @@ class _PedidoDetailPageState extends State<PedidoDetailPage> {
           );
         }
       },
-      child: RefreshIndicator(
-        onRefresh: _loadDetalle,
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // === CABECERA: Empresa + Estado ===
-              _buildHeader(pedido),
-              const SizedBox(height: 16),
+      // Contenido scrolleable + barra de ACCIONES FIJA abajo (no scrollea).
+      child: Column(
+        children: [
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _loadDetalle,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // === CABECERA: Empresa + Estado ===
+                    _buildHeader(pedido),
+                    const SizedBox(height: 10),
 
-              // === INFO DEL PEDIDO ===
-              _buildInfoSection(pedido),
-              const SizedBox(height: 16),
+                    // === TIMELINE DE ESTADO ===
+                    _buildTimelineSection(pedido),
+                    const SizedBox(height: 10),
 
-              // === ITEMS ===
-              _buildItemsSection(pedido),
-              const SizedBox(height: 16),
+                    // === INFO DEL PEDIDO ===
+                    _buildInfoSection(pedido),
+                    const SizedBox(height: 10),
 
-              // === TOTALES ===
-              _buildTotalsSection(pedido),
-              const SizedBox(height: 16),
+                    // === ITEMS ===
+                    _buildItemsSection(pedido),
+                    const SizedBox(height: 5),
 
-              // === MOTIVO DE RECHAZO ===
-              if (pedido.estado == EstadoPedidoMarketplace.pagoRechazado &&
-                  pedido.motivoRechazo != null) ...[
-                _buildRechazoSection(pedido),
-                const SizedBox(height: 16),
-              ],
+                    // === TOTALES ===
+                    _buildTotalsSection(pedido),
+                    const SizedBox(height: 10),
 
-              // === COMPROBANTE EXISTENTE ===
-              if (pedido.comprobantePagoUrl != null &&
-                  pedido.comprobantePagoUrl!.isNotEmpty) ...[
-                _buildComprobanteSection(pedido),
-                const SizedBox(height: 16),
-              ],
+                    // === MOTIVO DE RECHAZO ===
+                    if (pedido.estado ==
+                            EstadoPedidoMarketplace.pagoRechazado &&
+                        pedido.motivoRechazo != null) ...[
+                      _buildRechazoSection(pedido),
+                      const SizedBox(height: 16),
+                    ],
 
-              // === ACCIONES ===
-              _buildActions(pedido),
-              const SizedBox(height: 24),
-            ],
+                    // === COMPROBANTE EXISTENTE ===
+                    if (pedido.comprobantePagoUrl != null &&
+                        pedido.comprobantePagoUrl!.isNotEmpty) ...[
+                      _buildComprobanteSection(pedido),
+                      const SizedBox(height: 16),
+                    ],
+                  ],
+                ),
+              ),
+            ),
           ),
+
+          // === ACCIONES (fijas al fondo) ===
+          _buildBottomActionsBar(pedido),
+        ],
+      ),
+    );
+  }
+
+  /// Barra fija inferior con las acciones del pedido. Fuera del scroll para
+  /// que "Confirmar Recepción" (y pagar/cancelar) estén siempre a la vista.
+  /// Se oculta cuando el pedido no tiene acciones disponibles.
+  Widget _buildBottomActionsBar(PedidoMarketplace pedido) {
+    final hayAcciones = pedido.puedeSubirComprobante ||
+        pedido.puedeCancelar ||
+        pedido.puedeConfirmarRecepcion;
+    if (!hayAcciones) return const SizedBox.shrink();
+
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 8,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      // Bottom bar custom → SafeArea(top:false) manual.
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+          child: _buildActions(pedido),
         ),
       ),
     );
@@ -168,7 +211,7 @@ class _PedidoDetailPageState extends State<PedidoDetailPage> {
 
   Widget _buildHeader(PedidoMarketplace pedido) {
     return GradientContainer(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(10),
       child: Row(
         children: [
           if (pedido.empresa.logo != null && pedido.empresa.logo!.isNotEmpty)
@@ -176,15 +219,15 @@ class _PedidoDetailPageState extends State<PedidoDetailPage> {
               borderRadius: BorderRadius.circular(8),
               child: CachedNetworkImage(
                 imageUrl: pedido.empresa.logo!,
-                width: 48,
-                height: 48,
+                width: 30,
+                height: 30,
                 fit: BoxFit.cover,
-                placeholder: (_, __) => _buildEmpresaPlaceholder(48),
-                errorWidget: (_, __, ___) => _buildEmpresaPlaceholder(48),
+                placeholder: (_, __) => _buildEmpresaPlaceholder(30),
+                errorWidget: (_, __, ___) => _buildEmpresaPlaceholder(30),
               ),
             )
           else
-            _buildEmpresaPlaceholder(48),
+            _buildEmpresaPlaceholder(30),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -193,12 +236,12 @@ class _PedidoDetailPageState extends State<PedidoDetailPage> {
                 AppText(
                   pedido.empresa.nombre,
                   fontWeight: FontWeight.w600,
-                  size: 15,
+                  size: 11,
                 ),
                 const SizedBox(height: 2),
                 AppText(
                   pedido.codigo,
-                  size: 13,
+                  size: 10,
                   color: AppColors.blue1,
                   fontWeight: FontWeight.w600,
                 ),
@@ -213,7 +256,7 @@ class _PedidoDetailPageState extends State<PedidoDetailPage> {
             ),
             child: AppText(
               pedido.estadoLabel,
-              size: 11,
+              size: 10,
               fontWeight: FontWeight.w600,
               color: pedido.estadoColor,
             ),
@@ -223,13 +266,233 @@ class _PedidoDetailPageState extends State<PedidoDetailPage> {
     );
   }
 
-  Widget _buildInfoSection(PedidoMarketplace pedido) {
+  // === TIMELINE DE ESTADO ===
+  // Tracking por pasos (estilo marketplace): completados, actual y
+  // pendientes según el estado del pedido. CANCELADO corta el flujo con
+  // un paso terminal rojo.
+
+  /// Índice del último paso COMPLETADO (−1 = ninguno).
+  int _pasoCompletado(PedidoMarketplace p) {
+    switch (p.estado) {
+      case EstadoPedidoMarketplace.pendientePago:
+      case EstadoPedidoMarketplace.pagoEnviado:
+      case EstadoPedidoMarketplace.pagoRechazado:
+        return 0; // Solo "Pedido realizado".
+      case EstadoPedidoMarketplace.pagoValidado:
+        return 1;
+      case EstadoPedidoMarketplace.enPreparacion:
+        return 2;
+      case EstadoPedidoMarketplace.enviado:
+        return 3;
+      case EstadoPedidoMarketplace.entregado:
+        return 4;
+      case EstadoPedidoMarketplace.cancelado:
+        return 0;
+    }
+  }
+
+  Widget _buildTimelineSection(PedidoMarketplace pedido) {
+    final cancelado = pedido.estado == EstadoPedidoMarketplace.cancelado;
+    final rechazado = pedido.estado == EstadoPedidoMarketplace.pagoRechazado;
+    final pagoEnviado = pedido.estado == EstadoPedidoMarketplace.pagoEnviado;
+    final completado = _pasoCompletado(pedido);
+
+    // Fecha por hito: preparación no se persiste → usa la misma del pago
+    // validado (la tienda pasa a preparar apenas valida). Solo se muestra
+    // cuando el paso ya se alcanzó (ver gate abajo).
+    final fechaPreparacion = pedido.pagoValidadoEn;
+
+    // (título, ícono, subtítulo cuando es el paso ACTIVO, fecha del hito)
+    final pasos = <(String, IconData, String, DateTime?)>[
+      ('Pedido realizado', Icons.shopping_bag_outlined, '', pedido.creadoEn),
+      (
+        pedido.esContraentrega ? 'Pedido confirmado' : 'Pago validado',
+        Icons.verified_outlined,
+        rechazado
+            ? 'Pago rechazado — revisa el motivo abajo'
+            : pagoEnviado
+                ? 'Comprobante en revisión por la tienda'
+                : pedido.esContraentrega
+                    ? 'Pagarás al recibir tu pedido'
+                    : 'Esperando tu pago',
+        pedido.pagoValidadoEn,
+      ),
+      ('En preparación', Icons.inventory_2_outlined,
+          'La tienda está preparando tu pedido', fechaPreparacion),
+      ('Enviado', Icons.local_shipping_outlined,
+          'Tu pedido está en camino', pedido.enviadoEn),
+      ('Entregado', Icons.home_outlined, '¡Pedido completado!',
+          pedido.entregadoEn),
+    ];
+
     return GradientContainer(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const AppSubtitle('Informacion del Pedido', fontSize: 14),
+          const AppSubtitle('Seguimiento', fontSize: 11),
+          const SizedBox(height: 12),
+          for (var i = 0; i < pasos.length; i++)
+            _buildPasoTimeline(
+              titulo: pasos[i].$1,
+              icono: pasos[i].$2,
+              // Subtítulo solo en el paso siguiente al completado (el activo).
+              subtitulo: i == completado + 1 ? pasos[i].$3 : null,
+              // Fecha solo en pasos ya alcanzados (un paso pendiente no
+              // puede mostrar fecha aunque herede la del pago validado).
+              fecha: i <= completado && pasos[i].$4 != null
+                  ? _formatDate(pasos[i].$4!)
+                  : null,
+              hecho: i <= completado,
+              activo: i == completado + 1 && !cancelado,
+              error: (rechazado && i == 1),
+              esUltimo: i == pasos.length - 1 && !cancelado,
+              cortado: cancelado && i > 0,
+            ),
+          // Paso terminal de cancelación.
+          if (cancelado)
+            _buildPasoTimeline(
+              titulo: 'Pedido cancelado',
+              icono: Icons.cancel_outlined,
+              subtitulo: pedido.motivoRechazo,
+              fecha: pedido.actualizadoEn != null
+                  ? _formatDate(pedido.actualizadoEn!)
+                  : null,
+              hecho: true,
+              activo: false,
+              error: true,
+              esUltimo: true,
+              cortado: false,
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPasoTimeline({
+    required String titulo,
+    required IconData icono,
+    String? subtitulo,
+    String? fecha,
+    required bool hecho,
+    required bool activo,
+    required bool error,
+    required bool esUltimo,
+    required bool cortado,
+  }) {
+    final color = error
+        ? AppColors.red
+        : hecho
+            ? AppColors.green
+            : activo
+                ? AppColors.blue1
+                : Colors.grey.shade400;
+    // Pasos que ya no ocurrirán (pedido cancelado) se atenúan.
+    final opacidad = cortado ? 0.35 : 1.0;
+
+    return Opacity(
+      opacity: opacidad,
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Columna izquierda: nodo + línea conectora.
+            SizedBox(
+              width: 26,
+              child: Column(
+                children: [
+                  Container(
+                    width: 22,
+                    height: 22,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: hecho || error
+                          ? color.withValues(alpha: error ? 0.12 : 1)
+                          : Colors.white,
+                      border: Border.all(
+                        color: color,
+                        width: activo ? 2 : 1.2,
+                      ),
+                    ),
+                    child: Icon(
+                      error
+                          ? Icons.close
+                          : hecho
+                              ? Icons.check
+                              : icono,
+                      size: 12,
+                      color: error
+                          ? color
+                          : hecho
+                              ? Colors.white
+                              : color,
+                    ),
+                  ),
+                  if (!esUltimo)
+                    Expanded(
+                      child: Container(
+                        width: 1.5,
+                        margin: const EdgeInsets.symmetric(vertical: 2),
+                        color: hecho
+                            ? AppColors.green.withValues(alpha: 0.5)
+                            : Colors.grey.shade300,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            // Contenido del paso.
+            Expanded(
+              child: Padding(
+                padding: EdgeInsets.only(bottom: esUltimo ? 0 : 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: AppText(
+                            titulo,
+                            size: 11,
+                            fontWeight:
+                                hecho || activo ? FontWeight.w600 : FontWeight.w400,
+                            color: error
+                                ? AppColors.red
+                                : hecho || activo
+                                    ? AppColors.textPrimary
+                                    : Colors.grey.shade500,
+                          ),
+                        ),
+                        if (fecha != null)
+                          AppText(fecha, size: 10, color: AppColors.textSecondary),
+                      ],
+                    ),
+                    if (subtitulo != null && subtitulo.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      AppText(
+                        subtitulo,
+                        size: 11,
+                        color: error ? AppColors.red : AppColors.textSecondary,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoSection(PedidoMarketplace pedido) {
+    return GradientContainer(
+      padding: const EdgeInsets.all(10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const AppSubtitle('Informacion del Pedido', fontSize: 11),
           const SizedBox(height: 12),
           _buildInfoRow(Icons.person_outline, 'Comprador', pedido.nombreComprador),
           _buildInfoRow(Icons.email_outlined, 'Email', pedido.emailComprador),
@@ -253,10 +516,10 @@ class _PedidoDetailPageState extends State<PedidoDetailPage> {
           const SizedBox(width: 8),
           SizedBox(
             width: 90,
-            child: AppText(label, size: 12, color: AppColors.textSecondary),
+            child: AppText(label, size: 10, color: AppColors.textSecondary),
           ),
           Expanded(
-            child: AppText(value, size: 12, fontWeight: FontWeight.w500),
+            child: AppText(value, size: 10, fontWeight: FontWeight.w500),
           ),
         ],
       ),
@@ -265,15 +528,15 @@ class _PedidoDetailPageState extends State<PedidoDetailPage> {
 
   Widget _buildItemsSection(PedidoMarketplace pedido) {
     return GradientContainer(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           AppSubtitle(
             'Productos (${pedido.detalles.length})',
-            fontSize: 14,
+            fontSize: 11,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           ...pedido.detalles.map((detalle) => _buildDetalleItem(detalle)),
         ],
       ),
@@ -292,8 +555,8 @@ class _PedidoDetailPageState extends State<PedidoDetailPage> {
             child: detalle.imagenUrl != null && detalle.imagenUrl!.isNotEmpty
                 ? CachedNetworkImage(
                     imageUrl: detalle.imagenUrl!,
-                    width: 56,
-                    height: 56,
+                    width: 50,
+                    height: 50,
                     fit: BoxFit.cover,
                     placeholder: (_, __) => _buildProductoPlaceholder(),
                     errorWidget: (_, __, ___) => _buildProductoPlaceholder(),
@@ -308,15 +571,15 @@ class _PedidoDetailPageState extends State<PedidoDetailPage> {
               children: [
                 AppText(
                   detalle.descripcion,
-                  size: 13,
-                  fontWeight: FontWeight.w500,
+                  size: 10,
+                  fontWeight: FontWeight.w400,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 4),
                 AppText(
                   'Cant: ${detalle.cantidad} x S/ ${detalle.precioUnitario.toStringAsFixed(2)}',
-                  size: 11,
+                  size: 10,
                   color: AppColors.textSecondary,
                 ),
               ],
@@ -325,7 +588,7 @@ class _PedidoDetailPageState extends State<PedidoDetailPage> {
           // Subtotal
           AppText(
             'S/ ${detalle.subtotal.toStringAsFixed(2)}',
-            size: 13,
+            size: 11,
             fontWeight: FontWeight.w600,
             color: AppColors.blue1,
           ),
@@ -336,27 +599,27 @@ class _PedidoDetailPageState extends State<PedidoDetailPage> {
 
   Widget _buildTotalsSection(PedidoMarketplace pedido) {
     return GradientContainer(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(10),
       child: Column(
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const AppText('Subtotal', size: 13, color: AppColors.textSecondary),
+              const AppText('Subtotal', size: 11, color: AppColors.textSecondary),
               AppText(
                 'S/ ${pedido.subtotal.toStringAsFixed(2)}',
-                size: 13,
+                size: 11,
               ),
             ],
           ),
-          const Divider(height: 16),
+          const Divider(height: 10),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const AppSubtitle('Total', fontSize: 16),
+              const AppSubtitle('Total', fontSize: 12),
               AppSubtitle(
                 'S/ ${pedido.total.toStringAsFixed(2)}',
-                fontSize: 18,
+                fontSize: 14,
                 color: AppColors.green,
               ),
             ],
@@ -369,7 +632,7 @@ class _PedidoDetailPageState extends State<PedidoDetailPage> {
   Widget _buildRechazoSection(PedidoMarketplace pedido) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: AppColors.red.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
@@ -384,7 +647,7 @@ class _PedidoDetailPageState extends State<PedidoDetailPage> {
               SizedBox(width: 8),
               AppText(
                 'Motivo de rechazo',
-                size: 13,
+                size: 11,
                 fontWeight: FontWeight.w600,
                 color: AppColors.red,
               ),
@@ -393,7 +656,7 @@ class _PedidoDetailPageState extends State<PedidoDetailPage> {
           const SizedBox(height: 8),
           AppText(
             pedido.motivoRechazo!,
-            size: 13,
+            size: 10,
             color: AppColors.textPrimary,
           ),
         ],
@@ -403,12 +666,12 @@ class _PedidoDetailPageState extends State<PedidoDetailPage> {
 
   Widget _buildComprobanteSection(PedidoMarketplace pedido) {
     return GradientContainer(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const AppSubtitle('Comprobante de Pago', fontSize: 14),
-          const SizedBox(height: 12),
+          const AppSubtitle('Comprobante de Pago', fontSize: 11),
+          const SizedBox(height: 10),
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
             child: CachedNetworkImage(
@@ -480,9 +743,12 @@ class _PedidoDetailPageState extends State<PedidoDetailPage> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // Pagar con Yape automático (api-yape): QR + monto exacto +
-            // confirmación automática. Si la empresa no lo tiene habilitado,
-            // el sheet se cierra solo y queda el flujo manual de abajo.
-            if (pedido.puedeSubirComprobante) ...[
+            // confirmación automática. El botón SOLO aparece si la empresa
+            // tiene el cobro automático disponible (gate del backend,
+            // mismo criterio que Venta Rápida) — sin api-yape el comprador
+            // ve únicamente el flujo manual de subir la captura.
+            if (pedido.puedeSubirComprobante &&
+                pedido.yapeAutomaticoDisponible) ...[
               CustomButton(
                 text: 'Pagar con Yape',
                 onPressed: isActionLoading ? null : () => _pagarConYape(pedido),
@@ -611,11 +877,13 @@ class _PedidoDetailPageState extends State<PedidoDetailPage> {
   }
 
   String _formatDate(DateTime date) {
-    final day = date.day.toString().padLeft(2, '0');
-    final month = date.month.toString().padLeft(2, '0');
-    final year = date.year;
-    final hour = date.hour.toString().padLeft(2, '0');
-    final minute = date.minute.toString().padLeft(2, '0');
+    // El backend manda UTC → mostrar en hora local del dispositivo.
+    final d = date.toLocal();
+    final day = d.day.toString().padLeft(2, '0');
+    final month = d.month.toString().padLeft(2, '0');
+    final year = d.year;
+    final hour = d.hour.toString().padLeft(2, '0');
+    final minute = d.minute.toString().padLeft(2, '0');
     return '$day/$month/$year $hour:$minute';
   }
 }
