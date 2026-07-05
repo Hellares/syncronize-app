@@ -13,16 +13,16 @@ class CotizacionEstadoChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
       decoration: BoxDecoration(
         color: _backgroundColor,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
         estado.label,
         style: TextStyle(
           color: _textColor,
-          fontSize: 10,
+          fontSize: 9,
           fontWeight: FontWeight.w400,
         ),
       ),

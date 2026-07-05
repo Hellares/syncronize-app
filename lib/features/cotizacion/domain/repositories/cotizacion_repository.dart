@@ -1,5 +1,6 @@
 import '../../../../core/utils/resource.dart';
 import '../entities/cotizacion.dart';
+import '../entities/cotizaciones_page.dart';
 
 /// Repository interface para operaciones de cotizaciones
 abstract class CotizacionRepository {
@@ -16,6 +17,15 @@ abstract class CotizacionRepository {
     String? fechaHasta,
     String? clienteId,
     String? search,
+  });
+
+  /// Página de cotizaciones por cursor (scroll infinito).
+  Future<Resource<CotizacionesPage>> getCotizacionesPaginadas({
+    String? sedeId,
+    String? estado,
+    String? search,
+    required int limit,
+    String? cursor,
   });
 
   /// Obtiene una cotizacion por ID

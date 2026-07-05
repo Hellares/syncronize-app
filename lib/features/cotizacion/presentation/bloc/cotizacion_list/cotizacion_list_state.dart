@@ -25,14 +25,37 @@ class CotizacionListLoaded extends CotizacionListState {
   final EstadoCotizacion? filtroEstado;
   final String? filtroSedeId;
 
+  /// Paginación por cursor: hay más páginas por traer.
+  final bool hasMore;
+
+  /// Una página siguiente está en vuelo (footer "cargando…").
+  final bool isLoadingMore;
+
   const CotizacionListLoaded({
     required this.cotizaciones,
     this.filtroEstado,
     this.filtroSedeId,
+    this.hasMore = false,
+    this.isLoadingMore = false,
   });
 
+  CotizacionListLoaded copyWith({
+    List<Cotizacion>? cotizaciones,
+    bool? hasMore,
+    bool? isLoadingMore,
+  }) {
+    return CotizacionListLoaded(
+      cotizaciones: cotizaciones ?? this.cotizaciones,
+      filtroEstado: filtroEstado,
+      filtroSedeId: filtroSedeId,
+      hasMore: hasMore ?? this.hasMore,
+      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+    );
+  }
+
   @override
-  List<Object?> get props => [cotizaciones, filtroEstado, filtroSedeId];
+  List<Object?> get props =>
+      [cotizaciones, filtroEstado, filtroSedeId, hasMore, isLoadingMore];
 }
 
 /// Estado de error

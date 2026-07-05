@@ -14,6 +14,10 @@ class CotizacionPOS extends Equatable {
   final DateTime creadoEn;
   final bool tieneReservaActiva;
 
+  /// Vencida pero aún en cola (APROBADA o con adelanto: el cron no las
+  /// auto-expira; la expiración es decisión manual del admin).
+  final bool vencida;
+
   const CotizacionPOS({
     required this.id,
     required this.codigo,
@@ -27,6 +31,7 @@ class CotizacionPOS extends Equatable {
     required this.detalles,
     required this.creadoEn,
     this.tieneReservaActiva = false,
+    this.vencida = false,
   });
 
   bool get esPendiente => estado == 'PENDIENTE';

@@ -60,6 +60,7 @@ class PosRemoteDataSource {
         }).toList(),
         creadoEn: DateTime.parse(map['creadoEn'] as String),
         tieneReservaActiva: map['tieneReservaActiva'] as bool? ?? false,
+        vencida: map['vencida'] as bool? ?? false,
       );
     }).toList();
   }

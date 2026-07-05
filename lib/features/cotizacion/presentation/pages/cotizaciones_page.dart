@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:syncronize/core/fonts/app_fonts.dart';
 import '../../../../core/utils/date_formatter.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
@@ -104,6 +105,9 @@ class _CotizacionesPageState extends State<CotizacionesPage> {
                   controller: _searchController,
                   borderColor: AppColors.blue1,
                   hintText: 'Buscar por codigo, cliente...',
+                  // Búsqueda server-side (índices trigram) → debounce para
+                  // no disparar un request por tecla.
+                  debounceDelay: const Duration(milliseconds: 400),
                   onChanged: (query) {
                     context.read<CotizacionListCubit>().search(query);
                   },
@@ -118,7 +122,7 @@ class _CotizacionesPageState extends State<CotizacionesPage> {
           
               // Chips de filtro de estado
               SizedBox(
-                height: 30,
+                height: 25,
                 child: ListView(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -154,9 +158,12 @@ class _CotizacionesPageState extends State<CotizacionesPage> {
                       child: Align(
                         alignment: Alignment.centerLeft,
                         child: AppText(
-                          '${state.cotizaciones.length} cotización${state.cotizaciones.length != 1 ? 'es' : ''}',
+                          // El "+" indica que hay más páginas por cargar
+                          // (scroll infinito por cursor).
+                          '${state.cotizaciones.length}${state.hasMore ? '+' : ''} cotización${state.cotizaciones.length != 1 ? 'es' : ''}',
                           fontWeight: FontWeight.w400,
                           color: Colors.grey.shade600,
+                          size: 10,
                         ),
                       ),
                     );
@@ -222,9 +229,35 @@ class _CotizacionesPageState extends State<CotizacionesPage> {
                         child: ListView.separated(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 12, vertical: 4),
-                          itemCount: state.cotizaciones.length,
+                          // +1 = footer de paginación cuando hay más páginas.
+                          itemCount: state.cotizaciones.length +
+                              (state.hasMore ? 1 : 0),
                           separatorBuilder: (_, __) => const SizedBox(height: 6),
                           itemBuilder: (context, index) {
+                            // Footer: construirse = el scroll llegó al final
+                            // → dispara la siguiente página (el cubit ignora
+                            // llamadas repetidas mientras una está en vuelo).
+                            if (index >= state.cotizaciones.length) {
+                              WidgetsBinding.instance
+                                  .addPostFrameCallback((_) {
+                                if (context.mounted) {
+                                  context
+                                      .read<CotizacionListCubit>()
+                                      .loadMore();
+                                }
+                              });
+                              return const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 14),
+                                child: Center(
+                                  child: SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2),
+                                  ),
+                                ),
+                              );
+                            }
                             final cotizacion = state.cotizaciones[index];
                             return _CotizacionListTile(
                               cotizacion: cotizacion,
@@ -280,15 +313,15 @@ class _CotizacionListTile extends StatelessWidget {
       margin: EdgeInsets.zero,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         child: Padding(
-          padding: const EdgeInsets.only(left: 10, right: 10, top: 8, bottom: 8),
+          padding: const EdgeInsets.only(left: 10, right: 10, top: 5, bottom: 6),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  AppSubtitle(cotizacion.codigo),
+                  AppSubtitle(cotizacion.codigo, fontSize: 10, font: AppFont.amazonEmberMedium),
                   const SizedBox(width: 8),
                   CotizacionEstadoChip(estado: cotizacion.estado),
                   if (cotizacion.tieneReservaActiva) ...[
@@ -308,20 +341,20 @@ class _CotizacionListTile extends StatelessWidget {
               if (cotizacion.nombre != null &&
                   cotizacion.nombre!.isNotEmpty) ...[
                 const SizedBox(height: 2),
-                AppSubtitle(cotizacion.nombre!, fontSize: 10,)
+                AppSubtitle(cotizacion.nombre!, fontSize: 10, font: AppFont.amazonEmberMedium),
               ],
               const SizedBox(height: 2),
               Row(
                 children: [
                   SizedBox(width: 70, child: AppText('Cliente:', size: 10,)),
-                  Expanded(child: AppText(cotizacion.nombreCliente, fontWeight: FontWeight.w400, size: 10,)),
+                  Expanded(child: AppSubtitle(cotizacion.nombreCliente, fontSize: 9, font: AppFont.amazonEmberMedium)),
                 ],
               ),
               const SizedBox(height: 2),
               Row(
                 children: [
                   SizedBox(width: 70, child: AppText('Telefono:', size: 10,)),
-                  Expanded(child: AppText(cotizacion.telefonoCliente ?? 'N/A', fontWeight: FontWeight.w400, size: 10)),
+                  Expanded(child: AppSubtitle(cotizacion.telefonoCliente ?? 'N/A', fontSize: 9, font: AppFont.amazonEmberMedium)),
                 ],
               ),
               if (cotizacion.sedeNombre != null) ...[
@@ -329,7 +362,7 @@ class _CotizacionListTile extends StatelessWidget {
                 Row(
                   children: [
                     SizedBox(width: 70, child: AppText('Sede:', size: 10,)),
-                    Expanded(child: AppText(cotizacion.sedeNombre!, fontWeight: FontWeight.w400, size: 10)),
+                    Expanded(child: AppSubtitle(cotizacion.sedeNombre!, fontSize: 9, font: AppFont.amazonEmberMedium)),
                   ],
                 ),
               ],

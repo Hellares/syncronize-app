@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:syncronize/core/fonts/app_fonts.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/utils/date_formatter.dart';
@@ -72,6 +73,7 @@ class _ColaPosView extends StatelessWidget {
         ],
       ),
       body: GradientBackground(
+        style: GradientStyle.minimal,
         child: BlocBuilder<ColaPosCubit, ColaPosState>(
           builder: (context, state) {
             if (state is ColaPosLoading) {
@@ -159,8 +161,8 @@ class _CotizacionPOSCardState extends State<_CotizacionPOSCard> {
 
     return GradientContainer(
       gradient: esUrgente ? AppGradients.orangeWhiteBlue() : AppGradients.blueWhiteBlue(),
-      borderColor: esUrgente ? Colors.orange.shade300 : AppColors.blueborder,
-      shadowStyle: ShadowStyle.colorful,
+      borderColor: esUrgente ? AppColors.orange : AppColors.blueborder,
+      // shadowStyle: ShadowStyle.glow,
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(10),
       child: Column(
@@ -171,14 +173,14 @@ class _CotizacionPOSCardState extends State<_CotizacionPOSCard> {
             children: [
               // Posición en cola
               Container(
-                width: 30, height: 30,
+                width: 25, height: 25,
                 decoration: BoxDecoration(
                   color: esUrgente ? Colors.orange : AppColors.blue1,
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(4),
                 ),
                 child: Center(
                   child: Text('${widget.posicion}',
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 12)),
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 10)),
                 ),
               ),
               const SizedBox(width: 10),
@@ -188,7 +190,7 @@ class _CotizacionPOSCardState extends State<_CotizacionPOSCard> {
                   children: [
                     Row(
                       children: [
-                        Text(c.codigo, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                        AppSubtitle(c.codigo, color: AppColors.blue1, font: AppFont.amazonEmberMedium, fontSize: 10),
                         const SizedBox(width: 6),
                         // Chip de estado
                         Container(
@@ -224,11 +226,31 @@ class _CotizacionPOSCardState extends State<_CotizacionPOSCard> {
                             ),
                           ),
                         ),
+                        // Vencida en cola: el cron no la expira (aprobada o
+                        // con adelanto) — decisión manual desde el detalle.
+                        if (c.vencida) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.red.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: Colors.red.shade300, width: 0.5),
+                            ),
+                            child: Text(
+                              'VENCIDA',
+                              style: TextStyle(
+                                fontSize: 9, fontWeight: FontWeight.w700,
+                                color: Colors.red[700],
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                     const SizedBox(height: 2),
                     //Text(c.nombreCliente, style: TextStyle(fontSize: 10, color: Colors.grey[600])),
-                    AppSubtitle(c.nombreCliente,  color: AppColors.blue1, maxLines: 1, overflow: TextOverflow.ellipsis)
+                    AppSubtitle(c.nombreCliente,  color: AppColors.black54, maxLines: 1, overflow: TextOverflow.ellipsis, font: AppFont.amazonEmberMedium, fontSize: 9),
                   ],
                 ),
               ),
@@ -357,13 +379,17 @@ class _CotizacionPOSCardState extends State<_CotizacionPOSCard> {
                 }
               },
               text: c.esPendiente ? 'Aprobar y Cobrar' : 'Cobrar',
-              icon: c.esPendiente ? Icon(Icons.flash_on, size: 18,) : Icon(Icons.point_of_sale, size: 18,),
-              backgroundColor: esUrgente
+              icon: c.esPendiente ? Icon(Icons.flash_on, size: 16, color: Colors.amber[700]) : Icon(Icons.point_of_sale, size: 16,color:AppColors.blue1,),
+              borderColor: esUrgente
                   ? Colors.orange
                   : c.esPendiente
                       ? Colors.amber[700]!
                       : AppColors.blue1,
-              textColor: Colors.white,
+              textColor: esUrgente
+                  ? Colors.orange[700]!
+                  : c.esPendiente
+                      ? Colors.amber[700]!
+                      : AppColors.blue1,
             ),
 
           ),        

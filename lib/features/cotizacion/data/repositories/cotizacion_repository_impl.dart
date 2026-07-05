@@ -4,6 +4,7 @@ import '../../../../core/services/error_handler_service.dart';
 import '../../../../core/utils/resource.dart';
 import '../../../cotizacion_rapida/data/datasources/cotizacion_rapida_remote_datasource.dart';
 import '../../domain/entities/cotizacion.dart';
+import '../../domain/entities/cotizaciones_page.dart';
 import '../../domain/repositories/cotizacion_repository.dart';
 
 @LazySingleton(as: CotizacionRepository)
@@ -65,6 +66,39 @@ class CotizacionRepositoryImpl implements CotizacionRepository {
       return Success(
         cotizaciones.map((model) => model.toEntity()).toList(),
       );
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Cotizacion');
+    }
+  }
+
+  @override
+  Future<Resource<CotizacionesPage>> getCotizacionesPaginadas({
+    String? sedeId,
+    String? estado,
+    String? search,
+    required int limit,
+    String? cursor,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error(
+        'No hay conexion a internet',
+        errorCode: 'NETWORK_ERROR',
+      );
+    }
+
+    try {
+      final page = await _remoteDataSource.listarPaginado(
+        sedeId: sedeId,
+        estado: estado,
+        search: search,
+        limit: limit,
+        cursor: cursor,
+      );
+      return Success(CotizacionesPage(
+        cotizaciones: page.items.map((m) => m.toEntity()).toList(),
+        hasMore: page.hasMore,
+        nextCursor: page.nextCursor,
+      ));
     } catch (e) {
       return _errorHandler.handleException(e, context: 'Cotizacion');
     }

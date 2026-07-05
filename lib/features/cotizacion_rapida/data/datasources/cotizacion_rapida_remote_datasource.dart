@@ -48,6 +48,38 @@ class CotizacionRapidaRemoteDataSource {
         .toList();
   }
 
+  /// GET /cotizaciones con paginación por CURSOR (patrón estándar para
+  /// listas transaccionales — mismo esquema que compras/kardex). Con
+  /// `limit` el backend responde `{ data, hasMore, nextCursor }`.
+  Future<({List<CotizacionModel> items, bool hasMore, String? nextCursor})>
+      listarPaginado({
+    String? sedeId,
+    String? estado,
+    String? search,
+    required int limit,
+    String? cursor,
+  }) async {
+    final queryParams = <String, dynamic>{'limit': limit};
+    if (sedeId != null) queryParams['sedeId'] = sedeId;
+    if (estado != null) queryParams['estado'] = estado;
+    if (search != null && search.isNotEmpty) queryParams['search'] = search;
+    if (cursor != null) queryParams['cursor'] = cursor;
+
+    final response = await _dioClient.get(
+      _basePath,
+      queryParameters: queryParams,
+    );
+    final body = response.data as Map<String, dynamic>;
+    final items = (body['data'] as List)
+        .map((e) => CotizacionModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+    return (
+      items: items,
+      hasMore: body['hasMore'] as bool? ?? false,
+      nextCursor: body['nextCursor'] as String?,
+    );
+  }
+
   /// GET /cotizaciones/:id
   Future<CotizacionModel> obtener(String cotizacionId) async {
     final response = await _dioClient.get('$_basePath/$cotizacionId');
