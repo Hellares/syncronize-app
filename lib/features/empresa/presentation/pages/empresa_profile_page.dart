@@ -45,6 +45,7 @@ class _EmpresaProfilePageState extends State<EmpresaProfilePage> {
   bool _aceptaTercerizacion = false;
   List<String> _tiposServicioTercerizacion = [];
   bool _permiteRetiroTienda = false;
+  bool _permiteContraentrega = false;
 
   @override
   void dispose() {
@@ -82,6 +83,7 @@ class _EmpresaProfilePageState extends State<EmpresaProfilePage> {
           final gratis = data['envioGratisDesde'];
           _envioGratisDesdeController.text = gratis != null ? gratis.toString() : '';
           _permiteRetiroTienda = data['permiteRetiroTienda'] == true;
+          _permiteContraentrega = data['permiteContraentrega'] == true;
         });
       }
     } catch (_) {}
@@ -125,6 +127,7 @@ class _EmpresaProfilePageState extends State<EmpresaProfilePage> {
               ? double.tryParse(_envioGratisDesdeController.text)
               : null,
           'permiteRetiroTienda': _permiteRetiroTienda,
+          'permiteContraentrega': _permiteContraentrega,
         },
       );
 
@@ -573,6 +576,12 @@ class _EmpresaProfilePageState extends State<EmpresaProfilePage> {
               subtitle: 'Los clientes pueden recoger en tus sedes',
               value: _permiteRetiroTienda,
               onChanged: (v) => setState(() => _permiteRetiroTienda = v),
+            ),
+            CustomSwitchTile(
+              title: 'Permitir pago contraentrega',
+              subtitle: 'El cliente paga en efectivo o Yape al recibir el pedido',
+              value: _permiteContraentrega,
+              onChanged: (v) => setState(() => _permiteContraentrega = v),
             ),
           ],
         ),

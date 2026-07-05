@@ -87,12 +87,16 @@ class _EmpresaDashboardPageState extends State<EmpresaDashboardPage> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      // Resumen financiero: solo admin/contador.
+      // Resumen financiero: solo admin/contador. Alcance = SEDE ACTIVA (el
+      // dashboard es contextual a la sede, como Ventas/Caja): sin esto
+      // mostraba números de TODA la empresa y no cuadraba con las demás
+      // vistas. El consolidado empresa vive en /empresa/resumen-financiero.
       if (puedeVerFinanzas) {
         final now = DateTime.now();
         ctx.read<ResumenFinancieroCubit>().loadResumen(
               fechaDesde: DateFormatter.toUtcIso(DateTime(now.year, now.month, 1)),
               fechaHasta: DateFormatter.toUtcIso(now),
+              sedeId: ctx.read<SedeActivaCubit>().state.activa?.id,
             );
       }
       // Tercerizaciones pendientes: solo admin (gestión).
@@ -145,8 +149,30 @@ class _EmpresaDashboardPageState extends State<EmpresaDashboardPage> {
               // para evitar 403 en cajero/vendedor (no tienen acceso
               // a reportes/estadísticas).
               create: (_) => locator<ResumenFinancieroCubit>(),
-              child: BlocBuilder<EmpresaContextCubit, EmpresaContextState>(
-                builder: (context, state) {
+              child: Builder(
+                builder: (providerCtx) => BlocListener<SedeActivaCubit,
+                    SedeActivaState>(
+                  // Cambió la sede activa → recargar el resumen con el nuevo
+                  // alcance (gated a permisos, igual que la carga inicial).
+                  listenWhen: (p, c) => p.activa?.id != c.activa?.id,
+                  listener: (listenerCtx, sedeState) {
+                    final empState =
+                        listenerCtx.read<EmpresaContextCubit>().state;
+                    if (empState is! EmpresaContextLoaded) return;
+                    final perms = empState.context.permissions;
+                    if (!(perms.canViewReports || perms.canViewStatistics)) {
+                      return;
+                    }
+                    final now = DateTime.now();
+                    listenerCtx.read<ResumenFinancieroCubit>().loadResumen(
+                          fechaDesde: DateFormatter.toUtcIso(
+                              DateTime(now.year, now.month, 1)),
+                          fechaHasta: DateFormatter.toUtcIso(now),
+                          sedeId: sedeState.activa?.id,
+                        );
+                  },
+                  child: BlocBuilder<EmpresaContextCubit, EmpresaContextState>(
+                    builder: (context, state) {
                   if (state is EmpresaContextLoading) {
                     return CustomLoading.small(message: 'Cargando...');
                   }
@@ -171,8 +197,10 @@ class _EmpresaDashboardPageState extends State<EmpresaDashboardPage> {
                     return _buildDashboard(context, state.context);
                   }
 
-                  return const SizedBox.shrink();
-                },
+                      return const SizedBox.shrink();
+                    },
+                  ),
+                ),
               ),
             ),
           ),
@@ -291,6 +319,9 @@ class _EmpresaDashboardPageState extends State<EmpresaDashboardPage> {
       onRefresh: () async {
         final empresaCubit = innerContext.read<EmpresaContextCubit>();
         final resumenCubit = innerContext.read<ResumenFinancieroCubit>();
+        // Capturada ANTES del await (no usar context tras un async gap).
+        final sedeActivaId =
+            innerContext.read<SedeActivaCubit>().state.activa?.id;
         await empresaCubit.reloadContext();
         // Recarga gated: solo dispara endpoints permitidos por el rol.
         final p = empresaContext.permissions;
@@ -302,6 +333,7 @@ class _EmpresaDashboardPageState extends State<EmpresaDashboardPage> {
           resumenCubit.loadResumen(
             fechaDesde: DateFormatter.toUtcIso(DateTime(now.year, now.month, 1)),
             fechaHasta: DateFormatter.toUtcIso(now),
+            sedeId: sedeActivaId,
           );
         }
       },

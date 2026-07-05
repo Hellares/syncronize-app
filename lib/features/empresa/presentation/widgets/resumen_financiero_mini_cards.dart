@@ -61,7 +61,10 @@ class ResumenFinancieroMiniCards extends StatelessWidget {
 
     final totalVentas = _val(ventas, 'totalVentas');
     final cantidadVentas = ventas?['cantidad'] ?? 0;
-    final ingresosHoy = _val(caja, 'ingresosHoy');
+    // Flujo NETO del día (ingresos − egresos): es lo que un dueño quiere ver
+    // de un vistazo. El bruto incluía cobros de ventas luego anuladas y
+    // confundía ("¿por qué dice 25.90 si vendí 21.90?").
+    final flujoHoy = _val(caja, 'flujoHoy');
     final totalVencidoCobrar = _val(cobrar, 'totalVencido');
     final totalVencidoPagar = _val(pagar, 'totalVencido');
 
@@ -92,9 +95,9 @@ class ResumenFinancieroMiniCards extends StatelessWidget {
             Expanded(
               child: _MiniFinancialCard(
                 icon: Icons.account_balance_wallet,
-                color: AppColors.blue1,
-                value: 'S/ ${ingresosHoy.toStringAsFixed(2)}',
-                label: 'Ingresos hoy',
+                color: flujoHoy >= 0 ? AppColors.blue1 : AppColors.red,
+                value: 'S/ ${flujoHoy.toStringAsFixed(2)}',
+                label: 'Flujo de caja hoy',
               ),
             ),
           ],

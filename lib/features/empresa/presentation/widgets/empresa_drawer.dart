@@ -786,6 +786,16 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
                 _tap(ctx, () => ctx.push('/empresa/reportes/liquidaciones')),
           ),
           tile(
+            title: 'Registro de Ventas (SUNAT)',
+            icon: Icons.receipt_long,
+            iconColor: Colors.teal,
+            visible: can(permissions?.canViewReports),
+            routeMatch: const _RouteMatch.startsWith(
+                '/empresa/reportes/registro-ventas'),
+            onTap: (ctx) =>
+                _tap(ctx, () => ctx.push('/empresa/reportes/registro-ventas')),
+          ),
+          tile(
             title: 'Flujo Proyectado',
             icon: Icons.timeline,
             iconColor: Colors.cyan,

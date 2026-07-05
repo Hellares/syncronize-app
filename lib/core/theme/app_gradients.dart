@@ -93,9 +93,9 @@ class AppGradients {
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
     colors: [
-      Color(0x33FFC107), // Azul claro superior
+      Color.fromARGB(24, 255, 193, 7), // Azul claro superior
       Color(0xFFFFFFFF),                   // Blanco centro (AppColors.white)
-      Color(0x33FFC107), // Azul claro inferior
+      Color.fromARGB(24, 255, 193, 7), // Azul claro inferior
     ],
     stops: [0.0, 0.7, 1.0],
   );

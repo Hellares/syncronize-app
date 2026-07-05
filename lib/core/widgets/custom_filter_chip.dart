@@ -74,7 +74,7 @@ class CustomFilterChip extends StatelessWidget {
     this.iconSize,
     this.selected = false,
     required this.onSelected,
-    this.backgroundColor = AppColors.bluechip,
+    this.backgroundColor = Colors.white,
     this.selectedBackgroundColor = AppColors.blue1,
     this.textColor = AppColors.blue2,
     this.selectedTextColor = Colors.white,
@@ -85,7 +85,7 @@ class CustomFilterChip extends StatelessWidget {
     this.borderColor = AppColors.blue1,
     this.selectedBorderColor,
     this.borderWidth = 0.5,
-    this.borderRadius = 6,
+    this.borderRadius = 4,
     this.height,
     this.contentPadding,
     this.showCheckmark = false,
@@ -108,6 +108,8 @@ class CustomFilterChip extends StatelessWidget {
     final EdgeInsets padding =
         contentPadding ?? const EdgeInsets.symmetric(horizontal: 12, vertical: 6);
 
+    const duration = Duration(milliseconds: 200);
+
     final Widget content = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -115,14 +117,18 @@ class CustomFilterChip extends StatelessWidget {
           Icon(icon, color: currentText, size: resolvedIconSize),
           const SizedBox(width: 4),
         ],
-        Text(
-          label,
+        // El color del texto acompaña la animación del fondo (antes el fondo
+        // hacía fade de 200ms pero el texto saltaba en seco).
+        AnimatedDefaultTextStyle(
+          duration: duration,
+          curve: Curves.easeInOut,
           style: TextStyle(
             color: currentText,
             fontSize: fontSize,
             fontWeight: fontWeight,
             fontFamily: resolvedFontFamily,
           ),
+          child: Text(label),
         ),
         if (showCheckmark && selected) ...[
           const SizedBox(width: 6),
@@ -131,19 +137,33 @@ class CustomFilterChip extends StatelessWidget {
       ],
     );
 
-    return GestureDetector(
-      onTap: enabled ? onSelected : null,
+    return Opacity(
+      opacity: enabled ? 1 : 0.5,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+        duration: duration,
         curve: Curves.easeInOut,
         height: height,
-        padding: padding,
         decoration: BoxDecoration(
           color: currentBg,
           borderRadius: BorderRadius.circular(borderRadius),
           border: Border.all(color: currentBorder, width: borderWidth),
         ),
-        child: content,
+        // Material transparente DENTRO del container: el ripple del InkWell
+        // se dibuja sobre el fondo animado (encima del Material quedaría
+        // tapado y el chip no daría feedback al toque).
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: enabled ? onSelected : null,
+            borderRadius: BorderRadius.circular(borderRadius),
+            child: Padding(
+              padding: padding,
+              // Con altura fija el contenido queda centrado en vez de
+              // pegado arriba.
+              child: height != null ? Center(child: content) : content,
+            ),
+          ),
+        ),
       ),
     );
   }
