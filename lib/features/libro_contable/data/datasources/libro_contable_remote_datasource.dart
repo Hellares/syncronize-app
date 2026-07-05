@@ -13,12 +13,14 @@ class LibroContableRemoteDataSource {
   Future<LibroContableModel> getLibro({
     required int mes,
     required int anio,
+    String? sedeId,
   }) async {
     final response = await _dioClient.get(
       _basePath,
       queryParameters: {
         'mes': mes,
         'anio': anio,
+        if (sedeId != null) 'sedeId': sedeId,
       },
     );
 

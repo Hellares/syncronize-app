@@ -5,11 +5,13 @@ abstract class ResumenFinancieroRepository {
   Future<Resource<ResumenFinanciero>> getResumen({
     String? fechaDesde,
     String? fechaHasta,
+    String? sedeId,
   });
 
   Future<Resource<GraficoDiario>> getGraficoDiario({
     String? fechaDesde,
     String? fechaHasta,
+    String? sedeId,
   });
 
   Future<Resource<List<int>>> exportLibroContable({

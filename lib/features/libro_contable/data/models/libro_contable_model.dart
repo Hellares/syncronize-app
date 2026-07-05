@@ -10,7 +10,11 @@ class LibroContableModel {
   });
 
   factory LibroContableModel.fromJson(Map<String, dynamic> json) {
-    final movimientosList = json['movimientos'] as List<dynamic>? ?? [];
+    // El backend llama a la lista `asientos` (AsientoContable[]); el nombre
+    // `movimientos` nunca existió en la respuesta — por eso la página
+    // mostraba los totales del resumen pero la lista siempre vacía.
+    final movimientosList =
+        (json['asientos'] ?? json['movimientos']) as List<dynamic>? ?? [];
     final resumenMap = json['resumen'] as Map<String, dynamic>? ?? {};
 
     return LibroContableModel(

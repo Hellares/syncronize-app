@@ -5,5 +5,6 @@ abstract class LibroContableRepository {
   Future<Resource<LibroContable>> getLibro({
     required int mes,
     required int anio,
+    String? sedeId,
   });
 }

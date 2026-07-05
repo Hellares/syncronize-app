@@ -12,10 +12,12 @@ class GetGraficoDiarioUseCase {
   Future<Resource<GraficoDiario>> call({
     String? fechaDesde,
     String? fechaHasta,
+    String? sedeId,
   }) {
     return _repository.getGraficoDiario(
       fechaDesde: fechaDesde,
       fechaHasta: fechaHasta,
+      sedeId: sedeId,
     );
   }
 }

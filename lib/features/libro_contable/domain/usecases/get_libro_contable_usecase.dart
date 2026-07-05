@@ -12,7 +12,8 @@ class GetLibroContableUseCase {
   Future<Resource<LibroContable>> call({
     required int mes,
     required int anio,
+    String? sedeId,
   }) {
-    return _repository.getLibro(mes: mes, anio: anio);
+    return _repository.getLibro(mes: mes, anio: anio, sedeId: sedeId);
   }
 }

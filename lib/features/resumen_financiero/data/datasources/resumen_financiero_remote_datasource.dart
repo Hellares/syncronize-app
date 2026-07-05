@@ -14,10 +14,12 @@ class ResumenFinancieroRemoteDataSource {
   Future<ResumenFinancieroModel> getResumen({
     String? fechaDesde,
     String? fechaHasta,
+    String? sedeId,
   }) async {
     final queryParams = <String, dynamic>{};
     if (fechaDesde != null) queryParams['fechaDesde'] = fechaDesde;
     if (fechaHasta != null) queryParams['fechaHasta'] = fechaHasta;
+    if (sedeId != null) queryParams['sedeId'] = sedeId;
 
     final response = await _dioClient.get(
       _basePath,
@@ -32,10 +34,12 @@ class ResumenFinancieroRemoteDataSource {
   Future<GraficoDiarioModel> getGraficoDiario({
     String? fechaDesde,
     String? fechaHasta,
+    String? sedeId,
   }) async {
     final queryParams = <String, dynamic>{};
     if (fechaDesde != null) queryParams['fechaDesde'] = fechaDesde;
     if (fechaHasta != null) queryParams['fechaHasta'] = fechaHasta;
+    if (sedeId != null) queryParams['sedeId'] = sedeId;
 
     final response = await _dioClient.get(
       '$_basePath/grafico-diario',

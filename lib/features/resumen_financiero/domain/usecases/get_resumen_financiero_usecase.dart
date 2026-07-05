@@ -12,10 +12,12 @@ class GetResumenFinancieroUseCase {
   Future<Resource<ResumenFinanciero>> call({
     String? fechaDesde,
     String? fechaHasta,
+    String? sedeId,
   }) {
     return _repository.getResumen(
       fechaDesde: fechaDesde,
       fechaHasta: fechaHasta,
+      sedeId: sedeId,
     );
   }
 }

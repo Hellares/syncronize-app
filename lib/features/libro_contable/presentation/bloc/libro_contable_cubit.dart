@@ -15,10 +15,12 @@ class LibroContableCubit extends Cubit<LibroContableState> {
   Future<void> loadLibro({
     required int mes,
     required int anio,
+    String? sedeId,
   }) async {
     emit(const LibroContableLoading());
 
-    final result = await _getLibroContableUseCase(mes: mes, anio: anio);
+    final result =
+        await _getLibroContableUseCase(mes: mes, anio: anio, sedeId: sedeId);
     if (isClosed) return;
 
     if (result is Success<LibroContable>) {

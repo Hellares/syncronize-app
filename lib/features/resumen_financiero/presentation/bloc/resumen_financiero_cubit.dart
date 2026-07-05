@@ -19,12 +19,13 @@ class ResumenFinancieroCubit extends Cubit<ResumenFinancieroState> {
   Future<void> loadResumen({
     String? fechaDesde,
     String? fechaHasta,
+    String? sedeId,
   }) async {
     emit(const ResumenFinancieroLoading());
 
     final results = await Future.wait([
-      _getResumenUseCase(fechaDesde: fechaDesde, fechaHasta: fechaHasta),
-      _getGraficoDiarioUseCase(fechaDesde: fechaDesde, fechaHasta: fechaHasta),
+      _getResumenUseCase(fechaDesde: fechaDesde, fechaHasta: fechaHasta, sedeId: sedeId),
+      _getGraficoDiarioUseCase(fechaDesde: fechaDesde, fechaHasta: fechaHasta, sedeId: sedeId),
     ]);
     if (isClosed) return;
 

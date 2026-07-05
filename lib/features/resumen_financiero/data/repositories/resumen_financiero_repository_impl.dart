@@ -22,6 +22,7 @@ class ResumenFinancieroRepositoryImpl implements ResumenFinancieroRepository {
   Future<Resource<ResumenFinanciero>> getResumen({
     String? fechaDesde,
     String? fechaHasta,
+    String? sedeId,
   }) async {
     if (!await _networkInfo.isConnected) {
       return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
@@ -30,6 +31,7 @@ class ResumenFinancieroRepositoryImpl implements ResumenFinancieroRepository {
       final model = await _remoteDataSource.getResumen(
         fechaDesde: fechaDesde,
         fechaHasta: fechaHasta,
+        sedeId: sedeId,
       );
       return Success(model.toEntity());
     } catch (e) {
@@ -41,6 +43,7 @@ class ResumenFinancieroRepositoryImpl implements ResumenFinancieroRepository {
   Future<Resource<GraficoDiario>> getGraficoDiario({
     String? fechaDesde,
     String? fechaHasta,
+    String? sedeId,
   }) async {
     if (!await _networkInfo.isConnected) {
       return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
@@ -49,6 +52,7 @@ class ResumenFinancieroRepositoryImpl implements ResumenFinancieroRepository {
       final model = await _remoteDataSource.getGraficoDiario(
         fechaDesde: fechaDesde,
         fechaHasta: fechaHasta,
+        sedeId: sedeId,
       );
       return Success(model.toEntity());
     } catch (e) {

@@ -22,12 +22,14 @@ class LibroContableRepositoryImpl implements LibroContableRepository {
   Future<Resource<LibroContable>> getLibro({
     required int mes,
     required int anio,
+    String? sedeId,
   }) async {
     if (!await _networkInfo.isConnected) {
       return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
     }
     try {
-      final model = await _remoteDataSource.getLibro(mes: mes, anio: anio);
+      final model =
+          await _remoteDataSource.getLibro(mes: mes, anio: anio, sedeId: sedeId);
       return Success(model.toEntity());
     } catch (e) {
       return _errorHandler.handleException(e, context: 'LibroContable');
