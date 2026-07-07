@@ -64,6 +64,8 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
 
   /// Destino de la animación "vuela al carrito" desde las cards del grid.
   final _cartIconKey = GlobalKey();
+  // Bump para recrear el slider de banners en el pull-to-refresh.
+  int _bannersReload = 0;
   String? _selectedCategoriaId;
   // ignore: unused_field  (ubicación oculta temporalmente para pruebas)
   double? _ubicacionLat;
@@ -488,6 +490,8 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
         body: RefreshIndicator(
           color: AppColors.blue2,
           onRefresh: () async {
+            // Recrea el slider de banners para que recargue del backend.
+            setState(() => _bannersReload++);
             await context.read<MarketplaceSearchCubit>().refresh();
             await _loadHome();
             await _loadUserData();
@@ -540,7 +544,8 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
                     return Column(
                       children: [
                         // Banners promocionales de empresas (premium, por plan).
-                        const BannerEmpresasSlider(),
+                        BannerEmpresasSlider(
+                            key: ValueKey('banners-$_bannersReload')),
                         if (_recomendados.isNotEmpty)
                           _buildSeccionCarrusel(
                               'Recomendados para ti', _recomendados),
