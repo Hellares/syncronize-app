@@ -26,6 +26,7 @@ import '../../features/empresa/presentation/pages/empresa_selection_page.dart';
 import '../../features/empresa/presentation/pages/configuracion_empresa_page.dart';
 import '../../features/empresa/presentation/pages/qr_cobro_page.dart';
 import '../../features/empresa/presentation/pages/integracion_yape_page.dart';
+import '../../features/empresa/presentation/pages/banner_marketplace_config_page.dart';
 import '../../features/empresa/presentation/pages/empresa_profile_page.dart';
 import '../../features/empresa/presentation/pages/personalizacion_page.dart';
 import '../../features/empresa/presentation/pages/planes_page.dart';
@@ -417,6 +418,11 @@ class AppRouter {
         path: '/empresa/perfil',
         name: 'empresa-perfil',
         builder: (context, state) => const EmpresaProfilePage(),
+      ),
+      GoRoute(
+        path: '/empresa/banner-marketplace',
+        name: 'empresa-banner-marketplace',
+        builder: (context, state) => const BannerMarketplaceConfigPage(),
       ),
       GoRoute(
         path: '/empresa/personalizacion',

@@ -583,6 +583,22 @@ class _EmpresaProfilePageState extends State<EmpresaProfilePage> {
               value: _permiteContraentrega,
               onChanged: (v) => setState(() => _permiteContraentrega = v),
             ),
+            const SizedBox(height: 4),
+            // Banner promocional del marketplace (feature premium por plan).
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              leading: Icon(Icons.campaign_outlined,
+                  color: AppColors.blue1, size: 22),
+              title: const Text('Banner promocional en Marketplace',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+              subtitle: Text(
+                'Destaca una promoción en el inicio del marketplace (según tu plan)',
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+              ),
+              trailing: const Icon(Icons.chevron_right, size: 20),
+              onTap: () => context.push('/empresa/banner-marketplace'),
+            ),
           ],
         ),
       ),

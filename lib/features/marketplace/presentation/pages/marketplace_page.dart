@@ -18,6 +18,7 @@ import '../../domain/usecases/get_productos_vistos_usecase.dart';
 import '../../domain/usecases/get_recomendados_usecase.dart';
 import '../bloc/marketplace_search_cubit.dart';
 import '../widgets/animated_search_bar.dart';
+import '../widgets/banner_empresas_slider.dart';
 import '../widgets/marketplace_drawer.dart';
 import '../widgets/promo_popup.dart';
 import '../widgets/producto_marketplace_card.dart';
@@ -538,6 +539,8 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
                     if (!esHome) return const SizedBox.shrink();
                     return Column(
                       children: [
+                        // Banners promocionales de empresas (premium, por plan).
+                        const BannerEmpresasSlider(),
                         if (_recomendados.isNotEmpty)
                           _buildSeccionCarrusel(
                               'Recomendados para ti', _recomendados),

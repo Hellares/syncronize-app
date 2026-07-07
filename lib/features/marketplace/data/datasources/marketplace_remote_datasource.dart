@@ -1,6 +1,7 @@
 import 'package:injectable/injectable.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/network/dio_client.dart';
+import '../models/banner_marketplace_model.dart';
 import '../models/categoria_marketplace_model.dart';
 import '../models/marketplace_home_model.dart';
 import '../models/producto_marketplace_model.dart';
@@ -60,6 +61,15 @@ class MarketplaceRemoteDataSource {
   Future<MarketplaceHomeModel> getHome() async {
     final response = await _dioClient.get('/marketplace/home');
     return MarketplaceHomeModel.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  /// GET /marketplace/banners — slider de empresas con plan vigente (home)
+  Future<List<BannerMarketplaceModel>> getBanners() async {
+    final response = await _dioClient.get('/marketplace/banners');
+    final data = response.data as List<dynamic>? ?? const [];
+    return data
+        .map((e) => BannerMarketplaceModel.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   /// GET /marketplace/usuario/vistos
