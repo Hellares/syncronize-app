@@ -7,6 +7,9 @@ import '../../../../core/di/injection_container.dart';
 import '../../../../core/services/bluetooth_printer_service.dart';
 import '../../../../core/services/storage_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/resource.dart';
+import '../../../configuracion_documentos/domain/entities/configuracion_documento_completa.dart';
+import '../../../configuracion_documentos/domain/usecases/get_configuracion_completa_usecase.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../../impresoras/domain/services/impresoras_manager.dart';
@@ -49,6 +52,8 @@ class _DocumentoOrdenServicioPreviewPageState
   bool _isGenerating = true;
   Uint8List? _pdfBytes;
   String? _error;
+  // Términos/pie del ticket (Configuración de Documentos: servicio ?? general).
+  String? _textoPieServicio;
 
   @override
   void initState() {
@@ -63,6 +68,18 @@ class _DocumentoOrdenServicioPreviewPageState
     });
 
     try {
+      // Términos configurados por la empresa para documentos de servicio.
+      try {
+        final configResult = await locator<GetConfiguracionCompletaUseCase>()(
+          tipo: 'ORDEN_SERVICIO',
+          formato: 'TICKET_80MM',
+        );
+        if (configResult is Success<ConfiguracionDocumentoCompleta>) {
+          _textoPieServicio =
+              configResult.data.configuracion.pieServicioEfectivo;
+        }
+      } catch (_) {}
+
       // Load firma if available
       Uint8List? firmaBytes;
       try {
@@ -92,6 +109,7 @@ class _DocumentoOrdenServicioPreviewPageState
         logoEmpresa: widget.logoEmpresa,
         colorPrimario: widget.colorPrimario,
         firmaCliente: firmaBytes,
+        textoPie: _textoPieServicio,
       );
 
       if (mounted) {
@@ -350,6 +368,7 @@ class _DocumentoOrdenServicioPreviewPageState
         sedeNombre: widget.sedeNombre,
         logoEmpresa: widget.logoEmpresa,
         paperWidth: paperSize,
+        textoPie: _textoPieServicio,
       );
 
       if (!mounted) return;

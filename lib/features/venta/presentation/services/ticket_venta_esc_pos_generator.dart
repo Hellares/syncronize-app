@@ -25,6 +25,9 @@ class TicketVentaEscPosGenerator {
     Uint8List? logoEmpresa,
     int paperWidth = 80,
     String nombreImpuesto = 'IGV',
+    // Pie configurable por la empresa (Configuración de Documentos:
+    // textoPieVenta ?? textoPiePagina). null = texto por defecto.
+    String? textoPie,
   }) async {
     final profile = await CapabilityProfile.load();
     final paperSize = paperWidth == 58 ? PaperSize.mm58 : PaperSize.mm80;
@@ -405,10 +408,16 @@ class TicketVentaEscPosGenerator {
       bytes += generator.feed(1);
     }
 
-    bytes += generator.text(
-      'Gracias por su preferencia!',
-      styles: const PosStyles(align: PosAlign.center),
-    );
+    // Pie configurado por la empresa (multi-línea) o texto por defecto.
+    final pie = (textoPie?.trim().isNotEmpty ?? false)
+        ? textoPie!.trim()
+        : 'Gracias por su preferencia!';
+    for (final linea in pie.split('\n')) {
+      bytes += generator.text(
+        _ascii(linea),
+        styles: const PosStyles(align: PosAlign.center),
+      );
+    }
 
     bytes += generator.feed(3);
     bytes += generator.cut();

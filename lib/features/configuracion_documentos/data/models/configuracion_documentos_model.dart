@@ -14,6 +14,8 @@ class ConfiguracionDocumentosModel extends ConfiguracionDocumentos {
     super.colorSecundario,
     super.colorTexto,
     super.textoPiePagina,
+    super.textoPieVenta,
+    super.textoPieServicio,
     super.mostrarPaginacion,
   });
 
@@ -33,6 +35,8 @@ class ConfiguracionDocumentosModel extends ConfiguracionDocumentos {
       colorTexto: (json['colorTexto'] as String?) ?? '#333333',
       textoPiePagina:
           (json['textoPiePagina'] as String?) ?? 'Gracias por su preferencia',
+      textoPieVenta: json['textoPieVenta'] as String?,
+      textoPieServicio: json['textoPieServicio'] as String?,
       mostrarPaginacion: (json['mostrarPaginacion'] as bool?) ?? true,
     );
   }
@@ -47,6 +51,8 @@ class ConfiguracionDocumentosModel extends ConfiguracionDocumentos {
       'colorSecundario': colorSecundario,
       'colorTexto': colorTexto,
       'textoPiePagina': textoPiePagina,
+      if (textoPieVenta != null) 'textoPieVenta': textoPieVenta,
+      if (textoPieServicio != null) 'textoPieServicio': textoPieServicio,
       'mostrarPaginacion': mostrarPaginacion,
     };
   }

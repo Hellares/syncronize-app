@@ -47,6 +47,8 @@ class _ConfiguracionDocumentosPageState
   final _colorSecundarioCtrl = TextEditingController();
   final _colorTextoCtrl = TextEditingController();
   final _textoPieCtrl = TextEditingController();
+  final _textoPieVentaCtrl = TextEditingController();
+  final _textoPieServicioCtrl = TextEditingController();
   bool _mostrarPaginacion = true;
 
   // Logo
@@ -88,6 +90,8 @@ class _ConfiguracionDocumentosPageState
     _colorSecundarioCtrl.dispose();
     _colorTextoCtrl.dispose();
     _textoPieCtrl.dispose();
+    _textoPieVentaCtrl.dispose();
+    _textoPieServicioCtrl.dispose();
     _margenSuperiorCtrl.dispose();
     _margenInferiorCtrl.dispose();
     _margenIzquierdoCtrl.dispose();
@@ -101,6 +105,8 @@ class _ConfiguracionDocumentosPageState
     _colorSecundarioCtrl.text = config.colorSecundario;
     _colorTextoCtrl.text = config.colorTexto;
     _textoPieCtrl.text = config.textoPiePagina;
+    _textoPieVentaCtrl.text = config.textoPieVenta ?? '';
+    _textoPieServicioCtrl.text = config.textoPieServicio ?? '';
     _mostrarPaginacion = config.mostrarPaginacion;
 
     // Fallback: si no hay logoUrl en configuración, usar el logo de la empresa
@@ -470,9 +476,30 @@ class _ConfiguracionDocumentosPageState
 
             CustomText(
               controller: _textoPieCtrl,
-              label: 'Texto pie de pagina',
+              label: 'Texto pie de pagina (general)',
               borderColor: AppColors.blue1,
               maxLines: 2,
+            ),
+            const SizedBox(height: 8),
+            CustomText(
+              controller: _textoPieVentaCtrl,
+              label: 'Pie para TICKET DE VENTA (opcional)',
+              hintText: 'Ej: No se aceptan devoluciones ni cambios de productos',
+              borderColor: AppColors.blue1,
+              maxLines: 3,
+            ),
+            const SizedBox(height: 8),
+            CustomText(
+              controller: _textoPieServicioCtrl,
+              label: 'Términos para SERVICIOS (opcional)',
+              hintText: 'Ej: Equipos no recogidos en 30 días generan costo de almacenaje',
+              borderColor: AppColors.blue1,
+              maxLines: 3,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Si los dejas vacíos, los tickets usan el texto general.',
+              style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
             ),
             const SizedBox(height: 8),
             CustomSwitchTile(
@@ -803,6 +830,11 @@ class _ConfiguracionDocumentosPageState
     if (_colorSecundarioCtrl.text.isNotEmpty) data['colorSecundario'] = _colorSecundarioCtrl.text;
     if (_colorTextoCtrl.text.isNotEmpty) data['colorTexto'] = _colorTextoCtrl.text;
     if (_textoPieCtrl.text.isNotEmpty) data['textoPiePagina'] = _textoPieCtrl.text;
+    // Pie por tipo: vacío = null (los tickets caen al texto general).
+    data['textoPieVenta'] =
+        _textoPieVentaCtrl.text.trim().isEmpty ? null : _textoPieVentaCtrl.text.trim();
+    data['textoPieServicio'] =
+        _textoPieServicioCtrl.text.trim().isEmpty ? null : _textoPieServicioCtrl.text.trim();
     data['mostrarPaginacion'] = _mostrarPaginacion;
 
     context.read<ConfiguracionDocumentosCubit>().actualizarConfiguracion(data);

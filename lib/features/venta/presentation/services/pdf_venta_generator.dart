@@ -93,7 +93,11 @@ class PdfVentaGenerator {
     final mostrarTotales = style.showTotales;
     final mostrarObservaciones = style.showObservaciones;
     final mostrarPiePagina = style.showPiePagina;
-    final textoPie = style.textoPiePagina ?? 'Gracias por su compra!';
+    // Pie específico de VENTA (política de devoluciones, etc.) con fallback
+    // al texto general de la configuración de documentos.
+    final textoPie = documentConfig?.configuracion.pieVentaEfectivo ??
+        style.textoPiePagina ??
+        'Gracias por su compra!';
 
     // Márgenes (venta solo usa horizontal/vertical simétricos del valor de
     // margenIzquierdo/margenSuperior — preserva esa semántica histórica).

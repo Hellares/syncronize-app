@@ -25,6 +25,8 @@ class PdfOrdenServicioGenerator {
     Uint8List? logoEmpresa,
     String? colorPrimario,
     Uint8List? firmaCliente,
+    // Términos/pie configurable (textoPieServicio ?? textoPiePagina).
+    String? textoPie,
   }) async {
     // Load Unicode-compatible fonts
     final fontRegular = pw.Font.ttf(
@@ -468,7 +470,10 @@ class PdfOrdenServicioGenerator {
             pw.SizedBox(height: 8),
             pw.Center(
               child: pw.Text(
-                'Gracias por su preferencia',
+                (textoPie?.trim().isNotEmpty ?? false)
+                    ? textoPie!.trim()
+                    : 'Gracias por su preferencia',
+                textAlign: pw.TextAlign.center,
                 style: pw.TextStyle(
                   fontSize: fsTiny,
                   fontStyle: pw.FontStyle.italic,

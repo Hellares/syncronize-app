@@ -54,6 +54,8 @@ class _VentaTicketPreviewPageState extends State<VentaTicketPreviewPage> {
   String? _razonSocialEfectiva;
   String? _direccionFiscalEfectiva;
   String? _nombreComercialEfectivo;
+  // Pie del ticket (Configuración de Documentos: venta ?? general).
+  String? _textoPieTicket;
   String? _telefonoEfectivo;
 
   /// Polling para esperar la respuesta de SUNAT cuando el comprobante
@@ -245,6 +247,7 @@ class _VentaTicketPreviewPageState extends State<VentaTicketPreviewPage> {
         _direccionFiscalEfectiva = direccionFiscalEfectiva;
         _nombreComercialEfectivo = nombreComercialEfectivo;
         _telefonoEfectivo = telefonoEfectivo;
+        _textoPieTicket = documentConfig?.configuracion.pieVentaEfectivo;
       });
 
       // Programar siguiente intento si todavía no llegó la respuesta SUNAT.
@@ -505,6 +508,7 @@ class _VentaTicketPreviewPageState extends State<VentaTicketPreviewPage> {
         // (12*ratio sobre 48 chars) no caben y se aplastan a la derecha.
         paperWidth: principal.anchoPapel.mm,
         nombreImpuesto: nombreImpuesto,
+        textoPie: _textoPieTicket,
       );
 
       final ok = await manager.imprimirEnPrincipal(bytes);
@@ -567,6 +571,7 @@ class _VentaTicketPreviewPageState extends State<VentaTicketPreviewPage> {
       logoEmpresa: _logoBytes,
       paperWidth: paperWidth,
       nombreImpuesto: nombreImpuesto,
+      textoPie: _textoPieTicket,
     );
 
     if (!mounted) return;
