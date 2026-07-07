@@ -1,3 +1,5 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
@@ -218,28 +220,62 @@ class _ShimmerState extends State<_Shimmer>
     super.dispose();
   }
 
+  List<double> _stops(double t, double ancho) => [
+        (t - ancho).clamp(0.0, 1.0),
+        t.clamp(0.0, 1.0),
+        (t + ancho).clamp(0.0, 1.0),
+      ];
+
   @override
   Widget build(BuildContext context) {
-    // Base levemente atenuada; la banda a brillo pleno pasa por encima.
+    // Base levemente atenuada; la banda de LUZ (blanca) pasa por encima.
     final base = widget.color.withValues(alpha: 0.75);
     return AnimatedBuilder(
       animation: _controller,
-      builder: (context, child) {
+      builder: (context, _) {
         final t = _controller.value * 1.6 - 0.3; // -0.3 → 1.3
-        return ShaderMask(
-          blendMode: BlendMode.srcIn,
-          shaderCallback: (bounds) => LinearGradient(
-            colors: [base, widget.color, base],
-            stops: [
-              (t - 0.2).clamp(0.0, 1.0),
-              t.clamp(0.0, 1.0),
-              (t + 0.2).clamp(0.0, 1.0),
-            ],
-          ).createShader(bounds),
-          child: child,
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            // Texto con la banda brillante recorriéndolo.
+            ShaderMask(
+              blendMode: BlendMode.srcIn,
+              shaderCallback: (bounds) => LinearGradient(
+                colors: [base, Colors.white, base],
+                stops: _stops(t, 0.18),
+              ).createShader(bounds),
+              child: widget.child,
+            ),
+            // Resplandor: copia blanca desenfocada del texto, visible SOLO
+            // bajo la banda → halo de luz que acompaña al destello.
+            Positioned.fill(
+              child: IgnorePointer(
+                child: ShaderMask(
+                  blendMode: BlendMode.dstIn,
+                  shaderCallback: (bounds) => LinearGradient(
+                    colors: [
+                      Colors.transparent,
+                      Colors.white.withValues(alpha: 0.85),
+                      Colors.transparent,
+                    ],
+                    stops: _stops(t, 0.12),
+                  ).createShader(bounds),
+                  child: ImageFiltered(
+                    imageFilter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
+                    child: ShaderMask(
+                      blendMode: BlendMode.srcIn,
+                      shaderCallback: (bounds) => const LinearGradient(
+                        colors: [Colors.white, Colors.white],
+                      ).createShader(bounds),
+                      child: widget.child,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         );
       },
-      child: widget.child,
     );
   }
 }
