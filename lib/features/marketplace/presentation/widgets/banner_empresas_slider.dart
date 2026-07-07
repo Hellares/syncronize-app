@@ -228,8 +228,8 @@ class _ShimmerState extends State<_Shimmer>
 
   @override
   Widget build(BuildContext context) {
-    // Base levemente atenuada; la banda de LUZ (blanca) pasa por encima.
-    final base = widget.color.withValues(alpha: 0.75);
+    // Base más atenuada → la banda de LUZ (blanca) contrasta con fuerza.
+    final base = widget.color.withValues(alpha: 0.6);
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, _) {
@@ -255,13 +255,13 @@ class _ShimmerState extends State<_Shimmer>
                   shaderCallback: (bounds) => LinearGradient(
                     colors: [
                       Colors.transparent,
-                      Colors.white.withValues(alpha: 0.85),
+                      Colors.white,
                       Colors.transparent,
                     ],
-                    stops: _stops(t, 0.12),
+                    stops: _stops(t, 0.16),
                   ).createShader(bounds),
                   child: ImageFiltered(
-                    imageFilter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
+                    imageFilter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
                     child: ShaderMask(
                       blendMode: BlendMode.srcIn,
                       shaderCallback: (bounds) => const LinearGradient(
