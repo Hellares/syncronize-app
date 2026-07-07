@@ -28,6 +28,7 @@ import '../../features/empresa/presentation/pages/qr_cobro_page.dart';
 import '../../features/empresa/presentation/pages/integracion_yape_page.dart';
 import '../../features/empresa/presentation/pages/banner_marketplace_config_page.dart';
 import '../../features/marketplace/presentation/pages/avisos_plataforma_admin_page.dart';
+import '../../features/marketplace/presentation/pages/publicidad_empresas_admin_page.dart';
 import '../../features/empresa/presentation/pages/empresa_profile_page.dart';
 import '../../features/empresa/presentation/pages/personalizacion_page.dart';
 import '../../features/empresa/presentation/pages/planes_page.dart';
@@ -430,6 +431,11 @@ class AppRouter {
         path: '/admin/avisos-marketplace',
         name: 'admin-avisos-marketplace',
         builder: (context, state) => const AvisosPlataformaAdminPage(),
+      ),
+      GoRoute(
+        path: '/admin/publicidad-empresas',
+        name: 'admin-publicidad-empresas',
+        builder: (context, state) => const PublicidadEmpresasAdminPage(),
       ),
       GoRoute(
         path: '/empresa/personalizacion',

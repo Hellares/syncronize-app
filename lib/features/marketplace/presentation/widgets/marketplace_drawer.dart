@@ -461,7 +461,7 @@ class _AuthenticatedDrawerContent extends StatelessWidget {
             title: 'Configuración',
             children: [
               // Solo el dueño de la plataforma: avisos del slider del home.
-              if (user.rolGlobal == 'SUPER_ADMIN')
+              if (user.rolGlobal == 'SUPER_ADMIN') ...[
                 _DrawerItem(
                   icon: Icons.campaign_outlined,
                   title: 'Avisos del Marketplace',
@@ -476,6 +476,21 @@ class _AuthenticatedDrawerContent extends StatelessWidget {
                     context.push('/admin/avisos-marketplace');
                   },
                 ),
+                _DrawerItem(
+                  icon: Icons.storefront_outlined,
+                  title: 'Publicidad de Empresas',
+                  subtitle: 'Contratos de banner por empresa',
+                  textStyle: TextStyle(
+                    fontFamily: AppFonts.getFontFamily(AppFont.oxygenBold),
+                    fontSize: 10,
+                    color: AppColors.blue,
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.push('/admin/publicidad-empresas');
+                  },
+                ),
+              ],
               _DrawerItem(
                 icon: Icons.security_outlined,
                 title: 'Seguridad de la cuenta',
