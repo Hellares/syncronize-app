@@ -476,7 +476,8 @@ class _ConfiguracionDocumentosPageState
 
             CustomText(
               controller: _textoPieCtrl,
-              label: 'Texto pie de pagina (general)',
+              label: 'Línea final centrada (general)',
+              hintText: 'Vacío = "Gracias por su preferencia"',
               borderColor: AppColors.blue1,
               maxLines: 2,
             ),
@@ -832,8 +833,12 @@ class _ConfiguracionDocumentosPageState
     if (_colorPrimarioCtrl.text.isNotEmpty) data['colorPrimario'] = _colorPrimarioCtrl.text;
     if (_colorSecundarioCtrl.text.isNotEmpty) data['colorSecundario'] = _colorSecundarioCtrl.text;
     if (_colorTextoCtrl.text.isNotEmpty) data['colorTexto'] = _colorTextoCtrl.text;
-    if (_textoPieCtrl.text.isNotEmpty) data['textoPiePagina'] = _textoPieCtrl.text;
-    // Pie por tipo: vacío = null (los tickets caen al texto general).
+    // SIEMPRE se envía: si el user lo borra, vuelve al default (antes el
+    // vacío no se enviaba y el texto viejo quedaba pegado sin poder quitarse).
+    data['textoPiePagina'] = _textoPieCtrl.text.trim().isEmpty
+        ? 'Gracias por su preferencia'
+        : _textoPieCtrl.text.trim();
+    // Pie por tipo: vacío = null (no imprime el bloque de términos).
     data['textoPieVenta'] =
         _textoPieVentaCtrl.text.trim().isEmpty ? null : _textoPieVentaCtrl.text.trim();
     data['textoPieServicio'] =
