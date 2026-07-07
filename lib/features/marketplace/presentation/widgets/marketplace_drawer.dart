@@ -460,6 +460,22 @@ class _AuthenticatedDrawerContent extends StatelessWidget {
           _DrawerSection(
             title: 'Configuración',
             children: [
+              // Solo el dueño de la plataforma: avisos del slider del home.
+              if (user.rolGlobal == 'SUPER_ADMIN')
+                _DrawerItem(
+                  icon: Icons.campaign_outlined,
+                  title: 'Avisos del Marketplace',
+                  subtitle: 'Banners de plataforma (festividades)',
+                  textStyle: TextStyle(
+                    fontFamily: AppFonts.getFontFamily(AppFont.oxygenBold),
+                    fontSize: 10,
+                    color: AppColors.blue,
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.push('/admin/avisos-marketplace');
+                  },
+                ),
               _DrawerItem(
                 icon: Icons.security_outlined,
                 title: 'Seguridad de la cuenta',

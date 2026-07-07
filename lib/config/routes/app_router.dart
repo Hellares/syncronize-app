@@ -27,6 +27,7 @@ import '../../features/empresa/presentation/pages/configuracion_empresa_page.dar
 import '../../features/empresa/presentation/pages/qr_cobro_page.dart';
 import '../../features/empresa/presentation/pages/integracion_yape_page.dart';
 import '../../features/empresa/presentation/pages/banner_marketplace_config_page.dart';
+import '../../features/marketplace/presentation/pages/avisos_plataforma_admin_page.dart';
 import '../../features/empresa/presentation/pages/empresa_profile_page.dart';
 import '../../features/empresa/presentation/pages/personalizacion_page.dart';
 import '../../features/empresa/presentation/pages/planes_page.dart';
@@ -423,6 +424,12 @@ class AppRouter {
         path: '/empresa/banner-marketplace',
         name: 'empresa-banner-marketplace',
         builder: (context, state) => const BannerMarketplaceConfigPage(),
+      ),
+      // Avisos de plataforma (solo super admin; el backend valida el rol).
+      GoRoute(
+        path: '/admin/avisos-marketplace',
+        name: 'admin-avisos-marketplace',
+        builder: (context, state) => const AvisosPlataformaAdminPage(),
       ),
       GoRoute(
         path: '/empresa/personalizacion',

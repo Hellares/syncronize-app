@@ -5,6 +5,7 @@ import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lottie/lottie.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/di/injection_container.dart';
 import '../../data/datasources/marketplace_remote_datasource.dart';
@@ -25,8 +26,7 @@ class BannerEmpresasSlider extends StatefulWidget {
   static const double bannerHeight = 50;
 
   /// Alto del sliver pinneado (banner + respiro vertical).
-  static const double sliverHeight = 55
-  ;
+  static const double sliverHeight = 50;
 
   @override
   State<BannerEmpresasSlider> createState() => _BannerEmpresasSliderState();
@@ -101,12 +101,22 @@ class BannerMarketplaceCard extends StatelessWidget {
         (fondo.computeLuminance() > 0.5 ? Colors.black87 : Colors.white);
     final brillo = parseHex(banner.colorBrillo);
 
+    final tieneAccion = banner.subdominio != null ||
+        (banner.link != null && banner.link!.isNotEmpty);
+
     return GestureDetector(
-      onTap: banner.subdominio == null
+      onTap: !tieneAccion
           ? null
           : () {
               onTap?.call();
-              context.push('/vendedor/${banner.subdominio}');
+              if (banner.subdominio != null) {
+                context.push('/vendedor/${banner.subdominio}');
+              } else if (banner.link!.startsWith('/')) {
+                context.push(banner.link!);
+              } else {
+                launchUrl(Uri.parse(banner.link!),
+                    mode: LaunchMode.externalApplication);
+              }
             },
       child: SizedBox(
         width: double.infinity,
@@ -126,11 +136,11 @@ class BannerMarketplaceCard extends StatelessWidget {
                 children: [
                   if (banner.logo != null)
                     ClipRRect(
-                      borderRadius: BorderRadius.circular(6),
+                      borderRadius: BorderRadius.circular(4),
                       child: CachedNetworkImage(
                         imageUrl: banner.logo!,
-                        width: 35,
-                        height: 35,
+                        width: 32,
+                        height: 32,
                         fit: BoxFit.cover,
                         memCacheWidth: 120,
                         errorWidget: (_, __, ___) =>
@@ -149,7 +159,7 @@ class BannerMarketplaceCard extends StatelessWidget {
                           texto: banner.texto,
                           brillo: brillo,
                           style: TextStyle(
-                            fontSize: 10,
+                            fontSize: 9,
                             fontWeight: FontWeight.w500,
                             color: texto,
                             letterSpacing: 0.2,
@@ -161,7 +171,7 @@ class BannerMarketplaceCard extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 8,
+                            fontSize: 7,
                             fontWeight: FontWeight.w500,
                             color: texto.withValues(alpha: 0.8),
                           ),

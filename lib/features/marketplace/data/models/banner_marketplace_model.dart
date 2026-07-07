@@ -12,6 +12,7 @@ class BannerMarketplaceModel {
   final String nombreEmpresa; // nombre comercial (fallback razón social)
   final String? logo;
   final String? subdominio; // para navegar a /vendedor/:subdominio
+  final String? link; // avisos de plataforma: ruta interna o URL https
 
   const BannerMarketplaceModel({
     required this.id,
@@ -25,6 +26,7 @@ class BannerMarketplaceModel {
     required this.nombreEmpresa,
     this.logo,
     this.subdominio,
+    this.link,
   });
 
   factory BannerMarketplaceModel.fromJson(Map<String, dynamic> json) {
@@ -40,6 +42,7 @@ class BannerMarketplaceModel {
       nombreEmpresa: json['nombreEmpresa'] as String? ?? '',
       logo: json['logo'] as String?,
       subdominio: json['subdominio'] as String?,
+      link: json['link'] as String?,
     );
   }
 }

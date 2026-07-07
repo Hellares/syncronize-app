@@ -15,62 +15,9 @@ import '../../../auth/presentation/widgets/custom_text.dart'
     show CustomText, FieldType;
 import '../../../marketplace/data/models/banner_marketplace_model.dart';
 import '../../../marketplace/presentation/widgets/banner_empresas_slider.dart';
+import '../../../marketplace/presentation/widgets/banner_paletas.dart';
 import '../bloc/empresa_context/empresa_context_cubit.dart';
 import '../bloc/empresa_context/empresa_context_state.dart';
-
-/// Paleta fija para el fondo del banner (colores seguros visualmente).
-const List<String> _paletaBanner = [
-  '#FFFFFF', '#1565C0', '#0D47A1', '#00695C', '#2E7D32', '#F9A825', '#EF6C00',
-  '#C62828', '#AD1457', '#6A1B9A', '#4527A0', '#37474F', '#212121',
-];
-
-/// Colores elegibles para el TEXTO (null = contraste automático).
-/// Incluye los acentos brillantes + los mismos colores de la paleta de fondo.
-const List<String> _paletaTexto = [
-  '#FFFFFF', // blanco
-  '#212121', // negro
-  '#E040FB', // fucsia
-  '#69F0AE', // verde menta
-  '#00C853', // verde intenso
-  '#1DE9B6', // teal
-  '#AEEA00', // lima
-  '#FFAB40', // naranja
-  '#40C4FF', // azul
-  '#80D8FF', // celeste
-  '#7C4DFF', // morado
-  '#FF5252', // rojo
-  '#FF80AB', // rosa
-  '#FFD54F', // dorado
-  '#1565C0', // azul fondo
-  '#0D47A1', // azul oscuro
-  '#00695C', // teal oscuro
-  '#2E7D32', // verde oscuro
-  '#F9A825', // ámbar
-  '#EF6C00', // naranja oscuro
-  '#C62828', // rojo oscuro
-  '#AD1457', // magenta oscuro
-  '#6A1B9A', // púrpura
-  '#4527A0', // índigo
-  '#37474F', // gris azulado
-];
-
-/// Colores elegibles para el BRILLO/luz que recorre el texto.
-const List<String> _paletaBrillo = [
-  '#E040FB', // fucsia
-  '#69F0AE', // verde menta
-  '#00C853', // verde intenso
-  '#1DE9B6', // teal
-  '#AEEA00', // lima
-  '#FFAB40', // naranja
-  '#40C4FF', // azul
-  '#80D8FF', // celeste
-  '#7C4DFF', // morado
-  '#FF5252', // rojo
-  '#FF80AB', // rosa
-  '#212121', // negro
-  '#FFFFFF', // blanco
-  '#FFD54F', // dorado
-];
 
 /// Configuración del banner promocional de la empresa en el marketplace.
 /// Feature premium: si la empresa no tiene BANNER_MARKETPLACE vigente se
@@ -93,7 +40,7 @@ class _BannerMarketplaceConfigPageState
   bool _saving = false;
   bool _habilitado = false;
   bool _bannerActivo = true;
-  String _colorFondo = _paletaBanner.first;
+  String _colorFondo = paletaFondoBanner.first;
   String? _colorTexto; // null = contraste automático
   String? _colorBrillo; // null = default del app (verde)
   String? _lottieFondoId;
@@ -139,7 +86,7 @@ class _BannerMarketplaceConfigPageState
         _lotties = lotties;
         if (banner != null) {
           _textoController.text = banner['texto'] as String? ?? '';
-          _colorFondo = banner['colorFondo'] as String? ?? _paletaBanner.first;
+          _colorFondo = banner['colorFondo'] as String? ?? paletaFondoBanner.first;
           _colorTexto = banner['colorTexto'] as String?;
           _colorBrillo = banner['colorBrillo'] as String?;
           _lottieFondoId = banner['lottieFondoId'] as String?;
@@ -288,7 +235,7 @@ class _BannerMarketplaceConfigPageState
             spacing: 10,
             runSpacing: 10,
             children: [
-              for (final hex in _paletaBanner)
+              for (final hex in paletaFondoBanner)
                 _colorDot(
                   hex: hex,
                   selected: _colorFondo == hex,
@@ -309,7 +256,7 @@ class _BannerMarketplaceConfigPageState
                 selected: _colorTexto == null,
                 onTap: () => setState(() => _colorTexto = null),
               ),
-              for (final hex in _paletaTexto)
+              for (final hex in paletaTextoBanner)
                 _colorDot(
                   hex: hex,
                   selected: _colorTexto == hex,
@@ -325,7 +272,7 @@ class _BannerMarketplaceConfigPageState
             spacing: 10,
             runSpacing: 10,
             children: [
-              for (final hex in _paletaBrillo)
+              for (final hex in paletaBrilloBanner)
                 _colorDot(
                   hex: hex,
                   selected: _colorBrillo == hex,
