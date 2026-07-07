@@ -49,6 +49,9 @@ class _BannerMarketplaceConfigPageState
   String _colorFondo = _paletaBanner.first;
   String? _lottieFondoId;
   List<Map<String, dynamic>> _lotties = const [];
+  // Nombre COMERCIAL (fallback nombre fiscal) + logo: lo que verá el público.
+  String? _nombreEmpresa;
+  String? _logoEmpresa;
 
   String? get _empresaId => _localStorage.getString(StorageConstants.tenantId);
 
@@ -79,6 +82,8 @@ class _BannerMarketplaceConfigPageState
       if (!mounted) return;
       setState(() {
         _habilitado = data['habilitado'] == true;
+        _nombreEmpresa = data['nombreEmpresa'] as String?;
+        _logoEmpresa = data['logo'] as String?;
         _lotties = lotties;
         if (banner != null) {
           _textoController.text = banner['texto'] as String? ?? '';
@@ -245,8 +250,11 @@ class _BannerMarketplaceConfigPageState
           colorFondo: _colorFondo,
           lottieUrl: _lottieUrlSeleccionado,
           empresaId: '',
-          nombreEmpresa: empresa?.nombre ?? 'Tu empresa',
-          logo: empresa?.logo,
+          nombreEmpresa: (_nombreEmpresa?.isNotEmpty == true
+                  ? _nombreEmpresa
+                  : empresa?.nombre) ??
+              'Tu empresa',
+          logo: _logoEmpresa ?? empresa?.logo,
           subdominio: null, // el preview no navega
         ),
       ),

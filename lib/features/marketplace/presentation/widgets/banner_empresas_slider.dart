@@ -16,7 +16,7 @@ import '../../data/models/banner_marketplace_model.dart';
 class BannerEmpresasSlider extends StatefulWidget {
   const BannerEmpresasSlider({super.key});
 
-  static const double bannerHeight = 60;
+  static const double bannerHeight = 50;
 
   @override
   State<BannerEmpresasSlider> createState() => _BannerEmpresasSliderState();
@@ -108,8 +108,8 @@ class BannerMarketplaceCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(6),
                       child: CachedNetworkImage(
                         imageUrl: banner.logo!,
-                        width: 40,
-                        height: 40,
+                        width: 35,
+                        height: 35,
                         fit: BoxFit.cover,
                         memCacheWidth: 120,
                         errorWidget: (_, __, ___) =>
@@ -124,13 +124,11 @@ class BannerMarketplaceCard extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          banner.texto,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                        _TextoPromoAnimado(
+                          texto: banner.texto,
                           style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500,
                             color: texto,
                             letterSpacing: 0.2,
                           ),
@@ -141,7 +139,7 @@ class BannerMarketplaceCard extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 9,
+                            fontSize: 8,
                             fontWeight: FontWeight.w500,
                             color: texto.withValues(alpha: 0.8),
                           ),
@@ -155,6 +153,165 @@ class BannerMarketplaceCard extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Texto de la promo con animación: shimmer (destello que lo recorre) siempre,
+/// y si no cabe en el ancho disponible se convierte en marquee (texto rodante)
+/// para que se lea completo en vez de cortarse con "…".
+class _TextoPromoAnimado extends StatelessWidget {
+  const _TextoPromoAnimado({required this.texto, required this.style});
+
+  final String texto;
+  final TextStyle style;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final painter = TextPainter(
+          text: TextSpan(text: texto, style: style),
+          maxLines: 1,
+          textDirection: TextDirection.ltr,
+        )..layout();
+        final cabe = painter.width <= constraints.maxWidth;
+
+        final child = cabe
+            ? Text(texto, maxLines: 1, overflow: TextOverflow.clip, style: style)
+            : _MarqueeTexto(
+                texto: texto,
+                style: style,
+                anchoTexto: painter.width,
+                anchoVisible: constraints.maxWidth,
+              );
+
+        return _Shimmer(color: style.color ?? Colors.white, child: child);
+      },
+    );
+  }
+}
+
+/// Destello periódico que recorre el texto (banda brillante cada ~3.5s).
+class _Shimmer extends StatefulWidget {
+  const _Shimmer({required this.color, required this.child});
+
+  final Color color;
+  final Widget child;
+
+  @override
+  State<_Shimmer> createState() => _ShimmerState();
+}
+
+class _ShimmerState extends State<_Shimmer>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 3500),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Base levemente atenuada; la banda a brillo pleno pasa por encima.
+    final base = widget.color.withValues(alpha: 0.75);
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final t = _controller.value * 1.6 - 0.3; // -0.3 → 1.3
+        return ShaderMask(
+          blendMode: BlendMode.srcIn,
+          shaderCallback: (bounds) => LinearGradient(
+            colors: [base, widget.color, base],
+            stops: [
+              (t - 0.2).clamp(0.0, 1.0),
+              t.clamp(0.0, 1.0),
+              (t + 0.2).clamp(0.0, 1.0),
+            ],
+          ).createShader(bounds),
+          child: child,
+        );
+      },
+      child: widget.child,
+    );
+  }
+}
+
+/// Marquee: el texto desfila en bucle continuo (velocidad constante ~30 px/s).
+class _MarqueeTexto extends StatefulWidget {
+  const _MarqueeTexto({
+    required this.texto,
+    required this.style,
+    required this.anchoTexto,
+    required this.anchoVisible,
+  });
+
+  final String texto;
+  final TextStyle style;
+  final double anchoTexto;
+  final double anchoVisible;
+
+  @override
+  State<_MarqueeTexto> createState() => _MarqueeTextoState();
+}
+
+class _MarqueeTextoState extends State<_MarqueeTexto>
+    with SingleTickerProviderStateMixin {
+  static const double _separacion = 48;
+  late final AnimationController _controller;
+
+  double get _recorrido => widget.anchoTexto + _separacion;
+
+  @override
+  void initState() {
+    super.initState();
+    // Duración proporcional al largo para mantener velocidad constante.
+    final segundos = (_recorrido / 30).clamp(6, 40).toDouble();
+    _controller = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: (segundos * 1000).round()),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final textoWidget =
+        Text(widget.texto, maxLines: 1, softWrap: false, style: widget.style);
+    return SizedBox(
+      width: widget.anchoVisible,
+      height: (widget.style.fontSize ?? 12) * 1.4,
+      child: ClipRect(
+        child: AnimatedBuilder(
+          animation: _controller,
+          builder: (context, child) => Transform.translate(
+            offset: Offset(-_controller.value * _recorrido, 0),
+            child: child,
+          ),
+          child: OverflowBox(
+            alignment: Alignment.centerLeft,
+            maxWidth: double.infinity,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                textoWidget,
+                const SizedBox(width: _separacion),
+                textoWidget,
+              ],
+            ),
+          ),
         ),
       ),
     );
