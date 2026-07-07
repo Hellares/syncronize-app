@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/constants/storage_constants.dart';
 import '../../../../core/di/injection_container.dart';
@@ -39,6 +41,8 @@ class _BannerMarketplaceConfigPageState
   bool _loading = true;
   bool _saving = false;
   bool _habilitado = false;
+  DateTime? _vigenteHasta; // fin del contrato/pack activo
+  Map<String, dynamic>? _solicitudPendiente; // pack esperando aprobación
   bool _bannerActivo = true;
   String _colorFondo = paletaFondoBanner.first;
   String? _colorTexto; // null = contraste automático
@@ -80,6 +84,10 @@ class _BannerMarketplaceConfigPageState
       if (!mounted) return;
       setState(() {
         _habilitado = data['habilitado'] == true;
+        _vigenteHasta =
+            DateTime.tryParse(data['vigenteHasta'] as String? ?? '')?.toLocal();
+        _solicitudPendiente =
+            data['solicitudPendiente'] as Map<String, dynamic>?;
         _nombreEmpresa = data['nombreEmpresa'] as String?;
         _logoEmpresa = data['logo'] as String?;
         _metricasMes = data['metricasMes'] as Map<String, dynamic>?;
@@ -140,6 +148,203 @@ class _BannerMarketplaceConfigPageState
     return null;
   }
 
+  /// Dialog "Solicitar mostrar": packs de días con precio; al confirmar se
+  /// crea la solicitud y se ofrece avisar al admin por WhatsApp.
+  Future<void> _solicitarMostrar() async {
+    final empresaId = _empresaId;
+    if (empresaId == null) return;
+    if (_textoController.text.trim().isEmpty) {
+      SnackBarHelper.showError(
+          context, 'Primero configura y guarda tu banner');
+      return;
+    }
+
+    // Packs + WhatsApp del admin desde el backend (precios centralizados).
+    List<Map<String, dynamic>> packs;
+    String? whatsapp;
+    try {
+      final response = await _dio.get('/marketplace/banner-packs');
+      final data = response.data as Map<String, dynamic>;
+      packs = (data['packs'] as List<dynamic>? ?? const [])
+          .cast<Map<String, dynamic>>();
+      whatsapp = data['whatsapp'] as String?;
+    } catch (_) {
+      if (mounted) {
+        SnackBarHelper.showError(context, 'No se pudieron cargar los packs');
+      }
+      return;
+    }
+    if (!mounted || packs.isEmpty) return;
+
+    final dias = await showDialog<int>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('Solicitar mostrar banner',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Text(
+              'Elige por cuántos días quieres mostrar tu banner en el inicio del marketplace. Corre desde que el administrador lo activa.',
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+            ),
+          ),
+          const SizedBox(height: 8),
+          for (final p in packs)
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(ctx, p['dias'] as int),
+              child: Row(
+                children: [
+                  Icon(Icons.calendar_month_outlined,
+                      size: 18, color: AppColors.blue1),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      '${p['dias']} ${p['dias'] == 1 ? 'día' : 'días'}',
+                      style: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  Text(
+                    'S/ ${p['precio']}',
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.blue1),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+    if (dias == null || !mounted) return;
+
+    try {
+      await _dio.post(
+        '/empresas/$empresaId/banner-marketplace/solicitud',
+        data: {'dias': dias},
+      );
+    } catch (e) {
+      if (mounted) SnackBarHelper.showError(context, 'Error al solicitar: $e');
+      return;
+    }
+    if (!mounted) return;
+    await _load(); // refresca el estado (aparece "solicitud pendiente")
+
+    if (!mounted) return;
+    final pack = packs.firstWhere((p) => p['dias'] == dias);
+    final abrirWsp = whatsapp != null &&
+        await showDialog<bool>(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                title: const Text('Solicitud enviada',
+                    style:
+                        TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                content: Text(
+                  'Pack de $dias ${dias == 1 ? 'día' : 'días'} por S/ ${pack['precio']}. '
+                  'Coordina el pago con el administrador para que active tu banner.',
+                  style: const TextStyle(fontSize: 12),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: const Text('Cerrar'),
+                  ),
+                  FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF25D366)),
+                    onPressed: () => Navigator.pop(ctx, true),
+                    icon: const Icon(Icons.chat, size: 16),
+                    label: const Text('Avisar por WhatsApp'),
+                  ),
+                ],
+              ),
+            ) ==
+            true;
+    if (abrirWsp) {
+      final msg = Uri.encodeComponent(
+        'Hola, soy ${_nombreEmpresa ?? 'una empresa'} del marketplace Syncronize. '
+        'Acabo de solicitar mostrar mi banner: pack de $dias ${dias == 1 ? 'día' : 'días'} '
+        'por S/ ${pack['precio']}. ¿Cómo coordino el pago?',
+      );
+      launchUrl(
+        Uri.parse('https://wa.me/$whatsapp?text=$msg'),
+        mode: LaunchMode.externalApplication,
+      );
+    }
+  }
+
+  /// Card de estado del contrato: activo / pendiente / botón solicitar.
+  Widget _buildEstadoContrato() {
+    final df = DateFormat('dd/MM/yyyy HH:mm');
+    if (_habilitado) {
+      return _estadoBox(
+        color: Colors.green,
+        icon: Icons.check_circle_outline,
+        texto: _vigenteHasta == null
+            ? 'Tu banner está ACTIVO (sin vencimiento)'
+            : 'Tu banner está ACTIVO hasta el ${df.format(_vigenteHasta!)}',
+      );
+    }
+    if (_solicitudPendiente != null) {
+      final s = _solicitudPendiente!;
+      return _estadoBox(
+        color: Colors.orange,
+        icon: Icons.hourglass_top,
+        texto:
+            'Solicitud enviada: ${s['dias']} día(s) por S/ ${s['monto']}. Esperando activación del administrador.',
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _estadoBox(
+          color: Colors.grey,
+          icon: Icons.visibility_off_outlined,
+          texto:
+              'Tu banner aún NO es visible al público. Configúralo, guárdalo y solicita mostrarlo.',
+        ),
+        const SizedBox(height: 8),
+        CustomButton(
+          text: 'Solicitar mostrar banner',
+          isLoading: false,
+          onPressed: _solicitarMostrar,
+        ),
+      ],
+    );
+  }
+
+  Widget _estadoBox({
+    required MaterialColor color,
+    required IconData icon,
+    required String texto,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: color.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.shade200),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: color.shade700),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              texto,
+              style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: color.shade800),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -151,36 +356,7 @@ class _BannerMarketplaceConfigPageState
       body: GradientContainer(
         child: _loading
             ? const Center(child: CircularProgressIndicator())
-            : !_habilitado
-                ? _buildBloqueado()
-                : _buildForm(context),
-      ),
-    );
-  }
-
-  /// Candado: el plan de la empresa no incluye la característica.
-  Widget _buildBloqueado() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.lock_outline, size: 56, color: Colors.grey.shade400),
-            const SizedBox(height: 16),
-            const Text(
-              'Tu plan no incluye el banner promocional del marketplace',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Contáctanos para activarlo y destacar tus promociones ante todos los compradores.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-            ),
-          ],
-        ),
+            : _buildForm(context),
       ),
     );
   }
@@ -191,6 +367,9 @@ class _BannerMarketplaceConfigPageState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Estado del contrato: activo / solicitud pendiente / solicitar.
+          _buildEstadoContrato(),
+          const SizedBox(height: 16),
           const Text('Vista previa',
               style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
