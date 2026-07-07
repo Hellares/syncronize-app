@@ -52,8 +52,9 @@ class _DocumentoOrdenServicioPreviewPageState
   bool _isGenerating = true;
   Uint8List? _pdfBytes;
   String? _error;
-  // Términos/pie del ticket (Configuración de Documentos: servicio ?? general).
+  // Términos de servicio (bloque izquierdo) + línea final centrada (general).
   String? _textoPieServicio;
+  String? _textoGracias;
 
   @override
   void initState() {
@@ -75,8 +76,8 @@ class _DocumentoOrdenServicioPreviewPageState
           formato: 'TICKET_80MM',
         );
         if (configResult is Success<ConfiguracionDocumentoCompleta>) {
-          _textoPieServicio =
-              configResult.data.configuracion.pieServicioEfectivo;
+          _textoPieServicio = configResult.data.configuracion.terminosServicio;
+          _textoGracias = configResult.data.configuracion.textoPiePagina;
         }
       } catch (_) {}
 
@@ -110,6 +111,7 @@ class _DocumentoOrdenServicioPreviewPageState
         colorPrimario: widget.colorPrimario,
         firmaCliente: firmaBytes,
         textoPie: _textoPieServicio,
+        textoGracias: _textoGracias,
       );
 
       if (mounted) {
@@ -369,6 +371,7 @@ class _DocumentoOrdenServicioPreviewPageState
         logoEmpresa: widget.logoEmpresa,
         paperWidth: paperSize,
         textoPie: _textoPieServicio,
+        textoGracias: _textoGracias,
       );
 
       if (!mounted) return;

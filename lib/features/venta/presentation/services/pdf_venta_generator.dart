@@ -93,11 +93,9 @@ class PdfVentaGenerator {
     final mostrarTotales = style.showTotales;
     final mostrarObservaciones = style.showObservaciones;
     final mostrarPiePagina = style.showPiePagina;
-    // Pie específico de VENTA (política de devoluciones, etc.) con fallback
-    // al texto general de la configuración de documentos.
-    final textoPie = documentConfig?.configuracion.pieVentaEfectivo ??
-        style.textoPiePagina ??
-        'Gracias por su compra!';
+    // Términos de VENTA (bloque izquierdo, opcional) + línea final centrada.
+    final terminosVenta = documentConfig?.configuracion.terminosVenta;
+    final textoPie = style.textoPiePagina ?? 'Gracias por su compra!';
 
     // Márgenes (venta solo usa horizontal/vertical simétricos del valor de
     // margenIzquierdo/margenSuperior — preserva esa semántica histórica).
@@ -492,8 +490,13 @@ class PdfVentaGenerator {
 
               pw.SizedBox(height: 8),
 
-              // Pie de pagina
-              if (mostrarPiePagina)
+              // Términos de venta (izquierda) + pie de página centrado.
+              if (mostrarPiePagina) ...[
+                if (terminosVenta != null) ...[
+                  pw.Text(terminosVenta,
+                      style: const pw.TextStyle(fontSize: 7)),
+                  pw.SizedBox(height: 4),
+                ],
                 pw.Text(textoPie,
                     style: pw.TextStyle(
                       fontSize: 9,
@@ -501,6 +504,7 @@ class PdfVentaGenerator {
                       color: colorPrimario,
                     ),
                     textAlign: pw.TextAlign.center),
+              ],
             ],
           );
         },

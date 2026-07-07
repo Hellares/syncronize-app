@@ -25,9 +25,11 @@ class TicketVentaEscPosGenerator {
     Uint8List? logoEmpresa,
     int paperWidth = 80,
     String nombreImpuesto = 'IGV',
-    // Pie configurable por la empresa (Configuración de Documentos:
-    // textoPieVenta ?? textoPiePagina). null = texto por defecto.
+    // Términos de venta configurables (Configuración de Documentos:
+    // textoPieVenta) — bloque multilínea a la izquierda; null = no imprime.
     String? textoPie,
+    // Línea final centrada (textoPiePagina); null = default.
+    String? textoGracias,
   }) async {
     final profile = await CapabilityProfile.load();
     final paperSize = paperWidth == 58 ? PaperSize.mm58 : PaperSize.mm80;
@@ -408,16 +410,23 @@ class TicketVentaEscPosGenerator {
       bytes += generator.feed(1);
     }
 
-    // Pie configurado por la empresa (multi-línea) o texto por defecto.
-    final pie = (textoPie?.trim().isNotEmpty ?? false)
-        ? textoPie!.trim()
-        : 'Gracias por su preferencia!';
-    for (final linea in pie.split('\n')) {
-      bytes += generator.text(
-        _ascii(linea),
-        styles: const PosStyles(align: PosAlign.center),
-      );
+    // Texto configurado por la empresa (multi-línea, alineado a la izquierda
+    // como términos/condiciones) y SIEMPRE el agradecimiento centrado al final.
+    if (textoPie?.trim().isNotEmpty ?? false) {
+      for (final linea in textoPie!.trim().split('\n')) {
+        bytes += generator.text(
+          _ascii(linea),
+          styles: const PosStyles(align: PosAlign.left),
+        );
+      }
+      bytes += generator.feed(1);
     }
+    bytes += generator.text(
+      _ascii((textoGracias?.trim().isNotEmpty ?? false)
+          ? textoGracias!.trim()
+          : 'Gracias por su preferencia!'),
+      styles: const PosStyles(align: PosAlign.center),
+    );
 
     bytes += generator.feed(3);
     bytes += generator.cut();

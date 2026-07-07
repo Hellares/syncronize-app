@@ -41,13 +41,13 @@ class ConfiguracionDocumentos extends Equatable {
     this.mostrarPaginacion = true,
   });
 
-  /// Pie efectivo para tickets de venta.
-  String get pieVentaEfectivo =>
-      (textoPieVenta?.trim().isNotEmpty ?? false) ? textoPieVenta! : textoPiePagina;
+  /// Términos para tickets de VENTA (bloque izquierdo); null = sin términos.
+  String? get terminosVenta =>
+      (textoPieVenta?.trim().isNotEmpty ?? false) ? textoPieVenta!.trim() : null;
 
-  /// Pie/términos efectivos para documentos de servicio.
-  String get pieServicioEfectivo =>
-      (textoPieServicio?.trim().isNotEmpty ?? false) ? textoPieServicio! : textoPiePagina;
+  /// Términos para documentos de SERVICIO; null = sin términos.
+  String? get terminosServicio =>
+      (textoPieServicio?.trim().isNotEmpty ?? false) ? textoPieServicio!.trim() : null;
 
   @override
   List<Object?> get props => [

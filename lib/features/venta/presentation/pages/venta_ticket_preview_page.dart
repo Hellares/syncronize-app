@@ -54,8 +54,9 @@ class _VentaTicketPreviewPageState extends State<VentaTicketPreviewPage> {
   String? _razonSocialEfectiva;
   String? _direccionFiscalEfectiva;
   String? _nombreComercialEfectivo;
-  // Pie del ticket (Configuración de Documentos: venta ?? general).
+  // Términos de venta (bloque izquierdo) + línea final centrada (general).
   String? _textoPieTicket;
+  String? _textoGracias;
   String? _telefonoEfectivo;
 
   /// Polling para esperar la respuesta de SUNAT cuando el comprobante
@@ -247,7 +248,8 @@ class _VentaTicketPreviewPageState extends State<VentaTicketPreviewPage> {
         _direccionFiscalEfectiva = direccionFiscalEfectiva;
         _nombreComercialEfectivo = nombreComercialEfectivo;
         _telefonoEfectivo = telefonoEfectivo;
-        _textoPieTicket = documentConfig?.configuracion.pieVentaEfectivo;
+        _textoPieTicket = documentConfig?.configuracion.terminosVenta;
+        _textoGracias = documentConfig?.configuracion.textoPiePagina;
       });
 
       // Programar siguiente intento si todavía no llegó la respuesta SUNAT.
@@ -509,6 +511,7 @@ class _VentaTicketPreviewPageState extends State<VentaTicketPreviewPage> {
         paperWidth: principal.anchoPapel.mm,
         nombreImpuesto: nombreImpuesto,
         textoPie: _textoPieTicket,
+        textoGracias: _textoGracias,
       );
 
       final ok = await manager.imprimirEnPrincipal(bytes);
@@ -572,6 +575,7 @@ class _VentaTicketPreviewPageState extends State<VentaTicketPreviewPage> {
       paperWidth: paperWidth,
       nombreImpuesto: nombreImpuesto,
       textoPie: _textoPieTicket,
+      textoGracias: _textoGracias,
     );
 
     if (!mounted) return;

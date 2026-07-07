@@ -25,8 +25,10 @@ class PdfOrdenServicioGenerator {
     Uint8List? logoEmpresa,
     String? colorPrimario,
     Uint8List? firmaCliente,
-    // Términos/pie configurable (textoPieServicio ?? textoPiePagina).
+    // Términos de servicio (bloque izquierdo, opcional).
     String? textoPie,
+    // Línea final centrada (textoPiePagina); null = default.
+    String? textoGracias,
   }) async {
     // Load Unicode-compatible fonts
     final fontRegular = pw.Font.ttf(
@@ -468,10 +470,18 @@ class PdfOrdenServicioGenerator {
             ],
 
             pw.SizedBox(height: 8),
+            // Términos configurados (izquierda) + agradecimiento centrado.
+            if (textoPie?.trim().isNotEmpty ?? false) ...[
+              pw.Text(
+                textoPie!.trim(),
+                style: const pw.TextStyle(fontSize: fsTiny),
+              ),
+              pw.SizedBox(height: 6),
+            ],
             pw.Center(
               child: pw.Text(
-                (textoPie?.trim().isNotEmpty ?? false)
-                    ? textoPie!.trim()
+                (textoGracias?.trim().isNotEmpty ?? false)
+                    ? textoGracias!.trim()
                     : 'Gracias por su preferencia',
                 textAlign: pw.TextAlign.center,
                 style: pw.TextStyle(
