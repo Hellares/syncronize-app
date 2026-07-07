@@ -248,8 +248,8 @@ class _ShimmerState extends State<_Shimmer>
 
   @override
   Widget build(BuildContext context) {
-    // Base casi a brillo normal; la intensidad la pone la banda de luz.
-    final base = widget.color.withValues(alpha: 0.85);
+    // Texto SIN opacidad (color pleno); el efecto lo pone solo la banda de luz.
+    final base = widget.color;
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, _) {
