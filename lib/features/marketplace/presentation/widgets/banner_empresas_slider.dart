@@ -260,9 +260,9 @@ class LottieFondoView extends StatelessWidget {
   }
 }
 
-/// Texto de la promo con animación: shimmer (destello que lo recorre) siempre,
-/// y si no cabe en el ancho disponible se convierte en marquee (texto rodante)
-/// para que se lea completo en vez de cortarse con "…".
+/// Texto de la promo animado: SIEMPRE corre en marquee (tipo letrero LED)
+/// con el destello/shimmer encima. La medición usa el textScaler del device
+/// para que el bucle sea continuo sin cortes.
 class _TextoPromoAnimado extends StatelessWidget {
   const _TextoPromoAnimado({
     required this.texto,
@@ -282,22 +282,18 @@ class _TextoPromoAnimado extends StatelessWidget {
           text: TextSpan(text: texto, style: style),
           maxLines: 1,
           textDirection: TextDirection.ltr,
+          textScaler: MediaQuery.textScalerOf(context),
         )..layout();
-        final cabe = painter.width <= constraints.maxWidth;
-
-        final child = cabe
-            ? Text(texto, maxLines: 1, overflow: TextOverflow.clip, style: style)
-            : _MarqueeTexto(
-                texto: texto,
-                style: style,
-                anchoTexto: painter.width,
-                anchoVisible: constraints.maxWidth,
-              );
 
         return _Shimmer(
           color: style.color ?? Colors.white,
           brillo: brillo ?? _Shimmer.brilloDefault,
-          child: child,
+          child: _MarqueeTexto(
+            texto: texto,
+            style: style,
+            anchoTexto: painter.width,
+            anchoVisible: constraints.maxWidth,
+          ),
         );
       },
     );
