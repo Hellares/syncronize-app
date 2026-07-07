@@ -31,6 +31,7 @@ import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:http/http.dart' as http;
 import '../../../usuario/domain/entities/usuario.dart';
+import '../widgets/adelantos_orden_widget.dart';
 import '../widgets/estado_badge_widget.dart';
 import '../widgets/add_componente_sheet.dart';
 import '../widgets/edit_componente_accion_sheet.dart';
@@ -1572,6 +1573,12 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                 ),
               ),
             ],
+
+            // LIBRO de adelantos: abonos acumulativos con fecha/hora/método.
+            AdelantosOrdenWidget(
+              orden: _orden!,
+              onOrdenActualizada: (o) => setState(() => _orden = o),
+            ),
           ],
         ),
       ),
@@ -1582,13 +1589,9 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     final costoTotalCtrl = TextEditingController(
       text: _orden?.costoTotal?.toStringAsFixed(2) ?? '',
     );
-    final adelantoCtrl = TextEditingController(
-      text: _orden?.adelanto?.toStringAsFixed(2) ?? '',
-    );
     final descuentoCtrl = TextEditingController(
       text: _orden?.descuento?.toStringAsFixed(2) ?? '',
     );
-    String? metodoPago = _orden?.metodoPagoAdelanto;
 
     showModalBottomSheet(
       context: context,
@@ -1598,7 +1601,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
         builder: (ctx, setSheetState) {
           final costo = double.tryParse(costoTotalCtrl.text) ?? 0;
           final desc = double.tryParse(descuentoCtrl.text) ?? 0;
-          final adel = double.tryParse(adelantoCtrl.text) ?? 0;
+          final adel = _orden?.adelanto ?? 0; // solo lectura (libro)
           final compCost = _orden?.subtotalComponentes ?? 0;
           final subtotalCalc = costo + compCost;
           final costoFinalCalc = subtotalCalc - desc;
@@ -1691,42 +1694,32 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                   ),
                   const SizedBox(height: 10),
 
-                  // Adelanto + método de pago
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        flex: 3,
-                        child: CustomText(
-                          controller: adelantoCtrl,
-                          label: 'Adelanto',
-                          hintText: '0.00',
-                          prefixText: 'S/ ',
-                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                          borderColor: AppColors.blue1,
-                          onChanged: (_) => setSheetState(() {}),
+                  // Adelanto: SOLO LECTURA — los abonos se registran en la
+                  // sección "Adelantos" del detalle (libro acumulativo).
+                  // Editarlo aquí como total causaba devoluciones fantasma
+                  // (2º abono de 10 tras 50 se interpretaba como 50→10).
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.savings_outlined,
+                            size: 15, color: Colors.grey.shade600),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'Adelantos: S/ ${adel.toStringAsFixed(2)} — se gestionan en la sección "Adelantos" del detalle',
+                            style: TextStyle(
+                                fontSize: 10.5, color: Colors.grey.shade700),
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        flex: 2,
-                        child: CustomDropdown<String>(
-                          label: 'Medio pago',
-                          hintText: 'Seleccionar',
-                          value: metodoPago,
-                          borderColor: AppColors.blue1,
-                          items: const [
-                            DropdownItem<String>(value: 'EFECTIVO', label: 'Efectivo'),
-                            DropdownItem<String>(value: 'YAPE', label: 'Yape'),
-                            DropdownItem<String>(value: 'PLIN', label: 'Plin'),
-                            DropdownItem<String>(value: 'TARJETA', label: 'Tarjeta'),
-                            DropdownItem<String>(value: 'TRANSFERENCIA', label: 'Transf.'),
-                            DropdownItem<String>(value: 'MIXTO', label: 'Mixto'),
-                          ],
-                          onChanged: (v) => setSheetState(() => metodoPago = v),
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
 
                   // Resumen en vivo
@@ -1771,35 +1764,16 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                     text: 'Guardar costos',
                     icon: const Icon(Icons.save_outlined, size: 16),
                     onPressed: () {
-                      // El adelanto se registra en caja con su medio de pago
-                      // (backend ADELANTO_SERVICIO) → método obligatorio.
-                      final adelGuardar = adelantoCtrl.text.isNotEmpty
-                          ? (double.tryParse(adelantoCtrl.text) ?? 0)
-                          : 0.0;
-                      if (adelGuardar > 0 &&
-                          (metodoPago == null || metodoPago!.isEmpty)) {
-                        ScaffoldMessenger.of(ctx).showSnackBar(
-                          SnackBar(
-                            content: const Text(
-                                'Selecciona el medio de pago del adelanto'),
-                            backgroundColor: Colors.orange.shade700,
-                            behavior: SnackBarBehavior.floating,
-                          ),
-                        );
-                        return;
-                      }
                       Navigator.pop(ctx);
+                      // El adelanto NO se envía: los abonos van por el libro
+                      // (POST /adelantos) desde la sección del detalle.
                       _guardarCostos(
                         costoTotal: costoTotalCtrl.text.isNotEmpty
                             ? double.tryParse(costoTotalCtrl.text)
                             : null,
-                        adelanto: adelantoCtrl.text.isNotEmpty
-                            ? double.tryParse(adelantoCtrl.text)
-                            : null,
                         descuento: descuentoCtrl.text.isNotEmpty
                             ? double.tryParse(descuentoCtrl.text)
                             : null,
-                        metodoPagoAdelanto: metodoPago,
                       );
                     },
                   ),
@@ -3194,15 +3168,16 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                           decimal: true),
                     ),
                     const SizedBox(height: 10),
-                    // Adelanto + método de pago
+                    // NUEVO abono de adelanto (ACUMULATIVO: se SUMA al total,
+                    // vía libro de adelantos — nunca reemplaza lo anterior).
                     Row(
                       children: [
                         Expanded(
                           flex: 3,
                           child: CustomText(
                             controller: adelantoController,
-                            label: 'Adelanto (S/)',
-                            hintText: 'Monto',
+                            label: 'Agregar adelanto (S/)',
+                            hintText: 'Nuevo abono (se suma)',
                             prefixText: 'S/ ',
                             borderColor: AppColors.blue1,
                             keyboardType: const TextInputType.numberWithOptions(
@@ -3306,24 +3281,25 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                     );
                     return;
                   }
-                  // Paridad backend B8: adelanto + descuento <= costo. El
-                  // dialog se cierra al confirmar, así que validar acá
-                  // evita perder lo tecleado en un 400 seguro.
+                  // Paridad backend: adelanto ACUMULADO + descuento <= base
+                  // facturable (servicio + componentes). El abono SE SUMA al
+                  // adelanto existente (libro), nunca lo reemplaza.
                   final costoEf = costoTotalController.text.isNotEmpty
                       ? double.tryParse(costoTotalController.text)
                       : _orden?.costoTotal;
                   if (costoEf != null) {
-                    final adelEf = adelantoController.text.isNotEmpty
-                        ? adelTransicion
-                        : (_orden?.adelanto ?? 0);
+                    final baseEf =
+                        costoEf + (_orden?.subtotalComponentes ?? 0);
+                    final adelEf =
+                        (_orden?.adelanto ?? 0) + adelTransicion;
                     final descEf = descuentoController.text.isNotEmpty
                         ? (double.tryParse(descuentoController.text) ?? 0)
                         : (_orden?.descuento ?? 0);
-                    if (adelEf + descEf > costoEf + 0.005) {
+                    if (adelEf + descEf > baseEf + 0.005) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                             content: Text(
-                                'La suma de adelanto y descuento no puede superar el costo total')),
+                                'Adelantos acumulados + descuento no pueden superar el total (servicio + repuestos)')),
                       );
                       return;
                     }
@@ -3341,13 +3317,11 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                     costoTotal: costoTotalController.text.isNotEmpty
                         ? double.tryParse(costoTotalController.text)
                         : null,
-                    adelanto: adelantoController.text.isNotEmpty
-                        ? double.tryParse(adelantoController.text)
-                        : null,
+                    nuevoAbono: adelTransicion > 0 ? adelTransicion : null,
+                    metodoAbono: metodoPagoAdelanto,
                     descuento: descuentoController.text.isNotEmpty
                         ? double.tryParse(descuentoController.text)
                         : null,
-                    metodoPagoAdelanto: metodoPagoAdelanto,
                   );
                 },
                 backgroundColor: isReingreso
@@ -3382,9 +3356,9 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     bool comunicarCliente = false,
     String? motivoReingreso,
     double? costoTotal,
-    double? adelanto,
+    double? nuevoAbono,
+    String? metodoAbono,
     double? descuento,
-    String? metodoPagoAdelanto,
   }) async {
     final empresaState = context.read<EmpresaContextCubit>().state;
     if (empresaState is! EmpresaContextLoaded) return;
@@ -3392,6 +3366,26 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     final repo = locator<OrdenServicioRepository>();
 
     setState(() => _isLoading = true);
+
+    // Abono de adelanto ACUMULATIVO vía libro (se SUMA al total). Va antes
+    // de la transición: si falla, no cambiamos el estado.
+    if (nuevoAbono != null && nuevoAbono > 0) {
+      final abonoResult = await repo.agregarAdelanto(
+        id: widget.ordenId,
+        empresaId: empresaState.context.empresa.id,
+        monto: nuevoAbono,
+        metodoPago: metodoAbono,
+        nota: 'Abono al pasar a ${_estadoTimelineLabel(nuevoEstado)}',
+      );
+      if (!mounted) return;
+      if (abonoResult is Error<OrdenServicio>) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Adelanto no registrado: ${abonoResult.message}')),
+        );
+        return;
+      }
+    }
 
     final result = await repo.transitionEstado(
       id: widget.ordenId,
@@ -3401,9 +3395,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
       comunicarCliente: comunicarCliente,
       motivoReingreso: motivoReingreso,
       costoTotal: costoTotal,
-      adelanto: adelanto,
       descuento: descuento,
-      metodoPagoAdelanto: metodoPagoAdelanto,
     );
 
     if (!mounted) return;

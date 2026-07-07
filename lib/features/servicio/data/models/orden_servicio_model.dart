@@ -50,6 +50,7 @@ class OrdenServicioModel extends OrdenServicio {
     super.tecnico,
     super.modeloEquipo,
     super.componentes,
+    super.adelantos,
     super.tercerizacionOrigen,
     super.tercerizacionDestino,
   });
@@ -120,12 +121,42 @@ class OrdenServicioModel extends OrdenServicio {
               .map((e) => OrdenComponenteModel.fromJson(e as Map<String, dynamic>))
               .toList()
           : null,
+      adelantos: json['adelantos'] != null
+          ? (json['adelantos'] as List)
+              .map((e) => AdelantoOrdenModel.fromJson(e as Map<String, dynamic>))
+              .toList()
+          : null,
       tercerizacionOrigen: json['tercerizacionOrigen'] != null
           ? TercerizacionResumenModel.fromJson(json['tercerizacionOrigen'] as Map<String, dynamic>)
           : null,
       tercerizacionDestino: json['tercerizacionDestino'] != null
           ? TercerizacionResumenModel.fromJson(json['tercerizacionDestino'] as Map<String, dynamic>)
           : null,
+    );
+  }
+}
+
+/// Fila del libro de adelantos (abono con fecha/hora/método/usuario).
+class AdelantoOrdenModel extends AdelantoOrden {
+  const AdelantoOrdenModel({
+    required super.id,
+    required super.monto,
+    super.metodoPago,
+    super.nota,
+    super.creadoPorNombre,
+    required super.creadoEn,
+    super.anulado,
+  });
+
+  factory AdelantoOrdenModel.fromJson(Map<String, dynamic> json) {
+    return AdelantoOrdenModel(
+      id: json['id'] as String,
+      monto: toSafeDouble(json['monto']),
+      metodoPago: json['metodoPago'] as String? ?? 'EFECTIVO',
+      nota: json['nota'] as String?,
+      creadoPorNombre: json['creadoPorNombre'] as String?,
+      creadoEn: DateTime.parse(json['creadoEn'] as String),
+      anulado: json['anulado'] as bool? ?? false,
     );
   }
 }

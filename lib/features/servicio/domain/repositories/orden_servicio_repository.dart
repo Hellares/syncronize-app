@@ -73,6 +73,22 @@ abstract class OrdenServicioRepository {
     String? metodoPagoAdelanto,
   });
 
+  /// Registra un NUEVO abono de adelanto (ACUMULATIVO: se SUMA al total).
+  Future<Resource<OrdenServicio>> agregarAdelanto({
+    required String id,
+    required String empresaId,
+    required double monto,
+    String? metodoPago,
+    String? nota,
+  });
+
+  /// Anula un abono del libro (EGRESO en caja por devolución).
+  Future<Resource<OrdenServicio>> anularAdelanto({
+    required String id,
+    required String empresaId,
+    required String adelantoId,
+  });
+
   Future<Resource<OrdenServicio>> assignTecnico({
     required String id,
     required String empresaId,

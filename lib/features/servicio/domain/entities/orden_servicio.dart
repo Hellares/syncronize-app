@@ -55,6 +55,10 @@ class OrdenServicio extends Equatable {
   final OrdenModeloEquipo? modeloEquipo;
   final List<OrdenComponente>? componentes;
 
+  /// LIBRO de adelantos: cada abono con fecha/hora, método y usuario.
+  /// `adelanto` (arriba) es el total = Σ filas no anuladas.
+  final List<AdelantoOrden>? adelantos;
+
   // Tercerización vinculada
   final TercerizacionResumen? tercerizacionOrigen;
   final TercerizacionResumen? tercerizacionDestino;
@@ -106,6 +110,7 @@ class OrdenServicio extends Equatable {
     this.tecnico,
     this.modeloEquipo,
     this.componentes,
+    this.adelantos,
     this.tercerizacionOrigen,
     this.tercerizacionDestino,
   });
@@ -409,4 +414,30 @@ class OrdenesServicioPaginadas {
     required this.hasNext,
     this.nextCursor,
   });
+}
+
+/// Fila del LIBRO de adelantos de una orden: un abono del cliente con
+/// fecha/hora, método y quién lo registró. Monto negativo = ajuste/corrección
+/// (edición de total desde APKs antiguos). `anulado` la excluye del total.
+class AdelantoOrden extends Equatable {
+  final String id;
+  final double monto;
+  final String metodoPago;
+  final String? nota;
+  final String? creadoPorNombre;
+  final DateTime creadoEn;
+  final bool anulado;
+
+  const AdelantoOrden({
+    required this.id,
+    required this.monto,
+    this.metodoPago = 'EFECTIVO',
+    this.nota,
+    this.creadoPorNombre,
+    required this.creadoEn,
+    this.anulado = false,
+  });
+
+  @override
+  List<Object?> get props => [id, monto, metodoPago, anulado];
 }

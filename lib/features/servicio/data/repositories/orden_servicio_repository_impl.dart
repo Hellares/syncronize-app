@@ -233,6 +233,46 @@ class OrdenServicioRepositoryImpl implements OrdenServicioRepository {
   }
 
   @override
+  Future<Resource<OrdenServicio>> agregarAdelanto({
+    required String id,
+    required String empresaId,
+    required double monto,
+    String? metodoPago,
+    String? nota,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final result = await _remoteDataSource.agregarAdelanto(id, {
+        'monto': monto,
+        if (metodoPago != null) 'metodoPago': metodoPago,
+        if (nota != null && nota.isNotEmpty) 'nota': nota,
+      });
+      return Success(result);
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'OrdenServicio');
+    }
+  }
+
+  @override
+  Future<Resource<OrdenServicio>> anularAdelanto({
+    required String id,
+    required String empresaId,
+    required String adelantoId,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final result = await _remoteDataSource.anularAdelanto(id, adelantoId);
+      return Success(result);
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'OrdenServicio');
+    }
+  }
+
+  @override
   Future<Resource<OrdenServicio>> assignTecnico({
     required String id,
     required String empresaId,

@@ -63,6 +63,29 @@ class OrdenServicioRemoteDataSource {
     return OrdenServicioModel.fromJson(response.data as Map<String, dynamic>);
   }
 
+  /// Registra un NUEVO abono de adelanto (ACUMULATIVO: se SUMA al total).
+  Future<OrdenServicioModel> agregarAdelanto(
+    String ordenId,
+    Map<String, dynamic> data,
+  ) async {
+    final response = await _dioClient.post(
+      '${ApiConstants.ordenesServicio}/$ordenId/adelantos',
+      data: data,
+    );
+    return OrdenServicioModel.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  /// Anula un abono del libro (devuelve el dinero: EGRESO en caja).
+  Future<OrdenServicioModel> anularAdelanto(
+    String ordenId,
+    String adelantoId,
+  ) async {
+    final response = await _dioClient.patch(
+      '${ApiConstants.ordenesServicio}/$ordenId/adelantos/$adelantoId/anular',
+    );
+    return OrdenServicioModel.fromJson(response.data as Map<String, dynamic>);
+  }
+
   Future<OrdenServicioModel> assignTecnico(String id, String tecnicoId) async {
     final response = await _dioClient.patch(
       '${ApiConstants.ordenesServicio}/$id/tecnico',
