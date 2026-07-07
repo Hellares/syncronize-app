@@ -7,6 +7,7 @@ class BannerMarketplaceModel {
   final String? colorTexto; // hex; null = contraste automático según el fondo
   final String? colorBrillo; // hex de la luz del shimmer; null = default app
   final String? lottieUrl; // fondo animado opcional (catálogo de la plataforma)
+  final Map<String, dynamic>? lottieConfig; // presentación: fit/alignment/tamaño
   final String empresaId;
   final String nombreEmpresa; // nombre comercial (fallback razón social)
   final String? logo;
@@ -19,6 +20,7 @@ class BannerMarketplaceModel {
     this.colorTexto,
     this.colorBrillo,
     this.lottieUrl,
+    this.lottieConfig,
     required this.empresaId,
     required this.nombreEmpresa,
     this.logo,
@@ -33,6 +35,7 @@ class BannerMarketplaceModel {
       colorTexto: json['colorTexto'] as String?,
       colorBrillo: json['colorBrillo'] as String?,
       lottieUrl: json['lottieUrl'] as String?,
+      lottieConfig: json['lottieConfig'] as Map<String, dynamic>?,
       empresaId: json['empresaId'] as String? ?? '',
       nombreEmpresa: json['nombreEmpresa'] as String? ?? '',
       logo: json['logo'] as String?,

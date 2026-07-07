@@ -97,7 +97,10 @@ class BannerMarketplaceCard extends StatelessWidget {
           children: [
             ColoredBox(color: fondo),
             if (banner.lottieUrl != null)
-              LottieFondoView(url: banner.lottieUrl!),
+              LottieFondoView(
+                url: banner.lottieUrl!,
+                config: banner.lottieConfig,
+              ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Row(
@@ -161,11 +164,20 @@ class BannerMarketplaceCard extends StatelessWidget {
 
 /// Fondo Lottie del catálogo: acepta URL http o ruta de asset local, y tanto
 /// .json como .lottie (dotLottie = ZIP con la animación adentro).
+/// `config` (viene del catálogo, editable sin APK) controla la presentación:
+/// {fit: "cover"|"contain", alignment: "centerLeft"|"center"|"centerRight",
+///  widthFactor: 0-1 (fracción del ancho del banner), opacity: 0-1}.
 class LottieFondoView extends StatelessWidget {
-  const LottieFondoView({super.key, required this.url, this.fit = BoxFit.cover});
+  const LottieFondoView({
+    super.key,
+    required this.url,
+    this.fit = BoxFit.cover,
+    this.config,
+  });
 
   final String url;
   final BoxFit fit;
+  final Map<String, dynamic>? config;
 
   /// Decoder para archivos .lottie: abre el ZIP y toma el primer JSON de
   /// `animations/` (formato estándar dotLottie).
@@ -180,25 +192,71 @@ class LottieFondoView extends StatelessWidget {
     });
   }
 
+  static Alignment _alignment(String? nombre) {
+    switch (nombre) {
+      case 'topLeft':
+        return Alignment.topLeft;
+      case 'topRight':
+        return Alignment.topRight;
+      case 'centerLeft':
+        return Alignment.centerLeft;
+      case 'centerRight':
+        return Alignment.centerRight;
+      case 'bottomLeft':
+        return Alignment.bottomLeft;
+      case 'bottomRight':
+        return Alignment.bottomRight;
+      default:
+        return Alignment.center;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final decoder = url.toLowerCase().endsWith('.lottie') ? _dotLottie : null;
-    if (url.startsWith('http')) {
-      return Lottie.network(
-        url,
-        fit: fit,
-        repeat: true,
-        decoder: decoder,
-        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+    final cfg = config;
+    final efFit = cfg?['fit'] == 'contain'
+        ? BoxFit.contain
+        : (cfg?['fit'] == 'cover' ? BoxFit.cover : fit);
+    final alignment = _alignment(cfg?['alignment'] as String?);
+
+    Widget lottie = url.startsWith('http')
+        ? Lottie.network(
+            url,
+            fit: efFit,
+            alignment: alignment,
+            repeat: true,
+            decoder: decoder,
+            errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+          )
+        : Lottie.asset(
+            url,
+            fit: efFit,
+            alignment: alignment,
+            repeat: true,
+            decoder: decoder,
+            errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+          );
+
+    // Tamaño: fracción del ancho disponible, anclada a `alignment`.
+    final widthFactor = (cfg?['widthFactor'] as num?)?.toDouble();
+    if (widthFactor != null && widthFactor > 0 && widthFactor < 1) {
+      lottie = Align(
+        alignment: alignment,
+        child: FractionallySizedBox(
+          widthFactor: widthFactor,
+          heightFactor: 1,
+          child: lottie,
+        ),
       );
     }
-    return Lottie.asset(
-      url,
-      fit: fit,
-      repeat: true,
-      decoder: decoder,
-      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-    );
+
+    final opacity = (cfg?['opacity'] as num?)?.toDouble();
+    if (opacity != null && opacity >= 0 && opacity < 1) {
+      lottie = Opacity(opacity: opacity, child: lottie);
+    }
+
+    return lottie;
   }
 }
 

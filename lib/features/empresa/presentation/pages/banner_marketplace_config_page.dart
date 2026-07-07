@@ -182,10 +182,10 @@ class _BannerMarketplaceConfigPageState
     }
   }
 
-  String? get _lottieUrlSeleccionado {
+  Map<String, dynamic>? get _lottieSeleccionado {
     if (_lottieFondoId == null) return null;
     for (final l in _lotties) {
-      if (l['id'] == _lottieFondoId) return l['url'] as String?;
+      if (l['id'] == _lottieFondoId) return l;
     }
     return null;
   }
@@ -347,7 +347,8 @@ class _BannerMarketplaceConfigPageState
           colorFondo: _colorFondo,
           colorTexto: _colorTexto,
           colorBrillo: _colorBrillo,
-          lottieUrl: _lottieUrlSeleccionado,
+          lottieUrl: _lottieSeleccionado?['url'] as String?,
+          lottieConfig: _lottieSeleccionado?['config'] as Map<String, dynamic>?,
           empresaId: '',
           nombreEmpresa: (_nombreEmpresa?.isNotEmpty == true
                   ? _nombreEmpresa
