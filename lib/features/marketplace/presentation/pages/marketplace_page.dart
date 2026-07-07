@@ -13,6 +13,8 @@ import '../../domain/entities/categoria_marketplace.dart';
 import '../../domain/entities/marketplace_home.dart';
 import '../../domain/entities/producto_marketplace.dart';
 import '../../../carrito/presentation/widgets/carrito_badge.dart';
+import '../../data/datasources/marketplace_remote_datasource.dart';
+import '../../data/models/banner_marketplace_model.dart';
 import '../../domain/usecases/get_marketplace_home_usecase.dart';
 import '../../domain/usecases/get_productos_vistos_usecase.dart';
 import '../../domain/usecases/get_recomendados_usecase.dart';
@@ -64,8 +66,8 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
 
   /// Destino de la animación "vuela al carrito" desde las cards del grid.
   final _cartIconKey = GlobalKey();
-  // Bump para recrear el slider de banners en el pull-to-refresh.
-  int _bannersReload = 0;
+  // Banners publicitarios (pinneados bajo las categorías).
+  List<BannerMarketplaceModel> _banners = const [];
   String? _selectedCategoriaId;
   // ignore: unused_field  (ubicación oculta temporalmente para pruebas)
   double? _ubicacionLat;
@@ -90,6 +92,7 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
     _loadUserData();
     _loadCarritoCount();
     _loadHome();
+    _loadBanners();
     // Popup de publicidad ~3s después de entrar (máx 1-2 veces/día).
     Future.delayed(const Duration(seconds: 3), () {
       if (mounted) PromoPopup.mostrarSiCorresponde(context);
@@ -186,6 +189,17 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
       _masVendidos = home.masVendidos;
       _masVistos = home.masVistos;
     });
+  }
+
+  /// Banners publicitarios (empresas con plan vigente). Público, sin auth.
+  Future<void> _loadBanners() async {
+    try {
+      final banners =
+          await locator<MarketplaceRemoteDataSource>().getBanners();
+      if (mounted) setState(() => _banners = banners);
+    } catch (_) {
+      // Silencioso: sin banners el sliver simplemente no se incluye.
+    }
   }
 
   Future<void> _loadUserData() async {
@@ -490,11 +504,10 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
         body: RefreshIndicator(
           color: AppColors.blue2,
           onRefresh: () async {
-            // Recrea el slider de banners para que recargue del backend.
-            setState(() => _bannersReload++);
             await context.read<MarketplaceSearchCubit>().refresh();
             await _loadHome();
             await _loadUserData();
+            await _loadBanners();
           },
           child: CustomScrollView(
             controller: _scrollController,
@@ -530,6 +543,19 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
                   child: _buildCategoriaChips(),
                 ),
               ),
+              // Banners publicitarios PINNEADOS bajo las categorías: siempre
+              // visibles (es pequeño y es el espacio que se vende por plan).
+              if (_banners.isNotEmpty)
+                SliverPersistentHeader(
+                  pinned: true,
+                  delegate: _PinnedChipsDelegate(
+                    height: BannerEmpresasSlider.sliverHeight,
+                    child: ColoredBox(
+                      color: Colors.white,
+                      child: BannerEmpresasSlider(banners: _banners),
+                    ),
+                  ),
+                ),
               // Secciones del home: solo cuando no hay búsqueda/categoría/filtros.
               SliverToBoxAdapter(
                 child: BlocBuilder<MarketplaceSearchCubit,
@@ -543,9 +569,6 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
                     if (!esHome) return const SizedBox.shrink();
                     return Column(
                       children: [
-                        // Banners promocionales de empresas (premium, por plan).
-                        BannerEmpresasSlider(
-                            key: ValueKey('banners-$_bannersReload')),
                         if (_recomendados.isNotEmpty)
                           _buildSeccionCarrusel(
                               'Recomendados para ti', _recomendados),

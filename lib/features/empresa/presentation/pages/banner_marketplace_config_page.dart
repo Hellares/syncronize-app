@@ -101,6 +101,8 @@ class _BannerMarketplaceConfigPageState
   // Nombre COMERCIAL (fallback nombre fiscal) + logo: lo que verá el público.
   String? _nombreEmpresa;
   String? _logoEmpresa;
+  // Rendimiento publicitario del mes (impresiones/taps) que reporta el backend.
+  Map<String, dynamic>? _metricasMes;
 
   String? get _empresaId => _localStorage.getString(StorageConstants.tenantId);
 
@@ -133,6 +135,7 @@ class _BannerMarketplaceConfigPageState
         _habilitado = data['habilitado'] == true;
         _nombreEmpresa = data['nombreEmpresa'] as String?;
         _logoEmpresa = data['logo'] as String?;
+        _metricasMes = data['metricasMes'] as Map<String, dynamic>?;
         _lotties = lotties;
         if (banner != null) {
           _textoController.text = banner['texto'] as String? ?? '';
@@ -245,6 +248,28 @@ class _BannerMarketplaceConfigPageState
               style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
           _buildPreview(context),
+          if (_metricasMes != null) ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Icon(Icons.visibility_outlined,
+                    size: 15, color: Colors.grey.shade600),
+                const SizedBox(width: 4),
+                Text(
+                  '${_metricasMes!['impresiones'] ?? 0} vistas este mes',
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+                ),
+                const SizedBox(width: 14),
+                Icon(Icons.touch_app_outlined,
+                    size: 15, color: Colors.grey.shade600),
+                const SizedBox(width: 4),
+                Text(
+                  '${_metricasMes!['taps'] ?? 0} visitas a tu tienda',
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 20),
           CustomText(
             controller: _textoController,

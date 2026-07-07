@@ -72,6 +72,19 @@ class MarketplaceRemoteDataSource {
         .toList();
   }
 
+  /// Métricas de publicidad del banner: fire-and-forget, jamás lanzan.
+  Future<void> registrarBannerImpresion(String bannerId) async {
+    try {
+      await _dioClient.post('/marketplace/banners/$bannerId/impresion');
+    } catch (_) {}
+  }
+
+  Future<void> registrarBannerTap(String bannerId) async {
+    try {
+      await _dioClient.post('/marketplace/banners/$bannerId/tap');
+    } catch (_) {}
+  }
+
   /// GET /marketplace/usuario/vistos
   Future<List<ProductoMarketplaceModel>> getVistos({int limit = 10}) async {
     final response = await _dioClient.get(

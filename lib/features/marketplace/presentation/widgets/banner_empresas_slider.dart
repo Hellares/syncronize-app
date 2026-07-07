@@ -11,14 +11,22 @@ import '../../data/datasources/marketplace_remote_datasource.dart';
 import '../../data/models/banner_marketplace_model.dart';
 
 /// Slider de banners promocionales de empresas (home del marketplace).
-/// 60px de alto, full-width. Solo llegan empresas con la característica
-/// BANNER_MARKETPLACE vigente; si la lista está vacía no ocupa espacio.
+/// Va PINNEADO bajo los chips de categorías (siempre visible). Los banners
+/// los carga y pasa la página (para incluir el sliver solo si hay alguno).
 /// Fondo: color elegido por la empresa + Lottie opcional del catálogo.
 /// Tap → página pública de la empresa (/vendedor/:subdominio).
+/// Métricas de publicidad: registra IMPRESIÓN la primera vez que cada banner
+/// se muestra (carga inicial + rotación) y TAP al tocarlo.
 class BannerEmpresasSlider extends StatefulWidget {
-  const BannerEmpresasSlider({super.key});
+  const BannerEmpresasSlider({super.key, required this.banners});
+
+  final List<BannerMarketplaceModel> banners;
 
   static const double bannerHeight = 50;
+
+  /// Alto del sliver pinneado (banner + respiro vertical).
+  static const double sliverHeight = 55
+  ;
 
   @override
   State<BannerEmpresasSlider> createState() => _BannerEmpresasSliderState();
@@ -26,50 +34,58 @@ class BannerEmpresasSlider extends StatefulWidget {
 
 class _BannerEmpresasSliderState extends State<BannerEmpresasSlider> {
   final _datasource = locator<MarketplaceRemoteDataSource>();
-  List<BannerMarketplaceModel> _banners = const [];
+
+  /// Ids ya contados como impresión en esta sesión del widget (dedup).
+  final Set<String> _impresionados = {};
 
   @override
   void initState() {
     super.initState();
-    _load();
+    if (widget.banners.isNotEmpty) _registrarImpresion(0);
   }
 
-  Future<void> _load() async {
-    try {
-      final banners = await _datasource.getBanners();
-      if (mounted) setState(() => _banners = banners);
-    } catch (_) {
-      // Silencioso: el slider simplemente no aparece.
+  void _registrarImpresion(int index) {
+    if (index < 0 || index >= widget.banners.length) return;
+    final banner = widget.banners[index];
+    if (_impresionados.add(banner.id)) {
+      _datasource.registrarBannerImpresion(banner.id);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_banners.isEmpty) return const SizedBox.shrink();
+    final banners = widget.banners;
+    if (banners.isEmpty) return const SizedBox.shrink();
 
     return Padding(
       padding: const EdgeInsets.only(top: 6, bottom: 2),
       child: CarouselSlider.builder(
-        itemCount: _banners.length,
+        itemCount: banners.length,
         options: CarouselOptions(
           height: BannerEmpresasSlider.bannerHeight,
           viewportFraction: 1.0,
-          autoPlay: _banners.length > 1,
+          autoPlay: banners.length > 1,
           autoPlayInterval: const Duration(seconds: 5),
           autoPlayAnimationDuration: const Duration(milliseconds: 600),
-          enableInfiniteScroll: _banners.length > 1,
+          enableInfiniteScroll: banners.length > 1,
+          onPageChanged: (index, _) => _registrarImpresion(index),
         ),
-        itemBuilder: (context, index, _) =>
-            BannerMarketplaceCard(banner: _banners[index]),
+        itemBuilder: (context, index, _) => BannerMarketplaceCard(
+          banner: banners[index],
+          onTap: () => _datasource.registrarBannerTap(banners[index].id),
+        ),
       ),
     );
   }
 }
 
 class BannerMarketplaceCard extends StatelessWidget {
-  const BannerMarketplaceCard({super.key, required this.banner});
+  const BannerMarketplaceCard({super.key, required this.banner, this.onTap});
 
   final BannerMarketplaceModel banner;
+
+  /// Callback extra al tocar (métricas). El preview no lo pasa.
+  final VoidCallback? onTap;
 
   static Color? parseHex(String? hex) {
     if (hex == null) return null;
@@ -88,7 +104,10 @@ class BannerMarketplaceCard extends StatelessWidget {
     return GestureDetector(
       onTap: banner.subdominio == null
           ? null
-          : () => context.push('/vendedor/${banner.subdominio}'),
+          : () {
+              onTap?.call();
+              context.push('/vendedor/${banner.subdominio}');
+            },
       child: SizedBox(
         width: double.infinity,
         height: BannerEmpresasSlider.bannerHeight,
