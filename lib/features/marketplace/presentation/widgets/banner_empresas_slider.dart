@@ -97,12 +97,7 @@ class BannerMarketplaceCard extends StatelessWidget {
           children: [
             ColoredBox(color: fondo),
             if (banner.lottieUrl != null)
-              Lottie.network(
-                banner.lottieUrl!,
-                fit: BoxFit.cover,
-                repeat: true,
-                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-              ),
+              LottieFondoView(url: banner.lottieUrl!),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Row(
@@ -160,6 +155,49 @@ class BannerMarketplaceCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Fondo Lottie del catálogo: acepta URL http o ruta de asset local, y tanto
+/// .json como .lottie (dotLottie = ZIP con la animación adentro).
+class LottieFondoView extends StatelessWidget {
+  const LottieFondoView({super.key, required this.url, this.fit = BoxFit.cover});
+
+  final String url;
+  final BoxFit fit;
+
+  /// Decoder para archivos .lottie: abre el ZIP y toma el primer JSON de
+  /// `animations/` (formato estándar dotLottie).
+  static Future<LottieComposition?> _dotLottie(List<int> bytes) {
+    return LottieComposition.decodeZip(bytes, filePicker: (files) {
+      for (final f in files) {
+        if (f.name.startsWith('animations/') && f.name.endsWith('.json')) {
+          return f;
+        }
+      }
+      return null;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final decoder = url.toLowerCase().endsWith('.lottie') ? _dotLottie : null;
+    if (url.startsWith('http')) {
+      return Lottie.network(
+        url,
+        fit: fit,
+        repeat: true,
+        decoder: decoder,
+        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+      );
+    }
+    return Lottie.asset(
+      url,
+      fit: fit,
+      repeat: true,
+      decoder: decoder,
+      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
     );
   }
 }

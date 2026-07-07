@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:lottie/lottie.dart';
 
 import '../../../../core/constants/storage_constants.dart';
 import '../../../../core/di/injection_container.dart';
@@ -26,6 +25,7 @@ const List<String> _paletaBanner = [
 ];
 
 /// Colores elegibles para el TEXTO (null = contraste automático).
+/// Incluye los acentos brillantes + los mismos colores de la paleta de fondo.
 const List<String> _paletaTexto = [
   '#FFFFFF', // blanco
   '#212121', // negro
@@ -41,6 +41,17 @@ const List<String> _paletaTexto = [
   '#FF5252', // rojo
   '#FF80AB', // rosa
   '#FFD54F', // dorado
+  '#1565C0', // azul fondo
+  '#0D47A1', // azul oscuro
+  '#00695C', // teal oscuro
+  '#2E7D32', // verde oscuro
+  '#F9A825', // ámbar
+  '#EF6C00', // naranja oscuro
+  '#C62828', // rojo oscuro
+  '#AD1457', // magenta oscuro
+  '#6A1B9A', // púrpura
+  '#4527A0', // índigo
+  '#37474F', // gris azulado
 ];
 
 /// Colores elegibles para el BRILLO/luz que recorre el texto.
@@ -438,12 +449,7 @@ class _BannerMarketplaceConfigPageState
               SizedBox(
                 width: 40,
                 height: 40,
-                child: Lottie.network(
-                  url,
-                  repeat: true,
-                  errorBuilder: (_, __, ___) =>
-                      const Icon(Icons.animation, size: 24),
-                ),
+                child: LottieFondoView(url: url, fit: BoxFit.contain),
               )
             else
               Icon(Icons.block, size: 24, color: Colors.grey.shade400),
