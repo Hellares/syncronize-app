@@ -2915,10 +2915,13 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
       vendedorId: vendedorId,
     );
 
-    // Saldo con la fórmula del BACKEND (costoTotal − adelanto − descuento).
-    // OJO: no usar el getter `saldoPendiente` de la entidad (suma
-    // componentes) — divergiría con la validación 409 del cobro.
-    final costoTotal = orden.costoTotal ?? 0;
+    // Base facturable = servicio + componentes (MODELO ADITIVO, igual que el
+    // backend: su validación exige precio de línea == costoNeto CON
+    // componentes). findCobrables expone costoTotal ya sumado; aquí lo
+    // replicamos con el getter de la entidad. Antes se mandaba solo el
+    // costo del servicio → 409 SALDO_ORDEN_DESACTUALIZADO en toda OS con
+    // componentes cobrada desde el detalle.
+    final costoTotal = (orden.costoTotal ?? 0) + orden.subtotalComponentes;
     final adelanto = orden.adelanto ?? 0;
     final descuento = orden.descuento ?? 0;
     final saldo =
