@@ -21,7 +21,7 @@ import '../bloc/empresa_context/empresa_context_state.dart';
 
 /// Paleta fija para el fondo del banner (colores seguros visualmente).
 const List<String> _paletaBanner = [
-  '#1565C0', '#0D47A1', '#00695C', '#2E7D32', '#F9A825', '#EF6C00',
+  '#FFFFFF', '#1565C0', '#0D47A1', '#00695C', '#2E7D32', '#F9A825', '#EF6C00',
   '#C62828', '#AD1457', '#6A1B9A', '#4527A0', '#37474F', '#212121',
 ];
 
