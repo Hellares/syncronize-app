@@ -71,17 +71,19 @@ class BannerMarketplaceCard extends StatelessWidget {
 
   final BannerMarketplaceModel banner;
 
-  Color get _fondo {
-    final hex = banner.colorFondo.replaceFirst('#', '');
-    final value = int.tryParse(hex, radix: 16);
-    return value != null ? Color(0xFF000000 | value) : const Color(0xFF1565C0);
+  static Color? parseHex(String? hex) {
+    if (hex == null) return null;
+    final value = int.tryParse(hex.replaceFirst('#', ''), radix: 16);
+    return value != null ? Color(0xFF000000 | value) : null;
   }
 
   @override
   Widget build(BuildContext context) {
-    final fondo = _fondo;
-    // Contraste automático: texto blanco sobre fondos oscuros y viceversa.
-    final texto = fondo.computeLuminance() > 0.5 ? Colors.black87 : Colors.white;
+    final fondo = parseHex(banner.colorFondo) ?? const Color(0xFF1565C0);
+    // Color de texto elegido por la empresa; si no, contraste automático.
+    final texto = parseHex(banner.colorTexto) ??
+        (fondo.computeLuminance() > 0.5 ? Colors.black87 : Colors.white);
+    final brillo = parseHex(banner.colorBrillo);
 
     return GestureDetector(
       onTap: banner.subdominio == null
@@ -128,6 +130,7 @@ class BannerMarketplaceCard extends StatelessWidget {
                       children: [
                         _TextoPromoAnimado(
                           texto: banner.texto,
+                          brillo: brillo,
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w500,
@@ -165,10 +168,15 @@ class BannerMarketplaceCard extends StatelessWidget {
 /// y si no cabe en el ancho disponible se convierte en marquee (texto rodante)
 /// para que se lea completo en vez de cortarse con "…".
 class _TextoPromoAnimado extends StatelessWidget {
-  const _TextoPromoAnimado({required this.texto, required this.style});
+  const _TextoPromoAnimado({
+    required this.texto,
+    required this.style,
+    this.brillo,
+  });
 
   final String texto;
   final TextStyle style;
+  final Color? brillo; // color de la luz elegido por la empresa
 
   @override
   Widget build(BuildContext context) {
@@ -190,7 +198,11 @@ class _TextoPromoAnimado extends StatelessWidget {
                 anchoVisible: constraints.maxWidth,
               );
 
-        return _Shimmer(color: style.color ?? Colors.white, child: child);
+        return _Shimmer(
+          color: style.color ?? Colors.white,
+          brillo: brillo ?? _Shimmer.brilloDefault,
+          child: child,
+        );
       },
     );
   }
@@ -198,9 +210,17 @@ class _TextoPromoAnimado extends StatelessWidget {
 
 /// Destello periódico que recorre el texto (banda brillante cada ~3.5s).
 class _Shimmer extends StatefulWidget {
-  const _Shimmer({required this.color, required this.child});
+  const _Shimmer({
+    required this.color,
+    required this.brillo,
+    required this.child,
+  });
+
+  /// Color de la LUZ por defecto si la empresa no eligió uno.
+  static const Color brilloDefault = Color(0xFF69F0AE); // verde (greenAccent)
 
   final Color color;
+  final Color brillo;
   final Widget child;
 
   @override
@@ -228,8 +248,8 @@ class _ShimmerState extends State<_Shimmer>
 
   @override
   Widget build(BuildContext context) {
-    // Base más atenuada → la banda de LUZ (blanca) contrasta con fuerza.
-    final base = widget.color.withValues(alpha: 0.6);
+    // Base casi a brillo normal; la intensidad la pone la banda de luz.
+    final base = widget.color.withValues(alpha: 0.85);
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, _) {
@@ -241,7 +261,7 @@ class _ShimmerState extends State<_Shimmer>
             ShaderMask(
               blendMode: BlendMode.srcIn,
               shaderCallback: (bounds) => LinearGradient(
-                colors: [base, Colors.white, base],
+                colors: [base, widget.brillo, base],
                 stops: _stops(t, 0.18),
               ).createShader(bounds),
               child: widget.child,
@@ -255,17 +275,17 @@ class _ShimmerState extends State<_Shimmer>
                   shaderCallback: (bounds) => LinearGradient(
                     colors: [
                       Colors.transparent,
-                      Colors.white,
+                      widget.brillo.withValues(alpha: 0.7),
                       Colors.transparent,
                     ],
-                    stops: _stops(t, 0.16),
+                    stops: _stops(t, 0.14),
                   ).createShader(bounds),
                   child: ImageFiltered(
-                    imageFilter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+                    imageFilter: ImageFilter.blur(sigmaX: 2.5, sigmaY: 2.5),
                     child: ShaderMask(
                       blendMode: BlendMode.srcIn,
-                      shaderCallback: (bounds) => const LinearGradient(
-                        colors: [Colors.white, Colors.white],
+                      shaderCallback: (bounds) => LinearGradient(
+                        colors: [widget.brillo, widget.brillo],
                       ).createShader(bounds),
                       child: widget.child,
                     ),

@@ -25,6 +25,24 @@ const List<String> _paletaBanner = [
   '#C62828', '#AD1457', '#6A1B9A', '#4527A0', '#37474F', '#212121',
 ];
 
+/// Colores elegibles para el TEXTO (null = contraste automático).
+const List<String> _paletaTexto = [
+  '#FFFFFF', '#212121', '#E040FB', '#69F0AE', '#FFAB40',
+  '#40C4FF', '#FF5252', '#FFD54F',
+];
+
+/// Colores elegibles para el BRILLO/luz que recorre el texto.
+const List<String> _paletaBrillo = [
+  '#E040FB', // fucsia
+  '#69F0AE', // verde
+  '#FFAB40', // naranja
+  '#40C4FF', // azul
+  '#FF5252', // rojo
+  '#212121', // negro
+  '#FFFFFF', // blanco
+  '#FFD54F', // dorado
+];
+
 /// Configuración del banner promocional de la empresa en el marketplace.
 /// Feature premium: si la empresa no tiene BANNER_MARKETPLACE vigente se
 /// muestra bloqueada (el backend también lo valida en el PUT).
@@ -47,6 +65,8 @@ class _BannerMarketplaceConfigPageState
   bool _habilitado = false;
   bool _bannerActivo = true;
   String _colorFondo = _paletaBanner.first;
+  String? _colorTexto; // null = contraste automático
+  String? _colorBrillo; // null = default del app (verde)
   String? _lottieFondoId;
   List<Map<String, dynamic>> _lotties = const [];
   // Nombre COMERCIAL (fallback nombre fiscal) + logo: lo que verá el público.
@@ -88,6 +108,8 @@ class _BannerMarketplaceConfigPageState
         if (banner != null) {
           _textoController.text = banner['texto'] as String? ?? '';
           _colorFondo = banner['colorFondo'] as String? ?? _paletaBanner.first;
+          _colorTexto = banner['colorTexto'] as String?;
+          _colorBrillo = banner['colorBrillo'] as String?;
           _lottieFondoId = banner['lottieFondoId'] as String?;
           _bannerActivo = banner['isActive'] == true;
         }
@@ -115,6 +137,8 @@ class _BannerMarketplaceConfigPageState
         data: {
           'texto': texto,
           'colorFondo': _colorFondo,
+          'colorTexto': _colorTexto,
+          'colorBrillo': _colorBrillo,
           'lottieFondoId': _lottieFondoId,
           'isActive': _bannerActivo,
         },
@@ -209,7 +233,51 @@ class _BannerMarketplaceConfigPageState
           Wrap(
             spacing: 10,
             runSpacing: 10,
-            children: _paletaBanner.map(_buildColorDot).toList(),
+            children: [
+              for (final hex in _paletaBanner)
+                _colorDot(
+                  hex: hex,
+                  selected: _colorFondo == hex,
+                  onTap: () => setState(() => _colorFondo = hex),
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const Text('Color del texto',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              // "Auto" = contraste automático según el fondo.
+              _autoDot(
+                selected: _colorTexto == null,
+                onTap: () => setState(() => _colorTexto = null),
+              ),
+              for (final hex in _paletaTexto)
+                _colorDot(
+                  hex: hex,
+                  selected: _colorTexto == hex,
+                  onTap: () => setState(() => _colorTexto = hex),
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const Text('Color del brillo (luz que recorre el texto)',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              for (final hex in _paletaBrillo)
+                _colorDot(
+                  hex: hex,
+                  selected: _colorBrillo == hex,
+                  onTap: () => setState(() => _colorBrillo = hex),
+                ),
+            ],
           ),
           const SizedBox(height: 16),
           const Text('Fondo animado',
@@ -248,6 +316,8 @@ class _BannerMarketplaceConfigPageState
               ? 'Tu promoción se verá así'
               : _textoController.text.trim(),
           colorFondo: _colorFondo,
+          colorTexto: _colorTexto,
+          colorBrillo: _colorBrillo,
           lottieUrl: _lottieUrlSeleccionado,
           empresaId: '',
           nombreEmpresa: (_nombreEmpresa?.isNotEmpty == true
@@ -261,12 +331,18 @@ class _BannerMarketplaceConfigPageState
     );
   }
 
-  Widget _buildColorDot(String hex) {
+  Widget _colorDot({
+    required String hex,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
     final color = Color(0xFF000000 |
         (int.tryParse(hex.substring(1), radix: 16) ?? 0x1565C0));
-    final selected = _colorFondo == hex;
+    // Check en contraste con el color del punto (falla en blanco/dorado si no).
+    final check =
+        color.computeLuminance() > 0.5 ? Colors.black87 : Colors.white;
     return GestureDetector(
-      onTap: () => setState(() => _colorFondo = hex),
+      onTap: onTap,
       child: Container(
         width: 34,
         height: 34,
@@ -274,13 +350,32 @@ class _BannerMarketplaceConfigPageState
           color: color,
           shape: BoxShape.circle,
           border: Border.all(
-            color: selected ? AppColors.blue1 : Colors.transparent,
-            width: 3,
+            color: selected ? AppColors.blue1 : Colors.grey.shade300,
+            width: selected ? 3 : 1,
           ),
         ),
-        child: selected
-            ? const Icon(Icons.check, size: 16, color: Colors.white)
-            : null,
+        child: selected ? Icon(Icons.check, size: 16, color: check) : null,
+      ),
+    );
+  }
+
+  /// Punto "Auto": contraste automático del texto según el fondo.
+  Widget _autoDot({required bool selected, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 34,
+        height: 34,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: selected ? AppColors.blue1 : Colors.grey.shade300,
+            width: selected ? 3 : 1,
+          ),
+        ),
+        child: Icon(Icons.auto_fix_high,
+            size: 16, color: selected ? AppColors.blue1 : Colors.grey),
       ),
     );
   }

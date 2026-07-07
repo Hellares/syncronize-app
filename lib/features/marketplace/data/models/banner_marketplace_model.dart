@@ -4,6 +4,8 @@ class BannerMarketplaceModel {
   final String id;
   final String texto;
   final String colorFondo; // hex "#RRGGBB" elegido por la empresa
+  final String? colorTexto; // hex; null = contraste automático según el fondo
+  final String? colorBrillo; // hex de la luz del shimmer; null = default app
   final String? lottieUrl; // fondo animado opcional (catálogo de la plataforma)
   final String empresaId;
   final String nombreEmpresa; // nombre comercial (fallback razón social)
@@ -14,6 +16,8 @@ class BannerMarketplaceModel {
     required this.id,
     required this.texto,
     required this.colorFondo,
+    this.colorTexto,
+    this.colorBrillo,
     this.lottieUrl,
     required this.empresaId,
     required this.nombreEmpresa,
@@ -26,6 +30,8 @@ class BannerMarketplaceModel {
       id: json['id'] as String? ?? '',
       texto: json['texto'] as String? ?? '',
       colorFondo: json['colorFondo'] as String? ?? '#1565C0',
+      colorTexto: json['colorTexto'] as String?,
+      colorBrillo: json['colorBrillo'] as String?,
       lottieUrl: json['lottieUrl'] as String?,
       empresaId: json['empresaId'] as String? ?? '',
       nombreEmpresa: json['nombreEmpresa'] as String? ?? '',
