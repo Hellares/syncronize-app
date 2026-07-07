@@ -27,17 +27,35 @@ const List<String> _paletaBanner = [
 
 /// Colores elegibles para el TEXTO (null = contraste automático).
 const List<String> _paletaTexto = [
-  '#FFFFFF', '#212121', '#E040FB', '#69F0AE', '#FFAB40',
-  '#40C4FF', '#FF5252', '#FFD54F',
+  '#FFFFFF', // blanco
+  '#212121', // negro
+  '#E040FB', // fucsia
+  '#69F0AE', // verde menta
+  '#00C853', // verde intenso
+  '#1DE9B6', // teal
+  '#AEEA00', // lima
+  '#FFAB40', // naranja
+  '#40C4FF', // azul
+  '#80D8FF', // celeste
+  '#7C4DFF', // morado
+  '#FF5252', // rojo
+  '#FF80AB', // rosa
+  '#FFD54F', // dorado
 ];
 
 /// Colores elegibles para el BRILLO/luz que recorre el texto.
 const List<String> _paletaBrillo = [
   '#E040FB', // fucsia
-  '#69F0AE', // verde
+  '#69F0AE', // verde menta
+  '#00C853', // verde intenso
+  '#1DE9B6', // teal
+  '#AEEA00', // lima
   '#FFAB40', // naranja
   '#40C4FF', // azul
+  '#80D8FF', // celeste
+  '#7C4DFF', // morado
   '#FF5252', // rojo
+  '#FF80AB', // rosa
   '#212121', // negro
   '#FFFFFF', // blanco
   '#FFD54F', // dorado
