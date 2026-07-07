@@ -484,17 +484,20 @@ class _ConfiguracionDocumentosPageState
             CustomText(
               controller: _textoPieVentaCtrl,
               label: 'Pie para TICKET DE VENTA (opcional)',
-              hintText: 'Ej: No se aceptan devoluciones ni cambios de productos',
+              hintText: 'Ej: 1. No se aceptan devoluciones ni cambios',
               borderColor: AppColors.blue1,
-              maxLines: 3,
+              maxLines: 5,
+              // Enter continúa la numeración automática (1. 2. 3.).
+              autoNumberedList: true,
             ),
             const SizedBox(height: 8),
             CustomText(
               controller: _textoPieServicioCtrl,
               label: 'Términos para SERVICIOS (opcional)',
-              hintText: 'Ej: Equipos no recogidos en 30 días generan costo de almacenaje',
+              hintText: 'Ej: 1. Equipos no recogidos en 30 días generan almacenaje',
               borderColor: AppColors.blue1,
-              maxLines: 3,
+              maxLines: 5,
+              autoNumberedList: true,
             ),
             const SizedBox(height: 4),
             Text(

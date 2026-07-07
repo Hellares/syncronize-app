@@ -1025,6 +1025,12 @@ class _CustomTextFieldState extends State<CustomText>
       case FieldType.number:
         return TextInputType.number;
       default:
+        // Multilínea: sin TextInputType.multiline el teclado Android muestra
+        // "listo" en vez de Enter y no se puede insertar salto de línea.
+        final isMultiline = widget.maxLines == null || widget.maxLines! > 1;
+        if (isMultiline && widget.keyboardType == TextInputType.text) {
+          return TextInputType.multiline;
+        }
         return widget.keyboardType;
     }
   }
