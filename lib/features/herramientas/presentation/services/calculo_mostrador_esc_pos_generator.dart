@@ -34,13 +34,39 @@ class CalculoMostradorEscPosGenerator {
     return sb.toString();
   }
 
+  /// Envuelve [texto] por palabra en líneas de máximo [ancho] chars.
+  static List<String> _envolver(String texto, int ancho) {
+    final lineas = <String>[];
+    var resto = texto.trim();
+    while (resto.length > ancho) {
+      var corte = resto.lastIndexOf(' ', ancho);
+      if (corte <= 0) corte = ancho;
+      lineas.add(resto.substring(0, corte).trimRight());
+      resto = resto.substring(corte).trimLeft();
+    }
+    if (resto.isNotEmpty) lineas.add(resto);
+    return lineas;
+  }
+
   static Future<List<int>> generate({
     required List<VentaDetalleInput> items,
     String? sedeNombre,
     int paperWidth = 80,
     /// false = lista "muda": solo producto + cantidad y el TOTAL general
     /// al pie (sin precios por item) — para entregar como lista de compra.
+    /// true = lista completa con precio/total POR ITEM pero SIN el total
+    /// general (pedido del user: la cotización detalla, no cierra venta).
     bool conPrecios = true,
+    /// true (solo junto a [conPrecios]): imprime bajo cada item sus
+    /// niveles por mayor — el mismo texto de los chips de la UI
+    /// ("3+ S/39.90"). Para entregar al cliente mayorista.
+    bool conNiveles = false,
+    /// Encabezado: nombre comercial + teléfono de la empresa (config
+    /// efectiva sede > empresa, mismo origen que el ticket de venta).
+    String? empresaNombre,
+    String? empresaTelefono,
+    /// Dirección de la sede — se imprime "SEDE: dirección" centrado.
+    String? sedeDireccion,
   }) async {
     final profile = await CapabilityProfile.load();
     final paperSize = paperWidth == 58 ? PaperSize.mm58 : PaperSize.mm80;
@@ -51,22 +77,42 @@ class CalculoMostradorEscPosGenerator {
     bytes += generator.reset();
     bytes += generator.setStyles(const PosStyles(fontType: PosFontType.fontB));
 
-    // Título único (sin nombre de empresa; sin size2 — el doble alto de
-    // fontB se ve pixeleado en térmicas).
-    bytes += generator.text(
-      'COTIZACION DE PRECIOS',
-      styles: const PosStyles(
-        align: PosAlign.center,
-        bold: true,
-        fontType: PosFontType.fontB,
-      ),
-    );
-    if (sedeNombre != null && sedeNombre.isNotEmpty) {
+    // Encabezado en fontA (la estándar) SIN bold: en térmicas baratas
+    // cualquier engrosado (bold o size2, en fontA o fontB) se rasteriza
+    // pixeleado — la jerarquía la da el tamaño natural de fontA en
+    // MAYÚSCULAS, no el peso.
+    if (empresaNombre != null && empresaNombre.isNotEmpty) {
       bytes += generator.text(
-        sanitize(sedeNombre),
+        sanitize(empresaNombre.toUpperCase()),
+        styles: const PosStyles(
+          align: PosAlign.center,
+          fontType: PosFontType.fontA,
+        ),
+      );
+    }
+    if (empresaTelefono != null && empresaTelefono.isNotEmpty) {
+      bytes += generator.text(
+        sanitize('Tel. $empresaTelefono'),
         styles: const PosStyles(
             align: PosAlign.center, fontType: PosFontType.fontB),
       );
+    }
+    if (sedeNombre != null && sedeNombre.isNotEmpty) {
+      // "SEDE PRINCIPAL: Trujillo, ..." — direcciones largas se envuelven
+      // por palabra para que cada línea salga centrada (el wrap del
+      // hardware no centra la continuación).
+      final textoSede = sanitize(
+        (sedeDireccion != null && sedeDireccion.isNotEmpty)
+            ? '${sedeNombre.toUpperCase()}: $sedeDireccion'
+            : sedeNombre,
+      );
+      for (final linea in _envolver(textoSede, chars)) {
+        bytes += generator.text(
+          linea,
+          styles: const PosStyles(
+              align: PosAlign.center, fontType: PosFontType.fontB),
+        );
+      }
     }
     final now = DateTime.now();
     final fecha =
@@ -77,6 +123,19 @@ class CalculoMostradorEscPosGenerator {
       styles:
           const PosStyles(align: PosAlign.center, fontType: PosFontType.fontB),
     );
+    // Título discreto FUERA del bloque de encabezados, encima de la línea
+    // punteada (pedido user). fontB es la letra más chica que ofrece el
+    // hardware ESC-POS (no hay tamaños en px).
+    bytes += generator.text(
+      'COTIZACION DE PRECIOS',
+      styles: const PosStyles(fontType: PosFontType.fontB),
+    );
+    // Pegar las punteadas a la cabecera de tabla AL MÁXIMO: ESC 3 n fija
+    // el avance de línea en n dots y fontB mide exactamente 17 de alto →
+    // 17 = 0px de aire (las líneas quedan al ras del texto; menos de 17
+    // se comería píxeles de los caracteres). Se restaura con ESC 2 tras
+    // la fila PRODUCTO para que el resto del ticket respire normal.
+    bytes += generator.rawBytes([0x1B, 0x33, 17]);
     bytes += generator.text('-' * chars,
         styles: const PosStyles(fontType: PosFontType.fontB));
 
@@ -116,8 +175,11 @@ class CalculoMostradorEscPosGenerator {
 
     bytes += generator.text(
       fila('PRODUCTO', 'CANT', 'PRECIO', 'TOTAL').first,
-      styles: const PosStyles(bold: true, fontType: PosFontType.fontB),
+      styles: const PosStyles(fontType: PosFontType.fontB),
     );
+    // Interlineado default de vuelta (la punteada de abajo ya quedó
+    // pegada por el avance corto de la fila PRODUCTO).
+    bytes += generator.rawBytes([0x1B, 0x32]);
     bytes += generator.text('-' * chars,
         styles: const PosStyles(fontType: PosFontType.fontB));
 
@@ -153,26 +215,43 @@ class CalculoMostradorEscPosGenerator {
           styles: const PosStyles(fontType: PosFontType.fontB),
         );
       }
+      // Niveles por mayor como sub-línea (mismo cálculo que los chips de
+      // la UI: precio fijo del nivel o % sobre el precio base).
+      if (conPrecios && conNiveles && item.niveles.isNotEmpty) {
+        final base = item.precioBase ?? item.precioUnitario;
+        final partes = item.niveles.take(3).map((n) {
+          final p = n.precio ?? base * (1 - (n.porcentajeDesc ?? 0) / 100);
+          return '${n.cantidadMinima}+ S/${p.toStringAsFixed(2)}';
+        }).join(', ');
+        bytes += generator.text(
+          sanitize('  Por mayor: $partes'),
+          styles: const PosStyles(fontType: PosFontType.fontB),
+        );
+      }
     }
 
     bytes += generator.text('-' * chars,
         styles: const PosStyles(fontType: PosFontType.fontB));
-    bytes += generator.row([
-      PosColumn(
-        text: 'TOTAL',
-        width: 6,
-        styles: const PosStyles(bold: true, fontType: PosFontType.fontB),
-      ),
-      PosColumn(
-        text: 'S/ ${total.toStringAsFixed(2)}',
-        width: 6,
-        styles: const PosStyles(
-          align: PosAlign.right,
-          bold: true,
-          fontType: PosFontType.fontB,
+    // TOTAL general solo en la lista "muda" (su razón de ser es entregar
+    // productos + total). En la lista completa cada item ya muestra su
+    // total y el user pidió NO cerrar la suma en la cotización.
+    if (!conPrecios) {
+      bytes += generator.row([
+        PosColumn(
+          text: 'TOTAL',
+          width: 6,
+          styles: const PosStyles(fontType: PosFontType.fontB),
         ),
-      ),
-    ]);
+        PosColumn(
+          text: 'S/ ${total.toStringAsFixed(2)}',
+          width: 6,
+          styles: const PosStyles(
+            align: PosAlign.right,
+            fontType: PosFontType.fontB,
+          ),
+        ),
+      ]);
+    }
     bytes += generator.feed(1);
     bytes += generator.text(
       'Precios referenciales del dia.',
