@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -8,10 +10,13 @@ import 'calculadora_simple_sheet.dart';
 
 /// Botón FLOTANTE de herramientas visible en TODAS las pantallas de la
 /// empresa (rutas `/empresa*`): semitransparente y arrastrable (recuerda
-/// su posición durante la sesión). Al tocarlo actúa como DIALER: despliega
-/// un mini-menú con las herramientas disponibles (calculadora de precio y
-/// calculadora aritmética). Para sumar una herramienta nueva basta con
-/// agregar una entrada a [_herramientas].
+/// su posición durante la sesión). Al tocarlo actúa como DIALER RADIAL:
+/// las herramientas salen en abanico circular alrededor del botón
+/// (animación escalonada con rebote). El cuadrante del abanico se elige
+/// según dónde esté el botón (pegado a la derecha abre hacia la
+/// izquierda, cerca del borde superior abre hacia abajo, etc.). Para
+/// sumar una herramienta nueva basta con agregar una entrada a
+/// [_herramientas].
 ///
 /// Se monta como `builder` del MaterialApp.router — envuelve al navigator
 /// completo, por eso escucha el GoRouter para saber en qué ruta estamos.
@@ -31,7 +36,8 @@ class HerramientasFlotantesOverlay extends StatefulWidget {
 }
 
 class _HerramientasFlotantesOverlayState
-    extends State<HerramientasFlotantesOverlay> {
+    extends State<HerramientasFlotantesOverlay>
+    with SingleTickerProviderStateMixin {
   /// Posición recordada entre aperturas (solo memoria de la sesión).
   static Offset? _posGuardada;
 
@@ -39,6 +45,23 @@ class _HerramientasFlotantesOverlayState
 
   /// Menú de herramientas desplegado (dialer abierto).
   bool _menuAbierto = false;
+
+  /// Progreso del abanico: 0 = cerrado, 1 = desplegado. Los items se
+  /// escalonan sobre este mismo controller con [Interval].
+  late final AnimationController _anim = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 340),
+    reverseDuration: const Duration(milliseconds: 180),
+  );
+
+  /// Radio del abanico (distancia del centro del botón al de cada item).
+  static const double _radio = 86;
+
+  /// Lado del botón flotante.
+  static const double _btn = 46;
+
+  /// Ancho reservado por item (la etiqueta es más ancha que el círculo).
+  static const double _itemW = 96;
 
   @override
   void initState() {
@@ -50,6 +73,7 @@ class _HerramientasFlotantesOverlayState
   @override
   void dispose() {
     widget.router.routerDelegate.removeListener(_onRouteChanged);
+    _anim.dispose();
     super.dispose();
   }
 
@@ -60,7 +84,10 @@ class _HerramientasFlotantesOverlayState
     if (visible != _visible && mounted) {
       setState(() {
         _visible = visible;
-        if (!visible) _menuAbierto = false;
+        if (!visible) {
+          _menuAbierto = false;
+          _anim.value = 0;
+        }
       });
     }
   }
@@ -72,14 +99,18 @@ class _HerramientasFlotantesOverlayState
   void _toggleMenu() {
     HapticFeedback.selectionClick();
     setState(() => _menuAbierto = !_menuAbierto);
+    _menuAbierto ? _anim.forward() : _anim.reverse();
   }
 
   void _cerrarMenu() {
-    if (_menuAbierto) setState(() => _menuAbierto = false);
+    if (_menuAbierto) {
+      setState(() => _menuAbierto = false);
+      _anim.reverse();
+    }
   }
 
   void _abrir(void Function(BuildContext) show) {
-    setState(() => _menuAbierto = false);
+    _cerrarMenu();
     final ctx = _navCtx;
     if (ctx == null) return;
     show(ctx);
@@ -88,7 +119,7 @@ class _HerramientasFlotantesOverlayState
   late final List<_Herramienta> _herramientas = [
     _Herramienta(
       icono: Icons.sell_outlined,
-      label: 'Calc. de precio',
+      label: 'Calc. precio',
       onTap: () => _abrir(CalculadoraMostradorSheet.show),
     ),
     _Herramienta(
@@ -98,40 +129,67 @@ class _HerramientasFlotantesOverlayState
     ),
   ];
 
+  /// Ángulos (en grados) del inicio y fin del abanico según el cuadrante
+  /// libre alrededor del botón. Pantalla: y crece hacia abajo, así que
+  /// -90° es "arriba".
+  (double, double) _arcoParaPosicion(Offset pos, Size size) {
+    final haciaIzq = pos.dx > size.width / 2;
+    // Cerca del borde superior no hay sitio arriba → abrir hacia abajo.
+    final haciaAbajo = pos.dy < _radio + 70;
+    if (!haciaAbajo) {
+      return haciaIzq ? (-95.0, -175.0) : (-85.0, -5.0);
+    }
+    return haciaIzq ? (95.0, 175.0) : (85.0, 5.0);
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!_visible) return widget.child;
     final size = MediaQuery.of(context).size;
     final pos = _posGuardada ?? Offset(size.width - 58, size.height * 0.58);
-
-    // El menú crece hacia arriba y se ancla al lado del botón; si el botón
-    // está en la mitad derecha, el menú se alinea a su borde derecho.
-    final anclaDerecha = pos.dx > size.width / 2;
+    final centro = pos + const Offset(_btn / 2, _btn / 2);
+    final (degA, degB) = _arcoParaPosicion(pos, size);
 
     return Stack(
       children: [
         widget.child,
 
-        // Capa invisible para cerrar el menú al tocar fuera.
-        if (_menuAbierto)
-          Positioned.fill(
-            child: GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onTap: _cerrarMenu,
-            ),
-          ),
+        // Velo sutil + cierre al tocar fuera (se desvanece con el abanico).
+        AnimatedBuilder(
+          animation: _anim,
+          builder: (_, __) {
+            if (_anim.isDismissed) return const SizedBox.shrink();
+            return Positioned.fill(
+              child: IgnorePointer(
+                ignoring: !_menuAbierto,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.translucent,
+                  onTap: _cerrarMenu,
+                  child: Container(
+                    color: Colors.black
+                        .withValues(alpha: 0.10 * _anim.value),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
 
-        // Mini-menú (dialer) — aparece encima del botón.
-        if (_menuAbierto)
-          Positioned(
-            right: anclaDerecha ? (size.width - pos.dx - 46) : null,
-            left: anclaDerecha ? null : pos.dx,
-            top: (pos.dy - 8 - _herramientas.length * 52).clamp(60.0, size.height),
-            child: _MenuHerramientas(
-              herramientas: _herramientas,
-              alinearDerecha: anclaDerecha,
-            ),
-          ),
+        // Items del dialer en abanico radial.
+        AnimatedBuilder(
+          animation: _anim,
+          builder: (_, __) {
+            if (_anim.isDismissed) return const SizedBox.shrink();
+            return Positioned.fill(
+              child: Stack(
+                children: [
+                  for (var i = 0; i < _herramientas.length; i++)
+                    _itemRadial(i, centro, degA, degB, size),
+                ],
+              ),
+            );
+          },
+        ),
 
         // Botón flotante arrastrable.
         Positioned(
@@ -149,8 +207,8 @@ class _HerramientasFlotantesOverlayState
             onTap: _toggleMenu,
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 150),
-              width: 46,
-              height: 46,
+              width: _btn,
+              height: _btn,
               decoration: BoxDecoration(
                 color: AppColors.blue1
                     .withValues(alpha: _menuAbierto ? 0.95 : 0.5),
@@ -167,15 +225,106 @@ class _HerramientasFlotantesOverlayState
                   ),
                 ],
               ),
-              child: Icon(
-                _menuAbierto ? Icons.close : Icons.calculate_outlined,
-                color: Colors.white,
-                size: 24,
+              // Giro de 45° al abrir: el "+" implícito del dialer.
+              child: AnimatedRotation(
+                turns: _menuAbierto ? 0.125 : 0,
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutBack,
+                child: Icon(
+                  _menuAbierto ? Icons.close : Icons.calculate_outlined,
+                  color: Colors.white,
+                  size: 24,
+                ),
               ),
             ),
           ),
         ),
       ],
+    );
+  }
+
+  /// Un item del abanico: viaja del centro del botón a su posición en el
+  /// arco con stagger + rebote (easeOutBack), la etiqueta aparece al final.
+  Widget _itemRadial(
+      int i, Offset centro, double degA, double degB, Size size) {
+    final n = _herramientas.length;
+    final t = n == 1 ? 0.5 : i / (n - 1);
+    final ang = (degA + (degB - degA) * t) * math.pi / 180;
+
+    // Stagger: cada item arranca un poco después del anterior.
+    final v = CurvedAnimation(
+      parent: _anim,
+      curve: Interval(0.10 * i, 1.0, curve: Curves.easeOutBack),
+      reverseCurve: Interval(0.10 * i, 1.0, curve: Curves.easeIn),
+    ).value;
+
+    final centroItem = centro +
+        Offset(math.cos(ang), math.sin(ang)) * _radio * v.clamp(0.0, 1.2);
+    // La etiqueta entra al final del despliegue.
+    final opLabel = ((_anim.value - 0.6) / 0.4).clamp(0.0, 1.0);
+
+    final h = _herramientas[i];
+    return Positioned(
+      left: (centroItem.dx - _itemW / 2).clamp(2.0, size.width - _itemW - 2),
+      top: centroItem.dy - 24,
+      child: Opacity(
+        opacity: v.clamp(0.0, 1.0),
+        child: Transform.scale(
+          scale: v.clamp(0.0, 1.15),
+          child: SizedBox(
+            width: _itemW,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Material(
+                  color: Colors.white,
+                  shape: const CircleBorder(),
+                  elevation: 5,
+                  shadowColor: Colors.black.withValues(alpha: 0.25),
+                  child: InkWell(
+                    customBorder: const CircleBorder(),
+                    onTap: _menuAbierto ? h.onTap : null,
+                    child: SizedBox(
+                      width: 40,
+                      height: 40,
+                      child: Icon(h.icono, size: 20, color: AppColors.blue1),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Opacity(
+                  opacity: opLabel,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 7, vertical: 2.5),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.15),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Text(
+                      h.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.black87,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -191,73 +340,4 @@ class _Herramienta {
     required this.label,
     required this.onTap,
   });
-}
-
-/// Tarjeta con la lista de herramientas, anclada al lado del botón.
-class _MenuHerramientas extends StatelessWidget {
-  final List<_Herramienta> herramientas;
-  final bool alinearDerecha;
-
-  const _MenuHerramientas({
-    required this.herramientas,
-    required this.alinearDerecha,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.15),
-              blurRadius: 16,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: alinearDerecha
-              ? CrossAxisAlignment.end
-              : CrossAxisAlignment.start,
-          children: [
-            for (var i = 0; i < herramientas.length; i++) ...[
-              _item(herramientas[i]),
-              if (i < herramientas.length - 1)
-                const Divider(height: 1, thickness: 1, color: Color(0xFFF0F1F4)),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _item(_Herramienta h) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(14),
-      onTap: h.onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(h.icono, size: 18, color: AppColors.blue1),
-            const SizedBox(width: 10),
-            Text(
-              h.label,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.black87,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
