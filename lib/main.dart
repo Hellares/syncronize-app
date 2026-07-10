@@ -176,7 +176,12 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         esStaff = loginMode == 'management';
       }
 
-      if (tercerizacionId != null) {
+      if (tipo == 'SORTEO') {
+        // Premio de sorteo: siempre es para el CLIENTE ganador.
+        final premioId = data['premioId'] as String?;
+        router.push(
+            premioId != null ? '/mis-premios/$premioId' : '/mis-premios');
+      } else if (tercerizacionId != null) {
         // Eventos B2B (solicitud/aceptada/rechazada/completada/cancelada)
         // van siempre a staff: el detalle valida pertenencia en el server.
         router.push('/empresa/tercerizacion/$tercerizacionId');

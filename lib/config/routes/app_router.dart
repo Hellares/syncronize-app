@@ -37,6 +37,9 @@ import '../../features/portal_unificado/presentation/pages/portal_unificado_page
 import '../../features/carrito/presentation/pages/carrito_page.dart';
 import '../../features/mis_pedidos/presentation/pages/mis_pedidos_page.dart';
 import '../../features/mis_pedidos/presentation/pages/pedido_detail_page.dart';
+import '../../features/mis_premios/presentation/pages/mis_premios_page.dart';
+import '../../features/sorteo/presentation/pages/sorteos_page.dart';
+import '../../features/sorteo/presentation/pages/sorteo_detail_page.dart';
 import '../../features/pedido_marketplace_empresa/presentation/pages/pedidos_marketplace_empresa_page.dart';
 import '../../features/pedido_marketplace_empresa/presentation/pages/pedido_marketplace_detail_empresa_page.dart';
 import '../../features/solicitud_cotizacion/presentation/pages/solicitud_form_page.dart';
@@ -382,6 +385,18 @@ class AppRouter {
         path: '/mis-favoritos',
         name: 'mis-favoritos',
         builder: (context, state) => const FavoritosPage(),
+      ),
+      // Premios ganados en sorteos (cliente)
+      GoRoute(
+        path: '/mis-premios',
+        name: 'mis-premios',
+        builder: (context, state) => const MisPremiosPage(),
+      ),
+      GoRoute(
+        path: '/mis-premios/:id',
+        name: 'mis-premios-detalle',
+        builder: (context, state) =>
+            MisPremiosPage(premioId: state.pathParameters['id']),
       ),
       GoRoute(
         path: '/profile',
@@ -1171,6 +1186,20 @@ class AppRouter {
         builder: (context, state) {
           final id = state.pathParameters['id']!;
           return PedidoMarketplaceDetailEmpresaPage(pedidoId: id);
+        },
+      ),
+      // Rutas de sorteos (empresa)
+      GoRoute(
+        path: '/empresa/sorteos',
+        name: 'empresa-sorteos',
+        builder: (context, state) => const SorteosPage(),
+      ),
+      GoRoute(
+        path: '/empresa/sorteos/:id',
+        name: 'empresa-sorteo-detail',
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return SorteoDetailPage(sorteoId: id);
         },
       ),
       // Rutas de solicitudes de cotización (empresa)

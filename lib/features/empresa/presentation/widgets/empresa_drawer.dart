@@ -873,6 +873,14 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/pedidos-marketplace')),
           ),
           tile(
+            title: 'Sorteos',
+            icon: Icons.card_giftcard,
+            iconColor: Colors.purple,
+            visible: can(permissions?.canViewVentas),
+            routeMatch: const _RouteMatch.startsWith('/empresa/sorteos'),
+            onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/sorteos')),
+          ),
+          tile(
             title: 'Solicitudes Clientes',
             icon: Icons.request_quote_outlined,
             iconColor: Colors.deepPurple,

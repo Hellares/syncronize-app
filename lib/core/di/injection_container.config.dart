@@ -866,6 +866,14 @@ import '../../features/mis_pedidos/presentation/bloc/mis_pedidos_cubit.dart'
     as _i588;
 import '../../features/mis_pedidos/presentation/bloc/pedido_action_cubit.dart'
     as _i485;
+import '../../features/mis_premios/data/datasources/mis_premios_remote_datasource.dart'
+    as _i278;
+import '../../features/mis_premios/data/repositories/mis_premios_repository_impl.dart'
+    as _i846;
+import '../../features/mis_premios/domain/repositories/mis_premios_repository.dart'
+    as _i148;
+import '../../features/mis_premios/presentation/bloc/mis_premios_cubit.dart'
+    as _i359;
 import '../../features/monitor_facturacion/data/datasources/monitor_facturacion_remote_datasource.dart'
     as _i448;
 import '../../features/monitor_facturacion/data/repositories/monitor_facturacion_repository_impl.dart'
@@ -1412,6 +1420,15 @@ import '../../features/solicitud_cotizacion_empresa/presentation/bloc/solicitud_
     as _i437;
 import '../../features/solicitud_cotizacion_empresa/presentation/bloc/solicitudes_recibidas_cubit.dart'
     as _i60;
+import '../../features/sorteo/data/datasources/sorteo_remote_datasource.dart'
+    as _i601;
+import '../../features/sorteo/data/repositories/sorteo_repository_impl.dart'
+    as _i820;
+import '../../features/sorteo/domain/repositories/sorteo_repository.dart'
+    as _i830;
+import '../../features/sorteo/presentation/bloc/sorteo_detail_cubit.dart'
+    as _i946;
+import '../../features/sorteo/presentation/bloc/sorteos_cubit.dart' as _i194;
 import '../../features/tercerizacion/data/datasources/tercerizacion_remote_datasource.dart'
     as _i176;
 import '../../features/tercerizacion/data/repositories/tercerizacion_repository_impl.dart'
@@ -1807,6 +1824,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i613.MisPedidosRemoteDataSource>(
       () => _i613.MisPedidosRemoteDataSource(gh<_i667.DioClient>()),
     );
+    gh.lazySingleton<_i278.MisPremiosRemoteDataSource>(
+      () => _i278.MisPremiosRemoteDataSource(gh<_i667.DioClient>()),
+    );
     gh.lazySingleton<_i448.MonitorFacturacionRemoteDatasource>(
       () => _i448.MonitorFacturacionRemoteDatasource(gh<_i667.DioClient>()),
     );
@@ -1902,6 +1922,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i129.SolicitudEmpresaRemoteDataSource>(
       () => _i129.SolicitudEmpresaRemoteDataSource(gh<_i667.DioClient>()),
+    );
+    gh.lazySingleton<_i601.SorteoRemoteDataSource>(
+      () => _i601.SorteoRemoteDataSource(gh<_i667.DioClient>()),
     );
     gh.lazySingleton<_i176.TercerizacionRemoteDataSource>(
       () => _i176.TercerizacionRemoteDataSource(gh<_i667.DioClient>()),
@@ -2286,6 +2309,20 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i671.DashboardVendedorRepository>(
       () => _i230.DashboardVendedorRepositoryImpl(
         gh<_i340.DashboardVendedorRemoteDataSource>(),
+        gh<_i932.NetworkInfo>(),
+        gh<_i490.ErrorHandlerService>(),
+      ),
+    );
+    gh.lazySingleton<_i830.SorteoRepository>(
+      () => _i820.SorteoRepositoryImpl(
+        gh<_i601.SorteoRemoteDataSource>(),
+        gh<_i932.NetworkInfo>(),
+        gh<_i490.ErrorHandlerService>(),
+      ),
+    );
+    gh.lazySingleton<_i148.MisPremiosRepository>(
+      () => _i846.MisPremiosRepositoryImpl(
+        gh<_i278.MisPremiosRemoteDataSource>(),
         gh<_i932.NetworkInfo>(),
         gh<_i490.ErrorHandlerService>(),
       ),
@@ -3239,8 +3276,17 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i490.ErrorHandlerService>(),
       ),
     );
+    gh.factory<_i946.SorteoDetailCubit>(
+      () => _i946.SorteoDetailCubit(gh<_i830.SorteoRepository>()),
+    );
+    gh.factory<_i194.SorteosCubit>(
+      () => _i194.SorteosCubit(gh<_i830.SorteoRepository>()),
+    );
     gh.factory<_i86.GetLibroContableUseCase>(
       () => _i86.GetLibroContableUseCase(gh<_i492.LibroContableRepository>()),
+    );
+    gh.factory<_i359.MisPremiosCubit>(
+      () => _i359.MisPremiosCubit(gh<_i148.MisPremiosRepository>()),
     );
     gh.factory<_i494.CrearPrestamoUseCase>(
       () => _i494.CrearPrestamoUseCase(gh<_i341.PrestamoRepository>()),

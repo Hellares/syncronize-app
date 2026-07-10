@@ -283,6 +283,19 @@ class _AuthenticatedDrawerContent extends StatelessWidget {
                 },
               ),
               _DrawerItem(
+                icon: Icons.card_giftcard,
+                title: 'Mis Premios',
+                textStyle: TextStyle(
+                  fontFamily: AppFonts.getFontFamily(AppFont.oxygenBold),
+                  fontSize: 10,
+                  color: AppColors.blue,
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  context.push('/mis-premios');
+                },
+              ),
+              _DrawerItem(
                 icon: Icons.help_outline,
                 title: 'Mis Solicitudes',
                 textStyle: TextStyle(
