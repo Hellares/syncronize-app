@@ -9,8 +9,10 @@ import 'package:printing/printing.dart';
 
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/gradient_container.dart';
 import '../../../../core/widgets/cliente_unificado_selector.dart';
 import '../../../../core/widgets/confirm_dialog.dart';
+import '../../../../core/widgets/smart_appbar.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/styled_dialog.dart';
 import '../../../auth/presentation/widgets/custom_text.dart';
@@ -45,16 +47,17 @@ class _SorteoDetailView extends StatelessWidget {
       builder: (context, state) {
         final sorteo = state is SorteoDetailLoaded ? state.sorteo : null;
         return Scaffold(
-          appBar: AppBar(
-            title: Text(sorteo?.titulo ?? 'Sorteo',
-                style: const TextStyle(fontSize: 15),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis),
+          appBar: SmartAppBar(
+            customHeight: 40,
+            title: sorteo?.titulo ?? 'Sorteo',
+            backgroundColor: AppColors.blue1,
+            foregroundColor: Colors.white,
             actions: [
               if (sorteo != null && sorteo.estado == EstadoSorteo.abierto)
                 IconButton(
                   tooltip: 'Cerrar sorteo',
-                  icon: const Icon(Icons.lock_outline, size: 20),
+                  icon: const Icon(Icons.lock_outline,
+                      size: 20, color: Colors.white),
                   onPressed: () => _cerrarSorteo(context),
                 ),
             ],
@@ -105,7 +108,7 @@ class _SorteoDetailView extends StatelessWidget {
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: AppColors.blue1.withValues(alpha: 0.06),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(8),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -563,13 +566,11 @@ class _PremioCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final esFinal = premio.estado == EstadoPremioSorteo.entregado ||
         premio.estado == EstadoPremioSorteo.anulado;
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(12),
-      elevation: 1.5,
-      shadowColor: Colors.black.withValues(alpha: 0.08),
+    // GradientContainer de la casa (degradado default + borde azul).
+    return GradientContainer(
+      borderColor: AppColors.blueborder,
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -579,7 +580,7 @@ class _PremioCard extends StatelessWidget {
                   child: Text(
                     premio.ganadorNombre,
                     style: const TextStyle(
-                        fontSize: 12.5, fontWeight: FontWeight.w700),
+                        fontSize: 11, fontWeight: FontWeight.w600),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -592,7 +593,7 @@ class _PremioCard extends StatelessWidget {
                           horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
                         color: _colorEstado.withValues(alpha: 0.10),
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
                         premio.estado.label.toUpperCase(),
@@ -805,12 +806,15 @@ class _PremioCard extends StatelessWidget {
                     onPressed: () => _subirFoto(context),
                     icon: const Icon(Icons.photo_camera_outlined, size: 15),
                     label:
-                        const Text('Foto', style: TextStyle(fontSize: 11)),
+                        const Text('Foto', style: TextStyle(fontSize: 10)),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.blue1,
                       side: BorderSide(
-                          color: AppColors.blue1.withValues(alpha: 0.5)),
+                          color: AppColors.blue1.withValues(alpha: 0.5),),
                       visualDensity: VisualDensity.compact,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(6),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -822,11 +826,14 @@ class _PremioCard extends StatelessWidget {
                         backgroundColor: AppColors.blue1,
                         foregroundColor: Colors.white,
                         visualDensity: VisualDensity.compact,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(6),
+                        ),
                       ),
                       child: Text(
                         'Marcar ${_siguienteEstado!.label.toLowerCase()}',
                         style: const TextStyle(
-                            fontSize: 11, fontWeight: FontWeight.w700),
+                            fontSize: 10, fontWeight: FontWeight.w600),
                       ),
                     ),
                 ],

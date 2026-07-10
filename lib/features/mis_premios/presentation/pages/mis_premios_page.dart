@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/smart_appbar.dart';
 import '../../../sorteo/domain/entities/sorteo.dart';
 import '../../domain/entities/premio_cliente.dart';
 import '../bloc/mis_premios_cubit.dart';
@@ -31,8 +32,11 @@ class _MisPremiosView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mis Premios 🎁', style: TextStyle(fontSize: 16)),
+      appBar: const SmartAppBar(
+        customHeight: 40,
+        title: 'Mis Premios 🎁',
+        backgroundColor: AppColors.blue1,
+        foregroundColor: Colors.white,
       ),
       body: BlocBuilder<MisPremiosCubit, MisPremiosState>(
         builder: (context, state) {

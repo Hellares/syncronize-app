@@ -4,7 +4,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/gradient_container.dart';
 import '../../../../core/widgets/custom_button.dart';
+import '../../../../core/widgets/smart_appbar.dart';
 import '../../../../core/widgets/styled_dialog.dart';
 import '../../../auth/presentation/widgets/custom_text.dart';
 import '../../../empresa/presentation/bloc/sede_activa/sede_activa_cubit.dart';
@@ -30,8 +32,11 @@ class _SorteosView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Sorteos', style: TextStyle(fontSize: 16)),
+      appBar: const SmartAppBar(
+        customHeight: 40,
+        title: 'Sorteos',
+        backgroundColor: AppColors.blue1,
+        foregroundColor: Colors.white,
       ),
       floatingActionButton: FloatingActionButton.extended(
         heroTag: 'nuevo-sorteo',
@@ -225,13 +230,11 @@ class _SorteoCard extends StatelessWidget {
     final fecha =
         '${f.day.toString().padLeft(2, '0')}/${f.month.toString().padLeft(2, '0')}/${f.year}';
     final cerrado = sorteo.estado == EstadoSorteo.cerrado;
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(12),
-      elevation: 1.5,
-      shadowColor: Colors.black.withValues(alpha: 0.08),
+    // GradientContainer de la casa (mismo patrón que cola POS).
+    return GradientContainer(
+      borderColor: cerrado ? Colors.grey.shade400 : AppColors.blueborder,
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         onTap: () => context.push('/empresa/sorteos/${sorteo.id}'),
         child: Padding(
           padding: const EdgeInsets.all(12),
@@ -246,7 +249,7 @@ class _SorteoCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(Icons.card_giftcard,
-                    size: 20,
+                    size: 18,
                     color: cerrado ? Colors.grey : AppColors.blue1),
               ),
               const SizedBox(width: 10),
@@ -256,7 +259,7 @@ class _SorteoCard extends StatelessWidget {
                   children: [
                     Text(sorteo.titulo,
                         style: const TextStyle(
-                            fontSize: 12.5, fontWeight: FontWeight.w700),
+                            fontSize: 11, fontWeight: FontWeight.w600),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis),
                     const SizedBox(height: 2),

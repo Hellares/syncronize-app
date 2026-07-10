@@ -56,6 +56,7 @@ class AccesosRapidosCatalogo {
   static const ordenesServicio = 'ordenes-servicio';
   static const flujoDocs = 'flujo-docs';
   static const guiasRemision = 'guias-remision';
+  static const sorteos = 'sorteos';
   static const config = 'config';
 
   /// (id, label) — útil para listados administrativos (form de usuario).
@@ -79,6 +80,7 @@ class AccesosRapidosCatalogo {
     (ordenesServicio, 'Órdenes de Servicio'),
     (flujoDocs, 'Flujo de Documentos'),
     (guiasRemision, 'Guías de Remisión'),
+    (sorteos, 'Sorteos'),
     (config, 'Configuración'),
   ];
 }
@@ -137,6 +139,14 @@ class AccesosRapidosSection extends StatelessWidget {
           color: Colors.purple,
           route: '/empresa/cotizaciones',
           puedeVer: (p) => p.canViewCotizaciones,
+        ),
+        _AccesoItem(
+          id: AccesosRapidosCatalogo.sorteos,
+          icon: Icons.card_giftcard,
+          label: 'Sorteos',
+          color: Colors.deepPurple,
+          route: '/empresa/sorteos',
+          puedeVer: (p) => p.canViewVentas,
         ),
 
         // Caja & finanzas
