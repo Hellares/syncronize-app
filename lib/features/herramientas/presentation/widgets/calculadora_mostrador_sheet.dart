@@ -28,8 +28,10 @@ import '../../../impresoras/domain/services/impresoras_manager.dart';
 import '../../../producto/domain/entities/precio_nivel.dart';
 import '../../../producto/domain/entities/producto_filtros.dart';
 import '../../../producto/domain/entities/producto_list_item.dart';
+import '../../../producto/domain/entities/producto_stock.dart';
 import '../../../producto/domain/entities/producto_variante.dart';
 import '../../../producto/domain/entities/stock_por_sede_mixin.dart';
+import '../../../producto/domain/repositories/producto_stock_repository.dart';
 import '../../../producto/domain/services/precio_nivel_cache_service.dart';
 import '../../../producto/domain/usecases/get_productos_usecase.dart';
 import '../../../producto/presentation/bloc/producto_list/producto_list_cubit.dart';
@@ -117,6 +119,13 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
   String? _listaCargadaId;
   String? _listaCargadaNombre;
   DateTime? _listaCargadaFecha;
+
+  /// Re-cotización en curso (barrita de progreso sutil bajo la sede).
+  bool _recotizando = false;
+
+  /// Label persistente bajo la sede tras re-cotizar ("Precios
+  /// actualizados 16:32") — complementa al banner, que es efímero.
+  String? _estadoPrecios;
 
   /// Resultado de la última impresión (mensaje, éxito) — banner en el sheet.
   (String, bool)? _msgImpresion;
@@ -410,6 +419,45 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
 
   // ── Pasar a Venta Rápida ───────────────────────────────────────────
 
+  /// Lookup del ProductoListItem completo de un item, en 4 niveles:
+  /// agregados en esta sesión → biblioteca de vistos (persistida en
+  /// disco: cubre listas GUARDADAS re-abiertas) → catálogo del state →
+  /// server por nombre. null = producto desactivado/eliminado.
+  ///
+  /// [preferirFrescos] (re-cotizar): invierte la prioridad — catálogo
+  /// revalidado → vistos → server, y NUNCA el cache de sesión, que es un
+  /// snapshot de cuando se agregó (con él, un precio recién editado se
+  /// reportaba "al día" con el valor VIEJO).
+  Future<ProductoListItem?> _resolverProducto(VentaDetalleInput it,
+      String empresaId, List<ProductoListItem> catalogo,
+      {bool preferirFrescos = false}) async {
+    ProductoListItem? p;
+    if (!preferirFrescos) {
+      p = _productosDeItems[it.productoId] ??
+          _productosCubit.vistosCache[it.productoId];
+    }
+    if (p == null) {
+      for (final c in catalogo) {
+        if (c.id == it.productoId) {
+          p = c;
+          break;
+        }
+      }
+    }
+    if (preferirFrescos) {
+      p ??= _productosCubit.vistosCache[it.productoId];
+    }
+    return p ?? await _buscarEnServerPorNombre(it, empresaId);
+  }
+
+  ProductoVariante? _resolverVariante(ProductoListItem p, String? varianteId) {
+    if (varianteId == null) return null;
+    for (final x in p.variantes ?? const <ProductoVariante>[]) {
+      if (x.id == varianteId) return x;
+    }
+    return null;
+  }
+
   /// Último recurso del lookup: busca el producto en el SERVER por su
   /// nombre (para variantes, la parte antes del " — ") y matchea por id.
   /// null si no aparece (producto desactivado/eliminado).
@@ -569,47 +617,24 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
     final noEncontrados = <String>[];
     for (final it in _items) {
       // El cubit necesita el ProductoListItem completo (campos fiscales).
-      // Lookup en 3 niveles: agregados en esta sesión → biblioteca de
-      // vistos (persistida en disco: cubre listas GUARDADAS re-abiertas,
-      // el state.productos paginado no las tenía) → catálogo del state.
-      ProductoListItem? p = _productosDeItems[it.productoId] ??
-          _productosCubit.vistosCache[it.productoId];
-      if (p == null) {
-        for (final c in catalogo) {
-          if (c.id == it.productoId) {
-            p = c;
-            break;
-          }
-        }
-      }
-      // Último recurso (lista guardada vieja fuera de biblioteca):
-      // buscarlo en el SERVER por nombre y matchear por id.
-      p ??= await _buscarEnServerPorNombre(it, empresaId);
+      final p = await _resolverProducto(it, empresaId, catalogo);
       if (p == null) {
         debugPrint(
             '[CalcMostrador] pasarVR: producto NO hallado ${it.productoId} (${it.descripcion})');
         noEncontrados.add(it.descripcion);
         continue;
       }
-      ProductoVariante? v;
-      if (it.varianteId != null) {
-        for (final x in p.variantes ?? const <ProductoVariante>[]) {
-          if (x.id == it.varianteId) {
-            v = x;
-            break;
-          }
-        }
-        if (v == null) {
-          noEncontrados.add(it.descripcion);
-          continue;
-        }
+      final v = _resolverVariante(p, it.varianteId);
+      if (it.varianteId != null && v == null) {
+        noEncontrados.add(it.descripcion);
+        continue;
       }
       // El cubit agrega +1 (o suma +1 si ya estaba): fijar después la
       // cantidad total = lo que había + lo cotizado. Buscar SIEMPRE por
       // productoId+varianteId (gotcha: solo productoId toca la variante
       // equivocada).
       bool match(VentaDetalleInput i) =>
-          i.productoId == p!.id &&
+          i.productoId == p.id &&
           i.varianteId == it.varianteId &&
           i.origenComboId == null;
       final prevIdx = cubit.state.items.indexWhere(match);
@@ -992,10 +1017,176 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
         }
       }
     }
+    // Re-cotizar de inmediato: la lista guardada es un snapshot y los
+    // precios/ofertas/niveles/stock pueden haber cambiado desde entonces.
+    await _recotizarLista(prefijo: 'Lista del ${_fmtFecha(l.fecha)} abierta');
+  }
+
+  /// Actualiza TODOS los items con los datos VIGENTES del catálogo
+  /// (precio, oferta/liquidación, niveles por mayor y stock), conservando
+  /// cantidades. Los no encontrados conservan su snapshot y se avisa.
+  Future<void> _recotizarLista({String? prefijo}) async {
+    if (_items.isEmpty || _sedeId == null) return;
+    final ctxState = context.read<EmpresaContextCubit>().state;
+    if (ctxState is! EmpresaContextLoaded) return;
+    final empresaId = ctxState.context.empresa.id;
+    final sedeId = _sedeId!;
+    setState(() {
+      _recotizando = true;
+      _estadoPrecios = null;
+    });
+
+    // Fuente PRIMARIA: el endpoint de stock/precio por sede — el mismo
+    // que usa VR para validar antes de cobrar. Consulta directa por
+    // producto/variante, SIN los caches del catálogo: los deltas y el
+    // Redis del listado servían precios con ~1 min de atraso justo
+    // después de editar (user repro: "al día" con el precio viejo).
+    // Fallback local (catálogo/vistos) solo si la consulta falla.
+    final stockRepo = locator<ProductoStockRepository>();
+    final prodState = _productosCubit.state;
+    final catalogo = prodState is ProductoListLoaded
+        ? prodState.productos
+        : const <ProductoListItem>[];
+
+    /// Re-cotiza UN item (consulta stock+niveles). Devuelve (item, ok):
+    /// ok=false conserva el snapshot (no existe / sin precio en sede).
+    Future<(VentaDetalleInput, bool)> recotizarItem(
+        VentaDetalleInput it) async {
+      double? precio;
+      double? precioNormal;
+      var enOferta = false;
+      var enLiquidacion = false;
+      bool? incluyeIgv;
+      int? stockDisp;
+
+      ProductoStock? ps;
+      if (it.productoId != null || it.varianteId != null) {
+        try {
+          // Rama por variante O por producto — NUNCA ambos ids (gotcha:
+          // el stock de variante tiene productoId=NULL).
+          final result = it.varianteId != null
+              ? await stockRepo.getStockVarianteEnSede(
+                  varianteId: it.varianteId!, sedeId: sedeId)
+              : await stockRepo.getStockProductoEnSede(
+                  productoId: it.productoId!, sedeId: sedeId);
+          if (result is Success<ProductoStock>) ps = result.data;
+        } catch (_) {}
+      }
+      if (ps != null) {
+        precio = ps.precioEfectivo ?? ps.precio;
+        precioNormal = ps.precio;
+        enOferta = ps.isOfertaActiva;
+        enLiquidacion = ps.isLiquidacionActiva;
+        incluyeIgv = ps.precioIncluyeIgv;
+        stockDisp = ps.stockDisponibleVenta;
+      } else {
+        // Sin red o item huérfano: mejor esfuerzo con lo local.
+        final p = await _resolverProducto(it, empresaId, catalogo,
+            preferirFrescos: true);
+        final v = p == null ? null : _resolverVariante(p, it.varianteId);
+        final StockPorSedeMixin? fuente = (it.varianteId != null) ? v : p;
+        if (fuente != null) {
+          precio = fuente.precioEfectivoEnSede(sedeId) ??
+              fuente.precioEnSede(sedeId);
+          precioNormal = fuente.precioEnSede(sedeId);
+          enOferta = fuente.enOfertaEnSede(sedeId);
+          enLiquidacion = fuente.enLiquidacionEnSede(sedeId);
+          incluyeIgv = fuente.precioIncluyeIgvEnSede(sedeId);
+          stockDisp = fuente.stockEnSede(sedeId);
+        }
+      }
+
+      if (precio == null || precio <= 0) return (it, false);
+      List<PrecioNivel> niveles = const [];
+      try {
+        niveles = it.varianteId != null
+            ? await _nivelCache.getNivelesVariante(it.varianteId!)
+            : await _nivelCache.getNiveles(it.productoId!);
+      } catch (_) {}
+      final nuevo = VentaDetalleInput(
+        productoId: it.productoId,
+        varianteId: it.varianteId,
+        descripcion: it.descripcion,
+        cantidad: 1,
+        precioUnitario: precio,
+        precioBase: precio,
+        // Desconocido (fallback sin datos) → conservar el del snapshot.
+        precioIncluyeIgv: incluyeIgv ?? it.precioIncluyeIgv,
+        stockDisponible: stockDisp,
+        niveles: niveles,
+        enOferta: enOferta,
+        enLiquidacion: enLiquidacion,
+        precioAntesOferta: (enOferta || enLiquidacion) ? precioNormal : null,
+      ).recalcularPrecioPorNiveles(it.cantidad);
+      return (nuevo, true);
+    }
+
+    // Todos los items EN PARALELO: la re-cotización completa tarda lo
+    // que la consulta más lenta (~1 request de tiempo), no la suma.
+    final resultados =
+        await Future.wait(_items.map(recotizarItem), eagerError: false);
+
+    var cambios = 0;
+    var sinStock = 0;
+    var noEncontrados = 0;
+    final nuevos = <VentaDetalleInput>[];
+    for (var i = 0; i < resultados.length; i++) {
+      final (nuevo, ok) = resultados[i];
+      if (!ok) {
+        noEncontrados++;
+      } else {
+        if ((nuevo.precioUnitario - _items[i].precioUnitario).abs() > 0.005) {
+          cambios++;
+        }
+        if (nuevo.exceedsStock) sinStock++;
+      }
+      nuevos.add(nuevo);
+    }
+
+    if (!mounted) return;
+    final ahora = DateTime.now();
+    final hhmm =
+        '${ahora.hour.toString().padLeft(2, '0')}:${ahora.minute.toString().padLeft(2, '0')}';
+    setState(() {
+      _items
+        ..clear()
+        ..addAll(nuevos);
+      _recotizando = false;
+      _estadoPrecios = 'Precios actualizados $hhmm';
+    });
+
+    // Persistir la re-cotización en la lista guardada de origen (pedido
+    // user): la guardada siempre refleja la última re-cotización. Se
+    // conserva fecha y posición (refresh silencioso, no edición — el
+    // "Actualizar" manual sí sube al tope con fecha nueva).
+    var guardadaSincronizada = false;
+    if (_listaCargadaId != null) {
+      await ListasMostradorStore.actualizar(
+        ListaMostradorGuardada(
+          id: _listaCargadaId!,
+          fecha: _listaCargadaFecha ?? ahora,
+          nombre: _listaCargadaNombre,
+          sedeId: _sedeId,
+          sedeNombre: _sedeNombre,
+          items: List.of(nuevos),
+        ),
+        alTope: false,
+      );
+      guardadaSincronizada = true;
+      if (!mounted) return;
+    }
+
+    final partes = <String>[
+      cambios == 0
+          ? 'precios al día'
+          : '$cambios precio${cambios == 1 ? '' : 's'} actualizado${cambios == 1 ? '' : 's'}',
+      if (sinStock > 0) '$sinStock sin stock suficiente',
+      if (noEncontrados > 0) '$noEncontrados no encontrado${noEncontrados == 1 ? '' : 's'}',
+      if (guardadaSincronizada && cambios > 0) 'guardada sincronizada',
+    ];
     _feedback(
-      'Lista del ${_fmtFecha(l.fecha)} abierta '
-      '(${l.items.length} producto${l.items.length == 1 ? '' : 's'})',
-      ok: true,
+      '${prefijo != null ? '$prefijo — ' : 'Recotizada: '}${partes.join(' · ')}',
+      ok: noEncontrados == 0,
     );
   }
 
@@ -1037,15 +1228,42 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
     return (nombre, telefono);
   }
 
-  /// Texto de la lista para WhatsApp (mismo contenido que el ticket).
-  String _textoLista(bool conPrecios) {
+  /// Línea "Por mayor: 3+ S/39.90, 12+ S/35.00" de un item — el mismo
+  /// cálculo de los chips de la UI y del ticket térmico.
+  String? _lineaNiveles(VentaDetalleInput item) {
+    if (item.niveles.isEmpty) return null;
+    final base = item.precioBase ?? item.precioUnitario;
+    final partes = item.niveles.take(3).map((n) {
+      final p = n.precio ?? base * (1 - (n.porcentajeDesc ?? 0) / 100);
+      return '${n.cantidadMinima}+ S/${p.toStringAsFixed(2)}';
+    }).join(', ');
+    return 'Por mayor: $partes';
+  }
+
+  /// Texto de la lista para WhatsApp (mismo contenido y reglas que el
+  /// ticket: membrete de empresa, sede con dirección, TOTAL solo en la
+  /// lista sin precios, niveles por mayor opcionales).
+  String _textoLista(bool conPrecios,
+      {bool conNiveles = false, String? empresaNombre, String? empresaTelefono}) {
     final sedeNombre = _sedeNombre;
+    final sedeDir = _sedeDireccion;
     final now = DateTime.now();
     final fecha =
         '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}';
     final b = StringBuffer();
-    b.writeln('*COTIZACION DE PRECIOS*');
-    if (sedeNombre != null) b.writeln('$sedeNombre - $fecha');
+    if (empresaNombre != null && empresaNombre.isNotEmpty) {
+      b.writeln('*${empresaNombre.toUpperCase()}*');
+    }
+    if (empresaTelefono != null && empresaTelefono.isNotEmpty) {
+      b.writeln('Tel. $empresaTelefono');
+    }
+    if (sedeNombre != null) {
+      b.writeln(
+          '${sedeNombre.toUpperCase()}${sedeDir != null ? ': $sedeDir' : ''}');
+    }
+    b.writeln(fecha);
+    b.writeln();
+    b.writeln('COTIZACION DE PRECIOS');
     b.writeln();
     var i = 0;
     for (final item in _items) {
@@ -1064,20 +1282,32 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
           '    $cant x S/ ${item.precioUnitario.toStringAsFixed(2)} = S/ ${item.total.toStringAsFixed(2)}'
           '${etiquetas.isNotEmpty ? ' (${etiquetas.join('/')})' : ''}',
         );
+        if (conNiveles) {
+          final niveles = _lineaNiveles(item);
+          if (niveles != null) b.writeln('    $niveles');
+        }
       } else {
         b.writeln('$i. ${item.descripcion} - $cant und');
       }
     }
-    b.writeln();
-    b.writeln('*TOTAL: S/ ${_total.toStringAsFixed(2)}*');
+    // Misma regla que el ticket: el TOTAL general solo en la lista sin
+    // precios (la cotización detalla, no cierra la suma).
+    if (!conPrecios) {
+      b.writeln();
+      b.writeln('*TOTAL: S/ ${_total.toStringAsFixed(2)}*');
+    }
     b.writeln();
     b.write('Precios referenciales del dia. No es comprobante de pago.');
     return b.toString();
   }
 
   /// PDF de la lista (A5 vertical): tabla con o sin precios + total.
-  Future<Uint8List> _generarPdf(bool conPrecios) async {
+  Future<Uint8List> _generarPdf(bool conPrecios,
+      {bool conNiveles = false,
+      String? empresaNombre,
+      String? empresaTelefono}) async {
     final sedeNombre = _sedeNombre;
+    final sedeDir = _sedeDireccion;
     final now = DateTime.now();
     final fecha =
         '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year} '
@@ -1109,27 +1339,56 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
         build: (_) => pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
-            pw.Center(
-              child: pw.Text(
-                'COTIZACIÓN DE PRECIOS',
-                style: pw.TextStyle(
-                  fontSize: 13,
-                  fontWeight: pw.FontWeight.bold,
+            // Membrete de empresa protagonista (consistencia con el
+            // ticket térmico), título discreto pegado a la tabla.
+            if (empresaNombre != null && empresaNombre.isNotEmpty)
+              pw.Center(
+                child: pw.Text(
+                  CalculoMostradorEscPosGenerator.sanitize(
+                      empresaNombre.toUpperCase()),
+                  style: pw.TextStyle(
+                    fontSize: 13,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
                 ),
               ),
-            ),
+            if (empresaTelefono != null && empresaTelefono.isNotEmpty)
+              pw.Center(
+                child: pw.Text(
+                  'Tel. $empresaTelefono',
+                  style: const pw.TextStyle(
+                    fontSize: 8.5,
+                    color: PdfColors.grey700,
+                  ),
+                ),
+              ),
+            if (sedeNombre != null)
+              pw.Center(
+                child: pw.Text(
+                  CalculoMostradorEscPosGenerator.sanitize(
+                    '${sedeNombre.toUpperCase()}${sedeDir != null ? ': $sedeDir' : ''}',
+                  ),
+                  style: const pw.TextStyle(fontSize: 8.5),
+                ),
+              ),
             pw.Center(
               child: pw.Text(
-                CalculoMostradorEscPosGenerator.sanitize(
-                  '${sedeNombre != null ? '$sedeNombre - ' : ''}$fecha',
-                ),
+                fecha,
                 style: const pw.TextStyle(
                   fontSize: 8.5,
                   color: PdfColors.grey700,
                 ),
               ),
             ),
-            pw.SizedBox(height: 12),
+            pw.SizedBox(height: 10),
+            pw.Text(
+              'COTIZACIÓN DE PRECIOS',
+              style: const pw.TextStyle(
+                fontSize: 8,
+                color: PdfColors.grey700,
+              ),
+            ),
+            pw.SizedBox(height: 2),
             pw.Table(
               border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
               columnWidths: conPrecios
@@ -1165,12 +1424,15 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
                     if (item.enOferta) 'OFERTA',
                     if (item.nivelAplicado != null) 'X MAYOR',
                   ];
+                  final niveles =
+                      conPrecios && conNiveles ? _lineaNiveles(item) : null;
                   return pw.TableRow(
                     children: [
                       celda(
                         CalculoMostradorEscPosGenerator.sanitize(
                           '${i + 1}. ${item.descripcion}'
-                          '${conPrecios && etiquetas.isNotEmpty ? '  (${etiquetas.join('/')})' : ''}',
+                          '${conPrecios && etiquetas.isNotEmpty ? '  (${etiquetas.join('/')})' : ''}'
+                          '${niveles != null ? '\n$niveles' : ''}',
                         ),
                       ),
                       celda(cant, align: pw.TextAlign.center),
@@ -1190,16 +1452,19 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
               ],
             ),
             pw.SizedBox(height: 10),
-            pw.Align(
-              alignment: pw.Alignment.centerRight,
-              child: pw.Text(
-                'TOTAL: S/ ${_total.toStringAsFixed(2)}',
-                style: pw.TextStyle(
-                  fontSize: 12,
-                  fontWeight: pw.FontWeight.bold,
+            // Misma regla que el ticket: TOTAL solo en la lista sin
+            // precios por item.
+            if (!conPrecios)
+              pw.Align(
+                alignment: pw.Alignment.centerRight,
+                child: pw.Text(
+                  'TOTAL: S/ ${_total.toStringAsFixed(2)}',
+                  style: pw.TextStyle(
+                    fontSize: 12,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
                 ),
               ),
-            ),
             pw.SizedBox(height: 14),
             pw.Center(
               child: pw.Text(
@@ -1223,6 +1488,7 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
   Future<void> _compartirWhatsApp() async {
     final telCtrl = TextEditingController();
     var conPrecios = true;
+    var conNiveles = false;
     var comoPdf = true;
     const verde = Color(0xFF25D366);
     final enviar = await showDialog<bool>(
@@ -1286,6 +1552,31 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
                 ),
               ],
             ),
+            // Niveles por mayor: solo tiene sentido con precios visibles.
+            if (conPrecios)
+              Row(
+                children: [
+                  SizedBox(
+                    width: 28,
+                    height: 28,
+                    child: Checkbox(
+                      value: conNiveles,
+                      activeColor: verde,
+                      visualDensity: VisualDensity.compact,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      onChanged: (v) =>
+                          setLocal(() => conNiveles = v ?? false),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  const Expanded(
+                    child: Text(
+                      'Incluir precios por mayor (3+, 12+…)',
+                      style: TextStyle(fontSize: 11),
+                    ),
+                  ),
+                ],
+              ),
             if (!comoPdf) ...[
               const SizedBox(height: 10),
               CustomText(
@@ -1332,8 +1623,17 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
     if (enviar != true || !mounted) return;
 
     try {
+      // Membrete de empresa (mismo origen y cache que el ticket térmico).
+      final (nombreEmp, telEmp) = await _datosEmpresaTicket();
+      if (!mounted) return;
+      final incluirNiveles = conPrecios && conNiveles;
       if (comoPdf) {
-        final bytes = await _generarPdf(conPrecios);
+        final bytes = await _generarPdf(
+          conPrecios,
+          conNiveles: incluirNiveles,
+          empresaNombre: nombreEmp,
+          empresaTelefono: telEmp,
+        );
         final dir = await getTemporaryDirectory();
         final file = File(
           '${dir.path}/cotizacion_precios_${DateTime.now().millisecondsSinceEpoch}.pdf',
@@ -1344,7 +1644,12 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
         ], text: 'Cotización de precios');
       } else {
         final digits = telCtrl.text.replaceAll(RegExp(r'[^0-9]'), '');
-        final texto = Uri.encodeComponent(_textoLista(conPrecios));
+        final texto = Uri.encodeComponent(_textoLista(
+          conPrecios,
+          conNiveles: incluirNiveles,
+          empresaNombre: nombreEmp,
+          empresaTelefono: telEmp,
+        ));
         await launchUrl(
           Uri.parse('https://wa.me/51$digits?text=$texto'),
           mode: LaunchMode.externalApplication,
@@ -1619,6 +1924,46 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
                     ],
                   ),
                 ),
+                // Estado de la re-cotización: barrita sutil mientras
+                // corre, label verde persistente al terminar (el banner
+                // efímero de abajo se mantiene igual).
+                if (_recotizando)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: SizedBox(
+                      width: 120,
+                      height: 2,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(1),
+                        child: LinearProgressIndicator(
+                          minHeight: 2,
+                          color: AppColors.blue1,
+                          backgroundColor:
+                              AppColors.blue1.withValues(alpha: 0.15),
+                        ),
+                      ),
+                    ),
+                  )
+                else if (_estadoPrecios != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.check_circle,
+                            size: 10, color: Colors.green.shade600),
+                        const SizedBox(width: 3),
+                        Text(
+                          _estadoPrecios!,
+                          style: TextStyle(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.green.shade700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
               ],
             ),
           ),
@@ -1737,6 +2082,7 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
       _listaCargadaId = null;
       _listaCargadaNombre = null;
       _listaCargadaFecha = null;
+      _estadoPrecios = null;
       _query = '';
       _serverQuery = null;
       _autoAgregarDeScan = false;
@@ -2046,6 +2392,11 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
                   spacing: 4,
                   runSpacing: 2,
                   children: [
+                    // La cantidad pedida supera el stock actual (aparece
+                    // sobre todo al re-cotizar listas guardadas viejas).
+                    if (item.exceedsStock)
+                      _chip('STOCK: ${item.stockDisponible}',
+                          Colors.red.shade900),
                     if (item.enLiquidacion)
                       _chip('LIQUIDACIÓN', Colors.red.shade700),
                     if (item.enOferta) _chip('OFERTA', Colors.orange.shade800),
@@ -2319,6 +2670,7 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
                             _listaCargadaId = null;
                             _listaCargadaNombre = null;
                             _listaCargadaFecha = null;
+                            _estadoPrecios = null;
                           }),
                   icon: const Icon(Icons.delete_outline, size: 16),
                   label: const Text('Limpiar', style: TextStyle(fontSize: 12)),

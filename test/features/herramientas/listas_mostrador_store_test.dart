@@ -252,6 +252,27 @@ void main() {
           ['2', '1']);
     });
 
+    test('actualizar con alTope:false conserva la posición (re-cotización)',
+        () async {
+      await ListasMostradorStore.guardar(lista('1', [itemCompleto()]));
+      await ListasMostradorStore.guardar(lista('2', [itemCompleto()]));
+      await ListasMostradorStore.guardar(lista('3', [itemCompleto()]));
+
+      // "1" está al fondo; el refresh silencioso NO debe moverla.
+      const nuevo = VentaDetalleInput(
+          productoId: 'p',
+          descripcion: 'recotizado',
+          cantidad: 1,
+          precioUnitario: 99,
+          precioIncluyeIgv: true);
+      await ListasMostradorStore.actualizar(lista('1', [nuevo]),
+          alTope: false);
+
+      final listas = await ListasMostradorStore.cargar();
+      expect(listas.map((l) => l.id), ['3', '2', '1']);
+      expect(listas.last.items.single.precioUnitario, 99);
+    });
+
     test('eliminar quita solo la lista indicada', () async {
       await ListasMostradorStore.guardar(lista('1', [itemCompleto()]));
       await ListasMostradorStore.guardar(lista('2', [itemCompleto()]));

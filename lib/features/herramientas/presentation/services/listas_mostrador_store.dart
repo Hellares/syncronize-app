@@ -166,12 +166,22 @@ class ListasMostradorStore {
   }
 
   /// Upsert: reemplaza la lista con el mismo id (o la crea si ya no
-  /// existe) y la sube al tope — "guardar cambios" sobre una lista
-  /// abierta desde el historial.
-  static Future<void> actualizar(ListaMostradorGuardada lista) async {
+  /// existe). [alTope] true (default) la sube al tope — "guardar
+  /// cambios" explícito del user. false conserva su posición — usado
+  /// por la re-cotización automática (refresh silencioso, no edición).
+  static Future<void> actualizar(ListaMostradorGuardada lista,
+      {bool alTope = true}) async {
     final listas = await cargar();
-    listas.removeWhere((l) => l.id == lista.id);
-    listas.insert(0, lista);
+    final idx = listas.indexWhere((l) => l.id == lista.id);
+    if (idx < 0) {
+      listas.insert(0, lista);
+    } else if (alTope) {
+      listas
+        ..removeAt(idx)
+        ..insert(0, lista);
+    } else {
+      listas[idx] = lista;
+    }
     if (listas.length > _max) listas.removeRange(_max, listas.length);
     await _persist(listas);
   }
