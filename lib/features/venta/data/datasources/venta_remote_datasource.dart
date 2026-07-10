@@ -229,6 +229,17 @@ class VentaRemoteDataSource {
     return response.data as Map<String, dynamic>;
   }
 
+  /// PUT /ventas/:id/envio — upsert de los datos del despacho (marca la
+  /// venta como conEnvio).
+  Future<void> upsertEnvio(String ventaId, Map<String, dynamic> data) async {
+    await _dioClient.put('/ventas/$ventaId/envio', data: data);
+  }
+
+  /// PATCH /ventas/:id/envio/rotulo-impreso
+  Future<void> marcarRotuloEnvioImpreso(String ventaId) async {
+    await _dioClient.patch('/ventas/$ventaId/envio/rotulo-impreso');
+  }
+
   Future<VentaModel?> buscarPorCodigo(String codigo) async {
     try {
       final response = await _dioClient.get(

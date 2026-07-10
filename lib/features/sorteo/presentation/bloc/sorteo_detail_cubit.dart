@@ -107,6 +107,16 @@ class SorteoDetailCubit extends Cubit<SorteoDetailState> {
     return null;
   }
 
+  /// Marca los rótulos como impresos tras un print exitoso (batch:
+  /// "2 por hoja" imprime varios premios de una vez).
+  Future<void> marcarRotulosImpresos(List<String> premioIds) async {
+    for (final id in premioIds) {
+      await _repository.marcarRotuloImpreso(id);
+      if (isClosed) return;
+    }
+    await reload();
+  }
+
   Future<String?> subirTicketEnvio(String premioId, File file) async {
     final result = await _repository.subirTicketEnvio(premioId, file);
     if (isClosed) return null;

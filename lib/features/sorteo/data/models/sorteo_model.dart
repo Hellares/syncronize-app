@@ -88,6 +88,7 @@ class SorteoPremioModel {
       envioNumeroOrden: json['envioNumeroOrden'] as String?,
       envioCodigo: json['envioCodigo'] as String?,
       envioClave: json['envioClave'] as String?,
+      rotuloImpresoEn: _fecha(json['rotuloImpresoEn']),
       estado: EstadoPremioSorteo.fromApi(json['estado'] as String?),
       enviadoEn: _fecha(json['enviadoEn']),
       entregadoEn: _fecha(json['entregadoEn']),

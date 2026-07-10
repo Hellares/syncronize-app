@@ -53,6 +53,8 @@ abstract class SorteoRepository {
     String? envioClave,
   });
 
+  Future<Resource<void>> marcarRotuloImpreso(String premioId);
+
   Future<Resource<void>> subirTicketEnvio(String premioId, File file);
 
   Future<Resource<void>> subirFotoPremio(String premioId, File file);

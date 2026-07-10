@@ -69,6 +69,11 @@ class SorteoRemoteDataSource {
     return SorteoPremioModel.fromJson(response.data as Map<String, dynamic>);
   }
 
+  /// PATCH /sorteos/premios/:premioId/rotulo-impreso
+  Future<void> marcarRotuloImpreso(String premioId) async {
+    await _dioClient.patch('$_basePath/premios/$premioId/rotulo-impreso');
+  }
+
   /// POST /sorteos/premios/:premioId/ticket-envio (multipart)
   Future<void> subirTicketEnvio(String premioId, File file) =>
       _subirArchivo('$_basePath/premios/$premioId/ticket-envio', file);

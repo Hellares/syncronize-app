@@ -37,6 +37,10 @@ class VentaRapidaState extends Equatable {
   final int numeroCuotas;
   final int plazoDias;
 
+  /// Venta CON ENVÍO (pedido por teléfono/WhatsApp que se despachará por
+  /// agencia): habilita el rótulo desde el detalle de la venta.
+  final bool conEnvio;
+
   // Pagos
   final List<Map<String, dynamic>> pagos;
 
@@ -85,6 +89,7 @@ class VentaRapidaState extends Equatable {
     this.condicionPago = 'CONTADO',
     this.numeroCuotas = 1,
     this.plazoDias = 30,
+    this.conEnvio = false,
     this.pagos = const [],
     this.procesando = false,
     this.error,
@@ -157,6 +162,7 @@ class VentaRapidaState extends Equatable {
     String? condicionPago,
     int? numeroCuotas,
     int? plazoDias,
+    bool? conEnvio,
     List<Map<String, dynamic>>? pagos,
     bool? procesando,
     String? error,
@@ -195,6 +201,7 @@ class VentaRapidaState extends Equatable {
       condicionPago: condicionPago ?? this.condicionPago,
       numeroCuotas: numeroCuotas ?? this.numeroCuotas,
       plazoDias: plazoDias ?? this.plazoDias,
+      conEnvio: conEnvio ?? this.conEnvio,
       pagos: pagos ?? this.pagos,
       procesando: procesando ?? this.procesando,
       error: clearError ? null : (error ?? this.error),
@@ -219,7 +226,7 @@ class VentaRapidaState extends Equatable {
         items, tipoComprobante, clienteGenerico, clienteId, clienteEmpresaId,
         tipoDocCliente, numeroDocCliente, nombreClienteResuelto, buscandoCliente,
         docSinResultado,
-        condicionPago, numeroCuotas, plazoDias,
+        condicionPago, numeroCuotas, plazoDias, conEnvio,
         pagos, procesando, error, ventaCompletadaId, comboPendienteOferta,
         preciosDesactualizados, stockInsuficiente,
       ];

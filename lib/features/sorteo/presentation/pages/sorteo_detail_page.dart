@@ -285,15 +285,33 @@ class _SorteoDetailView extends StatelessWidget {
     }
 
     final bytes = await RotuloEnvioPdfGenerator.generate(
-      premios: seleccion,
+      rotulos: seleccion
+          .map((p) => DatosRotulo(
+                nombre: p.ganadorNombre,
+                dni: p.ganadorDni,
+                celular: p.ganadorCelular,
+                agenciaNombre: p.agenciaNombre,
+                destinoDepartamento: p.destinoDepartamento,
+                destinoProvincia: p.destinoProvincia,
+                agenciaDireccion: p.agenciaDireccion,
+              ))
+          .toList(),
       remitenteNombre: empresa?.nombre ?? '',
       remitenteTelefono: empresa?.telefono,
       logoBytes: logoBytes,
     );
-    await Printing.layoutPdf(
+    final cubit = context.mounted ? context.read<SorteoDetailCubit>() : null;
+    final impreso = await Printing.layoutPdf(
       onLayout: (_) async => bytes,
       name: 'rotulos_envio_sorteo.pdf',
     );
+    // layoutPdf devuelve true solo si el usuario COMPLETÓ la impresión
+    // (canceló → false): recién ahí se marca el chip IMPRESO.
+    if (impreso && cubit != null && !cubit.isClosed) {
+      await cubit.marcarRotulosImpresos(
+        seleccion.map((p) => p.id).toList(),
+      );
+    }
   }
 
   Widget _statBox(String label, String valor, Color color) {
@@ -566,20 +584,52 @@ class _PremioCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: _colorEstado.withValues(alpha: 0.10),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    premio.estado.label.toUpperCase(),
-                    style: TextStyle(
-                        fontSize: 9,
-                        fontWeight: FontWeight.w700,
-                        color: _colorEstado),
-                  ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: _colorEstado.withValues(alpha: 0.10),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        premio.estado.label.toUpperCase(),
+                        style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                            color: _colorEstado),
+                      ),
+                    ),
+                    // Rótulo ya impreso: el paquete tiene su ticket.
+                    if (premio.rotuloImpreso) ...[
+                      const SizedBox(height: 3),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.teal.withValues(alpha: 0.10),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.print,
+                                size: 9, color: Colors.teal.shade700),
+                            const SizedBox(width: 3),
+                            Text(
+                              'IMPRESO',
+                              style: TextStyle(
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.teal.shade700),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),
@@ -818,6 +868,24 @@ class _PremioCard extends StatelessWidget {
               : 'Premio ${nuevo.label.toLowerCase()}'),
       error: error != null,
     );
+
+    // Al pasar a PREPARANDO (envío por agencia): ofrecer imprimir el
+    // rótulo de una vez — es el momento natural de alistar el paquete.
+    if (error == null &&
+        nuevo == EstadoPremioSorteo.preparando &&
+        premio.modalidad == ModalidadEntregaPremio.envioAgencia &&
+        onImprimirRotulo != null) {
+      final imprimir = await ConfirmDialog.show(
+        context: context,
+        type: ConfirmDialogType.info,
+        title: 'Imprimir rótulo',
+        message: '¿Imprimir el rótulo de envío de ${premio.ganadorNombre} '
+            'ahora?',
+        confirmText: 'Imprimir',
+        icon: Icons.print_outlined,
+      );
+      if (imprimir == true) onImprimirRotulo!();
+    }
   }
 
   /// Editar los datos del envío de un premio ya ENVIADO (re-envía el

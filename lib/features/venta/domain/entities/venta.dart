@@ -223,6 +223,44 @@ class VentaDevolucionItemInfo extends Equatable {
 }
 
 /// Entity que representa una venta
+/// Datos del despacho de una venta CON ENVÍO (rótulo de agencia) —
+/// editables, prellenados del cliente de la venta.
+class VentaEnvioData extends Equatable {
+  final String destinatarioNombre;
+  final String? destinatarioDni;
+  final String? destinatarioCelular;
+  final String? agenciaNombre;
+  final String? destinoDepartamento;
+  final String? destinoProvincia;
+  final String? agenciaDireccion;
+  final DateTime? rotuloImpresoEn;
+
+  const VentaEnvioData({
+    required this.destinatarioNombre,
+    this.destinatarioDni,
+    this.destinatarioCelular,
+    this.agenciaNombre,
+    this.destinoDepartamento,
+    this.destinoProvincia,
+    this.agenciaDireccion,
+    this.rotuloImpresoEn,
+  });
+
+  bool get rotuloImpreso => rotuloImpresoEn != null;
+
+  @override
+  List<Object?> get props => [
+        destinatarioNombre,
+        destinatarioDni,
+        destinatarioCelular,
+        agenciaNombre,
+        destinoDepartamento,
+        destinoProvincia,
+        agenciaDireccion,
+        rotuloImpresoEn,
+      ];
+}
+
 class Venta extends Equatable {
   final String id;
   final String empresaId;
@@ -240,6 +278,11 @@ class Venta extends Equatable {
   final String? emailCliente;
   final String? telefonoCliente;
   final String? direccionCliente;
+
+  /// Venta CON ENVÍO (pedido por teléfono/WhatsApp que se despacha por
+  /// agencia). Los datos del rótulo viven en [envio] (solo en detalle).
+  final bool conEnvio;
+  final VentaEnvioData? envio;
 
   // Moneda
   final String moneda;
@@ -336,6 +379,8 @@ class Venta extends Equatable {
     this.emailCliente,
     this.telefonoCliente,
     this.direccionCliente,
+    this.conEnvio = false,
+    this.envio,
     this.moneda = 'PEN',
     this.tipoCambio,
     required this.subtotal,

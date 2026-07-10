@@ -71,6 +71,35 @@ class VentaRepositoryImpl implements VentaRepository {
     }
   }
 
+  @override
+  Future<Resource<void>> upsertEnvio({
+    required String ventaId,
+    required Map<String, dynamic> data,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      await _remoteDataSource.upsertEnvio(ventaId, data);
+      return Success(null);
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'VentaEnvio');
+    }
+  }
+
+  @override
+  Future<Resource<void>> marcarRotuloEnvioImpreso(String ventaId) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      await _remoteDataSource.marcarRotuloEnvioImpreso(ventaId);
+      return Success(null);
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'VentaEnvio');
+    }
+  }
+
   /// Captura excepciones de los 3 endpoints de creación de venta. Detecta
   /// específicamente el caso 409 `PRECIO_DESACTUALIZADO` (el backend rechaza
   /// la venta cuando el precio enviado difiere del actual) y lo expone con

@@ -1110,6 +1110,16 @@ class _CobroViewState extends State<_CobroView> {
             backgroundColor: AppColors.blue1,
             foregroundColor: Colors.white,
             actions: [
+              // Venta CON ENVÍO (pedido por teléfono/WhatsApp): habilita
+              // el rótulo de despacho desde el detalle de la venta.
+              _AppBarCondicionChip(
+                label: 'Envío',
+                selected: state.conEnvio,
+                selectedColor: Colors.teal,
+                onTap: () => context
+                    .read<VentaRapidaCubit>()
+                    .setConEnvio(!state.conEnvio),
+              ),
               if (_creditoPermitido(context)) ...[
                 _AppBarCondicionChip(
                   label: 'Contado',
@@ -1122,8 +1132,8 @@ class _CobroViewState extends State<_CobroView> {
                   selectedColor: Colors.orange,
                   onTap: () => context.read<VentaRapidaCubit>().setCondicionPago('CREDITO'),
                 ),
-                const SizedBox(width: 8),
               ],
+              const SizedBox(width: 8),
             ],
           ),
           body: SingleChildScrollView(

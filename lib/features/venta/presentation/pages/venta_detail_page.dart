@@ -1,6 +1,10 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
+import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/di/injection_container.dart';
@@ -11,6 +15,7 @@ import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/theme/gradient_container.dart';
 import '../../../../core/fonts/app_text_widgets.dart';
 import '../../../../core/widgets/autorizacion_dialog.dart';
+import '../../../../core/widgets/confirm_dialog.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_filter_chip.dart';
 import '../../../../core/widgets/custom_navigation_menu.dart';
@@ -21,6 +26,9 @@ import '../../../auth/presentation/widgets/custom_text.dart'
 import '../../../../core/widgets/producto_sede_selector/producto_sede_search_cubit.dart';
 import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_cubit.dart';
 import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_state.dart';
+import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
+import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
+import '../../../sorteo/presentation/services/rotulo_envio_pdf_generator.dart';
 import '../../../producto/presentation/bloc/producto_list/producto_list_cubit.dart';
 import '../../data/datasources/venta_remote_datasource.dart';
 import '../../domain/entities/reversion_total.dart';
@@ -30,6 +38,7 @@ import '../../domain/usecases/reversion_total_usecase.dart';
 import '../bloc/venta_form/venta_form_cubit.dart';
 import '../bloc/venta_form/venta_form_state.dart';
 import '../widgets/flujo_documentos_widget.dart';
+import '../widgets/venta_envio_sheet.dart';
 import '../widgets/venta_estado_chip.dart';
 import '../../../facturacion/domain/entities/crear_nota_item.dart';
 import '../../../facturacion/domain/entities/tipo_nota.dart';
@@ -93,6 +102,87 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
     if (!mounted) return;
     if (result is Success<ReversionTotal?>) {
       setState(() => _reversion = result.data);
+    }
+  }
+
+  // ── Venta con envío (rótulo de agencia) ─────────────────────────────
+
+  /// Sheet editable (prellenado del cliente de la venta) → upsert del
+  /// envío (marca conEnvio) → ofrecer imprimir el rótulo → chip impreso.
+  Future<void> _gestionarEnvio() async {
+    final venta = _venta;
+    if (venta == null) return;
+    final datos = await showVentaEnvioSheet(context: context, venta: venta);
+    if (datos == null || !mounted) return;
+
+    final res = await locator<VentaRepository>()
+        .upsertEnvio(ventaId: venta.id, data: datos.toJson());
+    if (!mounted) return;
+    if (res is Error<void>) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(res.message, style: const TextStyle(fontSize: 12)),
+        backgroundColor: Colors.orange.shade800,
+        behavior: SnackBarBehavior.floating,
+      ));
+      return;
+    }
+    await _loadVenta();
+    if (!mounted) return;
+
+    final imprimir = await ConfirmDialog.show(
+      context: context,
+      type: ConfirmDialogType.info,
+      title: 'Imprimir rótulo',
+      message: '¿Imprimir el rótulo de envío ahora?',
+      confirmText: 'Imprimir',
+      icon: Icons.print_outlined,
+    );
+    if (imprimir != true || !mounted) return;
+    await _imprimirRotuloVenta(datos);
+  }
+
+  Future<void> _imprimirRotuloVenta(VentaEnvioFormData datos) async {
+    final venta = _venta;
+    if (venta == null) return;
+    final ctxState = context.read<EmpresaContextCubit>().state;
+    final empresa =
+        ctxState is EmpresaContextLoaded ? ctxState.context.empresa : null;
+
+    // Logo como marca de agua (best-effort).
+    Uint8List? logoBytes;
+    final logoUrl = empresa?.logo;
+    if (logoUrl != null && logoUrl.isNotEmpty) {
+      try {
+        final r = await http
+            .get(Uri.parse(logoUrl))
+            .timeout(const Duration(seconds: 5));
+        if (r.statusCode == 200) logoBytes = r.bodyBytes;
+      } catch (_) {}
+    }
+
+    final bytes = await RotuloEnvioPdfGenerator.generate(
+      rotulos: [
+        DatosRotulo(
+          nombre: datos.destinatarioNombre,
+          dni: datos.destinatarioDni,
+          celular: datos.destinatarioCelular,
+          agenciaNombre: datos.agenciaNombre,
+          destinoDepartamento: datos.destinoDepartamento,
+          destinoProvincia: datos.destinoProvincia,
+          agenciaDireccion: datos.agenciaDireccion,
+        ),
+      ],
+      remitenteNombre: empresa?.nombre ?? '',
+      remitenteTelefono: empresa?.telefono,
+      logoBytes: logoBytes,
+    );
+    final impreso = await Printing.layoutPdf(
+      onLayout: (_) async => bytes,
+      name: 'rotulo_envio_${venta.codigo}.pdf',
+    );
+    if (impreso) {
+      await locator<VentaRepository>().marcarRotuloEnvioImpreso(venta.id);
+      if (mounted) await _loadVenta();
     }
   }
 
@@ -198,6 +288,28 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                 backgroundColor: AppColors.blue1,
                 foregroundColor: Colors.white,
                 actions: [
+                  // Rótulo de envío: disponible SIEMPRE (una venta por
+                  // teléfono puede marcarse con envío después de
+                  // cobrada). Color según estado: tenue = sin envío,
+                  // blanco = con envío, verde = rótulo ya impreso.
+                  if (_venta != null)
+                    IconButton(
+                      tooltip: _venta!.envio?.rotuloImpreso == true
+                          ? 'Rótulo impreso — reimprimir'
+                          : _venta!.conEnvio
+                              ? 'Rótulo de envío'
+                              : 'Marcar como venta con envío',
+                      icon: Icon(
+                        Icons.local_shipping_outlined,
+                        size: 21,
+                        color: _venta!.envio?.rotuloImpreso == true
+                            ? Colors.greenAccent
+                            : _venta!.conEnvio
+                                ? Colors.white
+                                : Colors.white.withValues(alpha: 0.45),
+                      ),
+                      onPressed: _gestionarEnvio,
+                    ),
                   if (_venta != null)
                     PopupMenuButton<String>(
                       onSelected: (value) =>

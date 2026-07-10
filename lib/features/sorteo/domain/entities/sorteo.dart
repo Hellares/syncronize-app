@@ -151,6 +151,9 @@ class SorteoPremio {
   final String? envioNumeroOrden;
   final String? envioCodigo;
   final String? envioClave;
+
+  /// Rótulo de envío ya impreso (chip IMPRESO en la card).
+  final DateTime? rotuloImpresoEn;
   final EstadoPremioSorteo estado;
   final DateTime? enviadoEn;
   final DateTime? entregadoEn;
@@ -182,6 +185,7 @@ class SorteoPremio {
     this.envioNumeroOrden,
     this.envioCodigo,
     this.envioClave,
+    this.rotuloImpresoEn,
     required this.estado,
     this.enviadoEn,
     this.entregadoEn,
@@ -190,6 +194,8 @@ class SorteoPremio {
     this.tickets = const [],
     this.fotos = const [],
   });
+
+  bool get rotuloImpreso => rotuloImpresoEn != null;
 
   /// "Tarapoto, San Martín" (o lo que haya).
   String? get destinoTexto {

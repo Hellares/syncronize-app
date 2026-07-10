@@ -4,15 +4,44 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 import '../../../herramientas/presentation/services/calculo_mostrador_esc_pos_generator.dart';
-import '../../domain/entities/sorteo.dart';
 
-/// Rótulo de envío del premio para impresora NORMAL (A4): cada rótulo
-/// ocupa EXACTAMENTE media hoja (con línea de corte al centro) — se
-/// imprimen 2 por hoja o se recorta. Datos: DNI, nombres, celular,
-/// agencia y dirección de la agencia (+ destino y remitente).
+/// Datos NEUTROS de un rótulo de envío — lo alimentan tanto los premios
+/// de sorteo como las ventas con envío (un solo rótulo que mantener).
+class DatosRotulo {
+  final String nombre;
+  final String? dni;
+  final String? celular;
+  final String? agenciaNombre;
+  final String? destinoDepartamento;
+  final String? destinoProvincia;
+  final String? agenciaDireccion;
+
+  const DatosRotulo({
+    required this.nombre,
+    this.dni,
+    this.celular,
+    this.agenciaNombre,
+    this.destinoDepartamento,
+    this.destinoProvincia,
+    this.agenciaDireccion,
+  });
+
+  String? get destinoTexto {
+    final partes = [destinoProvincia, destinoDepartamento]
+        .whereType<String>()
+        .where((s) => s.isNotEmpty)
+        .toList();
+    return partes.isEmpty ? null : partes.join(', ');
+  }
+}
+
+/// Rótulo de envío para impresora NORMAL (A4): cada rótulo ocupa
+/// EXACTAMENTE media hoja (con línea de corte al centro) — se imprimen
+/// 2 por hoja o se recorta. Formato tabla de courier encuadrada con
+/// marca de agua del logo de la empresa.
 class RotuloEnvioPdfGenerator {
   static Future<Uint8List> generate({
-    required List<SorteoPremio> premios,
+    required List<DatosRotulo> rotulos,
     required String remitenteNombre,
     String? remitenteTelefono,
     /// Logo de la empresa — se estampa como MARCA DE AGUA translúcida
@@ -31,8 +60,8 @@ class RotuloEnvioPdfGenerator {
     }
 
     // De a 2 por página A4 (mitad superior e inferior).
-    for (var i = 0; i < premios.length; i += 2) {
-      final par = premios.skip(i).take(2).toList();
+    for (var i = 0; i < rotulos.length; i += 2) {
+      final par = rotulos.skip(i).take(2).toList();
       doc.addPage(
         pw.Page(
           pageFormat: PdfPageFormat.a4,
@@ -78,7 +107,7 @@ class RotuloEnvioPdfGenerator {
   }
 
   static pw.Widget _rotulo(
-    SorteoPremio p,
+    DatosRotulo p,
     String remitenteNombre,
     String? remitenteTelefono,
     String Function(String) sanitize,
@@ -95,7 +124,7 @@ class RotuloEnvioPdfGenerator {
               pw.Positioned.fill(
                 child: pw.Center(
                   child: pw.Opacity(
-                    opacity: 0.07,
+                    opacity: 0.20,
                     child: pw.Image(
                       logo,
                       width: 230,
@@ -118,7 +147,7 @@ class RotuloEnvioPdfGenerator {
   }
 
   static pw.Widget _contenidoRotulo(
-    SorteoPremio p,
+    DatosRotulo p,
     String remitenteNombre,
     String? remitenteTelefono,
     String Function(String) sanitize,
@@ -216,10 +245,10 @@ class RotuloEnvioPdfGenerator {
           pw.Expanded(
             child: pw.Column(
               children: [
-                fila('DESTINATARIO', p.ganadorNombre.toUpperCase(),
+                fila('DESTINATARIO', p.nombre.toUpperCase(),
                     fontSize: 17),
-                fila('DNI', p.ganadorDni),
-                fila('CELULAR', p.ganadorCelular),
+                fila('DNI', p.dni),
+                fila('CELULAR', p.celular),
                 fila('DESTINO', p.destinoTexto?.toUpperCase()),
                 fila(
                   'AGENCIA',

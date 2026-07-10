@@ -831,6 +831,40 @@ class _VentaListTile extends StatelessWidget {
                         ),
                       ),
                     ),
+                  // Badge ENVÍO: venta que se despacha por agencia
+                  // (pedido por teléfono/WhatsApp) — rótulo en el detalle.
+                  if (venta.conEnvio)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 6),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 5, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: Colors.deepPurple.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(3),
+                          border: Border.all(
+                              color:
+                                  Colors.deepPurple.withValues(alpha: 0.40),
+                              width: 0.6),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.local_shipping_outlined,
+                                size: 9, color: Colors.deepPurple.shade700),
+                            const SizedBox(width: 3),
+                            Text(
+                              'Envío',
+                              style: TextStyle(
+                                fontSize: 8,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.deepPurple.shade700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   // Badge OS-XXXXX: la venta cobró una orden de servicio.
                   ...venta.ordenesServicioCodigos.map(
                     (cod) => Padding(

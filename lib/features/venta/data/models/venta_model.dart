@@ -6,6 +6,20 @@ import 'venta_detalle_model.dart';
 import 'pago_venta_model.dart';
 import 'cuota_venta_model.dart';
 
+/// Datos de envío de la venta (rótulo de agencia).
+VentaEnvioData _envioFromJson(Map<String, dynamic> json) => VentaEnvioData(
+      destinatarioNombre: json['destinatarioNombre'] as String? ?? '',
+      destinatarioDni: json['destinatarioDni'] as String?,
+      destinatarioCelular: json['destinatarioCelular'] as String?,
+      agenciaNombre: json['agenciaNombre'] as String?,
+      destinoDepartamento: json['destinoDepartamento'] as String?,
+      destinoProvincia: json['destinoProvincia'] as String?,
+      agenciaDireccion: json['agenciaDireccion'] as String?,
+      rotuloImpresoEn: json['rotuloImpresoEn'] is String
+          ? DateTime.tryParse(json['rotuloImpresoEn'] as String)
+          : null,
+    );
+
 class VentaModel extends Venta {
   const VentaModel({
     required super.id,
@@ -22,6 +36,8 @@ class VentaModel extends Venta {
     super.emailCliente,
     super.telefonoCliente,
     super.direccionCliente,
+    super.conEnvio,
+    super.envio,
     super.moneda,
     super.tipoCambio,
     required super.subtotal,
@@ -173,6 +189,10 @@ class VentaModel extends Venta {
       emailCliente: json['emailCliente'] as String?,
       telefonoCliente: json['telefonoCliente'] as String?,
       direccionCliente: json['direccionCliente'] as String?,
+      conEnvio: json['conEnvio'] as bool? ?? false,
+      envio: json['envio'] is Map
+          ? _envioFromJson((json['envio'] as Map).cast<String, dynamic>())
+          : null,
       moneda: json['moneda'] as String? ?? 'PEN',
       tipoCambio: _toDoubleNullable(json['tipoCambio']),
       subtotal: _toDouble(json['subtotal']),

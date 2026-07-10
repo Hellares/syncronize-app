@@ -1069,6 +1069,12 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     ));
   }
 
+  /// Marca la venta como CON ENVÍO (pedido por teléfono/WhatsApp que se
+  /// despachará por agencia — habilita el rótulo desde el detalle).
+  void setConEnvio(bool valor) {
+    emit(state.copyWith(conEnvio: valor));
+  }
+
   void setNumeroCuotas(int cuotas) {
     if (cuotas < 1) return;
     emit(state.copyWith(
@@ -1380,6 +1386,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       'moneda': state.moneda,
       'tipoComprobante': state.tipoComprobante,
       'esCredito': false,
+      if (state.conEnvio) 'conEnvio': true,
       // La bancarización ya la validó la página (contando la porción Yape como
       // medio de pago); al crear, el backend solo ve el efectivo, así que le
       // confirmamos para no rebotar un mixto legítimo por su vista parcial.
@@ -1619,6 +1626,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       'moneda': state.moneda,
       'tipoComprobante': state.tipoComprobante,
       'esCredito': state.esCredito,
+      if (state.conEnvio) 'conEnvio': true,
       if (state.esCredito) ...{
         'plazoCredito': state.plazoDias,
         'numeroCuotas': state.numeroCuotas,

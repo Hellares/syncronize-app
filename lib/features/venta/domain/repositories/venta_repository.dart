@@ -14,6 +14,15 @@ abstract class VentaRepository {
 
   Future<Resource<Venta>> crearYCobrar({required Map<String, dynamic> data});
 
+  /// Upsert de los datos del ENVÍO de la venta (marca conEnvio).
+  Future<Resource<void>> upsertEnvio({
+    required String ventaId,
+    required Map<String, dynamic> data,
+  });
+
+  /// Marca el rótulo de envío de la venta como impreso.
+  Future<Resource<void>> marcarRotuloEnvioImpreso(String ventaId);
+
   Future<Resource<List<Venta>>> getVentas({
     String? sedeId,
     String? estado,
