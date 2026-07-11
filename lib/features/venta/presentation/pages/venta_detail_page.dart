@@ -15,7 +15,6 @@ import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/theme/gradient_container.dart';
 import '../../../../core/fonts/app_text_widgets.dart';
 import '../../../../core/widgets/autorizacion_dialog.dart';
-import '../../../../core/widgets/confirm_dialog.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_filter_chip.dart';
 import '../../../../core/widgets/custom_navigation_menu.dart';
@@ -107,12 +106,29 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
 
   // ── Venta con envío (rótulo de agencia) ─────────────────────────────
 
-  /// Sheet editable (prellenado del cliente de la venta) → upsert del
-  /// envío (marca conEnvio) → ofrecer imprimir el rótulo → chip impreso.
+  /// Sheet editable (prellenado en cascada: envío de ESTA venta > último
+  /// envío del cliente > snapshot del cliente) → upsert del envío (marca
+  /// conEnvio) → imprime el rótulo si el usuario tocó "Guardar e imprimir".
   Future<void> _gestionarEnvio() async {
     final venta = _venta;
     if (venta == null) return;
-    final datos = await showVentaEnvioSheet(context: context, venta: venta);
+
+    // La agencia/destino del cliente suele repetirse entre ventas: si esta
+    // venta aún no tiene envío, prellenar con el último del cliente para
+    // que el cajero solo corrobore e imprima (best-effort, no bloquea).
+    VentaEnvioData? ultimoEnvio;
+    if (venta.envio == null && venta.clienteId != null) {
+      final r = await locator<VentaRepository>()
+          .ultimoEnvioCliente(venta.clienteId!);
+      if (r is Success<VentaEnvioData?>) ultimoEnvio = r.data;
+    }
+    if (!mounted) return;
+
+    final datos = await showVentaEnvioSheet(
+      context: context,
+      venta: venta,
+      ultimoEnvioCliente: ultimoEnvio,
+    );
     if (datos == null || !mounted) return;
 
     final res = await locator<VentaRepository>()
@@ -129,16 +145,7 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
     await _loadVenta();
     if (!mounted) return;
 
-    final imprimir = await ConfirmDialog.show(
-      context: context,
-      type: ConfirmDialogType.info,
-      title: 'Imprimir rótulo',
-      message: '¿Imprimir el rótulo de envío ahora?',
-      confirmText: 'Imprimir',
-      icon: Icons.print_outlined,
-    );
-    if (imprimir != true || !mounted) return;
-    await _imprimirRotuloVenta(datos);
+    if (datos.imprimir) await _imprimirRotuloVenta(datos);
   }
 
   Future<void> _imprimirRotuloVenta(VentaEnvioFormData datos) async {

@@ -23,6 +23,10 @@ abstract class VentaRepository {
   /// Marca el rótulo de envío de la venta como impreso.
   Future<Resource<void>> marcarRotuloEnvioImpreso(String ventaId);
 
+  /// Último envío registrado para el cliente — prefill del sheet de envío
+  /// (agencia/destino/destinatario suelen repetirse entre ventas).
+  Future<Resource<VentaEnvioData?>> ultimoEnvioCliente(String clienteId);
+
   Future<Resource<List<Venta>>> getVentas({
     String? sedeId,
     String? estado,

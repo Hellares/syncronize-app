@@ -15,6 +15,10 @@ class VentaEnvioFormData {
   final String? destinoProvincia;
   final String? agenciaDireccion;
 
+  /// true cuando el usuario tocó "Guardar e imprimir": el caller imprime
+  /// el rótulo inmediatamente después del upsert, sin diálogo intermedio.
+  final bool imprimir;
+
   const VentaEnvioFormData({
     required this.destinatarioNombre,
     this.destinatarioDni,
@@ -23,6 +27,7 @@ class VentaEnvioFormData {
     this.destinoDepartamento,
     this.destinoProvincia,
     this.agenciaDireccion,
+    this.imprimir = false,
   });
 
   Map<String, dynamic> toJson() => {
@@ -42,51 +47,86 @@ class VentaEnvioFormData {
       };
 }
 
-/// Sheet de datos del ENVÍO de una venta: prellenado con lo guardado o
-/// con el snapshot del cliente de la venta — todo editable (el
-/// destinatario puede ser otra persona: "envíaselo a mi mamá").
+/// Sheet de datos del ENVÍO de una venta: prellenado en cascada con lo
+/// guardado en ESTA venta, o con el ÚLTIMO envío del cliente (la agencia y
+/// el destino se repiten entre ventas), o con el snapshot del cliente —
+/// todo editable (el destinatario puede ser otra persona: "envíaselo a mi
+/// mamá").
 Future<VentaEnvioFormData?> showVentaEnvioSheet({
   required BuildContext context,
   required Venta venta,
+  VentaEnvioData? ultimoEnvioCliente,
 }) {
   return showModalBottomSheet<VentaEnvioFormData>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => _VentaEnvioSheet(venta: venta),
+    builder: (_) =>
+        _VentaEnvioSheet(venta: venta, ultimoEnvio: ultimoEnvioCliente),
   );
 }
 
 class _VentaEnvioSheet extends StatefulWidget {
   final Venta venta;
-  const _VentaEnvioSheet({required this.venta});
+  final VentaEnvioData? ultimoEnvio;
+  const _VentaEnvioSheet({required this.venta, this.ultimoEnvio});
 
   @override
   State<_VentaEnvioSheet> createState() => _VentaEnvioSheetState();
 }
 
 class _VentaEnvioSheetState extends State<_VentaEnvioSheet> {
+  VentaEnvioData? get _envio => widget.venta.envio;
+  VentaEnvioData? get _ultimo => widget.ultimoEnvio;
+
   late final _nombreCtrl = TextEditingController(
-    text: widget.venta.envio?.destinatarioNombre ?? widget.venta.nombreCliente,
+    text: _envio?.destinatarioNombre ??
+        _ultimo?.destinatarioNombre ??
+        widget.venta.nombreCliente,
   );
   late final _dniCtrl = TextEditingController(
-    text: widget.venta.envio?.destinatarioDni ??
+    text: _envio?.destinatarioDni ??
+        _ultimo?.destinatarioDni ??
         widget.venta.documentoCliente ??
         '',
   );
   late final _celularCtrl = TextEditingController(
-    text: widget.venta.envio?.destinatarioCelular ??
+    text: _envio?.destinatarioCelular ??
+        _ultimo?.destinatarioCelular ??
         widget.venta.telefonoCliente ??
         '',
   );
-  late final _agenciaCtrl =
-      TextEditingController(text: widget.venta.envio?.agenciaNombre ?? '');
+  late final _agenciaCtrl = TextEditingController(
+      text: _envio?.agenciaNombre ?? _ultimo?.agenciaNombre ?? '');
   late final _destinoDepCtrl = TextEditingController(
-      text: widget.venta.envio?.destinoDepartamento ?? '');
-  late final _destinoProvCtrl =
-      TextEditingController(text: widget.venta.envio?.destinoProvincia ?? '');
-  late final _agenciaDirCtrl =
-      TextEditingController(text: widget.venta.envio?.agenciaDireccion ?? '');
+      text: _envio?.destinoDepartamento ?? _ultimo?.destinoDepartamento ?? '');
+  late final _destinoProvCtrl = TextEditingController(
+      text: _envio?.destinoProvincia ?? _ultimo?.destinoProvincia ?? '');
+  late final _agenciaDirCtrl = TextEditingController(
+      text: _envio?.agenciaDireccion ?? _ultimo?.agenciaDireccion ?? '');
+
+  void _confirmar({required bool imprimir}) {
+    final nombre = _nombreCtrl.text.trim();
+    if (nombre.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('Ingresa el nombre del destinatario',
+            style: TextStyle(fontSize: 12)),
+        backgroundColor: Colors.orange.shade800,
+        behavior: SnackBarBehavior.floating,
+      ));
+      return;
+    }
+    Navigator.of(context).pop(VentaEnvioFormData(
+      destinatarioNombre: nombre,
+      destinatarioDni: _dniCtrl.text.trim(),
+      destinatarioCelular: _celularCtrl.text.trim(),
+      agenciaNombre: _agenciaCtrl.text.trim(),
+      destinoDepartamento: _destinoDepCtrl.text.trim(),
+      destinoProvincia: _destinoProvCtrl.text.trim(),
+      agenciaDireccion: _agenciaDirCtrl.text.trim(),
+      imprimir: imprimir,
+    ));
+  }
 
   @override
   void dispose() {
@@ -220,6 +260,17 @@ class _VentaEnvioSheetState extends State<_VentaEnvioSheet> {
                 textCase: TextCase.upper,
               ),
               const SizedBox(height: 14),
+              // Acción principal: guardar Y mandar el rótulo a imprimir en
+              // un solo toque (el flujo típico: corroborar datos → imprimir).
+              CustomButton(
+                text: 'Guardar e imprimir rótulo',
+                backgroundColor: AppColors.blue1,
+                textColor: Colors.white,
+                icon: const Icon(Icons.print_outlined,
+                    size: 16, color: Colors.white),
+                onPressed: () => _confirmar(imprimir: true),
+              ),
+              const SizedBox(height: 8),
               Row(
                 children: [
                   Expanded(
@@ -236,22 +287,12 @@ class _VentaEnvioSheetState extends State<_VentaEnvioSheet> {
                   Expanded(
                     flex: 2,
                     child: CustomButton(
-                      text: 'Guardar envío',
-                      backgroundColor: AppColors.blue1,
-                      textColor: Colors.white,
-                      onPressed: () {
-                        final nombre = _nombreCtrl.text.trim();
-                        if (nombre.isEmpty) return;
-                        Navigator.of(context).pop(VentaEnvioFormData(
-                          destinatarioNombre: nombre,
-                          destinatarioDni: _dniCtrl.text.trim(),
-                          destinatarioCelular: _celularCtrl.text.trim(),
-                          agenciaNombre: _agenciaCtrl.text.trim(),
-                          destinoDepartamento: _destinoDepCtrl.text.trim(),
-                          destinoProvincia: _destinoProvCtrl.text.trim(),
-                          agenciaDireccion: _agenciaDirCtrl.text.trim(),
-                        ));
-                      },
+                      text: 'Solo guardar',
+                      isOutlined: true,
+                      borderColor: AppColors.blue1,
+                      textColor: AppColors.blue1,
+                      enableShadows: false,
+                      onPressed: () => _confirmar(imprimir: false),
                     ),
                   ),
                 ],

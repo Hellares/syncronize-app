@@ -240,6 +240,17 @@ class VentaRemoteDataSource {
     await _dioClient.patch('/ventas/$ventaId/envio/rotulo-impreso');
   }
 
+  /// GET /ventas/envio/ultimo?clienteId= — último envío registrado para el
+  /// cliente (prefill del sheet: la agencia/destino se repite entre ventas).
+  Future<Map<String, dynamic>?> getUltimoEnvioCliente(String clienteId) async {
+    final response = await _dioClient.get(
+      '/ventas/envio/ultimo',
+      queryParameters: {'clienteId': clienteId},
+    );
+    final data = response.data;
+    return data is Map<String, dynamic> ? data : null;
+  }
+
   Future<VentaModel?> buscarPorCodigo(String codigo) async {
     try {
       final response = await _dioClient.get(

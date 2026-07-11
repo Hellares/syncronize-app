@@ -100,6 +100,28 @@ class VentaRepositoryImpl implements VentaRepository {
     }
   }
 
+  @override
+  Future<Resource<VentaEnvioData?>> ultimoEnvioCliente(String clienteId) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final json = await _remoteDataSource.getUltimoEnvioCliente(clienteId);
+      if (json == null) return Success(null);
+      return Success(VentaEnvioData(
+        destinatarioNombre: json['destinatarioNombre'] as String? ?? '',
+        destinatarioDni: json['destinatarioDni'] as String?,
+        destinatarioCelular: json['destinatarioCelular'] as String?,
+        agenciaNombre: json['agenciaNombre'] as String?,
+        destinoDepartamento: json['destinoDepartamento'] as String?,
+        destinoProvincia: json['destinoProvincia'] as String?,
+        agenciaDireccion: json['agenciaDireccion'] as String?,
+      ));
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'VentaEnvio');
+    }
+  }
+
   /// Captura excepciones de los 3 endpoints de creación de venta. Detecta
   /// específicamente el caso 409 `PRECIO_DESACTUALIZADO` (el backend rechaza
   /// la venta cuando el precio enviado difiere del actual) y lo expone con
