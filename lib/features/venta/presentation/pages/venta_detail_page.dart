@@ -846,22 +846,7 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                 ),
                 padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
                 child: Column(
-                  children: [
-                    _buildFooterRow(
-                      'Subtotal',
-                      '${v.moneda} ${v.subtotal.toStringAsFixed(2)}',
-                    ),
-                    if (v.descuento > 0)
-                      _buildFooterRow(
-                        'Descuento',
-                        '-${v.moneda} ${v.descuento.toStringAsFixed(2)}',
-                        color: Colors.red.shade600,
-                      ),
-                    _buildFooterRow(
-                      _getNombreImpuesto(),
-                      '${v.moneda} ${v.impuestos.toStringAsFixed(2)}',
-                    ),
-                  ],
+                  children: _buildFooterTotales(v),
                 ),
               ),
               // Total destacado — barra propia con fondo bluechip
@@ -876,15 +861,15 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                   ),
                 ),
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
                       'TOTAL',
                       style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
                         color: AppColors.blue1,
                         letterSpacing: 0.5,
                       ),
@@ -892,8 +877,8 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                     Text(
                       '${v.moneda} ${v.total.toStringAsFixed(2)}',
                       style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
                         color: AppColors.blue1,
                       ),
                     ),
@@ -907,11 +892,78 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
     );
   }
 
+  /// Totales del footer, uniformizados con el ticket/PDF/factura (espejo
+  /// SUNAT): desglose por operación cuando hay comprobante electrónico, y
+  /// Subtotal simple cuando no. Op. Gratuitas solo si hay regalos convertidos;
+  /// Descuento muestra el FISCAL (las líneas al 100% ya son gratuitas).
+  List<Widget> _buildFooterTotales(Venta v) {
+    final tieneDesglose = v.comprobanteGravada != null;
+    final moneda = v.moneda;
+
+    if (!tieneDesglose) {
+      return [
+        _buildFooterRow('Subtotal', '$moneda ${v.subtotal.toStringAsFixed(2)}'),
+        if (v.descuento > 0)
+          _buildFooterRow(
+            'Descuento',
+            '-$moneda ${v.descuento.toStringAsFixed(2)}',
+            color: Colors.red.shade600,
+          ),
+        _buildFooterRow(
+          _getNombreImpuesto(),
+          '$moneda ${v.impuestos.toStringAsFixed(2)}',
+        ),
+      ];
+    }
+
+    final gratuitas = v.comprobanteGratuitas ?? 0;
+    final icbper = v.comprobanteIcbper ?? 0;
+    final descuentoConvertido = (v.detalles ?? []).fold<double>(
+      0,
+      (s, d) => s + ((d.subtotal == 0 && d.descuento > 0) ? d.descuento : 0),
+    );
+    final descuentoFiscal =
+        (v.descuento - descuentoConvertido).clamp(0, double.infinity);
+
+    return [
+      _buildFooterRow(
+        'Op. Gravada',
+        '$moneda ${(v.comprobanteGravada ?? 0).toStringAsFixed(2)}',
+      ),
+      _buildFooterRow(
+        'Op. Exonerada',
+        '$moneda ${(v.comprobanteExonerada ?? 0).toStringAsFixed(2)}',
+      ),
+      _buildFooterRow(
+        'Op. Inafecta',
+        '$moneda ${(v.comprobanteInafecta ?? 0).toStringAsFixed(2)}',
+      ),
+      if (gratuitas > 0)
+        _buildFooterRow(
+          'Op. Gratuitas',
+          '$moneda ${gratuitas.toStringAsFixed(2)}',
+          color: Colors.deepPurple.shade600,
+        ),
+      if (descuentoFiscal > 0)
+        _buildFooterRow(
+          'Descuento',
+          '-$moneda ${descuentoFiscal.toStringAsFixed(2)}',
+          color: Colors.red.shade600,
+        ),
+      _buildFooterRow(
+        _getNombreImpuesto(),
+        '$moneda ${(v.comprobanteIgv ?? v.impuestos).toStringAsFixed(2)}',
+      ),
+      if (icbper > 0)
+        _buildFooterRow('ICBPER', '$moneda ${icbper.toStringAsFixed(2)}'),
+    ];
+  }
+
   /// Fila del footer de la tabla de items (subtotal, descuento, IGV).
   /// Alineada a la derecha con label + monto en ancho fijo.
   Widget _buildFooterRow(String label, String value, {Color? color}) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
+      padding: const EdgeInsets.symmetric(vertical: 0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
@@ -930,9 +982,9 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
               value,
               textAlign: TextAlign.right,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: FontWeight.w600,
-                color: color ?? Colors.grey.shade800,
+                color: color ?? Colors.grey.shade700,
               ),
             ),
           ),
@@ -3031,7 +3083,7 @@ class _Th extends StatelessWidget {
     return Text(
       text,
       style: TextStyle(
-        fontSize: 10,
+        fontSize: 9,
         fontWeight: FontWeight.w700,
         color: Colors.grey.shade800,
         letterSpacing: 0.3,
