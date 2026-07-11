@@ -850,11 +850,18 @@ class _VentaListTile extends StatelessWidget {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.local_shipping_outlined,
-                                size: 9, color: Colors.deepPurple.shade700),
+                            Icon(
+                                venta.envio?.rotuloImpreso == true
+                                    ? Icons.local_shipping
+                                    : Icons.local_shipping_outlined,
+                                size: 9,
+                                color: Colors.deepPurple.shade700),
                             const SizedBox(width: 3),
                             Text(
-                              'Envío',
+                              // "· IMP" = rótulo de envío ya impreso.
+                              venta.envio?.rotuloImpreso == true
+                                  ? 'Envío · IMP'
+                                  : 'Envío',
                               style: TextStyle(
                                 fontSize: 8,
                                 fontWeight: FontWeight.w700,
