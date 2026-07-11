@@ -1,3 +1,4 @@
+import 'package:syncronize/core/constants/app_constants.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
@@ -282,7 +283,7 @@ class _CotizacionItemSelectorState extends State<CotizacionItemSelector> {
 
       // ICBPER (bolsas plásticas)
       if (_productoSeleccionado!.aplicaIcbper) {
-        icbper = cantidad * 0.50; // S/ 0.50 por unidad
+        icbper = cantidad * AppConstants.icbperPorUnidad;
       }
     } else {
       // Item personalizado: usar global

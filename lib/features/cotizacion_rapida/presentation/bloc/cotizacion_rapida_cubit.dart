@@ -1,3 +1,4 @@
+import 'package:syncronize/core/constants/app_constants.dart';
 import 'dart:async';
 
 import 'package:equatable/equatable.dart';
@@ -443,7 +444,7 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
         0.0;
     final igvPorc = producto.impuestoPorcentaje ?? state.impuestoPorcentaje;
     final tipoAfect = _mapTipoAfectacion(producto.tipoAfectacionIgv);
-    final icbperUnit = producto.aplicaIcbper ? 0.20 : 0.0;
+    final icbperUnit = producto.aplicaIcbper ? AppConstants.icbperPorUnidad : 0.0;
     final stockDisp = producto.stockEnSede(sedeId);
 
     final idx = state.items.indexWhere(
@@ -507,7 +508,7 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
         0.0;
     final igvPorc = producto.impuestoPorcentaje ?? state.impuestoPorcentaje;
     final tipoAfect = _mapTipoAfectacion(producto.tipoAfectacionIgv);
-    final icbperUnit = producto.aplicaIcbper ? 0.20 : 0.0;
+    final icbperUnit = producto.aplicaIcbper ? AppConstants.icbperPorUnidad : 0.0;
     final stockDisp = variante.stockEnSede(sedeId);
 
     final idx = state.items.indexWhere(

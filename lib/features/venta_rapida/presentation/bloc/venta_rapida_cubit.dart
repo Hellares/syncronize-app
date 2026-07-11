@@ -1,3 +1,4 @@
+import 'package:syncronize/core/constants/app_constants.dart';
 import 'dart:async';
 
 import 'package:equatable/equatable.dart';
@@ -310,7 +311,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
         0.0;
     final igvPorc = producto.impuestoPorcentaje ?? state.impuestoPorcentaje;
     final tipoAfect = _mapTipoAfectacion(producto.tipoAfectacionIgv);
-    final icbperUnit = producto.aplicaIcbper ? 0.20 : 0.0;
+    final icbperUnit = producto.aplicaIcbper ? AppConstants.icbperPorUnidad : 0.0;
     final stockDisp = producto.stockEnSede(sedeId);
 
     // Si ya está en el carrito, sumar 1 y recalcular precio según niveles.
@@ -372,7 +373,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
         0.0;
     final igvPorc = producto.impuestoPorcentaje ?? state.impuestoPorcentaje;
     final tipoAfect = _mapTipoAfectacion(producto.tipoAfectacionIgv);
-    final icbperUnit = producto.aplicaIcbper ? 0.20 : 0.0;
+    final icbperUnit = producto.aplicaIcbper ? AppConstants.icbperPorUnidad : 0.0;
     final stockDisp = variante.stockEnSede(sedeId);
 
     final idx = state.items.indexWhere(
@@ -766,7 +767,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       porcentajeIGV: igvPorc,
       precioIncluyeIgv: producto.precioIncluyeIgvEnSede(sedeId),
       tipoAfectacion: _mapTipoAfectacion(producto.tipoAfectacionIgv),
-      icbper: producto.aplicaIcbper ? 0.20 : 0.0,
+      icbper: producto.aplicaIcbper ? AppConstants.icbperPorUnidad : 0.0,
       stockDisponible:
           variante?.stockEnSede(sedeId) ?? producto.stockEnSede(sedeId),
       origenComboId: origenComboId,
