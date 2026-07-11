@@ -202,28 +202,33 @@ class LogSanitizer {
     return sanitized;
   }
 
-  /// Sanitiza una URL completa (oculta tokens en query params)
+  /// Sanitiza una URL completa (oculta tokens en query params).
+  ///
+  /// Reescribe el query manualmente (no con `uri.replace(queryParameters:)`)
+  /// para que el marcador `***REDACTED***` quede LITERAL en el log — el
+  /// encoder de Uri escaparía los asteriscos como %2A y volvería el log
+  /// ilegible. Los params no sensibles conservan su encoding original.
   static String sanitizeUrl(String url) {
     final uri = Uri.tryParse(url);
-    if (uri == null) return url;
+    if (uri == null || uri.query.isEmpty) return url;
 
-    final sanitizedParams = <String, String>{};
-
-    uri.queryParameters.forEach((key, value) {
+    var changed = false;
+    final query = uri.query.split('&').map((pair) {
+      final i = pair.indexOf('=');
+      final rawKey = i == -1 ? pair : pair.substring(0, i);
+      final key = Uri.decodeQueryComponent(rawKey);
       if (_isSensitiveField(key)) {
-        sanitizedParams[key] = _redactedText;
-      } else {
-        sanitizedParams[key] = value;
+        changed = true;
+        return '$rawKey=$_redactedText';
       }
-    });
+      return pair;
+    }).join('&');
 
-    if (sanitizedParams.isEmpty) return url;
+    if (!changed) return url;
 
-    final sanitizedUri = uri.replace(
-      queryParameters: sanitizedParams.isEmpty ? null : sanitizedParams,
-    );
-
-    return sanitizedUri.toString();
+    final base = url.split('?').first;
+    final fragment = uri.hasFragment ? '#${uri.fragment}' : '';
+    return '$base?$query$fragment';
   }
 
   /// Sanitiza un mensaje de error completo

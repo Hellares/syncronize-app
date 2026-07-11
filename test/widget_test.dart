@@ -1,30 +1,50 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
+// Reemplaza el "Counter smoke test" de la plantilla de Flutter (que nunca
+// aplicó a esta app y fallaba siempre) por tests reales del catálogo curado
+// de códigos de producto SUNAT (anexos 25.1/25.2/25.3 + genéricos).
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:syncronize/main.dart';
+import 'package:syncronize/features/producto/domain/entities/codigo_producto_sunat.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  group('Catálogo códigos producto SUNAT', () {
+    test('todos los códigos son de 8 dígitos (formato ERR-3496)', () {
+      final regex = RegExp(r'^\d{8}$');
+      for (final c in kCatalogoCodigosProductoSunat) {
+        expect(regex.hasMatch(c.codigo), isTrue,
+            reason: 'Código inválido: ${c.codigo} (${c.descripcion})');
+      }
+    });
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    test('incluye los genéricos exentos de ERR-3496', () {
+      expect(buscarCodigoProductoSunat('00000000'), isNotNull);
+      expect(buscarCodigoProductoSunat('99999999'), isNotNull);
+    });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    test('incluye los códigos clave de detracción y percepción', () {
+      // Carnes y despojos (pollo beneficiado) — anexo 25.2
+      expect(buscarCodigoProductoSunat('50111500')?.grupo,
+          GruposCodigoSunat.detraccion);
+      // Gravados por renuncia a exoneración — anexo 25.2
+      expect(buscarCodigoProductoSunat('11111111')?.grupo,
+          GruposCodigoSunat.detraccion);
+      // Bebidas no alcohólicas — anexo 25.3
+      expect(buscarCodigoProductoSunat('50202300')?.grupo,
+          GruposCodigoSunat.percepcion);
+    });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    test('todo grupo usado está en el orden de presentación', () {
+      final grupos = kCatalogoCodigosProductoSunat.map((c) => c.grupo).toSet();
+      for (final g in grupos) {
+        expect(GruposCodigoSunat.orden.contains(g), isTrue,
+            reason: 'Grupo sin orden definido: $g');
+      }
+    });
+
+    test('buscar código inexistente o vacío devuelve null', () {
+      expect(buscarCodigoProductoSunat('12345678'), isNull);
+      expect(buscarCodigoProductoSunat(''), isNull);
+      expect(buscarCodigoProductoSunat(null), isNull);
+    });
   });
 }
