@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:syncronize/features/venta/data/datasources/venta_remote_datasource.dart';
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -287,6 +289,15 @@ class _SorteoDetailView extends StatelessWidget {
       } catch (_) {}
     }
 
+    // Remitente = NOMBRE COMERCIAL (la marca que ve el cliente), no la
+    // razón social. Best-effort con fallback al nombre legal.
+    String? nombreComercial;
+    try {
+      final config =
+          await locator<VentaRemoteDataSource>().getConfiguracionSunat();
+      nombreComercial = config['nombreComercial'] as String?;
+    } catch (_) {}
+
     final bytes = await RotuloEnvioPdfGenerator.generate(
       rotulos: seleccion
           .map((p) => DatosRotulo(
@@ -299,7 +310,7 @@ class _SorteoDetailView extends StatelessWidget {
                 agenciaDireccion: p.agenciaDireccion,
               ))
           .toList(),
-      remitenteNombre: empresa?.nombre ?? '',
+      remitenteNombre: nombreComercial ?? empresa?.nombre ?? '',
       remitenteTelefono: empresa?.telefono,
       logoBytes: logoBytes,
     );
@@ -580,7 +591,7 @@ class _PremioCard extends StatelessWidget {
                   child: Text(
                     premio.ganadorNombre,
                     style: const TextStyle(
-                        fontSize: 11, fontWeight: FontWeight.w600),
+                        fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.blue1),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -651,7 +662,7 @@ class _PremioCard extends StatelessWidget {
                   child: Text(
                     '${premio.descripcion}${premio.cantidad > 1 ? '  x${premio.cantidad}' : ''}',
                     style: const TextStyle(
-                        fontSize: 11.5, fontWeight: FontWeight.w600),
+                        fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.blue1),
                   ),
                 ),
                 if (premio.descuentaStock)
@@ -810,11 +821,12 @@ class _PremioCard extends StatelessWidget {
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.blue1,
                       side: BorderSide(
-                          color: AppColors.blue1.withValues(alpha: 0.5),),
+                          color: AppColors.blue1.withValues(alpha: 0.5), width: 0.6),
                       visualDensity: VisualDensity.compact,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(6),
                       ),
+
                     ),
                   ),
                   const SizedBox(width: 8),

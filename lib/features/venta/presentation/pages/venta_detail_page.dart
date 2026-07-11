@@ -167,6 +167,16 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
       } catch (_) {}
     }
 
+    // Remitente = NOMBRE COMERCIAL (la marca que ve el cliente), no la
+    // razón social. Config efectiva sede > empresa; fallback al nombre
+    // legal si no hay configuración (best-effort, no bloquea el rótulo).
+    String? nombreComercial;
+    try {
+      final config = await locator<VentaRemoteDataSource>()
+          .getConfiguracionSunat(sedeId: venta.sedeId);
+      nombreComercial = config['nombreComercial'] as String?;
+    } catch (_) {}
+
     final bytes = await RotuloEnvioPdfGenerator.generate(
       rotulos: [
         DatosRotulo(
@@ -179,7 +189,7 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
           agenciaDireccion: datos.agenciaDireccion,
         ),
       ],
-      remitenteNombre: empresa?.nombre ?? '',
+      remitenteNombre: nombreComercial ?? empresa?.nombre ?? '',
       remitenteTelefono: empresa?.telefono,
       logoBytes: logoBytes,
     );
