@@ -996,8 +996,8 @@ class _VentaListTile extends StatelessWidget {
   }
 }
 
-/// Chip del documento fiscal emitido por la venta: "BOL B002-00000551" /
-/// "FAC F002-00000050" con un punto de color según el estado SUNAT
+/// Chip del documento fiscal emitido por la venta: "BEL: B002-00000551" /
+/// "FEL: F002-00000050" con un punto de color según el estado SUNAT
 /// (verde=aceptado, rojo=rechazado, ámbar=en proceso). Va debajo de la
 /// fecha en la card del listado.
 class _ComprobanteChip extends StatelessWidget {
@@ -1011,16 +1011,18 @@ class _ComprobanteChip extends StatelessWidget {
     required this.sunatStatus,
   });
 
+  /// Terminología estándar de comprobantes electrónicos: BEL = Boleta
+  /// ELectrónica, FEL = Factura ELectrónica (NCE/NDE para las notas).
   String get _prefijo {
     switch (tipo) {
       case 'FACTURA':
-        return 'FAC';
+        return 'FEL';
       case 'BOLETA':
-        return 'BOL';
+        return 'BEL';
       case 'NOTA_CREDITO':
-        return 'NC';
+        return 'NCE';
       case 'NOTA_DEBITO':
-        return 'ND';
+        return 'NDE';
       default:
         return 'CPE';
     }
@@ -1057,7 +1059,7 @@ class _ComprobanteChip extends StatelessWidget {
           ),
           const SizedBox(width: 4),
           Text(
-            '$_prefijo $codigo',
+            '$_prefijo: $codigo',
             style: TextStyle(
               fontSize: 8,
               fontWeight: FontWeight.w700,
