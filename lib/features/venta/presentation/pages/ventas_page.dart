@@ -850,9 +850,11 @@ class _VentaListTile extends StatelessWidget {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
+                            // Impresora cuando el rótulo ya salió; camión
+                            // mientras el despacho está pendiente de rótulo.
                             Icon(
                                 venta.envio?.rotuloImpreso == true
-                                    ? Icons.local_shipping
+                                    ? Icons.print
                                     : Icons.local_shipping_outlined,
                                 size: 9,
                                 color: Colors.deepPurple.shade700),
