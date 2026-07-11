@@ -591,9 +591,12 @@ class _ComprobanteCard extends StatelessWidget {
               spacing: 4,
               runSpacing: 4,
               children: [
-                if (item.esPendiente && !item.proveedorArchivado)
+                // Reenviar aplica a pendientes Y rechazados: el backend
+                // auto-repara correlativos duplicados (drift) y Syncrofact
+                // reemplaza documentos RECHAZADOS (para SUNAT nunca existieron).
+                if ((item.esPendiente || item.esRechazado) && !item.proveedorArchivado)
                   _actionButton(Icons.send, 'Reenviar', Colors.blue, onReenviar),
-                if (item.esPendiente && item.proveedorArchivado)
+                if ((item.esPendiente || item.esRechazado) && item.proveedorArchivado)
                   _actionButtonDisabled(
                     Icons.send,
                     'Archivado',
