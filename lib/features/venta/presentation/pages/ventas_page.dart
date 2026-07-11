@@ -902,12 +902,27 @@ class _VentaListTile extends StatelessWidget {
                     ),
                   ),
                   const Spacer(),
-                  Text(
-                    DateFormatter.formatDateTime(venta.fechaVenta),
-                    style: TextStyle(
-                      fontSize: 9,
-                      color: Colors.grey.shade600,
-                    ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        DateFormatter.formatDateTime(venta.fechaVenta),
+                        style: TextStyle(
+                          fontSize: 9,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                      // Documento fiscal emitido (BOL/FAC serie-correlativo)
+                      // con su estado SUNAT, justo debajo de la fecha.
+                      if (venta.codigoComprobante != null) ...[
+                        const SizedBox(height: 2),
+                        _ComprobanteChip(
+                          tipo: venta.tipoComprobante,
+                          codigo: venta.codigoComprobante!,
+                          sunatStatus: venta.comprobanteSunatStatus,
+                        ),
+                      ],
+                    ],
                   ),
                 ],
               ),
@@ -976,6 +991,80 @@ class _VentaListTile extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Chip del documento fiscal emitido por la venta: "BOL B002-00000551" /
+/// "FAC F002-00000050" con un punto de color según el estado SUNAT
+/// (verde=aceptado, rojo=rechazado, ámbar=en proceso). Va debajo de la
+/// fecha en la card del listado.
+class _ComprobanteChip extends StatelessWidget {
+  final String? tipo;
+  final String codigo;
+  final String? sunatStatus;
+
+  const _ComprobanteChip({
+    required this.tipo,
+    required this.codigo,
+    required this.sunatStatus,
+  });
+
+  String get _prefijo {
+    switch (tipo) {
+      case 'FACTURA':
+        return 'FAC';
+      case 'BOLETA':
+        return 'BOL';
+      case 'NOTA_CREDITO':
+        return 'NC';
+      case 'NOTA_DEBITO':
+        return 'ND';
+      default:
+        return 'CPE';
+    }
+  }
+
+  Color get _colorEstado {
+    switch (sunatStatus) {
+      case 'ACEPTADO':
+        return Colors.green.shade600;
+      case 'RECHAZADO':
+        return Colors.red.shade600;
+      default: // PENDIENTE / EN_COLA / PROCESANDO / ERROR_COMUNICACION
+        return Colors.amber.shade700;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _colorEstado;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(3),
+        border: Border.all(color: color.withValues(alpha: 0.40), width: 0.6),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            '$_prefijo $codigo',
+            style: TextStyle(
+              fontSize: 8,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+        ],
       ),
     );
   }
