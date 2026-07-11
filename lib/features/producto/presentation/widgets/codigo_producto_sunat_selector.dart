@@ -37,6 +37,7 @@ class _CodigoSunatSelectorSheet extends StatefulWidget {
 class _CodigoSunatSelectorSheetState extends State<_CodigoSunatSelectorSheet> {
   final _searchController = TextEditingController();
   String _query = '';
+  bool _mostrarLeyenda = false;
 
   @override
   void dispose() {
@@ -103,6 +104,21 @@ class _CodigoSunatSelectorSheetState extends State<_CodigoSunatSelectorSheet> {
                           ),
                         ),
                       ),
+                      IconButton(
+                        onPressed: () => setState(
+                            () => _mostrarLeyenda = !_mostrarLeyenda),
+                        icon: Icon(
+                          Icons.help_outline,
+                          size: 18,
+                          color: _mostrarLeyenda
+                              ? AppColors.blue1
+                              : Colors.grey.shade500,
+                        ),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        tooltip: '¿Cuándo usar cada código?',
+                      ),
+                      const SizedBox(width: 8),
                       if (widget.codigoActual != null &&
                           widget.codigoActual!.isNotEmpty)
                         TextButton.icon(
@@ -127,6 +143,10 @@ class _CodigoSunatSelectorSheetState extends State<_CodigoSunatSelectorSheet> {
                     'en la lista, déjalo sin código.',
                     style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
                   ),
+                  if (_mostrarLeyenda) ...[
+                    const SizedBox(height: 8),
+                    _buildLeyenda(),
+                  ],
                   const SizedBox(height: 8),
                   TextField(
                     controller: _searchController,
@@ -180,6 +200,86 @@ class _CodigoSunatSelectorSheetState extends State<_CodigoSunatSelectorSheet> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildLeyenda() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.amber.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.amber.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '¿CUÁNDO USAR CADA CÓDIGO?',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              color: Colors.amber.shade900,
+              letterSpacing: 0.3,
+            ),
+          ),
+          const SizedBox(height: 6),
+          _leyendaFila(
+            '✔',
+            'Bienes de los anexos (pollo beneficiado, bebidas, combustibles, '
+                'oro…): usa su código ESPECÍFICO de la lista.',
+          ),
+          _leyendaFila(
+            '◦',
+            'Empresa en el padrón 12 de SUNAT ("obligado a enviar código") '
+                'con productos que NO están en los anexos: usa el genérico '
+                '00000000.',
+          ),
+          _leyendaFila(
+            '✕',
+            'Empresa que NO está en el padrón 12: deja el producto SIN '
+                'código — SUNAT no lo exige y el comprobante sale igual.',
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Desde el 01/08/2026 un código inválido es RECHAZO de SUNAT; por '
+            'eso solo se elige de esta lista. Los bienes fiscalizados deben '
+            'llevar su código real, no el genérico.',
+            style: TextStyle(
+              fontSize: 9,
+              fontStyle: FontStyle.italic,
+              color: Colors.amber.shade800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _leyendaFila(String simbolo, String texto) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            simbolo,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              color: Colors.amber.shade900,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              texto,
+              style: TextStyle(fontSize: 10, color: Colors.grey.shade800),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -23,6 +23,7 @@ class CodigoProductoSunat {
 
 /// Grupos (en orden de presentación).
 class GruposCodigoSunat {
+  static const genericos = 'Genéricos (comodín aceptado por SUNAT)';
   static const detraccion = 'Bienes con detracción (25.2)';
   static const percepcion = 'Bienes con percepción (25.3)';
   static const oro = 'Oro y minería (25.1)';
@@ -34,6 +35,7 @@ class GruposCodigoSunat {
   static const servicios = 'Servicios (25.1)';
 
   static const List<String> orden = [
+    genericos,
     detraccion,
     percepcion,
     combustibles,
@@ -46,8 +48,15 @@ class GruposCodigoSunat {
   ];
 }
 
-/// Lista completa de los anexos 25.1 + 25.2 + 25.3 (oficial SUNAT).
+/// Lista completa de los anexos 25.1 + 25.2 + 25.3 (oficial SUNAT) + genéricos.
 const List<CodigoProductoSunat> kCatalogoCodigosProductoSunat = [
+  // ── Genéricos: valores comodín EXENTOS de la validación ERR-3496
+  //    ("diferente de 8 ceros y de 8 nueves"). Para empresas del padrón 12
+  //    cuyos productos NO están en los anexos — los bienes fiscalizados
+  //    deben llevar su código específico, no el genérico. ──
+  CodigoProductoSunat(codigo: '00000000', descripcion: 'Sin código de producto SUNAT asignado', grupo: GruposCodigoSunat.genericos),
+  CodigoProductoSunat(codigo: '99999999', descripcion: 'Mercadería genérica / no clasificable', grupo: GruposCodigoSunat.genericos),
+
   // ── Anexo 25.2: bienes sujetos a DETRACCIÓN ──
   CodigoProductoSunat(codigo: '50111500', descripcion: 'Carnes y despojos comestibles', grupo: GruposCodigoSunat.detraccion),
   CodigoProductoSunat(codigo: '11111111', descripcion: 'Bienes gravados con el IGV por renuncia a la exoneración', grupo: GruposCodigoSunat.detraccion),
