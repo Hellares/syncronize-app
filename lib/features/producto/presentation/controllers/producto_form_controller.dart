@@ -26,6 +26,9 @@ class ProductoFormController extends ChangeNotifier {
   final descuentoMaximoController = TextEditingController();
   String tipoAfectacionIgv = 'GRAVADO';
   bool aplicaIcbper = false;
+
+  /// Código de producto SUNAT (catálogos 25.1/25.2/25.3). null = sin código.
+  String? codigoProductoSunat;
   final dimensionLargoController = TextEditingController();
   final dimensionAnchoController = TextEditingController();
   final dimensionAltoController = TextEditingController();
@@ -276,6 +279,7 @@ class ProductoFormController extends ChangeNotifier {
     descuentoMaximoController.text = producto.descuentoMaximo?.toString() ?? '';
     tipoAfectacionIgv = producto.tipoAfectacionIgv ?? 'GRAVADO';
     aplicaIcbper = producto.aplicaIcbper ?? false;
+    codigoProductoSunat = producto.codigoProductoSunat;
 
     // Dimensiones
     if (producto.dimensiones != null) {

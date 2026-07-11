@@ -36,6 +36,10 @@ class Producto extends Equatable with StockPorSedeMixin {
   final double? descuentoMaximo;
   final String? tipoAfectacionIgv;
   final bool? aplicaIcbper;
+
+  /// Código de producto SUNAT (UNSPSC 8 dígitos, catálogos 25/25.1/25.2/25.3).
+  /// Opcional: solo viaja al XML de facturación cuando está seteado.
+  final String? codigoProductoSunat;
   final bool visibleMarketplace;
   final bool destacado;
   final int? ordenMarketplace;
@@ -84,6 +88,7 @@ class Producto extends Equatable with StockPorSedeMixin {
     this.descuentoMaximo,
     this.tipoAfectacionIgv,
     this.aplicaIcbper,
+    this.codigoProductoSunat,
     required this.visibleMarketplace,
     required this.destacado,
     this.ordenMarketplace,

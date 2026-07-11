@@ -29,6 +29,7 @@ class ProductoModel extends Producto {
     super.descuentoMaximo,
     super.tipoAfectacionIgv,
     super.aplicaIcbper,
+    super.codigoProductoSunat,
     required super.visibleMarketplace,
     required super.destacado,
     super.ordenMarketplace,
@@ -85,6 +86,7 @@ class ProductoModel extends Producto {
           : null,
       tipoAfectacionIgv: json['tipoAfectacionIgv'] as String? ?? 'GRAVADO',
       aplicaIcbper: json['aplicaIcbper'] as bool? ?? false,
+      codigoProductoSunat: json['codigoProductoSunat'] as String?,
       visibleMarketplace: json['visibleMarketplace'] as bool? ?? true,
       destacado: json['destacado'] as bool? ?? false,
       ordenMarketplace: json['ordenMarketplace'] != null
@@ -168,6 +170,8 @@ class ProductoModel extends Producto {
       if (descuentoMaximo != null) 'descuentoMaximo': descuentoMaximo,
       'tipoAfectacionIgv': tipoAfectacionIgv,
       'aplicaIcbper': aplicaIcbper,
+      if (codigoProductoSunat != null)
+        'codigoProductoSunat': codigoProductoSunat,
       'visibleMarketplace': visibleMarketplace,
       'destacado': destacado,
       if (ordenMarketplace != null) 'ordenMarketplace': ordenMarketplace,
@@ -223,6 +227,7 @@ class ProductoModel extends Producto {
       descuentoMaximo: entity.descuentoMaximo,
       tipoAfectacionIgv: entity.tipoAfectacionIgv,
       aplicaIcbper: entity.aplicaIcbper,
+      codigoProductoSunat: entity.codigoProductoSunat,
       visibleMarketplace: entity.visibleMarketplace,
       destacado: entity.destacado,
       ordenMarketplace: entity.ordenMarketplace,

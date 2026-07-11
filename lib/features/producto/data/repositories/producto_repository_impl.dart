@@ -49,6 +49,7 @@ class ProductoRepositoryImpl implements ProductoRepository {
     double? descuentoMaximo,
     String? tipoAfectacionIgv,
     bool? aplicaIcbper,
+    String? codigoProductoSunat,
     bool? visibleMarketplace,
     bool? destacado,
     bool? tieneVariantes,
@@ -87,6 +88,8 @@ class ProductoRepositoryImpl implements ProductoRepository {
         if (descuentoMaximo != null) 'descuentoMaximo': descuentoMaximo,
         if (tipoAfectacionIgv != null) 'tipoAfectacionIgv': tipoAfectacionIgv,
         if (aplicaIcbper != null) 'aplicaIcbper': aplicaIcbper,
+        if (codigoProductoSunat != null && codigoProductoSunat.isNotEmpty)
+          'codigoProductoSunat': codigoProductoSunat,
         if (visibleMarketplace != null)
           'visibleMarketplace': visibleMarketplace,
         if (destacado != null) 'destacado': destacado,
@@ -206,6 +209,7 @@ class ProductoRepositoryImpl implements ProductoRepository {
     double? descuentoMaximo,
     String? tipoAfectacionIgv,
     bool? aplicaIcbper,
+    String? codigoProductoSunat,
     bool? visibleMarketplace,
     bool? destacado,
     int? ordenMarketplace,
@@ -244,6 +248,10 @@ class ProductoRepositoryImpl implements ProductoRepository {
         if (descuentoMaximo != null) 'descuentoMaximo': descuentoMaximo,
         if (tipoAfectacionIgv != null) 'tipoAfectacionIgv': tipoAfectacionIgv,
         if (aplicaIcbper != null) 'aplicaIcbper': aplicaIcbper,
+        // '' (vacío) = quitar el código → manda null explícito al backend.
+        if (codigoProductoSunat != null)
+          'codigoProductoSunat':
+              codigoProductoSunat.isEmpty ? null : codigoProductoSunat,
         if (visibleMarketplace != null)
           'visibleMarketplace': visibleMarketplace,
         if (destacado != null) 'destacado': destacado,

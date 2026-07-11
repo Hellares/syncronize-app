@@ -4,6 +4,8 @@ import '../../../../../core/fonts/app_text_widgets.dart';
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/gradient_container.dart';
 import '../../../../auth/presentation/widgets/custom_text.dart';
+import '../../../domain/entities/codigo_producto_sunat.dart';
+import '../codigo_producto_sunat_selector.dart';
 
 /// Sección de impuestos, afectación IGV e ICBPER del producto
 class ProductoImpuestosSection extends StatelessWidget {
@@ -12,8 +14,10 @@ class ProductoImpuestosSection extends StatelessWidget {
   final double? igvGlobal;
   final String tipoAfectacionIgv;
   final bool aplicaIcbper;
+  final String? codigoProductoSunat;
   final ValueChanged<String> onTipoAfectacionChanged;
   final ValueChanged<bool> onAplicaIcbperChanged;
+  final ValueChanged<String?> onCodigoProductoSunatChanged;
 
   const ProductoImpuestosSection({
     super.key,
@@ -22,8 +26,10 @@ class ProductoImpuestosSection extends StatelessWidget {
     this.igvGlobal,
     this.tipoAfectacionIgv = 'GRAVADO',
     this.aplicaIcbper = false,
+    this.codigoProductoSunat,
     required this.onTipoAfectacionChanged,
     required this.onAplicaIcbperChanged,
+    required this.onCodigoProductoSunatChanged,
   });
 
   @override
@@ -143,7 +149,77 @@ class ProductoImpuestosSection extends StatelessWidget {
               ],
             ),
           ),
+
+          const SizedBox(height: 10),
+
+          // Código de producto SUNAT (catálogos 25.1/25.2/25.3)
+          _buildCodigoSunatTile(context),
         ],
+      ),
+    );
+  }
+
+  Widget _buildCodigoSunatTile(BuildContext context) {
+    final seleccion = buscarCodigoProductoSunat(codigoProductoSunat);
+    final tieneCodigo = codigoProductoSunat != null && codigoProductoSunat!.isNotEmpty;
+
+    return GestureDetector(
+      onTap: () async {
+        final resultado = await showCodigoProductoSunatSelector(
+          context,
+          codigoActual: codigoProductoSunat,
+        );
+        if (resultado != null) {
+          // '' = quitar código; cualquier otro valor = código elegido.
+          onCodigoProductoSunatChanged(resultado.isEmpty ? null : resultado);
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: tieneCodigo ? Colors.blue.shade50 : Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: tieneCodigo ? AppColors.blue1 : Colors.grey.shade300,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.qr_code_2,
+              size: 18,
+              color: tieneCodigo ? AppColors.blue1 : Colors.grey,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Código producto SUNAT (opcional)',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey.shade700,
+                    ),
+                  ),
+                  Text(
+                    tieneCodigo
+                        ? '${codigoProductoSunat!} — ${seleccion?.descripcion ?? 'Código del catálogo 25'}'
+                        : 'Solo para bienes fiscalizados (detracción, percepción, combustibles…)',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: tieneCodigo ? AppColors.blue1 : Colors.grey.shade500,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, size: 18, color: Colors.grey.shade400),
+          ],
+        ),
       ),
     );
   }
