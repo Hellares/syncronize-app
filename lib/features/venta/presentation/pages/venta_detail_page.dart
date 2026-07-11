@@ -709,6 +709,44 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
+                                // Componente vendido como parte de un combo
+                                // expandido — mismo dato con el que el ticket
+                                // y el PDF agrupan (** COMBO: X **).
+                                if (detalles[i].origenComboId != null) ...[
+                                  const SizedBox(height: 2),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 5, vertical: 1),
+                                    decoration: BoxDecoration(
+                                      color: Colors.deepPurple
+                                          .withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(3),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.inventory_2_outlined,
+                                          size: 8,
+                                          color: Colors.deepPurple.shade700,
+                                        ),
+                                        const SizedBox(width: 3),
+                                        Flexible(
+                                          child: Text(
+                                            'COMBO: ${(detalles[i].origenComboNombre ?? 'Combo').toUpperCase()}',
+                                            style: TextStyle(
+                                              fontSize: 8,
+                                              fontWeight: FontWeight.w600,
+                                              color:
+                                                  Colors.deepPurple.shade700,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                                 // Nivel/precio aplicado al vender (snapshot).
                                 // Las líneas de combo expandido (origenComboId)
                                 // no muestran nivel: su precio es regular +
