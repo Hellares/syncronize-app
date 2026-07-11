@@ -67,7 +67,7 @@ class _FlujoDocumentosWidgetState extends State<FlujoDocumentosWidget> {
                 children: [
                   const Icon(Icons.account_tree, size: 16, color: AppColors.blue1),
                   const SizedBox(width: 8),
-                  const AppSubtitle('Flujo de Documentos', fontSize: 13),
+                  const AppSubtitle('Flujo de Documentos', fontSize: 10),
                   const Spacer(),
                   if (!_loading)
                     Container(

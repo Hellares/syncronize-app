@@ -294,15 +294,33 @@ class TicketVentaEscPosGenerator {
       bytes += generator.text(
         _kv('Op. Inafecta:', _money(venta.comprobanteInafecta ?? 0), charsPerLine),
       );
+      // Regalos/bonificaciones (líneas a S/0 declaradas gratuitas). Espejo
+      // del "Total Ope. Gratuitas" de la factura del proveedor. Solo si hay.
+      if ((venta.comprobanteGratuitas ?? 0) > 0) {
+        bytes += generator.text(
+          _kv('Op. Gratuitas:', _money(venta.comprobanteGratuitas!), charsPerLine),
+        );
+      }
     } else {
       bytes += generator.text(
         _kv('Subtotal:', _money(venta.subtotal), charsPerLine),
       );
     }
 
-    if (venta.descuento > 0) {
+    // Descuento FISCAL: el que SUNAT ve. Las líneas rebajadas al 100%
+    // (subtotal 0) se declararon como GRATUITAS, así que su rebaja ya no es
+    // descuento en el comprobante — se resta del global (el detalle de la
+    // rebaja sigue visible línea por línea con "Desc: -S/x").
+    final descuentoConvertido = (venta.detalles ?? []).fold<double>(
+      0,
+      (s, d) => s + ((d.subtotal == 0 && d.descuento > 0) ? d.descuento : 0),
+    );
+    final descuentoFiscal = tieneDesglose
+        ? (venta.descuento - descuentoConvertido).clamp(0, double.infinity)
+        : venta.descuento;
+    if (descuentoFiscal > 0) {
       bytes += generator.text(
-        _kv('Descuento:', '-${_money(venta.descuento)}', charsPerLine),
+        _kv('Descuento:', '-${_money(descuentoFiscal.toDouble())}', charsPerLine),
       );
     }
 

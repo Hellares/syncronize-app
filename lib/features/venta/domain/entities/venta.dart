@@ -345,6 +345,10 @@ class Venta extends Equatable {
   final double? comprobanteGravada;
   final double? comprobanteExonerada;
   final double? comprobanteInafecta;
+
+  /// Σ valores referenciales (sin IGV) de líneas GRATUITAS (regalos a S/0
+  /// convertidos por el backend). Informativo: NO suma al total.
+  final double? comprobanteGratuitas;
   final double? comprobanteIgv;
   final double? comprobanteIcbper;
   final String? comprobanteSunatHash;
@@ -420,6 +424,7 @@ class Venta extends Equatable {
     this.comprobanteGravada,
     this.comprobanteExonerada,
     this.comprobanteInafecta,
+    this.comprobanteGratuitas,
     this.comprobanteIgv,
     this.comprobanteIcbper,
     this.comprobanteSunatHash,

@@ -662,14 +662,29 @@ class PdfVentaGenerator {
     final gravada = venta.comprobanteGravada ?? venta.subtotal;
     final exonerada = venta.comprobanteExonerada ?? 0;
     final inafecta = venta.comprobanteInafecta ?? 0;
+    final gratuitas = venta.comprobanteGratuitas ?? 0;
     final igv = venta.comprobanteIgv ?? venta.impuestos;
     final icbper = venta.comprobanteIcbper ?? 0;
+
+    // Descuento FISCAL (el que SUNAT ve): las líneas rebajadas al 100%
+    // (subtotal 0) se declararon como GRATUITAS — su rebaja ya no es
+    // descuento del comprobante; sigue visible línea por línea.
+    final descuentoConvertido = (venta.detalles ?? []).fold<double>(
+      0,
+      (s, d) => s + ((d.subtotal == 0 && d.descuento > 0) ? d.descuento : 0),
+    );
+    final descuentoFiscal = venta.comprobanteGravada != null
+        ? (venta.descuento - descuentoConvertido).clamp(0, double.infinity).toDouble()
+        : venta.descuento;
 
     return [
       _buildTotalRow('Op. Gravada', '$simbolo${gravada.toStringAsFixed(2)}', color: colorCuerpo),
       _buildTotalRow('Op. Exonerada', '$simbolo${exonerada.toStringAsFixed(2)}', color: colorCuerpo),
       _buildTotalRow('Op. Inafecta', '$simbolo${inafecta.toStringAsFixed(2)}', color: colorCuerpo),
-      _buildTotalRow('Descuento', venta.descuento > 0 ? '-$simbolo${venta.descuento.toStringAsFixed(2)}' : '$simbolo${0.toStringAsFixed(2)}', color: colorCuerpo),
+      // Espejo del "Total Ope. Gratuitas" de la factura del proveedor.
+      if (gratuitas > 0)
+        _buildTotalRow('Op. Gratuitas', '$simbolo${gratuitas.toStringAsFixed(2)}', color: colorCuerpo),
+      _buildTotalRow('Descuento', descuentoFiscal > 0 ? '-$simbolo${descuentoFiscal.toStringAsFixed(2)}' : '$simbolo${0.toStringAsFixed(2)}', color: colorCuerpo),
       _buildTotalRow(nombreImpuesto, '$simbolo${igv.toStringAsFixed(2)}', color: colorCuerpo),
       _buildTotalRow('ICBPER', '$simbolo${icbper.toStringAsFixed(2)}', color: colorCuerpo),
     ];
