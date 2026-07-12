@@ -386,6 +386,11 @@ class _SorteoDetailView extends StatelessWidget {
     );
     if (ganador == null || ganador.dni == null || !context.mounted) return;
 
+    // Best-effort: si el DNI ya ganó antes con envío por agencia, prellenar
+    // sus datos de entrega (casi nunca cambian entre sorteos).
+    final entregaPrevia = await cubit.getEntregaPrevia(ganador.dni!);
+    if (!context.mounted) return;
+
     final datos = await showRegistrarPremioSheet(
       context: context,
       empresaId: empresaId,
@@ -393,6 +398,7 @@ class _SorteoDetailView extends StatelessWidget {
       ganadorNombre: ganador.nombreCompleto ?? '',
       precioParticipacionDefault: sorteo.precioParticipacion,
       descripcionDefault: sorteo.descripcion,
+      entregaPrevia: entregaPrevia,
     );
     if (datos == null || !context.mounted) return;
 

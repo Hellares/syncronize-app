@@ -65,6 +65,7 @@ Future<RegistrarPremioData?> showRegistrarPremioSheet({
   required String ganadorNombre,
   double? precioParticipacionDefault,
   String? descripcionDefault,
+  EntregaPreviaGanador? entregaPrevia,
 }) {
   return showModalBottomSheet<RegistrarPremioData>(
     context: context,
@@ -76,6 +77,7 @@ Future<RegistrarPremioData?> showRegistrarPremioSheet({
       ganadorNombre: ganadorNombre,
       precioParticipacionDefault: precioParticipacionDefault,
       descripcionDefault: descripcionDefault,
+      entregaPrevia: entregaPrevia,
     ),
   );
 }
@@ -87,12 +89,17 @@ class _RegistrarPremioSheet extends StatefulWidget {
   final double? precioParticipacionDefault;
   final String? descripcionDefault;
 
+  /// Última entrega por agencia del ganador (si ya ganó antes) — prellena
+  /// modalidad y datos de envío, editables.
+  final EntregaPreviaGanador? entregaPrevia;
+
   const _RegistrarPremioSheet({
     required this.empresaId,
     required this.sedeId,
     required this.ganadorNombre,
     this.precioParticipacionDefault,
     this.descripcionDefault,
+    this.entregaPrevia,
   });
 
   @override
@@ -126,6 +133,21 @@ class _RegistrarPremioSheetState extends State<_RegistrarPremioSheet> {
   _ProductoElegido? _producto;
   int _cantidad = 1;
   var _modalidad = ModalidadEntregaPremio.retiroTienda;
+  bool _prellenadoDePremioAnterior = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final previa = widget.entregaPrevia;
+    if (previa != null) {
+      _modalidad = ModalidadEntregaPremio.envioAgencia;
+      _agenciaCtrl.text = previa.agenciaNombre ?? '';
+      _destinoDepCtrl.text = previa.destinoDepartamento ?? '';
+      _destinoProvCtrl.text = previa.destinoProvincia ?? '';
+      _agenciaDirCtrl.text = previa.agenciaDireccion ?? '';
+      _prellenadoDePremioAnterior = true;
+    }
+  }
 
   @override
   void dispose() {
@@ -323,6 +345,34 @@ class _RegistrarPremioSheetState extends State<_RegistrarPremioSheet> {
               ),
               if (_modalidad == ModalidadEntregaPremio.envioAgencia) ...[
                 const SizedBox(height: 8),
+                if (_prellenadoDePremioAnterior) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AppColors.blue1.withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                          color: AppColors.blue1.withValues(alpha: 0.25),
+                          width: 0.5),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.history, size: 14, color: AppColors.blue1),
+                        const SizedBox(width: 6),
+                        const Expanded(
+                          child: Text(
+                            'Ya ganó antes: envío prellenado con los datos '
+                            'de su último premio — verifícalos.',
+                            style: TextStyle(fontSize: 10.5),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
                 CustomText(
                   controller: _agenciaCtrl,
                   label: 'Agencia (opcional — el ganador puede elegirla)',

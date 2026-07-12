@@ -65,6 +65,23 @@ enum ModalidadEntregaPremio {
       );
 }
 
+/// Última entrega POR AGENCIA registrada para un DNI — para prellenar
+/// el registro cuando el mismo participante gana otra vez (sus datos
+/// de agencia/destino casi nunca cambian entre sorteos).
+class EntregaPreviaGanador {
+  final String? agenciaNombre;
+  final String? destinoDepartamento;
+  final String? destinoProvincia;
+  final String? agenciaDireccion;
+
+  const EntregaPreviaGanador({
+    this.agenciaNombre,
+    this.destinoDepartamento,
+    this.destinoProvincia,
+    this.agenciaDireccion,
+  });
+}
+
 /// Economía del sorteo (solo en el detalle): recaudado por
 /// participaciones, costo real de los premios (kardex) y ganancia.
 class ResumenSorteo {

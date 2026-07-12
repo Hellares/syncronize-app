@@ -64,6 +64,10 @@ abstract class SorteoRepository {
     String? agenciaDireccion,
   });
 
+  /// Última entrega por agencia registrada para el DNI — null si nunca
+  /// tuvo un envío (prellenado de ganadores repetidos).
+  Future<Resource<EntregaPreviaGanador?>> getUltimaEntregaGanador(String dni);
+
   Future<Resource<void>> marcarRotuloImpreso(String premioId);
 
   Future<Resource<void>> subirTicketEnvio(String premioId, File file);

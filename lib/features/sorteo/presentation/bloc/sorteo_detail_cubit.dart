@@ -85,6 +85,13 @@ class SorteoDetailCubit extends Cubit<SorteoDetailState> {
     return null;
   }
 
+  /// Última entrega por agencia del DNI — best-effort para prellenar el
+  /// registro de ganadores repetidos; si falla, se registra sin prellenar.
+  Future<EntregaPreviaGanador?> getEntregaPrevia(String dni) async {
+    final result = await _repository.getUltimaEntregaGanador(dni);
+    return result is Success<EntregaPreviaGanador?> ? result.data : null;
+  }
+
   Future<String?> cambiarEstadoPremio({
     required String premioId,
     required EstadoPremioSorteo estado,

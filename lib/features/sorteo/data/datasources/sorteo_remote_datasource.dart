@@ -78,6 +78,18 @@ class SorteoRemoteDataSource {
     return SorteoPremioModel.fromJson(response.data as Map<String, dynamic>);
   }
 
+  /// GET /sorteos/ganadores/ultima-entrega?dni= — última entrega por
+  /// agencia del DNI (prellenado de ganadores repetidos); null si nunca
+  /// tuvo un envío con agencia.
+  Future<Map<String, dynamic>?> getUltimaEntregaGanador(String dni) async {
+    final response = await _dioClient.get(
+      '$_basePath/ganadores/ultima-entrega',
+      queryParameters: {'dni': dni},
+    );
+    final data = response.data;
+    return data is Map<String, dynamic> ? data : null;
+  }
+
   /// PATCH /sorteos/premios/:premioId/rotulo-impreso
   Future<void> marcarRotuloImpreso(String premioId) async {
     await _dioClient.patch('$_basePath/premios/$premioId/rotulo-impreso');

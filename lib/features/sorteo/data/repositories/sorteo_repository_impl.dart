@@ -183,6 +183,20 @@ class SorteoRepositoryImpl implements SorteoRepository {
       });
 
   @override
+  Future<Resource<EntregaPreviaGanador?>> getUltimaEntregaGanador(
+          String dni) =>
+      _guard(() async {
+        final json = await _remoteDataSource.getUltimaEntregaGanador(dni);
+        if (json == null) return null;
+        return EntregaPreviaGanador(
+          agenciaNombre: json['agenciaNombre'] as String?,
+          destinoDepartamento: json['destinoDepartamento'] as String?,
+          destinoProvincia: json['destinoProvincia'] as String?,
+          agenciaDireccion: json['agenciaDireccion'] as String?,
+        );
+      });
+
+  @override
   Future<Resource<void>> marcarRotuloImpreso(String premioId) =>
       _guard(() => _remoteDataSource.marcarRotuloImpreso(premioId));
 
