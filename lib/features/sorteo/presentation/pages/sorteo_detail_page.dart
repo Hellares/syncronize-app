@@ -561,30 +561,78 @@ Future<ImageSource?> _elegirFuenteImagen(BuildContext context) {
   );
 }
 
-/// Vista previa a pantalla completa con zoom ANTES de subir — los tickets
-/// de agencia se parecen entre sí y hay que verificar orden/nombre/clave.
-/// Devuelve true=subir, false=elegir otra imagen, null=cancelar.
-Future<bool?> _previewImagenAntesDeSubir(
-    BuildContext context, File file, String titulo) {
-  return Navigator.of(context).push<bool>(MaterialPageRoute(
+/// Resultado del preview: [archivo] != null → subir esa imagen;
+/// [volverAElegir] → reabrir el picker (descartó todas / quiere otras).
+class _ResultadoPreview {
+  final File? archivo;
+  final bool volverAElegir;
+  const _ResultadoPreview.subir(File this.archivo) : volverAElegir = false;
+  const _ResultadoPreview.volver()
+      : archivo = null,
+        volverAElegir = true;
+}
+
+/// Vista previa a pantalla completa ANTES de subir: los tickets de
+/// agencia se parecen entre sí (solo cambian los datos), así que se
+/// seleccionan VARIAS candidatas y aquí se comparan con zoom deslizando
+/// entre ellas y descartando hasta quedarse con la correcta.
+/// Devuelve null si se canceló todo.
+Future<_ResultadoPreview?> _previewImagenesAntesDeSubir(
+    BuildContext context, List<File> imagenes, String titulo) {
+  return Navigator.of(context).push<_ResultadoPreview>(MaterialPageRoute(
     fullscreenDialog: true,
-    builder: (_) => _PreviewImagenPage(file: file, titulo: titulo),
+    builder: (_) => _PreviewImagenesPage(imagenes: imagenes, titulo: titulo),
   ));
 }
 
-class _PreviewImagenPage extends StatelessWidget {
-  final File file;
+class _PreviewImagenesPage extends StatefulWidget {
+  final List<File> imagenes;
   final String titulo;
-  const _PreviewImagenPage({required this.file, required this.titulo});
+  const _PreviewImagenesPage(
+      {required this.imagenes, required this.titulo});
+
+  @override
+  State<_PreviewImagenesPage> createState() => _PreviewImagenesPageState();
+}
+
+class _PreviewImagenesPageState extends State<_PreviewImagenesPage> {
+  late final List<File> _imagenes = List.of(widget.imagenes);
+  final _pageCtrl = PageController();
+  int _index = 0;
+
+  @override
+  void dispose() {
+    _pageCtrl.dispose();
+    super.dispose();
+  }
+
+  void _descartar() {
+    // Descartó la última: de vuelta al picker a elegir otras.
+    if (_imagenes.length == 1) {
+      Navigator.of(context).pop(const _ResultadoPreview.volver());
+      return;
+    }
+    setState(() {
+      _imagenes.removeAt(_index);
+      if (_index >= _imagenes.length) _index = _imagenes.length - 1;
+    });
+    if (_pageCtrl.hasClients) _pageCtrl.jumpToPage(_index);
+  }
 
   @override
   Widget build(BuildContext context) {
+    final varias = _imagenes.length > 1;
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
-        title: Text(titulo, style: const TextStyle(fontSize: 13.5)),
+        title: Text(
+          varias
+              ? '${widget.titulo}  ·  ${_index + 1}/${_imagenes.length}'
+              : widget.titulo,
+          style: const TextStyle(fontSize: 13.5),
+        ),
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.of(context).pop(),
@@ -593,11 +641,27 @@ class _PreviewImagenPage extends StatelessWidget {
       body: Column(
         children: [
           Expanded(
-            child: InteractiveViewer(
-              maxScale: 6,
-              child: Center(child: Image.file(file)),
+            // Al hacer zoom el InteractiveViewer captura el arrastre;
+            // con la imagen sin zoom el swipe pasa al PageView.
+            child: PageView.builder(
+              controller: _pageCtrl,
+              onPageChanged: (i) => setState(() => _index = i),
+              itemCount: _imagenes.length,
+              itemBuilder: (_, i) => InteractiveViewer(
+                maxScale: 6,
+                child: Center(child: Image.file(_imagenes[i])),
+              ),
             ),
           ),
+          if (varias)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                '◂ desliza para comparar ▸',
+                style:
+                    TextStyle(fontSize: 10, color: Colors.grey.shade500),
+              ),
+            ),
           SafeArea(
             top: false,
             child: Padding(
@@ -606,15 +670,19 @@ class _PreviewImagenPage extends StatelessWidget {
                 children: [
                   Expanded(
                     child: CustomButton(
-                      text: 'Elegir otra',
+                      text: varias ? 'Descartar' : 'Elegir otra',
                       isOutlined: true,
-                      borderColor: Colors.white70,
-                      textColor: Colors.white,
+                      borderColor: Colors.red.shade300,
+                      textColor: Colors.red.shade300,
                       enableShadows: false,
-                      icon: const Icon(Icons.photo_library_outlined,
-                          size: 15, color: Colors.white),
-                      iconColor: Colors.white,
-                      onPressed: () => Navigator.of(context).pop(false),
+                      icon: Icon(
+                          varias
+                              ? Icons.delete_outline
+                              : Icons.photo_library_outlined,
+                          size: 15,
+                          color: Colors.red.shade300),
+                      iconColor: Colors.red.shade300,
+                      onPressed: _descartar,
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -627,7 +695,8 @@ class _PreviewImagenPage extends StatelessWidget {
                       icon: const Icon(Icons.cloud_upload_outlined,
                           size: 15, color: Colors.white),
                       iconColor: Colors.white,
-                      onPressed: () => Navigator.of(context).pop(true),
+                      onPressed: () => Navigator.of(context).pop(
+                          _ResultadoPreview.subir(_imagenes[_index])),
                     ),
                   ),
                 ],
@@ -1227,24 +1296,35 @@ class _PremioCard extends StatelessWidget {
     final source = await _elegirFuenteImagen(context);
     if (source == null || !context.mounted) return;
 
-    // Elegir → revisar con zoom → confirmar (o volver a elegir): los
-    // tickets de agencia se parecen y hay que verificar cuál es.
+    // Galería: selección MÚLTIPLE (los tickets se parecen entre sí) →
+    // en el preview se comparan con zoom y se descarta hasta quedarse
+    // con la correcta. Cámara: de a una foto, mismo preview.
     File? file;
     while (file == null) {
-      final picked = await ImagePicker().pickImage(
-        source: source,
-        maxWidth: 1600,
-        imageQuality: 85,
-      );
-      if (picked == null || !context.mounted) return;
-      final candidata = File(picked.path);
-      final decision = await _previewImagenAntesDeSubir(
+      final List<File> candidatas;
+      if (source == ImageSource.camera) {
+        final picked = await ImagePicker().pickImage(
+          source: source,
+          maxWidth: 1600,
+          imageQuality: 85,
+        );
+        if (picked == null || !context.mounted) return;
+        candidatas = [File(picked.path)];
+      } else {
+        final picked = await ImagePicker().pickMultiImage(
+          maxWidth: 1600,
+          imageQuality: 85,
+        );
+        if (picked.isEmpty || !context.mounted) return;
+        candidatas = [for (final x in picked) File(x.path)];
+      }
+      final resultado = await _previewImagenesAntesDeSubir(
         context,
-        candidata,
+        candidatas,
         esPremio ? 'Foto del premio' : 'Ticket de envío',
       );
-      if (decision == null || !context.mounted) return; // canceló
-      if (decision) file = candidata; // false → elegir otra
+      if (resultado == null || !context.mounted) return; // canceló
+      file = resultado.archivo; // null → volver a elegir
     }
     final error = esPremio
         ? await cubit.subirFotoPremio(premio.id, file)
