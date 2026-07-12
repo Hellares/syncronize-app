@@ -201,7 +201,7 @@ class SorteoRepositoryImpl implements SorteoRepository {
       _guard(() => _remoteDataSource.marcarRotuloImpreso(premioId));
 
   @override
-  Future<Resource<void>> subirTicketEnvio(String premioId, File file) =>
+  Future<Resource<bool>> subirTicketEnvio(String premioId, File file) =>
       _guard(() => _remoteDataSource.subirTicketEnvio(premioId, file));
 
   @override

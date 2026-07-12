@@ -148,12 +148,14 @@ class SorteoDetailCubit extends Cubit<SorteoDetailState> {
     await reload();
   }
 
-  Future<String?> subirTicketEnvio(String premioId, File file) async {
+  /// Devuelve (error, whatsappEnviado): error null = subida OK;
+  /// whatsappEnviado true = el backend ya se lo mandó al ganador.
+  Future<(String?, bool)> subirTicketEnvio(String premioId, File file) async {
     final result = await _repository.subirTicketEnvio(premioId, file);
-    if (isClosed) return null;
-    if (result is Error<void>) return result.message;
+    if (isClosed) return (null, false);
+    if (result is Error<bool>) return (result.message, false);
     await reload();
-    return null;
+    return (null, (result as Success<bool>).data);
   }
 
   Future<String?> subirFotoPremio(String premioId, File file) async {

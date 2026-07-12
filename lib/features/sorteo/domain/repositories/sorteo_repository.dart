@@ -70,7 +70,8 @@ abstract class SorteoRepository {
 
   Future<Resource<void>> marcarRotuloImpreso(String premioId);
 
-  Future<Resource<void>> subirTicketEnvio(String premioId, File file);
+  /// true = el backend además envió el ticket por WhatsApp al ganador.
+  Future<Resource<bool>> subirTicketEnvio(String premioId, File file);
 
   Future<Resource<void>> subirFotoPremio(String premioId, File file);
 

@@ -171,6 +171,50 @@ class EmpresaRemoteDataSource {
     return response.data as Map<String, dynamic>;
   }
 
+  // ── WhatsApp de la empresa (Evolution API) ──
+
+  /// Config + estado vivo de la vinculación de WhatsApp
+  ///
+  /// GET /api/empresas/:empresaId/whatsapp
+  Future<Map<String, dynamic>> getWhatsapp(String empresaId) async {
+    final response = await _dioClient.get(
+      '${ApiConstants.empresas}/$empresaId/whatsapp',
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
+  /// Crea la instancia y devuelve el QR para escanear
+  /// (estado, qrBase64 data-uri, pairingCode)
+  ///
+  /// POST /api/empresas/:empresaId/whatsapp/vincular
+  Future<Map<String, dynamic>> vincularWhatsapp(String empresaId) async {
+    final response = await _dioClient.post(
+      '${ApiConstants.empresas}/$empresaId/whatsapp/vincular',
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
+  /// Actualiza plantilla y/o habilitado ('' en plantilla = default)
+  ///
+  /// PUT /api/empresas/:empresaId/whatsapp
+  Future<Map<String, dynamic>> updateWhatsapp({
+    required String empresaId,
+    required Map<String, dynamic> data,
+  }) async {
+    final response = await _dioClient.put(
+      '${ApiConstants.empresas}/$empresaId/whatsapp',
+      data: data,
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
+  /// Desvincula el WhatsApp (cierra la sesión en Evolution)
+  ///
+  /// DELETE /api/empresas/:empresaId/whatsapp
+  Future<void> desvincularWhatsapp(String empresaId) async {
+    await _dioClient.delete('${ApiConstants.empresas}/$empresaId/whatsapp');
+  }
+
   /// Obtiene informacion de limites del plan (uso de storage, etc.)
   Future<Map<String, dynamic>?> getPlanLimitsInfo(String empresaId) async {
     try {

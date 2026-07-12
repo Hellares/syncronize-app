@@ -26,6 +26,7 @@ import '../../features/empresa/presentation/pages/empresa_selection_page.dart';
 import '../../features/empresa/presentation/pages/configuracion_empresa_page.dart';
 import '../../features/empresa/presentation/pages/qr_cobro_page.dart';
 import '../../features/empresa/presentation/pages/integracion_yape_page.dart';
+import '../../features/empresa/presentation/pages/integracion_whatsapp_page.dart';
 import '../../features/empresa/presentation/pages/banner_marketplace_config_page.dart';
 import '../../features/empresa/presentation/pages/empresa_profile_page.dart';
 import '../../features/empresa/presentation/pages/personalizacion_page.dart';
@@ -458,6 +459,11 @@ class AppRouter {
         path: '/empresa/integracion-yape',
         name: 'empresa-integracion-yape',
         builder: (context, state) => const IntegracionYapePage(),
+      ),
+      GoRoute(
+        path: '/empresa/whatsapp',
+        name: 'empresa-whatsapp',
+        builder: (context, state) => const IntegracionWhatsappPage(),
       ),
       GoRoute(
         path: '/empresa/planes',

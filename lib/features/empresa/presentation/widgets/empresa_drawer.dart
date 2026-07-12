@@ -1039,6 +1039,13 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/integracion-yape')),
           ),
           tile(
+            title: 'WhatsApp de la empresa',
+            icon: Icons.chat,
+            visible: can(permissions?.canManageSettings),
+            routeMatch: const _RouteMatch.startsWith('/empresa/whatsapp'),
+            onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/whatsapp')),
+          ),
+          tile(
             title: 'Usuarios',
             icon: Icons.people,
             visible: can(permissions?.canViewUsers),

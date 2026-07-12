@@ -95,9 +95,15 @@ class SorteoRemoteDataSource {
     await _dioClient.patch('$_basePath/premios/$premioId/rotulo-impreso');
   }
 
-  /// POST /sorteos/premios/:premioId/ticket-envio (multipart)
-  Future<void> subirTicketEnvio(String premioId, File file) =>
-      _subirArchivo('$_basePath/premios/$premioId/ticket-envio', file);
+  /// POST /sorteos/premios/:premioId/ticket-envio (multipart).
+  /// Devuelve true si el backend además lo envió por WhatsApp al ganador
+  /// (empresa con WhatsApp vinculado vía Evolution).
+  Future<bool> subirTicketEnvio(String premioId, File file) async {
+    final response =
+        await _subirArchivo('$_basePath/premios/$premioId/ticket-envio', file);
+    final data = response.data;
+    return data is Map && data['whatsappEnviado'] == true;
+  }
 
   /// POST /sorteos/premios/:premioId/foto-premio (multipart)
   Future<void> subirFotoPremio(String premioId, File file) =>
@@ -107,14 +113,14 @@ class SorteoRemoteDataSource {
   Future<void> subirImagenSorteo(String sorteoId, File file) =>
       _subirArchivo('$_basePath/$sorteoId/imagen', file);
 
-  Future<void> _subirArchivo(String path, File file) async {
+  Future<Response> _subirArchivo(String path, File file) async {
     final fileName = file.path.split('/').last.isNotEmpty
         ? file.path.split('/').last
         : file.path.split('\\').last;
     final formData = FormData.fromMap({
       'file': await MultipartFile.fromFile(file.path, filename: fileName),
     });
-    await _dioClient.post(
+    return _dioClient.post(
       path,
       data: formData,
       options: Options(contentType: 'multipart/form-data'),

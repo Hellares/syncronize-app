@@ -1326,23 +1326,31 @@ class _PremioCard extends StatelessWidget {
       if (resultado == null || !context.mounted) return; // canceló
       file = resultado.archivo; // null → volver a elegir
     }
-    final error = esPremio
-        ? await cubit.subirFotoPremio(premio.id, file)
-        : await cubit.subirTicketEnvio(premio.id, file);
+    String? error;
+    var whatsappEnviado = false;
+    if (esPremio) {
+      error = await cubit.subirFotoPremio(premio.id, file);
+    } else {
+      (error, whatsappEnviado) =
+          await cubit.subirTicketEnvio(premio.id, file);
+    }
     if (!context.mounted) return;
     _snack(
       context,
       error ??
           (esPremio
               ? 'Foto del premio subida — el ganador ya puede verla'
-              : 'Ticket de envío subido — el ganador ya puede verlo'),
+              : whatsappEnviado
+                  ? 'Ticket subido y ENVIADO por WhatsApp al ganador ✅'
+                  : 'Ticket de envío subido — el ganador ya puede verlo'),
       error: error != null,
     );
 
-    // Ticket recién subido: ofrecer avisarle al ganador por WhatsApp de
-    // una vez (es el momento natural — el premio ya está despachado).
+    // Ticket recién subido SIN envío automático (empresa sin WhatsApp
+    // vinculado): ofrecer el flujo manual de 2 pasos como fallback.
     if (error == null &&
         !esPremio &&
+        !whatsappEnviado &&
         premio.ganadorCelular != null &&
         premio.ganadorCelular!.isNotEmpty) {
       final enviar = await ConfirmDialog.show(
