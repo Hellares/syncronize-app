@@ -561,6 +561,85 @@ Future<ImageSource?> _elegirFuenteImagen(BuildContext context) {
   );
 }
 
+/// Vista previa a pantalla completa con zoom ANTES de subir — los tickets
+/// de agencia se parecen entre sí y hay que verificar orden/nombre/clave.
+/// Devuelve true=subir, false=elegir otra imagen, null=cancelar.
+Future<bool?> _previewImagenAntesDeSubir(
+    BuildContext context, File file, String titulo) {
+  return Navigator.of(context).push<bool>(MaterialPageRoute(
+    fullscreenDialog: true,
+    builder: (_) => _PreviewImagenPage(file: file, titulo: titulo),
+  ));
+}
+
+class _PreviewImagenPage extends StatelessWidget {
+  final File file;
+  final String titulo;
+  const _PreviewImagenPage({required this.file, required this.titulo});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        title: Text(titulo, style: const TextStyle(fontSize: 13.5)),
+        leading: IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: InteractiveViewer(
+              maxScale: 6,
+              child: Center(child: Image.file(file)),
+            ),
+          ),
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: CustomButton(
+                      text: 'Elegir otra',
+                      isOutlined: true,
+                      borderColor: Colors.white70,
+                      textColor: Colors.white,
+                      enableShadows: false,
+                      icon: const Icon(Icons.photo_library_outlined,
+                          size: 15, color: Colors.white),
+                      iconColor: Colors.white,
+                      onPressed: () => Navigator.of(context).pop(false),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    flex: 2,
+                    child: CustomButton(
+                      text: 'Subir esta',
+                      backgroundColor: Colors.green.shade700,
+                      textColor: Colors.white,
+                      icon: const Icon(Icons.cloud_upload_outlined,
+                          size: 15, color: Colors.white),
+                      iconColor: Colors.white,
+                      onPressed: () => Navigator.of(context).pop(true),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _PremioCard extends StatelessWidget {
   final SorteoPremio premio;
   final VoidCallback? onImprimirRotulo;
@@ -844,41 +923,29 @@ class _PremioCard extends StatelessWidget {
                     ),
                   const Spacer(),
                   // Foto del premio o del ticket de envío
-                  OutlinedButton.icon(
-                    onPressed: () => _subirFoto(context),
-                    icon: const Icon(Icons.photo_camera_outlined, size: 15),
-                    label:
-                        const Text('Foto', style: TextStyle(fontSize: 10)),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.blue1,
-                      side: BorderSide(
-                          color: AppColors.blue1.withValues(alpha: 0.5), width: 0.6),
-                      visualDensity: VisualDensity.compact,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-
+                  SizedBox(
+                    width: 80,
+                    child: CustomButton(
+                      borderRadius: 4,
+                      height: 28,
+                      text: 'Foto',
+                      textColor: AppColors.blue1,
+                      icon: Icon(Icons.photo_camera_outlined, size: 15),
+                      onPressed: () => _subirFoto(context),
                     ),
                   ),
+                 
                   const SizedBox(width: 8),
                   if (_siguienteEstado != null)
-                    ElevatedButton(
+                    CustomButton(
+                      text: 'Marcar ${_siguienteEstado!.label.toLowerCase()}',
+                      height: 28,
+                      borderRadius: 4,
+                      backgroundColor: AppColors.blue1,
+                      textColor: Colors.white,
                       onPressed: () =>
                           _avanzarEstado(context, _siguienteEstado!),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.blue1,
-                        foregroundColor: Colors.white,
-                        visualDensity: VisualDensity.compact,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                      ),
-                      child: Text(
-                        'Marcar ${_siguienteEstado!.label.toLowerCase()}',
-                        style: const TextStyle(
-                            fontSize: 10, fontWeight: FontWeight.w600),
-                      ),
-                    ),
+                    )
                 ],
               ),
             ],
@@ -1159,13 +1226,26 @@ class _PremioCard extends StatelessWidget {
 
     final source = await _elegirFuenteImagen(context);
     if (source == null || !context.mounted) return;
-    final picked = await ImagePicker().pickImage(
-      source: source,
-      maxWidth: 1600,
-      imageQuality: 85,
-    );
-    if (picked == null || !context.mounted) return;
-    final file = File(picked.path);
+
+    // Elegir → revisar con zoom → confirmar (o volver a elegir): los
+    // tickets de agencia se parecen y hay que verificar cuál es.
+    File? file;
+    while (file == null) {
+      final picked = await ImagePicker().pickImage(
+        source: source,
+        maxWidth: 1600,
+        imageQuality: 85,
+      );
+      if (picked == null || !context.mounted) return;
+      final candidata = File(picked.path);
+      final decision = await _previewImagenAntesDeSubir(
+        context,
+        candidata,
+        esPremio ? 'Foto del premio' : 'Ticket de envío',
+      );
+      if (decision == null || !context.mounted) return; // canceló
+      if (decision) file = candidata; // false → elegir otra
+    }
     final error = esPremio
         ? await cubit.subirFotoPremio(premio.id, file)
         : await cubit.subirTicketEnvio(premio.id, file);
