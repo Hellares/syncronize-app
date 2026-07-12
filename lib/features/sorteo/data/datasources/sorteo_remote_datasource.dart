@@ -61,6 +61,16 @@ class SorteoRemoteDataSource {
     return SorteoPremioModel.fromJson(response.data as Map<String, dynamic>);
   }
 
+  /// PATCH /sorteos/participantes/:id/estado — validar/rechazar
+  /// participante del bot (ACTIVO asigna ticket y confirma por WhatsApp)
+  Future<void> cambiarEstadoParticipante(
+      String participanteId, String estado) async {
+    await _dioClient.patch(
+      '$_basePath/participantes/$participanteId/estado',
+      data: {'estado': estado},
+    );
+  }
+
   /// PATCH /sorteos/premios/:premioId/estado
   Future<SorteoPremioModel> cambiarEstadoPremio(
       String premioId, Map<String, dynamic> data) async {

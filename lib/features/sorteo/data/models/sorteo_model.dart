@@ -48,6 +48,18 @@ class SorteoModel {
               SorteoPremioModel.fromJson(e as Map<String, dynamic>).toEntity())
           .toList(),
       imagenes: _archivos(json['imagenes']),
+      participantes: ((json['participantes'] as List?) ?? const [])
+          .map((e) => SorteoParticipante(
+                id: (e as Map)['id'] as String? ?? '',
+                celular: e['celular'] as String? ?? '',
+                nombre: e['nombre'] as String? ?? '',
+                dni: e['dni'] as String? ?? '',
+                estado:
+                    EstadoParticipanteSorteo.fromApi(e['estado'] as String?),
+                numeroTicket: (e['numeroTicket'] as num?)?.toInt(),
+                creadoEn: _fecha(e['creadoEn']) ?? DateTime.now(),
+              ))
+          .toList(),
       resumen: resumenJson == null
           ? null
           : ResumenSorteo(

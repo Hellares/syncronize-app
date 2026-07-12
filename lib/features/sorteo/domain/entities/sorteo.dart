@@ -114,6 +114,9 @@ class Sorteo {
   final List<TicketEnvio> imagenes;
   final ResumenSorteo? resumen;
 
+  /// Participantes captados por el BOT de WhatsApp (Fase A).
+  final List<SorteoParticipante> participantes;
+
   const Sorteo({
     required this.id,
     this.sedeId,
@@ -127,6 +130,46 @@ class Sorteo {
     this.premios = const [],
     this.imagenes = const [],
     this.resumen,
+    this.participantes = const [],
+  });
+}
+
+enum EstadoParticipanteSorteo {
+  pendientePago('PENDIENTE_PAGO', 'Pago pendiente'),
+  activo('ACTIVO', 'Activo'),
+  rechazado('RECHAZADO', 'Rechazado');
+
+  final String apiValue;
+  final String label;
+  const EstadoParticipanteSorteo(this.apiValue, this.label);
+
+  static EstadoParticipanteSorteo fromApi(String? v) =>
+      EstadoParticipanteSorteo.values.firstWhere(
+        (e) => e.apiValue == v,
+        orElse: () => EstadoParticipanteSorteo.pendientePago,
+      );
+}
+
+/// Participante registrado por el bot de WhatsApp: la empresa valida el
+/// pago por fuera y lo ACTIVA (se le asigna numeroTicket y el bot le
+/// confirma por WhatsApp).
+class SorteoParticipante {
+  final String id;
+  final String celular;
+  final String nombre;
+  final String dni;
+  final EstadoParticipanteSorteo estado;
+  final int? numeroTicket;
+  final DateTime creadoEn;
+
+  const SorteoParticipante({
+    required this.id,
+    required this.celular,
+    required this.nombre,
+    required this.dni,
+    required this.estado,
+    this.numeroTicket,
+    required this.creadoEn,
   });
 }
 

@@ -68,6 +68,12 @@ abstract class SorteoRepository {
   /// tuvo un envío (prellenado de ganadores repetidos).
   Future<Resource<EntregaPreviaGanador?>> getUltimaEntregaGanador(String dni);
 
+  /// Valida/rechaza un participante captado por el bot de WhatsApp.
+  Future<Resource<void>> cambiarEstadoParticipante({
+    required String participanteId,
+    required EstadoParticipanteSorteo estado,
+  });
+
   Future<Resource<void>> marcarRotuloImpreso(String premioId);
 
   /// true = el backend además envió el ticket por WhatsApp al ganador.

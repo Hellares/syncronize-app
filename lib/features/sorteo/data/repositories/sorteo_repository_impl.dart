@@ -197,6 +197,14 @@ class SorteoRepositoryImpl implements SorteoRepository {
       });
 
   @override
+  Future<Resource<void>> cambiarEstadoParticipante({
+    required String participanteId,
+    required EstadoParticipanteSorteo estado,
+  }) =>
+      _guard(() => _remoteDataSource.cambiarEstadoParticipante(
+          participanteId, estado.apiValue));
+
+  @override
   Future<Resource<void>> marcarRotuloImpreso(String premioId) =>
       _guard(() => _remoteDataSource.marcarRotuloImpreso(premioId));
 

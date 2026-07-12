@@ -165,6 +165,11 @@ class _SorteoDetailView extends StatelessWidget {
               ],
             ),
           ],
+          // ── Participantes captados por el bot de WhatsApp ──
+          if (sorteo.participantes.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            _ParticipantesSection(participantes: sorteo.participantes),
+          ],
           const SizedBox(height: 10),
           if (sorteo.premios.isEmpty)
             Padding(
@@ -559,6 +564,203 @@ Future<ImageSource?> _elegirFuenteImagen(BuildContext context) {
       ),
     ),
   );
+}
+
+/// Participantes captados por el BOT de WhatsApp: la empresa valida el
+/// pago por fuera y ACTIVA aquí (asigna ticket y el bot confirma por
+/// WhatsApp al participante). Colapsable para no tapar los ganadores.
+class _ParticipantesSection extends StatefulWidget {
+  final List<SorteoParticipante> participantes;
+  const _ParticipantesSection({required this.participantes});
+
+  @override
+  State<_ParticipantesSection> createState() => _ParticipantesSectionState();
+}
+
+class _ParticipantesSectionState extends State<_ParticipantesSection> {
+  bool _expandido = true;
+
+  @override
+  Widget build(BuildContext context) {
+    final activos = widget.participantes
+        .where((p) => p.estado == EstadoParticipanteSorteo.activo)
+        .length;
+    final pendientes = widget.participantes
+        .where((p) => p.estado == EstadoParticipanteSorteo.pendientePago)
+        .length;
+    return GradientContainer(
+      borderColor: AppColors.blueborder,
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            InkWell(
+              onTap: () => setState(() => _expandido = !_expandido),
+              child: Row(
+                children: [
+                  Icon(Icons.confirmation_number_outlined,
+                      size: 16, color: AppColors.blue1),
+                  const SizedBox(width: 6),
+                  const Text(
+                    'Participantes',
+                    style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.blue1),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '$activos activo${activos == 1 ? '' : 's'}'
+                    '${pendientes > 0 ? ' · $pendientes por validar' : ''}',
+                    style: TextStyle(
+                        fontSize: 10,
+                        fontWeight:
+                            pendientes > 0 ? FontWeight.w700 : FontWeight.w400,
+                        color: pendientes > 0
+                            ? Colors.orange.shade800
+                            : Colors.grey.shade600),
+                  ),
+                  const Spacer(),
+                  Icon(
+                    _expandido ? Icons.expand_less : Icons.expand_more,
+                    size: 18,
+                    color: Colors.grey.shade600,
+                  ),
+                ],
+              ),
+            ),
+            if (_expandido) ...[
+              const SizedBox(height: 4),
+              for (final p in widget.participantes) _fila(context, p),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _fila(BuildContext context, SorteoParticipante p) {
+    final esPendiente = p.estado == EstadoParticipanteSorteo.pendientePago;
+    final esActivo = p.estado == EstadoParticipanteSorteo.activo;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          // Ticket asignado (solo activos).
+          SizedBox(
+            width: 34,
+            child: Text(
+              esActivo && p.numeroTicket != null ? '#${p.numeroTicket}' : '—',
+              style: TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w700,
+                color: esActivo ? Colors.green.shade700 : Colors.grey.shade400,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  p.nombre,
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w600,
+                    color: p.estado == EstadoParticipanteSorteo.rechazado
+                        ? Colors.grey.shade400
+                        : Colors.black87,
+                    decoration: p.estado == EstadoParticipanteSorteo.rechazado
+                        ? TextDecoration.lineThrough
+                        : null,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  'DNI ${p.dni} · ${p.celular}',
+                  style:
+                      TextStyle(fontSize: 9.5, color: Colors.grey.shade600),
+                ),
+              ],
+            ),
+          ),
+          if (esPendiente) ...[
+            IconButton(
+              tooltip: 'Validar pago (activa y confirma por WhatsApp)',
+              visualDensity: VisualDensity.compact,
+              icon: Icon(Icons.check_circle_outline,
+                  size: 19, color: Colors.green.shade700),
+              onPressed: () => _cambiarEstado(
+                  context, p, EstadoParticipanteSorteo.activo),
+            ),
+            IconButton(
+              tooltip: 'Rechazar',
+              visualDensity: VisualDensity.compact,
+              icon: Icon(Icons.cancel_outlined,
+                  size: 19, color: Colors.red.shade400),
+              onPressed: () => _cambiarEstado(
+                  context, p, EstadoParticipanteSorteo.rechazado),
+            ),
+          ] else
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: (esActivo ? Colors.green : Colors.red)
+                    .withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                p.estado.label.toUpperCase(),
+                style: TextStyle(
+                  fontSize: 8,
+                  fontWeight: FontWeight.w700,
+                  color: esActivo
+                      ? Colors.green.shade700
+                      : Colors.red.shade400,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _cambiarEstado(
+    BuildContext context,
+    SorteoParticipante p,
+    EstadoParticipanteSorteo estado,
+  ) async {
+    final cubit = context.read<SorteoDetailCubit>();
+    final activar = estado == EstadoParticipanteSorteo.activo;
+    final ok = await ConfirmDialog.show(
+      context: context,
+      type: activar ? ConfirmDialogType.info : ConfirmDialogType.destructive,
+      title: activar ? 'Validar pago' : 'Rechazar participante',
+      message: activar
+          ? '¿Confirmar el pago de ${p.nombre}? Se le asignará su ticket '
+              'y el bot le confirmará por WhatsApp.'
+          : '¿Rechazar a ${p.nombre}?',
+      confirmText: activar ? 'Validar' : 'Rechazar',
+      icon: activar ? Icons.check_circle_outline : Icons.cancel_outlined,
+    );
+    if (ok != true || !context.mounted) return;
+    final error = await cubit.cambiarEstadoParticipante(
+      participanteId: p.id,
+      estado: estado,
+    );
+    if (!context.mounted) return;
+    _snack(
+      context,
+      error ??
+          (activar
+              ? '🎟️ ${p.nombre.split(' ').first} activado — el bot le confirmó su ticket'
+              : 'Participante rechazado'),
+      error: error != null,
+    );
+  }
 }
 
 /// Resultado del preview: [archivo] != null → subir esa imagen;

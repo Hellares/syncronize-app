@@ -138,6 +138,22 @@ class SorteoDetailCubit extends Cubit<SorteoDetailState> {
     return null;
   }
 
+  /// Valida/rechaza un participante del bot. ACTIVO asigna el ticket y
+  /// el bot le confirma por WhatsApp.
+  Future<String?> cambiarEstadoParticipante({
+    required String participanteId,
+    required EstadoParticipanteSorteo estado,
+  }) async {
+    final result = await _repository.cambiarEstadoParticipante(
+      participanteId: participanteId,
+      estado: estado,
+    );
+    if (isClosed) return null;
+    if (result is Error<void>) return result.message;
+    await reload();
+    return null;
+  }
+
   /// Marca los rótulos como impresos tras un print exitoso (batch:
   /// "2 por hoja" imprime varios premios de una vez).
   Future<void> marcarRotulosImpresos(List<String> premioIds) async {
