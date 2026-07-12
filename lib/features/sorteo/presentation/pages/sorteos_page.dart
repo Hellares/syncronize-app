@@ -259,7 +259,7 @@ class _SorteoCard extends StatelessWidget {
                   children: [
                     Text(sorteo.titulo,
                         style: const TextStyle(
-                            fontSize: 11, fontWeight: FontWeight.w600),
+                            fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.blue1),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis),
                     const SizedBox(height: 2),
@@ -269,6 +269,10 @@ class _SorteoCard extends StatelessWidget {
                       style: TextStyle(
                           fontSize: 10.5, color: Colors.grey.shade600),
                     ),
+
+
+
+
                   ],
                 ),
               ),

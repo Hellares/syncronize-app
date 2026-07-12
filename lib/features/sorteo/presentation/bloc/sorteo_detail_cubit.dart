@@ -107,6 +107,30 @@ class SorteoDetailCubit extends Cubit<SorteoDetailState> {
     return null;
   }
 
+  /// Corrige la entrega del premio (modalidad y/o agencia) — p.ej.
+  /// quedó en retiro en tienda por error al registrar.
+  Future<String?> editarEntregaPremio({
+    required String premioId,
+    required ModalidadEntregaPremio modalidad,
+    String? agenciaNombre,
+    String? destinoDepartamento,
+    String? destinoProvincia,
+    String? agenciaDireccion,
+  }) async {
+    final result = await _repository.editarEntregaPremio(
+      premioId: premioId,
+      modalidad: modalidad,
+      agenciaNombre: agenciaNombre,
+      destinoDepartamento: destinoDepartamento,
+      destinoProvincia: destinoProvincia,
+      agenciaDireccion: agenciaDireccion,
+    );
+    if (isClosed) return null;
+    if (result is Error<SorteoPremio>) return result.message;
+    await reload();
+    return null;
+  }
+
   /// Marca los rótulos como impresos tras un print exitoso (batch:
   /// "2 por hoja" imprime varios premios de una vez).
   Future<void> marcarRotulosImpresos(List<String> premioIds) async {

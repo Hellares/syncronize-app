@@ -23,6 +23,7 @@ import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state
 import '../../domain/entities/sorteo.dart';
 import '../bloc/sorteo_detail_cubit.dart';
 import '../services/rotulo_envio_pdf_generator.dart';
+import '../widgets/editar_entrega_sheet.dart';
 import '../widgets/registrar_premio_sheet.dart';
 
 /// Detalle del sorteo: ganadores registrados, estados de envío, foto del
@@ -785,6 +786,17 @@ class _PremioCard extends StatelessWidget {
                         size: 18, color: Colors.red.shade400),
                     onPressed: () => _anular(context),
                   ),
+                  // Corregir la entrega (modalidad y/o agencia) — solo
+                  // antes del despacho, mismo guard que el backend.
+                  if (premio.estado == EstadoPremioSorteo.registrado ||
+                      premio.estado == EstadoPremioSorteo.preparando)
+                    IconButton(
+                      tooltip: 'Editar entrega (modalidad/agencia)',
+                      visualDensity: VisualDensity.compact,
+                      icon: Icon(Icons.local_shipping_outlined,
+                          size: 19, color: AppColors.blue1),
+                      onPressed: () => _editarEntrega(context),
+                    ),
                   // Editar datos del despacho (solo premios ya enviados
                   // por agencia).
                   if (premio.estado == EstadoPremioSorteo.enviado &&
@@ -905,6 +917,25 @@ class _PremioCard extends StatelessWidget {
       );
       if (imprimir == true) onImprimirRotulo!();
     }
+  }
+
+  /// Corrige la modalidad de entrega y/o la agencia de un premio aún no
+  /// despachado — p.ej. quedó en retiro en tienda por error.
+  Future<void> _editarEntrega(BuildContext context) async {
+    final cubit = context.read<SorteoDetailCubit>();
+    final editada =
+        await showEditarEntregaSheet(context: context, premio: premio);
+    if (editada == null || !context.mounted) return;
+    final error = await cubit.editarEntregaPremio(
+      premioId: premio.id,
+      modalidad: editada.modalidad,
+      agenciaNombre: editada.agenciaNombre,
+      destinoDepartamento: editada.destinoDepartamento,
+      destinoProvincia: editada.destinoProvincia,
+      agenciaDireccion: editada.agenciaDireccion,
+    );
+    if (!context.mounted) return;
+    _snack(context, error ?? 'Entrega actualizada', error: error != null);
   }
 
   /// Editar los datos del envío de un premio ya ENVIADO (re-envía el

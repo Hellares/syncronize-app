@@ -69,6 +69,15 @@ class SorteoRemoteDataSource {
     return SorteoPremioModel.fromJson(response.data as Map<String, dynamic>);
   }
 
+  /// PATCH /sorteos/premios/:premioId/entrega — corregir modalidad y/o
+  /// agencia (solo antes del despacho).
+  Future<SorteoPremioModel> editarEntregaPremio(
+      String premioId, Map<String, dynamic> data) async {
+    final response = await _dioClient
+        .patch('$_basePath/premios/$premioId/entrega', data: data);
+    return SorteoPremioModel.fromJson(response.data as Map<String, dynamic>);
+  }
+
   /// PATCH /sorteos/premios/:premioId/rotulo-impreso
   Future<void> marcarRotuloImpreso(String premioId) async {
     await _dioClient.patch('$_basePath/premios/$premioId/rotulo-impreso');

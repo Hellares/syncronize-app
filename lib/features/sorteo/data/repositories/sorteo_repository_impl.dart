@@ -159,6 +159,30 @@ class SorteoRepositoryImpl implements SorteoRepository {
       });
 
   @override
+  Future<Resource<SorteoPremio>> editarEntregaPremio({
+    required String premioId,
+    required ModalidadEntregaPremio modalidad,
+    String? agenciaNombre,
+    String? destinoDepartamento,
+    String? destinoProvincia,
+    String? agenciaDireccion,
+  }) =>
+      _guard(() async {
+        final model = await _remoteDataSource.editarEntregaPremio(premioId, {
+          'modalidad': modalidad.apiValue,
+          if (agenciaNombre != null && agenciaNombre.isNotEmpty)
+            'agenciaNombre': agenciaNombre,
+          if (destinoDepartamento != null && destinoDepartamento.isNotEmpty)
+            'destinoDepartamento': destinoDepartamento,
+          if (destinoProvincia != null && destinoProvincia.isNotEmpty)
+            'destinoProvincia': destinoProvincia,
+          if (agenciaDireccion != null && agenciaDireccion.isNotEmpty)
+            'agenciaDireccion': agenciaDireccion,
+        });
+        return model.toEntity();
+      });
+
+  @override
   Future<Resource<void>> marcarRotuloImpreso(String premioId) =>
       _guard(() => _remoteDataSource.marcarRotuloImpreso(premioId));
 

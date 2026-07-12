@@ -53,6 +53,17 @@ abstract class SorteoRepository {
     String? envioClave,
   });
 
+  /// Corrige la entrega del premio (modalidad y/o agencia) — solo antes
+  /// del despacho.
+  Future<Resource<SorteoPremio>> editarEntregaPremio({
+    required String premioId,
+    required ModalidadEntregaPremio modalidad,
+    String? agenciaNombre,
+    String? destinoDepartamento,
+    String? destinoProvincia,
+    String? agenciaDireccion,
+  });
+
   Future<Resource<void>> marcarRotuloImpreso(String premioId);
 
   Future<Resource<void>> subirTicketEnvio(String premioId, File file);
