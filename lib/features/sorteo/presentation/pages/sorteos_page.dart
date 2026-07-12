@@ -269,10 +269,6 @@ class _SorteoCard extends StatelessWidget {
                       style: TextStyle(
                           fontSize: 10.5, color: Colors.grey.shade600),
                     ),
-
-
-
-
                   ],
                 ),
               ),
