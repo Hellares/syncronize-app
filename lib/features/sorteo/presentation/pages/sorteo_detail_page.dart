@@ -24,6 +24,7 @@ import '../../domain/entities/sorteo.dart';
 import '../bloc/sorteo_detail_cubit.dart';
 import '../services/rotulo_envio_pdf_generator.dart';
 import '../widgets/editar_entrega_sheet.dart';
+import '../widgets/enviar_whatsapp_premio_sheet.dart';
 import '../widgets/registrar_premio_sheet.dart';
 
 /// Detalle del sorteo: ganadores registrados, estados de envío, foto del
@@ -815,6 +816,18 @@ class _PremioCard extends StatelessWidget {
                           size: 20, color: AppColors.blue1),
                       onPressed: () => _editarDatosEnvio(context),
                     ),
+                  // Avisar al ganador por WhatsApp con el ticket de envío
+                  // (2 pasos guiados: mensaje + imagen).
+                  if (premio.ganadorCelular != null &&
+                      premio.ganadorCelular!.isNotEmpty &&
+                      premio.tickets.isNotEmpty)
+                    IconButton(
+                      tooltip: 'Enviar ticket por WhatsApp',
+                      visualDensity: VisualDensity.compact,
+                      icon: Icon(Icons.chat,
+                          size: 18, color: Colors.green.shade700),
+                      onPressed: () => _enviarWhatsApp(context),
+                    ),
                   // Rótulo de envío (media hoja A4, impresora normal) —
                   // desde PREPARANDO en adelante, solo envíos por agencia.
                   if (onImprimirRotulo != null &&
@@ -1087,6 +1100,22 @@ class _PremioCard extends StatelessWidget {
     );
   }
 
+  /// Abre el flujo guiado de WhatsApp (mensaje + imagen del ticket).
+  /// [ticketLocal] evita re-descargar cuando el ticket se acaba de subir.
+  Future<void> _enviarWhatsApp(BuildContext context,
+      {File? ticketLocal}) async {
+    final ctxState = context.read<EmpresaContextCubit>().state;
+    final empresaNombre = ctxState is EmpresaContextLoaded
+        ? ctxState.context.empresa.nombre
+        : '';
+    await showEnviarWhatsAppPremioSheet(
+      context: context,
+      premio: premio,
+      empresaNombre: empresaNombre,
+      ticketLocal: ticketLocal,
+    );
+  }
+
   Future<void> _subirFoto(BuildContext context) async {
     final cubit = context.read<SorteoDetailCubit>();
     // 1) ¿Qué foto es? Premio ganado o ticket de envío de agencia.
@@ -1149,5 +1178,25 @@ class _PremioCard extends StatelessWidget {
               : 'Ticket de envío subido — el ganador ya puede verlo'),
       error: error != null,
     );
+
+    // Ticket recién subido: ofrecer avisarle al ganador por WhatsApp de
+    // una vez (es el momento natural — el premio ya está despachado).
+    if (error == null &&
+        !esPremio &&
+        premio.ganadorCelular != null &&
+        premio.ganadorCelular!.isNotEmpty) {
+      final enviar = await ConfirmDialog.show(
+        context: context,
+        type: ConfirmDialogType.info,
+        title: 'Avisar al ganador',
+        message: '¿Enviar el ticket por WhatsApp a ${premio.ganadorNombre} '
+            '(${premio.ganadorCelular})?',
+        confirmText: 'Enviar',
+        icon: Icons.chat,
+      );
+      if (enviar == true && context.mounted) {
+        await _enviarWhatsApp(context, ticketLocal: file);
+      }
+    }
   }
 }
