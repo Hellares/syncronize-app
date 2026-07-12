@@ -24,4 +24,26 @@ class MisPremiosCubit extends Cubit<MisPremiosState> {
       emit(MisPremiosError(result.message));
     }
   }
+
+  /// El ganador indica su agencia de recojo. Devuelve el mensaje de
+  /// error (null = éxito) y recarga la lista.
+  Future<String?> elegirAgencia({
+    required String premioId,
+    required String agenciaNombre,
+    String? destinoDepartamento,
+    String? destinoProvincia,
+    String? agenciaDireccion,
+  }) async {
+    final result = await _repository.elegirAgencia(
+      premioId: premioId,
+      agenciaNombre: agenciaNombre,
+      destinoDepartamento: destinoDepartamento,
+      destinoProvincia: destinoProvincia,
+      agenciaDireccion: agenciaDireccion,
+    );
+    if (isClosed) return null;
+    if (result is Error<void>) return result.message;
+    await load();
+    return null;
+  }
 }

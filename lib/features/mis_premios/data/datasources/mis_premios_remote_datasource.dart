@@ -26,4 +26,10 @@ class MisPremiosRemoteDataSource {
     final response = await _dioClient.get('$_basePath/$id');
     return PremioClienteModel.fromJson(response.data as Map<String, dynamic>);
   }
+
+  /// PATCH /marketplace/mis-premios/:id/agencia — el ganador indica su
+  /// agencia de recojo (solo antes del despacho).
+  Future<void> elegirAgencia(String id, Map<String, dynamic> data) async {
+    await _dioClient.patch('$_basePath/$id/agencia', data: data);
+  }
 }

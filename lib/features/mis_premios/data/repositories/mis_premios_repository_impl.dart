@@ -44,4 +44,31 @@ class MisPremiosRepositoryImpl implements MisPremiosRepository {
       return _errorHandler.handleException(e, context: 'MisPremios');
     }
   }
+
+  @override
+  Future<Resource<void>> elegirAgencia({
+    required String premioId,
+    required String agenciaNombre,
+    String? destinoDepartamento,
+    String? destinoProvincia,
+    String? agenciaDireccion,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      await _remoteDataSource.elegirAgencia(premioId, {
+        'agenciaNombre': agenciaNombre,
+        if (destinoDepartamento != null && destinoDepartamento.isNotEmpty)
+          'destinoDepartamento': destinoDepartamento,
+        if (destinoProvincia != null && destinoProvincia.isNotEmpty)
+          'destinoProvincia': destinoProvincia,
+        if (agenciaDireccion != null && agenciaDireccion.isNotEmpty)
+          'agenciaDireccion': agenciaDireccion,
+      });
+      return Success(null);
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'MisPremios');
+    }
+  }
 }

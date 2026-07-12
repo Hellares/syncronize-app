@@ -325,7 +325,7 @@ class _RegistrarPremioSheetState extends State<_RegistrarPremioSheet> {
                 const SizedBox(height: 8),
                 CustomText(
                   controller: _agenciaCtrl,
-                  label: 'Agencia',
+                  label: 'Agencia (opcional — el ganador puede elegirla)',
                   hintText: 'ej. Shalom / Olva / Marvisur',
                   borderColor: AppColors.blue1,
                   textCase: TextCase.upper,
@@ -443,10 +443,8 @@ class _RegistrarPremioSheetState extends State<_RegistrarPremioSheet> {
     final descripcion = _descripcionCtrl.text.trim();
     if (descripcion.isEmpty) return;
     if (_descontarStock && _producto == null) return;
-    if (_modalidad == ModalidadEntregaPremio.envioAgencia &&
-        _agenciaCtrl.text.trim().isEmpty) {
-      return;
-    }
+    // La agencia NO es obligatoria: el ganador puede elegirla él mismo
+    // desde Mis Premios (feature "ganador elige agencia").
     Navigator.of(context).pop(RegistrarPremioData(
       descripcion: descripcion,
       productoId: _descontarStock ? _producto!.productoId : null,

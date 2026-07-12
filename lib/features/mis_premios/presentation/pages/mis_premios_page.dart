@@ -7,6 +7,7 @@ import '../../../../core/widgets/smart_appbar.dart';
 import '../../../sorteo/domain/entities/sorteo.dart';
 import '../../domain/entities/premio_cliente.dart';
 import '../bloc/mis_premios_cubit.dart';
+import '../widgets/elegir_agencia_sheet.dart';
 
 /// "Mis Premios" — el cliente ve los premios que ganó en sorteos, el
 /// estado del envío y la foto del ticket de agencia.
@@ -258,6 +259,36 @@ class _PremioClienteCardState extends State<PremioClienteCard> {
               if (_expandido) ...[
                 const Divider(height: 20),
                 _detalleEntrega(),
+                // El ganador elige SU agencia de recojo — solo antes del
+                // despacho. Si no lo hace, la tienda la asigna.
+                if (premio.estado == EstadoPremioSorteo.registrado ||
+                    premio.estado == EstadoPremioSorteo.preparando) ...[
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _elegirAgencia(context),
+                      icon: const Icon(Icons.edit_location_alt_outlined,
+                          size: 15),
+                      label: Text(
+                        premio.agenciaNombre == null ||
+                                premio.agenciaNombre!.isEmpty
+                            ? 'Elegir dónde recoger mi premio'
+                            : 'Cambiar agencia de recojo',
+                        style: const TextStyle(fontSize: 11.5),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.blue1,
+                        side: BorderSide(
+                            color: AppColors.blue1.withValues(alpha: 0.5)),
+                        visualDensity: VisualDensity.compact,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
                 // La CLAVE DE RECOJO destacada: es lo que el ganador
                 // muestra en la agencia para que le entreguen.
                 if (premio.envioClave != null &&
@@ -408,6 +439,34 @@ class _PremioClienteCardState extends State<PremioClienteCard> {
           ),
       ],
     );
+  }
+
+  /// El ganador indica su agencia de recojo (lo único que puede editar).
+  Future<void> _elegirAgencia(BuildContext context) async {
+    final cubit = context.read<MisPremiosCubit>();
+    final elegida = await showElegirAgenciaSheet(
+      context: context,
+      premio: premio,
+    );
+    if (elegida == null || !context.mounted) return;
+    final error = await cubit.elegirAgencia(
+      premioId: premio.id,
+      agenciaNombre: elegida.agenciaNombre,
+      destinoDepartamento: elegida.destinoDepartamento,
+      destinoProvincia: elegida.destinoProvincia,
+      agenciaDireccion: elegida.agenciaDireccion,
+    );
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(
+        error ??
+            '¡Listo! Tu premio se enviará a ${elegida.agenciaNombre} 📦',
+        style: const TextStyle(fontSize: 12),
+      ),
+      backgroundColor:
+          error != null ? Colors.orange.shade800 : Colors.green.shade700,
+      behavior: SnackBarBehavior.floating,
+    ));
   }
 
   String _fmt(DateTime f) =>
