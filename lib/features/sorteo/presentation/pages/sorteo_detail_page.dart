@@ -773,29 +773,13 @@ class _PremioCard extends StatelessWidget {
                     // Rótulo ya impreso: el paquete tiene su ticket.
                     if (premio.rotuloImpreso) ...[
                       const SizedBox(height: 3),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.teal.withValues(alpha: 0.10),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.print,
-                                size: 9, color: Colors.teal.shade700),
-                            const SizedBox(width: 3),
-                            Text(
-                              'IMPRESO',
-                              style: TextStyle(
-                                  fontSize: 8,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.teal.shade700),
-                            ),
-                          ],
-                        ),
-                      ),
+                      _miniChip(Icons.print, 'IMPRESO', Colors.teal.shade700),
+                    ],
+                    // Ticket ya enviado por WhatsApp automático al ganador.
+                    if (premio.whatsappEnviado) ...[
+                      const SizedBox(height: 3),
+                      _miniChip(
+                          Icons.chat, 'WSP ENVIADO', Colors.green.shade700),
                     ],
                   ],
                 ),
@@ -1020,6 +1004,30 @@ class _PremioCard extends StatelessWidget {
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  /// Chip compacto de estado extra en la esquina de la card (IMPRESO,
+  /// WSP ENVIADO): mismo formato para todos.
+  Widget _miniChip(IconData icono, String texto, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icono, size: 9, color: color),
+          const SizedBox(width: 3),
+          Text(
+            texto,
+            style: TextStyle(
+                fontSize: 8, fontWeight: FontWeight.w700, color: color),
+          ),
+        ],
       ),
     );
   }

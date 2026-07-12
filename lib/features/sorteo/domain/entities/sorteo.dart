@@ -171,6 +171,9 @@ class SorteoPremio {
 
   /// Rótulo de envío ya impreso (chip IMPRESO en la card).
   final DateTime? rotuloImpresoEn;
+
+  /// Ticket enviado por WhatsApp automático al ganador (chip en la card).
+  final DateTime? whatsappEnviadoEn;
   final EstadoPremioSorteo estado;
   final DateTime? enviadoEn;
   final DateTime? entregadoEn;
@@ -203,6 +206,7 @@ class SorteoPremio {
     this.envioCodigo,
     this.envioClave,
     this.rotuloImpresoEn,
+    this.whatsappEnviadoEn,
     required this.estado,
     this.enviadoEn,
     this.entregadoEn,
@@ -213,6 +217,9 @@ class SorteoPremio {
   });
 
   bool get rotuloImpreso => rotuloImpresoEn != null;
+
+  /// El ticket ya le llegó al ganador por WhatsApp automático.
+  bool get whatsappEnviado => whatsappEnviadoEn != null;
 
   /// "Tarapoto, San Martín" (o lo que haya).
   String? get destinoTexto {
