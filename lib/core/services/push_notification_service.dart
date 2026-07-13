@@ -176,6 +176,9 @@ class PushNotificationService {
       'PRODUCTO_CREADO',
       'PRODUCTO_ACTUALIZADO',
       'VENTA_PAGADA', // confirmación de pago Yape/Plin → cierra la hoja de espera
+      'CLIENTE_CAMBIADO', // delta-sync del catálogo de clientes
+      'CLIENTE_EMPRESA_CAMBIADO', // ídem B2B
+      'SORTEO_CAMBIADO', // recarga del detalle del sorteo/cola de pendientes
     };
     if (tipo != null && realtimeTipos.contains(tipo)) {
       onRealtimeData?.call(Map<String, dynamic>.from(message.data));
