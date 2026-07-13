@@ -40,6 +40,7 @@ import '../../features/mis_pedidos/presentation/pages/mis_pedidos_page.dart';
 import '../../features/mis_pedidos/presentation/pages/pedido_detail_page.dart';
 import '../../features/mis_premios/presentation/pages/mis_premios_page.dart';
 import '../../features/sorteo/presentation/pages/sorteos_page.dart';
+import '../../features/sorteo/presentation/pages/jugadores_pendientes_page.dart';
 import '../../features/sorteo/presentation/pages/sorteo_detail_page.dart';
 import '../../features/pedido_marketplace_empresa/presentation/pages/pedidos_marketplace_empresa_page.dart';
 import '../../features/pedido_marketplace_empresa/presentation/pages/pedido_marketplace_detail_empresa_page.dart';
@@ -1195,6 +1196,11 @@ class AppRouter {
         },
       ),
       // Rutas de sorteos (empresa)
+      GoRoute(
+        path: '/empresa/sorteos/jugadores-pendientes',
+        name: 'sorteos-jugadores-pendientes',
+        builder: (context, state) => const JugadoresPendientesPage(),
+      ),
       GoRoute(
         path: '/empresa/sorteos',
         name: 'empresa-sorteos',

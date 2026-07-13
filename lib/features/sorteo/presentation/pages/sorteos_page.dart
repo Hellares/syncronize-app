@@ -32,11 +32,20 @@ class _SorteosView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const SmartAppBar(
+      appBar: SmartAppBar(
         customHeight: 40,
         title: 'Sorteos',
         backgroundColor: AppColors.blue1,
         foregroundColor: Colors.white,
+        actions: [
+          // Cola global de jugadores del bot con pago por validar.
+          IconButton(
+            tooltip: 'Jugadores por validar',
+            icon: const Icon(Icons.how_to_reg, size: 21, color: Colors.white),
+            onPressed: () =>
+                context.push('/empresa/sorteos/jugadores-pendientes'),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         heroTag: 'nuevo-sorteo',

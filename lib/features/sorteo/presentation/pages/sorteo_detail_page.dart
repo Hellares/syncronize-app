@@ -728,9 +728,13 @@ class _ParticipantesSectionState extends State<_ParticipantesSection> {
                   context, p, EstadoParticipanteSorteo.rechazado),
             ),
           ] else ...[
-            // Dinámica: el que jugó YA ganó — registrar su premio con
-            // todos los datos que dejó en el bot (nombre, DNI, agencia).
-            if (esActivo)
+            // Registrar su premio manualmente — respaldo: en dinámicas
+            // el premio se crea SOLO al validar el pago, así que este
+            // trofeo solo aparece si aún no tiene premio en el sorteo.
+            if (esActivo &&
+                !widget.sorteo.premios.any((pr) =>
+                    pr.ganadorDni == p.dni &&
+                    pr.estado != EstadoPremioSorteo.anulado))
               IconButton(
                 tooltip: 'Ganó — registrar su premio',
                 visualDensity: VisualDensity.compact,

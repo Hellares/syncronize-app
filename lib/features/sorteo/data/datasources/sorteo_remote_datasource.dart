@@ -61,8 +61,18 @@ class SorteoRemoteDataSource {
     return SorteoPremioModel.fromJson(response.data as Map<String, dynamic>);
   }
 
+  /// GET /sorteos/participantes/pendientes — cola global de jugadores
+  /// con pago por validar (sorteos/dinámicas abiertos), con su sorteo.
+  Future<List<Map<String, dynamic>>> getParticipantesPendientes() async {
+    final response =
+        await _dioClient.get('$_basePath/participantes/pendientes');
+    final data = response.data;
+    return data is List ? data.cast<Map<String, dynamic>>() : const [];
+  }
+
   /// PATCH /sorteos/participantes/:id/estado — validar/rechazar
-  /// participante del bot (ACTIVO asigna ticket y confirma por WhatsApp)
+  /// participante del bot (ACTIVO asigna ticket y confirma por WhatsApp;
+  /// en dinámicas además crea el premio automático)
   Future<void> cambiarEstadoParticipante(
       String participanteId, String estado) async {
     await _dioClient.patch(
