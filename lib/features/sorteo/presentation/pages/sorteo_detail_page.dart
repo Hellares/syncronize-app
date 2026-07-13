@@ -582,9 +582,25 @@ class _ParticipantesSection extends StatefulWidget {
 class _ParticipantesSectionState extends State<_ParticipantesSection> {
   bool _expandido = true;
 
+  /// Ya tiene su card de premio abajo (auto-premio de la dinámica).
+  bool _tienePremio(SorteoParticipante p) => widget.sorteo.premios.any(
+      (pr) => pr.ganadorDni == p.dni && pr.estado != EstadoPremioSorteo.anulado);
+
   @override
   Widget build(BuildContext context) {
     final esDinamica = widget.sorteo.tipo == TipoSorteo.dinamica;
+    // En dinámicas el jugador validado YA tiene su card de premio abajo:
+    // listarlo aquí también duplicaría cada persona (spam). Solo quedan
+    // los pendientes de validar (y activos sin premio, respaldo del 🏆).
+    final visibles = esDinamica
+        ? widget.participantes
+            .where((p) =>
+                p.estado != EstadoParticipanteSorteo.rechazado &&
+                !_tienePremio(p))
+            .toList()
+        : widget.participantes;
+    if (visibles.isEmpty) return const SizedBox.shrink();
+
     final activos = widget.participantes
         .where((p) => p.estado == EstadoParticipanteSorteo.activo)
         .length;
@@ -606,7 +622,7 @@ class _ParticipantesSectionState extends State<_ParticipantesSection> {
                       size: 16, color: AppColors.blue1),
                   const SizedBox(width: 6),
                   Text(
-                    esDinamica ? 'Jugadores de la dinámica' : 'Participantes',
+                    esDinamica ? 'Jugadores por validar' : 'Participantes',
                     style: const TextStyle(
                         fontSize: 11.5,
                         fontWeight: FontWeight.w700,
@@ -614,8 +630,11 @@ class _ParticipantesSectionState extends State<_ParticipantesSection> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    '$activos activo${activos == 1 ? '' : 's'}'
-                    '${pendientes > 0 ? ' · $pendientes por validar' : ''}',
+                    esDinamica
+                        // Los validados ya están abajo como premios.
+                        ? '$pendientes pendiente${pendientes == 1 ? '' : 's'}'
+                        : '$activos activo${activos == 1 ? '' : 's'}'
+                            '${pendientes > 0 ? ' · $pendientes por validar' : ''}',
                     style: TextStyle(
                         fontSize: 10,
                         fontWeight:
@@ -635,7 +654,7 @@ class _ParticipantesSectionState extends State<_ParticipantesSection> {
             ),
             if (_expandido) ...[
               const SizedBox(height: 4),
-              for (final p in widget.participantes) _fila(context, p),
+              for (final p in visibles) _fila(context, p),
             ],
           ],
         ),
