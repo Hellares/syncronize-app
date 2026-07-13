@@ -33,6 +33,7 @@ class _IntegracionWhatsappPageState extends State<IntegracionWhatsappPage> {
   final _localStorage = locator<LocalStorageService>();
 
   final _plantillaCtrl = TextEditingController();
+  final _agenciaCtrl = TextEditingController();
 
   bool _loading = true;
   bool _guardando = false;
@@ -62,6 +63,7 @@ class _IntegracionWhatsappPageState extends State<IntegracionWhatsappPage> {
   void dispose() {
     _pollTimer?.cancel();
     _plantillaCtrl.dispose();
+    _agenciaCtrl.dispose();
     super.dispose();
   }
 
@@ -82,6 +84,7 @@ class _IntegracionWhatsappPageState extends State<IntegracionWhatsappPage> {
         _plantillaDefault = (cfg['plantillaDefault'] as String?) ?? '';
         _plantillaCtrl.text =
             (cfg['plantillaPremio'] as String?) ?? _plantillaDefault;
+        _agenciaCtrl.text = (cfg['agenciaEnvio'] as String?) ?? 'SHALOM';
         _loading = false;
       });
     } catch (e) {
@@ -198,6 +201,7 @@ class _IntegracionWhatsappPageState extends State<IntegracionWhatsappPage> {
         empresaId: id,
         data: {
           'plantillaPremio': esDefault || restaurarDefault ? '' : texto,
+          'agenciaEnvio': _agenciaCtrl.text.trim(),
           'habilitado': _habilitado,
         },
       );
@@ -206,6 +210,7 @@ class _IntegracionWhatsappPageState extends State<IntegracionWhatsappPage> {
         _guardando = false;
         _plantillaCtrl.text =
             (cfg['plantillaPremio'] as String?) ?? _plantillaDefault;
+        _agenciaCtrl.text = (cfg['agenciaEnvio'] as String?) ?? 'SHALOM';
       });
       _snack('Configuración guardada', ok: true);
     } catch (e) {
@@ -412,6 +417,14 @@ class _IntegracionWhatsappPageState extends State<IntegracionWhatsappPage> {
               'variables queden vacías no se envían.',
               fontSize: 10,
               color: AppColors.blueGrey,
+            ),
+            const SizedBox(height: 10),
+            CustomText(
+              controller: _agenciaCtrl,
+              label: 'Agencia de envíos (el bot la informa, no la pregunta)',
+              hintText: 'ej. SHALOM',
+              borderColor: AppColors.blue1,
+              textCase: TextCase.upper,
             ),
             const SizedBox(height: 10),
             CustomText(
