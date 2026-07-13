@@ -1326,20 +1326,23 @@ class _PremioCard extends StatelessWidget {
                       onPressed: onImprimirRotulo,
                     ),
                   const Spacer(),
-                  // Foto del premio o del ticket de envío
-                  SizedBox(
-                    width: 80,
-                    child: CustomButton(
-                      borderRadius: 4,
-                      height: 28,
-                      text: 'Foto',
-                      textColor: AppColors.blue1,
-                      icon: Icon(Icons.photo_camera_outlined, size: 15),
-                      onPressed: () => _subirFoto(context),
+                  // Foto del premio o del ticket de envío — recién desde
+                  // PREPARANDO (en REGISTRADO no hay paquete ni ticket).
+                  if (premio.estado == EstadoPremioSorteo.preparando ||
+                      premio.estado == EstadoPremioSorteo.enviado) ...[
+                    SizedBox(
+                      width: 80,
+                      child: CustomButton(
+                        borderRadius: 4,
+                        height: 28,
+                        text: 'Foto',
+                        textColor: AppColors.blue1,
+                        icon: Icon(Icons.photo_camera_outlined, size: 15),
+                        onPressed: () => _subirFoto(context),
+                      ),
                     ),
-                  ),
-                 
-                  const SizedBox(width: 8),
+                    const SizedBox(width: 8),
+                  ],
                   if (_siguienteEstado != null)
                     CustomButton(
                       text: 'Marcar ${_siguienteEstado!.label.toLowerCase()}',
