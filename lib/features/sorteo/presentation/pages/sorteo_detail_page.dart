@@ -617,6 +617,13 @@ class _ParticipantesSection extends StatefulWidget {
 class _ParticipantesSectionState extends State<_ParticipantesSection> {
   bool _expandido = true;
 
+  /// "12/07 22:53" en hora local del device.
+  String _fechaHoraRegistro(DateTime d) {
+    final l = d.toLocal();
+    String p2(int v) => v.toString().padLeft(2, '0');
+    return '${p2(l.day)}/${p2(l.month)} ${p2(l.hour)}:${p2(l.minute)}';
+  }
+
   /// Ya tiene su card de premio abajo (auto-premio de la dinámica).
   /// Matchea por PARTICIPACIÓN (un DNI puede jugar varias veces) — el
   /// fallback por DNI cubre premios antiguos sin participanteId.
@@ -744,6 +751,20 @@ class _ParticipantesSectionState extends State<_ParticipantesSection> {
                   'DNI ${p.dni} · ${p.celular}',
                   style:
                       TextStyle(fontSize: 9.5, color: Colors.grey.shade600),
+                ),
+                // Fecha/hora del registro: distingue la 1ª de la 2ª
+                // participación del mismo DNI.
+                Row(
+                  children: [
+                    Icon(Icons.schedule,
+                        size: 9, color: Colors.grey.shade500),
+                    const SizedBox(width: 3),
+                    Text(
+                      _fechaHoraRegistro(p.creadoEn),
+                      style: TextStyle(
+                          fontSize: 9, color: Colors.grey.shade500),
+                    ),
+                  ],
                 ),
                 // Datos de envío que dejó en el bot (si gana, la entrega
                 // ya está lista).

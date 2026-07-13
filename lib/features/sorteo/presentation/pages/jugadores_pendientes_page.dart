@@ -114,6 +114,14 @@ class _JugadoresPendientesPageState extends State<JugadoresPendientesPage> {
     }
   }
 
+  /// "12/07 22:53" en hora local del device.
+  String _fechaHoraRegistro(String? iso) {
+    final d = iso != null ? DateTime.tryParse(iso)?.toLocal() : null;
+    if (d == null) return '';
+    String p2(int v) => v.toString().padLeft(2, '0');
+    return '${p2(d.day)}/${p2(d.month)} ${p2(d.hour)}:${p2(d.minute)}';
+  }
+
   void _snack(String msg, {required bool ok}) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(msg, style: const TextStyle(fontSize: 12)),
@@ -258,6 +266,19 @@ class _JugadoresPendientesPageState extends State<JugadoresPendientesPage> {
                     'DNI ${p['dni']} · ${p['celular']}',
                     style:
                         TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                  ),
+                  // Fecha/hora del registro — distingue jugadas repetidas.
+                  Row(
+                    children: [
+                      Icon(Icons.schedule,
+                          size: 9, color: Colors.grey.shade500),
+                      const SizedBox(width: 3),
+                      Text(
+                        _fechaHoraRegistro(p['creadoEn'] as String?),
+                        style: TextStyle(
+                            fontSize: 9, color: Colors.grey.shade500),
+                      ),
+                    ],
                   ),
                   if (envio != null)
                     Row(
