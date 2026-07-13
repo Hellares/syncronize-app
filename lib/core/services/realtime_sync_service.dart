@@ -120,6 +120,16 @@ class RealtimeHeartbeat extends RealtimeEvent {
   const RealtimeHeartbeat(this.empresaId);
 }
 
+/// Cambió algo de un sorteo/dinámica (participante del bot, validación
+/// con auto-premio, premio o su ticket). Las pantallas del sorteo
+/// abiertas deben recargar: el cajero valida en un celular y la lista
+/// se refresca sola en el otro.
+class RealtimeSorteoCambiado extends RealtimeEvent {
+  final String empresaId;
+  final String? sorteoId;
+  const RealtimeSorteoCambiado({required this.empresaId, this.sorteoId});
+}
+
 /// Una venta fue PAGADA (confirmación de pago Yape/Plin validada por api-yape).
 /// La pantalla que está esperando el pago de esa venta debe cerrarse como pagada.
 class RealtimeVentaPagada extends RealtimeEvent {
@@ -409,6 +419,13 @@ class RealtimeSyncService {
         _eventsController.add(RealtimeClienteEmpresaCambiado(
           empresaId: empresaId,
           clienteEmpresaId: _stringOrNull(data['clienteEmpresaId']),
+        ));
+        break;
+
+      case 'SORTEO_CAMBIADO':
+        _eventsController.add(RealtimeSorteoCambiado(
+          empresaId: empresaId,
+          sorteoId: _stringOrNull(data['sorteoId']),
         ));
         break;
 

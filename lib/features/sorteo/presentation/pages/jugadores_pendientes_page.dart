@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/services/realtime_sync_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/gradient_container.dart';
 import '../../../../core/widgets/confirm_dialog.dart';
@@ -28,11 +31,22 @@ class _JugadoresPendientesPageState extends State<JugadoresPendientesPage> {
 
   /// Ids con acción en curso (deshabilita sus botones).
   final _procesando = <String>{};
+  StreamSubscription? _realtimeSub;
 
   @override
   void initState() {
     super.initState();
     _cargar();
+    // Otro device validó / el bot registró a alguien → recargar la cola.
+    _realtimeSub = locator<RealtimeSyncService>().events.listen((e) {
+      if (mounted && e is RealtimeSorteoCambiado && !_loading) _cargar();
+    });
+  }
+
+  @override
+  void dispose() {
+    _realtimeSub?.cancel();
+    super.dispose();
   }
 
   Future<void> _cargar() async {

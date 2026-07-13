@@ -42,6 +42,13 @@ class SorteoDetailCubit extends Cubit<SorteoDetailState> {
     if (result is Success<Sorteo>) emit(SorteoDetailLoaded(result.data));
   }
 
+  /// Refresco instantáneo desde realtime (FCM SORTEO_CAMBIADO): otro
+  /// device validó un participante / subió un ticket / registró premio.
+  void onSorteoCambiado(String? sorteoId) {
+    if (_sorteoId == null) return;
+    if (sorteoId == null || sorteoId == _sorteoId) reload();
+  }
+
   Future<String?> registrarPremio({
     required String ganadorDni,
     required String ganadorNombre,

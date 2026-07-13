@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -10,6 +11,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:printing/printing.dart';
 
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/services/realtime_sync_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/gradient_container.dart';
 import '../../../../core/widgets/cliente_unificado_selector.dart';
@@ -37,9 +39,42 @@ class SorteoDetailPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (_) => locator<SorteoDetailCubit>()..load(sorteoId),
-      child: const _SorteoDetailView(),
+      child: const _RealtimeReload(child: _SorteoDetailView()),
     );
   }
+}
+
+/// Recarga el detalle al instante cuando OTRO device cambia el sorteo
+/// (FCM SORTEO_CAMBIADO): el cajero valida un participante en su celular
+/// y la card aparece sola aquí — mismo patrón realtime que productos.
+class _RealtimeReload extends StatefulWidget {
+  final Widget child;
+  const _RealtimeReload({required this.child});
+
+  @override
+  State<_RealtimeReload> createState() => _RealtimeReloadState();
+}
+
+class _RealtimeReloadState extends State<_RealtimeReload> {
+  StreamSubscription? _sub;
+
+  @override
+  void initState() {
+    super.initState();
+    _sub = locator<RealtimeSyncService>().events.listen((e) {
+      if (!mounted || e is! RealtimeSorteoCambiado) return;
+      context.read<SorteoDetailCubit>().onSorteoCambiado(e.sorteoId);
+    });
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 class _SorteoDetailView extends StatelessWidget {
