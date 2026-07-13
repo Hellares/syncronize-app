@@ -1358,7 +1358,10 @@ class _PremioCard extends StatelessWidget {
     // ganador ve orden/código y sobre todo la CLAVE de recojo).
     if (nuevo == EstadoPremioSorteo.enviado &&
         premio.modalidad == ModalidadEntregaPremio.envioAgencia) {
-      final datos = await _dialogDatosEnvio(context);
+      // La clave es obligatoria al despachar: viaja en el WhatsApp del
+      // ticket y la agencia la exige para entregar.
+      final datos =
+          await _dialogDatosEnvio(context, claveObligatoria: true);
       if (datos == null || !context.mounted) return;
       (orden, codigo, clave) = datos;
     }
@@ -1437,68 +1440,90 @@ class _PremioCard extends StatelessWidget {
   }
 
   Future<(String, String, String)?> _dialogDatosEnvio(
-      BuildContext context) async {
+    BuildContext context, {
+    bool claveObligatoria = false,
+    String? subtitulo,
+  }) async {
     final ordenCtrl =
         TextEditingController(text: premio.envioNumeroOrden ?? '');
     final codigoCtrl = TextEditingController(text: premio.envioCodigo ?? '');
     final claveCtrl = TextEditingController(text: premio.envioClave ?? '');
+    String? errorClave;
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => StyledDialog(
-        accentColor: AppColors.blue1,
-        icon: Icons.local_shipping_outlined,
-        titulo: 'Datos del envío',
-        content: [
-          Text(
-            'Los datos que entrega la agencia — el ganador los verá en '
-            'Mis Premios (todos opcionales).',
-            style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
-          ),
-          const SizedBox(height: 10),
-          CustomText(
-            controller: ordenCtrl,
-            label: 'N° de orden',
-            hintText: 'ej. 0012345',
-            borderColor: AppColors.blue1,
-            textCase: TextCase.upper,
-          ),
-          const SizedBox(height: 8),
-          CustomText(
-            controller: codigoCtrl,
-            label: 'Código',
-            hintText: 'ej. SHA-88421',
-            borderColor: AppColors.blue1,
-            textCase: TextCase.upper,
-          ),
-          const SizedBox(height: 8),
-          CustomText(
-            controller: claveCtrl,
-            label: 'Clave de recojo',
-            hintText: 'la que pide la agencia para entregar',
-            borderColor: AppColors.blue1,
-            textCase: TextCase.upper,
-          ),
-        ],
-        actions: [
-          Expanded(
-            child: CustomButton(
-              text: 'Cancelar',
-              isOutlined: true,
-              borderColor: Colors.grey.shade400,
-              textColor: Colors.grey.shade700,
-              enableShadows: false,
-              onPressed: () => Navigator.of(ctx).pop(false),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => StyledDialog(
+          accentColor: AppColors.blue1,
+          icon: Icons.local_shipping_outlined,
+          titulo: 'Datos del envío',
+          content: [
+            Text(
+              subtitulo ??
+                  'Los datos que entrega la agencia — el ganador los verá '
+                      'en Mis Premios${claveObligatoria ? '. La CLAVE es obligatoria: la agencia la pide para entregar' : ' (todos opcionales)'}.',
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
             ),
-          ),
-          Expanded(
-            child: CustomButton(
-              text: 'Guardar',
-              backgroundColor: AppColors.blue1,
-              textColor: Colors.white,
-              onPressed: () => Navigator.of(ctx).pop(true),
+            const SizedBox(height: 10),
+            CustomText(
+              controller: ordenCtrl,
+              label: 'N° de orden',
+              hintText: 'ej. 0012345',
+              borderColor: AppColors.blue1,
+              textCase: TextCase.upper,
             ),
-          ),
-        ],
+            const SizedBox(height: 8),
+            CustomText(
+              controller: codigoCtrl,
+              label: 'Código',
+              hintText: 'ej. SHA-88421',
+              borderColor: AppColors.blue1,
+              textCase: TextCase.upper,
+            ),
+            const SizedBox(height: 8),
+            CustomText(
+              controller: claveCtrl,
+              label:
+                  'Clave de recojo${claveObligatoria ? ' (obligatoria)' : ''}',
+              hintText: 'la que pide la agencia para entregar',
+              borderColor:
+                  errorClave != null ? AppColors.red : AppColors.blue1,
+              textCase: TextCase.upper,
+            ),
+            if (errorClave != null) ...[
+              const SizedBox(height: 4),
+              Text(errorClave!,
+                  style:
+                      const TextStyle(fontSize: 10.5, color: AppColors.red)),
+            ],
+          ],
+          actions: [
+            Expanded(
+              child: CustomButton(
+                text: 'Cancelar',
+                isOutlined: true,
+                borderColor: Colors.grey.shade400,
+                textColor: Colors.grey.shade700,
+                enableShadows: false,
+                onPressed: () => Navigator.of(ctx).pop(false),
+              ),
+            ),
+            Expanded(
+              child: CustomButton(
+                text: 'Guardar',
+                backgroundColor: AppColors.blue1,
+                textColor: Colors.white,
+                onPressed: () {
+                  if (claveObligatoria && claveCtrl.text.trim().isEmpty) {
+                    setLocal(() => errorClave =
+                        'Ingresa la clave de recojo — viaja en el WhatsApp al ganador');
+                    return;
+                  }
+                  Navigator.of(ctx).pop(true);
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
     if (ok != true) return null;
@@ -1616,6 +1641,36 @@ class _PremioCard extends StatelessWidget {
       ),
     );
     if (esPremio == null || !context.mounted) return;
+
+    // Ticket de envío por agencia: exige premio ENVIADO con CLAVE antes
+    // de subir la imagen — el WhatsApp automático del ticket lleva la
+    // clave de recojo, y sin este gate podía salir sin ella.
+    if (!esPremio &&
+        premio.modalidad == ModalidadEntregaPremio.envioAgencia &&
+        (premio.estado != EstadoPremioSorteo.enviado ||
+            (premio.envioClave ?? '').trim().isEmpty)) {
+      final datos = await _dialogDatosEnvio(
+        context,
+        claveObligatoria: true,
+        subtitulo: 'Antes de subir el ticket registra los datos del envío: '
+            'la CLAVE de recojo viaja en el WhatsApp al ganador y la '
+            'agencia la pide para entregar. Se marcará como ENVIADO.',
+      );
+      if (datos == null || !context.mounted) return;
+      final (orden, codigo, clave) = datos;
+      final errorEnvio = await cubit.cambiarEstadoPremio(
+        premioId: premio.id,
+        estado: EstadoPremioSorteo.enviado,
+        envioNumeroOrden: orden,
+        envioCodigo: codigo,
+        envioClave: clave,
+      );
+      if (!context.mounted) return;
+      if (errorEnvio != null) {
+        _snack(context, errorEnvio, error: true);
+        return;
+      }
+    }
 
     final source = await _elegirFuenteImagen(context);
     if (source == null || !context.mounted) return;
