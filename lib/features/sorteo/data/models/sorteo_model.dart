@@ -87,6 +87,7 @@ class SorteoPremioModel {
     return SorteoPremio(
       id: json['id'] as String,
       sorteoId: json['sorteoId'] as String? ?? '',
+      participanteId: json['participanteId'] as String?,
       ganadorId: json['ganadorId'] as String? ?? '',
       ganadorDni: json['ganadorDni'] as String?,
       ganadorNombre: json['ganadorNombre'] as String? ?? '',

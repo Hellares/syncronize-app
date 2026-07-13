@@ -618,8 +618,13 @@ class _ParticipantesSectionState extends State<_ParticipantesSection> {
   bool _expandido = true;
 
   /// Ya tiene su card de premio abajo (auto-premio de la dinámica).
+  /// Matchea por PARTICIPACIÓN (un DNI puede jugar varias veces) — el
+  /// fallback por DNI cubre premios antiguos sin participanteId.
   bool _tienePremio(SorteoParticipante p) => widget.sorteo.premios.any(
-      (pr) => pr.ganadorDni == p.dni && pr.estado != EstadoPremioSorteo.anulado);
+      (pr) =>
+          pr.estado != EstadoPremioSorteo.anulado &&
+          (pr.participanteId == p.id ||
+              (pr.participanteId == null && pr.ganadorDni == p.dni)));
 
   @override
   Widget build(BuildContext context) {
@@ -784,11 +789,8 @@ class _ParticipantesSectionState extends State<_ParticipantesSection> {
           ] else ...[
             // Registrar su premio manualmente — respaldo: en dinámicas
             // el premio se crea SOLO al validar el pago, así que este
-            // trofeo solo aparece si aún no tiene premio en el sorteo.
-            if (esActivo &&
-                !widget.sorteo.premios.any((pr) =>
-                    pr.ganadorDni == p.dni &&
-                    pr.estado != EstadoPremioSorteo.anulado))
+            // trofeo solo aparece si ESTA participación no tiene premio.
+            if (esActivo && !_tienePremio(p))
               IconButton(
                 tooltip: 'Ganó — registrar su premio',
                 visualDensity: VisualDensity.compact,
@@ -853,6 +855,7 @@ class _ParticipantesSectionState extends State<_ParticipantesSection> {
     if (datos == null || !context.mounted) return;
 
     final error = await cubit.registrarPremio(
+      participanteId: p.id,
       ganadorDni: p.dni,
       ganadorNombre: p.nombre,
       ganadorCelular:

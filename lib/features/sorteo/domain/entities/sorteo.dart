@@ -229,6 +229,10 @@ class TicketEnvio {
 class SorteoPremio {
   final String id;
   final String sorteoId;
+
+  /// Participación (SorteoParticipante) que originó este premio — un
+  /// DNI puede jugar varias veces y cada jugada tiene su premio.
+  final String? participanteId;
   final String ganadorId;
   final String? ganadorDni;
   final String ganadorNombre;
@@ -275,6 +279,7 @@ class SorteoPremio {
   const SorteoPremio({
     required this.id,
     required this.sorteoId,
+    this.participanteId,
     required this.ganadorId,
     this.ganadorDni,
     required this.ganadorNombre,

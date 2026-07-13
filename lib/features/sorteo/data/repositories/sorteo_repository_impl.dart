@@ -92,6 +92,7 @@ class SorteoRepositoryImpl implements SorteoRepository {
   @override
   Future<Resource<SorteoPremio>> registrarPremio({
     required String sorteoId,
+    String? participanteId,
     required String ganadorDni,
     required String ganadorNombre,
     String? ganadorCelular,
@@ -110,6 +111,7 @@ class SorteoRepositoryImpl implements SorteoRepository {
   }) =>
       _guard(() async {
         final model = await _remoteDataSource.registrarPremio(sorteoId, {
+          if (participanteId != null) 'participanteId': participanteId,
           'ganadorDni': ganadorDni,
           'ganadorNombre': ganadorNombre,
           if (ganadorCelular != null && ganadorCelular.isNotEmpty)

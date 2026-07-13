@@ -28,6 +28,7 @@ abstract class SorteoRepository {
 
   Future<Resource<SorteoPremio>> registrarPremio({
     required String sorteoId,
+    String? participanteId,
     required String ganadorDni,
     required String ganadorNombre,
     String? ganadorCelular,

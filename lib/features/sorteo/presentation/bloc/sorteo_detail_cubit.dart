@@ -50,6 +50,7 @@ class SorteoDetailCubit extends Cubit<SorteoDetailState> {
   }
 
   Future<String?> registrarPremio({
+    String? participanteId,
     required String ganadorDni,
     required String ganadorNombre,
     String? ganadorCelular,
@@ -70,6 +71,7 @@ class SorteoDetailCubit extends Cubit<SorteoDetailState> {
     if (id == null) return 'Sorteo no cargado';
     final result = await _repository.registrarPremio(
       sorteoId: id,
+      participanteId: participanteId,
       ganadorDni: ganadorDni,
       ganadorNombre: ganadorNombre,
       ganadorCelular: ganadorCelular,
